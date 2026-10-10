@@ -14969,7 +14969,7 @@ export type TechnologyFindingDecision = {
   /**
    * Review
    */
-  review: "confirmed" | "rejected";
+  review: "confirmed" | "rejected" | "dependency";
   /**
    * Scan Id
    */
@@ -15699,7 +15699,7 @@ export type TechnologyScanFinding = {
   /**
    * Review
    */
-  review: "proposed" | "confirmed" | "rejected";
+  review: "proposed" | "confirmed" | "rejected" | "dependency";
   /**
    * Review Revision
    */

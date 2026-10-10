@@ -3,6 +3,11 @@ import { useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { displayCategoryIds, useTechnologyTaxonomy } from "@/lib/technology-taxonomy";
 import {
+  applyFindings,
+  canApplyFinding,
+  defaultDraft,
+} from "@/lib/technology-review-actions";
+import {
   useGovernanceMutation,
   type GovernanceAuthority,
 } from "@/components/organisms/corporate-governance-controls";
@@ -19,7 +24,7 @@ export type Draft = {
   technology: string;
   category: string;
   comment: string;
-  review: "open" | "confirmed" | "rejected";
+  review: "open" | "confirmed" | "rejected" | "dependency";
 };
 export function rowKey(row: Row) {
   return JSON.stringify([row.scan.scan_id, row.kind, row.coordinate, row.context]);
@@ -57,19 +62,6 @@ export function useTechnologyReview({
   const id = useId();
   const mutation = useGovernanceMutation(authority);
   const filters = useReviewFilters(initialScan, initialDate);
-  const {
-    search,
-    project,
-    scanFilter,
-    status,
-    kind,
-    date,
-    pendingOnly,
-    page,
-    size,
-    depPage,
-    depSize,
-  } = filters;
   const ui = useReviewUi();
   const { activeKey, drafts, selected, setDrafts, setSelected } = ui;
   const names = new Map(technologies.map((item) => [item.technology_id, item]));
@@ -78,11 +70,28 @@ export function useTechnologyReview({
   );
   const areaNames = new Map(areas?.map((item) => [item.area_id, localize(item).name]) ?? []);
   const allRows = groupFindingRows(scans);
+  const { search, project, scanFilter, status, kind, date, pendingOnly } = filters;
   function draft(row: Row) {
     return drafts[rowKey(row)] ?? defaultDraft(row, names);
   }
   function patch(row: Row, value: Partial<Draft>) {
-    setDrafts((current) => ({ ...current, [rowKey(row)]: { ...draft(row), ...value } }));
+    const merged = { ...draft(row), ...value };
+    if (mode === "scan") {
+      save(row, value);
+      return;
+    }
+    setDrafts((current) => ({ ...current, [rowKey(row)]: merged }));
+  }
+  function save(row: Row, value: Partial<Draft>) {
+    const merged = { ...draft(row), ...value };
+    if (merged.review === "open") return;
+    applyFindings(
+      mutation,
+      authority,
+      [row],
+      () => merged,
+      () => {},
+    );
   }
   function pending(row: Row) {
     return !["resolved", "rejected"].includes(findingStatus(row, names));
@@ -112,10 +121,10 @@ export function useTechnologyReview({
       names,
       pending,
     },
-    page,
-    size,
-    depPage,
-    depSize,
+    filters.page,
+    filters.size,
+    filters.depPage,
+    filters.depSize,
   );
   const active = rows.find((row) => rowKey(row) === activeKey) ?? visible[0] ?? null;
   const chosen = active ? draft(active) : null;
@@ -124,8 +133,12 @@ export function useTechnologyReview({
     ? rows.filter((row) => selected.includes(rowKey(row)))
     : rows.filter((row) => drafts[rowKey(row)]);
   const applicable = bulkRows.filter((row) => canApplyFinding(draft(row), names));
-  function apply(items: Row[], reject = false) {
-    applyFindings(mutation, authority, items, draft, reject, () => {
+  function apply(items: Row[], decision?: Draft["review"]) {
+    const decide = (row: Row) => ({
+      ...draft(row),
+      review: decision ?? (draft(row).review === "open" ? "confirmed" : draft(row).review),
+    });
+    applyFindings(mutation, authority, items, decide, () => {
       setDrafts({});
       setSelected([]);
     });
@@ -169,6 +182,7 @@ export function useTechnologyReview({
     sourceIcon,
     draft,
     patch,
+    save,
     apply,
     pending,
     ...filters,
@@ -220,17 +234,20 @@ function useReviewUi() {
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [selected, setSelected] = useState<string[]>([]);
   const [create, setCreate] = useState<"technology" | "category" | "area" | null>(null);
+  const [edit, setEdit] = useState<TechnologyView | null>(null);
   const [evidence, setEvidence] = useState<Row | null>(null);
   return {
     activeKey,
     drafts,
     selected,
     create,
+    edit,
     evidence,
     setActiveKey,
     setDrafts,
     setSelected,
     setCreate,
+    setEdit,
     setEvidence,
   };
 }
@@ -303,42 +320,6 @@ function rowHaystack(row: Row, names: Map<string, TechnologyView>) {
   return `${row.technology_name ?? ""} ${row.coordinate} ${names.get(row.technology_id ?? row.candidate_technology_id ?? "")?.name ?? ""} ${row.scan.project_name ?? ""} ${row.evidence.map((e) => e.path ?? e.reference).join(" ")}`.toLocaleLowerCase();
 }
 
-function applyFindings(
-  mutation: ReturnType<typeof useGovernanceMutation>,
-  authority: GovernanceAuthority,
-  items: Row[],
-  decide: (row: Row) => Draft,
-  reject: boolean,
-  onSaved: () => void,
-) {
-  const decisions = items.flatMap((row) =>
-    (row.members ?? [row]).map((member) => findingDecision(member, decide(row), reject)),
-  );
-  mutation.save(
-    `/v1/corporate/organizations/${authority.organizationId}/technology-findings/review`,
-    { expected_revision: 0, items: decisions },
-    "PUT",
-    onSaved,
-  );
-}
-
-function defaultDraft(row: Row, names: Map<string, TechnologyView>): Draft {
-  const technology = row.technology_id ?? row.candidate_technology_id ?? "";
-  const record = names.get(technology);
-  return {
-    technology,
-    category: row.category_id ?? (record ? (displayCategoryIds(record)[0] ?? "") : ""),
-    comment: row.comment,
-    review:
-      row.state === "rejected" ? "rejected" : row.review === "confirmed" ? "confirmed" : "open",
-  };
-}
-function canApplyFinding(draft: Draft, names: Map<string, TechnologyView>) {
-  return (
-    draft.review === "rejected" ||
-    ((draft.technology || draft.category) && names.get(draft.technology)?.lifecycle !== "archived")
-  );
-}
 function latestScanIds(scans: TechnologyScanDetail[]) {
   const latest = new Set<string>();
   const scopes = new Set<string>();
@@ -370,21 +351,8 @@ function findingClassification(
   );
 }
 
-function findingDecision(row: Row, value: Draft, reject: boolean) {
-  return {
-    scan_id: row.scan.scan_id,
-    kind: row.kind,
-    coordinate: row.coordinate,
-    context: row.context,
-    technology_id: value.technology || null,
-    category_id: value.category || null,
-    review: reject || value.review === "rejected" ? "rejected" : "confirmed",
-    expected_revision: row.review_revision,
-    comment: value.comment,
-  };
-}
-
 export function findingReason(row: Row, names: Map<string, TechnologyView>) {
+  if (row.review === "dependency") return "dependency";
   if (row.state === "rejected" || row.review === "rejected") return "excluded";
   if (row.review === "confirmed") return "confirmed";
   if (row.state === "open") return "unrecognized";

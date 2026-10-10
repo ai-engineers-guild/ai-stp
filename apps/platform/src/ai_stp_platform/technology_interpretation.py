@@ -187,13 +187,13 @@ async def interpreted_findings(
                 if technology_id or candidates.get((item.kind, item.coordinate))
                 else "dependency",
                 state="rejected"
-                if review and review.review == "rejected"
+                if review and review.review in {"rejected", "dependency"}
                 else "resolved"
                 if technology_id
                 else "candidate"
                 if candidates.get((item.kind, item.coordinate))
                 else "open",
-                review=cast(Literal["confirmed", "rejected"], review.review)
+                review=cast(Literal["confirmed", "rejected", "dependency"], review.review)
                 if review
                 else "confirmed"
                 if usage_reviews.get((technology_id or "", item.context or "production"))

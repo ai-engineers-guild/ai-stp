@@ -155,7 +155,7 @@ export function TechnologyFindingPanel({ state }: { state: TechnologyReviewState
                   className="text-destructive"
                   disabled={mutation.busy}
                   onClick={() => {
-                    apply([active], true);
+                    apply([active], "rejected");
                   }}
                 >
                   <Icon name="trash" size="sm" />

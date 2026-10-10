@@ -424,7 +424,9 @@ class TechnologyFindingReview(_TenantRow, Base):
             ["technology_category.organization_id", "technology_category.id"],
             ondelete="RESTRICT",
         ),
-        CheckConstraint("review IN ('confirmed','rejected')", name="ck_finding_review"),
+        CheckConstraint(
+            "review IN ('confirmed','rejected','dependency')", name="ck_finding_review"
+        ),
         CheckConstraint("revision >= 1", name="ck_finding_review_revision"),
     )
     scan_id: Mapped[str] = mapped_column(String(64), primary_key=True)

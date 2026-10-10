@@ -599,7 +599,6 @@
       "backScans": "Назад к сканам",
       "backLandscape": "Назад в ландшафт",
       "publish": "Опубликовать изменения",
-      "applyChanges": "Применить изменения",
       "scanTitle": "Скан {id}",
       "scanDescription": "Результаты сканирования проекта и распознанные технологии. Здесь можно проверить находки, уточнить классификацию и исправить распознавание.",
       "mappingDescription": "Сопоставление результатов сканирования с технологиями, категориями и областями организации. Здесь разбираются неопознанные и спорные находки.",
@@ -616,9 +615,7 @@
       "scanFailed": "Сканирование завершилось с ошибкой. Проверьте подключение и доступ к репозиторию, затем запустите повторно.",
       "searchMapping": "Поиск по найденному имени, технологии или проекту…",
       "scan": "Скан",
-      "allCurrentScans": "Все сканы",
       "reason": "Причина",
-      "allReasons": "Все причины",
       "allStatuses": "Все статусы",
       "findingSummary": "{total} находок · {pending} требуют решения · {resolved} уже сопоставлены",
       "searchFindings": "Поиск по находкам, файлам, технологиям…",
@@ -651,7 +648,6 @@
       "createDescription": "Создайте запись справочника и продолжите сопоставление находки.",
       "confidence": "Уверенность: {count}%",
       "searchScans": "Поиск по проекту, репозиторию или ID скана…",
-      "allSources": "Все источники",
       "dateFrom": "Начиная с даты",
       "id": "ID",
       "projectRepository": "Проект / Репозиторий",
@@ -672,25 +668,22 @@
         "resolved": "Подтверждено",
         "rejected": "Исключено",
         "confirmation": "Требует подтверждения",
-        "category": "Требует категории"
+        "category": "Требует категории",
+        "dependency": "Зависимость"
       },
       "resetFinding": "Сбросить",
-      "rerunScan": "Перезапустить скан",
       "downloadFindings": "Скачать находки",
-      "downloadJson": "Скачать JSON",
       "downloadCsv": "Скачать CSV",
-      "downloadMarkdown": "Скачать Markdown",
       "reasonState": {
         "unrecognized": "Не распознано",
         "candidate": "Требует проверки",
         "excluded": "Исключено",
         "confirmed": "Подтверждено",
         "category": "Требует категории",
-        "confirmation": "Требует подтверждения"
+        "confirmation": "Требует подтверждения",
+        "dependency": "Зависимость"
       },
       "category": "Категория",
-      "dateDescription": "Показать сканы с выбранной даты.",
-      "allTime": "Всё время",
       "createTechnology": "Создать технологию",
       "scanTypes": {
         "dependencies": "Зависимости",
@@ -698,7 +691,24 @@
         "languages": "Языки"
       },
       "emptyArea": "Нет найденных технологий",
-      "evidenceCount": "Файлов: {count}"
+      "evidenceCount": "Файлов: {count}",
+      "moveToDependencies": "Переместить в депенденси",
+      "makeTechnology": "Сделать технологией",
+      "editTechnology": "Изменить технологию",
+      "editTechnologyDescription": "Переименуйте или переклассифицируйте неверно распознанную технологию.",
+      "exportDescription": "Выберите, что выгрузить, затем формат файла.",
+      "exportScope": "Что выгрузить",
+      "exportFormat": "Формат",
+      "exportScopes": {
+        "technologies": "Технологии",
+        "findings": "Файндинги (зависимости)",
+        "both": "Всё"
+      },
+      "exportFormats": {
+        "md": "Markdown (.md)",
+        "csv": "CSV (.csv)",
+        "json": "JSON (.json)"
+      }
     },
     "close": "Закрыть",
     "taxonomy": {

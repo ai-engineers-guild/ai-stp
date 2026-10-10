@@ -191,6 +191,32 @@ describe("SearchableMultiSelect", () => {
     expect(hidden).toEqual(["removed-option"]);
   });
 
+  it("offers a create action that closes the modal and delegates", async () => {
+    const user = userEvent.setup();
+    const onCreate = vi.fn();
+    render(
+      <SearchableMultiSelect
+        name="authors"
+        label="Authors"
+        searchLabel="Search authors"
+        options={["Ada"]}
+        selected={[]}
+        modal
+        closeLabel="Close"
+        createLabel="Create category"
+        onCreate={onCreate}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Authors" });
+    await user.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "Authors" });
+    await user.click(within(dialog).getByRole("button", { name: "Create category" }));
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    expect(dialog).not.toHaveAttribute("open");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
+
   it("closes a modal on cancel and close events", async () => {
     const user = userEvent.setup();
     render(

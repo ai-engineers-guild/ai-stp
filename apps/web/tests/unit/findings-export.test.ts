@@ -18,9 +18,21 @@ describe("exportScanFindings", () => {
     expect(FINDING_EXPORT_FORMATS).toEqual(["csv", "md", "json"]);
     for (const format of FINDING_EXPORT_FORMATS) {
       const result = exportScanFindings(scan, format);
-      expect(result.filename).toBe(`technology-findings-${scan.scan_id}.${format}`);
+      expect(result.filename).toBe(`technology-both-${scan.scan_id}.${format}`);
       expect(result.content.length).toBeGreaterThan(0);
     }
+  });
+
+  it("filters the export scope by tier", () => {
+    const coordinates = (scope: "technologies" | "findings" | "both") =>
+      (
+        JSON.parse(exportScanFindings(scan, "json", scope).content) as {
+          findings: { coordinate: string }[];
+        }
+      ).findings.map((row) => row.coordinate);
+    expect(coordinates("technologies")).toEqual(["fastapi", "weirdlib"]);
+    expect(coordinates("findings")).toEqual(["left-pad"]);
+    expect(coordinates("both")).toHaveLength(3);
   });
 
   it("serializes JSON with scan metadata and the full finding rows", () => {

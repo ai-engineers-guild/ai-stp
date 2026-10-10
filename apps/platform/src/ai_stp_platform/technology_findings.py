@@ -85,8 +85,14 @@ def curate_findings(findings: list[TechnologyScanFinding]) -> list[TechnologySca
     result: list[TechnologyScanFinding] = []
     for item in findings:
         identity = technology_identity(item.kind, item.coordinate)
-        owned = item.candidate_technology_id or item.review in {"confirmed", "rejected"}
-        recognized = identity is not None or item.technology_id is not None
+        owned = item.candidate_technology_id or item.review in {
+            "confirmed",
+            "rejected",
+            "dependency",
+        }
+        recognized = (
+            identity is not None or item.technology_id is not None
+        ) and item.review != "dependency"
         if not owned:
             if item.kind == "package" and lock_only_transitive(
                 item.coordinate, item.evidence, direct
@@ -98,10 +104,12 @@ def curate_findings(findings: list[TechnologyScanFinding]) -> list[TechnologySca
             item.model_copy(
                 update={
                     "tier": "technology"
-                    if recognized or item.candidate_technology_id
+                    if (recognized or item.candidate_technology_id) and item.review != "dependency"
                     else "dependency",
                     "technology_key": identity[0] if identity else None,
-                    "technology_name": identity[1] if identity else item.coordinate,
+                    "technology_name": identity[1]
+                    if identity
+                    else item.technology_name or item.coordinate,
                 }
             )
         )

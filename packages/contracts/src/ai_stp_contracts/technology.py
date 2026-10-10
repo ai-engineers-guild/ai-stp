@@ -751,7 +751,7 @@ class TechnologyScanFinding(ContractModel):
     state: Literal["resolved", "candidate", "open", "rejected"]
     tier: Literal["technology", "dependency"]
     candidate_technology_id: TechnologyId | None = None
-    review: Literal["proposed", "confirmed", "rejected"] = "proposed"
+    review: Literal["proposed", "confirmed", "rejected", "dependency"] = "proposed"
     category_id: CategoryId | None = None
     technology_key: str | None = None
     technology_name: str | None = None
@@ -767,7 +767,7 @@ class TechnologyFindingDecision(ContractModel):
     context: UsageContext | None = None
     technology_id: TechnologyId | None = None
     category_id: CategoryId | None = None
-    review: Literal["confirmed", "rejected"]
+    review: Literal["confirmed", "rejected", "dependency"]
     expected_revision: Annotated[int, Field(ge=0)] = 0
     comment: Annotated[str, Field(max_length=500)] = ""
 

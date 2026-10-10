@@ -910,7 +910,7 @@ async def _pending_count(
             for item in findings
             if item.tier == "technology"
             and item.state != "rejected"
-            and item.review not in {"confirmed", "rejected"}
+            and item.review not in {"confirmed", "rejected", "dependency"}
             and (item.state != "resolved" or item.technology_id not in classified)
         }
     )

@@ -167,8 +167,6 @@ it("edits categories inline and filters out classified findings", async () => {
     within(row).getByRole("button", { name: "Category: weirdlib: Choose a category" }),
   );
   fireEvent.click(within(row).getByRole("checkbox", { name: "API frameworks" }));
-  expect(row).toHaveTextContent("Server applications");
-  fireEvent.click(within(row).getByRole("button", { name: "Confirm and apply" }));
   await waitFor(() => {
     expect(mutation).toHaveBeenCalledTimes(1);
   });
@@ -236,7 +234,7 @@ it("retains confirmed history and archived names without offering archived recor
       />,
     ),
   );
-  const row = screen.getByText("fastapi").closest("tr");
+  const row = screen.getByText("FastAPI").closest("tr");
   expect(row).toBeVisible();
   expect(row).toHaveTextContent("API frameworks");
   expect(screen.queryByRole("button", { name: "Confirm and apply" })).toBeNull();
@@ -244,15 +242,23 @@ it("retains confirmed history and archived names without offering archived recor
   expect(findingStatus({ ...finding, review: "rejected", scan }, new Map())).toBe("rejected");
 });
 
-it("offers findings downloads in JSON, CSV and Markdown", async () => {
+it("offers findings downloads by scope and format", async () => {
   render(wrap(<TechnologyScanFindings {...props} />));
   const user = userEvent.setup();
   await user.click(screen.getByRole("button", { name: "Download findings" }));
-  for (const format of ["JSON", "CSV", "Markdown"]) {
-    expect(screen.getByRole("menuitem", { name: `Download ${format}` })).toBeVisible();
-  }
-  await user.click(screen.getByRole("menuitem", { name: "Download CSV" }));
-  expect(download).toHaveBeenCalledWith(expect.objectContaining({ scan_id: scan.scan_id }), "csv");
+  const dialog = screen.getByRole("dialog");
+  expect(within(dialog).getByLabelText("Scope")).toBeVisible();
+  expect(within(dialog).getByLabelText("Format")).toBeVisible();
+  fireEvent.change(within(dialog).getByLabelText("Format"), { target: { value: "csv" } });
+  fireEvent.change(within(dialog).getByLabelText("Scope"), {
+    target: { value: "technologies" },
+  });
+  await user.click(within(dialog).getByRole("button", { name: "Download findings" }));
+  expect(download).toHaveBeenCalledWith(
+    expect.objectContaining({ scan_id: scan.scan_id }),
+    "csv",
+    "technologies",
+  );
 });
 it("opens journal actions without navigating, and navigates from the row body", async () => {
   render(wrap(<TechnologyScanJournal items={[scan]} projects={projects} />));

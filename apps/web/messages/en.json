@@ -599,7 +599,6 @@
       "backScans": "Back to scans",
       "backLandscape": "Back to landscape",
       "publish": "Publish changes",
-      "applyChanges": "Apply changes",
       "scanTitle": "Scan {id}",
       "scanDescription": "Project scan results and recognized technologies. Review findings, refine classification and correct detection.",
       "mappingDescription": "Match scan results to organizational technologies, categories and areas. Review unrecognized and disputed findings.",
@@ -616,9 +615,7 @@
       "scanFailed": "The scan failed. Check the connection and repository access, then retry.",
       "searchMapping": "Search by detected name, technology or project…",
       "scan": "Scan",
-      "allCurrentScans": "All scans",
       "reason": "Reason",
-      "allReasons": "All reasons",
       "allStatuses": "All statuses",
       "findingSummary": "{total} findings · {pending} need review · {resolved} already matched",
       "searchFindings": "Search findings, files, technologies…",
@@ -651,7 +648,6 @@
       "createDescription": "Create a directory record and continue mapping the finding.",
       "confidence": "Confidence: {count}%",
       "searchScans": "Search project, repository or scan ID…",
-      "allSources": "All sources",
       "dateFrom": "Starting from date",
       "id": "ID",
       "projectRepository": "Project / Repository",
@@ -672,25 +668,22 @@
         "resolved": "Confirmed",
         "rejected": "Excluded",
         "confirmation": "Requires confirmation",
-        "category": "Requires category"
+        "category": "Requires category",
+        "dependency": "Dependency"
       },
       "resetFinding": "Reset",
-      "rerunScan": "Rerun scan",
       "downloadFindings": "Download findings",
-      "downloadJson": "Download JSON",
       "downloadCsv": "Download CSV",
-      "downloadMarkdown": "Download Markdown",
       "reasonState": {
         "unrecognized": "Unrecognized",
         "candidate": "Requires review",
         "excluded": "Excluded",
         "confirmed": "Confirmed",
         "category": "Requires category",
-        "confirmation": "Requires confirmation"
+        "confirmation": "Requires confirmation",
+        "dependency": "Dependency"
       },
       "category": "Category",
-      "dateDescription": "Show scans on or after the selected date.",
-      "allTime": "All time",
       "createTechnology": "Create technology",
       "scanTypes": {
         "dependencies": "Dependencies",
@@ -698,7 +691,24 @@
         "languages": "Languages"
       },
       "emptyArea": "No technologies found",
-      "evidenceCount": "{count} files"
+      "evidenceCount": "{count} files",
+      "moveToDependencies": "Move to dependencies",
+      "makeTechnology": "Make technology",
+      "editTechnology": "Edit technology",
+      "editTechnologyDescription": "Rename or reclassify a wrongly recognized technology.",
+      "exportDescription": "Choose what to export, then the file format.",
+      "exportScope": "Scope",
+      "exportFormat": "Format",
+      "exportScopes": {
+        "technologies": "Technologies",
+        "findings": "Findings (dependencies)",
+        "both": "Both"
+      },
+      "exportFormats": {
+        "md": "Markdown (.md)",
+        "csv": "CSV (.csv)",
+        "json": "JSON (.json)"
+      }
     },
     "close": "Close",
     "taxonomy": {

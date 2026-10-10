@@ -9,11 +9,11 @@ import { PagePager } from "@/components/molecules/page-pager";
 import { TechnologyFilterToolbar } from "@/components/organisms/technology-filter-toolbar";
 
 import { Link } from "@/lib/i18n/navigation";
-import { Menu, MenuTrigger, MenuContent, MenuItem } from "@/components/atoms/menu";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
 
 import { Icon } from "@/theme";
 
+import { TechnologyFindingActionsMenu } from "@/components/organisms/technology-finding-actions";
 import {
   findingStatus,
   rowKey,
@@ -194,6 +194,7 @@ export function TechnologyFindingTableRow({
     patch,
     areaNames,
     categoryNames,
+    names,
     setActiveKey,
     setCreate,
     setEvidence,
@@ -202,6 +203,9 @@ export function TechnologyFindingTableRow({
   const value = draft(row);
   const category = categoryNames.get(value.category);
   const needsReview = state.pending(row);
+  const name = names.get(row.technology_id ?? "")?.name ?? row.technology_name ?? row.coordinate;
+  const technology = names.get(row.technology_id ?? "");
+  const dependency = row.tier === "dependency";
   const openCreate = (kind: "technology" | "category") => {
     setActiveKey(rowKey(row));
     setCreate(kind);
@@ -209,7 +213,7 @@ export function TechnologyFindingTableRow({
   return (
     <Tr className={needsReview ? "bg-warning/10" : ""}>
       <Td>
-        <span className="font-medium">{row.technology_name ?? row.coordinate}</span>
+        <span className="font-medium">{name}</span>
         {needsReview && (
           <span className="text-muted-foreground mt-1 block text-sm">
             {w(`findingState.${findingStatus(row, state.names)}`)}
@@ -224,7 +228,7 @@ export function TechnologyFindingTableRow({
             <SearchableMultiSelect
               name={`category-${rowKey(row)}`}
               modal
-              label={`${w("category")}: ${row.technology_name ?? row.coordinate}`}
+              label={`${w("category")}: ${name}`}
               searchLabel={w("chooseCategory")}
               options={(state.categories ?? [])
                 .filter((item) => item.state === "active")
@@ -233,6 +237,14 @@ export function TechnologyFindingTableRow({
               multiple={false}
               emptyHint={w("chooseCategory")}
               closeLabel={t("close")}
+              createLabel={canUpdate ? t("createCategory") : undefined}
+              onCreate={
+                canUpdate
+                  ? () => {
+                      openCreate("category");
+                    }
+                  : undefined
+              }
               onChange={(values) => {
                 patch(row, { category: values[0] ?? "", review: "confirmed" });
               }}
@@ -262,7 +274,7 @@ export function TechnologyFindingTableRow({
       )}
       <Td>
         <div className="flex items-center gap-1">
-          {canUpdate && drafts[rowKey(row)] && (
+          {canUpdate && mode === "mapping" && drafts[rowKey(row)] && (
             <Button
               size="icon"
               variant="outline"
@@ -275,48 +287,13 @@ export function TechnologyFindingTableRow({
               <Icon name="check" size="sm" />
             </Button>
           )}
-          <Menu>
-            <MenuTrigger asChild>
-              <Button size="icon" variant="ghost" aria-label={w("actions")}>
-                <Icon name="more" size="sm" />
-              </Button>
-            </MenuTrigger>
-            <MenuContent>
-              <MenuItem
-                onSelect={() => {
-                  setEvidence(row);
-                }}
-              >
-                {w("evidence")}
-              </MenuItem>
-              {canUpdate && (
-                <>
-                  <MenuItem
-                    onSelect={() => {
-                      openCreate("category");
-                    }}
-                  >
-                    {t("createCategory")}
-                  </MenuItem>
-                  <MenuItem
-                    onSelect={() => {
-                      openCreate("technology");
-                    }}
-                  >
-                    {w("createTechnology")}
-                  </MenuItem>
-                  <MenuItem
-                    disabled={mutation.busy}
-                    onSelect={() => {
-                      apply([row], true);
-                    }}
-                  >
-                    {w("excludeFinding")}
-                  </MenuItem>
-                </>
-              )}
-            </MenuContent>
-          </Menu>
+          <TechnologyFindingActionsMenu
+            state={state}
+            row={row}
+            technology={technology}
+            dependency={dependency}
+            openCreate={openCreate}
+          />
         </div>
       </Td>
     </Tr>

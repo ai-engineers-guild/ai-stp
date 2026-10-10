@@ -192,7 +192,8 @@
           "enum": [
             "proposed",
             "confirmed",
-            "rejected"
+            "rejected",
+            "dependency"
           ],
           "title": "Review",
           "type": "string"

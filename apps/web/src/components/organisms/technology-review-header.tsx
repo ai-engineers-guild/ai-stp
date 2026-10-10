@@ -1,35 +1,34 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
-import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/atoms/menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/atoms/dialog";
+import { Label } from "@/components/atoms/label";
+import { Select } from "@/components/atoms/select";
 
 import { TechnologyFilterToolbar } from "@/components/organisms/technology-filter-toolbar";
-import { TechnologyScanLaunch } from "@/components/organisms/technology-scan-launch";
 
 import { Link, usePathname, useRouter } from "@/lib/i18n/navigation";
 
 import { Icon } from "@/theme";
 
-import { downloadScanFindings } from "@/lib/findings-export";
+import {
+  downloadScanFindings,
+  type FindingExportFormat,
+  type FindingExportScope,
+} from "@/lib/findings-export";
 import { findingReason, type TechnologyReviewState } from "@/lib/technology-review-state";
 export function TechnologyReviewHeader({ state }: { state: TechnologyReviewState }) {
-  const {
-    t,
-    w,
-    mutation,
-    applicable,
-    scan,
-    canUpdate,
-    authority,
-    projects,
-    mode,
-    selected,
-    apply,
-    setCreate,
-  } = state;
+  const { t, w, mutation, applicable, scan, canUpdate, mode, selected, apply, setCreate } = state;
   return (
     <>
       <div className="technology-page-actions">
@@ -41,26 +40,18 @@ export function TechnologyReviewHeader({ state }: { state: TechnologyReviewState
           {w(scan ? "backScans" : "backLandscape")}
         </Link>
         <div className="flex flex-wrap gap-3">
-          {canUpdate &&
-            (mode === "mapping" ? (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setCreate("technology");
-                }}
-              >
-                <Icon name="plus" size="sm" />
-                {w("createTechnology")}
-              </Button>
-            ) : (
-              <TechnologyScanLaunch
-                {...authority}
-                projects={projects.filter((p) => p.project_id === scan?.project_id)}
-                variant="outline"
-                label={w("rerunScan")}
-              />
-            ))}
           {canUpdate && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCreate("technology");
+              }}
+            >
+              <Icon name="plus" size="sm" />
+              {w("createTechnology")}
+            </Button>
+          )}
+          {canUpdate && mode === "mapping" && (
             <Button
               disabled={mutation.busy || !applicable.length}
               onClick={() => {
@@ -68,43 +59,11 @@ export function TechnologyReviewHeader({ state }: { state: TechnologyReviewState
               }}
             >
               <Icon name="play" size="sm" />
-              {w(mode === "mapping" ? "publish" : "applyChanges")}
+              {w("publish")}
               {selected.length ? ` (${selected.length})` : ""}
             </Button>
           )}
-          {scan && (
-            <Menu>
-              <MenuTrigger asChild>
-                <Button variant="outline" aria-label={w("downloadFindings")}>
-                  <Icon name="download" size="sm" />
-                  {w("downloadFindings")}
-                </Button>
-              </MenuTrigger>
-              <MenuContent>
-                <MenuItem
-                  onSelect={() => {
-                    downloadScanFindings(scan, "json");
-                  }}
-                >
-                  {w("downloadJson")}
-                </MenuItem>
-                <MenuItem
-                  onSelect={() => {
-                    downloadScanFindings(scan, "csv");
-                  }}
-                >
-                  {w("downloadCsv")}
-                </MenuItem>
-                <MenuItem
-                  onSelect={() => {
-                    downloadScanFindings(scan, "md");
-                  }}
-                >
-                  {w("downloadMarkdown")}
-                </MenuItem>
-              </MenuContent>
-            </Menu>
-          )}
+          {scan && <TechnologyScanExport state={state} />}
         </div>
       </div>
       <header className="space-y-2">
@@ -116,6 +75,68 @@ export function TechnologyReviewHeader({ state }: { state: TechnologyReviewState
     </>
   );
 }
+function TechnologyScanExport({ state }: { state: TechnologyReviewState }) {
+  const { w, scan } = state;
+  const [open, setOpen] = useState(false);
+  const [scope, setScope] = useState<FindingExportScope>("both");
+  const [format, setFormat] = useState<FindingExportFormat>("md");
+  if (!scan) return null;
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" aria-label={w("downloadFindings")}>
+          <Icon name="download" size="sm" />
+          {w("downloadFindings")}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogTitle>{w("downloadFindings")}</DialogTitle>
+        <DialogDescription>{w("exportDescription")}</DialogDescription>
+        <div className="space-y-2">
+          <Label htmlFor="export-scope">{w("exportScope")}</Label>
+          <Select
+            id="export-scope"
+            value={scope}
+            onChange={(e) => {
+              setScope(e.target.value as FindingExportScope);
+            }}
+          >
+            {(["technologies", "findings", "both"] as const).map((value) => (
+              <option key={value} value={value}>
+                {w(`exportScopes.${value}`)}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="export-format">{w("exportFormat")}</Label>
+          <Select
+            id="export-format"
+            value={format}
+            onChange={(e) => {
+              setFormat(e.target.value as FindingExportFormat);
+            }}
+          >
+            {(["md", "csv", "json"] as const).map((value) => (
+              <option key={value} value={value}>
+                {w(`exportFormats.${value}`)}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <Button
+          onClick={() => {
+            downloadScanFindings(scan, format, scope);
+            setOpen(false);
+          }}
+        >
+          {w("downloadFindings")}
+        </Button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function TechnologyScanMetadata({ state }: { state: TechnologyReviewState }) {
   const { w, s, scan, sourceIcon } = state;
   const scanType = useTranslations("technology.workspace.scanTypes");
@@ -151,7 +172,7 @@ export function TechnologyScanMetadata({ state }: { state: TechnologyReviewState
               w("duration"),
               scan.duration_seconds == null ? "—" : w("seconds", { count: scan.duration_seconds }),
             ],
-            [w("found"), state.allRows.length],
+            [w("found"), state.allRows.filter((row) => row.tier !== "dependency").length],
             [w("pending"), state.allRows.filter(state.pending).length],
           ].map(([label, value], index) => (
             <div key={index}>

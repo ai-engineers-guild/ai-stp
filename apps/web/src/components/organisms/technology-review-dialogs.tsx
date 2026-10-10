@@ -13,11 +13,18 @@ export function TechnologyReviewDialogs({ state }: { state: TechnologyReviewStat
     t,
     w,
     active,
+    activeKey,
     authority,
     create,
+    edit,
     evidence,
+    mutation,
+    mode,
+    scan,
     patch,
+    save,
     setCreate,
+    setEdit,
     setEvidence,
   } = state;
   const s = useTranslations("technology.scans");
@@ -54,13 +61,54 @@ export function TechnologyReviewDialogs({ state }: { state: TechnologyReviewStat
               categories={categories?.filter((item) => item.state !== "archived") ?? null}
               areas={areas?.filter((item) => item.state !== "archived") ?? null}
               onCreated={(record) => {
-                if (active) {
-                  if (typeof record.technology_id === "string")
-                    patch(active, { technology: record.technology_id });
-                  if (typeof record.category_id === "string")
-                    patch(active, { category: record.category_id });
+                if (activeKey && active) {
+                  if (typeof record.technology_id === "string") {
+                    if (mode === "scan")
+                      save(active, { technology: record.technology_id, review: "confirmed" });
+                    else patch(active, { technology: record.technology_id });
+                  }
+                  if (typeof record.category_id === "string") {
+                    if (mode === "scan")
+                      save(active, { category: record.category_id, review: "confirmed" });
+                    else patch(active, { category: record.category_id });
+                  }
+                } else if (mode === "scan" && scan && typeof record.technology_id === "string") {
+                  mutation.save(
+                    `/v1/corporate/organizations/${authority.organizationId}/projects/${scan.project_id}/technologies`,
+                    {
+                      technology_id: record.technology_id,
+                      fact: { context: "production" },
+                      review: "confirmed",
+                    },
+                    "PUT",
+                    () => {},
+                  );
                 }
                 setCreate(null);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={edit !== null}
+        onOpenChange={(open) => {
+          if (!open) setEdit(null);
+        }}
+      >
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogTitle>{t("editTechnology")}</DialogTitle>
+          <DialogDescription>{w("editTechnologyDescription")}</DialogDescription>
+          {edit && (
+            <TechnologyRegistryCreate
+              kind="technology"
+              {...authority}
+              authorizationRevision={String(authority.authorizationRevision)}
+              categories={categories?.filter((item) => item.state !== "archived") ?? null}
+              areas={areas?.filter((item) => item.state !== "archived") ?? null}
+              initial={edit}
+              onCreated={() => {
+                setEdit(null);
               }}
             />
           )}

@@ -8,6 +8,7 @@
 import type { TechnologyScanDetail, TechnologyScanFinding } from "@/lib/api/generated/types.gen";
 
 export type FindingExportFormat = "csv" | "md" | "json";
+export type FindingExportScope = "technologies" | "findings" | "both";
 
 export const FINDING_EXPORT_FORMATS: readonly FindingExportFormat[] = [
   "csv",
@@ -51,11 +52,23 @@ const findingCells = (row: TechnologyScanFinding) =>
     findingEvidence(row),
   ] as const;
 
+function scopedFindings(
+  scan: TechnologyScanDetail,
+  scope: FindingExportScope,
+): TechnologyScanFinding[] {
+  const findings = scan.findings;
+  if (scope === "technologies") return findings.filter((row) => row.tier === "technology");
+  if (scope === "findings") return findings.filter((row) => row.tier !== "technology");
+  return findings;
+}
+
 export function exportScanFindings(
   scan: TechnologyScanDetail,
   format: FindingExportFormat,
+  scope: FindingExportScope = "both",
 ): { filename: string; mime: string; content: string } {
-  const filename = `technology-findings-${scan.scan_id}.${format}`;
+  const findings = scopedFindings(scan, scope);
+  const filename = `technology-${scope}-${scan.scan_id}.${format}`;
   const mime = MIME[format];
   switch (format) {
     case "json":
@@ -75,7 +88,7 @@ export function exportScanFindings(
             complete: scan.complete,
             detector_version: scan.detector_version,
             mapping_version: scan.mapping_version,
-            findings: scan.findings,
+            findings,
           },
           null,
           2,
@@ -87,7 +100,7 @@ export function exportScanFindings(
         mime,
         content: [
           "kind,tier,coordinate,technology,context,version,version_kind,state,review,evidence",
-          ...scan.findings.map((row) => findingCells(row).map(csvCell).join(",")),
+          ...findings.map((row) => findingCells(row).map(csvCell).join(",")),
         ].join("\r\n"),
       };
     case "md":
@@ -106,7 +119,7 @@ export function exportScanFindings(
           "",
           "| Kind | Tier | Coordinate | Technology | Context | Version | Version kind | State | Review | Evidence |",
           "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
-          ...scan.findings.map((row) => `| ${findingCells(row).map(mdCell).join(" | ")} |`),
+          ...findings.map((row) => `| ${findingCells(row).map(mdCell).join(" | ")} |`),
         ].join("\n"),
       };
   }
@@ -115,8 +128,9 @@ export function exportScanFindings(
 export function downloadScanFindings(
   scan: TechnologyScanDetail,
   format: FindingExportFormat,
+  scope: FindingExportScope = "both",
 ): void {
-  const { filename, mime, content } = exportScanFindings(scan, format);
+  const { filename, mime, content } = exportScanFindings(scan, format, scope);
   const url = URL.createObjectURL(
     new Blob([format === "csv" ? "\uFEFF" + content : content], {
       type: `${mime};charset=utf-8`,

@@ -92,6 +92,7 @@ _B2B_CAPABILITIES = frozenset(
         *(
             f"{resource}.{action}"
             for resource in (
+                "area",
                 "category",
                 "project_team",
                 "project_technology",
