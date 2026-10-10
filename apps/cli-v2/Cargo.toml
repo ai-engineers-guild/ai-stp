@@ -13,7 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 csv = "=1.4.0"
-base64 = "=0.22.1"
+base64 = "=0.23.1"
 cap-std = "=4.0.3"
 cap-fs-ext = "=4.0.3"
 # Store owns SQLite byte-range interoperability; remove with that VFS boundary.
