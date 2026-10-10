@@ -1050,9 +1050,9 @@ the source disappears. Bound portable refresh refuses independently authored
 native adaptations. Flat adopted drafts still use their adoption/release flow;
 this operation accepts complete source-bound or exact-forked drafts.
 
-`component adaptation derive plan` adds one missing literal MCP or common skill
-adaptation to an exact owned complete draft, using an explicit target provider
-declaration. Fork an exact release first when the current draft is a flat adoption.
+`component adaptation derive plan` adds one missing literal MCP, common skill or
+standalone instruction adaptation to an exact owned complete draft, using an
+explicit target provider declaration. Fork an exact release first when the current draft is a flat adoption.
 Every source scope must have the same explicit target scope; no scope fallback,
 existing semantic loss or source-harness version constraint is silently removed.
 
@@ -1074,9 +1074,23 @@ at `global`, and Codex ↔ OpenCode at `user_root`; Claude's global scope is nev
 silently changed to Codex's user root. Instruction meaning, arbitrary script
 behavior and harness execution remain unassessed.
 
+Standalone instruction conversion supports Claude Code, Codex, OpenCode and Pi
+when both provider routes name a single whole file at the same scope. It preserves
+UTF-8 bytes (including line endings and non-normalized Unicode) and the file mode.
+Frontmatter, BOMs, control characters other than whitespace, `@` imports/mentions,
+and native shell/argument/environment/file substitution markers refuse in either
+direction. It does not flatten directory rules, combine multiple files, import
+external resources or infer a different scope. Loader precedence, context limits
+and instruction meaning remain unassessed. The loader boundaries are documented
+by [Claude Code](https://code.claude.com/docs/en/memory),
+[Codex](https://developers.openai.com/codex/guides/agents-md/),
+[OpenCode](https://opencode.ai/docs/rules/) and
+[Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/README.md).
+
 The new adaptation retains scope permissions and OS/architecture constraints,
-records `literal-stdio/1.0` or `common-skill/1.0` with an exact transformation digest
-and retained source-revision/adaptation manifest, and stays experimental. The
+records `literal-stdio/1.0`, `common-skill/1.0` or `standalone-instruction/1.0` with
+an exact transformation digest and retained source-revision/adaptation manifest,
+and stays experimental. The
 source adaptation and component requirements remain unchanged. Apply revalidates
 the exact head and retained content in one writer transaction, committing projection
 content, the draft revision and receipt together. Replay verifies historical content
@@ -1106,8 +1120,8 @@ distinct concrete harnesses. Instead of `targets`, `all_missing: true` selects
 every concrete harness absent from the source, including unsupported conversions.
 The plan reports `reuse`, `derive` or `blocked` for each target. Reuse requires
 every retained scope to fit the exact declared provider profile. Derivation uses
-the literal MCP and common skill rules above, independently from the same source
-for each missing target. Missing declarations and unsupported conversion block the
+the literal MCP, common skill and standalone instruction rules above, independently
+from the same source for each missing target. Missing declarations and unsupported conversion block the
 whole output; corrupt retained data fails planning. No provider process runs and
 declarations do not establish executable trust or installation eligibility.
 
@@ -1160,9 +1174,9 @@ the exact `ported_from` reference. Both retain direct lineage in SQLite and
 must already provide the target adaptation; missing adaptations are reported
 together. Empty compositions remain valid.
 
-An optional `--provider-info` on recast enables the implemented literal MCP and
-common skill transformations described above. It resolves the entire exact
-source dependency graph first, retaining the existing 512-node, 8,192-edge and
+An optional `--provider-info` on recast enables the implemented literal MCP,
+common skill and standalone instruction transformations described above. It resolves
+the entire exact source dependency graph first, retaining the existing 512-node, 8,192-edge and
 32-depth limits. A missing target adaptation receives a new private component ID
 and version `1.0`; each dependent whose exact pin changes receives its own new
 identity too, even when its target adaptation already exists. Other components

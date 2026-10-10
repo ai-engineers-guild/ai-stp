@@ -342,7 +342,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
     },
     Declaration {
         path: &["component", "adaptation", "derive", "plan"],
-        summary: "Plan a missing literal MCP or common skill adaptation from an exact owned draft without dropping controls, scopes or constraints.",
+        summary: "Plan a supported missing native adaptation from an exact owned draft without dropping controls, scopes or constraints.",
         parameters: &[
             STATE_DIR,
             ID,

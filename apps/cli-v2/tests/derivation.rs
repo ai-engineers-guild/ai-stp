@@ -15,6 +15,8 @@ use ai_stp_cli_v2::{
 };
 use serde_json::{Value, json};
 
+#[path = "derivation/instructions.rs"]
+mod instructions;
 #[path = "derivation/materialization.rs"]
 mod materialization;
 #[path = "derivation/skills.rs"]
@@ -343,6 +345,7 @@ fn exact_native_derivation_preserves_literals_and_atomic_owned_history()
         &foreign,
     )?;
     skills::journey(&mut store, temporary.path(), &providers, &identity)?;
+    instructions::journey(&mut store, temporary.path(), &providers, &identity)?;
     let config = "[mcp_servers.docs]\ncommand = 'review-server'\nargs = ['cafe\u{301}', '\"quoted\"', 'C:\\work\\a']\n[mcp_servers.docs.env]\nMODE = 'cafe\u{301}'\n";
     let configs = [
         ("codex", config.as_bytes().to_vec()),
