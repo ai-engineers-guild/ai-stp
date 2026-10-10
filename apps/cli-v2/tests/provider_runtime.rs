@@ -153,6 +153,96 @@ printf provider-ran
     assert_eq!(fs::read_dir(&target)?.count(), 1);
     assert_eq!(fs::read(target.join("marker"))?, b"exact\n");
     synthetic_prefix_requires_its_exact_readonly_view(&provider)?;
+    writable_stage_requires_a_private_parent_and_bound_root()?;
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn writable_stage_requires_a_private_parent_and_bound_root() -> Result<(), Box<dyn Error>> {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+    let root = tempfile::tempdir()?;
+    let stage = root.path().join("stage");
+    fs::create_dir(&stage)?;
+    let provider = root.path().join("provider");
+    fs::write(
+        &provider,
+        br##"#!/bin/sh
+test ! -e /private-parent/neighbor || exit 40
+if { printf forbidden > /private-parent/outside; } 2>/dev/null; then exit 41; fi
+/usr/bin/mkdir /private-parent/programs/created || exit 42
+printf stage-written
+"##,
+    )?;
+    fs::set_permissions(&provider, fs::Permissions::from_mode(0o500))?;
+    for (parent_readonly, root_readonly, correct_identity, accepted) in [
+        (true, false, true, true),
+        (false, false, true, false),
+        (true, true, true, false),
+        (true, false, false, false),
+    ] {
+        let mut command = Command::new("/usr/bin/bwrap");
+        command.args([
+            "--unshare-all",
+            "--die-with-parent",
+            "--new-session",
+            "--cap-drop",
+            "ALL",
+            "--ro-bind",
+            "/usr",
+            "/usr",
+            "--ro-bind-try",
+            "/lib",
+            "/lib",
+            "--ro-bind-try",
+            "/lib64",
+            "/lib64",
+            "--ro-bind-try",
+            "/bin",
+            "/bin",
+            "--proc",
+            "/proc",
+            "--dev",
+            "/dev",
+            "--tmpfs",
+            "/observed",
+            "--remount-ro",
+            "/observed",
+            "--tmpfs",
+            "/private-parent",
+        ]);
+        command
+            .arg(if root_readonly { "--ro-bind" } else { "--bind" })
+            .arg(&stage)
+            .arg("/private-parent/programs");
+        if parent_readonly {
+            command.args(["--remount-ro", "/private-parent"]);
+        }
+        command
+            .arg("--ro-bind")
+            .arg(&provider)
+            .arg("/run/provider")
+            .args(["--ro-bind", env!("CARGO_BIN_EXE_ai-stp-v2"), "/run/entry"]);
+        let meta = stage.metadata()?;
+        let inode = if correct_identity { meta.ino() } else { 0 };
+        command.args(["--","/bin/sh","-c",&format!(
+            "umask 077; /run/entry --ai-stp-target-entry 1 $(/usr/bin/stat -c '%d %i' /observed) /observed --ai-stp-writable-prefix {} {} /private-parent/programs apply",
+            meta.dev(),inode)]);
+        let output = command.env_clear().env("PATH", "").output()?;
+        assert!(output.stderr.is_empty());
+        if accepted {
+            assert!(output.status.success(), "{output:?}");
+            assert_eq!(output.stdout, b"stage-written");
+            assert_eq!(
+                stage.join("created").metadata()?.permissions().mode() & 0o777,
+                0o755
+            );
+            fs::remove_dir(stage.join("created"))?;
+        } else {
+            assert_eq!(output.status.code(), Some(70));
+            assert!(output.stdout.is_empty());
+            assert_eq!(fs::read_dir(&stage)?.count(), 0);
+        }
+    }
     Ok(())
 }
 

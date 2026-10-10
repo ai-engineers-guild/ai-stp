@@ -1,7 +1,11 @@
-//! Read-only provider observations from authenticated bytes and proved network denial.
+//! Authenticated component observation and confined, journaled program installation.
 
 #[cfg(target_os = "linux")]
 pub mod entry;
+#[cfg(target_os = "linux")]
+mod execution;
+#[cfg(target_os = "linux")]
+mod install;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "linux")]
@@ -34,6 +38,31 @@ fn unavailable() -> Failure {
         ErrorKind::Unavailable,
         "native provider network isolation is unavailable on this host",
     )
+}
+
+/// A terminal installation receipt is returned before constructing a runtime.
+pub fn program_install_apply(parent: &Path, bytes: &[u8], digest: &str) -> Result<Value> {
+    #[cfg(target_os = "linux")]
+    {
+        install::apply(parent, bytes, digest)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (parent, bytes, digest);
+        Err(unavailable())
+    }
+}
+
+pub fn program_install_cancel(parent: &Path, bytes: &[u8], digest: &str) -> Result<Value> {
+    #[cfg(target_os = "linux")]
+    {
+        install::cancellation::cancel(parent, bytes, digest)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (parent, bytes, digest);
+        Err(unavailable())
+    }
 }
 
 pub fn platform() -> Result<&'static str> {

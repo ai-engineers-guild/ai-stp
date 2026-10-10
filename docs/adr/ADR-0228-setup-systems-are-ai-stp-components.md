@@ -27,6 +27,16 @@ not create separate user workflows.
   remains the sole writer of its harness state and owns filesystem recovery.
   Linking its mutation kernel into the CLI would create another writer and
   remove an established isolation boundary; this is not required for one CLI.
+- For a fresh program directory, the component constructs the complete contents
+  in an isolated private stage mounted at the planned final path. The CLI may
+  activate that opaque directory with an atomic no-replace move after independent
+  artifact verification. The component remains the content writer; activation
+  may not modify its files or replace an existing destination. The host parent
+  is never writable from the component process. The outer operation binds host
+  absence and physical identities separately from the original empty-stage
+  component plan, and records publication before reporting completion. Recovery
+  retains both original plans and recognizes a moved root by its recorded
+  identity; completed history never recreates a later-removed installation.
 - A new request may omit the component version. Resolve it from one exact
   release selected by the ai-stp build before planning or acquisition. Explicit
   exact overrides remain available. Record the resolved release in plans and

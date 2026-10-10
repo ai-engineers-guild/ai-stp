@@ -23,6 +23,70 @@ use crate::{
 const BUDGET: Duration = Duration::from_secs(600);
 const OWNER: &[u8] = b"ai-stp-cli-v2:software-artifacts/v1\n";
 
+/// An opened immutable cache member; component invocation never receives its
+/// parent directory or a writable handle.
+pub(crate) struct HeldArtifact {
+    pub file: std::fs::File,
+    pub entry_point: String,
+    pub digest: String,
+    pub bytes: u64,
+}
+
+impl HeldArtifact {
+    pub fn verify(&mut self) -> Result<()> {
+        use std::io::Seek;
+        self.file.rewind().map_err(|_| invalid())?;
+        let mut hash = Sha256::new();
+        let mut length = 0u64;
+        let mut buffer = [0; 64 * 1024];
+        let started = Instant::now();
+        loop {
+            remaining(started)?;
+            let read = self.file.read(&mut buffer).map_err(|_| invalid())?;
+            if read == 0 {
+                break;
+            }
+            length += read as u64;
+            if length > self.bytes {
+                return Err(invalid());
+            }
+            hash.update(&buffer[..read]);
+        }
+        if length != self.bytes || crate::digest::representation(&hash.finalize()) != self.digest {
+            return Err(invalid());
+        }
+        self.file.rewind().map_err(|_| invalid())?;
+        Ok(())
+    }
+}
+
+pub(crate) fn hold(parent: &Dir, planned: &Value) -> Result<HeldArtifact> {
+    let records = planned["plan"]["software_artifacts"]
+        .as_array()
+        .ok_or_else(invalid)?;
+    // The seven managed components each consume one vendor artifact. Refuse a
+    // future multipart format until its independent verifier is implemented.
+    if records.len() != 1 {
+        return Err(invalid());
+    }
+    let record: Download = serde_json::from_value(records[0].clone()).map_err(|_| invalid())?;
+    record.check(crate::provider::runtime::platform()?)?;
+    let owned =
+        OwnedDirectory::open_at(parent, "software-artifacts", OWNER, false)?.ok_or_else(invalid)?;
+    let name = record.sha256.strip_prefix("sha256:").ok_or_else(invalid)?;
+    if !verified(&owned.directory, name, &record, Instant::now())? {
+        return Err(invalid());
+    }
+    let file = files::open_regular(&owned.directory, Path::new(name)).map_err(|_| invalid())?;
+    metadata(&file, &owned.directory, name, record.byte_length)?;
+    Ok(HeldArtifact {
+        file: file.into_std(),
+        entry_point: record.entry_point,
+        digest: record.sha256,
+        bytes: record.byte_length,
+    })
+}
+
 fn invalid() -> Failure {
     Failure::precondition(
         "software artifact transport, stored bytes or exact plan binding was refused",
