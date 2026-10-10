@@ -87,13 +87,7 @@ jobs:
       - name: Install the development oracle
         shell: bash
         run: uv sync --locked --package ai-stp-cli --no-default-groups --no-editable
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            apps/cli-v2/target
-          key: cli-v2-${{ runner.os }}-${{ hashFiles('apps/cli-v2/Cargo.*', 'apps/cli-v2/*.toml') }}
+      # Build from source: cached build scripts can retain another image's SDK paths.
       - name: Build the native executable
         working-directory: apps/cli-v2
         shell: bash
