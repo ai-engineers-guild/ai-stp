@@ -643,6 +643,31 @@ hit status. `software_acquired` confirms available verified bytes;
 It keeps installation and installed-software verification false;
 future execution must reacquire trust and revalidate the held artifact bytes.
 
+`program install plan --state-dir --harness --target --scope --prefix`
+plans a fresh program installation. `--version` selects the setup component
+release; omission uses the managed release. `--software-version` selects an
+exact program version; omission uses that component's compiled pin. This command
+currently uses the proved Linux runtime. The final prefix must be absent under
+an existing plain parent and physically disjoint from target and state.
+
+The native plan binds two distinct preconditions: absence of the host
+destination and an empty private directory for the component. The component
+sees that empty directory in a read-only namespace at the final prefix's path;
+the real parent is never mounted. Two authenticated component observations must
+agree. No host staging directory, durable operation or installation is created.
+Only isolated publisher trust state can change.
+
+The returned `plan` binds the generated operation ID, a fifteen-minute expiry,
+canonical paths, physical target/state/parent identities, exact component
+archive/executable/info digests and the complete component plan. Its
+`plan_digest` uses RFC 8785 bytes with the
+`ai-stp:installation-operation:v1` domain; paths and component strings retain
+their exact Unicode spelling. Plans are bounded to 64 KiB. `observation` retains
+the authenticated measurements and distinguishes `host_state: missing` from
+`provider_view: empty_private_stage`. `installation_performed` and
+`execution_authorized` stay false. Execution and recovery remain separate work;
+there is no `program install apply` command yet.
+
 `program inspect --prefix --entry-point` reads the public providers' software
 layout at an explicit absolute prefix with an existing parent. The entry point
 is an exact `bin/command` name, including `.cmd`, `.exe` or `.bat` where needed.

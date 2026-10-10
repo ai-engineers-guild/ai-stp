@@ -20,6 +20,12 @@ pub(super) enum Prefix {
     Missing { parent: Target, path: PathBuf },
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum View {
+    Observed,
+    EmptyStage,
+}
+
 impl Prefix {
     pub(super) fn open(path: &Path) -> Result<Self> {
         if let Ok(target) = Target::open(path) {
@@ -56,6 +62,16 @@ impl Prefix {
         }
     }
 
+    pub(super) fn parent_identity(&self) -> Result<(u64, u64)> {
+        self.revalidate()?;
+        match self {
+            Self::Missing { parent, .. } => parent.identity(),
+            Self::Existing(_) => Err(Failure::precondition(
+                "a new program installation requires an absent final prefix",
+            )),
+        }
+    }
+
     pub(super) fn revalidate(&self) -> Result<()> {
         match self {
             Self::Existing(target) => target.revalidate(),
@@ -89,5 +105,22 @@ impl Prefix {
             Self::Missing { parent, .. } => parent.verify_mount(parent.identity()?),
             Self::Existing(_) => Err(invalid()),
         }
+    }
+
+    pub(super) fn verify_empty_mount(path: &Path) -> Result<()> {
+        let root = Target::open(path)?;
+        root.verify_mount(root.identity()?)?;
+        let parent = Target::open(path.parent().ok_or_else(invalid)?)?;
+        parent.verify_mount(parent.identity()?)?;
+        if root
+            .directory()?
+            .entries()
+            .map_err(|_| invalid())?
+            .next()
+            .is_some()
+        {
+            return Err(invalid());
+        }
+        Ok(())
     }
 }

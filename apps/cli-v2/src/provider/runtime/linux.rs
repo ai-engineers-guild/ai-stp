@@ -1,6 +1,11 @@
 //! Minimal Linux filesystem and measured IPv4/IPv6/UDP network separation.
 
-use super::{prefix::Prefix, probe, target::Target, unavailable};
+use super::{
+    prefix::{Prefix, View},
+    probe,
+    target::Target,
+    unavailable,
+};
 use crate::{
     digest,
     error::Result,
@@ -378,7 +383,13 @@ impl Launcher {
         prefix: &Prefix,
         scope: Scope,
         request: &software::Request,
+        view: View,
     ) -> Result<Vec<u8>> {
+        if view == View::EmptyStage
+            && (prefix.missing().is_none() || request.operation != "software_install")
+        {
+            return Err(unavailable());
+        }
         let mut arguments = vec![
             "plan-operation".into(),
             "--json".into(),
@@ -403,7 +414,13 @@ impl Launcher {
         }
         prefix.revalidate()?;
         let targets: Vec<_> = std::iter::once(target).chain(prefix.mounted()).collect();
-        let output = self.invoke(bytes, &arguments, &targets, None, prefix.missing())?;
+        let output = self.invoke(
+            bytes,
+            &arguments,
+            &targets,
+            None,
+            prefix.missing().map(|path| (path, view)),
+        )?;
         prefix.revalidate()?;
         Ok(output)
     }
@@ -413,7 +430,7 @@ impl Launcher {
         command: &[OsString],
         targets: &[&Target],
         bundle: Option<&[u8]>,
-        missing_prefix: Option<&Path>,
+        synthetic_prefix: Option<(&Path, View)>,
     ) -> Result<Vec<u8>> {
         let input = sealed(bytes)?;
         let mut arguments = base();
@@ -421,13 +438,23 @@ impl Launcher {
         if targets.len() > 2 {
             return Err(unavailable());
         }
-        let missing_parent = missing_prefix
-            .map(|p| p.parent().ok_or_else(unavailable))
+        let missing_parent = synthetic_prefix
+            .map(|(p, _)| p.parent().ok_or_else(unavailable))
             .transpose()?;
         if let Some(parent) = missing_parent {
-            // A fresh namespace directory represents absence. The host parent
-            // stays held by Prefix and is never mounted or passed to the child.
+            // A fresh namespace represents the requested prefix view. The host
+            // parent stays held and is never mounted or passed to the child.
             arguments.extend(["--tmpfs".into(), parent.as_os_str().into()]);
+        }
+        if let Some((prefix, View::EmptyStage)) = synthetic_prefix {
+            // The component plans for an empty private stage. The native plan
+            // separately binds the absent host destination and physical parent.
+            arguments.extend([
+                "--perms".into(),
+                "0700".into(),
+                "--dir".into(),
+                prefix.as_os_str().into(),
+            ]);
         }
         for target in targets {
             target.revalidate()?;
@@ -498,9 +525,14 @@ impl Launcher {
         } else {
             arguments.push("/run/provider".into());
         }
-        if let Some(prefix) = missing_prefix {
+        if let Some((prefix, view)) = synthetic_prefix {
             arguments.extend([
-                super::entry::MISSING_PREFIX.into(),
+                if view == View::EmptyStage {
+                    super::entry::EMPTY_PREFIX
+                } else {
+                    super::entry::MISSING_PREFIX
+                }
+                .into(),
                 prefix.as_os_str().into(),
             ]);
         }
