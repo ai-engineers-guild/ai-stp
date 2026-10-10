@@ -1,5 +1,6 @@
 //! Add a conservative target adaptation to an exact owned complete draft.
 
+mod instruction;
 mod mcp;
 mod skill;
 
@@ -82,6 +83,10 @@ pub(super) fn build(
     let target = text(provider.document(), "harness_id")?;
     let adaptations = before["adaptations"].as_array().ok_or_else(invalid)?;
     let (transform_id, reason) = match text(&before, "component_type")? {
+        "instruction" => (
+            "standalone-instruction",
+            "standalone instruction bytes relocated within the same declared scope; loader precedence, context limits and instruction semantics not assessed",
+        ),
         "mcp" => (
             "literal-stdio",
             "literal stdio configuration converted for this provider profile; harness execution not assessed",
@@ -123,6 +128,7 @@ pub(super) fn build(
             revisions::read_content(connection, text(&scope["projection_artifact"], "digest")?)?;
         let files = artifact::verify(scope, &payload)?;
         let (adaptation, bytes) = match text(&before, "component_type")? {
+            "instruction" => instruction::project(&before, scope, source_harness, provider, &files),
             "mcp" => mcp::project(&before, scope, source_harness, provider, &files),
             "skill" => skill::project(&before, scope, source_harness, provider, &files),
             _ => return Err(invalid()),
