@@ -1,6 +1,6 @@
 ---
 description: "Rebuilding and publishing the first-party corpus from exact attested setup-system releases."
-last_verified: "2026-09-24"
+last_verified: "2026-10-10"
 ---
 
 # First-party launch corpus
@@ -19,8 +19,8 @@ source commit, and signer before running `provider-info`. The builder reads that
 same source commit for the Git tree and limits each posture's path history to
 that commit. A later update to `main` cannot change captured provenance.
 
-Build into a copy of the previous corpus so identifiers and version history are
-available and an interrupted capture cannot damage the working corpus:
+Initialize an operational candidate from the canonical corpus so its identifiers
+and version history remain available while the release is reconciled:
 
 ```bash
 cp -a packages/contracts/src/ai_stp_contracts/first_party/v1 /tmp/corpus-next
@@ -49,14 +49,9 @@ with `just back-gen` (`release_scripts/first_party_corpus_digests.py`), which
 is the same command `back-static` compares against. A rebuilt member with an
 unrefreshed manifest is exactly the drift the gate names.
 
-The 2026-09-25 Antigravity capture binds release `0.0.74` at commit
-`8e6d20e7f8b5d63f397a9f3520e22d84a7fc5e27`. Its unchanged minimal family keeps
-its versions; changed baseline, full-auto and nddev-builder content advances
-the affected component and setup versions. Other harness families retain
-their previous passports, artifacts and release pins. The captured setting
-includes `allowNonWorkspaceAccess`, which native Antigravity CLI 1.2.10 read
-as enabled in the isolated user journey. Capture and publication readback
-remain separate evidence.
+The committed release pins identify the current coordinated capture. Capture,
+component publication and ai-stp catalog publication are separate operations;
+accepting a component release does not establish public catalog readback.
 
 ## Identity, versions, and provenance
 
@@ -75,6 +70,15 @@ a coordinated release changes their passport representation or setup pins;
 `--bump-id` advances an explicitly named object. Before publication, compare the
 candidate passports with the public exact versions and refuse any same-version
 change. A rebuild is not permission to overwrite an existing publication.
+
+Compare complete sealed passports, not only source blobs. A new source commit
+changes a component passport even when its artifact bytes remain identical;
+changed component pins change the owning setup definition. The builder's
+source-tree/setup-blob counters alone do not catch either case. Reconcile those
+identities with `--bump-id`, then repeat the sealed comparison: every changed
+passport needs an unused version, while unchanged passports retain their exact bytes
+and version. Verify the same invariant against public exact versions before
+publication.
 
 ## Inspect the current corpus
 

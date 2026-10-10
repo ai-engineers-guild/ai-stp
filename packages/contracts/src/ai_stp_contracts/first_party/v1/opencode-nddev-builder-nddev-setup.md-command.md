@@ -28,8 +28,8 @@ If changing provider implementation, also run this tree's checks:
 
 ```bash
 cargo fmt --all --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked --all-targets
 ```
 
 If a command is not present, say so rather than working around it.

@@ -3,9 +3,14 @@
 # Standard variants share this autonomous posture. Baseline leaves extra
 # capabilities off; it still asks for nothing and sandboxes nothing.
 
+# `default_auto_mode` is a root-level key: the `[session]` table carries only
+# `load_envrc` and `auto_compact_threshold_percent` upstream, and the key sat
+# under it here doing nothing until measured against the shipped 1.0.x
+# reference on 2026-09-27.
+default_auto_mode = true
+
 [session]
 load_envrc = false
-default_auto_mode = true
 
 [ui]
 permission_mode = "always-approve"
