@@ -155,7 +155,7 @@ describe("corporate directory filters", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("writes corporate catalog facets to the URL and router", () => {
+  it("writes corporate catalog facets to the URL and router", async () => {
     window.history.replaceState(null, "", "/en/corporate/components?organization_id=org");
     render(
       <CorporateDirectoryResults
@@ -177,9 +177,36 @@ describe("corporate directory filters", () => {
     if (!closeButton) throw new Error("catalog facet close button is missing");
     fireEvent.click(closeButton);
     fireEvent.click(screen.getByRole("button", { name: "applyFilters" }));
-    expect(push).toHaveBeenCalledWith(
-      "/corporate/components?organization_id=org&sort=name&page=1&team_ids=team_mobile",
+    await vi.waitFor(() => {
+      expect(push).toHaveBeenCalledWith(
+        "/corporate/components?organization_id=org&sort=name&page=1&team_ids=team_mobile",
+      );
+    });
+  });
+
+  it("clears every facet param atomically on Reset all + Apply", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/en/corporate/technologies?area_ids=area_1&page=2",
     );
+    render(
+      <CorporateDirectoryResults
+        resource="technologies"
+        serverPaginated
+        total={1}
+        items={[{ id: "tech", name: "Tech", areas: [{ id: "area_1", name: "Area" }] }]}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /filters/ }));
+    fireEvent.click(screen.getByRole("button", { name: "resetAll" }));
+    fireEvent.click(screen.getByRole("button", { name: "applyFilters" }));
+    await vi.waitFor(() => {
+      expect(push).toHaveBeenCalled();
+    });
+    const url = push.mock.calls.at(-1)?.[0] as string;
+    expect(url).not.toContain("area_ids");
+    expect(url).toContain("page=1");
   });
 
   it("renders technology ownership and usage in the shared directory card", () => {

@@ -17,11 +17,16 @@ export async function readTechnologyAreaDirectory(sessionToken: string, organiza
     !permissions.capabilities.includes("area.read")
   )
     return null;
-  const areas = await privateApiRequest<AreaList>(
-    `/v1/corporate/organizations/${organizationId}/technology-areas`,
-    { sessionToken },
-  );
-  return { permissions, areas };
+  const path = `/v1/corporate/organizations/${organizationId}`;
+  const [areas, categories] = await Promise.all([
+    privateApiRequest<AreaList>(`${path}/technology-areas`, { sessionToken }),
+    permissions.capabilities.includes("category.list")
+      ? privateApiRequest<CategoryList>(`${path}/technology-categories`, {
+          sessionToken,
+        }).catch(() => null)
+      : null,
+  ]);
+  return { permissions, areas, categories };
 }
 
 export async function readTechnologyScanJournal(

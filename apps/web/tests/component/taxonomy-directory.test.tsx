@@ -48,6 +48,7 @@ it("searches cards, filters by area and pages results", () => {
   );
   expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(12);
   expect(screen.getByRole("navigation", { name: "Pagination" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Open search" }));
   fireEvent.change(screen.getByRole("textbox", { name: "Search by name" }), {
     target: { value: "category 25" },
   });

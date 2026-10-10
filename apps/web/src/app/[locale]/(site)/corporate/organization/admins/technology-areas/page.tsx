@@ -61,6 +61,7 @@ export default async function TechnologyAreasPage({
         kind="area"
         items={directory.areas.items}
         areas={directory.areas.items}
+        categories={directory.categories?.items ?? []}
         authority={{
           organizationId,
           authorizationRevision: directory.permissions.authorization_revision,

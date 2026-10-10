@@ -5,53 +5,73 @@ import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
-import { Input } from "@/components/atoms/input";
 import { Select } from "@/components/atoms/select";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/atoms/menu";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/atoms/dialog";
+import { CompactChipList } from "@/components/molecules/compact-chip-list";
+import { ExpandableSearch } from "@/components/molecules/expandable-search";
 import { PagePager } from "@/components/molecules/page-pager";
 import {
-  AreaLifecycleControls,
-  CategoryLifecycleControls,
+  useGovernanceMutation,
   type GovernanceAuthority,
 } from "@/components/organisms/corporate-governance-controls";
 import { TechnologyRegistryCreate } from "@/components/organisms/technology-registry-create";
 import { Link } from "@/lib/i18n/navigation";
-import { useTechnologyTaxonomy } from "@/lib/technology-taxonomy";
+import { technologyAreaIcon, useTechnologyTaxonomy } from "@/lib/technology-taxonomy";
 import type { AreaView, CategoryView } from "@/lib/api/generated/types.gen";
 import { Icon } from "@/theme";
 
 const PAGE_SIZE = 12;
+const CATEGORY_CHIP_LIMIT = 5;
 
 type TaxonomyEntry = CategoryView | AreaView;
+type TaxonomyKind = "area" | "category";
 
-function entryId(kind: "area" | "category", entry: TaxonomyEntry) {
+function entryId(kind: TaxonomyKind, entry: TaxonomyEntry) {
   return kind === "area"
     ? (entry as AreaView).area_id
     : (entry as CategoryView).category_id;
 }
 
-function areaOf(kind: "area" | "category", entry: TaxonomyEntry) {
+function areaOf(kind: TaxonomyKind, entry: TaxonomyEntry) {
   return kind === "category" ? ((entry as CategoryView).area_id ?? null) : null;
 }
 
-function entryKey(kind: "area" | "category", entry: TaxonomyEntry) {
+function entryKey(kind: TaxonomyKind, entry: TaxonomyEntry) {
   return `${kind}-${entryId(kind, entry)}`;
+}
+
+function groupCategoriesByArea(
+  categories: readonly CategoryView[],
+  localize: <T extends CategoryView>(record: T) => T,
+) {
+  const grouped = new Map<string, CategoryView[]>();
+  for (const category of categories) {
+    if (!category.area_id) continue;
+    grouped.set(category.area_id, [
+      ...(grouped.get(category.area_id) ?? []),
+      localize(category),
+    ]);
+  }
+  return grouped;
 }
 
 export function TaxonomyDirectory({
   kind,
   items,
   areas,
+  categories = [],
   authority,
   canCreate,
   canUpdate,
   canRemove,
   detailBase,
 }: {
-  kind: "area" | "category";
+  kind: TaxonomyKind;
   items: readonly TaxonomyEntry[];
   areas: readonly AreaView[];
+  /** Area cards show their category labels; ignored for category entries. */
+  categories?: readonly CategoryView[] | undefined;
   authority: GovernanceAuthority;
   canCreate: boolean;
   canUpdate: boolean;
@@ -69,6 +89,7 @@ export function TaxonomyDirectory({
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<TaxonomyEntry | null>(null);
   const areaById = new Map(areas.map((area) => [area.area_id, localize(area)]));
+  const categoriesByArea = groupCategoriesByArea(categories, localize);
   const needle = query.trim().toLocaleLowerCase();
   const filtered = items.filter(
     (item) =>
@@ -82,19 +103,17 @@ export function TaxonomyDirectory({
   return (
     <div className="min-w-0 space-y-5">
       <div className="flex min-w-0 flex-wrap items-center justify-end gap-3">
-        <div className="border-border bg-card flex min-w-0 flex-1 items-center gap-2 rounded-lg border px-3">
-          <Icon name="search" size="sm" className="text-muted-foreground shrink-0" />
-          <Input
-            value={query}
-            aria-label={h("search")}
-            placeholder={h("search")}
-            className="h-11 border-0 px-0"
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
+        <ExpandableSearch
+          id={`taxonomy-${kind}-search`}
+          value={query}
+          onChange={(value) => {
+            setQuery(value);
+            setPage(1);
+          }}
+          label={h("openSearch")}
+          fieldLabel={h("search")}
+          placeholder={h("search")}
+        />
         {kind === "category" && areas.length > 0 && (
           <Select
             aria-label={a("field")}
@@ -139,6 +158,11 @@ export function TaxonomyDirectory({
               kind={kind}
               item={item}
               area={areaById.get(areaOf(kind, item) ?? "")}
+              areaCategories={
+                kind === "area"
+                  ? (categoriesByArea.get(entryId(kind, item)) ?? [])
+                  : []
+              }
               authority={authority}
               canUpdate={canUpdate}
               canRemove={canRemove}
@@ -192,15 +216,17 @@ function TaxonomyCard({
   kind,
   item,
   area,
+  areaCategories,
   authority,
   canUpdate,
   canRemove,
   detailBase,
   onEdit,
 }: {
-  kind: "area" | "category";
+  kind: TaxonomyKind;
   item: TaxonomyEntry;
   area: AreaView | undefined;
+  areaCategories: readonly CategoryView[];
   authority: GovernanceAuthority;
   canUpdate: boolean;
   canRemove: boolean;
@@ -225,7 +251,10 @@ function TaxonomyCard({
       <article className="border-border bg-card relative min-w-0 overflow-hidden rounded-lg border p-4">
         <div className="flex min-w-0 items-start gap-3 pr-11">
           <span className="bg-muted border-border text-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-md border">
-            <Icon name={kind === "area" ? "technology" : "filter"} size="sm" />
+            <Icon
+              name={kind === "area" ? technologyAreaIcon(id) : "filter"}
+              size="sm"
+            />
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -244,54 +273,105 @@ function TaxonomyCard({
                 {item.description}
               </p>
             ) : null}
+            {areaCategories.length ? (
+              <CompactChipList
+                values={areaCategories.map((category) => category.name)}
+                label={h("categories")}
+                limit={CATEGORY_CHIP_LIMIT}
+                className="mt-3"
+              />
+            ) : null}
           </div>
         </div>
-        {canUpdate && (
-          <div className="absolute top-4 right-4">
-            <Menu>
-              <MenuTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  aria-label={h("moreActions")}
-                >
-                  <Icon name="more" size="sm" />
-                </Button>
-              </MenuTrigger>
-              <MenuContent>
-                {detailBase && (
-                  <MenuItem asChild>
-                    <Link href={`${detailBase}/${id}`}>{t("openEntry")}</Link>
-                  </MenuItem>
-                )}
-                <MenuItem
-                  onSelect={() => {
-                    onEdit(item);
-                  }}
-                >
-                  {t(kind === "area" ? "areas.edit" : "editCategory")}
-                </MenuItem>
-              </MenuContent>
-            </Menu>
-          </div>
-        )}
-        {kind === "area" ? (
-          <AreaLifecycleControls
-            area={item as AreaView}
+        <div className="absolute top-4 right-4">
+          <TaxonomyEntryActions
+            kind={kind}
+            item={item}
+            detailBase={detailBase}
+            authority={authority}
+            canUpdate={canUpdate}
             canRemove={canRemove}
-            canRestore={canUpdate}
-            {...authority}
+            onEdit={onEdit}
           />
-        ) : (
-          <CategoryLifecycleControls
-            category={item as CategoryView}
-            canRemove={canRemove}
-            canRestore={canUpdate}
-            {...authority}
-          />
-        )}
+        </div>
       </article>
     </li>
+  );
+}
+
+function TaxonomyEntryActions({
+  kind,
+  item,
+  detailBase,
+  authority,
+  canUpdate,
+  canRemove,
+  onEdit,
+}: {
+  kind: TaxonomyKind;
+  item: TaxonomyEntry;
+  detailBase: string | undefined;
+  authority: GovernanceAuthority;
+  canUpdate: boolean;
+  canRemove: boolean;
+  onEdit: (entry: TaxonomyEntry) => void;
+}) {
+  const t = useTranslations("technology");
+  const h = useTranslations("hub");
+  const c = useTranslations("corporate");
+  const mutation = useGovernanceMutation(authority);
+  const id = entryId(kind, item);
+  const state = item.state ?? "active";
+  const path = `/v1/corporate/organizations/${authority.organizationId}/${
+    kind === "area" ? "technology-areas" : "technology-categories"
+  }/${id}`;
+  if (!detailBase && !canUpdate && !canRemove) return null;
+  return (
+    <>
+      <Menu>
+        <MenuTrigger asChild>
+          <Button size="icon" variant="ghost" aria-label={h("moreActions")}>
+            <Icon name="more" size="sm" />
+          </Button>
+        </MenuTrigger>
+        <MenuContent aria-busy={mutation.busy}>
+          {detailBase && (
+            <MenuItem asChild>
+              <Link href={`${detailBase}/${id}`}>{t("openEntry")}</Link>
+            </MenuItem>
+          )}
+          {canUpdate && (
+            <MenuItem
+              onSelect={() => {
+                onEdit(item);
+              }}
+            >
+              {t(kind === "area" ? "areas.edit" : "editCategory")}
+            </MenuItem>
+          )}
+          {canRemove && state !== "archived" && (
+            <MenuItem
+              disabled={mutation.busy}
+              onSelect={() => {
+                mutation.save(
+                  path,
+                  { expected_revision: item.revision },
+                  "DELETE",
+                  () => {},
+                );
+              }}
+            >
+              {c("delete")}
+            </MenuItem>
+          )}
+        </MenuContent>
+      </Menu>
+      {mutation.message && (
+        <p role="status" className="text-muted-foreground absolute top-12 right-4 text-xs">
+          {mutation.message}
+        </p>
+      )}
+    </>
   );
 }
 
@@ -303,7 +383,7 @@ function TaxonomyEditorDialog({
   open,
   onOpenChange,
 }: {
-  kind: "area" | "category";
+  kind: TaxonomyKind;
   areas: readonly AreaView[];
   authority: GovernanceAuthority;
   entry: TaxonomyEntry | null;

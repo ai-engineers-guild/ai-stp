@@ -792,29 +792,24 @@ a {
   flex-wrap: wrap;
 }
 .technology-toolbar {
-  display: grid;
-  grid-template-columns: minmax(8rem, 1fr) minmax(8rem, 1fr) minmax(12rem, 1.5fr) auto auto auto;
-  gap: 0.75rem;
-  align-items: center;
-}
-.technology-search {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-  border: 1px solid hsl(var(--input));
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+.technology-view-switch {
+  display: flex;
+  border: 1px solid hsl(var(--border));
   border-radius: var(--radius-sm);
-  padding: 0 0.625rem;
 }
-.technology-search input {
-  min-width: 0;
-  height: 2.5rem;
-  padding: 0;
-  border: 0;
-  background: transparent;
+.technology-view-switch > * {
+  min-width: 6.75rem;
 }
-.technology-search > svg {
-  color: hsl(var(--muted-foreground));
+.technology-active {
+  color: hsl(var(--primary));
+  outline: 1px solid hsl(var(--primary));
+  background: color-mix(in srgb, hsl(var(--primary)) 8%, transparent);
 }
 .technology-metrics {
   display: grid;
@@ -997,9 +992,6 @@ a {
   }
 }
 @media (max-width: 1279px) {
-  .technology-toolbar {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
   .technology-map-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -1040,12 +1032,10 @@ a {
     font-size: 1.5rem;
     overflow-wrap: anywhere;
   }
-  .technology-toolbar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .technology-toolbar > .technology-search,
-  .technology-toolbar > form {
-    grid-column: 1/-1;
+  .technology-view-switch > * {
+    min-width: 0;
+    flex: 1;
+    padding: 0.375rem;
   }
   .technology-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1125,7 +1115,8 @@ body:has(.technology-workspace) .projection-dock {
 }
 @media (max-width: 639px) {
   .technology-workspace .technology-chip,
-  .technology-workspace button {
+  .technology-workspace button,
+  .technology-workspace .technology-view-switch a {
     min-height: 2.75rem;
   }
   .technology-workspace .technology-metrics > div {

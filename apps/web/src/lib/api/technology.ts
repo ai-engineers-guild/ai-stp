@@ -392,6 +392,7 @@ export async function readTechnologyLandscapePolicy(sessionToken: string, organi
 }
 
 export const LANDSCAPE_FILTER_KEYS = [
+  "view",
   "query",
   "category_id",
   "technology_id",

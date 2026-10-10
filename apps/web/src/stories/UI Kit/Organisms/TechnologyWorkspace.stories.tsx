@@ -6,6 +6,7 @@ import { TechnologyFilterToolbar } from "@/components/organisms/technology-filte
 import { TechnologyLandscapeResults } from "@/components/organisms/technology-landscape-results";
 import { TechnologyScanJournal } from "@/components/organisms/technology-scan-journal";
 import { TaxonomyDirectory } from "@/components/organisms/taxonomy-directory";
+import { JobTitleDirectory } from "@/components/organisms/job-title-directory";
 import {
   authority,
   scan,
@@ -48,6 +49,16 @@ export const Map: Story = {
     />
   ),
 };
+export const Table: Story = {
+  render: () => (
+    <TechnologyLandscapeResults
+      landscape={landscape}
+      filters={{ view: "table" }}
+      categories={categories}
+      areas={areas}
+    />
+  ),
+};
 export const Taxonomy: Story = {
   render: () => (
     <TaxonomyDirectory
@@ -59,6 +70,52 @@ export const Taxonomy: Story = {
       canUpdate
       canRemove
       detailBase="/corporate/organization/admins/technology-categories"
+    />
+  ),
+};
+export const TaxonomyAreas: Story = {
+  render: () => (
+    <TaxonomyDirectory
+      kind="area"
+      items={areas}
+      areas={areas}
+      categories={categories}
+      authority={authority}
+      canCreate
+      canUpdate
+      canRemove
+    />
+  ),
+};
+export const JobTitles: Story = {
+  render: () => (
+    <JobTitleDirectory
+      csrfToken="storybook"
+      organizationId={authority.organizationId}
+      authorizationRevision={authority.authorizationRevision}
+      permissions={["job_title.list", "job_title.create", "job_title.update"]}
+      jobTitles={[
+        {
+          schema_version: 1,
+          job_title_id: "job_title_01JQZK7B8N4M6P2R9T5V0X3Y11",
+          organization_id: authority.organizationId,
+          name: "Platform engineer",
+          normalized_name: "platform engineer",
+          description: "Builds and operates the internal developer platform.",
+          state: "current",
+          revision: 1,
+        },
+        {
+          schema_version: 1,
+          job_title_id: "job_title_01JQZK7B8N4M6P2R9T5V0X3Y22",
+          organization_id: authority.organizationId,
+          name: "Legacy maintainer",
+          normalized_name: "legacy maintainer",
+          description: "Kept the retired services alive.",
+          state: "retired",
+          revision: 2,
+        },
+      ]}
     />
   ),
 };

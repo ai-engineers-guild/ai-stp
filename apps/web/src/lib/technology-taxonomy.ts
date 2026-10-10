@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import type { IconName } from "@/theme";
 import type { AreaView, CategoryView, TechnologyView } from "@/lib/api/generated/types.gen";
 
 const legacyCategories = new Set(
@@ -18,6 +19,28 @@ export function displayCategoryIds(
     );
   });
   return functional.length ? functional : technology.category_ids;
+}
+
+const AREA_ICONS: IconName[] = [
+  "code",
+  "devices",
+  "component",
+  "link",
+  "technology",
+  "chart",
+  "brain",
+  "objects",
+  "network",
+  "shield",
+  "controls",
+  "setup",
+];
+
+/** Stable per-area icon: the same area keeps its glyph across pages and orderings. */
+export function technologyAreaIcon(id: string): IconName {
+  let hash = 0;
+  for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return AREA_ICONS[hash % AREA_ICONS.length] ?? "technology";
 }
 
 /** Translate only unchanged default names; tenant edits always display verbatim. */

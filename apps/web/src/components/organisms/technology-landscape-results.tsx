@@ -1,159 +1,33 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { Menu, MenuTrigger, MenuContent, MenuItem } from "@/components/atoms/menu";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/atoms/dialog";
 import { Link } from "@/lib/i18n/navigation";
-import type {
-  AreaView,
-  CategoryView,
-  TechnologyLandscapeRow,
-  TechnologyLandscapeView,
-} from "@/lib/api/generated/types.gen";
 import { Icon, type IconName } from "@/theme";
-import { displayCategoryIds, useTechnologyTaxonomy } from "@/lib/technology-taxonomy";
+import { technologyAreaIcon } from "@/lib/technology-taxonomy";
+import {
+  useLandscapePresentation,
+  versions,
+  type LandscapeAreaGroup,
+  type LandscapeState,
+} from "./technology-landscape-state";
+import { TechnologyLandscapeTable } from "./technology-landscape-table";
 
 const CATEGORY_LIMIT = 5;
 const TECHNOLOGY_LIMIT = 5;
-
-function versions(row: TechnologyLandscapeRow) {
-  return (
-    [
-      ...new Set(
-        row.projects.flatMap((p) =>
-          p.usage.facts
-            .filter((f) => f.review !== "rejected" && f.freshness !== "absent")
-            .map((f) => f.version)
-            .filter(Boolean),
-        ),
-      ),
-    ]
-      .sort()
-      .join(", ") || "—"
-  );
-}
-const areaIcons: IconName[] = [
-  "code",
-  "devices",
-  "component",
-  "link",
-  "technology",
-  "chart",
-  "brain",
-  "objects",
-  "network",
-  "shield",
-  "controls",
-  "setup",
-  "technology",
-];
-
-type LandscapeCategoryGroup = {
-  key: string;
-  name: string;
-  rows: TechnologyLandscapeRow[];
-};
-
-type LandscapeAreaGroup = {
-  key: string;
-  name: string;
-  areaId: string | null;
-  categories: LandscapeCategoryGroup[];
-};
-
-function groupLandscape(
-  landscape: TechnologyLandscapeView,
-  categoryById: Map<string, CategoryView>,
-  areaById: Map<string, AreaView>,
-  unclassified: string,
-): LandscapeAreaGroup[] {
-  const groups: LandscapeAreaGroup[] = [];
-  const groupByKey = new Map<string, LandscapeAreaGroup>();
-  for (const area of [...areaById.values()]
-    .filter((area) => area.state !== "archived")
-    .sort((left, right) => left.area_id.localeCompare(right.area_id))) {
-    const group: LandscapeAreaGroup = {
-      key: area.area_id,
-      name: area.name,
-      areaId: area.area_id,
-      categories: [],
-    };
-    groups.push(group);
-    groupByKey.set(area.area_id, group);
-  }
-  for (const row of landscape.items) {
-    const ids = displayCategoryIds(row.technology, categoryById);
-    for (const id of ids.length ? ids : [""]) {
-      const category = categoryById.get(id);
-      const area = category?.area_id ? areaById.get(category.area_id) : undefined;
-      let group = groupByKey.get(area?.area_id ?? "unclassified");
-      if (!group) {
-        group = {
-          key: area?.area_id ?? "unclassified",
-          name: area?.name ?? unclassified,
-          areaId: area?.area_id ?? null,
-          categories: [],
-        };
-        groupByKey.set(group.key, group);
-        groups.push(group);
-      }
-      const ckey = category?.category_id ?? "";
-      let bucket = group.categories.find((entry) => entry.key === ckey);
-      if (!bucket) {
-        bucket = { key: ckey, name: category?.name ?? unclassified, rows: [] };
-        group.categories.push(bucket);
-      }
-      bucket.rows.push(row);
-    }
-  }
-  return groups;
-}
-
-function useLandscapePresentation({
-  landscape,
-  categories = null,
-  areas = null,
-}: {
-  landscape: TechnologyLandscapeView;
-  filters: Record<string, string | string[]>;
-  categories?: CategoryView[] | null;
-  areas?: AreaView[] | null;
-}) {
-  const t = useTranslations("technology");
-  const w = useTranslations("technology.workspace");
-  const a = useTranslations("technology.areas");
-  const localize = useTechnologyTaxonomy();
-  const [active, setActive] = useState<TechnologyLandscapeRow | null>(null);
-  const categoryById = new Map(categories?.map((c) => [c.category_id, localize(c)]) ?? []);
-  const areaById = new Map(areas?.map((a) => [a.area_id, localize(a)]) ?? []);
-  function classification(row: TechnologyLandscapeRow, area: boolean) {
-    return (
-      [
-        ...new Set(
-          displayCategoryIds(row.technology, categoryById)
-            .map((id) => {
-              const c = categoryById.get(id);
-              return area ? areaById.get(c?.area_id ?? "")?.name : c?.name;
-            })
-            .filter(Boolean),
-        ),
-      ].join(", ") || a("unclassified")
-    );
-  }
-  const groups = groupLandscape(landscape, categoryById, areaById, a("unclassified"));
-  return { t, w, active, setActive, classification, groups, landscape };
-}
-
-type LandscapeState = ReturnType<typeof useLandscapePresentation>;
 
 export function TechnologyLandscapeResults(props: Parameters<typeof useLandscapePresentation>[0]) {
   const state = useLandscapePresentation(props);
   return (
     <div className="space-y-3">
-      <TechnologyLandscapeMap state={state} />
+      {state.grouped ? (
+        <TechnologyLandscapeMap state={state} />
+      ) : (
+        <TechnologyLandscapeTable state={state} />
+      )}
       <TechnologyLandscapeDialog state={state} />
     </div>
   );
@@ -166,11 +40,11 @@ export function TechnologyLandscapeMap({ state }: { state: LandscapeState }) {
       <h2 className="text-xl font-medium">{w("landscapeHeading")}</h2>
       <p className="text-muted-foreground mb-3 text-sm">{w("landscapeDescription")}</p>
       <div className="technology-map-grid">
-        {groups.map((group, index) => (
+        {groups.map((group) => (
           <LandscapeAreaCard
             key={group.key}
             group={group}
-            icon={areaIcons[index % areaIcons.length] ?? "technology"}
+            icon={technologyAreaIcon(group.areaId ?? group.name)}
             state={state}
           />
         ))}

@@ -17,12 +17,13 @@ afterEach(cleanup);
 function renderLandscape(
   data: typeof landscape = landscape,
   extraCategories: CategoryView[] = [],
+  filters: Record<string, string | string[]> = {},
 ) {
   return render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <TechnologyLandscapeResults
         landscape={data}
-        filters={{}}
+        filters={filters}
         categories={[...categories, ...extraCategories]}
         areas={areas}
       />
@@ -131,4 +132,17 @@ it("expands and collapses every category through the area action menu", async ()
   );
   await user.click(screen.getByRole("menuitem", { name: "Collapse all" }));
   expect(screen.queryByRole("button", { name: "FastAPI" })).toBeNull();
+});
+
+it("renders the sortable table view instead of area cards when view=table", async () => {
+  const user = userEvent.setup();
+  renderLandscape(landscape, [], { view: "table" });
+  expect(screen.queryByRole("heading", { name: "Server applications" })).toBeNull();
+  const table = screen.getByRole("table", { name: "Technology summary" });
+  const nameButtons = within(table).getAllByRole("button", { name: "FastAPI" });
+  expect(nameButtons.length).toBeGreaterThan(0);
+  const nameButton = nameButtons[0];
+  if (!nameButton) throw new Error("FastAPI button is missing");
+  await user.click(nameButton);
+  expect(screen.getByRole("dialog")).toBeVisible();
 });
