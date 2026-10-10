@@ -63,10 +63,13 @@ export function TechnologyFields({
   prefix,
   categories,
   initial,
+  essential = false,
 }: {
   prefix: string;
   categories: CategoryView[] | null;
   initial: TechnologyView | undefined;
+  /** Essential mode shows only the classification fields; media and aliases stay unchanged. */
+  essential?: boolean;
 }) {
   const t = useTranslations("technology");
   const localize = useTechnologyTaxonomy();
@@ -102,36 +105,40 @@ export function TechnologyFields({
           )}
         </div>
       )}
-      <div className="space-y-2">
-        <Label htmlFor={`${prefix}-aliases`}>{t("aliases")}</Label>
-        <textarea
-          id={`${prefix}-aliases`}
-          name="aliases"
-          rows={3}
-          defaultValue={initial?.aliases.join("\n")}
-          className="border-input bg-background focus-visible:ring-ring w-full rounded-sm border px-3 py-2 text-sm focus-visible:ring-2"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={`${prefix}-icon`}>{t("iconUrl")}</Label>
-        <Input
-          id={`${prefix}-icon`}
-          name="icon_url"
-          type="url"
-          maxLength={2048}
-          defaultValue={initial?.icon_url ?? ""}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={`${prefix}-official`}>{t("officialUrls")}</Label>
-        <textarea
-          id={`${prefix}-official`}
-          name="official_urls"
-          rows={3}
-          defaultValue={initial?.official_urls.join("\n")}
-          className="border-input bg-background focus-visible:ring-ring w-full rounded-sm border px-3 py-2 text-sm focus-visible:ring-2"
-        />
-      </div>
+      {!essential && (
+        <>
+          <div className="space-y-2">
+            <Label htmlFor={`${prefix}-aliases`}>{t("aliases")}</Label>
+            <textarea
+              id={`${prefix}-aliases`}
+              name="aliases"
+              rows={3}
+              defaultValue={initial?.aliases.join("\n")}
+              className="border-input bg-background focus-visible:ring-ring w-full rounded-sm border px-3 py-2 text-sm focus-visible:ring-2"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`${prefix}-icon`}>{t("iconUrl")}</Label>
+            <Input
+              id={`${prefix}-icon`}
+              name="icon_url"
+              type="url"
+              maxLength={2048}
+              defaultValue={initial?.icon_url ?? ""}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`${prefix}-official`}>{t("officialUrls")}</Label>
+            <textarea
+              id={`${prefix}-official`}
+              name="official_urls"
+              rows={3}
+              defaultValue={initial?.official_urls.join("\n")}
+              className="border-input bg-background focus-visible:ring-ring w-full rounded-sm border px-3 py-2 text-sm focus-visible:ring-2"
+            />
+          </div>
+        </>
+      )}
     </>
   );
 }

@@ -47,6 +47,8 @@ function registryMetadata(
   kind: RegistryKind,
   data: FormData,
   categories: CategoryView[] | null,
+  record: TechnologyView | CategoryView | AreaView | undefined,
+  essential: boolean,
 ): TechnologyAreaMetadata | TechnologyCategoryMetadata | TechnologyMetadata {
   const text = formText(data);
   const lines = (key: string) =>
@@ -55,6 +57,7 @@ function registryMetadata(
       .map((value) => value.trim())
       .filter(Boolean);
   if (kind !== "technology") return { name: text("name"), description: text("description") };
+  const technology = record as TechnologyView | undefined;
   return {
     name: text("name"),
     description: text("description"),
@@ -62,9 +65,9 @@ function registryMetadata(
       categories === null
         ? text("category_ids").split(/\s+/).filter(Boolean)
         : data.getAll("category_ids").filter((value): value is string => typeof value === "string"),
-    aliases: lines("aliases"),
-    icon_url: text("icon_url") || null,
-    official_urls: lines("official_urls"),
+    aliases: essential ? (technology?.aliases ?? []) : lines("aliases"),
+    icon_url: essential ? (technology?.icon_url ?? null) : text("icon_url") || null,
+    official_urls: essential ? (technology?.official_urls ?? []) : lines("official_urls"),
   };
 }
 
@@ -157,6 +160,24 @@ export function TechnologyRegistrySeed({
   );
 }
 
+function registrySubmitLabel(
+  t: (key: string) => string,
+  kind: RegistryKind,
+  record: unknown,
+  busy: boolean,
+) {
+  if (busy) return t("saving");
+  return t(record ? "saveChanges" : REGISTRY_TITLE_KEYS.create[kind]);
+}
+
+function registrySubmitDisabled(
+  kind: RegistryKind,
+  record: unknown,
+  categories: CategoryView[] | null,
+) {
+  return Boolean(record) && kind === "technology" && categories?.length === 0;
+}
+
 export function TechnologyRegistryCreate({
   kind,
   organizationId,
@@ -168,6 +189,7 @@ export function TechnologyRegistryCreate({
   initialCategory,
   initialArea,
   onCreated,
+  essential = false,
 }: {
   kind: RegistryKind;
   organizationId: string;
@@ -179,6 +201,8 @@ export function TechnologyRegistryCreate({
   initialCategory?: CategoryView;
   initialArea?: AreaView;
   onCreated?: (record: TechnologyView | CategoryView | AreaView) => void;
+  /** Essential mode edits name, description and categories only; media and aliases are preserved. */
+  essential?: boolean;
 }) {
   const t = useTranslations("technology");
   const router = useRouter();
@@ -192,7 +216,7 @@ export function TechnologyRegistryCreate({
 
   function submit(form: HTMLFormElement) {
     const data = new FormData(form);
-    const metadata = registryMetadata(kind, data, categories);
+    const metadata = registryMetadata(kind, data, categories, record, essential);
     const effect = JSON.stringify(metadata);
     if (retry.current?.effect !== effect) retry.current = { effect, key: crypto.randomUUID() };
     const body = registryBody(kind, data, {
@@ -218,10 +242,8 @@ export function TechnologyRegistryCreate({
       }
       retry.current = null;
       if (record) recordRevision.current += 1;
-      if (!record) {
-        form.reset();
-        onCreated?.(result.data as TechnologyView | CategoryView | AreaView);
-      }
+      if (!record) form.reset();
+      onCreated?.(result.data as TechnologyView | CategoryView | AreaView);
       setMessage(t("saved"));
       router.refresh();
     });
@@ -265,14 +287,19 @@ export function TechnologyRegistryCreate({
           <AreaField prefix={prefix} areas={areas} initial={initialCategory} />
         )}
         {kind === "technology" && record && (
-          <TechnologyFields prefix={prefix} categories={categories} initial={initial} />
+          <TechnologyFields
+            prefix={prefix}
+            categories={categories}
+            initial={initial}
+            essential={essential}
+          />
         )}
         <Button
           type="submit"
           size="lg"
-          disabled={Boolean(record) && kind === "technology" && categories?.length === 0}
+          disabled={registrySubmitDisabled(kind, record, categories)}
         >
-          {t(busy ? "saving" : record ? "saveChanges" : REGISTRY_TITLE_KEYS.create[kind])}
+          {registrySubmitLabel(t, kind, record, busy)}
         </Button>
       </fieldset>
       {message && (

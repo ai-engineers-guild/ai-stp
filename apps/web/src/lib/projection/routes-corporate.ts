@@ -83,7 +83,7 @@ export const CORPORATE_ROUTES: MachineRoute[] = [
       ["corporate/technology-landscape", "/corporate"],
       ["corporate/technology-scans", "/corporate/technology-landscape"],
       ["corporate/technology-scans/:scanId", "/corporate/technology-scans"],
-      ["corporate/categories", "/corporate/technology-landscape"],
+      ["corporate/categories", "/corporate/organization/admins"],
       ["corporate/technology-mappings", "/corporate/technology-landscape"],
       ["corporate/organization/admins/access", "/corporate/organization/admins"],
       ["corporate/organization/admins/audit", "/corporate/organization/admins"],

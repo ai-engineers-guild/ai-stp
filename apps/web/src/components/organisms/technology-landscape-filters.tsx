@@ -39,7 +39,6 @@ export function TechnologyLandscapeFilters({
     for (const value of values) if (value) query.append(key, value);
     router.push(`/corporate/technology-landscape?${query}`);
   }
-  const view = filters.view === "table" ? "table" : "grouped";
   return (
     <>
       <div className="technology-toolbar">
@@ -91,26 +90,6 @@ export function TechnologyLandscapeFilters({
           <Icon name="filter" size="sm" />
           {t("filters")}
         </Button>
-        <div className="technology-view-switch" aria-label={t("view")}>
-          <Button asChild variant="ghost" className={view === "grouped" ? "technology-active" : ""}>
-            <Link
-              href={viewHref(filters, "grouped")}
-              aria-current={view === "grouped" ? "page" : undefined}
-            >
-              <Icon name="cards" size="sm" />
-              {w("map")}
-            </Link>
-          </Button>
-          <Button asChild variant="ghost" className={view === "table" ? "technology-active" : ""}>
-            <Link
-              href={viewHref(filters, "table")}
-              aria-current={view === "table" ? "page" : undefined}
-            >
-              <Icon name="list" size="sm" />
-              {w("table")}
-            </Link>
-          </Button>
-        </div>
         {launch}
       </div>
       <TechnologyLandscapeAdvanced
@@ -122,15 +101,6 @@ export function TechnologyLandscapeFilters({
       />
     </>
   );
-}
-
-function viewHref(filters: Record<string, string | string[]>, next: string) {
-  const query = new URLSearchParams();
-  for (const [key, value] of Object.entries(filters))
-    for (const item of [value].flat()) query.append(key, item);
-  query.set("view", next);
-  query.delete("offset");
-  return `/corporate/technology-landscape?${query}`;
 }
 
 function TechnologyLandscapeAdvanced({

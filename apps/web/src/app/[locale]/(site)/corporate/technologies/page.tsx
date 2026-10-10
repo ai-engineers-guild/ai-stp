@@ -41,6 +41,7 @@ export default async function TechnologyRegistryPage({
       team_ids: list("team_ids"),
       project_ids: list("project_ids"),
       category_ids: list("category_ids"),
+      area_ids: list("area_ids"),
       sort: filters.sort === "name_desc" ? "name_desc" : "name",
       page: Number.isInteger(pageValue) && pageValue > 0 ? pageValue : 1,
       pageSize:

@@ -1,10 +1,8 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
-import { Badge } from "@/components/atoms/badge";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { StatePanel } from "@/components/molecules/state-panel";
-import { AreaLifecycleControls } from "@/components/organisms/corporate-governance-controls";
-import { TechnologyRegistryCreate } from "@/components/organisms/technology-registry-create";
+import { TaxonomyDirectory } from "@/components/organisms/taxonomy-directory";
 import { readCorporateContext } from "@/lib/api/corporate";
 import { ApiError } from "@/lib/api/errors";
 import { readTechnologyAreaDirectory } from "@/lib/api/technology-scans";
@@ -51,14 +49,7 @@ export default async function TechnologyAreasPage({
   }
   if (!directory)
     return <StatePanel kind="empty" title={t("areas.title")} description={t("notPermitted")} />;
-  const mutation = {
-    organizationId,
-    authorizationRevision: directory.permissions.authorization_revision,
-    csrfToken: (await readCsrfToken()) ?? "",
-  };
-  const canCreate = directory.permissions.capabilities.includes("area.create");
-  const canUpdate = directory.permissions.capabilities.includes("area.update");
-  const canRemove = directory.permissions.capabilities.includes("area.delete");
+  const capabilities = directory.permissions.capabilities;
   return (
     <div className="min-w-0 space-y-6">
       <header className="space-y-3">
@@ -66,52 +57,19 @@ export default async function TechnologyAreasPage({
         <h1 className="text-3xl font-medium tracking-tight sm:text-4xl">{t("areas.title")}</h1>
         <p className="text-muted-foreground max-w-prose">{t("areas.description")}</p>
       </header>
-      {canCreate && (
-        <details>
-          <summary className="min-h-11 cursor-pointer py-3 text-sm underline underline-offset-4">
-            {t("areas.create")}
-          </summary>
-          <TechnologyRegistryCreate kind="area" categories={null} {...mutation} />
-        </details>
-      )}
-      {directory.areas.items.length ? (
-        <ul className="divide-border divide-y">
-          {directory.areas.items.map((area) => (
-            <li key={area.area_id} className="space-y-1 py-4">
-              <span className="flex flex-wrap items-center gap-2">
-                <span className="font-medium">{area.name}</span>
-                {area.state && area.state !== "active" && (
-                  <Badge variant={area.state === "draft" ? "warning" : "secondary"}>
-                    {t(`values.${area.state}`)}
-                  </Badge>
-                )}
-              </span>
-              <p className="text-muted-foreground max-w-prose text-sm">{area.description}</p>
-              {canUpdate && (
-                <details>
-                  <summary className="min-h-11 cursor-pointer py-3 text-sm underline underline-offset-4">
-                    {t("areas.edit")}
-                  </summary>
-                  <TechnologyRegistryCreate
-                    kind="area"
-                    categories={null}
-                    initialArea={area}
-                    {...mutation}
-                  />
-                </details>
-              )}
-              <AreaLifecycleControls
-                area={area}
-                canRemove={canRemove}
-                canRestore={canUpdate}
-                {...mutation}
-              />
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <StatePanel kind="empty" title={t("areas.title")} description={t("areas.empty")} />
-      )}
+      <TaxonomyDirectory
+        kind="area"
+        items={directory.areas.items}
+        areas={directory.areas.items}
+        authority={{
+          organizationId,
+          authorizationRevision: directory.permissions.authorization_revision,
+          csrfToken: (await readCsrfToken()) ?? "",
+        }}
+        canCreate={capabilities.includes("area.create")}
+        canUpdate={capabilities.includes("area.update")}
+        canRemove={capabilities.includes("area.delete")}
+      />
     </div>
   );
 }

@@ -11,7 +11,7 @@ export type DirectoryRef = Pick<CorporateDirectoryReference, "id" | "name"> & {
 
 export type DirectoryResource = "teams" | "projects" | "technologies" | "members" | "components";
 export type DirectoryFacet =
-  "leads" | "teams" | "technologies" | "projects" | "categories" | "job_titles";
+  "leads" | "teams" | "technologies" | "projects" | "categories" | "areas" | "job_titles";
 export type CorporateCatalogFacet =
   | "team_ids"
   | "project_ids"
@@ -42,6 +42,7 @@ export type DirectoryItem = {
   owner?: DirectoryRef | null;
   job_title?: DirectoryRef | null;
   categories?: readonly DirectoryRef[];
+  areas?: readonly DirectoryRef[];
   available_actions?: readonly string[];
   is_lead?: boolean;
   component_type?: ComponentType;
@@ -55,7 +56,7 @@ export type DirectoryItem = {
 export const directoryFacets: Record<DirectoryResource, DirectoryFacet[]> = {
   teams: ["leads", "technologies", "teams"],
   projects: ["teams", "technologies"],
-  technologies: ["projects", "teams", "categories"],
+  technologies: ["projects", "teams", "categories", "areas"],
   members: ["projects", "teams", "technologies", "job_titles"],
   components: [],
 };
@@ -66,6 +67,7 @@ export const directoryFacetParams: Record<DirectoryFacet, string> = {
   technologies: "technology_ids",
   projects: "project_ids",
   categories: "category_ids",
+  areas: "area_ids",
   job_titles: "job_title_ids",
 };
 
@@ -123,6 +125,7 @@ export function relationSectionLabels(
     projects: h("projects"),
     technologies: h("technologies"),
     categories: h("categories"),
+    areas: h("areas"),
     teamLeads: h("teamLeads"),
     team: h("team"),
     employee: h("employee"),

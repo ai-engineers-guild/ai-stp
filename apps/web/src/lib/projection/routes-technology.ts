@@ -181,7 +181,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
     },
   },
   {
-    pattern: "corporate/categories",
+    pattern: "corporate/organization/admins/technology-categories",
     resolve: async ({ searchParams }) => {
       const h = await getTranslations("hub");
       const session = (await sessionCookieValue()) ?? "";
@@ -193,6 +193,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
         typeof searchParams.query === "string" ? searchParams.query.toLocaleLowerCase() : "";
       return presentPage({
         title: h("categories"),
+        links: [[h("backToWorkspace"), "/corporate/organization/admins"]],
         sections: [
           {
             heading: h("categories"),
@@ -201,7 +202,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
                 .filter((item) => item.name.toLocaleLowerCase().includes(query))
                 .map((item) => ({
                   title: item.name,
-                  href: `/corporate/categories/${item.category_id}`,
+                  href: `/corporate/organization/admins/technology-categories/${item.category_id}`,
                   fields: [[h("organization"), item.description]],
                 })) ?? [],
           },
@@ -211,18 +212,20 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
     },
   },
   {
-    pattern: "corporate/categories/:categoryId",
+    pattern: "corporate/organization/admins/technology-categories/:categoryId",
     resolve: async ({ segments }) => {
       const h = await getTranslations("hub");
       const session = (await sessionCookieValue()) ?? "";
       const context = await readCorporateContext(session);
       const detail = context
-        ? await readCategoryDetail(session, context.organization.organization_id, segments[2] ?? "")
+        ? await readCategoryDetail(session, context.organization.organization_id, segments[4] ?? "")
         : null;
       return presentPage({
         title: detail?.category.name ?? h("categories"),
         summary: detail?.category.description ?? "",
-        links: [[h("backToCategories"), "/corporate/categories"]],
+        links: [
+          [h("backToCategories"), "/corporate/organization/admins/technology-categories"],
+        ],
         sections: [
           {
             heading: h("technologies"),

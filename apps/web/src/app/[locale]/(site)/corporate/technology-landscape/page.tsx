@@ -37,7 +37,6 @@ export default async function TechnologyLandscapePage({
     t = await getTranslations("technology"),
     w = await getTranslations("technology.workspace");
   const filters: Record<string, string | string[]> = {
-    view: "grouped",
     include_proposed: "true",
     ...landscapeFilters(await searchParams),
     limit: "256",

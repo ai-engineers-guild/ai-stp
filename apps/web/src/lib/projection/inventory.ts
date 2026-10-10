@@ -111,8 +111,19 @@ export const PAGE_INVENTORY: readonly PageInventoryEntry[] = [
   { pattern: "corporate/reports/:report", access: "session", presenter: "domain" },
   { pattern: "corporate/technologies", access: "session", presenter: "domain" },
   { pattern: "corporate/technologies/new", access: "session", presenter: "domain" },
+  // Legacy category paths stay paired with their redirect pages.
   { pattern: "corporate/categories", access: "session", presenter: "domain" },
   { pattern: "corporate/categories/:categoryId", access: "session", presenter: "domain" },
+  {
+    pattern: "corporate/organization/admins/technology-categories",
+    access: "session",
+    presenter: "domain",
+  },
+  {
+    pattern: "corporate/organization/admins/technology-categories/:categoryId",
+    access: "session",
+    presenter: "domain",
+  },
   { pattern: "corporate/technologies/:technologyId", access: "session", presenter: "domain" },
   {
     pattern: "corporate/technologies/:technologyId/edit",

@@ -154,7 +154,8 @@
     "audit": "Аудит",
     "scans": "Сканы",
     "technologyAreas": "Технологические области",
-    "technologyMap": "Карта технологий"
+    "technologyMap": "Карта технологий",
+    "areas": "Области"
   },
   "corporateReports": {
     "title": "Отчёты",
@@ -445,8 +446,7 @@
       "trial": "Пробное применение",
       "adopt": "Принята",
       "hold": "Приостановлена",
-      "table": "Таблица",
-      "grouped": "По категориям"
+      "dependency": "Зависимость"
     },
     "title": "Ландшафт технологий",
     "description": "Уникальные доступные проекты после применения фильтров. Предложенные применения считаются отдельно.",
@@ -565,7 +565,8 @@
       "field": "Технологическая область",
       "unassigned": "Без области",
       "unclassified": "Без классификации",
-      "empty": "Технологических областей пока нет."
+      "empty": "Технологических областей пока нет.",
+      "all": "Все области"
     },
     "workspace": {
       "organization": "Организация",
@@ -573,27 +574,17 @@
       "allProjects": "Все проекты",
       "searchProject": "Найти проект",
       "searchTechnology": "Найти технологию…",
-      "map": "Карта",
-      "table": "Таблица",
       "filterDescription": "Уточните проекты, классификацию и состояния технологий.",
       "area": "Область",
       "versions": "Версии",
       "status": "Статус",
       "actions": "Действия",
-      "summary": "Сводка по технологиям",
-      "summaryDescription": "Ключевые технологии, их области, категории, версии и использование в проектах.",
       "landscapeHeading": "Технологический ландшафт",
       "landscapeDescription": "Технологии сгруппированы по технологическим областям и категориям. Показаны реальные версии, используемые в организации.",
       "shown": "Показано {count} из {total}",
-      "draft": "Draft",
-      "review": "Review",
-      "standard": "Standard",
-      "openTechnology": "Открыть {name}",
       "pagination": "Навигация по страницам",
       "page": "Страница {page}",
-      "showPerPage": "Показать по",
       "pageSize": "Строк на странице",
-      "ofTechnologies": "из {total} технологий",
       "technologyUsage": "Версии и использование технологии в проектах.",
       "openRegistry": "Открыть карточку технологии",
       "backScans": "Назад к сканам",
@@ -708,7 +699,14 @@
         "md": "Markdown (.md)",
         "csv": "CSV (.csv)",
         "json": "JSON (.json)"
-      }
+      },
+      "areaActions": "Действия области",
+      "expandAll": "Развернуть всё",
+      "collapseAll": "Свернуть всё",
+      "openTechnologies": "Перейти к списку технологий",
+      "moreCategories": "Показать ещё {count}",
+      "moreTechnologies": "Показать ещё {count}",
+      "showLess": "Свернуть"
     },
     "close": "Закрыть",
     "taxonomy": {
@@ -1232,7 +1230,11 @@
         "name": "Product analytics",
         "label": "Продуктовая аналитика"
       }
-    }
+    },
+    "openEntry": "Открыть",
+    "entryCount": "{count, plural, one {# запись} few {# записи} many {# записей} other {# записей}}",
+    "entryDialogDescription": "Название, описание и принадлежность к области.",
+    "categoriesDescription": "Категории объединяют технологии внутри областей."
   },
   "githubConnector": {
     "backToAccount": "Назад к аккаунту",

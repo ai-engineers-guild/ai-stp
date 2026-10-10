@@ -3352,6 +3352,10 @@ export type CorporateDeleteResult = {
  */
 export type CorporateDirectoryFacets = {
   /**
+   * Areas
+   */
+  areas: Array<CorporateDirectoryReference>;
+  /**
    * Categories
    */
   categories: Array<CorporateDirectoryReference>;
@@ -3383,6 +3387,10 @@ export type CorporateDirectoryFacets = {
  */
 export type CorporateDirectoryItem = {
   /**
+   * Areas
+   */
+  areas: Array<CorporateDirectoryReference>;
+  /**
    * Available Actions
    */
   available_actions: Array<string>;
@@ -3406,7 +3414,7 @@ export type CorporateDirectoryItem = {
   /**
    * Kind
    */
-  kind: "project" | "team" | "employee" | "technology" | "category" | "job_title";
+  kind: "project" | "team" | "employee" | "technology" | "category" | "area" | "job_title";
   /**
    * Leads
    */
@@ -3448,6 +3456,10 @@ export type CorporateDirectoryItem = {
  * CorporateDirectoryQuery
  */
 export type CorporateDirectoryQuery = {
+  /**
+   * Area Ids
+   */
+  area_ids?: Array<string>;
   /**
    * Category Ids
    */
@@ -3517,7 +3529,7 @@ export type CorporateDirectoryReference = {
   /**
    * Kind
    */
-  kind: "project" | "team" | "employee" | "technology" | "category" | "job_title";
+  kind: "project" | "team" | "employee" | "technology" | "category" | "area" | "job_title";
   /**
    * Name
    */
@@ -21787,6 +21799,10 @@ export type ReadCorporateDirectoryData = {
     organization_id: string;
   };
   query: {
+    /**
+     * Area Ids
+     */
+    area_ids?: Array<string>;
     /**
      * Category Ids
      */

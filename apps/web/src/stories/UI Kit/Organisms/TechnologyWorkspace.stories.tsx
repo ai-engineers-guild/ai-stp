@@ -5,6 +5,7 @@ import { TechnologyScanFindings } from "@/components/organisms/technology-scan-f
 import { TechnologyFilterToolbar } from "@/components/organisms/technology-filter-toolbar";
 import { TechnologyLandscapeResults } from "@/components/organisms/technology-landscape-results";
 import { TechnologyScanJournal } from "@/components/organisms/technology-scan-journal";
+import { TaxonomyDirectory } from "@/components/organisms/taxonomy-directory";
 import {
   authority,
   scan,
@@ -41,19 +42,23 @@ export const Map: Story = {
   render: () => (
     <TechnologyLandscapeResults
       landscape={landscape}
-      filters={{ view: "grouped" }}
+      filters={{}}
       categories={categories}
       areas={areas}
     />
   ),
 };
-export const Table: Story = {
+export const Taxonomy: Story = {
   render: () => (
-    <TechnologyLandscapeResults
-      landscape={landscape}
-      filters={{ view: "table" }}
-      categories={categories}
+    <TaxonomyDirectory
+      kind="category"
+      items={categories}
       areas={areas}
+      authority={authority}
+      canCreate
+      canUpdate
+      canRemove
+      detailBase="/corporate/organization/admins/technology-categories"
     />
   ),
 };

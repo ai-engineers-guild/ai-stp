@@ -107,6 +107,7 @@ export function TechnologyReviewDialogs({ state }: { state: TechnologyReviewStat
               categories={categories?.filter((item) => item.state !== "archived") ?? null}
               areas={areas?.filter((item) => item.state !== "archived") ?? null}
               initial={edit}
+              essential
               onCreated={() => {
                 setEdit(null);
               }}

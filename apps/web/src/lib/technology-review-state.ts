@@ -2,11 +2,7 @@
 import { useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { displayCategoryIds, useTechnologyTaxonomy } from "@/lib/technology-taxonomy";
-import {
-  applyFindings,
-  canApplyFinding,
-  defaultDraft,
-} from "@/lib/technology-review-actions";
+import { applyFindings, canApplyFinding, defaultDraft } from "@/lib/technology-review-actions";
 import {
   useGovernanceMutation,
   type GovernanceAuthority,

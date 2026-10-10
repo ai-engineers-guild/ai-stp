@@ -6892,6 +6892,14 @@
       "CorporateDirectoryFacets": {
         "additionalProperties": true,
         "properties": {
+          "areas": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateDirectoryReference"
+            },
+            "title": "Areas",
+            "type": "array"
+          },
           "categories": {
             "default": [],
             "items": {
@@ -6939,6 +6947,7 @@
           }
         },
         "required": [
+          "areas",
           "categories",
           "job_titles",
           "leads",
@@ -6952,6 +6961,15 @@
       "CorporateDirectoryItem": {
         "additionalProperties": true,
         "properties": {
+          "areas": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateDirectoryReference"
+            },
+            "maxItems": 32,
+            "title": "Areas",
+            "type": "array"
+          },
           "available_actions": {
             "default": [],
             "items": {
@@ -7004,6 +7022,7 @@
               "employee",
               "technology",
               "category",
+              "area",
               "job_title"
             ],
             "title": "Kind",
@@ -7094,6 +7113,7 @@
           }
         },
         "required": [
+          "areas",
           "available_actions",
           "categories",
           "description",
@@ -7118,6 +7138,16 @@
       "CorporateDirectoryQuery": {
         "additionalProperties": false,
         "properties": {
+          "area_ids": {
+            "default": [],
+            "items": {
+              "pattern": "^area_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            "maxItems": 32,
+            "title": "Area Ids",
+            "type": "array"
+          },
           "category_ids": {
             "default": [],
             "items": {
@@ -7274,6 +7304,7 @@
               "employee",
               "technology",
               "category",
+              "area",
               "job_title"
             ],
             "title": "Kind",
@@ -52193,6 +52224,21 @@
             "schema": {
               "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "area_ids",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "pattern": "^area_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              "maxItems": 32,
+              "title": "Area Ids",
+              "type": "array"
             }
           },
           {

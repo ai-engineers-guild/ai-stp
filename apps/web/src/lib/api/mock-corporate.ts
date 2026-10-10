@@ -1076,6 +1076,18 @@ function corporateDirectoryResponse(query: URLSearchParams): WorkspaceMockResult
               .filter((candidate): candidate is CategoryView => Boolean(candidate))
               .map((candidate) => ref("category", candidate.category_id, candidate.name))
           : [],
+      areas:
+        resource === "technologies"
+          ? [
+              ...new Map(
+                (item.detail as TechnologyView).category_ids
+                  .map((id) => categoryViews.find((candidate) => candidate.category_id === id))
+                  .map((category) => areaViews.find((a) => a.area_id === category?.area_id))
+                  .filter((area): area is AreaView => Boolean(area))
+                  .map((area) => [area.area_id, ref("area", area.area_id, area.name)]),
+              ).values(),
+            ]
+          : [],
       owner_team: ownerTeam,
       owner,
       available_actions: [],
@@ -1087,6 +1099,7 @@ function corporateDirectoryResponse(query: URLSearchParams): WorkspaceMockResult
     technology_ids: "technologies",
     project_ids: "projects",
     category_ids: "categories",
+    area_ids: "areas",
   };
   const filtered = cards.filter((card) => {
     const q = query.get("query")?.trim().toLowerCase();

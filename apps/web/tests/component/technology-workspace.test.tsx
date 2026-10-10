@@ -66,7 +66,7 @@ it("renders the area map and opens real versions and project evidence", () => {
     wrap(
       <TechnologyLandscapeResults
         landscape={landscape}
-        filters={{ view: "grouped" }}
+        filters={{}}
         categories={categories}
         areas={areas}
       />,
@@ -74,6 +74,7 @@ it("renders the area map and opens real versions and project evidence", () => {
   );
   expect(screen.getByRole("heading", { name: "Technology landscape" })).toBeVisible();
   expect(screen.getByRole("heading", { name: "Server applications" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: /API frameworks/ }));
   fireEvent.click(
     screen.getAllByRole("button", { name: "FastAPI" }).at(0) ??
       screen.getByRole("button", { name: "FastAPI" }),
@@ -82,20 +83,28 @@ it("renders the area map and opens real versions and project evidence", () => {
   expect(within(dialog).getByRole("link", { name: "Platform API" })).toBeVisible();
   expect(within(dialog).getAllByText(/0.115/).length).toBeGreaterThan(0);
 });
-it("provides the six reference summary columns and pagination", () => {
+it("keeps cards compact and expands categories through the area menu", async () => {
   render(
     wrap(
       <TechnologyLandscapeResults
         landscape={landscape}
-        filters={{ view: "table" }}
+        filters={{}}
         categories={categories}
         areas={areas}
       />,
     ),
   );
-  for (const label of ["Technology", "Area", "Category", "Versions", "Projects", "Status"])
-    expect(screen.getByRole("button", { name: label })).toBeVisible();
-  expect(screen.getByRole("navigation", { name: "Pagination" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "FastAPI" })).toBeNull();
+  const user = userEvent.setup();
+  const areaActions = () =>
+    screen.getAllByRole("button", { name: "Area actions" }).at(0) ??
+    screen.getByRole("button", { name: "Area actions" });
+  await user.click(areaActions());
+  await user.click(await screen.findByRole("menuitem", { name: "Expand all" }));
+  expect(screen.getByRole("button", { name: "FastAPI" })).toBeVisible();
+  await user.click(areaActions());
+  await user.click(await screen.findByRole("menuitem", { name: "Collapse all" }));
+  expect(screen.queryByRole("button", { name: "FastAPI" })).toBeNull();
 });
 it("translates unchanged taxonomy defaults, preserves owner names and keeps empty areas honest", () => {
   const first = landscape.items[0];
@@ -118,7 +127,7 @@ it("translates unchanged taxonomy defaults, preserves owner names and keeps empt
     <NextIntlClientProvider locale="ru" messages={russianMessages}>
       <TechnologyLandscapeResults
         landscape={{ ...landscape, items: [{ ...first, technology }] }}
-        filters={{ view: "grouped" }}
+        filters={{}}
         categories={[category]}
         areas={[
           area,

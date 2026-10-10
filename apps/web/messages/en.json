@@ -154,7 +154,8 @@
     "audit": "Audit",
     "scans": "Scans",
     "technologyAreas": "Technology areas",
-    "technologyMap": "Technology map"
+    "technologyMap": "Technology map",
+    "areas": "Areas"
   },
   "corporateReports": {
     "title": "Reports",
@@ -445,8 +446,7 @@
       "trial": "Trial",
       "adopt": "Adopt",
       "hold": "Hold",
-      "table": "Table",
-      "grouped": "By category"
+      "dependency": "Dependency"
     },
     "title": "Technology landscape",
     "description": "Distinct accessible projects after the selected filters. Proposed uses are counted separately.",
@@ -565,7 +565,8 @@
       "field": "Technology area",
       "unassigned": "No area",
       "unclassified": "Unclassified",
-      "empty": "No technology areas yet."
+      "empty": "No technology areas yet.",
+      "all": "All areas"
     },
     "workspace": {
       "organization": "Organization",
@@ -573,27 +574,17 @@
       "allProjects": "All projects",
       "searchProject": "Find a project",
       "searchTechnology": "Find technology…",
-      "map": "Map",
-      "table": "Table",
       "filterDescription": "Refine projects, classification and technology states.",
       "area": "Area",
       "versions": "Versions",
       "status": "Status",
       "actions": "Actions",
-      "summary": "Technology summary",
-      "summaryDescription": "Key technologies, their areas, categories, versions and project usage.",
       "landscapeHeading": "Technology landscape",
       "landscapeDescription": "Technologies grouped by area and category, with actual versions used in the organization.",
       "shown": "Showing {count} of {total}",
-      "draft": "Draft",
-      "review": "Review",
-      "standard": "Standard",
-      "openTechnology": "Open {name}",
       "pagination": "Pagination",
       "page": "Page {page}",
-      "showPerPage": "Show",
       "pageSize": "Rows per page",
-      "ofTechnologies": "of {total} technologies",
       "technologyUsage": "Technology versions and project usage.",
       "openRegistry": "Open technology record",
       "backScans": "Back to scans",
@@ -708,7 +699,14 @@
         "md": "Markdown (.md)",
         "csv": "CSV (.csv)",
         "json": "JSON (.json)"
-      }
+      },
+      "areaActions": "Area actions",
+      "expandAll": "Expand all",
+      "collapseAll": "Collapse all",
+      "openTechnologies": "Open technology list",
+      "moreCategories": "Show {count} more categories",
+      "moreTechnologies": "Show {count} more technologies",
+      "showLess": "Show less"
     },
     "close": "Close",
     "taxonomy": {
@@ -1232,7 +1230,11 @@
         "name": "Product analytics",
         "label": "Product analytics"
       }
-    }
+    },
+    "openEntry": "Open",
+    "entryCount": "{count, plural, one {# entry} other {# entries}}",
+    "entryDialogDescription": "Name, description and area assignment.",
+    "categoriesDescription": "Categories group technologies inside areas."
   },
   "githubConnector": {
     "backToAccount": "Back to account",

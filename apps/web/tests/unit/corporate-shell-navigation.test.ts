@@ -72,11 +72,18 @@ it("highlights the corporate destination that owns the current route", async () 
   expect(organization && isPrimaryNavigationActive(organization, "/corporate/teams/team_1")).toBe(
     true,
   );
-  expect(landscape && isPrimaryNavigationActive(landscape, "/corporate/categories")).toBe(true);
+  expect(
+    landscape && isPrimaryNavigationActive(landscape, "/corporate/technology-mappings"),
+  ).toBe(true);
+  expect(landscape && isPrimaryNavigationActive(landscape, "/corporate/categories")).toBe(false);
   expect(
     organization && isPrimaryNavigationActive(organization, "/corporate/organization/admins"),
   ).toBe(false);
   expect(admins && isPrimaryNavigationActive(admins, "/corporate/organization/admins")).toBe(true);
+  expect(
+    admins &&
+      isPrimaryNavigationActive(admins, "/corporate/organization/admins/technology-categories"),
+  ).toBe(true);
 });
 
 it("does not load corporate data for an unauthenticated visitor", async () => {
@@ -114,6 +121,7 @@ it.each([
         "auditJournal",
         "employeeAccess",
         "technologyAreas",
+        "categories",
         "jobTitles",
         "settings",
         "security",

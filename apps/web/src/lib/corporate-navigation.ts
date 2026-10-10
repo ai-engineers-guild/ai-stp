@@ -153,10 +153,6 @@ export function resolveCorporateRail(
     ] as const;
     entries = groups.flatMap(([id, icon]) => {
       const children = allowed.filter((entry) => entry.group === id && entry.rail).map(item);
-      // Existing reference directories also have an administrative entry.
-      if (id === "referenceData") {
-        children.push(...allowed.filter((entry) => entry.id === "categories").map(item));
-      }
       return children.length
         ? [{ id: `group-${id}`, label: id, icon, href: "", active: false, children }]
         : [];
@@ -172,7 +168,6 @@ export function resolveCorporateRail(
                   (child) =>
                     child.context === entry.context &&
                     child.rail &&
-                    child.id !== "categories" &&
                     (child.id !== entry.id || entry.id === "landscape"),
                 )
                 .map(item)
