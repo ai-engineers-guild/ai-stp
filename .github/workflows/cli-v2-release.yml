@@ -17,7 +17,7 @@ permissions:
 
 concurrency:
   group: cli-v2-release-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -64,7 +64,13 @@ jobs:
           EXPECTED_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          version=$(python -c 'import pathlib,tomllib; print(tomllib.loads(pathlib.Path("apps/cli-v2/Cargo.toml").read_text())["package"]["version"])')
+          version=$(python - <<'PY'
+          import pathlib
+          import tomllib
+          document = tomllib.loads(pathlib.Path("apps/cli-v2/Cargo.toml").read_text())
+          print(document["package"]["version"])
+          PY
+          )
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             test "${version}" = "${EXPECTED_VERSION}"
             git merge-base --is-ancestor HEAD origin/main
@@ -104,8 +110,9 @@ jobs:
             --binary "apps/cli-v2/target/release/${RELEASE_BINARY}" \
             --target "${RELEASE_TARGET}" --version "${RELEASE_VERSION}" \
             --revision "${GITHUB_SHA}" --output release
+          stem="ai-stp-cli-v2-${RELEASE_VERSION}-${RELEASE_TARGET}"
           python apps/cli-v2/scripts/package_release.py verify \
-            --archive "release/ai-stp-cli-v2-${RELEASE_VERSION}-${RELEASE_TARGET}.${RELEASE_EXTENSION}" \
+            --archive "release/${stem}.${RELEASE_EXTENSION}" \
             --target "${RELEASE_TARGET}" --version "${RELEASE_VERSION}" \
             --revision "${GITHUB_SHA}" --install-directory "${RUNNER_TEMP}/ai-stp-rust-install"
           uv run --no-sync python apps/cli-v2/scripts/verify.py \
