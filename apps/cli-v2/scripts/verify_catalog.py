@@ -34,6 +34,7 @@ class CatalogServer(ThreadingHTTPServer):
     status: int = 200
     body: bytes = b"{}"
     schema: str = "1"
+    retry_after: str | None = None
     requests: list[tuple[str, dict[str, str]]]
 
     def __init__(self) -> None:
@@ -44,6 +45,7 @@ class CatalogServer(ThreadingHTTPServer):
         self.status = status
         self.body = json.dumps(body, ensure_ascii=False).encode()
         self.schema = "1"
+        self.retry_after = None
 
 
 class CatalogHandler(BaseHTTPRequestHandler):
@@ -56,6 +58,8 @@ class CatalogHandler(BaseHTTPRequestHandler):
         self.send_response(server.status)
         self.send_header("Content-Type", "application/json")
         self.send_header("X-AI-STP-Schema-Version", server.schema)
+        if server.retry_after is not None:
+            self.send_header("Retry-After", server.retry_after)
         self.send_header("Location", "/redirect-must-not-be-followed")
         self.send_header("Content-Length", str(len(server.body)))
         self.end_headers()
@@ -125,6 +129,18 @@ def prove_reads(binary: Path, home: Path, root: Path, run: Runner, server: Catal
                 assert query["page_size"] == [str(case.request.query.get("page_size", 20))]
                 assert headers["x-ai-stp-schema-version"] == "1"
                 assert "authorization" not in headers and "cookie" not in headers
+    for status, delay, seconds in [
+        (429, "3600", 3600),
+        (503, "86400", 86400),
+        (429, "Sun, 06 Nov 1994 08:49:37 GMT", 0),
+    ]:
+        server.serve({}, status)
+        server.retry_after = delay
+        requests = len(server.requests)
+        refused = run(binary, home, ["registry", "search", "--kind", "component", *common], 5)
+        assert refused["error"]["retryable"] is True
+        assert refused["error"]["details"]["retry_after_seconds"] == seconds
+        assert len(server.requests) == requests + 1, "paced request was retried inside the CLI"
     case = next(c for c in load_cases() if c.case_id == "readComponentVersion.published")
     body: dict[str, Any] = json.loads(json.dumps(dict(case.body or {})))
     corpus = json.loads(

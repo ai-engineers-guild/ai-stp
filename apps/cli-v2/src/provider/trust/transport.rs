@@ -69,6 +69,16 @@ impl Repository for Http {
         match response.status().as_u16() {
             200 => (),
             403 | 404 if !target && name.ends_with(".root.json") => return Ok(None),
+            408 | 425 | 429 | 500 | 502 | 503 | 504 => {
+                return Err(http::retry::annotate(
+                    Failure::new(
+                        ErrorKind::Unavailable,
+                        "Sigstore trust metadata is temporarily unavailable",
+                    ),
+                    response.headers(),
+                    false,
+                ));
+            }
             _ => return Err(invalid()),
         }
         let bytes = response

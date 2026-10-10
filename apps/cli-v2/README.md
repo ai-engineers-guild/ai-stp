@@ -239,7 +239,7 @@ and observation time to the same canonical source artifact. `observed_license`
 comes from current repository metadata and is not a commit-specific license
 attestation. Both verification axes and `target_write` remain false. A missing
 or unsuitable subtree refuses; no registry, credentials or component is created.
-Rate-limit refusals report a bounded retry delay and perform no automatic retry.
+Rate-limit refusals retain valid server retry timing and perform no automatic retry.
 
 `component source package fetch --ecosystem go --name <module> --version <version>`
 observes an exact Go module using only `proxy.golang.org` and `sum.golang.org`.
@@ -1489,6 +1489,18 @@ only. Object and exact-version reads may use an explicitly supplied cache;
 transient failures can fall back to a validated entry, while not-found,
 authorization, transport-policy and invalid-body refusals remain refusals.
 Cached answers retain their original `checked_at` and report `source: cache`.
+
+Catalog, public source, software download and trust-metadata refusals preserve a
+valid `Retry-After` as `error.details.retry_after_seconds`, without shortening it
+to the request timeout or an hourly cap. Decimal seconds and the three HTTP-date
+forms are accepted; future dates round up to whole seconds, and past dates mean
+zero. GitHub source/download responses can use `X-RateLimit-Reset` when the
+remaining quota is zero and no valid `Retry-After` exists. Missing, repeated,
+malformed or oversized timing fields are not echoed or replaced with an invented
+delay; machine seconds must fit an
+exact JSON integer. The CLI returns immediately and leaves scheduling to its
+caller. `httpdate` owns HTTP-date parsing; removing this transport boundary
+removes that dependency.
 
 `registry acquire plan` captures an exact public version-1 or version-2 setup definition,
 its transitive component graph and every declared projection. It uses the

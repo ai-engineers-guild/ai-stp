@@ -331,7 +331,13 @@ fn fetch(
                 url = url.join(location).map_err(|_| invalid())?;
                 continue;
             }
-            403 | 408 | 425 | 429 | 500 | 502 | 503 | 504 => return Err(unavailable()),
+            403 | 408 | 425 | 429 | 500 | 502 | 503 | 504 => {
+                return Err(http::retry::annotate(
+                    unavailable(),
+                    response.headers(),
+                    matches!(url.host_str(), Some("api.github.com" | "github.com")),
+                ));
+            }
             _ => return Err(invalid()),
         }
         if response
