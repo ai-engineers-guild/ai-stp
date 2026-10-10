@@ -6,6 +6,7 @@ with that dependency. libclang is a build-time dependency, not a shipped library
 
 from __future__ import annotations
 
+import hashlib
 import os
 import shlex
 import subprocess
@@ -48,7 +49,7 @@ def main(arguments: list[str]) -> int:
         if configured
         else sorted(Path("/usr/lib").glob("llvm-*/lib"), reverse=True)
     )
-    libraries = []
+    libraries: list[Path] = []
     for directory in directories:
         if directory.is_file():
             libraries.append(directory)
@@ -62,19 +63,30 @@ def main(arguments: list[str]) -> int:
     include = Path(subprocess.check_output(["cc", "-print-file-name=include"], text=True).strip())
     if not include.is_absolute() or not (include / "stdarg.h").is_file():
         raise SystemExit("the C compiler's standard headers are unavailable")
-    # Runtime-only installations may omit the unversioned linker name. A local
-    # symlink also avoids retaining deleted loader paths in restored Cargo caches.
-    with tempfile.TemporaryDirectory(prefix="ai-stp-libclang-") as temporary:
-        directory = Path(temporary)
-        (directory / "libclang.so").symlink_to(library)
-        env["LIBCLANG_PATH"] = temporary
-        prepend(env, "LIBRARY_PATH", temporary)
-        prepend(env, "LD_LIBRARY_PATH", str(library.parent))
-        prepend(env, "LD_LIBRARY_PATH", temporary)
-        env["BINDGEN_EXTRA_CLANG_ARGS"] = (
-            shlex.join(["-isystem", str(include)]) + " " + env.get("BINDGEN_EXTRA_CLANG_ARGS", "")
-        )
-        return subprocess.call(arguments, env=env)
+    # Use a stable build-cache location: a fresh loader path on every invocation
+    # invalidates clang-sys/bindgen and relinks the whole CLI. The library digest
+    # changes the path only when the installed toolchain actually changes.
+    with library.open("rb") as stream:
+        library_digest = hashlib.file_digest(stream, "sha256").hexdigest()
+    target = Path(env.get("CARGO_TARGET_DIR", Path(__file__).resolve().parents[1] / "target"))
+    directory = (target / "native-toolchain" / library_digest).resolve()
+    directory.mkdir(parents=True, exist_ok=True)
+    link = directory / "libclang.so"
+    if link.exists() and not link.is_symlink():
+        raise SystemExit("the libclang build-cache entry must be a symbolic link")
+    if not link.is_symlink() or link.resolve() != library:
+        with tempfile.TemporaryDirectory(prefix="link-", dir=directory) as temporary:
+            staged = Path(temporary) / "libclang.so"
+            staged.symlink_to(library)
+            staged.replace(link)
+    env["LIBCLANG_PATH"] = str(directory)
+    prepend(env, "LIBRARY_PATH", str(directory))
+    prepend(env, "LD_LIBRARY_PATH", str(library.parent))
+    prepend(env, "LD_LIBRARY_PATH", str(directory))
+    env["BINDGEN_EXTRA_CLANG_ARGS"] = (
+        shlex.join(["-isystem", str(include)]) + " " + env.get("BINDGEN_EXTRA_CLANG_ARGS", "")
+    )
+    return subprocess.call(arguments, env=env)
 
 
 if __name__ == "__main__":
