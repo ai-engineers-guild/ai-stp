@@ -7,6 +7,8 @@ mod linux;
 #[cfg(target_os = "linux")]
 mod planning;
 #[cfg(target_os = "linux")]
+mod prefix;
+#[cfg(target_os = "linux")]
 pub mod probe;
 #[cfg(target_os = "linux")]
 mod software;

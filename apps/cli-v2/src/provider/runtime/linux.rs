@@ -1,6 +1,6 @@
 //! Minimal Linux filesystem and measured IPv4/IPv6/UDP network separation.
 
-use super::{probe, target::Target, unavailable};
+use super::{prefix::Prefix, probe, target::Target, unavailable};
 use crate::{
     digest,
     error::Result,
@@ -312,7 +312,7 @@ impl Launcher {
         json!({"enforcement":"enforced","launcher":"bubblewrap","launcher_digest":self.digest,"positive_control":["ipv4_tcp","ipv6_tcp","ipv4_udp"],"isolated":"denied","filesystem":"declared_runtime_only"})
     }
     pub(super) fn inspect(&self, bytes: &[u8]) -> Result<Vec<u8>> {
-        self.invoke(bytes, &["provider-info".into()], &[], None)
+        self.invoke(bytes, &["provider-info".into()], &[], None, None)
     }
     pub(super) fn status(&self, bytes: &[u8], target: &Target, scope: Scope) -> Result<Vec<u8>> {
         let mut arguments = vec![
@@ -324,7 +324,7 @@ impl Launcher {
         if scope != Scope::Global {
             arguments.extend(["--target-scope".into(), scope.as_str().into()]);
         }
-        self.invoke(bytes, &arguments, &[target], None)
+        self.invoke(bytes, &arguments, &[target], None, None)
     }
     pub(super) fn validate(
         &self,
@@ -341,7 +341,7 @@ impl Launcher {
             target.path().as_os_str().into(),
         ];
         arguments.extend(bundle_arguments(request));
-        self.invoke(bytes, &arguments, &[], Some(bundle))
+        self.invoke(bytes, &arguments, &[], Some(bundle), None)
     }
     pub(super) fn plan(
         &self,
@@ -369,13 +369,13 @@ impl Launcher {
             arguments.extend(["--target-scope".into(), scope.as_str().into()]);
         }
         arguments.extend(bundle_arguments(request));
-        self.invoke(bytes, &arguments, &[target], Some(bundle))
+        self.invoke(bytes, &arguments, &[target], Some(bundle), None)
     }
     pub(super) fn software_plan(
         &self,
         bytes: &[u8],
         target: &Target,
-        prefix: &Target,
+        prefix: &Prefix,
         scope: Scope,
         request: &software::Request,
     ) -> Result<Vec<u8>> {
@@ -401,7 +401,11 @@ impl Launcher {
         if scope != Scope::Global {
             arguments.extend(["--target-scope".into(), scope.as_str().into()]);
         }
-        self.invoke(bytes, &arguments, &[target, prefix], None)
+        prefix.revalidate()?;
+        let targets: Vec<_> = std::iter::once(target).chain(prefix.mounted()).collect();
+        let output = self.invoke(bytes, &arguments, &targets, None, prefix.missing())?;
+        prefix.revalidate()?;
+        Ok(output)
     }
     fn invoke(
         &self,
@@ -409,12 +413,21 @@ impl Launcher {
         command: &[OsString],
         targets: &[&Target],
         bundle: Option<&[u8]>,
+        missing_prefix: Option<&Path>,
     ) -> Result<Vec<u8>> {
         let input = sealed(bytes)?;
         let mut arguments = base();
         let mut handles = Vec::new();
         if targets.len() > 2 {
             return Err(unavailable());
+        }
+        let missing_parent = missing_prefix
+            .map(|p| p.parent().ok_or_else(unavailable))
+            .transpose()?;
+        if let Some(parent) = missing_parent {
+            // A fresh namespace directory represents absence. The host parent
+            // stays held by Prefix and is never mounted or passed to the child.
+            arguments.extend(["--tmpfs".into(), parent.as_os_str().into()]);
         }
         for target in targets {
             target.revalidate()?;
@@ -425,6 +438,9 @@ impl Launcher {
                 target.path().as_os_str().into(),
             ]);
             handles.push((arguments.len() - 2, handle));
+        }
+        if let Some(parent) = missing_parent {
+            arguments.extend(["--remount-ro".into(), parent.as_os_str().into()]);
         }
         if !targets.is_empty() {
             let source = File::open("/proc/self/exe").map_err(|_| unavailable())?;
@@ -482,6 +498,12 @@ impl Launcher {
         } else {
             arguments.push("/run/provider".into());
         }
+        if let Some(prefix) = missing_prefix {
+            arguments.extend([
+                super::entry::MISSING_PREFIX.into(),
+                prefix.as_os_str().into(),
+            ]);
+        }
         arguments.extend_from_slice(command);
         self.revalidate()?;
         let output = process::with_files(
@@ -513,9 +535,52 @@ mod tests {
     use crate::provider::Info;
     use std::{error::Error, fs, os::unix::fs::symlink};
 
+    fn missing_prefix_keeps_its_parent_private() -> std::result::Result<(), Box<dyn Error>> {
+        let root = tempfile::tempdir_in("/tmp")?;
+        let parent = root.path().join("parent");
+        let sibling = parent.join("sibling");
+        fs::create_dir_all(&sibling)?;
+        fs::write(sibling.join("private"), b"retained")?;
+        let path = parent.join("programs");
+        let prefix = Prefix::open(&path)?;
+        assert!(prefix.mounted().is_none());
+        prefix.disjoint(&Target::open(&sibling)?.directory()?)?;
+        assert!(
+            prefix
+                .disjoint(&Target::open(&parent)?.directory()?)
+                .is_err()
+        );
+        assert!(
+            prefix
+                .disjoint(&Target::open(root.path())?.directory()?)
+                .is_err()
+        );
+        assert!(Prefix::open(&path.join("deeper")).is_err());
+        symlink(&parent, root.path().join("alias"))?;
+        assert!(Prefix::open(&root.path().join("alias/programs")).is_err());
+        symlink(&sibling, &path)?;
+        assert!(prefix.revalidate().is_err());
+        assert!(Prefix::open(&path).is_err());
+        fs::remove_file(&path)?;
+        prefix.revalidate()?;
+        fs::create_dir(&path)?;
+        assert!(prefix.revalidate().is_err());
+        assert!(Prefix::open(&path)?.mounted().is_some());
+        fs::remove_dir(&path)?;
+        fs::rename(&parent, root.path().join("moved"))?;
+        fs::create_dir(&parent)?;
+        assert!(prefix.revalidate().is_err());
+        assert_eq!(
+            fs::read(root.path().join("moved/sibling/private"))?,
+            b"retained"
+        );
+        Ok(())
+    }
+
     #[test]
     fn held_target_refuses_aliases_substitution_and_forged_status()
     -> std::result::Result<(), Box<dyn Error>> {
+        missing_prefix_keeps_its_parent_private()?;
         let temporary = tempfile::tempdir_in("/tmp")?;
         let path = temporary.path().join("target");
         fs::create_dir(&path)?;

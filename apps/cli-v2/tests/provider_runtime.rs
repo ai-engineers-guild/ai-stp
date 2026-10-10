@@ -152,6 +152,86 @@ printf provider-ran
     assert_eq!(fs::read(prefix.join("program"))?, b"retained\n");
     assert_eq!(fs::read_dir(&target)?.count(), 1);
     assert_eq!(fs::read(target.join("marker"))?, b"exact\n");
+    missing_prefix_requires_a_readonly_namespace_parent(&provider)?;
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn missing_prefix_requires_a_readonly_namespace_parent(
+    provider: &std::path::Path,
+) -> Result<(), Box<dyn Error>> {
+    use std::os::unix::fs::PermissionsExt;
+    let provider = provider.with_extension("missing");
+    fs::write(
+        &provider,
+        br##"#!/bin/sh
+test "$1" = status || exit 30
+test ! -e /empty-prefix-parent/programs || exit 31
+test ! -e /empty-prefix-parent/private || exit 32
+if { printf created > /empty-prefix-parent/programs; } 2>/dev/null; then exit 33; fi
+printf missing-prefix-observed
+"##,
+    )?;
+    fs::set_permissions(&provider, fs::Permissions::from_mode(0o500))?;
+    for (readonly, absent) in [(true, true), (false, true), (true, false)] {
+        let mut command = Command::new("/usr/bin/bwrap");
+        command
+            .args([
+                "--unshare-all",
+                "--die-with-parent",
+                "--cap-drop",
+                "ALL",
+                "--ro-bind",
+                "/usr",
+                "/usr",
+                "--ro-bind-try",
+                "/lib",
+                "/lib",
+                "--ro-bind-try",
+                "/lib64",
+                "/lib64",
+                "--ro-bind-try",
+                "/bin",
+                "/bin",
+                "--proc",
+                "/proc",
+                "--dev",
+                "/dev",
+                "--tmpfs",
+                "/observed",
+                "--remount-ro",
+                "/observed",
+                "--tmpfs",
+                "/empty-prefix-parent",
+                "--ro-bind",
+            ])
+            .arg(&provider)
+            .args([
+                "/run/provider",
+                "--ro-bind",
+                env!("CARGO_BIN_EXE_ai-stp-v2"),
+                "/run/entry",
+            ]);
+        if !absent {
+            command.args(["--dir", "/empty-prefix-parent/programs"]);
+        }
+        if readonly {
+            command.args(["--remount-ro", "/empty-prefix-parent"]);
+        }
+        // A separate target is an empty, read-only mount. Its physical
+        // identity is measured inside the namespace before invoking the entry.
+        command.args(["--", "/bin/sh", "-c",
+            "/run/entry --ai-stp-target-entry 1 $(/usr/bin/stat -c '%d %i' /observed) /observed --ai-stp-missing-prefix /empty-prefix-parent/programs status"]);
+        let output = command.env_clear().env("PATH", "").output()?;
+        if readonly && absent {
+            assert!(output.status.success(), "{:?}", output);
+            assert_eq!(output.stdout, b"missing-prefix-observed");
+        } else {
+            assert_eq!(output.status.code(), Some(70));
+            assert!(output.stdout.is_empty());
+        }
+        assert!(output.stderr.is_empty());
+    }
     Ok(())
 }
 
