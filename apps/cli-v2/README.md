@@ -643,8 +643,28 @@ external requirement includes, dynamic image references, unresolved external CI 
 Compose includes, npm v1 and Yarn classic lockfiles produce `partial`. `complete`
 means the defined detection surface was traversed, not that every language, manifest
 format or runtime was verified. Unsupported files remain outside that surface.
-Retained scan/review decisions, organization mappings and publication are separate
-operations; inspection alone does not complete the retained `project detect` journey.
+
+`project technology plan --state-dir --root` observes an existing owned private
+project registered by the native preview. Its single `repository` scope covers
+the index surface above. The plan binds the exact root identity, project head,
+observation bytes, prior findings and latest scan. `local apply` observes again
+and refuses changed preconditions. A single SQLite transaction records the scan,
+findings and immutable receipt; failure commits none of them. Planning does not
+create a marker, modify sources or persist findings.
+
+Seen findings become `current`. Missing findings become `absent` only after a
+complete pass of the same detector profile. A partial pass changes missing
+`current` findings to `stale`, preserving already `absent` findings. Existing
+review decisions, overrides and first-seen scan identities survive every scan.
+Completed plan replay returns the original observation before accessing source
+files or checking expiry; it never rewinds later scans or decisions.
+
+`project technology findings --state-dir --id` reads retained evidence and its
+state digest without reopening the source. Findings retain exact UTF-8 evidence
+paths. The union of historical and new findings is bounded to 8,192 rows and
+less than 16 MiB before writing; oversize or unsupported prior rows refuse.
+The bundled mapping is used only for local unlinked projects. Connected mapping
+snapshots, review mutation and publication remain separate pending operations.
 
 `project symbols` summarizes public top-level declarations and entry-point files
 from the same held-handle reads as `project index`; it never reopens indexed
