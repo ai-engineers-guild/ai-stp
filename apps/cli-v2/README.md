@@ -26,6 +26,12 @@ Exit classes and request IDs retain the existing wire contract. Human parser
 help uses `--help`; in machine mode it returns the complete registry. A missing
 command returns help. Error messages do not echo rejected argument values.
 
+Private-directory locks wait for at most two seconds before reporting transient
+contention: `AI_STP_DEPENDENCY_UNAVAILABLE`, exit 5, `retryable: true`, with
+`details.stage: lock_timeout`. Retry the same request after the holder releases
+the lock; apply still revalidates the plan or returns its completed receipt.
+Ownership, permission and state-precondition failures remain distinct refusals.
+
 Preview `version` reports `runtime: rust` and `release_channel: preview`.
 Preview `capabilities` reports explicit snapshot reads, isolated planned authoring
 and readable schema versions. They deliberately do not claim the Python-only version payload
@@ -555,6 +561,15 @@ credentials/query/fragment/custom port, SHA-256, positive byte length and a
 single `bin/name` entry point. At most sixteen distinct records, 1 GiB each and
 2 GiB total are accepted. Removal carries no downloads. Undeclared operations,
 unknown fields, backup capture, changed echoes and unsafe artifact metadata refuse.
+
+The software plan artifact may additionally carry `expected_software_digest`,
+the authenticated provider's prefix observation. When present, it must be
+`sha256:` followed by exactly 64 lowercase hexadecimal digits and is retained
+in the complete RFC 8785 plan digest. Null and malformed values refuse. This
+field is not accepted in the caller's request, configuration plans or the
+response envelope. Older provider plans may omit it; no value is synthesized.
+The two provider observations must agree on its presence and value. Reading
+the field does not independently verify the prefix or authorize execution.
 
 This observes provider effects about the prefix layout; it does not hash or
 attest installed payloads and is not a snapshot or apply precondition. The report

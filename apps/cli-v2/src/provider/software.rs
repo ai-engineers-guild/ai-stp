@@ -134,6 +134,15 @@ impl Request {
         if observed.scope != Scope::Global {
             artifact["target_scope"] = observed.scope.as_str().into();
         }
+        // This is the authenticated provider's prefix observation, not an
+        // independently verified installed-software digest or write authority.
+        if let Some(value) = response["plan"].get("expected_software_digest") {
+            let value = value
+                .as_str()
+                .filter(|value| plan::hash(value))
+                .ok_or_else(invalid)?;
+            artifact["expected_software_digest"] = value.into();
+        }
         if self.operation != "software_remove" {
             let files = response["plan"]["software_artifacts"]
                 .as_array()

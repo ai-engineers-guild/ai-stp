@@ -127,7 +127,7 @@ fn selected_graph_import_is_atomic_owned_and_replayable() -> Result<(), Box<dyn 
             Err(error) => {
                 // A durable import may outlast the bounded directory-lock wait.
                 // Only that busy refusal can retry the same committed operation.
-                assert!(matches!(error.kind, ErrorKind::Precondition), "{error:?}");
+                assert!(matches!(error.kind, ErrorKind::Unavailable), "{error:?}");
                 assert_eq!(
                     error.details.get("stage").and_then(Value::as_str),
                     Some("lock_timeout")
