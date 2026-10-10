@@ -189,7 +189,7 @@ pub(super) fn apply(parent: &Path, bytes: &[u8], digest: &str) -> Result<Value> 
             &archive.entry_point,
             Path::new(&plan.prefix.path),
         )?;
-        if provider_result["files"] != verification["files"] {
+        if provider_result["files"] != verification["archive_entries"] {
             return Err(invalid());
         }
         let after_bytes =

@@ -115,7 +115,7 @@ impl Inventory {
     }
 }
 
-fn archive(file: &mut File, command: &str, started: Instant) -> Result<Inventory> {
+fn archive(file: &mut File, command: &str, started: Instant) -> Result<(Inventory, usize)> {
     let mut magic = [0; 2];
     file.rewind()
         .and_then(|()| file.read_exact(&mut magic))
@@ -132,7 +132,7 @@ fn archive(file: &mut File, command: &str, started: Instant) -> Result<Inventory
                 mode: 0o755,
             },
         )?;
-        return Ok(inventory);
+        return Ok((inventory, 1));
     }
     let mut tar = tar::Archive::new(flate2::read::GzDecoder::new(file));
     let mut names = BTreeSet::new();
@@ -180,7 +180,7 @@ fn archive(file: &mut File, command: &str, started: Instant) -> Result<Inventory
     if inventory.files.is_empty() {
         return Err(invalid());
     }
-    Ok(inventory)
+    Ok((inventory, names.len()))
 }
 
 fn installed(
@@ -240,7 +240,7 @@ pub(super) fn payload(
 ) -> Result<Value> {
     let started = Instant::now();
     let command = entry_point.strip_prefix("bin/").ok_or_else(invalid)?;
-    let expected = archive(source, command, started)?;
+    let (expected, archive_entries) = archive(source, command, started)?;
     let version_root = root.open_dir_nofollow(version).map_err(|_| invalid())?;
     let mut actual = Inventory::default();
     installed(&version_root, Path::new(""), &mut actual, started)?;
@@ -314,7 +314,7 @@ pub(super) fn payload(
     }
     let bytes = serde_json_canonicalizer::to_vec(&actual).map_err(|_| invalid())?;
     Ok(
-        json!({"verification":"exact_vendor_archive_inventory", "files":actual.files.len(), "bytes":actual.bytes,
+        json!({"verification":"exact_vendor_archive_inventory", "files":actual.files.len(), "archive_entries":archive_entries, "bytes":actual.bytes,
         "inventory_digest":digest::sha256(&bytes), "entry_point":entry_point,"member":member}),
     )
 }

@@ -709,6 +709,9 @@ gzip-tar artifacts without extracting them itself. Symlinks/hardlinks in the
 version payload, surplus files/directories, altered metadata and escaping launch
 links refuse. Inventory limits are 65,536 entries, 8 GiB, depth 64 and 8,192-byte
 relative paths; its checksum is plain SHA-256 over RFC 8785 inventory bytes.
+The result separates regular `files` from `archive_entries`: the component's
+legacy `files` counter includes explicit directory entries and is compared with
+that archive count, not with inferred parent directories or regular files alone.
 This proves installed content, not vendor execution or runtime dependencies.
 
 The durable publication record precedes an atomic no-replace directory move.

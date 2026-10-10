@@ -120,6 +120,46 @@ fn original_installation_survives_publication_retries_and_never_recreates_remove
         "provider_result":{"state":"verified","recovered":[],"operation":"software_install",
             "command":"program","version":"2.0","entry_point":"bin/program",
             "executable":prefix.join("bin/program"),"files":1,"plan_digest":hash}});
+    // The component counts explicit archive directory entries as well as files.
+    // Its legacy `files` field must not be compared with regular files alone.
+    let packed = temporary.path().join("vendor.tar.gz");
+    let output =
+        flate2::write::GzEncoder::new(fs::File::create(&packed)?, flate2::Compression::default());
+    let mut builder = tar::Builder::new(output);
+    for (name, kind, mode, body) in [
+        (
+            "program",
+            tar::EntryType::Regular,
+            0o755,
+            fs::read(&source)?,
+        ),
+        ("nested", tar::EntryType::Directory, 0o755, Vec::new()),
+        (
+            "nested/data",
+            tar::EntryType::Regular,
+            0o644,
+            b"data".to_vec(),
+        ),
+    ] {
+        let mut header = tar::Header::new_gnu();
+        header.set_entry_type(kind);
+        header.set_mode(mode);
+        header.set_size(body.len() as u64);
+        header.set_cksum();
+        builder.append_data(&mut header, name, body.as_slice())?;
+    }
+    builder.into_inner()?.finish()?;
+    let nested = stage_path.join("2.0/nested");
+    fs::create_dir(&nested)?;
+    fs::set_permissions(&nested, fs::Permissions::from_mode(0o755))?;
+    fs::write(nested.join("data"), b"data")?;
+    fs::set_permissions(nested.join("data"), fs::Permissions::from_mode(0o644))?;
+    let mut archived = result.clone();
+    archived["verification"] = verify(&mut fs::File::open(packed)?)?;
+    assert_eq!(archived["verification"]["files"], 2);
+    archived["provider_result"]["files"] = 3.into();
+    outcome::validate(&archived, &plan, &digest)?;
+    fs::remove_dir_all(&nested)?;
     record.result = Some(result.clone());
     record.phase = Phase::Publishing;
     journal.write(Some(Phase::Staged), &record)?;

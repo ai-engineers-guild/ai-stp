@@ -63,6 +63,7 @@ pub(super) fn applied(bytes: &[u8], plan: &Plan) -> Result<Value> {
 struct Verification {
     verification: String,
     files: usize,
+    archive_entries: usize,
     bytes: u64,
     inventory_digest: String,
     entry_point: String,
@@ -99,10 +100,11 @@ pub(super) fn validate(value: &Value, plan: &Plan, digest: &str) -> Result<()> {
         || !outcome.installation_performed
         || proof.verification != "exact_vendor_archive_inventory"
         || !(1..=65_536).contains(&proof.files)
+        || !(proof.files..=65_536).contains(&proof.archive_entries)
         || proof.bytes > 8 * 1024 * 1024 * 1024
         || !crate::provider::plan::hash(&proof.inventory_digest)
         || proof.entry_point != response["entry_point"]
-        || proof.files != response["files"]
+        || proof.archive_entries != response["files"]
         || proof.member.is_empty()
         || proof.member.len() > 8192
         || Path::new(&proof.member).components().count() > 64
