@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections.abc import Callable
-from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -24,8 +23,21 @@ def prove(
 ) -> None:
     database = state / "ai-stp-v2-state" / "registry.sqlite3"
     price_file = root / "impact-price.json"
-    with closing(sqlite3.connect(database)) as connection:
+    connection = sqlite3.connect(database)
+    try:
         connection.row_factory = sqlite3.Row
+
+        def native(args: list[str], expected: int) -> dict[str, Any]:
+            nonlocal connection
+            # The native owner takes exclusive SQLite access for its lifetime.
+            # Retain serial format/oracle checks without keeping a WAL reader
+            # alive across the process boundary or discarding fixture writes.
+            assert not connection.in_transaction
+            connection.close()
+            result = run(binary, home, args, expected)
+            connection = sqlite3.connect(database)
+            connection.row_factory = sqlite3.Row
+            return result
 
         def read(
             setup_id: str,
@@ -55,7 +67,7 @@ def prove(
                 price_file.write_text(json.dumps(profile), encoding="utf-8")
                 args.extend(["--price-profile", str(price_file)])
             before = tuple(connection.iterdump())
-            result = run(binary, home, args, expected)
+            result = native(args, expected)
             assert tuple(connection.iterdump()) == before
             if expected:
                 return result
@@ -79,9 +91,7 @@ def prove(
             component_id: str, version: str, scenario: str = "update", expected: int = 0
         ) -> dict[str, Any]:
             before = tuple(connection.iterdump())
-            result = run(
-                binary,
-                home,
+            result = native(
                 [
                     "select",
                     "blast-radius",
@@ -349,3 +359,5 @@ def prove(
             (scope.projection_artifact.digest,),
         )
         connection.commit()
+    finally:
+        connection.close()

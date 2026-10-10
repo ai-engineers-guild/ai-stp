@@ -82,11 +82,14 @@ fn sql<T>(result: io::Result<T>) -> VfsResult<T> {
 pub(super) struct Scope {
     id: String,
     parent: Dir,
-    owned: OwnedDirectory,
-    directory_identity: Identity,
     // Transfer this exact checked handle to SQLite once. Reopening the main
     // file would introduce another validation/open race and weaken POSIX locks.
-    database: Mutex<Option<File>>,
+    database: Mutex<Option<Arc<File>>>,
+    // Close every main-file reference before releasing namespace ownership,
+    // including when initialization fails before SQLite takes the handle.
+    _database_lock: file_guard::FileGuard<Arc<File>>,
+    owned: OwnedDirectory,
+    directory_identity: Identity,
     observed: Mutex<BTreeMap<String, Identity>>,
 }
 
@@ -119,7 +122,18 @@ impl Scope {
         if !valid(&metadata) || identity(&metadata) != identity(&before) {
             return Err(failure());
         }
-        lock_database(&file).map_err(|_| {
+        let file = Arc::new(file);
+        // SQLite reserves 512 bytes starting at PENDING_BYTE for pending,
+        // reserved and shared locks. Lock precisely that range: a mandatory
+        // Windows whole-file lock would also reject the initial header read.
+        // Arc shares ownership without duplicating the POSIX file descriptor.
+        let database_lock = file_guard::try_lock(
+            Arc::clone(&file),
+            file_guard::Lock::Exclusive,
+            0x4000_0000,
+            512,
+        )
+        .map_err(|_| {
             Failure::new(
                 ErrorKind::Unavailable,
                 "the registry is held by another SQLite connection",
@@ -131,6 +145,7 @@ impl Scope {
         let scope = Arc::new(Self {
             id: registry.sequence.to_string(),
             parent,
+            _database_lock: database_lock,
             owned,
             directory_identity,
             database: Mutex::new(Some(file)),
@@ -233,23 +248,9 @@ impl Drop for Scope {
     }
 }
 
-// A separate process using the standard SQLite VFS must also be excluded.
-// POSIX whole-file record locks overlap SQLite's byte locks; the main handle
-// is never cloned or reopened while this connection lives. The namespace lock
-// additionally excludes other Store connections within this process.
-#[cfg(unix)]
-fn lock_database(file: &File) -> io::Result<()> {
-    rustix::fs::fcntl_lock(file, rustix::fs::FlockOperation::NonBlockingLockExclusive)
-        .map_err(Into::into)
-}
-#[cfg(windows)]
-fn lock_database(file: &File) -> io::Result<()> {
-    file.try_lock().map_err(Into::into)
-}
-
 struct Handle {
+    file: Arc<File>,
     scope: Arc<Scope>,
-    file: File,
     name: String,
     identity: Identity,
 }
@@ -265,17 +266,6 @@ impl Handle {
             return Err(refused());
         }
         Ok(())
-    }
-}
-
-impl Drop for Handle {
-    fn drop(&mut self) {
-        if self.name == DATABASE {
-            #[cfg(unix)]
-            let _ = rustix::fs::fcntl_lock(&self.file, rustix::fs::FlockOperation::Unlock);
-            #[cfg(windows)]
-            let _ = self.file.unlock();
-        }
     }
 }
 
@@ -344,7 +334,7 @@ impl Vfs for Confined {
                     CreateMode::None => {}
                 }
             }
-            sql(scope.owned.directory.open_with(name, &options))?.into_std()
+            Arc::new(sql(scope.owned.directory.open_with(name, &options))?.into_std())
         };
         let metadata = sql(Metadata::from_file(&file))?;
         if !valid(&metadata) || before.is_some_and(|id| id != identity(&metadata)) {
@@ -395,10 +385,10 @@ impl Vfs for Confined {
     fn read(&self, handle: &mut Handle, offset: usize, data: &mut [u8]) -> VfsResult<usize> {
         sql(handle.check())?;
         data.fill(0);
-        sql(handle.file.seek(SeekFrom::Start(offset as u64)))?;
+        sql((&*handle.file).seek(SeekFrom::Start(offset as u64)))?;
         let mut total = 0;
         while total < data.len() {
-            let read = sql(handle.file.read(&mut data[total..]))?;
+            let read = sql((&*handle.file).read(&mut data[total..]))?;
             if read == 0 {
                 break;
             }
@@ -408,8 +398,8 @@ impl Vfs for Confined {
     }
     fn write(&self, handle: &mut Handle, offset: usize, data: &[u8]) -> VfsResult<usize> {
         sql(handle.check())?;
-        sql(handle.file.seek(SeekFrom::Start(offset as u64)))?;
-        sql(handle.file.write_all(data))?;
+        sql((&*handle.file).seek(SeekFrom::Start(offset as u64)))?;
+        sql((&*handle.file).write_all(data))?;
         Ok(data.len())
     }
     // The physical database lock remains exclusive until SQLite closes. These

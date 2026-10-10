@@ -386,8 +386,12 @@ fn sqlite_child(mode: &str) -> Result<(), Box<dyn Error>> {
     }
     let db = rusqlite::Connection::open(path)?;
     db.busy_timeout(std::time::Duration::ZERO)?;
-    if mode == "standard-hold" {
-        db.execute_batch("BEGIN IMMEDIATE")?;
+    if matches!(mode, "standard-write-hold" | "standard-read-hold") {
+        db.execute_batch(if mode == "standard-read-hold" {
+            "BEGIN; SELECT count(*) FROM operation;"
+        } else {
+            "BEGIN IMMEDIATE"
+        })?;
         fs::write(root.join("sqlite-lock-ready"), b"ready")?;
         use std::io::Read;
         std::io::stdin().read_exact(&mut [0])?;
@@ -398,11 +402,16 @@ fn sqlite_child(mode: &str) -> Result<(), Box<dyn Error>> {
         db.execute("INSERT INTO operation(operation_id,kind,state,started_at) VALUES ('standard-crash','fixture','complete','fixture')", [])?;
         std::process::exit(0);
     }
-    let acquired = db.execute_batch("BEGIN IMMEDIATE; ROLLBACK;").is_ok();
-    assert_eq!(
-        acquired,
-        std::env::var("AI_STP_STORE_TEST_ALLOWED")? == "yes"
-    );
+    let acquired = db.execute_batch("BEGIN IMMEDIATE; ROLLBACK;");
+    if std::env::var("AI_STP_STORE_TEST_ALLOWED")? == "yes" {
+        acquired?;
+    } else {
+        assert!(matches!(
+            acquired,
+            Err(rusqlite::Error::SqliteFailure(error, _))
+                if error.code == rusqlite::ErrorCode::DatabaseBusy
+        ));
+    }
     Ok(())
 }
 
@@ -422,37 +431,40 @@ fn confined_registry_and_wal_recovery() -> Result<(), Box<dyn Error>> {
     })?;
     drop(store);
     sqlite_process("standard-lock", root.path(), true)?;
-    let mut child = std::process::Command::new(std::env::current_exe()?)
-        .args([
-            "--exact",
-            "durable_revision_history_replay_conflict_and_atomic_rollback",
-        ])
-        .env("AI_STP_STORE_TEST_MODE", "standard-hold")
-        .env("AI_STP_STORE_TEST_ROOT", root.path())
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::null())
-        .spawn()?;
-    let started = std::time::Instant::now();
-    while !root.path().join("sqlite-lock-ready").exists() {
-        if started.elapsed() > std::time::Duration::from_secs(10) {
-            child.kill()?;
-            child.wait()?;
-            return Err("SQLite lock holder did not start".into());
+    for mode in ["standard-write-hold", "standard-read-hold"] {
+        let mut child = std::process::Command::new(std::env::current_exe()?)
+            .args([
+                "--exact",
+                "durable_revision_history_replay_conflict_and_atomic_rollback",
+            ])
+            .env("AI_STP_STORE_TEST_MODE", mode)
+            .env("AI_STP_STORE_TEST_ROOT", root.path())
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::null())
+            .spawn()?;
+        let started = std::time::Instant::now();
+        while !root.path().join("sqlite-lock-ready").exists() {
+            if started.elapsed() > std::time::Duration::from_secs(10) {
+                child.kill()?;
+                child.wait()?;
+                return Err("SQLite lock holder did not start".into());
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
         }
-        std::thread::sleep(std::time::Duration::from_millis(10));
+        let refused = Store::open(root.path(), false).is_err();
+        use std::io::Write;
+        child
+            .stdin
+            .take()
+            .ok_or("missing child input")?
+            .write_all(b"x")?;
+        assert!(child.wait()?.success());
+        assert!(
+            refused,
+            "native SQLite ignored the existing standard connection"
+        );
+        fs::remove_file(root.path().join("sqlite-lock-ready"))?;
     }
-    let refused = Store::open(root.path(), false).is_err();
-    use std::io::Write;
-    child
-        .stdin
-        .take()
-        .ok_or("missing child input")?
-        .write_all(b"x")?;
-    assert!(child.wait()?.success());
-    assert!(
-        refused,
-        "native SQLite ignored the existing standard writer"
-    );
     for mode in ["standard-crash", "native-crash"] {
         sqlite_process(mode, root.path(), true)?;
         assert!(namespace.join("registry.sqlite3-wal").metadata()?.len() > 0);

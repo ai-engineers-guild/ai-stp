@@ -1854,7 +1854,13 @@ defensive mode, an untrusted schema and FULL-synchronous WAL. SQLite opens the
 checked main file once and accesses its journal/WAL through a held directory VFS.
 No ambient database path, disk temporary database, mmap or shared-memory mapping
 is used. The existing owned-directory lock excludes other native connections;
-a whole-file SQLite-compatible lock also excludes standard SQLite processes.
+an exclusive lock on SQLite's reserved byte range also excludes standard SQLite
+processes while preserving their ability to read the initial file header.
+An existing standard WAL connection, including an idle reader that retains its
+shared lock, also prevents native access until closed; native calls return a
+retryable contention refusal. Interoperability tools must close their connection
+before invoking the CLI. The Python and native engines never share production
+writer ownership during the preview.
 That lock lasts through connection close, so WAL uses SQLite's supported
 exclusive mode with an in-memory index. Existing ordinary WAL is recovered in
 place, and a closed registry remains readable by standard SQLite. Database,
