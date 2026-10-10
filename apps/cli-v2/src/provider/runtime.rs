@@ -195,6 +195,24 @@ impl Runtime {
         }
     }
 
+    /// Acquire exact authenticated plan artifacts into isolated private state.
+    pub fn software_acquire(
+        &self,
+        context: &TargetRequest<'_>,
+        prefix: &Path,
+        request: &super::software::Request,
+    ) -> Result<Value> {
+        #[cfg(target_os = "linux")]
+        {
+            software::acquire(self, context, prefix, request)
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = (context, prefix, request);
+            Err(unavailable())
+        }
+    }
+
     /// Observe exact software downloads/effects without acquiring or installing them.
     pub fn software_plan(
         &self,
