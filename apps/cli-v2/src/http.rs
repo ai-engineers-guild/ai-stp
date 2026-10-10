@@ -1,5 +1,7 @@
 //! Anonymous bounded HTTP. Credentials, redirects and ambient proxies are absent.
 
+pub(crate) mod retry;
+
 use crate::{
     config,
     error::{ErrorKind, Failure, Result},
@@ -141,7 +143,9 @@ impl Endpoint {
                     "the catalog object is not available",
                 ));
             }
-            408 | 425 | 429 | 500 | 502 | 503 | 504 => return Err(unavailable()),
+            408 | 425 | 429 | 500 | 502 | 503 | 504 => {
+                return Err(retry::annotate(unavailable(), response.headers(), false));
+            }
             _ => {
                 return Err(Failure::precondition(
                     "the catalog refused the request; no cached response may replace this answer",
