@@ -10,16 +10,14 @@ import {
 import { ApiError } from "@/lib/api/errors";
 import {
   landscapeFilters,
-  landscapeSearchParams,
   readTechnologyRegistry,
   readTechnologyDetail,
   readTechnologyLandscape,
   readCategoryDirectory,
   readCategoryDetail,
-  readTechnologyCapabilities,
-  readTechnologyLandscapePolicy,
 } from "@/lib/api/technology";
 import { sessionCookieValue } from "@/lib/auth/require-session";
+import { auditActionLabel } from "@/lib/audit-labels";
 import { presentPage } from "@/lib/projection/presenters";
 import { TECHNOLOGY_MAPPING_ROUTES } from "@/lib/projection/routes-technology-mappings";
 import type { MachineRoute } from "@/lib/projection/route-table";
@@ -36,13 +34,13 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
     },
   },
   {
-    pattern: "corporate/organization/admins/job-titles",
+    pattern: "corporate/admins/job-titles",
     resolve: async () => {
       const t = await getTranslations("corporate");
       return presentPage({
         title: t("jobTitles"),
         summary: t("jobTitlesDescription"),
-        links: [[t("backToWorkspace"), "/corporate/organization/admins"]],
+        links: [[t("backToWorkspace"), "/corporate/admins/members"]],
       });
     },
   },
@@ -59,7 +57,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
           { key: "employees", href: "/corporate/employees" },
           { key: "projects", href: "/corporate/projects" },
           { key: "teams", href: "/corporate/teams" },
-          { key: "admins", href: "/corporate/organization/admins" },
+          { key: "admins", href: "/corporate/admins/members" },
         ]
           .filter((item) => canViewCorporateSection(item.key, context.capabilities))
           .map((item): [string, string] => [t(item.key), item.href]),
@@ -67,7 +65,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
     },
   },
   {
-    pattern: "corporate/organization/admins/employees/:accountId",
+    pattern: "corporate/admins/employee-access/:accountId",
     resolve: async ({ segments }) => {
       const accountId = segments.at(-1);
       if (!accountId) return null;
@@ -88,22 +86,23 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
     },
   },
   {
-    pattern: "corporate/organization/admins/audit",
+    pattern: "corporate/admins/audit",
     resolve: async ({ searchParams }) => {
       const t = await getTranslations("corporate");
+      const auditT = Object.assign(
+        (key: string, values?: Record<string, string>) => t(`auditUi.${key}`, values),
+        { has: (key: string) => t.has(`auditUi.${key}`) },
+      );
       const result = await readCorporateAudit((await sessionCookieValue()) ?? "", searchParams);
       return presentPage({
         title: t("auditJournal"),
-        links: [[t("backToWorkspace"), "/corporate/organization/admins"]],
+        links: [[t("backToWorkspace"), "/corporate/admins/members"]],
         sections: [
           {
             heading: t("auditJournal"),
             entries:
               result?.audit.items.map((item) => ({
-                title:
-                  item.action === "member.profile.update"
-                    ? t("auditUi.profileUpdated")
-                    : t("auditUi.otherEvent"),
+                title: auditActionLabel(item.action, auditT),
                 fields: [
                   [t("state"), t(`auditUi.outcomes.${item.outcome}`)],
                   [
@@ -121,7 +120,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
     },
   },
   {
-    pattern: "corporate/organization/admins/access",
+    pattern: "corporate/admins/access-model",
     resolve: async () => {
       const t = await getTranslations("corporate");
       const workspace = await readCorporateWorkspace((await sessionCookieValue()) ?? "").catch(
@@ -133,12 +132,12 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
         summary: t("accessMatrixBody"),
         fields: roles.map((role) => [role.name, role.permissions.join(", ")] as const),
         emptyMessage: t("noRoles"),
-        links: [[t("backToWorkspace"), "/corporate/organization/admins"]],
+        links: [[t("backToWorkspace"), "/corporate/admins/members"]],
       });
     },
   },
   {
-    pattern: "corporate/organization/admins/roles",
+    pattern: "corporate/admins/roles",
     resolve: async () => {
       const t = await getTranslations("corporate");
       const workspace = await readCorporateWorkspace((await sessionCookieValue()) ?? "").catch(
@@ -151,12 +150,12 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
         summary: t("rolesBody"),
         fields: roles.map((role) => [role.name, role.permissions.join(", ")] as const),
         emptyMessage: t("noRoles"),
-        links: [[t("backToWorkspace"), "/corporate/organization/admins"]],
+        links: [[t("backToWorkspace"), "/corporate/admins/members"]],
       });
     },
   },
   {
-    pattern: "corporate/organization/admins/settings",
+    pattern: "corporate/admins/settings",
     resolve: async () => {
       const t = await getTranslations("technology");
       const session = (await sessionCookieValue()) ?? "";
@@ -181,7 +180,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
     },
   },
   {
-    pattern: "corporate/organization/admins/technology-categories",
+    pattern: "corporate/categories",
     resolve: async ({ searchParams }) => {
       const h = await getTranslations("hub");
       const session = (await sessionCookieValue()) ?? "";
@@ -193,7 +192,6 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
         typeof searchParams.query === "string" ? searchParams.query.toLocaleLowerCase() : "";
       return presentPage({
         title: h("categories"),
-        links: [[h("backToWorkspace"), "/corporate/organization/admins"]],
         sections: [
           {
             heading: h("categories"),
@@ -202,7 +200,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
                 .filter((item) => item.name.toLocaleLowerCase().includes(query))
                 .map((item) => ({
                   title: item.name,
-                  href: `/corporate/organization/admins/technology-categories/${item.category_id}`,
+                  href: `/corporate/categories/${item.category_id}`,
                   fields: [[h("organization"), item.description]],
                 })) ?? [],
           },
@@ -212,20 +210,18 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
     },
   },
   {
-    pattern: "corporate/organization/admins/technology-categories/:categoryId",
+    pattern: "corporate/categories/:categoryId",
     resolve: async ({ segments }) => {
       const h = await getTranslations("hub");
       const session = (await sessionCookieValue()) ?? "";
       const context = await readCorporateContext(session);
       const detail = context
-        ? await readCategoryDetail(session, context.organization.organization_id, segments[4] ?? "")
+        ? await readCategoryDetail(session, context.organization.organization_id, segments[2] ?? "")
         : null;
       return presentPage({
         title: detail?.category.name ?? h("categories"),
         summary: detail?.category.description ?? "",
-        links: [
-          [h("backToCategories"), "/corporate/organization/admins/technology-categories"],
-        ],
+        links: [[h("backToCategories"), "/corporate/categories"]],
         sections: [
           {
             heading: h("technologies"),
@@ -391,13 +387,13 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
           title: t("title"),
           summary: t("description"),
           links,
-          fields: landscapeSearchParams(filters),
+          fields: Object.entries(filters),
           sections: landscape.items.map((row) => ({
             heading: row.technology.name,
             text: `${t("projects")}: ${row.project_count}; ${t("proposed")}: ${row.proposed_project_count}`,
             entries: row.projects.map((project) => ({
               title: project.name,
-              href: `/corporate/projects/${project.project_id}?${new URLSearchParams(landscapeSearchParams(filters))}`,
+              href: `/corporate/projects/${project.project_id}?${new URLSearchParams(filters)}`,
               fields: [
                 [t("activity"), project.activity],
                 [t("source_availability"), project.source_availability ?? "unknown"],

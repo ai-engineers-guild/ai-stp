@@ -6,13 +6,18 @@ import { CatalogChoiceMenu } from "@/components/molecules/catalog-choice-menu";
 import {
   PeopleCheckbox,
   PeopleRole,
+  PeopleTable,
   PeopleTeams,
   PersonIdentity,
-} from "@/components/molecules/people-ui";
-import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
+  peopleCellClass,
+  peopleHeadClass,
+} from "@/components/organisms/corporate-people-ui";
 import type { CorporateMember, CorporateContext } from "@/lib/api/generated/types.gen";
 import { Link } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";
+import type { CorporateBinding } from "@/lib/api/generated/types.gen";
+import { roleTitle } from "@/lib/corporate-permission-ui";
+import { Button } from "@/components/atoms/button";
 
 function activityLabel(value: string | null | undefined, now: string, locale: string) {
   if (!value) return "—";
@@ -36,12 +41,14 @@ function MemberRow({
   selected,
   toggle,
   now,
+  onEdit,
 }: {
   member: CorporateMember;
   context: CorporateContext;
   selected: boolean;
   toggle: (checked: boolean) => void;
   now: string;
+  onEdit?: ((member: CorporateMember) => void) | undefined;
 }) {
   const t = useTranslations("people");
   const locale = useLocale();
@@ -54,19 +61,22 @@ function MemberRow({
     team.members.some((entry) => entry.account_id === member.account_id),
   );
   return (
-    <Tr className="hover:bg-muted/30 transition-colors" data-selected={selected || undefined}>
-      <Td className="p-0">
+    <tr
+      className="border-border hover:bg-muted/30 border-b transition-colors last:border-0"
+      data-selected={selected || undefined}
+    >
+      <td>
         <PeopleCheckbox label={t("selectPerson", { name })} checked={selected} onChange={toggle} />
-      </Td>
-      <Td className="max-w-64">
+      </td>
+      <td className={`${peopleCellClass} max-w-64`}>
         <Link
           href={profile}
           className="focus-visible:ring-ring block rounded-sm hover:underline focus-visible:ring-2 focus-visible:outline-none"
         >
           <PersonIdentity name={name} you={member.account_id === context.member.account_id} />
         </Link>
-      </Td>
-      <Td>
+      </td>
+      <td className={peopleCellClass}>
         {member.contact_email ? (
           <a
             className="text-muted-foreground hover:text-foreground hover:underline"
@@ -79,29 +89,29 @@ function MemberRow({
             {t("noEmail")}
           </Badge>
         )}
-      </Td>
-      <Td className="whitespace-nowrap">{member.job_title_name ?? "—"}</Td>
-      <Td className="max-w-72">
+      </td>
+      <td className={`${peopleCellClass} whitespace-nowrap`}>{member.job_title_name ?? "—"}</td>
+      <td className={`${peopleCellClass} max-w-72`}>
         <PeopleTeams teams={teams} />
-      </Td>
-      <Td>
+      </td>
+      <td className={peopleCellClass}>
         <PeopleRole role={member.role} />
-      </Td>
-      <Td>
+      </td>
+      <td className={peopleCellClass}>
         <Badge
           variant="outline"
           className={`border-transparent font-sans font-normal tracking-normal ${member.state === "active" ? "bg-success/15" : "bg-warning/15"}`}
         >
           {t(member.state)}
         </Badge>
-      </Td>
-      <Td className="text-muted-foreground whitespace-nowrap tabular-nums">
+      </td>
+      <td className={`${peopleCellClass} text-muted-foreground whitespace-nowrap tabular-nums`}>
         {member.joined_at?.slice(0, 10) ?? "—"}
-      </Td>
-      <Td className="text-muted-foreground whitespace-nowrap">
+      </td>
+      <td className={`${peopleCellClass} text-muted-foreground whitespace-nowrap`}>
         {activityLabel(member.last_activity_at, now, locale)}
-      </Td>
-      <Td className="text-right">
+      </td>
+      <td className="text-right">
         <CatalogChoiceMenu
           icon="more"
           variant="ghost"
@@ -109,19 +119,30 @@ function MemberRow({
           label={t("personActions", { name })}
           options={[
             { label: t("viewProfile"), href: profile, icon: "user" },
+            ...(onEdit
+              ? [
+                  {
+                    label: t("editMember"),
+                    icon: "edit" as const,
+                    onSelect: () => {
+                      onEdit(member);
+                    },
+                  },
+                ]
+              : []),
             ...(canInspect
               ? [
                   {
                     label: t("manageAccess"),
-                    href: `/corporate/organization/admins/employees/${encodeURIComponent(member.account_id)}`,
+                    href: `/corporate/admins/employee-access?employee=${encodeURIComponent(member.account_id)}`,
                     icon: "access" as const,
                   },
                 ]
               : []),
           ]}
         />
-      </Td>
-    </Tr>
+      </td>
+    </tr>
   );
 }
 
@@ -134,6 +155,10 @@ export function CorporateMembersTable({
   sort,
   update,
   empty,
+  accessView = false,
+  bindings = [],
+  inspect,
+  onEdit,
 }: {
   rows: CorporateMember[];
   context: CorporateContext;
@@ -143,98 +168,207 @@ export function CorporateMembersTable({
   sort: string;
   update: (name: string, value: string) => void;
   empty: boolean;
+  accessView?: boolean;
+  bindings?: readonly CorporateBinding[];
+  inspect?: ((accountId: string) => void) | undefined;
+  onEdit?: ((member: CorporateMember) => void) | undefined;
 }) {
   const t = useTranslations("people");
+  if (accessView)
+    return (
+      <EmployeeAccessTable rows={rows} context={context} bindings={bindings} inspect={inspect} />
+    );
   return (
-    <div
-      className="focus-visible:ring-ring min-w-0 overflow-x-auto focus-visible:ring-2 focus-visible:outline-none"
-      role="region"
-      aria-label={t("membersTable")}
-      // Keyboard access is required for scrolling the table on narrow viewports.
-      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-      tabIndex={0}
-    >
-      <Table className="min-w-[1100px]">
-        <THead>
-          <Tr>
-            <Th className="w-11">
-              <PeopleCheckbox
-                label={t("selectPage")}
-                checked={
-                  Boolean(rows.length) &&
-                  rows.every((member) => selected.includes(member.account_id))
-                }
-                mixed={
-                  rows.some((member) => selected.includes(member.account_id)) &&
-                  !rows.every((member) => selected.includes(member.account_id))
-                }
-                onChange={(checked) => {
-                  setSelected((current) =>
-                    checked
-                      ? [...new Set([...current, ...rows.map((member) => member.account_id)])]
-                      : current.filter((id) => !rows.some((member) => member.account_id === id)),
-                  );
-                }}
-              />
-            </Th>
-            {[
-              "nameColumn",
-              "contact",
-              "jobTitle",
-              "teams",
-              "role",
-              "status",
-              "joinedColumn",
-              "lastActivity",
-            ].map((key) => (
-              <Th key={key}>
-                {key === "joinedColumn" ? (
-                  <button
-                    type="button"
-                    className="focus-visible:ring-ring inline-flex items-center gap-1 rounded-sm focus-visible:ring-2 focus-visible:outline-none"
-                    onClick={() => {
-                      update("sort", sort === "joined_desc" ? "joined" : "joined_desc");
-                    }}
-                  >
-                    {t(key)}
-                    <Icon name={sort === "joined" ? "chevronUp" : "chevronDown"} size="sm" />
-                  </button>
-                ) : (
-                  t(key)
-                )}
-              </Th>
-            ))}
-            <Th className="relative w-11">
-              <span className="sr-only">{t("actions")}</span>
-            </Th>
-          </Tr>
-        </THead>
-        <TBody>
-          {rows.map((member) => (
-            <MemberRow
-              key={member.account_id}
-              member={member}
-              context={context}
-              now={now}
-              selected={selected.includes(member.account_id)}
-              toggle={(checked) => {
+    <PeopleTable label={t("membersTable")} minWidth="min-w-[1100px]">
+      <thead>
+        <tr className="border-border border-b">
+          <th className="w-11">
+            <PeopleCheckbox
+              label={t("selectPage")}
+              checked={
+                Boolean(rows.length) && rows.every((member) => selected.includes(member.account_id))
+              }
+              mixed={
+                rows.some((member) => selected.includes(member.account_id)) &&
+                !rows.every((member) => selected.includes(member.account_id))
+              }
+              onChange={(checked) => {
                 setSelected((current) =>
                   checked
-                    ? [...current, member.account_id]
-                    : current.filter((id) => id !== member.account_id),
+                    ? [...new Set([...current, ...rows.map((member) => member.account_id)])]
+                    : current.filter((id) => !rows.some((member) => member.account_id === id)),
                 );
               }}
             />
+          </th>
+          {[
+            "nameColumn",
+            "contact",
+            "jobTitle",
+            "teams",
+            "role",
+            "status",
+            "joinedColumn",
+            "lastActivity",
+          ].map((key) => (
+            <th scope="col" key={key} className={peopleHeadClass}>
+              {key === "joinedColumn" ? (
+                <button
+                  type="button"
+                  className="focus-visible:ring-ring inline-flex items-center gap-1 rounded-sm focus-visible:ring-2 focus-visible:outline-none"
+                  onClick={() => {
+                    update("sort", sort === "joined_desc" ? "joined" : "joined_desc");
+                  }}
+                >
+                  {t(key)}
+                  <Icon name={sort === "joined" ? "chevronUp" : "chevronDown"} size="sm" />
+                </button>
+              ) : (
+                t(key)
+              )}
+            </th>
           ))}
-          {!rows.length ? (
-            <Tr>
-              <Td colSpan={10} className="text-muted-foreground py-14 text-center">
-                {t(empty ? "noMembers" : "noMatchingMembers")}
-              </Td>
-            </Tr>
-          ) : null}
-        </TBody>
-      </Table>
-    </div>
+          <th className="relative w-11" scope="col">
+            <span className="sr-only">{t("actions")}</span>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((member) => (
+          <MemberRow
+            key={member.account_id}
+            member={member}
+            context={context}
+            now={now}
+            selected={selected.includes(member.account_id)}
+            toggle={(checked) => {
+              setSelected((current) =>
+                checked
+                  ? [...current, member.account_id]
+                  : current.filter((id) => id !== member.account_id),
+              );
+            }}
+            onEdit={onEdit}
+          />
+        ))}
+        {!rows.length ? (
+          <tr>
+            <td colSpan={10} className="text-muted-foreground py-14 text-center text-sm">
+              {t(empty ? "noMembers" : "noMatchingMembers")}
+            </td>
+          </tr>
+        ) : null}
+      </tbody>
+    </PeopleTable>
+  );
+}
+
+function EmployeeAccessTable({
+  rows,
+  context,
+  bindings,
+  inspect,
+}: {
+  rows: readonly CorporateMember[];
+  context: CorporateContext;
+  bindings: readonly CorporateBinding[];
+  inspect?: ((accountId: string) => void) | undefined;
+}) {
+  const t = useTranslations("accessUi");
+  const p = useTranslations("people");
+  return (
+    <PeopleTable label={t("employee")} minWidth="min-w-[52rem]" framed>
+      <thead>
+        <tr className="bg-muted/30 text-muted-foreground text-xs uppercase">
+          {[
+            p("nameColumn"),
+            p("email"),
+            p("teams"),
+            p("roles"),
+            t("accessLevel"),
+            p("status"),
+            p("actions"),
+          ].map((label) => (
+            <th key={label} className="px-3 py-3 text-left font-medium">
+              {label}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((member) => {
+          const assignments = bindings.filter(
+            (binding) => binding.account_id === member.account_id && binding.state === "active",
+          );
+          const roles = [...new Set([member.role, ...assignments.map((binding) => binding.role)])];
+          return (
+            <tr key={member.account_id} className="border-border hover:bg-muted/20 border-t">
+              <td className="px-3 py-3">
+                <button
+                  type="button"
+                  onClick={() => inspect?.(member.account_id)}
+                  className="focus-visible:ring-ring rounded-sm text-left focus-visible:ring-2"
+                >
+                  <PersonIdentity name={member.display_name ?? member.account_id} />
+                </button>
+              </td>
+              <td className="text-muted-foreground px-3 py-3 text-sm">
+                {member.contact_email ?? "—"}
+              </td>
+              <td className="max-w-64 px-3 py-3">
+                <PeopleTeams
+                  teams={context.teams.filter((team) =>
+                    team.members.some((person) => person.account_id === member.account_id),
+                  )}
+                />
+              </td>
+              <td className="max-w-56 px-3 py-3">
+                <div className="flex flex-wrap gap-1">
+                  {roles.map((role) => (
+                    <Badge key={role} variant="secondary" className="font-sans text-xs font-normal">
+                      {roleTitle(role, t)}
+                    </Badge>
+                  ))}
+                </div>
+              </td>
+              <td className="px-3 py-3 text-sm">
+                {t(
+                  assignments.some((binding) => binding.scope_kind !== "organization")
+                    ? "scopedAccess"
+                    : "organizationAccess",
+                )}
+              </td>
+              <td className="px-3 py-3">
+                <Badge
+                  variant={member.state === "active" ? "success" : "warning"}
+                  className="font-sans"
+                >
+                  {p(member.state)}
+                </Badge>
+              </td>
+              <td className="px-3 py-3">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={t("openDetails", {
+                    name: member.display_name ?? member.account_id,
+                  })}
+                  onClick={() => inspect?.(member.account_id)}
+                >
+                  <Icon name="chevronRight" size="sm" />
+                </Button>
+              </td>
+            </tr>
+          );
+        })}
+        {!rows.length ? (
+          <tr>
+            <td colSpan={7} className="text-muted-foreground p-6 text-center text-sm">
+              {p("noMatchingMembers")}
+            </td>
+          </tr>
+        ) : null}
+      </tbody>
+    </PeopleTable>
   );
 }

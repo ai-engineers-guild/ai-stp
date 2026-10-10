@@ -26,6 +26,7 @@ from ai_stp_platform.corporate_authorization import (
 from ai_stp_platform.models import Account
 from ai_stp_platform.organization_models import (
     CorporateProject,
+    CorporateProjectMember,
     CorporateRole,
     CorporateRoleBinding,
     CorporateRolePermission,
@@ -40,6 +41,8 @@ from ai_stp_platform.technology_models import (
     ProjectTeamRelation,
     ProjectTechnologyRelation,
     Technology,
+    TechnologyCategory,
+    TechnologyClassification,
     TechnologyTeamResponsibility,
     TechnologyUsageFact,
 )
@@ -130,6 +133,16 @@ async def _seed_authorization_fixture(db: AsyncSession) -> dict[str, Any]:
     await db.flush()
     db.add_all([project_eligible, project_ineligible])
     await db.flush()
+    # member_account also participates in project_eligible, so bindings scoped
+    # to that project must reach member scopes (ADR-0230 participation arm).
+    db.add(
+        CorporateProjectMember(
+            organization_id=org.id,
+            project_id=project_eligible.id,
+            account_id=member_account.id,
+            role="staff",
+        )
+    )
     db.add(
         ProjectTeamRelation(
             id=new_id("operation"),
@@ -183,21 +196,43 @@ async def _seed_authorization_fixture(db: AsyncSession) -> dict[str, Any]:
         )
     )
 
+    # Category-scope bindings reach every technology classified under the
+    # category (ADR-0230): `unlinked` has no project or team arm, so any hit
+    # here can only come through the classification.
+    category = TechnologyCategory(
+        id=new_id("operation"),
+        organization_id=org.id,
+        name="Runtimes",
+        normalized_name="runtimes",
+        provenance="ai_stp:test:bulk",
+    )
+    db.add(category)
+    await db.flush()
+    db.add(
+        TechnologyClassification(
+            organization_id=org.id,
+            technology_id=technologies["unlinked"].id,
+            category_id=category.id,
+        )
+    )
+
     db.add_all(
         [
             CorporateRole(organization_id=org.id, name="viewer"),
-            CorporateRole(organization_id=org.id, name="lead", parent_role="viewer"),
-            CorporateRole(organization_id=org.id, name="principal", parent_role="lead"),
+            CorporateRole(organization_id=org.id, name="lead"),
+            CorporateRole(organization_id=org.id, name="principal"),
         ]
     )
     await db.flush()
+    viewer_permissions = ("project.read", "team.read", "technology.read", "member.read")
+    lead_permissions = ("project.update", "technology_decision.read")
     db.add_all(
         [
             CorporateRolePermission(organization_id=org.id, role=role, permission=permission)
             for role, permissions in (
-                ("viewer", ("project.read", "team.read", "technology.read", "member.read")),
-                ("lead", ("project.update", "technology_decision.read")),
-                ("principal", ("organization.read",)),
+                ("viewer", viewer_permissions),
+                ("lead", (*viewer_permissions, *lead_permissions)),
+                ("principal", (*viewer_permissions, *lead_permissions, "organization.read")),
             )
             for permission in permissions
         ]
@@ -232,6 +267,10 @@ async def _seed_authorization_fixture(db: AsyncSession) -> dict[str, Any]:
             binding("user", "viewer", "technology", "*", account.id),
             # Member scopes are reached through bindings on the member's team.
             binding("user", "viewer", "team", member_team.id, account.id),
+            # ...and through a binding on a project the member participates in.
+            binding("user", "principal", "project", project_eligible.id, member_account.id),
+            # Category bindings cover classified technologies.
+            binding("user", "viewer", "category", category.id, account.id),
             binding("service_principal", "lead", "team", team_b.id, service.id),
         ]
     )

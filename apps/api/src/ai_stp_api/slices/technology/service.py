@@ -1465,6 +1465,7 @@ async def list_categories(
                 area_id=row.area_id,
                 name=row.name,
                 description=row.description,
+                icon=row.icon,
                 revision=row.revision,
                 provenance=row.provenance,
                 state=cast(Literal["draft", "active", "archived"], row.state),
@@ -1500,6 +1501,7 @@ async def read_category(
         area_id=row.area_id,
         name=row.name,
         description=row.description,
+        icon=row.icon,
         revision=row.revision,
         provenance=row.provenance,
         state=cast(Literal["draft", "active", "archived"], row.state),
@@ -1738,6 +1740,7 @@ async def write_category(
             "name": row.name,
             "description": row.description,
             "area_id": row.area_id,
+            "icon": row.icon,
             "revision": row.revision,
         }
         if row
@@ -1750,6 +1753,7 @@ async def write_category(
             area_id=payload.area_id,
             name=payload.metadata.name,
             normalized_name=normalized,
+            icon=payload.metadata.icon,
             provenance="manual",
             revision=1,
             state=payload.state or "active",
@@ -1765,6 +1769,7 @@ async def write_category(
     row.description = payload.metadata.description
     if "area_id" in payload.model_fields_set:
         row.area_id = payload.area_id
+    row.icon = payload.metadata.icon
     organization.policy_revision += 1
     await db.flush()
     response = CategoryView(
@@ -1772,6 +1777,7 @@ async def write_category(
         area_id=row.area_id,
         name=row.name,
         description=row.description,
+        icon=row.icon,
         revision=row.revision,
         provenance=row.provenance,
         state=cast(Literal["draft", "active", "archived"], row.state),
@@ -1827,6 +1833,7 @@ async def change_category_lifecycle(
         area_id=row.area_id,
         name=row.name,
         description=row.description,
+        icon=row.icon,
         revision=row.revision,
         provenance=row.provenance,
         state=cast(Literal["draft", "active", "archived"], row.state),
@@ -1840,6 +1847,7 @@ async def change_category_lifecycle(
         area_id=row.area_id,
         name=row.name,
         description=row.description,
+        icon=row.icon,
         revision=row.revision,
         provenance=row.provenance,
         state=payload.target,

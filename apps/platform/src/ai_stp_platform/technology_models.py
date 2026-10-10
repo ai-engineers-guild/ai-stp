@@ -80,6 +80,7 @@ class TechnologyCategory(_TenantRow, Base):
     description: Mapped[str] = mapped_column(
         String(2000), nullable=False, default="", server_default=""
     )
+    icon: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     provenance: Mapped[str] = mapped_column(String(256), nullable=False)
     state: Mapped[str] = mapped_column(

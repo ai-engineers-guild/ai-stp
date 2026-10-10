@@ -4,19 +4,19 @@ import type { ReactNode } from "react";
 import type {
   corporateCatalogSearchAction,
   corporateCatalogVersionsAction,
-  corporateMutationAction,
 } from "@/actions/corporate";
+import type { corporateMutation } from "@/lib/api/corporate-mutation";
 const { search, versions, mutation, refresh } = vi.hoisted(() => ({
   search: vi.fn<typeof corporateCatalogSearchAction>(),
   versions: vi.fn<typeof corporateCatalogVersionsAction>(),
-  mutation: vi.fn<typeof corporateMutationAction>(),
+  mutation: vi.fn<typeof corporateMutation>(),
   refresh: vi.fn(),
 }));
 vi.mock("@/actions/corporate", () => ({
   corporateCatalogSearchAction: search,
   corporateCatalogVersionsAction: versions,
-  corporateMutationAction: mutation,
 }));
+vi.mock("@/lib/api/corporate-mutation", () => ({ corporateMutation: mutation }));
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 vi.mock("@/lib/i18n/navigation", () => ({
   useRouter: () => ({ refresh }),

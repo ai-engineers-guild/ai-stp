@@ -1284,6 +1284,11 @@ async def test_sync_apply_rechecks_every_link_and_identity_precondition(
         assert failed_audits[0].outcome == "failed"
         assert failed_audits[0].reason == "precondition"
         assert failed_audits[0].target_id == "redacted"
+        assert failed_audits[0].payload == {
+            "method": "POST",
+            "http_status": 412,
+            "error": "AI_STP_PRECONDITION_FAILED",
+        }
 
 
 async def test_sync_apply_refuses_a_plan_authored_for_another_device(

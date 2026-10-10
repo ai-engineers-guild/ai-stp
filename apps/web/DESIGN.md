@@ -105,3 +105,62 @@ project source authorization, URL preview and explicit binding, so the organism
 composes those kits. Linking never starts a scan. Public GitHub and the configured
 organization GitLab are supported. A saved source displays provider, repository
 link, URL and branch, including for read-only viewers.
+
+## People & Access workspace reuse
+
+The existing directory kit supplies search, filters, identities, chips and pagination.
+The kit had no entity/action permission table or role workspace. `CorporatePermissionTable`
+adds one semantic table shared by role viewing, role editing and effective employee access.
+`CorporateAccessModel` and `CorporateRolesWorkspace` compose those controls around the
+server permission catalog and existing navigation manifest. `CorporateEmployeeAccessDrawer`
+adds access/profile/activity tabs around the existing member access mutations.
+`CorporateDetailDrawer` extends the shared Sheet atom for all three workspaces.
+All controls retain the existing Button, Input, Badge, Dialog, Sheet, tokens and icon registry.
+No additional dependency is required. Tables scroll within their container on narrow screens;
+desktop detail panels reserve content space when the viewport can accommodate both.
+
+## Administration modal/drawer primitives
+
+Administration pages (`/corporate/organization/*`) own exactly two overlay
+primitives; domain code supplies fields and submit logic, never its own chrome:
+
+- `FormDialog` (molecule) — centered create/edit/confirm modal: title,
+  optional description, caller fields, Cancel + submit with busy and
+  `submitVariant="destructive"` for irreversible confirms. Used by member and
+  bulk edit, job-title create/edit/assign/delete, category edit and link
+  management, grant-access, and invitation revocation. The invitation
+  composer keeps raw `Dialog` chrome: its send/import/help footer has three
+  custom actions that do not fit the two-button footer.
+- `CorporateDetailDrawer` — right-side sheet for view/detail (member access,
+  job-title detail, role panel, category detail) with sticky header and an
+  `actions` slot. `PeopleTable` is the shared framed, labelled table shell.
+- `SearchableMultiSelect` is the single team/employee/technology picker
+  (inline or modal, single or multi, avatar options, native form values).
+
+Page headers use the shared `PeopleHeader` (breadcrumb + title) in
+`corporate/organization/people-shared.tsx`; each page passes its rail-group
+label as `section`.
+
+## Policy & journal surfaces
+
+Administration policy pages (`/corporate/admins/*`) share three molecules the
+kit previously lacked; each exists because no existing component covered the
+pattern:
+
+- `SettingsSection` — titled card region with icon, description and an aside
+  slot; the sectioning unit for policy cards.
+- `SwitchRow` — labelled `Switch` atom row with status text; the single
+  boolean policy control.
+- `InfoNote` — bordered informational callout for policy consequences.
+- `FieldHint` — promoted from `organisms/` to `molecules/`; the organism file
+  re-exports it for existing imports.
+
+`/corporate/admins/telemetry` is a `NavigationTabs` page (heartbeat / usage /
+retention); each tab's submit merges its fields over the known policy into the
+single `PUT telemetry/policy` mutation — tabs never clobber each other's
+fields. `/corporate/admins/audit` composes `PeopleTable`, `PeoplePager`,
+`PeopleSelect`, `PersonIdentity` and `CorporateDetailDrawer` over URL-driven
+server filters (actor/action/target_table/outcome/date/q) with offset
+pagination and a bounded CSV/JSON export gated on `audit.export`. Security
+keeps `SwitchRow` + `SettingsSection` + `InfoNote` composition for the
+email-domain policy.

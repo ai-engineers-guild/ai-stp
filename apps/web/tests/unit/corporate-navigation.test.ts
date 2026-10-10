@@ -5,8 +5,8 @@ import {
   corporateNavPageIds,
   normalizeCorporatePath,
   resolveCorporateNav,
-  resolveCorporateRail,
 } from "@/lib/corporate-navigation";
+import { resolveCorporateRail } from "@/lib/corporate-rail";
 
 const MEMBER = ["member.list"];
 const REPORTER = ["telemetry.read"];
@@ -46,13 +46,16 @@ describe("corporateNavPage", () => {
       ["/corporate/organization/admins/technology-categories", "categories"],
       ["/corporate/organization/admins/technology-categories/cat_1", "categories"],
       ["/corporate/technology-mappings", "mappings"],
-      ["/corporate/organization/admins", "administration"],
-      ["/corporate/organization/admins/access", "accessMatrix"],
-      ["/corporate/organization/admins/audit", "auditJournal"],
-      ["/corporate/organization/admins/employees/account_1", "employeeAccess"],
-      ["/corporate/organization/admins/job-titles", "jobTitles"],
-      ["/corporate/organization/admins/technology-areas", "technologyAreas"],
-      ["/corporate/organization/admins/settings", "settings"],
+      ["/corporate/admins/members", "administration"],
+      ["/corporate/admins/invitations", "invitations"],
+      ["/corporate/admins/access-model", "accessMatrix"],
+      ["/corporate/admins/audit", "auditJournal"],
+      ["/corporate/admins/employee-access/account_1", "employeeAccess"],
+      ["/corporate/admins/job-titles", "jobTitles"],
+      ["/corporate/admins/settings", "settings"],
+      ["/corporate/admins/technology-areas", "technologyAreas"],
+      ["/corporate/admins/security", "security"],
+      ["/corporate/admins/telemetry", "telemetry"],
       ["/corporate/roles/role_1", "roleDetail"],
       ["/corporate/dashboard", "dashboard"],
       ["/corporate/account", null],
@@ -64,8 +67,8 @@ describe("corporateNavPage", () => {
   });
 
   it("keeps administration pages out of the organization index prefix", () => {
-    // /corporate/organization/admins must not be claimed by the organization page.
-    expect(corporateNavPage("/corporate/organization/admins")?.context).toBe("administration");
+    // /corporate/admins/members must not be claimed by the organization page.
+    expect(corporateNavPage("/corporate/admins/members")?.context).toBe("administration");
   });
 });
 
@@ -80,7 +83,6 @@ describe("resolveCorporateNav", () => {
       "organization",
       "landscape",
       "administration",
-      "dashboard",
     ]);
     expect(nav.items.find((item) => item.active)?.id).toBe("overview");
   });
@@ -93,26 +95,41 @@ describe("resolveCorporateNav", () => {
   });
 
   it("enters the administration context and lights the index on nested pages", () => {
-    const nav = resolveCorporateNav("/corporate/organization/admins/access", ADMIN);
+    const nav = resolveCorporateNav("/corporate/admins/access-model", ADMIN);
     expect(nav.context).toBe("administration");
     expect(nav.back).toBeNull();
     expect(nav.items.map((item) => item.id)).toEqual([
       "administration",
+      "invitations",
       "accessMatrix",
       "roles",
-      "auditJournal",
       "employeeAccess",
       "technologyAreas",
       "categories",
       "jobTitles",
-      "settings",
-      "security",
+      "technologyCategories",
     ]);
     expect(nav.items.find((item) => item.active)?.id).toBe("accessMatrix");
   });
 
+  it("gates each administration page on its own capability family", () => {
+    const caps = [...ADMIN, "audit.list", "service_principal.list", "telemetry.read"];
+    const nav = resolveCorporateNav("/corporate/admins/telemetry", caps);
+    expect(nav.items.map((item) => item.id)).toContain("telemetry");
+    expect(nav.items.map((item) => item.id)).toContain("auditJournal");
+    expect(nav.items.map((item) => item.id)).toContain("security");
+    expect(nav.items.map((item) => item.id)).not.toContain("settings");
+    expect(nav.items.find((item) => item.active)?.id).toBe("telemetry");
+    // Managing telemetry alone does not expose the audit journal.
+    expect(
+      resolveCorporateNav("/corporate/admins/audit", [...ADMIN, "telemetry.manage"]).items.map(
+        (item) => item.id,
+      ),
+    ).not.toContain("auditJournal");
+  });
+
   it("lights the administration index for the employee-access route", () => {
-    const nav = resolveCorporateNav("/corporate/organization/admins/employees/account_1", ADMIN);
+    const nav = resolveCorporateNav("/corporate/admins/employee-access/account_1", ADMIN);
     expect(nav.items.find((item) => item.active)?.id).toBe("employeeAccess");
   });
 
@@ -125,26 +142,26 @@ describe("resolveCorporateNav", () => {
     const nav = resolveCorporateNav("/corporate", MEMBER);
     expect(nav.items.map((item) => item.id)).not.toContain("administration");
     // Being on an admin URL without the capability lights nothing.
-    const denied = resolveCorporateNav("/corporate/organization/admins/access", MEMBER);
+    const denied = resolveCorporateNav("/corporate/admins/access-model", MEMBER);
     expect(denied.items.every((item) => !item.active)).toBe(true);
   });
 
   it("fails closed on unknown capability values", () => {
-    const nav = resolveCorporateNav("/corporate/organization/admins", ["nonsense.value"]);
+    const nav = resolveCorporateNav("/corporate/admins/members", ["nonsense.value"]);
     expect(nav.items).toHaveLength(0);
   });
 
-  it("keeps dashboard reachable with its own active rail item", () => {
+  it("keeps the legacy dashboard route without a primary rail entry", () => {
     const nav = resolveCorporateNav("/corporate/dashboard", ADMIN);
     expect(nav.context).toBe("root");
     expect(nav.page?.id).toBe("dashboard");
-    expect(nav.items.filter((item) => item.active).map((item) => item.id)).toEqual(["dashboard"]);
+    expect(nav.items.filter((item) => item.active).map((item) => item.id)).toEqual([]);
   });
 
   it("filters organization children by capability sections", () => {
     const nav = resolveCorporateNav("/corporate/organization", [...MEMBER, ...REPORTER]);
     const ids = nav.items.map((item) => item.id);
-    expect(ids).toEqual(["organization", "employees", "reports"]);
+    expect(ids).toEqual(["organization", "reports", "employees"]);
     // member.list also satisfies the catalog section on the root rail.
     expect(resolveCorporateNav("/corporate", MEMBER).items.map((item) => item.id)).toContain(
       "catalog",
@@ -154,20 +171,25 @@ describe("resolveCorporateNav", () => {
 
 describe("corporateNavPageIds", () => {
   it("lists only pages the capabilities allow", () => {
-    expect(corporateNavPageIds([])).toEqual(["overview", "organization", "dashboard"]);
+    expect(corporateNavPageIds([])).toEqual(["overview", "organization"]);
     expect(corporateNavPageIds(ADMIN)).toContain("administration");
-    expect(corporateNavPageIds(ADMIN)).toContain("auditJournal");
+    expect(corporateNavPageIds(ADMIN)).not.toContain("auditJournal");
     expect(corporateNavPageIds(ADMIN)).toContain("employeeAccess");
+    const full = [...ADMIN, "audit.list", "audit.export", "telemetry.read", "landscape.manage"];
+    expect(corporateNavPageIds(full)).toEqual(
+      expect.arrayContaining(["auditJournal", "telemetry"]),
+    );
+    expect(corporateNavPageIds(full)).not.toContain("settings");
   });
 });
 
 it.each([
-  "/en/corporate/organization/admins",
-  "/ru/corporate/organization/admins/access",
-  "/corporate/organization/admins/employees/account_1",
+  "/en/corporate/admins/members",
+  "/ru/corporate/admins/access-model",
+  "/corporate/admins/employee-access/account_1",
   "/corporate/roles/role_1",
 ])("keeps authorized root navigation on a denied administration route: %s", (pathname) => {
-  const allowed = ["overview", "catalog", "organization", "dashboard"];
+  const allowed = ["overview", "catalog", "organization", "reports"];
   const rail = resolveCorporateRail(pathname, allowed);
   expect(rail.context).toBe("root");
   expect(rail.entries.map((entry) => entry.id)).toEqual(allowed);

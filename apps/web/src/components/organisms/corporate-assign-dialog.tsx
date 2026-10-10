@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import {
-  corporateMutationAction,
   corporateCatalogVersionsAction,
   corporateSubjectSearchAction,
   type CorporateAssignContext,
   type CorporateAssignSubjectKind,
 } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Button } from "@/components/atoms/button";
 import {
   Dialog,
@@ -123,7 +123,7 @@ export function CorporateAssignDialog({
     let lastError = "";
     for (const kind of SUBJECT_KINDS) {
       for (const subjectId of selected[kind]) {
-        const result = await corporateMutationAction({
+        const result = await corporateMutation({
           organizationId: context.organizationId,
           csrfToken: context.csrfToken,
           path: `/v1/corporate/organizations/${context.organizationId}/catalog-assignments`,

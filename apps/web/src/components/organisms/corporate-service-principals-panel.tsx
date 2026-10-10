@@ -6,7 +6,7 @@ import { Select } from "@/components/atoms/select";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
@@ -76,7 +76,7 @@ export function CorporateServicePrincipalsPanel({
   function submit(method: "POST" | "PATCH" | "DELETE", path: string, body: unknown) {
     setMessage(null);
     startTransition(async () => {
-      const result = await corporateMutationAction({
+      const result = await corporateMutation({
         csrfToken,
         organizationId,
         path,

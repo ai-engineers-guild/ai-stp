@@ -1,170 +1,206 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-const { exportAudit } = vi.hoisted(() => ({ exportAudit: vi.fn() }));
+
+const { exportAudit, replace } = vi.hoisted(() => ({
+  exportAudit: vi.fn(),
+  replace: vi.fn(),
+}));
 vi.mock("@/actions/corporate", () => ({
   corporateAuditExportAction: exportAudit,
 }));
+// Radix Dialog's focus scope loops in jsdom; the drawer's content is what this
+// suite checks, so the portal primitives are replaced with passthroughs.
+vi.mock("@/components/atoms/sheet", () => ({
+  Sheet: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
+    open ? <>{children}</> : null,
+  SheetClose: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  SheetContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SheetDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
+  SheetTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
+}));
 vi.mock("@/lib/i18n/navigation", () => ({
   Link: ({ children, ...props }: React.ComponentProps<"a">) => <a {...props}>{children}</a>,
+  usePathname: () => "/corporate/admins/audit",
+  useRouter: () => ({ replace }),
 }));
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string, values?: Record<string, string>) =>
-    values ? `${values.entity}: ${values.operation}` : key,
+  useTranslations: () => {
+    const t = (key: string, values?: Record<string, string | number>) => {
+      if (values?.entity !== undefined) return `${values.entity}: ${values.operation}`;
+      if (values?.count !== undefined) return `${key}:${values.count}`;
+      return key;
+    };
+    t.has = () => false;
+    return t;
+  },
   useFormatter: () => ({ dateTime: () => "Localized date" }),
 }));
+
 import { auditExportCsv, CorporateAuditPanel } from "@/components/organisms/corporate-audit-panel";
+import type { CorporateAuditList } from "@/lib/api/generated/types.gen";
+
+const LABELS = {
+  title: "Journal",
+  export: "Export",
+  exporting: "Exporting",
+  exportFormat: "Format",
+  exportRange: "Time range",
+  currentFilters: "Current filters",
+  today: "Today",
+  last7Days: "Last 7 days",
+  last30Days: "Last 30 days",
+  allEvents: "All events",
+  json: "JSON",
+  csv: "CSV",
+  noAudit: "No events",
+  failed: "Export failed",
+};
+
+function entry(overrides: Partial<CorporateAuditList["items"][number]> = {}) {
+  return {
+    schema_version: 1 as const,
+    audit_id: 1,
+    action: "role.update",
+    actor_type: "user" as const,
+    actor_account_id: "account_alice",
+    actor_id: "account_alice",
+    created_at: "2026-09-13T10:00:00Z",
+    outcome: "succeeded" as const,
+    target_table: "corporate_role",
+    target_id: "role_auditor",
+    request_id: null,
+    reason: "rotate scope",
+    payload: {},
+    effective_role_bindings: [],
+    ...overrides,
+  };
+}
+
+function audit(items: CorporateAuditList["items"], total = items.length): CorporateAuditList {
+  return { schema_version: 1, items, total, next_before_created_at: null, next_before_id: null };
+}
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
 });
-it("links named actors and hides technical fields even for unknown events", () => {
+
+it("renders the toolbar, count, table and numbered pager", () => {
+  window.history.replaceState(null, "", "/corporate/admins/audit?page=1");
   render(
     <CorporateAuditPanel
       organizationId="organization_fixture"
+      audit={audit([entry()], 142)}
       members={[{ account_id: "account_alice", display_name: "Alice" }]}
-      audit={{
-        schema_version: 1,
-        next_before_created_at: null,
-        next_before_id: null,
-        items: [
-          {
-            schema_version: 1,
-            audit_id: 1,
-            action: "unknown.internal.operation",
-            actor_type: "user",
-            actor_account_id: "account_alice",
-            actor_id: "account_alice",
-            created_at: "2026-09-13T10:00:00Z",
-            outcome: "succeeded",
-            target_table: "internal_table",
-            target_id: "internal_target",
-            request_id: "secret_request",
-            reason: null,
-            payload: { internal: "hidden_payload" },
-            effective_role_bindings: [],
-          },
-        ],
-      }}
-      labels={{
-        title: "Journal",
-        export: "Export",
-        exporting: "Exporting",
-        exportFormat: "Format",
-        exportRange: "Time range",
-        currentFilters: "Current filters",
-        today: "Today",
-        last7Days: "Last 7 days",
-        last30Days: "Last 30 days",
-        allEvents: "All events",
-        json: "JSON",
-        csv: "CSV",
-        noAudit: "No events",
-        failed: "Export failed",
-      }}
+      page={1}
+      pageSize={10}
+      labels={LABELS}
     />,
   );
-  expect(screen.getByRole("link", { name: "Alice" })).toHaveAttribute(
-    "href",
-    "/corporate/employees/account_alice",
-  );
-  expect(screen.getByText("otherEvent")).toBeInTheDocument();
-  expect(screen.getByText("Localized date")).toHaveAttribute("dateTime", "2026-09-13T10:00:00Z");
-  for (const value of [
-    "unknown.internal.operation",
-    "internal_table",
-    "internal_target",
-    "secret_request",
-    "hidden_payload",
-  ])
-    expect(screen.queryByText(new RegExp(value))).not.toBeInTheDocument();
+  expect(screen.getByLabelText("search")).toBeInTheDocument();
+  for (const name of ["allActors", "allActions", "allTypes", "allOutcomes"])
+    expect(screen.getByLabelText(name)).toBeInTheDocument();
+  expect(screen.getByText("eventCount:142")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Alice" })).toBeInTheDocument();
+  expect(screen.getByRole("cell", { name: "role.update" })).toBeInTheDocument();
+  expect(screen.getByLabelText("rowsPerPage")).toHaveValue("10");
+  // Numbered pagination navigates through the URL.
+  const pageTwo = screen
+    .getAllByRole("button", { name: "page" })
+    .find((button) => button.textContent === "2");
+  if (!pageTwo) throw new Error("page 2 button is missing");
+  fireEvent.click(pageTwo);
+  expect(replace).toHaveBeenCalledWith(expect.stringContaining("page=2"), { scroll: false });
 });
+
+it("pushes filter selects into the URL and resets the page", () => {
+  window.history.replaceState(null, "", "/corporate/admins/audit?page=3&outcome=failed");
+  render(
+    <CorporateAuditPanel
+      organizationId="organization_fixture"
+      audit={audit([entry({ outcome: "failed" })], 1)}
+      filters={{ outcome: "failed" }}
+      page={3}
+      pageSize={10}
+      labels={LABELS}
+    />,
+  );
+  fireEvent.change(screen.getByLabelText("allActions"), { target: { value: "role.update" } });
+  expect(replace).toHaveBeenLastCalledWith(expect.stringContaining("action=role.update"), {
+    scroll: false,
+  });
+  expect(replace.mock.calls.at(-1)?.[0]).not.toContain("page=");
+  fireEvent.click(screen.getByRole("button", { name: "reset" }));
+  expect(replace).toHaveBeenLastCalledWith("/corporate/admins/audit", { scroll: false });
+});
+
+it("opens the detail drawer with request id, target and payload", () => {
+  window.history.replaceState(null, "", "/corporate/admins/audit");
+  render(
+    <CorporateAuditPanel
+      organizationId="organization_fixture"
+      members={[{ account_id: "account_alice", display_name: "Alice", contact_email: "a@x.io" }]}
+      audit={audit([
+        entry({
+          request_id: "secret_request",
+          payload: { internal: "hidden_payload" },
+        }),
+      ])}
+      labels={LABELS}
+    />,
+  );
+  expect(screen.queryByText(/secret_request/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Alice a@x.io" }));
+  expect(screen.getByRole("heading", { name: "eventDetails" })).toBeInTheDocument();
+  expect(screen.getByText("secret_request")).toBeInTheDocument();
+  expect(screen.getByText(/hidden_payload/)).toBeInTheDocument();
+  // The reason appears once in the row and once inside the opened drawer.
+  expect(screen.getAllByText(/rotate scope/)).toHaveLength(2);
+});
+
 it("shows export transport errors and permits retry without losing the journal", async () => {
+  window.history.replaceState(null, "", "/corporate/admins/audit");
   exportAudit.mockRejectedValueOnce(new Error("Connection lost"));
   exportAudit.mockResolvedValueOnce({ ok: false, message: "Try again later" });
   render(
-    <CorporateAuditPanel
-      organizationId="organization_fixture"
-      audit={{
-        schema_version: 1,
-        items: [],
-        next_before_created_at: null,
-        next_before_id: null,
-      }}
-      labels={{
-        title: "Journal",
-        export: "Export",
-        exporting: "Exporting",
-        exportFormat: "Format",
-        exportRange: "Time range",
-        currentFilters: "Current filters",
-        today: "Today",
-        last7Days: "Last 7 days",
-        last30Days: "Last 30 days",
-        allEvents: "All events",
-        json: "JSON",
-        csv: "CSV",
-        noAudit: "No events",
-        failed: "Export failed",
-      }}
-    />,
+    <CorporateAuditPanel organizationId="organization_fixture" audit={audit([])} labels={LABELS} />,
   );
   fireEvent.click(screen.getByRole("button", { name: "Export" }));
   await screen.findByText("Export failed");
   expect(screen.getByText("No events")).toBeInTheDocument();
   await screen.findByRole("button", { name: "Export" });
-  expect(screen.getByRole("button", { name: "Export" })).toBeEnabled();
   fireEvent.click(screen.getByRole("button", { name: "Export" }));
   await screen.findByText("Try again later");
   expect(exportAudit).toHaveBeenCalledTimes(2);
 });
+
 it("does not offer export when the server projection withholds the capability", () => {
+  window.history.replaceState(null, "", "/corporate/admins/audit");
   render(
     <CorporateAuditPanel
       organizationId="organization_fixture"
       canExport={false}
-      audit={{ schema_version: 1, items: [], next_before_created_at: null, next_before_id: null }}
-      labels={{
-        title: "Journal",
-        export: "Export",
-        exporting: "Exporting",
-        exportFormat: "Format",
-        exportRange: "Time range",
-        currentFilters: "Current filters",
-        today: "Today",
-        last7Days: "Last 7 days",
-        last30Days: "Last 30 days",
-        allEvents: "All events",
-        json: "JSON",
-        csv: "CSV",
-        noAudit: "No events",
-        failed: "Export failed",
-      }}
+      audit={audit([])}
+      labels={LABELS}
     />,
   );
   expect(screen.queryByRole("button", { name: "Export" })).not.toBeInTheDocument();
 });
+
 it("creates a quoted CSV without exposing extra audit fields in the UI", () => {
   const csv = auditExportCsv({
     schema_version: 1,
     organization_id: "organization_fixture",
     exported_at: "2026-09-13T10:00:00Z",
     items: [
-      {
-        schema_version: 1,
-        audit_id: 1,
+      entry({
         action: "member.profile.update",
-        actor_type: "user",
-        actor_account_id: "account_alice",
-        actor_id: "account_alice",
-        created_at: "2026-09-13T10:00:00Z",
-        outcome: "succeeded",
         target_table: "member",
         target_id: "account_alice",
         request_id: "request-1",
         reason: 'name contains "quotes"',
         payload: { name: "Alice" },
-        effective_role_bindings: [],
-      },
+      }),
     ],
   });
   expect(csv).toContain('"name contains ""quotes"""');
@@ -172,6 +208,7 @@ it("creates a quoted CSV without exposing extra audit fields in the UI", () => {
 });
 
 it("exports the selected range and keeps the object URL alive through the click", async () => {
+  window.history.replaceState(null, "", "/corporate/admins/audit");
   exportAudit.mockResolvedValue({
     ok: true,
     data: {
@@ -189,24 +226,9 @@ it("exports the selected range and keeps the object URL alive through the click"
   render(
     <CorporateAuditPanel
       organizationId="organization_fixture"
-      audit={{ schema_version: 1, items: [], next_before_created_at: null, next_before_id: null }}
+      audit={audit([])}
       filters={{ action: "member.update" }}
-      labels={{
-        title: "Journal",
-        export: "Export",
-        exporting: "Exporting",
-        exportFormat: "Format",
-        exportRange: "Time range",
-        currentFilters: "Current filters",
-        today: "Today",
-        last7Days: "Last 7 days",
-        last30Days: "Last 30 days",
-        allEvents: "All events",
-        json: "JSON",
-        csv: "CSV",
-        noAudit: "No events",
-        failed: "Export failed",
-      }}
+      labels={LABELS}
     />,
   );
   fireEvent.click(screen.getByRole("button", { name: "Export" }));

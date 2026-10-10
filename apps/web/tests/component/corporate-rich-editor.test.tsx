@@ -2,12 +2,12 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, expect, it, vi } from "vitest";
 
 import type { updateCorporatePresentationAction } from "@/actions/corporate-detail";
-import type { corporateMutationAction } from "@/actions/corporate";
+import type { corporateMutation } from "@/lib/api/corporate-mutation";
 import type { CorporatePresentation } from "@/lib/corporate-detail";
 
 const { mutation, entityMutation, uploadMutation, push, refresh } = vi.hoisted(() => ({
   mutation: vi.fn<typeof updateCorporatePresentationAction>(),
-  entityMutation: vi.fn<typeof corporateMutationAction>(),
+  entityMutation: vi.fn<typeof corporateMutation>(),
   uploadMutation: vi.fn(),
   push: vi.fn(),
   refresh: vi.fn(),
@@ -16,7 +16,7 @@ const { mutation, entityMutation, uploadMutation, push, refresh } = vi.hoisted((
 vi.mock("@/actions/corporate-detail", () => ({
   updateCorporatePresentationAction: mutation,
 }));
-vi.mock("@/actions/corporate", () => ({ corporateMutationAction: entityMutation }));
+vi.mock("@/lib/api/corporate-mutation", () => ({ corporateMutation: entityMutation }));
 vi.mock("@/lib/corporate-detail-upload", () => ({
   uploadCorporateDetailMedia: uploadMutation,
 }));

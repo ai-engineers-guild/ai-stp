@@ -6,7 +6,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { updateCorporatePresentationAction } from "@/actions/corporate-detail";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
@@ -215,7 +215,7 @@ export function CorporateRichEditor({
               ...(entityUpdate.kind === "team" ? { description: entityUpdate.description } : {}),
             },
           };
-    return corporateMutationAction({ csrfToken, organizationId, ...request });
+    return corporateMutation({ csrfToken, organizationId, ...request });
   }
 
   function save() {

@@ -6,7 +6,6 @@ import type { CorporateNavContextId, CorporateNavPage } from "@/lib/corporate-na
 export { CORPORATE_NAV_PAGES };
 export type { CorporateNavContextId, CorporateNavPage };
 
-/** Label key of a non-root context heading, in the `hub` namespace. */
 export const CORPORATE_NAV_CONTEXT_LABELS: Record<
   Exclude<CorporateNavContextId, "root">,
   string
@@ -45,7 +44,7 @@ export function normalizeCorporatePath(pathname: string): string {
 
 function matches(page: CorporateNavPage, path: string): number | null {
   let best: number | null = null;
-  for (const exact of page.exact) {
+  for (const exact of page.exact ?? []) {
     if (path === exact) best = Math.max(best ?? 0, exact.length);
   }
   for (const prefix of page.prefixes) {
@@ -71,8 +70,17 @@ export function corporateNavPage(pathname: string): CorporateNavPage | null {
   return winner;
 }
 
-function visible(page: CorporateNavPage, capabilities: readonly string[]): boolean {
-  if (page.administration) return canViewCorporateAdministration(capabilities);
+export function corporateNavPageVisible(
+  page: CorporateNavPage,
+  capabilities: readonly string[],
+): boolean {
+  if (page.administration) {
+    if (!canViewCorporateAdministration(capabilities)) return false;
+    return (
+      page.capabilities === undefined ||
+      page.capabilities.some((permission) => capabilities.includes(permission))
+    );
+  }
   if (page.section) return canViewCorporateSection(page.section, capabilities);
   return true;
 }
@@ -90,7 +98,7 @@ export function resolveCorporateNav(
     context === "root" ? item.root : item.context === context && item.rail,
   );
   const items = source
-    .filter((item) => visible(item, capabilities))
+    .filter((item) => corporateNavPageVisible(item, capabilities))
     .map((item) => ({
       id: item.id,
       href: item.href,
@@ -114,83 +122,6 @@ export function resolveCorporateNav(
 /** Ids of every rail item the capabilities allow, for the navigation endpoint. */
 export function corporateNavPageIds(capabilities: readonly string[]): string[] {
   return CORPORATE_NAV_PAGES.filter(
-    (page) => (page.rail || page.root) && visible(page, capabilities),
+    (page) => (page.rail || page.root) && corporateNavPageVisible(page, capabilities),
   ).map((page) => page.id);
-}
-
-export type CorporateRailEntry = CorporateNavItem & {
-  children?: CorporateNavItem[];
-};
-
-/** Presentation of the server's allowed IDs. It never infers authority from a URL. */
-export function resolveCorporateRail(
-  pathname: string,
-  allowedPages: readonly string[],
-  mainNavigation = false,
-) {
-  const page = corporateNavPage(pathname);
-  const context =
-    mainNavigation || (page?.context === "administration" && !allowedPages.includes(page.id))
-      ? "root"
-      : (page?.context ?? "root");
-  const activeId = page?.activeAs === undefined ? page?.id : page.activeAs;
-  const allowed = CORPORATE_NAV_PAGES.filter((item) => allowedPages.includes(item.id));
-  const item = (entry: CorporateNavPage): CorporateNavItem => ({
-    id: entry.id,
-    href: entry.href,
-    label: entry.label,
-    icon: entry.icon,
-    active: entry.id === activeId,
-  });
-  let entries: CorporateRailEntry[];
-  if (context === "administration") {
-    const groups = [
-      ["peopleAndAccess", "team"],
-      ["referenceData", "technology"],
-      ["security", "lock"],
-      ["organization", "setup"],
-      ["audit", "list"],
-    ] as const;
-    entries = groups.flatMap(([id, icon]) => {
-      const children = allowed.filter((entry) => entry.group === id && entry.rail).map(item);
-      return children.length
-        ? [{ id: `group-${id}`, label: id, icon, href: "", active: false, children }]
-        : [];
-    });
-  } else {
-    entries = allowed
-      .filter((entry) => entry.root)
-      .map((entry) => {
-        const children =
-          entry.context !== "root" && entry.context !== "administration"
-            ? allowed
-                .filter(
-                  (child) =>
-                    child.context === entry.context &&
-                    child.rail &&
-                    (child.id !== entry.id || entry.id === "landscape"),
-                )
-                .map(item)
-            : [];
-        return {
-          ...item(entry),
-          active: entry.id === activeId || (entry.administration && page?.administration) === true,
-          label: entry.rootLabel ?? entry.label,
-          ...(children.length ? { children } : {}),
-        };
-      });
-  }
-  const detail =
-    !mainNavigation &&
-    page?.rail &&
-    page.context !== "administration" &&
-    normalizeCorporatePath(pathname).startsWith(`${page.href}/`);
-  return {
-    context,
-    entries,
-    back:
-      detail && page.href !== "/corporate/technology-scans"
-        ? { href: page.href, label: page.label }
-        : null,
-  };
 }

@@ -143,7 +143,15 @@ class CorporatePermissionDefinition(ContractModel):
     resource: str
     action: str
     scopes: list[
-        Literal["organization", "team", "project", "technology", "catalog_object", "member"]
+        Literal[
+            "organization",
+            "team",
+            "project",
+            "technology",
+            "category",
+            "catalog_object",
+            "member",
+        ]
     ]
     group: str
     create_parent: str | None = None
@@ -165,7 +173,9 @@ class CorporatePermissionSource(ContractModel):
 class CorporateEffectivePermission(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     permission: str
-    scope_kind: Literal["organization", "team", "project", "technology", "catalog_object", "member"]
+    scope_kind: Literal[
+        "organization", "team", "project", "technology", "category", "catalog_object", "member"
+    ]
     scope_id: str
     sources: list[str] = Field(default_factory=list)
     source_records: list[CorporatePermissionSource] = Field(
@@ -217,7 +227,9 @@ class CorporateMemberAccess(ContractModel):
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
     account_id: AccountId
-    scope_kind: Literal["organization", "team", "project", "technology", "catalog_object", "member"]
+    scope_kind: Literal[
+        "organization", "team", "project", "technology", "category", "catalog_object", "member"
+    ]
     scope_id: str
     bindings: list[CorporateBinding] = Field(default_factory=list[CorporateBinding])
     grants: list[CorporatePermissionGrant] = Field(default_factory=list[CorporatePermissionGrant])

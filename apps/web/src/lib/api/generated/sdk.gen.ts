@@ -531,6 +531,9 @@ import type {
   ReadCorporateServicePrincipalResponses,
   ReadCorporateTeamData,
   ReadCorporateTeamErrors,
+  ReadCorporateTeammatesData,
+  ReadCorporateTeammatesErrors,
+  ReadCorporateTeammatesResponses,
   ReadCorporateTeamResponses,
   ReadCorporateTelemetryPolicyData,
   ReadCorporateTelemetryPolicyErrors,
@@ -3515,7 +3518,7 @@ export const createCorporateRole = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Remove an unused tenant-local role.
+ * Remove a tenant-local role, reassigning its holders to a replacement role.
  */
 export const deleteCorporateRole = <ThrowOnError extends boolean = false>(
   options: Options<DeleteCorporateRoleData, ThrowOnError>,
@@ -3678,6 +3681,22 @@ export const updateCorporateServicePrincipal = <ThrowOnError extends boolean = f
       "Content-Type": "application/json",
       ...options.headers,
     },
+  });
+
+/**
+ * Scoped people projection: co-members of the caller's teams and projects.
+ */
+export const readCorporateTeammates = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporateTeammatesData, ThrowOnError>,
+): RequestResult<ReadCorporateTeammatesResponses, ReadCorporateTeammatesErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadCorporateTeammatesResponses,
+    ReadCorporateTeammatesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/teammates",
+    ...options,
   });
 
 /**

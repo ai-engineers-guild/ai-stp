@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/atoms/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/atoms/dialog";
 import { Input } from "@/components/atoms/input";
+import { FormDialog } from "@/components/molecules/form-dialog";
 import { Label } from "@/components/atoms/label";
 import { MemberImportFields } from "@/components/molecules/member-import-fields";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
@@ -414,38 +415,21 @@ export function RevokeInvitationDialog({
 }) {
   const t = useTranslations("people");
   return (
-    <Dialog
+    <FormDialog
       open={Boolean(revoke)}
       onOpenChange={(next) => {
-        if (!next && !busy) setRevoke(null);
+        if (!next) setRevoke(null);
       }}
-    >
-      <DialogContent closeLabel={t("close")} className="w-[calc(100%-2rem)]">
-        <DialogTitle>{t("revokeInvitation")}</DialogTitle>
-        <DialogDescription>
-          {t("revokeBody", { email: revoke?.recipient_email ?? "" })}
-        </DialogDescription>
-        {error ? (
-          <p role="alert" className="text-destructive text-sm">
-            {error}
-          </p>
-        ) : null}
-        <div className="flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy}
-            onClick={() => {
-              setRevoke(null);
-            }}
-          >
-            {t("cancel")}
-          </Button>
-          <Button type="button" variant="destructive" disabled={busy} onClick={confirm}>
-            {t(busy ? "revoking" : "revokeInvitation")}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+      title={t("revokeInvitation")}
+      description={t("revokeBody", { email: revoke?.recipient_email ?? "" })}
+      closeLabel={t("close")}
+      cancelLabel={t("cancel")}
+      submitLabel={t("revokeInvitation")}
+      busyLabel={t("revoking")}
+      busy={busy}
+      submitVariant="destructive"
+      error={error}
+      onSubmit={confirm}
+    />
   );
 }

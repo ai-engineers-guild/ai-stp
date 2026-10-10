@@ -68,7 +68,7 @@ test("concurrent localized routes remain renderable after navigation", async ({ 
     "/ru/login",
     "/en/docs",
     "/ru/docs",
-    "/en/corporate/organization/admins",
+    "/en/corporate/admins/members",
     "/ru/corporate/employees/new",
   ];
   for (let round = 0; round < 2; round++) {

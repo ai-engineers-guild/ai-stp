@@ -1,13 +1,13 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
-import type { corporateMutationAction } from "@/actions/corporate";
+import type { corporateMutation } from "@/lib/api/corporate-mutation";
 const { mutation, refresh, push } = vi.hoisted(() => ({
-  mutation: vi.fn<typeof corporateMutationAction>(),
+  mutation: vi.fn<typeof corporateMutation>(),
   refresh: vi.fn(),
   push: vi.fn(),
 }));
-vi.mock("@/actions/corporate", () => ({ corporateMutationAction: mutation }));
+vi.mock("@/lib/api/corporate-mutation", () => ({ corporateMutation: mutation }));
 vi.mock("@/lib/i18n/navigation", () => ({
   useRouter: () => ({ refresh, push }),
   usePathname: () => window.location.pathname.replace(/^\/en/, "") || "/",

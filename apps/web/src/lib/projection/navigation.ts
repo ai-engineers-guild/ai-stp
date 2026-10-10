@@ -17,6 +17,20 @@ function matchesPath(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/** Named administration pages that replaced the `admins` catch-all (ADR-0219). */
+const ADMINISTRATION_PATHS = [
+  "/corporate/admins/members",
+  "/corporate/admins/invitations",
+  "/corporate/admins/access-model",
+  "/corporate/admins/roles",
+  "/corporate/admins/audit",
+  "/corporate/admins/employee-access",
+  "/corporate/admins/job-titles",
+  "/corporate/admins/tech-categories",
+  "/corporate/admins/telemetry",
+  "/corporate/admins/security",
+] as const;
+
 /** Returns the active top-level destination for the human navigation shell. */
 export function isPrimaryNavigationActive(item: NavItem, pathname: string): boolean {
   if (item.external || !pathname.startsWith("/")) return false;
@@ -28,7 +42,7 @@ export function isPrimaryNavigationActive(item: NavItem, pathname: string): bool
       return matchesPath(pathname, "/catalog");
     case UI.navigation.organization:
       return (
-        !matchesPath(pathname, "/corporate/organization/admins") &&
+        !ADMINISTRATION_PATHS.some((base) => matchesPath(pathname, base)) &&
         [
           "/corporate/organization",
           "/corporate/projects",
@@ -46,7 +60,7 @@ export function isPrimaryNavigationActive(item: NavItem, pathname: string): bool
     case UI.navigation.dashboard:
       return matchesPath(pathname, "/corporate/dashboard");
     case UI.navigation.admins:
-      return matchesPath(pathname, "/corporate/organization/admins");
+      return ADMINISTRATION_PATHS.some((base) => matchesPath(pathname, base));
     default:
       return matchesPath(pathname, item.href);
   }
@@ -97,7 +111,7 @@ export function siteNavigation({
                 {
                   ui: UI.navigation.admins,
                   labelKey: "admins",
-                  href: "/corporate/organization/admins",
+                  href: "/corporate/admins/members",
                 },
               ]
             : []),

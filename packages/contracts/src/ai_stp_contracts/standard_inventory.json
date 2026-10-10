@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "standard_family": "ai-stp-standard/1",
-  "contract_digest": "sha256:edb4696dca2e922a8c4980eeadde3500f0bbde76ef36e8dedea62d4da27bbeb9",
+  "contract_digest": "sha256:18d5ef07e55870d69f9c0d050ec947dac5a5934b7f0ce0ad165d309fd62eeb0e",
   "axes": [
     {
       "name": "standard_family",
@@ -910,6 +910,10 @@
     },
     {
       "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-audit-export-query"
+    },
+    {
+      "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:corporate-audit-list"
     },
     {
@@ -1218,6 +1222,10 @@
     },
     {
       "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-role-delete-request"
+    },
+    {
+      "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:corporate-role-list"
     },
     {
@@ -1259,6 +1267,10 @@
     {
       "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:corporate-team-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-teammates"
     },
     {
       "axis": "http_schema",

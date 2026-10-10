@@ -72,18 +72,17 @@ it("highlights the corporate destination that owns the current route", async () 
   expect(organization && isPrimaryNavigationActive(organization, "/corporate/teams/team_1")).toBe(
     true,
   );
+  expect(landscape && isPrimaryNavigationActive(landscape, "/corporate/categories")).toBe(true);
+  expect(organization && isPrimaryNavigationActive(organization, "/corporate/admins/members")).toBe(
+    false,
+  );
+  expect(admins && isPrimaryNavigationActive(admins, "/corporate/admins/members")).toBe(true);
   expect(
     landscape && isPrimaryNavigationActive(landscape, "/corporate/technology-mappings"),
   ).toBe(true);
-  expect(landscape && isPrimaryNavigationActive(landscape, "/corporate/categories")).toBe(false);
-  expect(
-    organization && isPrimaryNavigationActive(organization, "/corporate/organization/admins"),
-  ).toBe(false);
-  expect(admins && isPrimaryNavigationActive(admins, "/corporate/organization/admins")).toBe(true);
-  expect(
-    admins &&
-      isPrimaryNavigationActive(admins, "/corporate/organization/admins/technology-categories"),
-  ).toBe(true);
+  expect(admins && isPrimaryNavigationActive(admins, "/corporate/admins/tech-categories")).toBe(
+    true,
+  );
 });
 
 it("does not load corporate data for an unauthenticated visitor", async () => {
@@ -116,6 +115,7 @@ it.each([
         "overview",
         "organization",
         "administration",
+        "invitations",
         "accessMatrix",
         "roles",
         "auditJournal",
@@ -123,16 +123,11 @@ it.each([
         "technologyAreas",
         "categories",
         "jobTitles",
-        "settings",
-        "security",
-        "dashboard",
+        "technologyCategories",
       ],
     },
   ],
-  [
-    "team.list",
-    { administration: false, pages: ["overview", "organization", "teams", "dashboard"] },
-  ],
+  ["team.list", { administration: false, pages: ["overview", "organization", "teams"] }],
 ])("resolves %s authority on the server", async (capability, expected) => {
   vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
   mocks.session.mockResolvedValue({ accountId: "account_test" });

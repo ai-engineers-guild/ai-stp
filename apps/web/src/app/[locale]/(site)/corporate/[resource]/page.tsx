@@ -1,9 +1,11 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound, permanentRedirect } from "next/navigation";
 import { CorporateDirectory } from "@/components/organisms/corporate-directory";
+import { CorporateTeammatesList } from "@/components/organisms/corporate-teammates";
 import { StatePanel } from "@/components/molecules/state-panel";
 import {
   readCorporateDirectoryPage,
+  readCorporateTeammates,
   type CorporateDirectoryPageOptions,
 } from "@/lib/api/corporate";
 import { ApiError } from "@/lib/api/errors";
@@ -61,6 +63,11 @@ export default async function CorporateDirectoryPage({
     directory = await readCorporateDirectoryPage(session, apiResource, directoryFilters);
   } catch (error) {
     if (!(error instanceof ApiError)) throw error;
+    // Without member.list the roster is closed, but the scoped teammates
+    // projection stays available (ADR-0230).
+    const scopedMembers = apiResource === "members" && [401, 403].includes(error.status);
+    const fallback = scopedMembers ? await teammatesFallback(t("teammates")) : null;
+    if (fallback) return fallback;
     return (
       <StatePanel
         kind="error"
@@ -94,5 +101,22 @@ export default async function CorporateDirectoryPage({
       facets={directory.facets}
       paginationLabel={t("pagination")}
     />
+  );
+}
+
+async function teammatesFallback(title: string) {
+  let teammates;
+  try {
+    teammates = await readCorporateTeammates((await sessionCookieValue()) ?? "");
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error;
+    return null;
+  }
+  if (!teammates) return null;
+  return (
+    <div className="min-w-0 space-y-6">
+      <h1 className="text-3xl font-medium tracking-tight">{title}</h1>
+      <CorporateTeammatesList items={teammates.items} />
+    </div>
   );
 }

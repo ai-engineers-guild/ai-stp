@@ -12,6 +12,7 @@ export default getRequestConfig(async ({ requestLocale }) => {
   return {
     locale,
     messages: catalog.default,
+    timeZone: "UTC",
   };
 });
 

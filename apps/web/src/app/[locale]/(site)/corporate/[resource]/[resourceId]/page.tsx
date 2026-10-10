@@ -2,6 +2,7 @@ import { CorporateProjectRepository } from "@/components/organisms/corporate-pro
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound, permanentRedirect } from "next/navigation";
 
+import { Badge } from "@/components/atoms/badge";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { LocalizedResourceDeleteMenuItem } from "@/components/organisms/localized-corporate-resource-actions";
@@ -158,10 +159,9 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
           : role && {
               id: role.name,
               name: role.name,
-              state: role.parent_role ?? "base",
+              state: "active",
               revision: role.revision,
               role: role.name,
-              parentRole: role.parent_role,
               rolePermissions: role.permissions,
               title: t("roleDetails"),
               description: t("roleDetailsBody"),
@@ -203,7 +203,7 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
 
   const parentHref =
     resource === "roles"
-      ? "/corporate/organization/admins"
+      ? "/corporate/admins/members"
       : `/corporate/${resource === "members" ? "employees" : resource}${directoryQuery ? `?${directoryQuery}` : ""}`;
   const backLabel =
     resource === "roles"
@@ -337,6 +337,9 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
               revision={detail.revision}
             />
           ) : null
+        }
+        meta={
+          member?.job_title_name ? <Badge variant="secondary">{member.job_title_name}</Badge> : null
         }
         {...(detail.role || detail.state !== "active"
           ? { state: detail.role ?? detail.state }

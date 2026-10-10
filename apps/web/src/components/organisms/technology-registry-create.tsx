@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
@@ -56,6 +56,13 @@ function registryMetadata(
       .split("\n")
       .map((value) => value.trim())
       .filter(Boolean);
+  if (kind === "category")
+    // The form has no icon control; a PUT without it would wipe the stored icon.
+    return {
+      name: text("name"),
+      description: text("description"),
+      icon: (record as CategoryView | undefined)?.icon ?? null,
+    };
   if (kind !== "technology") return { name: text("name"), description: text("description") };
   const technology = record as TechnologyView | undefined;
   return {
@@ -132,7 +139,7 @@ export function TechnologyRegistrySeed({
           };
           setMessage(null);
           startTransition(async () => {
-            const result = await corporateMutationAction({
+            const result = await corporateMutation({
               csrfToken,
               organizationId,
               method: "POST",
@@ -229,7 +236,7 @@ export function TechnologyRegistryCreate({
     });
     setMessage(null);
     startTransition(async () => {
-      const result = await corporateMutationAction({
+      const result = await corporateMutation({
         csrfToken,
         organizationId,
         path: `/v1/corporate/organizations/${organizationId}/${REGISTRY_ENDPOINTS[kind]}${recordId ? `/${recordId}` : ""}`,
@@ -370,7 +377,7 @@ export function TechnologyLifecycleControls({
               };
               setMessage(null);
               startTransition(async () => {
-                const result = await corporateMutationAction({
+                const result = await corporateMutation({
                   csrfToken,
                   organizationId,
                   body,

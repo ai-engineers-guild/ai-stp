@@ -49,6 +49,10 @@ class Organization(Base):
         CheckConstraint("revision >= 1", name="ck_organization_revision"),
         CheckConstraint("policy_revision >= 1", name="ck_organization_policy_revision"),
         CheckConstraint("state in ('active', 'suspended')", name="ck_organization_state"),
+        CheckConstraint(
+            "people_visibility in ('members', 'teammates', 'admins')",
+            name="ck_organization_people_visibility",
+        ),
         Index(
             "uq_organization_personal_owner",
             "owner_account_id",
@@ -65,6 +69,9 @@ class Organization(Base):
     display_name: Mapped[str] = mapped_column(String(200), nullable=False)
     allowed_email_domains: Mapped[list[str]] = mapped_column(
         JSON, nullable=False, default=list, server_default="[]"
+    )
+    people_visibility: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="teammates", server_default="teammates"
     )
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     policy_revision: Mapped[int] = mapped_column(
@@ -197,7 +204,7 @@ class CorporateRolePermission(Base):
 
 
 class CorporateRole(Base):
-    """One named corporate role and its persisted hierarchy edge."""
+    """One named corporate role."""
 
     __tablename__ = "corporate_role"
     __table_args__ = (PrimaryKeyConstraint("organization_id", "name"),)
@@ -206,7 +213,6 @@ class CorporateRole(Base):
         String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False
     )
     name: Mapped[str] = mapped_column(String(64), nullable=False)
-    parent_role: Mapped[str | None] = mapped_column(String(64), nullable=True)
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
@@ -281,7 +287,7 @@ class CorporateRoleBinding(Base):
         ),
         CheckConstraint(
             "scope_kind in ('system', 'organization', 'team', 'project', 'technology', "
-            "'catalog_object', 'telemetry')",
+            "'category', 'catalog_object', 'telemetry')",
             name="ck_role_binding_scope_kind",
         ),
         CheckConstraint("state in ('active', 'revoked')", name="ck_role_binding_state"),
@@ -377,7 +383,7 @@ class CorporatePermissionGrant(Base):
         ),
         CheckConstraint(
             "scope_kind in ('system', 'organization', 'team', 'project', 'technology', "
-            "'catalog_object', 'telemetry')",
+            "'category', 'catalog_object', 'telemetry')",
             name="ck_permission_grant_scope_kind",
         ),
         CheckConstraint("state in ('active', 'revoked')", name="ck_permission_grant_state"),
@@ -541,7 +547,11 @@ class CorporateTeamMember(Base):
 
 
 class CorporateProjectMember(Base):
-    """A tenant-compatible member assignment to one corporate project."""
+    """A tenant-compatible member assignment to one corporate project.
+
+    `role` is the participation role (`owner | lead | contributor | staff`) —
+    distinct from the member's organization role and from the access binding it
+    materializes to (ADR-0230)."""
 
     __tablename__ = "corporate_project_member"
     __table_args__ = (
@@ -556,6 +566,10 @@ class CorporateProjectMember(Base):
             ["organization_membership.organization_id", "organization_membership.account_id"],
             ondelete="CASCADE",
         ),
+        CheckConstraint(
+            "role in ('owner', 'lead', 'contributor', 'staff')",
+            name="ck_corporate_project_member_role",
+        ),
     )
 
     organization_id: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -563,6 +577,7 @@ class CorporateProjectMember(Base):
     account_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("account.id", ondelete="CASCADE"), nullable=False
     )
+    role: Mapped[str] = mapped_column(String(16), nullable=False, default="staff")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
