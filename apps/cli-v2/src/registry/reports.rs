@@ -30,7 +30,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             STATE_DIR,
             Parameter {
                 name: "request",
-                summary: "Closed JSON up to 256 KiB: the exact eligibility request, or proposal_id, scope and exact provider_version. Proposal harness and members come from the retained record.",
+                summary: "Closed JSON up to 256 KiB: the exact eligibility request, or proposal_id, scope and optional exact provider_version. Proposal harness and members come from the retained record.",
                 kind: ParameterType::Path,
                 required: true,
             },
@@ -44,7 +44,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             STATE_DIR,
             Parameter {
                 name: "request",
-                summary: "Closed JSON up to 16 KiB: targets (one to seven distinct harness_id/scope/provider_version selectors), optional after, limit (1–50, default 10) and for_redistribution. No claimed authority fields.",
+                summary: "Closed JSON up to 16 KiB: targets (one to seven distinct harness_id/scope selectors with optional exact provider_version), optional after, limit (1–50, default 10) and for_redistribution. No claimed authority fields.",
                 kind: ParameterType::Path,
                 required: true,
             },
@@ -58,7 +58,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             STATE_DIR,
             Parameter {
                 name: "request",
-                summary: "Closed JSON up to 256 KiB: harness_id, scope, exact provider_version, exact members and optional for_redistribution.",
+                summary: "Closed JSON up to 256 KiB: harness_id, scope, optional exact provider_version, exact members and optional for_redistribution.",
                 kind: ParameterType::Path,
                 required: true,
             },

@@ -45,9 +45,13 @@ fn invalid() -> Failure {
 
 impl Request {
     pub(super) fn parse(path: &Path) -> Result<Self> {
-        let mut request: Self =
-            serde_json::from_value(canonical::parse(&files::read(path, 16 * 1024)?)?)
-                .map_err(|_| invalid())?;
+        let mut value = canonical::parse(&files::read(path, 16 * 1024)?)?;
+        if let Some(targets) = value.get_mut("targets").and_then(Value::as_array_mut) {
+            for target in targets {
+                crate::provider::managed::resolve_request(target);
+            }
+        }
+        let mut request: Self = serde_json::from_value(value).map_err(|_| invalid())?;
         if request.targets.is_empty()
             || request.targets.len() > 7
             || !(1..=50).contains(&request.limit)

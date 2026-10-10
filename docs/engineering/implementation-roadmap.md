@@ -1,6 +1,6 @@
 ---
 description: "Current ai_stp status and the ordered plan for remaining work."
-last_verified: "2026-10-09"
+last_verified: "2026-10-10"
 ---
 
 # Current status and plan
@@ -62,6 +62,35 @@ not establish an installed harness or executable authority.
 Project indexing intentionally refuses all symlinks, including internal aliases,
 and catalog cache access requires an explicit isolated directory. Historical
 public passports retain their original omitted fields and published digest.
+
+### One product, separate component repositories
+
+The October 10 owner instruction makes setup systems managed ai-stp installation
+components ([ADR-0228](../adr/ADR-0228-setup-systems-are-ai-stp-components.md),
+[#798](https://github.com/ai-engineers-guild/ai-stp/issues/798)). Keep the source
+workspace and seven public release repositories. Native request boundaries now
+resolve an omitted provider version from one exact build pin; plans and receipts
+retain their original resolved identity. Authentication and provider-only target
+writes remain mandatory.
+
+Execute the remaining integration in this order:
+
+1. Complete the frozen provider preparation-journal checks and integrate its
+   actual interruption/foreign-entry proof. Reconcile C3 business coverage
+   alongside the remaining C4 work; C3 is not accepted by command count.
+2. Bind admission and terminal receipts to the caller operation ID and complete
+   plan digest. Resume the same admitted plan after expiry, refuse different
+   intent, verify drift outside the recorded effect and preserve historical
+   results after later operations. Close metadata-write interruption windows.
+3. Connect native writable software/configuration services through that boundary;
+   prove exact final bytes, recovery, multiple roots and active-agent handoff on
+   the supported operating systems. Retain the explicit no-backup policy.
+4. Deliver connected services (C5), coordinated attested component distribution,
+   native self-update and desktop consumption (C6). Generate component repository
+   entry documentation from its source renderer; keep compatibility commands
+   until their callers have verified replacements.
+5. Transfer production ownership once, retire superseded CLI paths, reconcile
+   documentation/memories and read back local/GitHub/deployed identities (C7).
 
 ### Checkpoint execution rules
 
