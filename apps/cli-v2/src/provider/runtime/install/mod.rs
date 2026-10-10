@@ -30,6 +30,15 @@ use outcome::applied;
 use plan::{Plan, invalid};
 use stage::Stage;
 
+pub(super) fn require_component(version: &str) -> Result<()> {
+    if managed::sequence(version)? < managed::sequence("0.0.89")? {
+        return Err(Failure::precondition(
+            "program installation requires a setup component with exact-operation recovery (0.0.89 or newer)",
+        ));
+    }
+    Ok(())
+}
+
 fn context(plan: &Plan) -> Result<(Target, cap_std::fs::Dir)> {
     let target = Target::open(Path::new(&plan.target.path))?;
     if identity(&target)? != plan.target.identity {
@@ -67,11 +76,7 @@ pub(super) fn apply(parent: &Path, bytes: &[u8], digest: &str) -> Result<Value> 
     {
         return cancellation::cancel(parent, bytes, digest);
     }
-    if managed::sequence(&plan.provider_version)? < managed::sequence("0.0.89")? {
-        return Err(Failure::precondition(
-            "program installation requires a setup component with exact-operation recovery (0.0.89 or newer)",
-        ));
-    }
+    require_component(&plan.provider_version)?;
     if record.is_none() {
         plan.request(Timestamp::now())?;
     }

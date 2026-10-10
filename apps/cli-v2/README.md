@@ -2,7 +2,8 @@
 
 Native preview of the ai-stp CLI. One Cargo package contains a headless library
 and the `ai-stp-v2` executable. The supported production executable is still
-`ai-stp`; this preview does not acquire production state or install harnesses.
+`ai-stp`; the preview uses explicit isolated state. On Linux it can install a
+harness program into a new directory through an authenticated setup component.
 
 ```sh
 just cli-v2-check
@@ -30,9 +31,10 @@ an operation. Acquisition still verifies the complete publisher policy and bytes
 The pin is a choice, not authentication or installation eligibility.
 
 The existing `provider` command group is the expert interface inside this CLI.
-No separate setup-system command is required for the implemented read/prepare
-journeys. Writable installation, coordinated component release/update and the
-production switch remain C4/C6/C7 work; the preview does not claim them.
+No separate setup-system command is required for implemented read, preparation
+or fresh-program installation journeys. Configuration installation, existing
+program updates/removal, other-OS isolation, native distribution and the
+production switch remain C4/C6/C7 work.
 
 ## Contract
 
@@ -656,6 +658,9 @@ release; omission uses the managed release. `--software-version` selects an
 exact program version; omission uses that component's compiled pin. This command
 currently uses the proved Linux runtime. The final prefix must be absent under
 an existing plain parent and physically disjoint from target and state.
+Planning requires component 0.0.89 or newer and rejects older explicit versions
+before publisher refresh or acquisition. Read-only `provider software plan`
+retains its independent observation contract.
 
 The native plan binds two distinct preconditions: absence of the host
 destination and an empty private directory for the component. The component

@@ -43,6 +43,12 @@ fn original_installation_survives_publication_retries_and_never_recreates_remove
     assert!(Plan::parse(&bytes, &hash).is_err());
     assert!(Journal::history(&state, &plan, &digest)?.is_none());
     assert_eq!(fs::read_dir(&state)?.count(), 0);
+    let mut unsupported = document.clone();
+    unsupported["provider_version"] = "0.0.88".into();
+    unsupported["provider_plan"]["plan"]["provider_version"] = "0.0.88".into();
+    let (unsupported, unsupported_digest) = encoded(&unsupported)?;
+    assert!(apply(&state, &unsupported, &unsupported_digest).is_err());
+    assert_eq!(fs::read_dir(&state)?.count(), 0);
     let journal = Journal::open(&state, &plan, &digest)?;
     let mut record = Record {
         schema_version: 1,
@@ -280,6 +286,9 @@ fn cancelled_stage_keeps_foreign_paths(
     document["provider_plan"]["plan"]["operation_id"] = operation.into();
     document["prefix"]["path"] = prefix.to_str().ok_or_else(invalid)?.into();
     document["provider_plan"]["plan"]["software_prefix"] = document["prefix"]["path"].clone();
+    // Historical cancellation must remain available across the admission floor.
+    document["provider_version"] = "0.0.88".into();
+    document["provider_plan"]["plan"]["provider_version"] = "0.0.88".into();
     let (bytes, digest) = encoded(&document)?;
     let plan = Plan::parse(&bytes, &digest)?;
     let journal = Journal::open(state, &plan, &digest)?;

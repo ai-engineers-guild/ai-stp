@@ -186,6 +186,7 @@ pub(super) fn install_plan(
     prefix: &Path,
     version: Option<&str>,
 ) -> Result<Value> {
+    super::install::require_component(context.version)?;
     let now = jiff::Timestamp::now();
     let expires = now
         .checked_add(std::time::Duration::from_secs(900))
