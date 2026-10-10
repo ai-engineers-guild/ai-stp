@@ -614,6 +614,9 @@ available with the proved Linux provider runtime. The target and program prefix
 remain read-only and physically disjoint from this state. Removal requests
 refuse because they have no downloads. The returned plan stays bound to the
 observed provider and effects; acquiring bytes grants no installation authority.
+The original target, prefix (or absent prefix's parent) and state handles remain
+held across planning and acquisition; the final checks never adopt reopened
+replacement directories.
 
 Transfers use anonymous HTTPS, no proxy, identity encoding, at most two checked
 redirects and one ten-minute artifact budget. Allowed authorities follow the
