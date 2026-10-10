@@ -1341,8 +1341,8 @@
     "approvedHint": "Return to the CLI — polling should complete shortly.",
     "error": "Could not approve this code",
     "unknown": "No pending sign-in uses this code. Check the code the CLI printed and retype it.",
-    "expired": "This code has expired. Start a new account session: `ai-stp task start --intent account --idempotency-key account-session-01 --json`.",
-    "resolved": "This code was already used. Start a new account session: `ai-stp task start --intent account --idempotency-key account-session-01 --json`.",
+    "expired": "This code has expired. Ask your CLI agent to start a fresh sign-in, then open the new approval link.",
+    "resolved": "This code was already used. Check the sign-in result in the CLI. For another sign-in, ask your CLI agent to start a fresh one and open its new approval link.",
     "csrf": "This page went stale while it was open. Reload it and approve the code again.",
     "failed": "The request did not reach the service. Try again in a moment."
   },
