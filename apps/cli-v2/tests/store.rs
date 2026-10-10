@@ -14,6 +14,10 @@ use serde_json::{Value, json};
 
 #[test]
 fn durable_revision_history_replay_conflict_and_atomic_rollback() -> Result<(), Box<dyn Error>> {
+    if let Ok(mode) = std::env::var("AI_STP_STORE_TEST_MODE") {
+        return sqlite_child(&mode);
+    }
+    confined_registry_and_wal_recovery()?;
     interrupted_bootstrap_remains_readable_and_resumable()?;
     let root = tempfile::tempdir()?;
     assert!(Store::open(root.path(), false).is_err());
@@ -339,5 +343,186 @@ fn interrupted_bootstrap_remains_readable_and_resumable() -> Result<(), Box<dyn 
         db.query_row("PRAGMA integrity_check", [], |r| r.get::<_, String>(0))?,
         "ok"
     );
+    Ok(())
+}
+
+fn sqlite_process(mode: &str, root: &std::path::Path, allowed: bool) -> Result<(), Box<dyn Error>> {
+    let result = std::process::Command::new(std::env::current_exe()?)
+        .args([
+            "--exact",
+            "durable_revision_history_replay_conflict_and_atomic_rollback",
+            "--nocapture",
+        ])
+        .env("AI_STP_STORE_TEST_MODE", mode)
+        .env("AI_STP_STORE_TEST_ROOT", root)
+        .env(
+            "AI_STP_STORE_TEST_ALLOWED",
+            if allowed { "yes" } else { "no" },
+        )
+        .output()?;
+    assert!(
+        result.status.success(),
+        "SQLite child failed: {}{}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
+    Ok(())
+}
+
+fn sqlite_child(mode: &str) -> Result<(), Box<dyn Error>> {
+    let root = std::path::PathBuf::from(
+        std::env::var_os("AI_STP_STORE_TEST_ROOT").ok_or("missing fixture root")?,
+    );
+    let path = root.join("ai-stp-v2-state/registry.sqlite3");
+    if mode == "native-crash" {
+        let mut store = Store::open(&root, false)?;
+        store.transaction(|tx| {
+            tx.execute("INSERT INTO operation(operation_id,kind,state,started_at) VALUES ('native-crash','fixture','complete','fixture')", [])
+                .map_err(|_| Failure::precondition("fixture insertion"))?;
+            Ok(())
+        })?;
+        // Exit without running destructors or SQLite's close/checkpoint path.
+        std::process::exit(0);
+    }
+    let db = rusqlite::Connection::open(path)?;
+    db.busy_timeout(std::time::Duration::ZERO)?;
+    if mode == "standard-hold" {
+        db.execute_batch("BEGIN IMMEDIATE")?;
+        fs::write(root.join("sqlite-lock-ready"), b"ready")?;
+        use std::io::Read;
+        std::io::stdin().read_exact(&mut [0])?;
+        db.execute_batch("ROLLBACK")?;
+        return Ok(());
+    }
+    if mode == "standard-crash" {
+        db.execute("INSERT INTO operation(operation_id,kind,state,started_at) VALUES ('standard-crash','fixture','complete','fixture')", [])?;
+        std::process::exit(0);
+    }
+    let acquired = db.execute_batch("BEGIN IMMEDIATE; ROLLBACK;").is_ok();
+    assert_eq!(
+        acquired,
+        std::env::var("AI_STP_STORE_TEST_ALLOWED")? == "yes"
+    );
+    Ok(())
+}
+
+fn confined_registry_and_wal_recovery() -> Result<(), Box<dyn Error>> {
+    let root = tempfile::tempdir()?;
+    let namespace = root.path().join("ai-stp-v2-state");
+    let path = namespace.join("registry.sqlite3");
+    let mut store = Store::open(root.path(), true)?;
+    sqlite_process("standard-lock", root.path(), false)?;
+    store.transaction(|tx| {
+        assert_eq!(
+            tx.query_row("PRAGMA locking_mode", [], |r| r.get::<_, String>(0))
+                .map_err(|_| Failure::precondition("fixture mode"))?,
+            "exclusive"
+        );
+        Ok(())
+    })?;
+    drop(store);
+    sqlite_process("standard-lock", root.path(), true)?;
+    let mut child = std::process::Command::new(std::env::current_exe()?)
+        .args([
+            "--exact",
+            "durable_revision_history_replay_conflict_and_atomic_rollback",
+        ])
+        .env("AI_STP_STORE_TEST_MODE", "standard-hold")
+        .env("AI_STP_STORE_TEST_ROOT", root.path())
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .spawn()?;
+    let started = std::time::Instant::now();
+    while !root.path().join("sqlite-lock-ready").exists() {
+        if started.elapsed() > std::time::Duration::from_secs(10) {
+            child.kill()?;
+            child.wait()?;
+            return Err("SQLite lock holder did not start".into());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    let refused = Store::open(root.path(), false).is_err();
+    use std::io::Write;
+    child
+        .stdin
+        .take()
+        .ok_or("missing child input")?
+        .write_all(b"x")?;
+    assert!(child.wait()?.success());
+    assert!(
+        refused,
+        "native SQLite ignored the existing standard writer"
+    );
+    for mode in ["standard-crash", "native-crash"] {
+        sqlite_process(mode, root.path(), true)?;
+        assert!(namespace.join("registry.sqlite3-wal").metadata()?.len() > 0);
+        let mut store = Store::open(root.path(), false)?;
+        store.transaction(|tx| {
+            let found: i64 = tx
+                .query_row(
+                    "SELECT count(*) FROM operation WHERE operation_id=?",
+                    [mode],
+                    |r| r.get(0),
+                )
+                .map_err(|_| Failure::precondition("fixture recovery"))?;
+            assert_eq!(found, 1);
+            Ok(())
+        })?;
+        drop(store);
+        let db = rusqlite::Connection::open(&path)?;
+        assert_eq!(
+            db.query_row("PRAGMA integrity_check", [], |r| r.get::<_, String>(0))?,
+            "ok"
+        );
+    }
+    for companion in ["registry.sqlite3-journal", "registry.sqlite3-wal"] {
+        let companion = namespace.join(companion);
+        fs::write(&companion, b"foreign companion must remain intact")?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&companion, fs::Permissions::from_mode(0o600))?;
+        }
+        assert!(Store::open(root.path(), true).is_err());
+        assert_eq!(
+            fs::read(&companion)?,
+            b"foreign companion must remain intact"
+        );
+        fs::remove_file(companion)?;
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{PermissionsExt, symlink};
+        let foreign = root.path().join("foreign");
+        fs::write(&foreign, b"unchanged")?;
+        fs::set_permissions(&foreign, fs::Permissions::from_mode(0o600))?;
+        for companion in [
+            "registry.sqlite3-wal",
+            "registry.sqlite3-journal",
+            "registry.sqlite3-shm",
+        ] {
+            let companion = namespace.join(companion);
+            symlink(&foreign, &companion)?;
+            assert!(Store::open(root.path(), true).is_err());
+            fs::remove_file(&companion)?;
+            fs::hard_link(&foreign, &companion)?;
+            assert!(Store::open(root.path(), true).is_err());
+            fs::remove_file(companion)?;
+            assert_eq!(fs::read(&foreign)?, b"unchanged");
+        }
+        let mut store = Store::open(root.path(), false)?;
+        let held = root.path().join("held-original");
+        fs::rename(&namespace, &held)?;
+        fs::create_dir(&namespace)?;
+        fs::set_permissions(&namespace, fs::Permissions::from_mode(0o700))?;
+        fs::write(&path, b"replacement database must remain intact")?;
+        assert!(store.transaction(|_| Ok(())).is_err());
+        drop(store);
+        assert_eq!(fs::read(&path)?, b"replacement database must remain intact");
+        fs::remove_file(&path)?;
+        fs::remove_dir(&namespace)?;
+        fs::rename(&held, &namespace)?;
+        drop(Store::open(root.path(), false)?);
+    }
     Ok(())
 }
