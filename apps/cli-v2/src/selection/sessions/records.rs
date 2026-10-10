@@ -89,8 +89,8 @@ pub(super) fn load(connection: &Connection, id: &str) -> Result<Option<Proposal>
         return Err(invalid());
     }
     let row = connection.query_row(
-        "SELECT project_id,harness_id,snapshot,graph,created_at,expires_at,cancelled_at,confirmed_stable_id,confirmed_version FROM proposal WHERE proposal_id=?",
-        [id],|r| Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?,r.get::<_,String>(3)?,r.get::<_,String>(4)?,r.get::<_,String>(5)?,r.get::<_,Option<String>>(6)?,r.get::<_,Option<String>>(7)?,r.get::<_,Option<String>>(8)?))
+        "SELECT project_id,harness_id,snapshot,CASE WHEN length(CAST(graph AS BLOB))<=1048576 THEN graph ELSE NULL END,created_at,expires_at,cancelled_at,confirmed_stable_id,confirmed_version FROM proposal WHERE proposal_id=?",
+        [id],|r| Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?,r.get::<_,Option<String>>(3)?,r.get::<_,String>(4)?,r.get::<_,String>(5)?,r.get::<_,Option<String>>(6)?,r.get::<_,Option<String>>(7)?,r.get::<_,Option<String>>(8)?))
     ).optional().map_err(database)?;
     let Some((
         project_id,
@@ -106,9 +106,7 @@ pub(super) fn load(connection: &Connection, id: &str) -> Result<Option<Proposal>
     else {
         return Ok(None);
     };
-    if graph.len() > MAX_BYTES {
-        return Err(invalid());
-    }
+    let graph = graph.ok_or_else(invalid)?;
     let members: Vec<Member> =
         serde_json::from_value(canonical::parse(graph.as_bytes())?).map_err(|_| invalid())?;
     if members.len() > 512

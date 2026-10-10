@@ -1,4 +1,4 @@
-//! Anonymous GitHub reads with fixed HTTPS authorities and a single total deadline.
+//! Anonymous public source reads with fixed authorities and one total deadline.
 
 use std::{
     cell::RefCell,
@@ -12,32 +12,54 @@ use crate::{
     http,
 };
 
+#[derive(Clone, Copy)]
+pub(super) enum Service {
+    Github,
+    Go,
+    Pypi,
+    Npm,
+    Crates,
+    Pub,
+}
+
 pub(super) struct Client {
+    service: Service,
     agent: RefCell<ureq::Agent>,
     started: Instant,
 }
 
 fn refused() -> Failure {
-    Failure::precondition("GitHub source transport or response bounds were refused")
+    Failure::precondition("public source transport or response bounds were refused")
 }
 
 fn transport(error: ureq::Error) -> Failure {
     if http::is_transient(&error) {
         Failure::new(
             ErrorKind::Unavailable,
-            "GitHub source transport is unavailable",
+            "public source transport is unavailable",
         )
     } else {
         refused()
     }
 }
 
-pub(super) fn allowed(url: &Url) -> bool {
+pub(super) fn allowed(service: Service, url: &Url) -> bool {
+    let hosts: &[&str] = match service {
+        Service::Github => &["api.github.com", "codeload.github.com", "github.com"],
+        Service::Go => &["proxy.golang.org", "sum.golang.org"],
+        Service::Pypi => &["pypi.org", "files.pythonhosted.org"],
+        Service::Npm => &["registry.npmjs.org"],
+        Service::Crates => &["crates.io", "static.crates.io"],
+        Service::Pub => &["pub.dev", "storage.googleapis.com"],
+    };
     url.scheme() == "https"
-        && matches!(
-            url.host_str(),
-            Some("api.github.com" | "codeload.github.com" | "github.com")
-        )
+        && match (service, url.host_str()) {
+            (Service::Pub, Some("storage.googleapis.com")) => {
+                url.path().starts_with("/pub-packages/packages/") && url.query().is_none()
+            }
+            _ => true,
+        }
+        && url.host_str().is_some_and(|host| hosts.contains(&host))
         && url.port().is_none()
         && url.username().is_empty()
         && url.password().is_none()
@@ -45,8 +67,9 @@ pub(super) fn allowed(url: &Url) -> bool {
 }
 
 impl Client {
-    pub(super) fn new() -> Self {
+    pub(super) fn new(service: Service) -> Self {
         Self {
+            service,
             agent: RefCell::new(http::anonymous_agent()),
             started: Instant::now(),
         }
@@ -54,7 +77,7 @@ impl Client {
 
     pub(super) fn get(&self, mut url: Url, limit: u64) -> Result<Vec<u8>> {
         for hop in 0..=2 {
-            if !allowed(&url) {
+            if !allowed(self.service, &url) {
                 return Err(refused());
             }
             let remaining = Duration::from_secs(30)
@@ -63,20 +86,47 @@ impl Client {
                 .ok_or_else(|| {
                     Failure::new(
                         ErrorKind::Unavailable,
-                        "GitHub source HTTP deadline expired",
+                        "public source HTTP deadline expired",
                     )
                 })?;
-            let mut response = self
+            let request = self
                 .agent
                 .borrow()
                 .get(url.as_str())
-                .header("Accept", "application/vnd.github+json")
+                .header(
+                    "Accept",
+                    match self.service {
+                        Service::Github => "application/vnd.github+json",
+                        Service::Pub
+                            if url.host_str() == Some("pub.dev")
+                                && url.path().starts_with("/api/packages/") =>
+                        {
+                            "application/vnd.pub.v2+json"
+                        }
+                        Service::Go
+                        | Service::Pypi
+                        | Service::Npm
+                        | Service::Crates
+                        | Service::Pub => "*/*",
+                    },
+                )
                 .header("Accept-Encoding", "identity")
-                .header("X-GitHub-Api-Version", "2026-03-10")
                 .header(
                     "User-Agent",
-                    concat!("ai-stp-cli-v2/", env!("CARGO_PKG_VERSION")),
-                )
+                    match self.service {
+                        Service::Crates | Service::Pub => concat!(
+                            "ai-stp-cli-v2/",
+                            env!("CARGO_PKG_VERSION"),
+                            " (+https://github.com/ai-engineers-guild/ai-stp)"
+                        ),
+                        _ => concat!("ai-stp-cli-v2/", env!("CARGO_PKG_VERSION")),
+                    },
+                );
+            let request = match self.service {
+                Service::Github => request.header("X-GitHub-Api-Version", "2026-03-10"),
+                _ => request,
+            };
+            let mut response = request
                 .config()
                 .timeout_global(Some(remaining))
                 .build()
@@ -94,10 +144,10 @@ impl Client {
                     url = url.join(location).map_err(|_| refused())?;
                     continue;
                 }
-                404 => {
+                404 | 410 => {
                     return Err(Failure::new(
                         ErrorKind::NotFound,
-                        "the public GitHub source is absent",
+                        "the public source is absent",
                     ));
                 }
                 403 | 429 => {
@@ -122,14 +172,14 @@ impl Client {
                         .clamp(1, 3600);
                     return Err(Failure::new(
                         ErrorKind::Unavailable,
-                        "GitHub refused or rate-limited the anonymous source request",
+                        "the source service refused or rate-limited the anonymous source request",
                     )
                     .with_details([("retry_after_seconds".into(), seconds.into())]));
                 }
                 408 | 425 | 500 | 502 | 503 | 504 => {
                     return Err(Failure::new(
                         ErrorKind::Unavailable,
-                        "GitHub source service is temporarily unavailable",
+                        "public source service is temporarily unavailable",
                     ));
                 }
                 _ => return Err(refused()),

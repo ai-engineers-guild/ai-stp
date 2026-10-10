@@ -1,5 +1,8 @@
 //! Read-only structural readiness and optional hints over the exact current head.
 
+mod suggestions;
+pub use suggestions::suggest;
+
 use std::collections::BTreeSet;
 
 use rusqlite::Transaction;

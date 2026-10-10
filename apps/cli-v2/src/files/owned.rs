@@ -1,7 +1,7 @@
 //! Private, owned directories with bounded locking and durable file replacement.
 
 use crate::{
-    error::{Failure, Result},
+    error::{ErrorKind, Failure, Result},
     files,
 };
 use cap_fs_ext::{DirExt, FollowSymlinks, MetadataExt, OpenOptionsFollowExt, OpenOptionsSyncExt};
@@ -19,7 +19,7 @@ pub(crate) struct OwnedDirectory {
 }
 
 fn invalid(stage: &'static str) -> Failure {
-    Failure::precondition("explicit private directory is invalid, busy or inaccessible")
+    Failure::precondition("explicit private directory is invalid or inaccessible")
         .with_details([("stage".into(), stage.into())])
 }
 
@@ -134,7 +134,13 @@ impl OwnedDirectory {
                 Err(std::fs::TryLockError::Error(error)) => {
                     return Err(io_failure("lock_acquire", error));
                 }
-                Err(std::fs::TryLockError::WouldBlock) => return Err(invalid("lock_timeout")),
+                Err(std::fs::TryLockError::WouldBlock) => {
+                    return Err(Failure::new(
+                        ErrorKind::Unavailable,
+                        "explicit private directory is temporarily locked by another operation",
+                    )
+                    .with_details([("stage".into(), "lock_timeout".into())]));
+                }
             }
         }
         let owned = Self {

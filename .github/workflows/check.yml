@@ -233,6 +233,7 @@ jobs:
           uv run --locked python -m ai_stp_contracts.schemas --check schemas/v1
           uv run --locked python -m ai_stp_contracts.inventory_record --check
           uv run --locked python -m ai_stp_contracts.web_projections --check
+          uv run --locked python -m ai_stp_contracts.technology_seed --check
           uv run --locked python release_scripts/provider_kit.py --check provider-kit/v3
           uv run --locked python release_scripts/verifier_requirements.py --check
           uv run --locked python release_scripts/first_party_corpus_digests.py --check
@@ -289,9 +290,10 @@ jobs:
             extra: tests/property
     services:
       postgres:
-        # Pinned like every other base in this tree: a republished tag changes
-        # what CI ran against and records nothing that it did.
-        image: postgres:18@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
+        # Docker's official ECR distribution avoids Docker Hub anonymous pull
+        # limits on shared runners. The digest is identical to production.
+        image: >-
+          public.ecr.aws/docker/library/postgres:18@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
         env:
           POSTGRES_USER: ai_stp
           POSTGRES_PASSWORD: ai_stp_dev

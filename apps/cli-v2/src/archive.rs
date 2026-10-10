@@ -1,5 +1,7 @@
 //! Bounded canonical ZIP transport shared by component trees and projections.
 
+pub(crate) mod external;
+
 use std::{
     borrow::Cow,
     collections::BTreeMap,

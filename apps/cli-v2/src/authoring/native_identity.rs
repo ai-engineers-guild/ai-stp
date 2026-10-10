@@ -3,6 +3,7 @@
 mod antigravity;
 mod claude;
 mod codex;
+mod credentials;
 mod cursor;
 mod grok;
 mod mcp;
@@ -136,6 +137,18 @@ pub(super) fn read(
             }
         }
         ("instruction" | "skill", _) => Vec::new(),
+        ("setting", _) => {
+            if content.format != artifacts::FILE_FORMAT {
+                return Err(invalid());
+            }
+            credentials::settings(
+                harness,
+                &candidate.native_path,
+                &candidate.declared_key,
+                &content.bytes,
+            )?;
+            vec![file_name.to_owned()]
+        }
         ("mcp", _) => {
             if content.format != artifacts::FILE_FORMAT {
                 return Err(invalid());
@@ -200,6 +213,16 @@ fn matches(names: BTreeSet<&str>, expected: &[String]) -> Result<()> {
     Ok(())
 }
 
+/// Recheck recognized credential fields in a complete assembled configuration.
+/// An owned fragment's declaration must not be applied to the merged document.
+pub(crate) fn verify_configuration_credentials(
+    harness: &str,
+    path: &str,
+    bytes: &[u8],
+) -> Result<()> {
+    credentials::settings(harness, path, "", bytes)
+}
+
 /// Retained or catalog projections get the same byte-derived check as new sources.
 /// Inputs come from freshly compiled files or an archive verified against its declarations.
 pub(crate) fn verify_files(
@@ -208,6 +231,27 @@ pub(crate) fn verify_files(
     declarations: &[Value],
     files: &[artifacts::Member],
 ) -> Result<()> {
+    if kind == "setting" {
+        if files.is_empty() {
+            return Err(invalid());
+        }
+        for file in files {
+            let declaration = declarations
+                .iter()
+                .find(|v| v["path"] == file.path)
+                .ok_or_else(invalid)?;
+            let key = match declaration["ownership"].as_str() {
+                Some("whole") => "",
+                Some("contribution") => declaration["ownership_key"]
+                    .as_str()
+                    .filter(|v| !v.is_empty())
+                    .ok_or_else(invalid)?,
+                _ => return Err(invalid()),
+            };
+            credentials::settings(harness, &file.path, key, &file.bytes)?;
+        }
+        return Ok(());
+    }
     if has_markdown_entries(harness, kind) {
         let expected = markdown_entries(
             harness,

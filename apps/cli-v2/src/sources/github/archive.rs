@@ -1,9 +1,6 @@
 //! Bounded GitHub ZIP decoding into memory; never extract paths to a filesystem.
 
-use std::{
-    collections::BTreeSet,
-    io::{Cursor, Read},
-};
+use std::{collections::BTreeSet, io::Read};
 
 use crate::{
     artifacts::{self, Member},
@@ -18,50 +15,11 @@ fn invalid() -> Failure {
     Failure::precondition("the GitHub archive violates its selected source boundaries")
 }
 
-// Bound central-directory allocation before asking the ZIP parser to build its index.
-fn preflight(bytes: &[u8]) -> Result<(usize, usize)> {
-    if bytes.len() < 22 || bytes.len() > MAX_ARCHIVE {
-        return Err(invalid());
-    }
-    let lower = bytes.len().saturating_sub(22 + 65535);
-    let offset = (lower..=bytes.len() - 22)
-        .rev()
-        .find(|at| bytes[*at..].starts_with(b"PK\x05\x06"))
-        .ok_or_else(invalid)?;
-    let record = &bytes[offset..];
-    let short = |at| u16::from_le_bytes([record[at], record[at + 1]]);
-    let count = short(10);
-    if short(4) != 0
-        || short(6) != 0
-        || short(8) != count
-        || count == 0
-        || count > 20_000
-        || record.len() != 22 + usize::from(short(20))
-    {
-        return Err(invalid());
-    }
-    let start = u32::from_le_bytes(record[16..20].try_into().map_err(|_| invalid())?) as usize;
-    let size = u32::from_le_bytes(record[12..16].try_into().map_err(|_| invalid())?) as usize;
-    if start.checked_add(size) != Some(offset) {
-        return Err(invalid());
-    }
-    Ok((usize::from(count), start))
-}
-
 pub(super) fn selected(bytes: &[u8], subpath: Option<&str>) -> Result<Vec<Member>> {
-    let (count, start) = preflight(bytes)?;
     if subpath.is_some_and(|path| !artifacts::safe_path(path)) {
         return Err(invalid());
     }
-    let mut archive = zip::ZipArchive::new(Cursor::new(bytes)).map_err(|_| invalid())?;
-    // zip indexes by name and silently replaces duplicate central records.
-    // It must describe exactly the bounded directory we checked, without a prefix.
-    if archive.len() != count
-        || archive.offset() != 0
-        || archive.central_directory_start() != start as u64
-    {
-        return Err(invalid());
-    }
+    let mut archive = crate::archive::external::open(bytes, MAX_ARCHIVE)?;
     let mut root = None;
     let mut names = BTreeSet::new();
     let mut files = Vec::new();
@@ -135,7 +93,10 @@ pub(super) fn selected(bytes: &[u8], subpath: Option<&str>) -> Result<Vec<Member
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{error::Error, io::Write};
+    use std::{
+        error::Error,
+        io::{Cursor, Write},
+    };
 
     fn zip(entries: &[(&str, &[u8])]) -> std::result::Result<Vec<u8>, Box<dyn Error>> {
         let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
@@ -186,7 +147,7 @@ mod tests {
         let end = excessive_count.len() - 22;
         excessive_count[end + 8..end + 12].copy_from_slice(&[255, 255, 255, 255]);
         assert!(selected(&excessive_count, Some("skills/demo")).is_err());
-        let (count, start) = preflight(&archive)?;
+        let (count, start) = crate::archive::external::directory(&archive, MAX_ARCHIVE)?;
         let field = |at| {
             usize::from(u16::from_le_bytes([
                 archive[start + at],
@@ -218,9 +179,10 @@ mod tests {
             "https://token@api.github.com/repos/o/r",
             "https://api.github.com:8443/repos/o/r",
         ] {
-            assert!(!super::super::transport::allowed(&url::Url::parse(
-                address
-            )?));
+            assert!(!crate::sources::transport::allowed(
+                crate::sources::transport::Service::Github,
+                &url::Url::parse(address)?
+            ));
         }
         for source in ["gh:owner/repo@main", "@owner/name", "./local"] {
             assert!(super::super::fetch(source).is_err());

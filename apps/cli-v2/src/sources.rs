@@ -2,7 +2,9 @@
 
 pub mod github;
 pub mod local;
+pub mod package;
 mod snapshot;
+mod transport;
 
 use std::path::{Path, PathBuf};
 

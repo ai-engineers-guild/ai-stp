@@ -1,7 +1,9 @@
 //! One command definition drives both the parser and its machine description.
 
 mod local;
+mod providers;
 mod reports;
+mod selections;
 
 use clap::{Arg, ArgAction, ArgMatches, Command, builder::ValueParser};
 use serde_json::{Value, json};
@@ -19,6 +21,8 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 enum Handler {
     Local(local::Handler),
     Report(reports::Handler),
+    Provider(providers::Handler),
+    Selection(selections::Handler),
     Version,
     Help,
     Capabilities,
@@ -27,6 +31,8 @@ enum Handler {
     Passport(&'static str),
     Versions,
     ProjectIndex,
+    ProjectSymbols,
+    ProjectTechnology,
     ProjectDiscover,
     CatalogSearch,
     CatalogShow,
@@ -40,6 +46,7 @@ enum Handler {
     SourceInspect,
     SourceCapture,
     SourceFetch,
+    PackageSourceFetch,
     SourceAddress(bool),
     IdentityPlan,
     IdentityApply,
@@ -294,6 +301,43 @@ const COMMANDS: &[Declaration] = &[
         handler: Handler::SourceInspect,
     },
     Declaration {
+        path: &["component", "source", "package", "fetch"],
+        summary: "Observe exact official package metadata and checksum evidence without execution or trust grants.",
+        parameters: &[
+            Parameter {
+                name: "ecosystem",
+                summary: "Implemented official package registry.",
+                kind: ParameterType::Choice(&["go", "pypi", "npm", "crates.io", "pub.dev"]),
+                required: true,
+            },
+            Parameter {
+                name: "name",
+                summary: "Exact registry package name or Go module path.",
+                kind: ParameterType::String,
+                required: true,
+            },
+            Parameter {
+                name: "version",
+                summary: "Exact registry version; Go requires the v prefix.",
+                kind: ParameterType::String,
+                required: true,
+            },
+            Parameter {
+                name: "filename",
+                summary: "Exact distribution filename, required only for PyPI.",
+                kind: ParameterType::String,
+                required: false,
+            },
+            Parameter {
+                name: "platform",
+                summary: "Exact wheel platform tag or source for an sdist, required only for PyPI.",
+                kind: ParameterType::String,
+                required: false,
+            },
+        ],
+        handler: Handler::PackageSourceFetch,
+    },
+    Declaration {
         path: &["component", "source", "fetch"],
         summary: "Observe a public GitHub source pinned to a full commit; bounded download without credentials or target writes.",
         parameters: &[SOURCE],
@@ -467,6 +511,18 @@ const COMMANDS: &[Declaration] = &[
         handler: Handler::ProjectIndex,
     },
     Declaration {
+        path: &["project", "technology", "inspect"],
+        summary: "Observe bounded technology declarations and lock records without executing, installing or publishing anything.",
+        parameters: &[ROOT],
+        handler: Handler::ProjectTechnology,
+    },
+    Declaration {
+        path: &["project", "symbols"],
+        summary: "Summarize bounded source declarations with explicit syntax-tree or approximate line-scan evidence.",
+        parameters: &[ROOT],
+        handler: Handler::ProjectSymbols,
+    },
+    Declaration {
         path: &["registry", "search"],
         summary: "Read one live public catalog page with separate trust lanes and no account.",
         parameters: &[
@@ -541,10 +597,20 @@ const COMMANDS: &[Declaration] = &[
     },
     Declaration {
         path: &["select", "graph"],
-        summary: "Resolve exact dependencies with bounded deterministic ordering and complete refusals.",
+        summary: "Resolve exact dependencies from isolated native state or an explicit verified snapshot, with deterministic ordering and complete refusals.",
         parameters: &[
-            SNAPSHOT,
-            SHA256,
+            Parameter {
+                required: false,
+                ..STATE_DIR
+            },
+            Parameter {
+                required: false,
+                ..SNAPSHOT
+            },
+            Parameter {
+                required: false,
+                ..SHA256
+            },
             Parameter {
                 name: "member",
                 summary: "Exact component or setup id@X.Y; repeat for multiple roots.",
@@ -579,6 +645,8 @@ fn declarations() -> impl Iterator<Item = &'static Declaration> {
         .iter()
         .chain(local::COMMANDS)
         .chain(reports::COMMANDS)
+        .chain(providers::COMMANDS)
+        .chain(selections::COMMANDS)
 }
 
 fn children(parent: Command, prefix: &[&str]) -> Command {
@@ -642,6 +710,8 @@ fn mutability(handler: Handler) -> &'static str {
         Handler::ScaffoldPlan | Handler::IdentityPlan | Handler::CatalogAcquirePlan => "plan",
         Handler::ScaffoldApply | Handler::IdentityApply => "apply",
         Handler::Local(handler) => handler.mutability(),
+        Handler::Selection(handler) => handler.mutability(),
+        Handler::Provider(providers::Handler::Plan) => "plan",
         _ => "read",
     }
 }
@@ -703,6 +773,8 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
     match declaration.handler {
         Handler::Local(handler) => local::dispatch(handler, leaf),
         Handler::Report(handler) => reports::dispatch(handler, leaf),
+        Handler::Provider(handler) => providers::dispatch(handler, leaf),
+        Handler::Selection(handler) => selections::dispatch(handler, leaf),
         Handler::Version => Ok(json!({"schema_version": 1, "cli_version": VERSION,
             "wire_schema_version": 1, "runtime": "rust", "release_channel": "preview"})),
         Handler::Capabilities => Ok(json!({"schema_version": 1, "cli_version": VERSION,
@@ -711,6 +783,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
             "task_intents": [], "supported_harnesses": [], "catalog_enabled": true, "sync_enabled": false,
             "state_access": "explicit_snapshot_and_isolated_authoring", "cache_access": "explicit_public_catalog_cache",
             "identity_access": "explicit_isolated_device",
+            "managed_provider_version": crate::provider::managed::RELEASE,
             "authoring_access": "identity_bound_local_plans", "readable_local_schema_versions": [snapshot::SCHEMA_VERSION]})),
         Handler::Help => help(
             leaf.get_one::<String>("path").map_or("", String::as_str),
@@ -754,6 +827,16 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::SourceInspect => source_project::inspect(
             leaf.get_one::<std::path::PathBuf>("root")
                 .ok_or_else(|| Failure::input("source root is required"))?,
+        ),
+        Handler::PackageSourceFetch => crate::sources::package::fetch(
+            leaf.get_one::<String>("ecosystem")
+                .ok_or_else(|| Failure::input("ecosystem is required"))?,
+            leaf.get_one::<String>("name")
+                .ok_or_else(|| Failure::input("package name is required"))?,
+            leaf.get_one::<String>("version")
+                .ok_or_else(|| Failure::input("package version is required"))?,
+            leaf.get_one::<String>("filename").map(String::as_str),
+            leaf.get_one::<String>("platform").map(String::as_str),
         ),
         Handler::SourceFetch => crate::sources::github::fetch(
             leaf.get_one::<String>("source")
@@ -848,14 +931,18 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
                 .map(|values| values.cloned().collect::<Vec<_>>())
                 .unwrap_or_default(),
         ),
-        Handler::ProjectIndex | Handler::ProjectDiscover => {
+        Handler::ProjectIndex
+        | Handler::ProjectDiscover
+        | Handler::ProjectSymbols
+        | Handler::ProjectTechnology => {
             let root = leaf
                 .get_one::<std::path::PathBuf>("root")
                 .ok_or_else(|| Failure::input("root is required"))?;
-            if matches!(declaration.handler, Handler::ProjectIndex) {
-                projects::index(root)
-            } else {
-                projects::discover(root)
+            match declaration.handler {
+                Handler::ProjectIndex => projects::index(root),
+                Handler::ProjectSymbols => projects::symbols(root),
+                Handler::ProjectTechnology => projects::technology::inspect(root),
+                _ => projects::discover(root),
             }
         }
         Handler::CatalogSearch | Handler::CatalogShow | Handler::CatalogVersion => {
@@ -896,10 +983,31 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
                 )
             }
         }
+        Handler::DependencyGraph => {
+            let members = leaf
+                .get_many::<String>("member")
+                .map(|items| items.cloned().collect::<Vec<_>>())
+                .unwrap_or_default();
+            let proposal = leaf.get_one::<String>("proposal").map(String::as_str);
+            match (
+                leaf.get_one::<std::path::PathBuf>("state-dir"),
+                leaf.get_one::<std::path::PathBuf>("snapshot"),
+                leaf.get_one::<String>("sha256"),
+            ) {
+                (Some(parent), None, None) => selection::graph::local(parent, &members, proposal),
+                (None, Some(path), Some(digest)) => selection::graph::read(
+                    &snapshot::Snapshot::open(path, digest)?,
+                    &members,
+                    proposal,
+                ),
+                _ => Err(Failure::input(
+                    "name either state-dir or both snapshot and sha256",
+                )),
+            }
+        }
         Handler::Snapshot
         | Handler::Passport(_)
         | Handler::Versions
-        | Handler::DependencyGraph
         | Handler::EnvironmentRequirements => {
             let path = leaf
                 .get_one::<std::path::PathBuf>("snapshot")
@@ -909,14 +1017,6 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
                 .ok_or_else(|| Failure::input("sha256 is required"))?;
             let state = snapshot::Snapshot::open(path, digest)?;
             match declaration.handler {
-                Handler::DependencyGraph => selection::graph::read(
-                    &state,
-                    &leaf
-                        .get_many::<String>("member")
-                        .map(|items| items.cloned().collect::<Vec<_>>())
-                        .unwrap_or_default(),
-                    leaf.get_one::<String>("proposal").map(String::as_str),
-                ),
                 Handler::EnvironmentRequirements => environment::requirements(
                     &state,
                     leaf.get_one::<String>("project")

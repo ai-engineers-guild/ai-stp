@@ -1,6 +1,6 @@
 ---
 description: "The problem, users, value, and positioning of ai_stp."
-last_verified: "2026-08-29"
+last_verified: "2026-10-10"
 ---
 
 # Product vision
@@ -58,7 +58,7 @@ The product does more than store links to components. It:
 - finds ready-made setups and individual components by tags, filters, and trust line;
 - connects them into the native configuration of a specific harness;
 - shows provenance, verification, trust line, and constraints;
-- applies the configuration through a verified provider with backup and recovery;
+- applies the configuration through a verified provider with exact plans and recovery;
 - preserves an existing configuration as a personal setup instead of overwriting it.
 
 The final choice remains with the agent and user: the product returns eligible candidates and explains them, but does not present its ordering as the only correct one.
@@ -77,7 +77,7 @@ After successful initial setup, local mode works without a network. The exact bo
 
 ## Ownership
 
-The catalog belongs to the guild. NDDev provides public harness providers — the installation systems the company itself uses. The platform is licensed under AGPL-3.0-or-later; user-published objects remain under their authors' licenses.
+The catalog belongs to the guild. Setup systems are installation components of ai-stp, operated through its CLI. NDDev maintains their existing source and public release repositories; separate repositories do not create separate product workflows (ADR-0228). The platform is licensed under AGPL-3.0-or-later; user-published objects remain under their authors' licenses.
 
 ## Measure of MVP success
 

@@ -68,8 +68,13 @@ fn component(
         .ok_or("fixture missing")?["body"]["passport"]
         .clone();
     let profile = provider.profile(scope).ok_or("profile missing")?;
-    let kind = if contribution.is_some() {
+    let kind = if matches!(contribution, Some("mcp" | "mcpServers" | "mcp_servers")) {
         "mcp"
+    } else if matches!(
+        file.path.as_str(),
+        "settings.json" | "config.toml" | "opencode.json"
+    ) {
+        "setting"
     } else if file.path.starts_with("commands/") || file.path.starts_with("prompts/") {
         "command"
     } else if file.path.starts_with("agents/")
@@ -608,6 +613,189 @@ fn opencode_namespaces(store: &mut Store, declarations: &[Value]) -> Result<(), 
     Ok(())
 }
 
+fn assembled_credentials(
+    store: &mut Store,
+    provider: &Info,
+    setup: &Value,
+    evidence: &BTreeMap<String, Evidence>,
+    path: &str,
+    key: &str,
+) -> Result<Vec<String>, Box<dyn Error>> {
+    let harness = text(provider.document(), "harness_id")?;
+    let target = target(harness, Scope::Global);
+    let toml = path.ends_with(".toml");
+    // The replaced key's old credential is not part of the resulting package.
+    // Harmless unowned fields, Unicode spelling and native references survive.
+    let clean = if toml {
+        format!(
+            "theme = 'cafe\u{301}'\n[model_providers.review]\nenv_http_headers = {{ Authorization = 'REVIEW_TOKEN' }}\n[{key}]\nAPI_KEY = 'synthetic-sensitive-value'\n"
+        )
+        .into_bytes()
+    } else {
+        let mut value = json!({"theme":"cafe\u{301}",key:{"API_KEY":"synthetic-sensitive-value"}});
+        if harness == "opencode" {
+            value["mcp"] = json!({"external":{"type":"remote","url":"https://example.test/mcp","headers":{"Authorization":"Bearer {env:REVIEW_TOKEN}"}}});
+        }
+        serde_json::to_vec(&value)?
+    };
+    let hosts: Hosts = [(path.into(), Some(clean))].into();
+    let inputs = hosts.clone();
+    let changes = store.transaction(|t| Ok(t.total_changes()))?;
+    let built = bundle::compile(store, setup, &target, evidence, provider, &hosts)?;
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(&built.archive))?;
+    let mut bytes = String::new();
+    std::io::Read::read_to_string(&mut archive.by_name(&format!("files/{path}"))?, &mut bytes)?;
+    assert!(!bytes.contains("synthetic-sensitive-value"));
+    assert!(bytes.contains("cafe\u{301}"));
+    if toml || harness == "opencode" {
+        assert!(bytes.contains("REVIEW_TOKEN"));
+    }
+    assert_eq!(hosts, inputs);
+    let mut leaked = Vec::new();
+    for (name, value, constraint) in [
+        ("apiKey", "synthetic-sensitive-value", "literal_credential"),
+        (
+            "endpoint",
+            "https://example.test/?token=synthetic-sensitive-value",
+            "credential_url",
+        ),
+    ] {
+        let source = if toml {
+            format!("{name} = '{value}'\n").into_bytes()
+        } else {
+            serde_json::to_vec(&json!({name:value}))?
+        };
+        let hosts: Hosts = [(path.into(), Some(source))].into();
+        let inputs = hosts.clone();
+        match bundle::compile(store, setup, &target, evidence, provider, &hosts) {
+            Ok(built) => {
+                let mut archive = zip::ZipArchive::new(std::io::Cursor::new(&built.archive))?;
+                let mut bytes = String::new();
+                std::io::Read::read_to_string(
+                    &mut archive.by_name(&format!("files/{path}"))?,
+                    &mut bytes,
+                )?;
+                assert!(bytes.contains("synthetic-sensitive-value"));
+                leaked.push(format!("{harness}/{path}/{key}/{constraint}"));
+            }
+            Err(refused) => {
+                assert_eq!(refused.details["constraint"], constraint);
+                assert!(!format!("{refused:?}").contains("synthetic-sensitive-value"));
+            }
+        }
+        assert_eq!(hosts, inputs);
+    }
+    assert_eq!(store.transaction(|t| Ok(t.total_changes()))?, changes);
+    Ok(leaked)
+}
+
+fn retained_settings(store: &mut Store, declarations: &[Value]) -> Result<(), Box<dyn Error>> {
+    let mut leaked = Vec::new();
+    for (harness, path, accepted, rejected, contribution) in [
+        (
+            "claude-code",
+            "settings.json",
+            r#"{"env":{"LOG_LEVEL":"info"}}"#,
+            r#"{"env":{"ANTHROPIC_API_KEY":"synthetic-sensitive-value"}}"#,
+            None,
+        ),
+        (
+            "codex",
+            "config.toml",
+            "[mcp_servers.review]\ncommand = 'server'\nenv_http_headers = { Authorization = 'REVIEW_TOKEN' }\n",
+            "[mcp_servers.review]\ncommand = 'server'\nenv = { API_KEY = 'synthetic-sensitive-value' }\n",
+            None,
+        ),
+        (
+            "opencode",
+            "opencode.json",
+            r#"{"provider":{"review":{"options":{"apiKey":"{env:REVIEW_KEY}"}}}}"#,
+            r#"{"provider":{"review":{"options":{"apiKey":"synthetic-sensitive-value"}}}}"#,
+            None,
+        ),
+        (
+            "claude-code",
+            "settings.json",
+            r#"{"LOG_LEVEL":"info"}"#,
+            r#"{"REVIEW_TOKEN":"synthetic-sensitive-value"}"#,
+            Some("env"),
+        ),
+        (
+            "opencode",
+            "opencode.json",
+            r#"{"review":{"options":{"apiKey":"{env:REVIEW_KEY}"}}}"#,
+            r#"{"review":{"options":{"apiKey":"synthetic-sensitive-value"}}}"#,
+            Some("provider"),
+        ),
+        (
+            "codex",
+            "config.toml",
+            "LOG_LEVEL = 'info'\n",
+            "REVIEW_TOKEN = 'synthetic-sensitive-value'\n",
+            Some("env"),
+        ),
+    ] {
+        let provider = Info::parse(&serde_json::to_vec(
+            declarations
+                .iter()
+                .find(|v| v["harness_id"] == harness)
+                .ok_or("provider missing")?,
+        )?)?;
+        let target = target(harness, Scope::Global);
+        let hosts = if contribution.is_some() {
+            [(path.into(), None)].into()
+        } else {
+            Hosts::new()
+        };
+        let good = component(
+            store,
+            &provider,
+            Scope::Global,
+            File {
+                path: path.into(),
+                bytes: accepted.as_bytes().to_vec(),
+                mode: 0o644,
+            },
+            contribution,
+        )?;
+        let (setup, evidence) = compose(store, harness, &[good])?;
+        let built = bundle::compile(store, &setup, &target, &evidence, &provider, &hosts)?;
+        if let Some(key) = contribution {
+            leaked.extend(assembled_credentials(
+                store, &provider, &setup, &evidence, path, key,
+            )?);
+        }
+        let bad = component(
+            store,
+            &provider,
+            Scope::Global,
+            File {
+                path: path.into(),
+                bytes: rejected.as_bytes().to_vec(),
+                mode: 0o644,
+            },
+            contribution,
+        )?;
+        let refused = compose(store, harness, std::slice::from_ref(&bad))
+            .err()
+            .ok_or("setting credential composed")?;
+        assert!(refused.to_string().contains("credential"));
+        // The forged catalog graph is correctly hashed at every layer. The
+        // semantic check must run again when retained bytes enter a bundle.
+        let (setup, evidence) = catalog_repin(store, &built, &bad)?;
+        let refused = bundle::compile(store, &setup, &target, &evidence, &provider, &hosts)
+            .err()
+            .ok_or("retained setting credential bundled")?;
+        assert_eq!(refused.details["constraint"], "literal_credential");
+        assert!(!refused.message.contains("synthetic-sensitive-value"));
+    }
+    assert!(
+        leaked.is_empty(),
+        "host credentials entered bundles: {leaked:?}"
+    );
+    Ok(())
+}
+
 fn mcp_contributions(store: &mut Store, declarations: &[Value]) -> Result<(), Box<dyn Error>> {
     let declaration = declarations
         .iter()
@@ -628,9 +816,32 @@ fn mcp_contributions(store: &mut Store, declarations: &[Value]) -> Result<(), Bo
         Some("mcpServers"),
     )?;
     let (setup, evidence) = compose(store, "cursor", std::slice::from_ref(&mcp))?;
+    let leaked = assembled_credentials(
+        store,
+        &provider,
+        &setup,
+        &evidence,
+        "mcp.json",
+        "mcpServers",
+    )?;
+    assert!(
+        leaked.is_empty(),
+        "host credentials entered MCP bundle: {leaked:?}"
+    );
     assert!(bundle::compile(store, &setup, &target, &evidence, &provider, &Hosts::new()).is_err());
     let hosts: Hosts = [("mcp.json".into(), Some(br#"{"theme":"night"}"#.to_vec()))].into();
     let built = bundle::compile(store, &setup, &target, &evidence, &provider, &hosts)?;
+    let reports = bundle::reports::inspect(
+        store,
+        std::slice::from_ref(&setup),
+        &target,
+        &evidence,
+        Some(&provider),
+    )?;
+    assert_eq!(reports["composition"], built.manifest["composition_report"]);
+    assert_eq!(reports["conversion"], built.manifest["conversion_report"]);
+    assert_eq!(reports["required_host_paths"], json!(["mcp.json"]));
+    assert_eq!(reports["host_inputs_observed"], false);
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(&built.archive))?;
     let mut bytes = Vec::new();
     std::io::Read::read_to_end(&mut archive.by_name("files/mcp.json")?, &mut bytes)?;
@@ -795,6 +1006,20 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
                 &provider,
                 &Hosts::new(),
             )?;
+            let reports = bundle::reports::inspect(
+                &mut store,
+                std::slice::from_ref(&setup),
+                &target,
+                &evidence,
+                Some(&provider),
+            )?;
+            assert_eq!(
+                reports["composition"],
+                bundle.manifest["composition_report"]
+            );
+            assert_eq!(reports["conversion"], bundle.manifest["conversion_report"]);
+            assert_eq!(reports["host_inputs_observed"], false);
+            assert_eq!(reports["assembled_output_checked"], false);
             assert_eq!(
                 bundle.manifest["files"]
                     .as_array()
@@ -888,6 +1113,27 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
         },
         None,
     )?;
+    let mut lossy = first.clone();
+    lossy["version"] = "7.0".into();
+    lossy["adaptations"][0]["scope_adaptations"][0]["semantic_losses"] =
+        json!(["The target omits the declared ordering hint."]);
+    lossy["adaptations"][0] = passport::versions::seal_adaptation(&lossy["adaptations"][0])?;
+    let lossy =
+        store.transaction(|t| versions::record(t, &lossy, &identity().device_id, None, AT))?;
+    let (lossy_setup, lossy_evidence) = compose(&mut store, "claude-code", &[lossy])?;
+    let reports = bundle::reports::inspect(
+        &mut store,
+        std::slice::from_ref(&lossy_setup),
+        &target,
+        &lossy_evidence,
+        Some(&provider),
+    )?;
+    assert_eq!(reports["conversion"]["complete"], false);
+    assert_eq!(reports["conversion"]["entries"][0]["state"], "partial");
+    assert_eq!(
+        reports["conversion"]["entries"][0]["losses"],
+        json!(["The target omits the declared ordering hint."])
+    );
     // Directory declarations are preserved in CAS; the file-only bundle format
     // must refuse them instead of silently losing their presence or permissions.
     let mut with_directory = first.clone();
@@ -920,6 +1166,19 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
         versions::record(t, &with_directory, &identity().device_id, None, AT)
     })?;
     let (setup, evidence) = compose(&mut store, "claude-code", &[with_directory])?;
+    let reports = bundle::reports::inspect(
+        &mut store,
+        std::slice::from_ref(&setup),
+        &target,
+        &evidence,
+        Some(&provider),
+    )?;
+    assert_eq!(reports["composition"]["blocked"], true);
+    assert_eq!(reports["conversion"]["entries"][0]["state"], "unsupported");
+    assert_eq!(
+        reports["composition"]["rejected"][0]["refusals"][0]["code"],
+        "bundle_surface_unsupported"
+    );
     assert!(
         bundle::compile(
             &mut store,
@@ -979,7 +1238,41 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
     .err()
     .ok_or("native collision accepted")?;
     assert!(refusal.message.contains("native_id_collision"));
+    let reports = bundle::reports::inspect(
+        &mut store,
+        std::slice::from_ref(&setup),
+        &target,
+        &evidence,
+        Some(&provider),
+    )?;
+    assert_eq!(reports["composition"]["blocked"], true);
+    let codes: std::collections::BTreeSet<_> = reports["composition"]["conflicts"]
+        .as_array()
+        .ok_or("conflicts missing")?
+        .iter()
+        .filter_map(|entry| entry["code"].as_str())
+        .collect();
+    assert!(codes.contains("native_id_collision") && codes.contains("managed_path_owned_twice"));
+    assert_eq!(
+        reports["conversion"]["entries"]
+            .as_array()
+            .ok_or("conversion missing")?
+            .len(),
+        2
+    );
     let (empty, evidence) = compose(&mut store, "claude-code", &[])?;
+    let reports = bundle::reports::inspect(
+        &mut store,
+        std::slice::from_ref(&empty),
+        &target,
+        &evidence,
+        Some(&provider),
+    )?;
+    assert_eq!(
+        reports["composition"]["conflicts"][0]["code"],
+        "empty_bundle_unsupported"
+    );
+    assert_eq!(reports["composition"]["blocked"], true);
     assert!(
         bundle::compile(
             &mut store,
@@ -1005,6 +1298,19 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
         .get_mut(text(&first, "stable_id")?)
         .ok_or("evidence missing")?
         .blocked = true;
+    let reports = bundle::reports::inspect(
+        &mut store,
+        std::slice::from_ref(&setup),
+        &target,
+        &evidence,
+        Some(&provider),
+    )?;
+    assert_eq!(reports["composition"]["blocked"], true);
+    assert_eq!(reports["composition"]["chosen"], json!([]));
+    assert_eq!(
+        reports["composition"]["rejected"][0]["stable_id"],
+        first["stable_id"]
+    );
     assert!(
         bundle::compile(
             &mut store,
@@ -1186,6 +1492,7 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
         }
     }
     mcp_contributions(&mut store, &declarations)?;
+    retained_settings(&mut store, &declarations)?;
     Ok(())
 }
 
@@ -1202,6 +1509,79 @@ fn declared_exclusions_are_symmetric_and_do_not_conflict_with_their_owner()
         .ok_or("Claude missing")?;
     let provider = Info::parse(&serde_json::to_vec(declaration)?)?;
     let target = target("claude-code", Scope::Global);
+    for (kind, field, code) in [
+        (
+            "instruction",
+            "precedence",
+            "instruction_precedence_conflict",
+        ),
+        ("hook", "hook_order", "hook_order_conflict"),
+    ] {
+        let mut members = Vec::new();
+        for _ in 0..2 {
+            let mut document = component(
+                &mut store,
+                &provider,
+                Scope::Global,
+                File {
+                    path: if kind == "hook" {
+                        "settings.json"
+                    } else {
+                        "CLAUDE.md"
+                    }
+                    .into(),
+                    bytes: if kind == "hook" {
+                        br#"{"PreToolUse":[{"hooks":[{"type":"command","command":"example"}]}]}"#
+                            .to_vec()
+                    } else {
+                        b"Inspect source conventions.\n".to_vec()
+                    },
+                    mode: 0o644,
+                },
+                (kind == "hook").then_some("hooks"),
+            )?;
+            document["component_type"] = kind.into();
+            document["version"] = "2.0".into();
+            document[field] = 1.into();
+            if kind == "hook" {
+                document["hook_event"] = "PreToolUse".into();
+            }
+            document["adaptations"][0]["logical_component_type"] = kind.into();
+            document["adaptations"][0] =
+                passport::versions::seal_adaptation(&document["adaptations"][0])?;
+            members.push(store.transaction(|t| {
+                versions::record(t, &document, &identity().device_id, None, AT)
+            })?);
+        }
+        let (setup, evidence) = compose(&mut store, "claude-code", &members)?;
+        let reports = bundle::reports::inspect(
+            &mut store,
+            std::slice::from_ref(&setup),
+            &target,
+            &evidence,
+            Some(&provider),
+        )?;
+        assert_eq!(reports["composition"]["blocked"], true);
+        assert!(
+            reports["composition"]["conflicts"]
+                .as_array()
+                .ok_or("conflicts missing")?
+                .iter()
+                .any(|entry| entry["code"] == code)
+        );
+        let hosts = if kind == "hook" {
+            [("settings.json".into(), None)].into()
+        } else {
+            Hosts::new()
+        };
+        assert!(
+            bundle::compile(&mut store, &setup, &target, &evidence, &provider, &hosts)
+                .err()
+                .ok_or("ordering accepted")?
+                .message
+                .contains(code)
+        );
+    }
     for scenario in ["paths", "commands", "skill-invocations"] {
         let family = if scenario == "skill-invocations" {
             "commands"
@@ -1289,6 +1669,24 @@ fn declared_exclusions_are_symmetric_and_do_not_conflict_with_their_owner()
                 &provider,
                 &Hosts::new(),
             );
+            let reports = bundle::reports::inspect(
+                &mut store,
+                std::slice::from_ref(&setup),
+                &target,
+                &evidence,
+                Some(&provider),
+            )?;
+            assert_eq!(reports["composition"]["blocked"], case < 2);
+            if case < 2 {
+                assert_eq!(
+                    reports["composition"]["conflicts"][0]["code"],
+                    "declared_conflict"
+                );
+                assert_eq!(
+                    reports["composition"]["conflicts"][0]["details"]["stable_id"],
+                    members[declarer]["stable_id"]
+                );
+            }
             if case < 2 {
                 let refusal = result
                     .err()

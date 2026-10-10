@@ -38,7 +38,7 @@ pub struct Member {
 }
 
 impl Member {
-    pub(super) fn reference(&self) -> setups::Member {
+    pub(crate) fn reference(&self) -> setups::Member {
         setups::Member {
             stable_id: self.stable_id.clone(),
             version: self.version.clone(),
