@@ -55,7 +55,10 @@ test.describe("device approval says which refusal it is", () => {
   // other time" with nothing on the page to say which of the four it was.
   const refusals = [
     { reason: "unknown", says: /No pending sign-in uses this code/i },
-    { reason: "expired", says: /This code has expired[\s\S]*fresh sign-in[\s\S]*new approval link/i },
+    {
+      reason: "expired",
+      says: /This code has expired[\s\S]*fresh sign-in[\s\S]*new approval link/i,
+    },
     { reason: "resolved", says: /already used[\s\S]*sign-in result[\s\S]*new approval link/i },
     { reason: "csrf", says: /went stale while it was open/i },
     { reason: "failed", says: /did not reach the service/i },
