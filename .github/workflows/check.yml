@@ -87,9 +87,9 @@ jobs:
         run: |
           set -euo pipefail
           cargo fmt --check
-          cargo clippy --locked --all-targets -- -D warnings
-          cargo test --locked
-          cargo build --locked --release --bins --examples
+          python scripts/with_libclang.py cargo clippy --locked --all-targets -- -D warnings
+          python scripts/with_libclang.py cargo test --locked
+          python scripts/with_libclang.py cargo build --locked --release --bins --examples
       - name: Cache the successful native build
         if: steps.native-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9

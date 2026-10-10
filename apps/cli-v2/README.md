@@ -15,6 +15,14 @@ Install Rust through rustup; `rust-toolchain.toml` selects the toolchain.
 `Cargo.toml` owns direct dependency choices and `Cargo.lock` owns the resolved
 graph. Builds and checks use `--locked`. On Windows the executable has `.exe`.
 
+Native builds also need libclang and C standard headers for `sqlite-plugin`'s
+build-time binding generation: an installed LLVM development library on Linux,
+the selected Xcode SDK on macOS, or LLVM/MSVC on Windows. The `just` recipes and
+CI call `scripts/with_libclang.py` to expose that installed toolchain; it does not
+download libraries. Linux may set `LIBCLANG_PATH` explicitly. The final binary
+does not depend on libclang. The store owns the exact `sqlite-plugin` dependency;
+removing its VFS removes this dependency and build adapter.
+
 ## Managed setup components
 
 Setup systems are ai-stp installation components with separate source/release
@@ -1842,7 +1850,23 @@ The headless `store` service owns an explicit `ai-stp-v2-state` directory with
 private permissions, an ownership marker and a bounded process lock. Its clean
 schema-53 bootstrap preserves the complete data format without historical
 migrations. Unknown schemas are refused before writes; SQLite uses foreign keys,
-defensive mode, an untrusted schema and FULL-synchronous WAL. Revision changes
+defensive mode, an untrusted schema and FULL-synchronous WAL. SQLite opens the
+checked main file once and accesses its journal/WAL through a held directory VFS.
+No ambient database path, disk temporary database, mmap or shared-memory mapping
+is used. The existing owned-directory lock excludes other native connections;
+an exclusive lock on SQLite's reserved byte range also excludes standard SQLite
+processes while preserving their ability to read the initial file header.
+An existing standard WAL connection, including an idle reader that retains its
+shared lock, also prevents native access until closed; native calls return a
+retryable contention refusal. Interoperability tools must close their connection
+before invoking the CLI. The Python and native engines never share production
+writer ownership during the preview.
+That lock lasts through connection close, so WAL uses SQLite's supported
+exclusive mode with an in-memory index. Existing ordinary WAL is recovered in
+place, and a closed registry remains readable by standard SQLite. Database,
+namespace and lock replacement, links, non-private files and unrecognized
+companion headers refuse before further I/O. This does not change schema 53 or
+transfer production state ownership. Revision changes
 check all expected heads inside `BEGIN IMMEDIATE`; content and revisions commit
 or roll back together. Replaying a known revision preserves the current head.
 Immutable snapshots never move draft heads. A setup requires one concrete

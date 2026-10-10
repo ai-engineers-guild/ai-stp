@@ -898,7 +898,8 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
     invoke([*recast_args, "--provider-info", str(info)], 2)
     with closing(sqlite3.connect(database)) as connection:
         before_recast = tuple(connection.iterdump())
-        recast_plan = invoke([*recast_args, "--provider-info", str(cursor_info)])
+    recast_plan = invoke([*recast_args, "--provider-info", str(cursor_info)])
+    with closing(sqlite3.connect(database)) as connection:
         assert tuple(connection.iterdump()) == before_recast
     recast_result = apply(recast_plan, "recast-derived")
     assert recast_result["harness_id"] == "cursor"

@@ -4,6 +4,7 @@
 pub(crate) mod journal;
 pub mod revisions;
 pub mod versions;
+mod vfs;
 
 use std::{path::Path, sync::OnceLock, time::Duration};
 
@@ -23,7 +24,7 @@ type Schema = Vec<(String, String, String, String)>;
 pub struct Store {
     // Drop SQLite before releasing the process lock and directory handle.
     pub(crate) connection: Connection,
-    _directory: Option<OwnedDirectory>,
+    scope: Option<std::sync::Arc<vfs::Scope>>,
     planning: bool,
 }
 
@@ -92,7 +93,7 @@ impl Store {
                     .map_err(database)?;
                 Ok(Self {
                     connection,
-                    _directory: None,
+                    scope: None,
                     planning: true,
                 })
             }
@@ -101,8 +102,10 @@ impl Store {
     }
 
     fn open_existing(parent: &Path, create: bool, planning: bool) -> Result<Self> {
+        let parent = cap_std::fs::Dir::open_ambient_dir(parent, cap_std::ambient_authority())
+            .map_err(|_| Failure::precondition("the registry parent cannot be opened"))?;
         let directory =
-            OwnedDirectory::open(parent, NAMESPACE, OWNER, create)?.ok_or_else(|| {
+            OwnedDirectory::open_at(&parent, NAMESPACE, OWNER, create)?.ok_or_else(|| {
                 Failure::new(
                     ErrorKind::NotFound,
                     "the explicit preview registry does not exist",
@@ -150,38 +153,21 @@ impl Store {
                 }
             }
         }
-        let file = crate::files::open_regular(&directory.directory, Path::new("registry.sqlite3"))
-            .map_err(|_| Failure::precondition("the registry must be an owned regular file"))?;
-        let metadata = file
-            .metadata()
-            .map_err(|_| Failure::precondition("the registry cannot be inspected"))?;
-        if cap_fs_ext::MetadataExt::nlink(&metadata) != 1 {
-            return Err(Failure::precondition(
-                "the writable registry must have one link",
-            ));
-        }
-        #[cfg(unix)]
-        {
-            use cap_std::fs::MetadataExt;
-            if metadata.mode() & 0o077 != 0 {
-                return Err(Failure::precondition(
-                    "the registry must be private and have one link",
-                ));
-            }
-        }
-        drop(file);
-        let path = parent
-            .canonicalize()
-            .map_err(|_| Failure::precondition("the registry directory cannot be resolved"))?
-            .join(NAMESPACE)
-            .join("registry.sqlite3");
-        let mut connection = Connection::open_with_flags(
-            path,
-            OpenFlags::SQLITE_OPEN_READ_WRITE
-                | OpenFlags::SQLITE_OPEN_NO_MUTEX
-                | OpenFlags::SQLITE_OPEN_NOFOLLOW,
+        let scope = vfs::Scope::open(parent, directory)?;
+        let mut connection = Connection::open_with_flags_and_vfs(
+            scope.path(),
+            OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+            vfs::NAME,
         )
         .map_err(database)?;
+        // The owned namespace and database lock exclude other processes for the
+        // whole connection. SQLite can keep its WAL index in memory; no shared
+        // memory or ambient temporary file is needed. Set this before any read.
+        connection
+            .execute_batch(
+                "PRAGMA locking_mode=EXCLUSIVE; PRAGMA temp_store=MEMORY; PRAGMA mmap_size=0;",
+            )
+            .map_err(database)?;
         connection
             .busy_timeout(Duration::from_secs(2))
             .map_err(database)?;
@@ -255,7 +241,7 @@ impl Store {
         }
         Ok(Self {
             connection,
-            _directory: Some(directory),
+            scope: Some(scope),
             planning,
         })
     }
@@ -264,6 +250,11 @@ impl Store {
         &mut self,
         operation: impl FnOnce(&Transaction<'_>) -> Result<T>,
     ) -> Result<T> {
+        if let Some(scope) = &self.scope {
+            scope
+                .validate()
+                .map_err(|_| Failure::precondition("the registry binding changed"))?;
+        }
         let transaction = self
             .connection
             .transaction_with_behavior(if self.planning {
@@ -274,6 +265,11 @@ impl Store {
             .map_err(database)?;
         let result = operation(&transaction)?;
         transaction.commit().map_err(database)?;
+        if let Some(scope) = &self.scope {
+            scope
+                .validate()
+                .map_err(|_| Failure::precondition("the registry binding changed"))?;
+        }
         Ok(result)
     }
 }
