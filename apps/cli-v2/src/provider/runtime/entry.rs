@@ -7,6 +7,7 @@ use crate::error::Result;
 
 pub const FLAG: &str = "--ai-stp-target-entry";
 pub(super) const MISSING_PREFIX: &str = "--ai-stp-missing-prefix";
+pub(super) const EMPTY_PREFIX: &str = "--ai-stp-empty-prefix";
 
 pub fn run(arguments: &[OsString]) -> Result<()> {
     if arguments.len() < 5 {
@@ -27,11 +28,18 @@ pub fn run(arguments: &[OsString]) -> Result<()> {
         let target = Target::open(Path::new(&arguments[index + 2]))?;
         target.verify_mount((number(index)?, number(index + 1)?))?;
     }
-    if arguments.get(end).is_some_and(|arg| arg == MISSING_PREFIX) {
+    if arguments
+        .get(end)
+        .is_some_and(|arg| arg == MISSING_PREFIX || arg == EMPTY_PREFIX)
+    {
         if arguments.len() <= end + 2 {
             return Err(unavailable());
         }
-        Prefix::verify_missing_mount(Path::new(&arguments[end + 1]))?;
+        if arguments[end] == EMPTY_PREFIX {
+            Prefix::verify_empty_mount(Path::new(&arguments[end + 1]))?;
+        } else {
+            Prefix::verify_missing_mount(Path::new(&arguments[end + 1]))?;
+        }
         end += 2;
     }
     // The sealed provider was mounted by the launcher. There is no caller-chosen

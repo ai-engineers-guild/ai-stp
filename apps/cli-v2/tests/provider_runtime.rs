@@ -152,12 +152,12 @@ printf provider-ran
     assert_eq!(fs::read(prefix.join("program"))?, b"retained\n");
     assert_eq!(fs::read_dir(&target)?.count(), 1);
     assert_eq!(fs::read(target.join("marker"))?, b"exact\n");
-    missing_prefix_requires_a_readonly_namespace_parent(&provider)?;
+    synthetic_prefix_requires_its_exact_readonly_view(&provider)?;
     Ok(())
 }
 
 #[cfg(target_os = "linux")]
-fn missing_prefix_requires_a_readonly_namespace_parent(
+fn synthetic_prefix_requires_its_exact_readonly_view(
     provider: &std::path::Path,
 ) -> Result<(), Box<dyn Error>> {
     use std::os::unix::fs::PermissionsExt;
@@ -165,15 +165,27 @@ fn missing_prefix_requires_a_readonly_namespace_parent(
     fs::write(
         &provider,
         br##"#!/bin/sh
-test "$1" = status || exit 30
-test ! -e /empty-prefix-parent/programs || exit 31
+if test "$1" = empty; then
+    test -d /empty-prefix-parent/programs || exit 30
+    if { printf created > /empty-prefix-parent/programs/new; } 2>/dev/null; then exit 31; fi
+else
+    test "$1" = missing && test ! -e /empty-prefix-parent/programs || exit 31
+fi
 test ! -e /empty-prefix-parent/private || exit 32
 if { printf created > /empty-prefix-parent/programs; } 2>/dev/null; then exit 33; fi
-printf missing-prefix-observed
+printf prefix-observed
 "##,
     )?;
     fs::set_permissions(&provider, fs::Permissions::from_mode(0o500))?;
-    for (readonly, absent) in [(true, true), (false, true), (true, false)] {
+    for (view, readonly, exists, nonempty, accepted) in [
+        ("missing", true, false, false, true),
+        ("missing", false, false, false, false),
+        ("missing", true, true, false, false),
+        ("empty", true, true, false, true),
+        ("empty", false, true, false, false),
+        ("empty", true, false, false, false),
+        ("empty", true, true, true, false),
+    ] {
         let mut command = Command::new("/usr/bin/bwrap");
         command
             .args([
@@ -212,20 +224,23 @@ printf missing-prefix-observed
                 env!("CARGO_BIN_EXE_ai-stp-v2"),
                 "/run/entry",
             ]);
-        if !absent {
+        if exists {
             command.args(["--dir", "/empty-prefix-parent/programs"]);
+        }
+        if nonempty {
+            command.args(["--dir", "/empty-prefix-parent/programs/foreign"]);
         }
         if readonly {
             command.args(["--remount-ro", "/empty-prefix-parent"]);
         }
         // A separate target is an empty, read-only mount. Its physical
         // identity is measured inside the namespace before invoking the entry.
-        command.args(["--", "/bin/sh", "-c",
-            "/run/entry --ai-stp-target-entry 1 $(/usr/bin/stat -c '%d %i' /observed) /observed --ai-stp-missing-prefix /empty-prefix-parent/programs status"]);
+        command.args(["--", "/bin/sh", "-c", &format!(
+            "/run/entry --ai-stp-target-entry 1 $(/usr/bin/stat -c '%d %i' /observed) /observed --ai-stp-{view}-prefix /empty-prefix-parent/programs {view}")]);
         let output = command.env_clear().env("PATH", "").output()?;
-        if readonly && absent {
+        if accepted {
             assert!(output.status.success(), "{:?}", output);
-            assert_eq!(output.stdout, b"missing-prefix-observed");
+            assert_eq!(output.stdout, b"prefix-observed");
         } else {
             assert_eq!(output.status.code(), Some(70));
             assert!(output.stdout.is_empty());
