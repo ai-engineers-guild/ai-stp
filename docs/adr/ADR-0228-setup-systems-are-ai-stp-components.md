@@ -5,7 +5,7 @@ last_verified: "2026-10-10"
 
 # ADR-0228: Setup systems are ai-stp components
 
-Status: accepted; native writable lifecycle and production cutover remain pending.
+Status: accepted; configuration lifecycle and production cutover remain pending.
 
 ## Context
 
@@ -50,9 +50,11 @@ not create separate user workflows.
 
 ## Delivery and consequences
 
-The first slice implements managed release selection for new native provider,
-selection, matrix and composition requests. It does not authorize target writes.
-The code-adjacent CLI contract and executable registry own implemented behavior.
+The native CLI implements managed release selection for new provider, selection,
+matrix and composition requests, and fresh-program plan/apply/cancel on Linux.
+The component writes into a private stage; the CLI verifies and activates its
+complete directory. The code-adjacent CLI contract and executable registry own
+implemented behavior and its limits.
 
 C4 must finish durable exact-plan software/configuration apply, independent
 verification, interruption recovery and active-target handoff. C6 owns coordinated
