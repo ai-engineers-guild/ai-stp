@@ -42,7 +42,7 @@ what it owns, ask the binary: `codex-setup-system provider-info`.
 
 **Where it goes**: `~/.codex/agents/<name>.toml`
 
-**Decided by**: https://github.com/openai/codex/blob/rust-v0.151.0/codex-rs/agent-roles/src/discovery.rs; routing measured by running the 0.151.0 binary against a temporary CODEX_HOME
+**Decided by**: https://learn.chatgpt.com/docs/agent-configuration/subagents; routing originally measured by running the 0.151.0 binary against a temporary CODEX_HOME
 
 **How it runs**: Codex spawns the role by its `name`.
 
@@ -54,18 +54,24 @@ what it owns, ask the binary: `codex-setup-system provider-info`.
 | `description` | **yes** | Role guidance shown when choosing and spawning that agent type. |
 | `developer_instructions` | **yes** | The role's prompt. Refused when absent, and it is the one a reader leaves out. |
 | `nickname_candidates` | no | Names an agent spawned with this role may be given. |
+| `model` | no | Model override for sessions spawned with this role. |
+| `model_reasoning_effort` | no | `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`, `ultra` or `persistent` where the selected model supports them (the 0.157.1 `ReasoningEffort` enum, plus an open `Custom` variant); unset means the model's own default, not the parent's effort. |
+| `sandbox_mode` | no | Narrow the spawned session's sandbox policy. |
+| `mcp_servers` | no | Role-specific MCP server configuration. |
+| `skills.config` | no | Skills made available to the spawned session. |
 
 ## What bites
 
 - **All three fields above are refused when missing, and the third is the one you will forget.** Measured against the 0.151.0 binary with a temporary `CODEX_HOME`, read back through `codex doctor`: a file with `name` and `description` alone is refused with *"must define `developer_instructions`"*; without `name`, *"must define a non-empty `name`"*; without `description`, *"must define a description"*. A complete one is accepted in silence, and so is one a directory deeper.
 - **This page said the opposite until 2026-08-30, and how it was wrong is the part worth keeping.** It said a file in `agents/` is not an agent and a role is irreducibly a `[agents.<name>]` stanza plus the layer it points at. The measurement behind that planted an `agents/<name>.md` and observed that nothing loaded it -- and the product's discovery filters on `extension == "toml"`, so that control could not have failed whatever the truth was. A negative drawn from an experiment incapable of producing a positive.
 - **The stanza form still works.** A `[agents.<name>]` table with `config_file` names a role and excludes that file from the directory scan, so the two forms do not collide. This toolkit shipped as that pair until 2026-08-30 and ships as one standalone file now -- read `agents/nddev-builder.toml` as the worked example of the kind this provider declares.
+- **Personal and project agents are separate scopes.** Put personal roles under `~/.codex/agents/` and repository roles under `.codex/agents/`. A standalone agent file is a configuration layer: settings it omits, including sandbox, MCP and skills configuration, inherit from the parent session.
 
 ## Before you ship one
 
-- **The surface is declared, so the component is a promise.** Every kind   this provider declares is a promise of a rollback. A component written   to a path the declaration does not carry is installed by nobody and   removed by nobody.
-- **Name it once.** Where the product derives identity from the directory   or the filename, the frontmatter `name` is either redundant or a second   place to be wrong. Keep them equal.
-- **Read it back.** After an install, look at the file where the product   reads it, not at the step that put it there.
+- **The surface is declared, so the component is a promise.** Every kind this provider declares is a promise of a rollback. A component written to a path the declaration does not carry is installed by nobody and removed by nobody.
+- **Name it once.** Where the product derives identity from the directory or the filename, the frontmatter `name` is either redundant or a second place to be wrong. Keep them equal.
+- **Read it back.** After an install, look at the file where the product reads it, not at the step that put it there.
 
 ## Command
 
@@ -90,7 +96,7 @@ what it owns, ask the binary: `codex-setup-system provider-info`.
 
 ## The same file on the other harnesses
 
-Generated from the same rows as the section above, for every harness in this estate that routes this kind. `—` means the product's own reference does not name the field, and **dropped** means it names it as one it accepts and does not act on.
+Generated from the same rows as the section above, for every harness in this estate that describes this kind the same way. A harness that routes the kind another way is absent rather than approximated. `—` means the product's own reference does not name the field, and **dropped** means it names it as one it accepts and does not act on.
 
 | field | `claude` | `codex` | `pi` | `opencode` | `cursor` | `antigravity` |
 |---|---|---|---|---|---|---|
@@ -109,9 +115,9 @@ Generated from the same rows as the section above, for every harness in this est
 
 ## Before you ship one
 
-- **The surface is declared, so the component is a promise.** Every kind   this provider declares is a promise of a rollback. A component written   to a path the declaration does not carry is installed by nobody and   removed by nobody.
-- **Name it once.** Where the product derives identity from the directory   or the filename, the frontmatter `name` is either redundant or a second   place to be wrong. Keep them equal.
-- **Read it back.** After an install, look at the file where the product   reads it, not at the step that put it there.
+- **The surface is declared, so the component is a promise.** Every kind this provider declares is a promise of a rollback. A component written to a path the declaration does not carry is installed by nobody and removed by nobody.
+- **Name it once.** Where the product derives identity from the directory or the filename, the frontmatter `name` is either redundant or a second place to be wrong. Keep them equal.
+- **Read it back.** After an install, look at the file where the product reads it, not at the step that put it there.
 
 ## Hook
 
@@ -139,16 +145,17 @@ Generated from the same rows as the section above, for every harness in this est
 
 ## Events
 
-`SessionStart`  `SessionEnd`  `SubagentStart`  `SubagentStop`  `PreToolUse`  `PostToolUse`  `PermissionRequest`  `PreCompact`  `PostCompact`  `UserPromptSubmit`  `Stop`
+`SessionStart`  `SessionEnd`  `SubagentStart`  `SubagentStop`  `PreToolUse`  `PostToolUse`  `PermissionRequest`  `PreCompact`  `PostCompact`  `UserPromptSubmit`  `Stop`  `Interrupt`
 
 ## What bites
 
 - **Hooks are trusted by hash, and this changes what an install means.** The vendor is explicit: *"Before a non-managed hook can run, Codex requires you to review and trust the exact hook definition. Codex records trust against the hook's current hash, so new or changed hooks are marked for review and skipped until trusted."* So writing this file -- by an install, or by a restore putting back a file that was trusted before -- leaves the hooks inert until a person runs `/hooks` and trusts them again. A setup that carries hooks cannot promise they are active, only that the file is in place. Say so where a reader will see it.
 - This surface is a single JSON **file**, not a directory of them. The other harness in this estate that routes hooks does the opposite; a hook moved between the two has to be repackaged.
+- **A hook is useful policy, not a complete enforcement boundary.** Some specialised tool paths bypass tool hooks, and matching hooks for one event start concurrently. Keep hard security boundaries in the sandbox and permission layer. An async hook cannot block, approve or rewrite the operation that started it.
 
 ## The same file on the other harnesses
 
-Generated from the same rows as the section above, for every harness in this estate that routes this kind. `—` means the product's own reference does not name the field, and **dropped** means it names it as one it accepts and does not act on.
+Generated from the same rows as the section above, for every harness in this estate that describes this kind the same way. A harness that routes the kind another way is absent rather than approximated. `—` means the product's own reference does not name the field, and **dropped** means it names it as one it accepts and does not act on.
 
 | field | `codex` | `grok` | `antigravity` |
 |---|---|---|---|
@@ -171,9 +178,9 @@ Generated from the same rows as the section above, for every harness in this est
 
 ## Before you ship one
 
-- **The surface is declared, so the component is a promise.** Every kind   this provider declares is a promise of a rollback. A component written   to a path the declaration does not carry is installed by nobody and   removed by nobody.
-- **Name it once.** Where the product derives identity from the directory   or the filename, the frontmatter `name` is either redundant or a second   place to be wrong. Keep them equal.
-- **Read it back.** After an install, look at the file where the product   reads it, not at the step that put it there.
+- **The surface is declared, so the component is a promise.** Every kind this provider declares is a promise of a rollback. A component written to a path the declaration does not carry is installed by nobody and removed by nobody.
+- **Name it once.** Where the product derives identity from the directory or the filename, the frontmatter `name` is either redundant or a second place to be wrong. Keep them equal.
+- **Read it back.** After an install, look at the file where the product reads it, not at the step that put it there.
 
 # The Commands This Program Answers
 
@@ -195,14 +202,15 @@ restore   [--backup <ref>] --target <dir>     the last backup, or a named one
 hold      --backup <ref> [--reason <why>] --target <dir>
 release   --backup <ref> --target <dir>
 remove    --target <dir>                      the files this program recorded writing
+adopt     --target <dir>                      take over a target the earlier provider left
 software  --prefix <dir>                      which product versions a prefix holds
 rollback  --to <version> --prefix <dir>       point the command at one already there
 ```
 
 There is no `--json` on these. JSON is the **provider** surface --
 `provider-info`, `status --target <dir> --json`, `validate-bundle`,
-`plan-operation`, `apply-operation`, `recover-operation` -- and a consumer calls
-those.
+`plan-operation`, `apply-operation`, `recover-operation`, `launch` -- and a
+consumer calls those.
 
 ## Invariants worth knowing before changing anything
 
@@ -345,8 +353,8 @@ When changing provider implementation, run that checkout's CI checks:
 
 ```bash
 cargo fmt --all --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked --all-targets
 ```
 
 Report each result and any unavailable check. The cargo commands apply only
@@ -428,7 +436,9 @@ Never change the running agent's active configuration in place.
 | comments | **parse** |
 | home moved by | `CODEX_HOME` |
 
-TOML, so `#` comments are part of the grammar. No JSON schema is possible for it and none is expected; the setups are checked by parsing instead.
+TOML, so `#` comments are part of the grammar. A JSON schema cannot be embedded in it, and none was expected when this was measured; the setups are checked by parsing instead.
+
+**Corrected 2026-09-29: the vendor does publish one.** A `config-schema.json` asset ships with each release and is recorded under `configuration_schema`; a TOML file carries no `$schema` line, which is what this sentence meant by 'possible', and the schema still answers whether a written key is a key the product has.
 
 ## The same question on the other harnesses
 
@@ -444,8 +454,7 @@ TOML, so `#` comments are part of the grammar. No JSON schema is possible for it
 
 **A comment is not a stylistic choice.** In a strict-JSON file a `//` is
 a parse error, and the product does not start rather than starting
-without your setting. Two of the seven take comments; the rest do not,
-and one of those takes them at two spellings of the same file.
+without your setting. Three of the seven take comments; the rest do not, and one of those takes them at two spellings of the same file.
 
 ## Before you write one
 
@@ -460,7 +469,7 @@ and one of those takes them at two spellings of the same file.
 - **A value here may not be the effective one.** Where an administrator
   layer exists it clamps everything below it, so a setup can install,
   verify and restore cleanly on a managed machine and change nothing.
-  the `nddev-surfaces` prompt, and `codex-setup-system provider-info`, records which layers this product has and
+  The `nddev-surfaces` prompt and `codex-setup-system provider-info` record which layers this product has and
   what was searched for the ones it does not.
 
 
@@ -495,10 +504,10 @@ This row stays `page` because **a path built by joining a directory to a name at
 | `pi` | `AGENTS.md` | file |
 
 **They are not interchangeable, and the difference is not only the
-name.** One of the seven takes a *directory* of rules rather than a
+name.** Two of the seven take a *directory* of rules rather than a
 single document, so a file moved between the two is not a rename.
 
-**Some products read a neighbour's.** the `nddev-surfaces` prompt, and `codex-setup-system provider-info`, records
+**Some products read a neighbour's.** The `nddev-surfaces` prompt and `codex-setup-system provider-info` record
 every such cross-read this estate has measured, on the declined rows:
 a file written for one product can change what a second one sees, and
 removing a setup can change what a third one sees. That is a property
@@ -514,16 +523,44 @@ list is worth reading before writing here.
   put it. Several of these products resolve a home through an override
   chain, and the two are not always the same directory.
 
+## The owned region inside it
 
-# The second target this harness owns
+A setup's `instruction` component does not replace `AGENTS.md`;
+the consumer's text lives inside one marked region spliced between
+`:::begin-ai-stp` and `:::end-ai-stp` -- visible markers, because at
+least one product strips HTML comments. Every byte outside the pair
+is preserved, and re-applying identical bytes is a no-op.
+
+- **`patch_instruction_region`** is the operation that changes it,
+  carrying the new section under `--instruction-section` -- exactly
+  one ordered marker pair. Planning records the file's observed
+  digest and presence; apply re-reads both and refuses a drifted
+  file rather than splicing into text it did not measure.
+- **`detach_instruction_region`** removes the marked section and
+  nothing else. A file that held only the region is removed with
+  it; a file that never had one detaches to itself, so a repeat
+  is a no-op rather than an error.
+- **Both refuse a `--target-scope`.** The region lives at the
+  target root, a scoped request cannot address it, and `status`
+  reports `instruction_region: null` under a scoped measure.
+- **It is not whole-setup payload.** Install, replace, remove and
+  reset preserve or detach the region through the kernel's two
+  hooks instead of treating it as text they are free to empty.
+- **Ambiguous markers refuse at plan time.** An unpaired or
+  out-of-order marker fails before anything is written -- never
+  as a mid-apply surprise.
+
+
+# The scoped targets this harness owns
 
 ## `target_scope: user_root`, rooted at `~/.agents`
 
 **`~/.agents` is not this product's configuration home.** It is a
 different target, reached by a consumer naming the scope on the
-request, and every path below is relative to that root rather than
-to the home -- writing the root into the path again would nest it
-twice, which is a mistake this estate has made and shipped.
+request, and every path below is relative to that root rather
+than to the home -- writing the root into the path again would
+nest it twice, which is a mistake this estate has made and
+shipped.
 
 | path | routes | decided by | exercised by |
 |---|---|---|---|
@@ -559,11 +596,12 @@ into a slot here and never reverted out of one.
 
 ## `target_scope: project`, rooted at `project root`
 
-**`project root` is not this product's configuration home.** It is a
-different target, reached by a consumer naming the scope on the
-request, and every path below is relative to that root rather than
-to the home -- writing the root into the path again would nest it
-twice, which is a mistake this estate has made and shipped.
+**This scope's target is the workspace root** (the record names
+its anchor `project root`), not this product's configuration home.
+It is a different target, reached by a consumer naming the
+scope on the request, and every path below is relative to the
+workspace root -- a product-owned directory stays part of the
+path.
 
 | path | routes | decided by | exercised by |
 |---|---|---|---|
@@ -581,6 +619,10 @@ The project hook manifest retains its .codex parent under the repository root. T
 Considered under this scope and not owned:
 
 - **`AGENTS.override.md`** — This is an intentional project-local override. A setup owning it could silently suppress the shared AGENTS.md it installs.
+- **`.codex/config.toml`** — Project-scoped config honoured only inside trusted projects, with an ignored-key list that includes `model_provider`, `notify`, `profile` and `otel`. A provider-owned setup writing it would fight the product's own trust layer and per-user keys it may not contain.
+- **`.codex/rules/*.rules`** — Project-scoped execpolicy rule files -- a security policy surface the owner repository authors, not something a provider posture should rewrite.
+- **`.codex/agents/*.toml`** — Project-scoped agent role definitions. The builder's own reference cites this directory; ownership of project-scoped roles belongs to the repository that defines the project.
+- **`.agents/skills`** — Repository-level skills directory the product reads beside the user-level `~/.agents/skills`. Project content, not a provider-owned install surface.
 
 
 **A complete setup may include these scoped components.** Each
