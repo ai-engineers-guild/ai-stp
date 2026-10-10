@@ -32,6 +32,7 @@ enum Handler {
     Versions,
     ProjectIndex,
     ProjectSymbols,
+    ProjectTechnology,
     ProjectDiscover,
     CatalogSearch,
     CatalogShow,
@@ -510,6 +511,12 @@ const COMMANDS: &[Declaration] = &[
         handler: Handler::ProjectIndex,
     },
     Declaration {
+        path: &["project", "technology", "inspect"],
+        summary: "Observe bounded technology declarations and lock records without executing, installing or publishing anything.",
+        parameters: &[ROOT],
+        handler: Handler::ProjectTechnology,
+    },
+    Declaration {
         path: &["project", "symbols"],
         summary: "Summarize bounded source declarations with explicit syntax-tree or approximate line-scan evidence.",
         parameters: &[ROOT],
@@ -923,13 +930,17 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
                 .map(|values| values.cloned().collect::<Vec<_>>())
                 .unwrap_or_default(),
         ),
-        Handler::ProjectIndex | Handler::ProjectDiscover | Handler::ProjectSymbols => {
+        Handler::ProjectIndex
+        | Handler::ProjectDiscover
+        | Handler::ProjectSymbols
+        | Handler::ProjectTechnology => {
             let root = leaf
                 .get_one::<std::path::PathBuf>("root")
                 .ok_or_else(|| Failure::input("root is required"))?;
             match declaration.handler {
                 Handler::ProjectIndex => projects::index(root),
                 Handler::ProjectSymbols => projects::symbols(root),
+                Handler::ProjectTechnology => projects::technology::inspect(root),
                 _ => projects::discover(root),
             }
         }

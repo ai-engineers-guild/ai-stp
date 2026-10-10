@@ -612,6 +612,40 @@ bounded external ZIP reader as GitHub and Go. The profile follows the
 and [core metadata](https://packaging.python.org/en/latest/specifications/core-metadata/)
 for the fields it consumes, with the native-provider restrictions above.
 
+`project technology inspect --root` reports local technology evidence from the
+same held-handle byte stream as the index. It does not execute project commands,
+resolve dependency graphs, install packages, write identity/state or publish.
+The report carries exact file hashes and the SHA-256 of the RFC 8785 index bytes;
+paths remain byte-preserving, including decomposed Unicode. Declarations,
+configuration, source presence, lock records and checksum records remain distinct.
+`declared_range`, `locked_version`, `recorded_version` and `unknown` never assert
+an installed version. `go.sum` is checksum history; lock membership, workspace
+catalog entries and source presence use `unspecified` context rather than claiming
+production use. Conditional dependencies and groups are observed without evaluating
+markers, features or workspace inheritance.
+
+The native adapters read Python manifests/requirements/groups, Node manifests,
+Cargo declarations, Dart manifests, Pipfile/Conda declarations, structured
+Cargo/uv/Poetry/npm 2–3/pnpm/Yarn Berry/Dart lock records, Go declarations/checksums,
+Docker FROM and Compose/GitLab image declarations, and explicit runtime files.
+Canonical IDs come only from the generated `technology_seed` coordinate projection;
+`just back-gen`, `just back-static` and CI keep it aligned with the single owner.
+Unknown coordinates remain unmapped. Matching a filename is configuration evidence,
+not proof that its tool ran. Source bodies, dependency URLs, scripts and image
+credentials never enter findings. The inspected project is never a mapping authority.
+
+Parsing uses the index's 1 MiB file, depth/entry and shared 20-second limits,
+with at most 2,000 parsed manifests, 4,096 distinct claims, sixteen representative
+traces per claim and 4 MiB of trace metadata. YAML has one document, depth 64,
+50,000 events, no aliases or merge keys, and rejects duplicate keys and unsupported tags.
+Invalid/unavailable/oversized or excluded supported manifests, exhausted budgets,
+external requirement includes, dynamic image references, unresolved external CI or
+Compose includes, npm v1 and Yarn classic lockfiles produce `partial`. `complete`
+means the defined detection surface was traversed, not that every language, manifest
+format or runtime was verified. Unsupported files remain outside that surface.
+Retained scan/review decisions, organization mappings and publication are separate
+operations; inspection alone does not complete the retained `project detect` journey.
+
 `project symbols` summarizes public top-level declarations and entry-point files
 from the same held-handle reads as `project index`; it never reopens indexed
 paths or emits source bodies. Python uses pinned Tree-sitter syntax nodes, while
