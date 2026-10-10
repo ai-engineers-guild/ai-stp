@@ -1,0 +1,140 @@
+name: cli-v2-release
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/cli-v2-release.yml
+      - apps/cli-v2/scripts/package_release.py
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact Rust preview version (for example 0.1.0-preview.1)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cli-v2-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: archive-${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            binary: ai-stp-v2
+            extension: tar.gz
+          - os: macos-15
+            target: aarch64-apple-darwin
+            binary: ai-stp-v2
+            extension: tar.gz
+          - os: windows-2025
+            target: x86_64-pc-windows-msvc
+            binary: ai-stp-v2.exe
+            extension: zip
+    env:
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - name: Dispatch must name its exact release tag
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF}" = "refs/tags/cli-v2-v${EXPECTED_VERSION}"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.14"
+      - name: Bind version and isolate the contract oracle
+        shell: bash
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          version=$(python -c 'import pathlib,tomllib; print(tomllib.loads(pathlib.Path("apps/cli-v2/Cargo.toml").read_text())["package"]["version"])')
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            test "${version}" = "${EXPECTED_VERSION}"
+            git merge-base --is-ancestor HEAD origin/main
+          fi
+          python_path=$(python -c 'import sys; print(sys.executable)')
+          {
+            echo "RELEASE_VERSION=${version}"
+            echo "UV_PYTHON=${python_path}"
+            echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-rust-release-oracle"
+            echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
+          } >> "${GITHUB_ENV}"
+          bash .github/scripts/install-uv.sh "0.12.23" "${RUNNER_TEMP}/uv"
+          echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
+      - name: Install the development oracle
+        shell: bash
+        run: uv sync --locked --package ai-stp-cli --no-default-groups --no-editable
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/cli-v2/target
+          key: cli-v2-${{ runner.os }}-${{ hashFiles('apps/cli-v2/Cargo.*', 'apps/cli-v2/*.toml') }}
+      - name: Build the native executable
+        working-directory: apps/cli-v2
+        shell: bash
+        run: python scripts/with_libclang.py cargo build --locked --release --bin ai-stp-v2
+      - name: Package and verify the extracted executable outside checkout
+        shell: bash
+        env:
+          RELEASE_TARGET: ${{ matrix.target }}
+          RELEASE_BINARY: ${{ matrix.binary }}
+          RELEASE_EXTENSION: ${{ matrix.extension }}
+        run: |
+          set -euo pipefail
+          python apps/cli-v2/scripts/package_release.py build \
+            --binary "apps/cli-v2/target/release/${RELEASE_BINARY}" \
+            --target "${RELEASE_TARGET}" --version "${RELEASE_VERSION}" \
+            --revision "${GITHUB_SHA}" --output release
+          python apps/cli-v2/scripts/package_release.py verify \
+            --archive "release/ai-stp-cli-v2-${RELEASE_VERSION}-${RELEASE_TARGET}.${RELEASE_EXTENSION}" \
+            --target "${RELEASE_TARGET}" --version "${RELEASE_VERSION}" \
+            --revision "${GITHUB_SHA}" --install-directory "${RUNNER_TEMP}/ai-stp-rust-install"
+          uv run --no-sync python apps/cli-v2/scripts/verify.py \
+            "${RUNNER_TEMP}/ai-stp-rust-install/${RELEASE_BINARY}"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ai-stp-rust-${{ matrix.target }}-${{ github.sha }}
+          path: release/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  attest:
+    name: attest-preview-archives
+    if: github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      # No checkout or repository code executes on the OIDC-bearing runner.
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: ai-stp-rust-*-${{ github.sha }}
+          path: release
+          merge-multiple: true
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: release/*
