@@ -53,7 +53,8 @@ impl Request {
         Self::from_value(canonical::parse(&files::read(path, MAX_REQUEST)?)?, empty)
     }
 
-    fn from_value(value: Value, empty: bool) -> Result<Self> {
+    fn from_value(mut value: Value, empty: bool) -> Result<Self> {
+        crate::provider::managed::resolve_request(&mut value);
         let request: Self = serde_json::from_value(value).map_err(|_| invalid())?;
         request.selector().validate()?;
         if request.members.is_empty() != empty
@@ -103,18 +104,10 @@ struct Selector {
 impl Selector {
     fn validate(&self) -> Result<()> {
         harnesses::definition(&self.harness_id)?;
-        let version = &self.provider_version;
-        if self.harness_id == "undefined"
-            || version.len() > 64
-            || version.split('.').count() != 3
-            || version.split('.').any(|part| {
-                part.parse::<u64>().is_err()
-                    || !part.bytes().all(|b| b.is_ascii_digit())
-                    || part.len() > 1 && part.starts_with('0')
-            })
-        {
+        if self.harness_id == "undefined" {
             return Err(invalid());
         }
+        crate::provider::managed::sequence(&self.provider_version)?;
         Ok(())
     }
 

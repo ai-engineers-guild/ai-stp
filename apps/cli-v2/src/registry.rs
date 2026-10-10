@@ -783,6 +783,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
             "task_intents": [], "supported_harnesses": [], "catalog_enabled": true, "sync_enabled": false,
             "state_access": "explicit_snapshot_and_isolated_authoring", "cache_access": "explicit_public_catalog_cache",
             "identity_access": "explicit_isolated_device",
+            "managed_provider_version": crate::provider::managed::RELEASE,
             "authoring_access": "identity_bound_local_plans", "readable_local_schema_versions": [snapshot::SCHEMA_VERSION]})),
         Handler::Help => help(
             leaf.get_one::<String>("path").map_or("", String::as_str),

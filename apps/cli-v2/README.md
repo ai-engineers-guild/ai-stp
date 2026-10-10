@@ -14,6 +14,26 @@ Install Rust through rustup; `rust-toolchain.toml` selects the toolchain.
 `Cargo.toml` owns direct dependency choices and `Cargo.lock` owns the resolved
 graph. Builds and checks use `--locked`. On Windows the executable has `.exe`.
 
+## Managed setup components
+
+Setup systems are ai-stp installation components with separate source/release
+repositories (ADR-0228). The native CLI acquires and invokes their authenticated
+executables itself; users do not install a second setup-manager CLI.
+
+New provider commands may omit `--version`; new selection and bundle commands
+may omit `--provider-version`. Eligibility, composition and matrix request JSON
+may omit `provider_version`. `src/provider/managed.rs` owns the one exact build
+pin, also reported by `capabilities.managed_provider_version`. An explicit version remains exact; empty, null and floating values refuse.
+Resolution occurs before planning. Stored plans and receipts still require their
+original version, including after the build pin changes; replay never upgrades
+an operation. Acquisition still verifies the complete publisher policy and bytes.
+The pin is a choice, not authentication or installation eligibility.
+
+The existing `provider` command group is the expert interface inside this CLI.
+No separate setup-system command is required for the implemented read/prepare
+journeys. Writable installation, coordinated component release/update and the
+production switch remain C4/C6/C7 work; the preview does not claim them.
+
 ## Contract
 
 `registry.rs` owns command definitions, parsing, descriptors and the registry
@@ -1459,7 +1479,7 @@ noncanonical values refuse before mechanical assessment.
 
 `select eligibility --state-dir --request` connects that assessment to the native
 runtime. The closed request names a concrete `harness_id`, `scope`, exact
-`provider_version`, 1–512 exact `members` and optional `for_redistribution`.
+optional exact `provider_version`, 1–512 exact `members` and optional `for_redistribution`.
 Each member has only `stable_id`, `version` and `passport_digest`; the request is
 limited to 256 KiB. Identity comes from the isolated credential store, platform
 from the executing CLI, and provider capabilities from authenticated artifact
@@ -1511,7 +1531,7 @@ row and cannot undo confirmation.
 `select eligibility-matrix --state-dir --request` discovers local component and
 setup candidates and evaluates each independently across explicit harness
 selectors. The closed request is at most 16 KiB: `targets` contains one to seven
-distinct `harness_id`, `scope`, exact `provider_version` selectors; optional
+distinct `harness_id`, `scope`, optional exact `provider_version` selectors; optional
 `after` is an object identity cursor, `limit` is 1–50 (default 10), and
 `for_redistribution` defaults to false. Targets are sorted by harness identity.
 No caller-supplied rights, evidence, provider declaration or installed version
@@ -1541,7 +1561,7 @@ fresh page observation, not a transaction spanning CLI calls.
 
 `select reports --state-dir --request` reports composition and conversion before
 confirmation or bundle publication. Its closed request, up to 256 KiB, is either
-the exact eligibility request or `proposal_id`, `scope`, `provider_version`.
+the exact eligibility request or `proposal_id`, `scope`, optional exact `provider_version`.
 For a proposal, the harness and members come from the retained bounded record.
 The report evaluates current evidence; it displays the proposal's current state
 and marks context freshness unevaluated rather than authorizing confirmation.

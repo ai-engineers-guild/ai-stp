@@ -14,6 +14,30 @@ const AT: &str = "2026-10-09T00:00:00.000Z";
 #[test]
 fn local_runtime_reads_real_artifacts_without_inventing_rights()
 -> std::result::Result<(), Box<dyn Error>> {
+    // Defaults belong to new input; a retained selector must stay exact.
+    let request = json!({"harness_id":"codex","scope":"global","members":[]});
+    assert_eq!(
+        Request::from_value(request.clone(), true)?.provider_version,
+        crate::provider::managed::RELEASE
+    );
+    for version in [
+        json!(null),
+        json!(""),
+        json!("latest"),
+        json!("01.0.0"),
+        json!("1.1000.0"),
+        json!("1.0.1000"),
+    ] {
+        let mut changed = request.clone();
+        changed["provider_version"] = version;
+        assert!(Request::from_value(changed, true).is_err());
+    }
+    let mut exact = request;
+    exact["provider_version"] = "1.2.3".into();
+    assert_eq!(Request::from_value(exact, true)?.provider_version, "1.2.3");
+    assert!(
+        serde_json::from_value::<Selector>(json!({"harness_id":"codex","scope":"global"})).is_err()
+    );
     let directory = tempfile::tempdir()?;
     let mut store = Store::open(directory.path(), true)?;
     let identity = Identity {
@@ -150,8 +174,8 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
         &identity.device_id,None,Write::Advance {expected_heads:&[]}))?;
     let matrix_path = directory.path().join("matrix.json");
     let mut matrix_request = json!({"targets":[
-        {"harness_id":"codex","scope":"global","provider_version":"0.0.88"},
-        {"harness_id":"claude-code","scope":"global","provider_version":"0.0.88"}]});
+        {"harness_id":"codex","scope":"global"},
+        {"harness_id":"claude-code","scope":"global"}]});
     std::fs::write(&matrix_path, serde_json::to_vec(&matrix_request)?)?;
     let request = matrix::Request::parse(&matrix_path)?;
     let providers = ["claude-code", "codex"]
@@ -169,6 +193,10 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
     assert_eq!(
         report["targets"][0]["selector"]["harness_id"],
         "claude-code"
+    );
+    assert_eq!(
+        report["targets"][0]["selector"]["provider_version"],
+        crate::provider::managed::RELEASE
     );
     let candidates = report["candidates"].as_array().ok_or("candidates")?;
     assert_eq!(candidates.len(), 4);

@@ -1,11 +1,7 @@
 //! Shared compiled publisher authority and unambiguous release sequences.
 
 use super::{refused, wheel};
-use crate::{
-    error::{Failure, Result},
-    harnesses,
-    provenance::Publisher,
-};
+use crate::{error::Result, harnesses, provenance::Publisher};
 use toml_edit::DocumentMut;
 
 pub(super) const POLICY: &str =
@@ -21,34 +17,7 @@ pub(super) struct Request {
 
 pub(super) fn request(harness: &str, version: &str, platform: &str) -> Result<Request> {
     harnesses::definition(harness)?;
-    if version.len() > 32 {
-        return Err(Failure::input(
-            "the provider version exceeds its byte bound",
-        ));
-    }
-    let numbers = version
-        .split('.')
-        .map(|part| {
-            part.parse::<u32>()
-                .ok()
-                .filter(|number| number.to_string() == part)
-                .ok_or_else(|| {
-                    Failure::input("provider acquisition requires an exact canonical X.Y.Z version")
-                })
-        })
-        .collect::<Result<Vec<_>>>()?;
-    if numbers.len() != 3 {
-        return Err(Failure::input(
-            "provider acquisition requires an exact canonical X.Y.Z version",
-        ));
-    }
-    if numbers[1] >= 1000 || numbers[2] >= 1000 {
-        return Err(Failure::input(
-            "provider policy sequences require minor and patch versions below 1000",
-        ));
-    }
-    let sequence =
-        u64::from(numbers[0]) * 1_000_000 + u64::from(numbers[1]) * 1000 + u64::from(numbers[2]);
+    let sequence = crate::provider::managed::sequence(version)?;
     let tag = wheel::platform_tag(platform)?;
     let package = match harness {
         "claude-code" => "claude",
@@ -139,6 +108,24 @@ mod tests {
 
     #[test]
     fn policy_sequences_cannot_alias_another_release() -> Result<()> {
+        for harness in [
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build",
+            "cursor",
+            "antigravity",
+        ] {
+            let managed = request(
+                harness,
+                crate::provider::managed::version(None)?,
+                "linux/x86_64",
+            )?;
+            assert_eq!(managed.sequence, 88);
+            assert!(managed.publisher.repository.ends_with(&managed.project));
+        }
+        assert_eq!(crate::provider::managed::version(Some("1.2.3"))?, "1.2.3");
         let last = request("claude-code", "1.999.999", "linux/x86_64")?;
         let next = request("claude-code", "2.0.0", "linux/x86_64")?;
         assert_eq!(last.sequence + 1, next.sequence);

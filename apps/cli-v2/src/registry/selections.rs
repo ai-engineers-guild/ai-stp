@@ -93,9 +93,9 @@ pub(super) const COMMANDS: &[Declaration] = &[
             },
             Parameter {
                 name: "provider-version",
-                summary: "Exact authenticated provider X.Y.Z.",
+                summary: "Exact setup-component X.Y.Z override; omission resolves this build's managed release before planning.",
                 kind: ParameterType::String,
-                required: true,
+                required: false,
             },
             Parameter {
                 name: "target",
@@ -144,7 +144,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             },
             Parameter {
                 name: "request",
-                summary: "Eligibility request JSON with exact component roots, scope and provider_version; redistribution must be false.",
+                summary: "Eligibility request JSON with exact component roots, scope and optional exact provider_version; redistribution must be false.",
                 kind: ParameterType::Path,
                 required: true,
             },
@@ -171,9 +171,9 @@ pub(super) const COMMANDS: &[Declaration] = &[
             },
             Parameter {
                 name: "provider-version",
-                summary: "The exact provider X.Y.Z used for the proposal; a new effect authenticates it again.",
+                summary: "Exact setup-component X.Y.Z override; omission resolves this build's managed release before planning.",
                 kind: ParameterType::String,
-                required: true,
+                required: false,
             },
         ],
         handler: super::Handler::Selection(Handler::Confirm),
@@ -257,7 +257,10 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                 passport_digest: text(args, "passport-digest")?.into(),
             },
             scope(args)?,
-            text(args, "provider-version")?,
+            crate::provider::managed::version(
+                args.get_one::<String>("provider-version")
+                    .map(String::as_str),
+            )?,
             args.get_one::<PathBuf>("target").map(PathBuf::as_path),
             path(args, "output")?,
         ),
@@ -271,7 +274,13 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         Handler::Confirm => sessions::decision(
             path(args, "state-dir")?,
             text(args, "id")?,
-            Some((scope(args)?, text(args, "provider-version")?)),
+            Some((
+                scope(args)?,
+                crate::provider::managed::version(
+                    args.get_one::<String>("provider-version")
+                        .map(String::as_str),
+                )?,
+            )),
         ),
         Handler::Cancel => sessions::decision(path(args, "state-dir")?, text(args, "id")?, None),
         Handler::Apply => sessions::apply(path(args, "plan")?, text(args, "plan-digest")?),

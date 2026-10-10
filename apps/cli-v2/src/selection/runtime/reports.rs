@@ -40,8 +40,9 @@ struct Selected {
 
 impl Source {
     fn parse(path: &Path) -> Result<Self> {
-        let value = canonical::parse(&files::read(path, MAX_REQUEST)?)?;
+        let mut value = canonical::parse(&files::read(path, MAX_REQUEST)?)?;
         if value.get("proposal_id").is_some() {
+            crate::provider::managed::resolve_request(&mut value);
             let request: ProposalRequest = serde_json::from_value(value).map_err(|_| invalid())?;
             if !passport::stable_id(&request.proposal_id, "proposal") {
                 return Err(invalid());
