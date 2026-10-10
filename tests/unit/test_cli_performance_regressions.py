@@ -26,6 +26,7 @@ from ai_stp_cli.local import harnesses, project_index
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_contracts.model import ContractModel
 
+
 @pytest.fixture
 def registry() -> Iterator[sqlite3.Connection]:
     with closing(open_registry(configured_path(), create=True)) as connection:
