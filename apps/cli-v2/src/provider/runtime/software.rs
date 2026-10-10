@@ -1,8 +1,9 @@
-//! Authenticated software plans over two held, read-only product directories.
+//! Authenticated software plans over a held target and an observed program prefix.
 
+use cap_std::fs::Dir;
 use serde_json::{Value, json};
 
-use super::{Runtime, TargetRequest, platform, target::Target, unavailable};
+use super::{Runtime, TargetRequest, platform, prefix::Prefix, target::Target, unavailable};
 use crate::{
     digest,
     error::{Failure, Result},
@@ -10,15 +11,31 @@ use crate::{
 };
 use std::path::Path;
 
+struct Observation {
+    report: Value,
+    target: Target,
+    prefix: Prefix,
+    state: Dir,
+}
+
 pub(super) fn observe(
     runtime: &Runtime,
     context: &TargetRequest<'_>,
     prefix: &Path,
     request: &Request,
 ) -> Result<Value> {
+    Ok(observe_held(runtime, context, prefix, request)?.report)
+}
+
+fn observe_held(
+    runtime: &Runtime,
+    context: &TargetRequest<'_>,
+    prefix: &Path,
+    request: &Request,
+) -> Result<Observation> {
     request.check_time(jiff::Timestamp::now())?;
     let target = Target::open(context.path)?;
-    let prefix = Target::open(prefix)?;
+    let prefix = Prefix::open(prefix)?;
     let state = target.state_parent(context.state_parent)?;
     prefix.disjoint(&state)?;
     prefix.disjoint(&target.directory()?)?;
@@ -101,7 +118,12 @@ pub(super) fn observe(
     report["plan"] = plan;
     report["plan_response_digest"] = digest::sha256(&bytes).into();
     report["planned_at"] = jiff::Timestamp::now().to_string().into();
-    Ok(report)
+    Ok(Observation {
+        report,
+        target,
+        prefix,
+        state,
+    })
 }
 
 /// Acquisition owns only isolated cache files; a report is not write authority.
@@ -116,12 +138,12 @@ pub(super) fn acquire(
             "software removal requires no artifact acquisition",
         ));
     }
-    let mut report = observe(runtime, context, prefix, request)?;
-    let target = Target::open(context.path)?;
-    let prefix = Target::open(prefix)?;
-    let state = target.state_parent(context.state_parent)?;
-    prefix.disjoint(&state)?;
-    prefix.disjoint(&target.directory()?)?;
+    let Observation {
+        mut report,
+        target,
+        prefix,
+        state,
+    } = observe_held(runtime, context, prefix, request)?;
     let acquired =
         crate::provider::software::download::acquire(&state, context.harness, &report["plan"])?;
     target.revalidate()?;
