@@ -77,16 +77,20 @@ The coordinated component release 0.0.89 passed source gates, all seven public
 repositories' three-OS native checks, immutable publication and installed-consumer
 readback. The Rust fresh-program service passed all seven authenticated Linux
 installation journeys, publication/cancellation interruptions, competing writers
-and actual partial-write process termination. These are bounded C4 results;
-they do not complete configuration installation or production cutover.
+and actual partial-write process termination. Held-directory SQLite containment
+also passed checks at actual mutation boundaries. The catalog reconciliation
+preserved all 106 identities, advanced 85 changed sealed passports once and kept
+21 versions byte-identical. Ordinary publication and anonymous readback verified
+all original/current passports, exact artifacts and latest index versions.
+These are bounded C4 results; they do not complete configuration installation,
+native connected capabilities or production cutover.
 
 Execute the remaining integration in this order:
 
-1. Verify held-directory SQLite containment at actual mutation boundaries and
-   integrate the accepted managed-default fresh-program service.
-   Reconcile the packaged/public catalog with the attested component release;
-   preserve stable IDs and give changed sealed passports new immutable versions.
-   Reconcile C3 business coverage alongside C4; command counts are not acceptance.
+1. Reconcile C3 business coverage alongside C4, including remaining harness
+   formats, credential handling and native transformations. Verify the connected
+   author-to-install journey as its remaining services become available;
+   command counts and isolated installation proofs are not acceptance.
 2. Complete configuration execution without automatic backups, existing program
    update/removal. Retain caller operation IDs,
    complete original plan digests, admitted-operation recovery after expiry and
