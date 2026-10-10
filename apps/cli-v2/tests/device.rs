@@ -55,11 +55,27 @@ fn device_observations_are_owned_revalidated_and_do_not_manufacture_history()
             })
         })
         .collect();
-    let results = writers
+    let mut results = writers
         .into_iter()
         .map(|h| h.join().map_err(|_| "writer panicked"))
         .collect::<Result<Vec<_>, _>>()?;
     assert_eq!(results.iter().filter(|(_, r)| r.is_ok()).count(), 1);
+    // A slow first registry bootstrap can outlast the bounded directory lock.
+    // Both writers have now exited: retry only that transient refusal, then
+    // require the same stale-plan conflict as a contender that acquired it.
+    for (plan, result) in &mut results {
+        if result.as_ref().is_err_and(|error| {
+            matches!(error.kind, ErrorKind::Unavailable)
+                && error
+                    .details
+                    .get("stage")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("lock_timeout")
+        }) {
+            let mut store = Store::open(root.path(), false)?;
+            *result = device::apply(&mut store, plan, &plan.digest()?, &identity, AT);
+        }
+    }
     for error in results
         .iter()
         .filter_map(|(_, result)| result.as_ref().err())

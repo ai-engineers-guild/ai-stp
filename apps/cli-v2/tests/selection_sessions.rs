@@ -418,7 +418,7 @@ fn durable_selection_rechecks_context_and_commits_one_complete_effect() -> Resul
         .map(|outcome| match outcome {
             Ok(value) => Ok(value),
             Err(error) => {
-                assert!(matches!(error.kind, ErrorKind::Precondition), "{error:?}");
+                assert!(matches!(error.kind, ErrorKind::Unavailable), "{error:?}");
                 assert_eq!(
                     error.details.get("stage").and_then(Value::as_str),
                     Some("lock_timeout")

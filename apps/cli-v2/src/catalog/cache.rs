@@ -28,7 +28,6 @@ impl Cache {
     pub fn open(root: &Path, create: bool) -> Result<Option<Self>> {
         files::OwnedDirectory::open(root, "ai-stp-v2-catalog", OWNER, create)
             .map(|owned| owned.map(|storage| Self { storage }))
-            .map_err(|_| invalid())
     }
 
     pub fn load(&self, url: &str) -> Result<Option<Entry>> {
