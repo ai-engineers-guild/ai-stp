@@ -22,6 +22,7 @@ pub(super) enum Handler {
     Status,
     Plan,
     SoftwarePlan,
+    SoftwareAcquire,
 }
 
 const HARNESS: Parameter = Parameter {
@@ -57,30 +58,38 @@ const SCOPE: Parameter = Parameter {
     required: true,
 };
 
+const SOFTWARE_PARAMETERS: &[Parameter] = &[
+    STATE_DIR,
+    HARNESS,
+    VERSION,
+    TARGET,
+    SCOPE,
+    Parameter {
+        name: "prefix",
+        summary: "Explicit existing absolute software directory, disjoint from target and trust state.",
+        kind: ParameterType::Path,
+        required: true,
+    },
+    Parameter {
+        name: "request",
+        summary: "Closed JSON up to 8 KiB: software operation, operation_id, expires_at and optional exact software_version; omission uses the authenticated build pin.",
+        kind: ParameterType::Path,
+        required: true,
+    },
+];
+
 pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
         path: &["provider", "software", "plan"],
         summary: "Observe an exact software plan through an authenticated provider with read-only target and prefix mounts.",
-        parameters: &[
-            STATE_DIR,
-            HARNESS,
-            VERSION,
-            TARGET,
-            SCOPE,
-            Parameter {
-                name: "prefix",
-                summary: "Explicit existing absolute software directory, disjoint from target and trust state.",
-                kind: ParameterType::Path,
-                required: true,
-            },
-            Parameter {
-                name: "request",
-                summary: "Closed JSON up to 8 KiB: software operation, operation_id, expires_at and optional exact software_version; omission uses the authenticated build pin.",
-                kind: ParameterType::Path,
-                required: true,
-            },
-        ],
+        parameters: SOFTWARE_PARAMETERS,
         handler: super::Handler::Provider(Handler::SoftwarePlan),
+    },
+    Declaration {
+        path: &["provider", "software", "acquire"],
+        summary: "Acquire exact authenticated software plan artifacts into private state with streamed length and digest verification.",
+        parameters: SOFTWARE_PARAMETERS,
+        handler: super::Handler::Provider(Handler::SoftwareAcquire),
     },
     Declaration {
         path: &["provider", "network"],
@@ -130,7 +139,11 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     let runtime = Runtime::observe()?;
     match handler {
         Handler::Network => Ok(runtime.report()),
-        Handler::Inspect | Handler::Status | Handler::Plan | Handler::SoftwarePlan => {
+        Handler::Inspect
+        | Handler::Status
+        | Handler::Plan
+        | Handler::SoftwarePlan
+        | Handler::SoftwareAcquire => {
             let parent = args
                 .get_one::<PathBuf>("state-dir")
                 .ok_or_else(|| Failure::input("the explicit state parent is required"))?;
@@ -146,7 +159,10 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                     let artifact = artifact::fetch(harness, version, runtime::platform()?, &trust)?;
                     runtime.inspect(&artifact)
                 }
-                Handler::Status | Handler::Plan | Handler::SoftwarePlan => {
+                Handler::Status
+                | Handler::Plan
+                | Handler::SoftwarePlan
+                | Handler::SoftwareAcquire => {
                     let target = args
                         .get_one::<PathBuf>("target")
                         .ok_or_else(|| Failure::input("the explicit target is required"))?;
@@ -165,7 +181,7 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                     };
                     if matches!(handler, Handler::Status) {
                         runtime.status(&context)
-                    } else if matches!(handler, Handler::SoftwarePlan) {
+                    } else if matches!(handler, Handler::SoftwarePlan | Handler::SoftwareAcquire) {
                         let request = software::Request::parse(
                             &files::read(
                                 args.get_one::<PathBuf>("request").ok_or_else(|| {
@@ -178,7 +194,11 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                         let prefix = args.get_one::<PathBuf>("prefix").ok_or_else(|| {
                             Failure::input("the explicit software prefix is required")
                         })?;
-                        runtime.software_plan(&context, prefix, &request)
+                        if matches!(handler, Handler::SoftwareAcquire) {
+                            runtime.software_acquire(&context, prefix, &request)
+                        } else {
+                            runtime.software_plan(&context, prefix, &request)
+                        }
                     } else {
                         let request = plan::Request::parse(
                             &files::read(

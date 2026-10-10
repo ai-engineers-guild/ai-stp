@@ -103,3 +103,36 @@ pub(super) fn observe(
     report["planned_at"] = jiff::Timestamp::now().to_string().into();
     Ok(report)
 }
+
+/// Acquisition owns only isolated cache files; a report is not write authority.
+pub(super) fn acquire(
+    runtime: &Runtime,
+    context: &TargetRequest<'_>,
+    prefix: &Path,
+    request: &Request,
+) -> Result<Value> {
+    if request.operation == "software_remove" {
+        return Err(Failure::input(
+            "software removal requires no artifact acquisition",
+        ));
+    }
+    let mut report = observe(runtime, context, prefix, request)?;
+    let target = Target::open(context.path)?;
+    let prefix = Target::open(prefix)?;
+    let state = target.state_parent(context.state_parent)?;
+    prefix.disjoint(&state)?;
+    prefix.disjoint(&target.directory()?)?;
+    let acquired =
+        crate::provider::software::download::acquire(&state, context.harness, &report["plan"])?;
+    target.revalidate()?;
+    prefix.revalidate()?;
+    request.check_time(jiff::Timestamp::now())?;
+    report["software_downloaded"] = acquired["artifacts"]
+        .as_array()
+        .is_some_and(|items| items.iter().any(|item| item["cache_hit"] == false))
+        .into();
+    report["software_acquired"] = true.into();
+    report["acquisition"] = acquired;
+    report["acquired_at"] = jiff::Timestamp::now().to_string().into();
+    Ok(report)
+}

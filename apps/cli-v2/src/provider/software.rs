@@ -1,5 +1,8 @@
 //! Closed software plan requests; provider observations never authorize execution.
 
+#[cfg(target_os = "linux")]
+pub(crate) mod download;
+
 use std::{path::Path, time::Duration};
 
 use jiff::Timestamp;

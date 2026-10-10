@@ -12,7 +12,7 @@ pub fn sha256(bytes: &[u8]) -> String {
     representation(&Sha256::digest(bytes))
 }
 
-fn representation(bytes: &[u8]) -> String {
+pub(crate) fn representation(bytes: &[u8]) -> String {
     let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
     format!("sha256:{hex}")
 }

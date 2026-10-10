@@ -575,9 +575,42 @@ This observes provider effects about the prefix layout; it does not hash or
 attest installed payloads and is not a snapshot or apply precondition. The report
 sets `installed_software_verified`, `software_downloaded`,
 `installation_performed` and `execution_authorized` to false. Only isolated trust
-state can change. Software apply, acquisition, receipt/recovery and installed-byte
+state can change. Software apply, receipt/recovery and installed-byte
 verification remain separate work; published provider software operations do not
 capture configuration backups.
+
+`provider software acquire` takes the same coordinates and request, observes the
+same authenticated plan, then acquires its ordered artifacts into the private
+`software-artifacts` directory below the explicit state parent. It is currently
+available with the proved Linux provider runtime. The target and program prefix
+remain read-only and physically disjoint from this state. Removal requests
+refuse because they have no downloads. The returned plan stays bound to the
+observed provider and effects; acquiring bytes grants no installation authority.
+
+Transfers use anonymous HTTPS, no proxy, identity encoding, at most two checked
+redirects and one ten-minute artifact budget. Allowed authorities follow the
+compiled harness delivery: npm for Codex, Claude Code and OpenCode;
+`downloads.cursor.com` for Cursor; `x.ai` for Grok; `storage.googleapis.com` for
+Antigravity; GitHub and its release-asset redirect host for Pi. Only the latter
+redirect may carry a signed query, which is never included in reports or errors.
+The existing 1 GiB/file and 2 GiB/plan bounds remain in force. Files are streamed
+through fixed buffers; HTTP framing, exact byte count and SHA-256 must agree.
+The HTTP reader has no implicit size limit, so the downloader enforces its own
+stream bound ([ureq body API](https://docs.rs/ureq/3.4.2/ureq/struct.Body.html)).
+
+Cache names are the exact SHA-256, never a response filename. Every cache hit
+is read and verified again. One retained partial per digest permits retry:
+the full response is streamed again, each retained byte is compared before the
+missing suffix is appended, and the finished disk file is independently hashed
+before a same-directory rename publishes it. Changed partials, malformed files,
+links and mismatched cached bytes refuse and are preserved. A response failure
+cannot publish a usable artifact. Successful completion flushes the file and,
+on Unix, the directory; no Windows directory power-loss guarantee is inferred.
+The report lists ordered digest, size, entry point, relative cache key and cache
+hit status. `software_acquired` confirms available verified bytes;
+`software_downloaded` is true only when a cache miss fetched a response.
+It keeps installation and installed-software verification false;
+future execution must reacquire trust and revalidate the held artifact bytes.
 
 `program inspect --prefix --entry-point` reads the public providers' software
 layout at an explicit absolute prefix with an existing parent. The entry point
