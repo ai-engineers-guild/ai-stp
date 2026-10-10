@@ -5,6 +5,31 @@ and the `ai-stp-v2` executable. The supported production executable is still
 `ai-stp`; the preview uses explicit isolated state. On Linux it can install a
 harness program into a new directory through an authenticated setup component.
 
+## Preview distribution
+
+GitHub prereleases use tags `cli-v2-v<version>` and the version in `Cargo.toml`.
+The release workflow builds Linux x86-64 on Ubuntu 24.04, Apple Silicon on
+macOS 15, and Windows x86-64 on Windows Server 2025. These are the tested
+platforms, not a claim about every older OS. Linux uses the system GNU C runtime;
+Windows uses the Microsoft C runtime. macOS and Windows binaries are not
+notarized or signed with an OS application certificate.
+
+Each archive contains `ai-stp-v2` (`.exe` on Windows), `LICENSE`, and
+`release.json` with the exact source commit, target and payload hashes.
+SHA-256 files and GitHub/Sigstore build attestations accompany the archives.
+Verify the archive's attestation for this repository and the
+`.github/workflows/cli-v2-release.yml` signer before extracting it, then run
+`ai-stp-v2 version --json` and `ai-stp-v2 capabilities --json`. The release
+workflow runs the existing contract/SQLite proof against the extracted binary
+outside the checkout, with an empty PATH and isolated home.
+
+Put the extracted `ai-stp-v2` executable in a user-owned directory on PATH.
+It uses explicit isolated state and does not replace the production `ai-stp`
+entry point. Automated native installation, self-update, desktop distribution
+and production state transfer remain separate C6/C7 work.
+
+## Build from source
+
 ```sh
 just cli-v2-check
 apps/cli-v2/target/release/ai-stp-v2 capabilities --json
@@ -41,7 +66,7 @@ The pin is a choice, not authentication or installation eligibility.
 The existing `provider` command group is the expert interface inside this CLI.
 No separate setup-system command is required for implemented read, preparation
 or fresh-program installation journeys. Configuration installation, existing
-program updates/removal, other-OS isolation, native distribution and the
+program updates/removal, other-OS isolation, native self-update and the
 production switch remain C4/C6/C7 work.
 
 ## Contract
