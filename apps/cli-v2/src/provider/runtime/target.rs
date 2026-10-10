@@ -166,7 +166,7 @@ fn identity(directory: &Dir) -> Result<(u64, u64)> {
     ))
 }
 
-fn contains(ancestor: &Dir, descendant: &Dir) -> Result<bool> {
+pub(super) fn contains(ancestor: &Dir, descendant: &Dir) -> Result<bool> {
     let expected = identity(ancestor)?;
     let mut current = descendant.try_clone().map_err(|_| invalid())?;
     for _ in 0..256 {

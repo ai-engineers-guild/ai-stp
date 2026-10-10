@@ -1,8 +1,8 @@
-//! Authenticated software plans over two held, read-only product directories.
+//! Authenticated software plans over a held target and an observed program prefix.
 
 use serde_json::{Value, json};
 
-use super::{Runtime, TargetRequest, platform, target::Target, unavailable};
+use super::{Runtime, TargetRequest, platform, prefix::Prefix, target::Target, unavailable};
 use crate::{
     digest,
     error::{Failure, Result},
@@ -18,7 +18,7 @@ pub(super) fn observe(
 ) -> Result<Value> {
     request.check_time(jiff::Timestamp::now())?;
     let target = Target::open(context.path)?;
-    let prefix = Target::open(prefix)?;
+    let prefix = Prefix::open(prefix)?;
     let state = target.state_parent(context.state_parent)?;
     prefix.disjoint(&state)?;
     prefix.disjoint(&target.directory()?)?;
@@ -118,7 +118,7 @@ pub(super) fn acquire(
     }
     let mut report = observe(runtime, context, prefix, request)?;
     let target = Target::open(context.path)?;
-    let prefix = Target::open(prefix)?;
+    let prefix = Prefix::open(prefix)?;
     let state = target.state_parent(context.state_parent)?;
     prefix.disjoint(&state)?;
     prefix.disjoint(&target.directory()?)?;

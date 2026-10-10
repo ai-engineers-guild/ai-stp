@@ -540,7 +540,9 @@ engine-owned eligibility, relevant input observations beyond the owned-byte
 digest, durable intent, revalidation and verified execution/recovery.
 
 `provider software plan` uses the same explicit provider, target and scope plus
-an existing absolute `--prefix` and a closed request of at most 8 KiB. Fields are
+an absolute `--prefix` and a closed request of at most 8 KiB. The prefix may be an
+existing plain directory or an absent leaf with an existing plain parent.
+Planning never creates the prefix on the host. Fields are
 `operation` (`software_install`, `software_update` or `software_remove`),
 `operation_id`, `expires_at` with the same short UTC expiry, and optional
 `software_version`. An explicit version must match exactly; omission selects the
@@ -548,10 +550,16 @@ pin compiled into the authenticated exact provider build. It never selects a
 floating registry version.
 
 Target, prefix and trust state must be disjoint by held directory ancestry.
-Both product directories are read-only mounts, with device/inode and mount-mode
-checks before any provider instruction runs. Each must be resolvable in the
-service's mount namespace; private container temporary paths can refuse even
-when visible to the caller. No alternate writable path or launcher is selected.
+Existing product directories are read-only mounts, with device/inode and
+mount-mode checks before any provider instruction runs. For an absent prefix,
+the host parent is held and revalidated but never exposed to the component.
+A fresh read-only namespace mount represents that parent; the entry process
+checks that the prefix remains absent before invoking the component. An aliased
+or replaced parent, a newly present leaf, a missing parent or an overlap refuses.
+Sibling target and state directories remain valid. Each held host directory
+must be resolvable in the service's mount namespace; private container temporary
+paths can refuse even when visible to the caller. No alternate writable path or
+launcher is selected.
 The provider plan is observed twice and both closed responses must agree; target
 status before/after, directory identities and trust/request expiry are checked.
 The report binds the exact provider/version/build/release, target digest,
