@@ -122,7 +122,7 @@ mod tests {
                 crate::provider::managed::version(None)?,
                 "linux/x86_64",
             )?;
-            assert_eq!(managed.sequence, 88);
+            assert_eq!(managed.sequence, 89);
             assert!(managed.publisher.repository.ends_with(&managed.project));
         }
         assert_eq!(crate::provider::managed::version(Some("1.2.3"))?, "1.2.3");

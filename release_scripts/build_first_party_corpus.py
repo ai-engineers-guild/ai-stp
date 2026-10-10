@@ -1,41 +1,11 @@
-"""Build the first-party corpus from the live setup-system repositories.
+"""Build the first-party corpus from exact attested setup-component releases.
 
-There was no such tool. The manifests and the embedded artifacts under `v1/`
-were assembled outside this repository, which is why the corpus went on citing
-an estate that had been transferred to a personal account and archived — nothing
-here could rebuild it, so nothing here noticed.
-
-What it does. For each harness it reads all four posture trees under `setups/`
-of that harness's setup-system at one attested release commit, maps every path to a component using
-this repository's own projection rules, packages each one, and emits a manifest
-beside the artifacts. This sentence said `setups/nddev-builder/` alone, which
-was true until 2026-08-30 and then went on describing a quarter of the work the
-constant below already did — a stale reason argues, and this one would have told
-a reader the catalogue holds seven setups when it holds twenty-eight.
-
-Git's own tree and blob SHAs are recorded as `source_tree`, so provenance is
-the repository's hash rather than ours, and `source.commit` names the last
-commit that touched the captured path rather than HEAD — see `_tree`.
-
-Two things it deliberately does not do.
-
-It does not invent a component for a path no rule routes. `composition.rule_for`
-decides, and a file under a namespace this compiler cannot place goes to the
-`unrouted` report rather than into a component — absent from what gets
-published, and visible only to whoever reads the report.
-
-There is no live case today: a full build over all 7x4 reports `unrouted`
-empty. `agents/nddev-builder.toml` was the example, and it stopped being one
-when codex declared the `agent` kind again (`Rule("agent", "agents",
-"directory", "codex")`). The example is kept because the mechanism is not
-hypothetical — it is the reason an unroutable path fails quietly, and a reader
-planning against the published set has to know the report is where it shows.
-
-It does not reuse the displaced estate's stable identifiers. Those objects came
-from a different repository, and wearing their ids would say a published version
-came from a source it did not. Its **own** previous ids it does reuse, and must:
-see `held_identities` for why a rebuild that reminted them would leave a seeded
-corpus with no path from `1.0` to `1.1`.
+Retain canonical identities and version history, capture every declared posture
+at its authenticated release commit, and package paths through the shared
+projection rules. The report records unrouted paths and exact release pins.
+Review complete sealed passports before publication: source-commit and member-pin
+changes can require explicit version increments even when a source blob did not
+change. This builder never publishes objects.
 """
 
 from __future__ import annotations

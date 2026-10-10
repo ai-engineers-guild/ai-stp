@@ -2,7 +2,33 @@
 
 Native preview of the ai-stp CLI. One Cargo package contains a headless library
 and the `ai-stp-v2` executable. The supported production executable is still
-`ai-stp`; this preview does not acquire production state or install harnesses.
+`ai-stp`; the preview uses explicit isolated state. On Linux it can install a
+harness program into a new directory through an authenticated setup component.
+
+## Preview distribution
+
+GitHub prereleases use tags `cli-v2-v<version>` and the version in `Cargo.toml`.
+The release workflow builds Linux x86-64 on Ubuntu 24.04, Apple Silicon on
+macOS 15, and Windows x86-64 on Windows Server 2025. These are the tested
+platforms, not a claim about every older OS. Linux uses the system GNU C runtime;
+Windows uses the Microsoft C runtime. macOS and Windows binaries are not
+notarized or signed with an OS application certificate.
+
+Each archive contains `ai-stp-v2` (`.exe` on Windows), `LICENSE`, and
+`release.json` with the exact source commit, target and payload hashes.
+SHA-256 files and GitHub/Sigstore build attestations accompany the archives.
+Verify the archive's attestation for this repository and the
+`.github/workflows/cli-v2-release.yml` signer before extracting it, then run
+`ai-stp-v2 version --json` and `ai-stp-v2 capabilities --json`. The release
+workflow runs the existing contract/SQLite proof against the extracted binary
+outside the checkout, with an empty PATH and isolated home.
+
+Put the extracted `ai-stp-v2` executable in a user-owned directory on PATH.
+It uses explicit isolated state and does not replace the production `ai-stp`
+entry point. Automated native installation, self-update, desktop distribution
+and production state transfer remain separate C6/C7 work.
+
+## Build from source
 
 ```sh
 just cli-v2-check
@@ -13,6 +39,14 @@ apps/cli-v2/target/release/ai-stp-v2 help --agent --json
 Install Rust through rustup; `rust-toolchain.toml` selects the toolchain.
 `Cargo.toml` owns direct dependency choices and `Cargo.lock` owns the resolved
 graph. Builds and checks use `--locked`. On Windows the executable has `.exe`.
+
+Native builds also need libclang and C standard headers for `sqlite-plugin`'s
+build-time binding generation: an installed LLVM development library on Linux,
+the selected Xcode SDK on macOS, or LLVM/MSVC on Windows. The `just` recipes and
+CI call `scripts/with_libclang.py` to expose that installed toolchain; it does not
+download libraries. Linux may set `LIBCLANG_PATH` explicitly. The final binary
+does not depend on libclang. The store owns the exact `sqlite-plugin` dependency;
+removing its VFS removes this dependency and build adapter.
 
 ## Managed setup components
 
@@ -30,9 +64,10 @@ an operation. Acquisition still verifies the complete publisher policy and bytes
 The pin is a choice, not authentication or installation eligibility.
 
 The existing `provider` command group is the expert interface inside this CLI.
-No separate setup-system command is required for the implemented read/prepare
-journeys. Writable installation, coordinated component release/update and the
-production switch remain C4/C6/C7 work; the preview does not claim them.
+No separate setup-system command is required for implemented read, preparation
+or fresh-program installation journeys. Configuration installation, existing
+program updates/removal, other-OS isolation, native self-update and the
+production switch remain C4/C6/C7 work.
 
 ## Contract
 
@@ -229,7 +264,7 @@ and observation time to the same canonical source artifact. `observed_license`
 comes from current repository metadata and is not a commit-specific license
 attestation. Both verification axes and `target_write` remain false. A missing
 or unsuitable subtree refuses; no registry, credentials or component is created.
-Rate-limit refusals report a bounded retry delay and perform no automatic retry.
+Rate-limit refusals retain valid server retry timing and perform no automatic retry.
 
 `component source package fetch --ecosystem go --name <module> --version <version>`
 observes an exact Go module using only `proxy.golang.org` and `sum.golang.org`.
@@ -378,12 +413,16 @@ expiry and idempotency checks; successful replay does not rewind newer work.
 
 Planning uses query-only SQLite with deferred read transactions. A missing
 registry is represented by an in-memory bootstrap and creates no directory.
+The same read-only view covers interrupted initialization before database
+creation or the schema transaction. A complete schema left in DELETE mode may
+be read without switching journal mode; the next writer resumes WAL activation.
+Missing databases with unexpected companion files and unknown schemas refuse.
 Apply initializes the explicit registry if absent; a later source/precondition
 refusal may leave that empty registry, but commits no domain records or artifacts.
 Existing WAL housekeeping remains SQLite's responsibility. Local passport and
 version inspection use one read transaction and never open credentials. Provider
-declaration files describe packaging only; executable trust and installation
-remain separate pending boundaries.
+declaration files describe packaging only; component execution and installation
+use the authenticated runtime and the explicit program operation contract.
 
 Discovery also reads project-root `nori.json` and project/home
 `.agents/.skill-lock.json` version 3. The bounded ports follow the pinned
@@ -652,6 +691,9 @@ release; omission uses the managed release. `--software-version` selects an
 exact program version; omission uses that component's compiled pin. This command
 currently uses the proved Linux runtime. The final prefix must be absent under
 an existing plain parent and physically disjoint from target and state.
+Planning requires component 0.0.89 or newer and rejects older explicit versions
+before publisher refresh or acquisition. Read-only `provider software plan`
+retains its independent observation contract.
 
 The native plan binds two distinct preconditions: absence of the host
 destination and an empty private directory for the component. The component
@@ -668,8 +710,64 @@ archive/executable/info digests and the complete component plan. Its
 their exact Unicode spelling. Plans are bounded to 64 KiB. `observation` retains
 the authenticated measurements and distinguishes `host_state: missing` from
 `provider_view: empty_private_stage`. `installation_performed` and
-`execution_authorized` stay false. Execution and recovery remain separate work;
-there is no `program install apply` command yet.
+`execution_authorized` stay false.
+
+`program install apply --state-dir --plan --plan-digest` consumes that original
+plan and digest on Linux. It requires component 0.0.89 or newer, whose software
+kernel retains exact caller admission and terminal history. This version floor
+does not authenticate an artifact or change the managed pin. Every execution
+reauthenticates the recorded component and compares its archive, executable and
+declaration digests; an unpublished build or an old plan never receives an
+implicit upgrade. The original target, parent, state and component plan are
+revalidated before admission. One vendor artifact is supported; multipart plans
+refuse until an independent verifier exists.
+
+Downloads finish before the first durable operation admission. The existing
+schema-53 `operation` and `operation_event` tables retain the complete original
+plan and transition evidence in short transactions. A private operation lock
+serializes retries without retaining the registry lock during network or
+component work. Phases are `prepared`, `staged`, `publishing` and terminal
+`verified`; the stored phase is separate from the original plan's deadline.
+Expiry still controls the component's first admission. A previously admitted
+component operation may resume its exact original plan after expiry.
+
+The component receives a writable private stage at the planned final path, a
+read-only target, plan and vendor archive, a synthetic read-only parent and
+measured network denial. Its entry process verifies physical mount identities
+and modes before execution and sets a deterministic `0022` payload umask.
+The real host parent is never mounted. Component execution is bounded to five
+minutes; timeout preserves transaction state for retry or explicit cancellation.
+The vendor archive is hashed through the same held descriptor mounted read-only
+for the component; replacing its cache path cannot select a second file.
+
+Before publication the CLI independently compares every vendor payload file,
+length, digest and executable mode, directory membership, exact version marker,
+launch manifest and absolute final-path entry link. It reads bounded raw or
+gzip-tar artifacts without extracting them itself. Symlinks/hardlinks in the
+version payload, surplus files/directories, altered metadata and escaping launch
+links refuse. Inventory limits are 65,536 entries, 8 GiB, depth 64 and 8,192-byte
+relative paths; its checksum is plain SHA-256 over RFC 8785 inventory bytes.
+The result separates regular `files` from `archive_entries`: the component's
+legacy `files` counter includes explicit directory entries and is compared with
+that archive count, not with inferred parent directories or regular files alone.
+This proves installed content, not vendor execution or runtime dependencies.
+
+The durable publication record precedes an atomic no-replace directory move.
+Recovery recognizes the same physical root after that move, flushes directory
+changes and removes the private parent before committing completion. A foreign
+destination is preserved. Terminal receipts are historical outcomes and return
+before component/network/target lookup, including after later removal; they do
+not recreate files or attest the current installation. Stored phases, physical
+identities and closed result fields are validated against the original plan
+before returning history or resuming effects; altered or surplus fields refuse.
+
+`program install cancel --state-dir --plan --plan-digest` cancels an unstarted
+or unpublished operation. It records `cancelling` before discarding only its
+bound generated stage, then commits terminal `cancelled`. Repeating cancel or
+apply resumes interrupted cancellation. A moved/published root cannot be
+cancelled; its original apply must finish publication. Cancellation never removes
+the final program directory. Configuration replacement, program update/removal,
+active-agent handoff, other-OS isolation and production cutover remain separate.
 
 `program inspect --prefix --entry-point` reads the public providers' software
 layout at an explicit absolute prefix with an existing parent. The entry point
@@ -1417,6 +1515,18 @@ transient failures can fall back to a validated entry, while not-found,
 authorization, transport-policy and invalid-body refusals remain refusals.
 Cached answers retain their original `checked_at` and report `source: cache`.
 
+Catalog, public source, software download and trust-metadata refusals preserve a
+valid `Retry-After` as `error.details.retry_after_seconds`, without shortening it
+to the request timeout or an hourly cap. Decimal seconds and the three HTTP-date
+forms are accepted; future dates round up to whole seconds, and past dates mean
+zero. GitHub source/download responses can use `X-RateLimit-Reset` when the
+remaining quota is zero and no valid `Retry-After` exists. Missing, repeated,
+malformed or oversized timing fields are not echoed or replaced with an invented
+delay; machine seconds must fit an
+exact JSON integer. The CLI returns immediately and leaves scheduling to its
+caller. `httpdate` owns HTTP-date parsing; removing this transport boundary
+removes that dependency.
+
 `registry acquire plan` captures an exact public version-1 or version-2 setup definition,
 its transitive component graph and every declared projection. It uses the
 configured endpoint and the isolated identity, without modifying the registry.
@@ -1777,7 +1887,23 @@ The headless `store` service owns an explicit `ai-stp-v2-state` directory with
 private permissions, an ownership marker and a bounded process lock. Its clean
 schema-53 bootstrap preserves the complete data format without historical
 migrations. Unknown schemas are refused before writes; SQLite uses foreign keys,
-defensive mode, an untrusted schema and FULL-synchronous WAL. Revision changes
+defensive mode, an untrusted schema and FULL-synchronous WAL. SQLite opens the
+checked main file once and accesses its journal/WAL through a held directory VFS.
+No ambient database path, disk temporary database, mmap or shared-memory mapping
+is used. The existing owned-directory lock excludes other native connections;
+an exclusive lock on SQLite's reserved byte range also excludes standard SQLite
+processes while preserving their ability to read the initial file header.
+An existing standard WAL connection, including an idle reader that retains its
+shared lock, also prevents native access until closed; native calls return a
+retryable contention refusal. Interoperability tools must close their connection
+before invoking the CLI. The Python and native engines never share production
+writer ownership during the preview.
+That lock lasts through connection close, so WAL uses SQLite's supported
+exclusive mode with an in-memory index. Existing ordinary WAL is recovered in
+place, and a closed registry remains readable by standard SQLite. Database,
+namespace and lock replacement, links, non-private files and unrecognized
+companion headers refuse before further I/O. This does not change schema 53 or
+transfer production state ownership. Revision changes
 check all expected heads inside `BEGIN IMMEDIATE`; content and revisions commit
 or roll back together. Replaying a known revision preserves the current head.
 Immutable snapshots never move draft heads. A setup requires one concrete
@@ -2074,6 +2200,7 @@ breakaway and never infers termination from PID disappearance alone.
 | `passport/developer.rs` | Closed private preferences, exact singleton plans and atomic revision receipts |
 | `passport/device.rs` | Runtime platform observations, exact private device heads and idempotent refresh |
 | `provider.rs`, `provider/`, `bundle/` | Exact declarations, authenticated trust/artifact acquisition and deterministic v2 packages |
+| `provider/runtime/install/`, `provider/runtime/execution.rs` | Original-plan admission, isolated program staging, independent payload verification, atomic activation and cancellation |
 | `store/`, `files/owned.rs` | Explicit owned state, atomic revision writes and shared private-file primitives |
 | `archive.rs`, `artifacts.rs`, `projection/artifact.rs` | Shared canonical ZIP transport and closed component/scope archives |
 | `authoring/source.rs` | Complete bounded source capture |
@@ -2119,7 +2246,7 @@ Rekor inclusion/checkpoint, signed entry timestamp and artifact binding. The
 service then enforces the signed source repository, workflow and deployment
 environment. It does not treat the unsigned publisher description as evidence.
 `provider inspect` uses authenticated trust refresh and artifact acquisition;
-installation remains outside the preview command surface.
+`program install` binds its isolated execution to the same authenticated artifacts.
 The example's embedded production trust root is for this fixed evidence run;
 online provider acquisition must use authenticated `provider::trust::refresh`.
 

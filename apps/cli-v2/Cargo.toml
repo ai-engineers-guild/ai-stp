@@ -13,9 +13,13 @@ path = "src/main.rs"
 
 [dependencies]
 csv = "=1.4.0"
-base64 = "=0.22.1"
+base64 = "=0.23.1"
 cap-std = "=4.0.3"
 cap-fs-ext = "=4.0.3"
+# Store owns SQLite byte-range interoperability; remove with that VFS boundary.
+file-guard = "=0.2.0"
+# HTTP response pacing owns date parsing; remove with that transport boundary.
+httpdate = "=1.0.3"
 clap = { version = "=4.6.7", default-features = false, features = ["std", "help", "usage", "error-context"] }
 jiff = { version = "=0.2.38", default-features = false, features = ["std"] }
 jsonschema = { version = "=0.58.6", default-features = false }
@@ -23,6 +27,7 @@ jsonc-parser = { version = "=0.34.0", default-features = false, features = ["cst
 pulldown-cmark = { version = "=0.13.4", default-features = false }
 process-wrap = { version = "=10.0.1", default-features = false, features = ["std", "process-group", "job-object"] }
 rusqlite = { version = "=0.40.2", features = ["bundled", "serialize", "hooks", "limits"] }
+sqlite-plugin = "=0.11.0"
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.151", features = ["raw_value", "float_roundtrip"] }
 serde_json_canonicalizer = "=0.3.2"

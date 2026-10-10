@@ -89,6 +89,18 @@ impl Target {
         Ok(())
     }
 
+    pub(super) fn verify_writable_mount(&self, expected: (u64, u64)) -> Result<()> {
+        let mounted = rustix::fs::fstatvfs(&self.directory).map_err(|_| invalid())?;
+        if self.identity()? != expected
+            || mounted
+                .f_flag
+                .contains(rustix::fs::StatVfsMountFlags::RDONLY)
+        {
+            return Err(invalid());
+        }
+        Ok(())
+    }
+
     /// Hold the state parent before any write and reject either ancestry direction.
     pub(crate) fn state_parent(&self, path: &Path) -> Result<Dir> {
         let parent =

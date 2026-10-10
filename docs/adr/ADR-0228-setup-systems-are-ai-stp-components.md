@@ -5,7 +5,7 @@ last_verified: "2026-10-10"
 
 # ADR-0228: Setup systems are ai-stp components
 
-Status: accepted; native writable lifecycle and production cutover remain pending.
+Status: accepted; configuration lifecycle and production cutover remain pending.
 
 ## Context
 
@@ -27,6 +27,16 @@ not create separate user workflows.
   remains the sole writer of its harness state and owns filesystem recovery.
   Linking its mutation kernel into the CLI would create another writer and
   remove an established isolation boundary; this is not required for one CLI.
+- For a fresh program directory, the component constructs the complete contents
+  in an isolated private stage mounted at the planned final path. The CLI may
+  activate that opaque directory with an atomic no-replace move after independent
+  artifact verification. The component remains the content writer; activation
+  may not modify its files or replace an existing destination. The host parent
+  is never writable from the component process. The outer operation binds host
+  absence and physical identities separately from the original empty-stage
+  component plan, and records publication before reporting completion. Recovery
+  retains both original plans and recognizes a moved root by its recorded
+  identity; completed history never recreates a later-removed installation.
 - A new request may omit the component version. Resolve it from one exact
   release selected by the ai-stp build before planning or acquisition. Explicit
   exact overrides remain available. Record the resolved release in plans and
@@ -40,9 +50,11 @@ not create separate user workflows.
 
 ## Delivery and consequences
 
-The first slice implements managed release selection for new native provider,
-selection, matrix and composition requests. It does not authorize target writes.
-The code-adjacent CLI contract and executable registry own implemented behavior.
+The native CLI implements managed release selection for new provider, selection,
+matrix and composition requests, and fresh-program plan/apply/cancel on Linux.
+The component writes into a private stage; the CLI verifies and activates its
+complete directory. The code-adjacent CLI contract and executable registry own
+implemented behavior and its limits.
 
 C4 must finish durable exact-plan software/configuration apply, independent
 verification, interruption recovery and active-target handoff. C6 owns coordinated

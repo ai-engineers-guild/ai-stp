@@ -151,35 +151,23 @@ impl Client {
                     ));
                 }
                 403 | 429 => {
-                    let seconds = response
-                        .headers()
-                        .get("Retry-After")
-                        .and_then(|value| value.to_str().ok())
-                        .and_then(|value| value.parse::<u64>().ok())
-                        .or_else(|| {
-                            response
-                                .headers()
-                                .get("X-RateLimit-Reset")
-                                .and_then(|value| value.to_str().ok())
-                                .and_then(|value| value.parse::<u64>().ok())
-                                .map(|reset| {
-                                    reset.saturating_sub(
-                                        jiff::Timestamp::now().as_second().max(0) as u64
-                                    )
-                                })
-                        })
-                        .unwrap_or(60)
-                        .clamp(1, 3600);
-                    return Err(Failure::new(
-                        ErrorKind::Unavailable,
-                        "the source service refused or rate-limited the anonymous source request",
-                    )
-                    .with_details([("retry_after_seconds".into(), seconds.into())]));
+                    return Err(http::retry::annotate(
+                        Failure::new(
+                            ErrorKind::Unavailable,
+                            "the source service refused or rate-limited the anonymous source request",
+                        ),
+                        response.headers(),
+                        matches!(self.service, Service::Github),
+                    ));
                 }
                 408 | 425 | 500 | 502 | 503 | 504 => {
-                    return Err(Failure::new(
-                        ErrorKind::Unavailable,
-                        "public source service is temporarily unavailable",
+                    return Err(http::retry::annotate(
+                        Failure::new(
+                            ErrorKind::Unavailable,
+                            "public source service is temporarily unavailable",
+                        ),
+                        response.headers(),
+                        matches!(self.service, Service::Github),
                     ));
                 }
                 _ => return Err(refused()),

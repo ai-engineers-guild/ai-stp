@@ -8,6 +8,7 @@ use crate::error::Result;
 pub const FLAG: &str = "--ai-stp-target-entry";
 pub(super) const MISSING_PREFIX: &str = "--ai-stp-missing-prefix";
 pub(super) const EMPTY_PREFIX: &str = "--ai-stp-empty-prefix";
+pub(super) const WRITABLE_PREFIX: &str = "--ai-stp-writable-prefix";
 
 pub fn run(arguments: &[OsString]) -> Result<()> {
     if arguments.len() < 5 {
@@ -28,7 +29,20 @@ pub fn run(arguments: &[OsString]) -> Result<()> {
         let target = Target::open(Path::new(&arguments[index + 2]))?;
         target.verify_mount((number(index)?, number(index + 1)?))?;
     }
-    if arguments
+    if arguments.get(end).is_some_and(|arg| arg == WRITABLE_PREFIX) {
+        if arguments.len() <= end + 4 {
+            return Err(unavailable());
+        }
+        let root = Target::open(Path::new(&arguments[end + 3]))?;
+        root.verify_writable_mount((number(end + 1)?, number(end + 2)?))?;
+        let parent = Target::open(root.path().parent().ok_or_else(unavailable)?)?;
+        parent.verify_mount(parent.identity()?)?;
+        // This is the dedicated entry process, immediately before exec. Give
+        // public vendor payloads deterministic directory modes; the component
+        // explicitly creates its private metadata with stricter permissions.
+        rustix::process::umask(rustix::fs::Mode::from_raw_mode(0o022));
+        end += 4;
+    } else if arguments
         .get(end)
         .is_some_and(|arg| arg == MISSING_PREFIX || arg == EMPTY_PREFIX)
     {

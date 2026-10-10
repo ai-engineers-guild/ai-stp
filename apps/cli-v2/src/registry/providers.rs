@@ -1,4 +1,4 @@
-//! Authenticated provider observation commands, separate from installation.
+//! Component observation and exact program installation command adapters.
 
 use super::{Declaration, Parameter, ParameterType, STATE_DIR};
 use crate::{
@@ -24,6 +24,8 @@ pub(super) enum Handler {
     SoftwarePlan,
     SoftwareAcquire,
     ProgramInstallPlan,
+    ProgramInstallApply,
+    ProgramInstallCancel,
 }
 
 const HARNESS: Parameter = Parameter {
@@ -79,7 +81,35 @@ const SOFTWARE_PARAMETERS: &[Parameter] = &[
     },
 ];
 
+const INSTALL_PARAMETERS: &[Parameter] = &[
+    STATE_DIR,
+    Parameter {
+        name: "plan",
+        summary: "Original program installation plan JSON, at most 64 KiB.",
+        kind: ParameterType::Path,
+        required: true,
+    },
+    Parameter {
+        name: "plan-digest",
+        summary: "Exact digest returned by program install plan.",
+        kind: ParameterType::String,
+        required: true,
+    },
+];
+
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["program", "install", "apply"],
+        summary: "Apply or resume an exact fresh-program installation plan; verify its payload and publish the complete directory without replacing an existing destination.",
+        parameters: INSTALL_PARAMETERS,
+        handler: super::Handler::Provider(Handler::ProgramInstallApply),
+    },
+    Declaration {
+        path: &["program", "install", "cancel"],
+        summary: "Cancel an exact unpublished installation and durably discard only its recorded generated stage; no final program directory is removed.",
+        parameters: INSTALL_PARAMETERS,
+        handler: super::Handler::Provider(Handler::ProgramInstallCancel),
+    },
     Declaration {
         path: &["program", "install", "plan"],
         summary: "Plan a new program directory with a bound absent destination and an authenticated empty-stage component plan; no installation.",
@@ -161,9 +191,32 @@ pub(super) const COMMANDS: &[Declaration] = &[
 ];
 
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
+    if matches!(
+        handler,
+        Handler::ProgramInstallApply | Handler::ProgramInstallCancel
+    ) {
+        let parent = args
+            .get_one::<PathBuf>("state-dir")
+            .ok_or_else(|| Failure::input("the explicit state parent is required"))?;
+        let path = args
+            .get_one::<PathBuf>("plan")
+            .ok_or_else(|| Failure::input("the original installation plan is required"))?;
+        let digest = args
+            .get_one::<String>("plan-digest")
+            .ok_or_else(|| Failure::input("the exact installation plan digest is required"))?;
+        let bytes = files::read(path, 64 * 1024)?;
+        return if matches!(handler, Handler::ProgramInstallCancel) {
+            runtime::program_install_cancel(parent, &bytes, digest)
+        } else {
+            runtime::program_install_apply(parent, &bytes, digest)
+        };
+    }
     let runtime = Runtime::observe()?;
     match handler {
         Handler::Network => Ok(runtime.report()),
+        Handler::ProgramInstallApply | Handler::ProgramInstallCancel => {
+            Err(Failure::input("the installation command is invalid"))
+        }
         Handler::Inspect
         | Handler::Status
         | Handler::Plan
@@ -253,7 +306,9 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                         runtime.plan(&context, &request, &bundle)
                     }
                 }
-                Handler::Network => Err(Failure::input("the provider command is invalid")),
+                Handler::Network | Handler::ProgramInstallApply | Handler::ProgramInstallCancel => {
+                    Err(Failure::input("the provider command is invalid"))
+                }
             }
         }
     }

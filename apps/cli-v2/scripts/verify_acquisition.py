@@ -226,13 +226,23 @@ def prove(binary: Path, home: Path, state: Path, root: Path, run: Runner) -> Non
                 "--version",
                 "1.0",
             ]
-            with closing(sqlite3.connect(database)) as db:
+            db = sqlite3.connect(database)
+            try:
+
+                def native(arguments: list[str], expected: int) -> dict[str, Any]:
+                    nonlocal db
+                    assert not db.in_transaction
+                    db.close()
+                    result = run(binary, home, arguments, expected)
+                    db = sqlite3.connect(database)
+                    return result
+
                 before = tuple(db.iterdump())
-                plan = run(binary, home, args, 0)["data"]
+                plan = native(args, 0)["data"]
                 assert tuple(db.iterdump()) == before, "planning changed the registry"
                 server.protocol_version = "HTTP/1.1"
                 connections = len(server.connections)
-                plan = run(binary, home, args, 0)["data"]
+                plan = native(args, 0)["data"]
                 assert tuple(db.iterdump()) == before, "pooled planning changed the registry"
                 assert len(server.connections) == connections + 1, (
                     "HTTP/1.1 did not reuse its socket"
@@ -252,7 +262,7 @@ def prove(binary: Path, home: Path, state: Path, root: Path, run: Runner) -> Non
                 blocked = json.loads(metadata)
                 blocked["lifecycle"] = "blocked"
                 responses[component_path] = json.dumps(blocked).encode()
-                run(binary, home, apply, 4)
+                native(apply, 4)
                 assert tuple(db.iterdump()) == before, "revoked acquisition changed local state"
                 responses[component_path] = metadata
                 projection_path = next(
@@ -262,7 +272,7 @@ def prove(binary: Path, home: Path, state: Path, root: Path, run: Runner) -> Non
                 )
                 original = responses[projection_path]
                 responses[projection_path] = b"corrupt"
-                run(binary, home, apply, 4)
+                native(apply, 4)
                 assert tuple(db.iterdump()) == before, "failed capture wrote a partial graph"
                 responses[projection_path] = original
                 db.execute(
@@ -271,13 +281,13 @@ def prove(binary: Path, home: Path, state: Path, root: Path, run: Runner) -> Non
                 )
                 db.commit()
                 interrupted = tuple(db.iterdump())
-                run(binary, home, apply, 4)
+                native(apply, 4)
                 assert tuple(db.iterdump()) == interrupted, (
                     "failed transaction retained acquisition writes"
                 )
                 db.execute("DROP TRIGGER fail_acquisition")
                 db.commit()
-                result = run(binary, home, apply, 0)["data"]
+                result = native(apply, 0)["data"]
                 assert (
                     CatalogSetupAcquisition.model_validate(result).model_dump(mode="json") == result
                 )
@@ -307,7 +317,7 @@ def prove(binary: Path, home: Path, state: Path, root: Path, run: Runner) -> Non
                 after = tuple(db.iterdump())
                 calls = len(server.requests)
                 responses.clear()
-                assert run(binary, home, apply, 0)["data"] == result
+                assert native(apply, 0)["data"] == result
                 assert len(server.requests) == calls, "completed replay opened the network"
                 assert tuple(db.iterdump()) == after
                 address = component["adaptations"][1]["scope_adaptations"][0][
@@ -315,7 +325,7 @@ def prove(binary: Path, home: Path, state: Path, root: Path, run: Runner) -> Non
                 ]["digest"]
                 db.execute("UPDATE content SET bytes=? WHERE digest=?", (b"corrupt", address))
                 db.commit()
-                run(binary, home, apply, 4)
+                native(apply, 4)
                 assert len(server.requests) == calls
                 # This is a disposable fixture, and subsequent authoring proofs share its registry.
                 db.execute("UPDATE content SET bytes=? WHERE digest=?", (original, address))
@@ -358,11 +368,9 @@ def prove(binary: Path, home: Path, state: Path, root: Path, run: Runner) -> Non
                     "--version",
                     corpus_setup["version"],
                 ]
-                corpus_plan = run(binary, home, corpus_args, 0)["data"]
+                corpus_plan = native(corpus_args, 0)["data"]
                 plan_path.write_text(json.dumps(corpus_plan["plan"]), encoding="utf-8")
-                corpus_result = run(binary, home, [*apply[:-1], corpus_plan["plan_digest"]], 0)[
-                    "data"
-                ]
+                corpus_result = native([*apply[:-1], corpus_plan["plan_digest"]], 0)["data"]
                 assert corpus_result["stable_id"] == corpus_setup["stable_id"]
                 responses.update(initial_responses)
                 mixed, definition = embedded_setup(setup)
@@ -397,14 +405,14 @@ def prove(binary: Path, home: Path, state: Path, root: Path, run: Runner) -> Non
                 corrupt = copy.deepcopy(definition)
                 corrupt["embedded"][0]["artifact_b64"] = "Y29ycnVwdA"
                 serve_definition(corrupt)
-                run(binary, home, mixed_args, 4)
+                native(mixed_args, 4)
                 excessive = copy.deepcopy(definition)
                 excessive["embedded"] *= 501
                 serve_definition(excessive)
-                run(binary, home, mixed_args, 4)
+                native(mixed_args, 4)
                 assert tuple(db.iterdump()) == before
                 serve_definition(definition)
-                mixed_plan = run(binary, home, mixed_args, 0)["data"]
+                mixed_plan = native(mixed_args, 0)["data"]
                 assert tuple(db.iterdump()) == before
                 plan_path.write_text(json.dumps(mixed_plan["plan"]), encoding="utf-8")
                 mixed_apply = [*apply[:-1], mixed_plan["plan_digest"]]
@@ -414,11 +422,11 @@ def prove(binary: Path, home: Path, state: Path, root: Path, run: Runner) -> Non
                 )
                 db.commit()
                 interrupted = tuple(db.iterdump())
-                run(binary, home, mixed_apply, 4)
+                native(mixed_apply, 4)
                 assert tuple(db.iterdump()) == interrupted
                 db.execute("DROP TRIGGER fail_embedded")
                 db.commit()
-                mixed_result = run(binary, home, mixed_apply, 0)["data"]
+                mixed_result = native(mixed_apply, 0)["data"]
                 assert len(mixed_result["components"]) == 2
                 embedded_id = definition["embedded"][0]["ref"]["stable_id"]
                 assert not any(embedded_id in request for request in server.requests)
@@ -430,11 +438,9 @@ def prove(binary: Path, home: Path, state: Path, root: Path, run: Runner) -> Non
                 after = tuple(db.iterdump())
                 calls = len(server.requests)
                 responses.clear()
-                assert run(binary, home, mixed_apply, 0)["data"] == mixed_result
+                assert native(mixed_apply, 0)["data"] == mixed_result
                 assert len(server.requests) == calls and tuple(db.iterdump()) == after
-                exported = run(
-                    binary,
-                    home,
+                exported = native(
                     [
                         "setup",
                         "export",
@@ -458,13 +464,13 @@ def prove(binary: Path, home: Path, state: Path, root: Path, run: Runner) -> Non
                 # A fork must not silently turn private embedded refs into catalog refs.
                 def owned_apply(arguments: list[str]) -> dict[str, Any]:
                     before_plan = tuple(db.iterdump())
-                    planned = run(binary, home, arguments, 0)["data"]
+                    planned = native(arguments, 0)["data"]
                     assert tuple(db.iterdump()) == before_plan
                     plan_path.write_text(json.dumps(planned["plan"]), encoding="utf-8")
                     invocation = [*apply[:-1], planned["plan_digest"]]
-                    result = run(binary, home, invocation, 0)["data"]
+                    result = native(invocation, 0)["data"]
                     retained = tuple(db.iterdump())
-                    assert run(binary, home, invocation, 0)["data"] == result
+                    assert native(invocation, 0)["data"] == result
                     assert tuple(db.iterdump()) == retained
                     return result
 
@@ -556,6 +562,8 @@ def prove(binary: Path, home: Path, state: Path, root: Path, run: Runner) -> Non
                 assert removed["artifact_format"] == "ai-stp-setup-definition/1"
                 assert "embedded" not in stored_definition(removed)
                 assert stored_definition(released) == retained_definition
+            finally:
+                db.close()
         finally:
             server.shutdown()
             thread.join(timeout=5)
