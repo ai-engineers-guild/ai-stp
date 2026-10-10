@@ -350,7 +350,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             Parameter {
                 name: "source-harness",
                 summary: "Existing native adaptation to convert.",
-                kind: ParameterType::Choice(&["claude-code", "codex", "cursor", "opencode"]),
+                kind: ParameterType::Choice(CONCRETE_HARNESSES),
                 required: true,
             },
             Parameter {
