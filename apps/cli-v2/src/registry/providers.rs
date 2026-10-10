@@ -66,7 +66,7 @@ const SOFTWARE_PARAMETERS: &[Parameter] = &[
     SCOPE,
     Parameter {
         name: "prefix",
-        summary: "Explicit existing absolute software directory, disjoint from target and trust state.",
+        summary: "Explicit absolute software directory, existing or absent under an existing plain parent; disjoint from target and trust state.",
         kind: ParameterType::Path,
         required: true,
     },

@@ -75,16 +75,21 @@ writes remain mandatory.
 
 Execute the remaining integration in this order:
 
-1. Complete the frozen provider preparation-journal checks and integrate its
-   actual interruption/foreign-entry proof. Reconcile C3 business coverage
-   alongside the remaining C4 work; C3 is not accepted by command count.
+1. Finish provider source and public three-OS acceptance. Preparation, activation
+   and removal journals are implemented in the component source; source merges
+   alone do not prove public builds or publish a new attested release. Reconcile
+   C3 business coverage alongside C4; C3 is not accepted by command count.
 2. Bind admission and terminal receipts to the caller operation ID and complete
    plan digest. Resume the same admitted plan after expiry, refuse different
    intent, verify drift outside the recorded effect and preserve historical
    results after later operations. Close metadata-write interruption windows.
-3. Connect native writable software/configuration services through that boundary;
-   prove exact final bytes, recovery, multiple roots and active-agent handoff on
-   the supported operating systems. Retain the explicit no-backup policy.
+3. Connect native writable software/configuration services through that boundary.
+   Read-only native planning/acquisition already accepts an absent final program
+   directory under a held existing parent. Writable allocation must persist the
+   original plan and physical parent identity, confine component access and
+   refuse an existing destination. Prove exact final bytes, recovery, multiple
+   roots and active-agent handoff on the supported operating systems. Retain the
+   explicit no-backup policy.
 4. Deliver connected services (C5), coordinated attested component distribution,
    native self-update and desktop consumption (C6). Generate component repository
    entry documentation from its source renderer; keep compatibility commands
