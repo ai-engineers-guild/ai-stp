@@ -6,7 +6,7 @@ use crate::{
     files,
     projection::Scope,
     provider::{
-        artifact, plan,
+        artifact, managed, plan,
         runtime::{self, Runtime, TargetRequest},
         software, trust,
     },
@@ -41,9 +41,9 @@ const HARNESS: Parameter = Parameter {
 };
 const VERSION: Parameter = Parameter {
     name: "version",
-    summary: "Exact canonical provider X.Y.Z version; no floating selector.",
+    summary: "Exact setup-component X.Y.Z override; omission uses this ai-stp build's managed release.",
     kind: ParameterType::String,
-    required: true,
+    required: false,
 };
 const TARGET: Parameter = Parameter {
     name: "target",
@@ -150,9 +150,7 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             let harness = args
                 .get_one::<String>("harness")
                 .ok_or_else(|| Failure::input("the harness is required"))?;
-            let version = args
-                .get_one::<String>("version")
-                .ok_or_else(|| Failure::input("the exact version is required"))?;
+            let version = managed::version(args.get_one::<String>("version").map(String::as_str))?;
             match handler {
                 Handler::Inspect => {
                     let trust = trust::refresh(parent)?;

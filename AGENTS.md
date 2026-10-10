@@ -41,7 +41,7 @@ Read what the task concerns. Reading the entire normative base in advance is nei
 - **Component** — a part of a setup of one of the closed kinds: `instruction`, `skill`, `mcp`, `hook`, `command`, `agent`, `plugin`, `setting`, `cli`. `command` is a named slash invocation; `cli` is a standalone executable. Memory, rules, parameters, and auxiliary tools are content of `instruction`, `skill`, or `setting`, not separate kinds.
 - **Passport** — a versioned, machine-readable description of an object.
 - **Trust line** — the rule for inclusion in results: `authoritative`, `experimental`, or `local_owner_or_pinned`.
-- **Provider** — a public NDDev setup manager, the only writer of the harness's final state.
+- **Provider** — an ai-stp installation component, released from its existing public setup-system repository and the only writer of the harness's final state (ADR-0228).
 - **Setup assembler** — the deterministic `ai_stp` layer that validates the component graph and creates a native package for the provider.
 
 One term means one object. `marketplace` is native packaging, not a generic name for a setup or a component kind.
