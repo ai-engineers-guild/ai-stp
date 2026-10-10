@@ -232,4 +232,22 @@ impl Runtime {
             Err(unavailable())
         }
     }
+
+    /// Plan a fresh program root without exposing its real parent or publishing it.
+    pub fn program_install_plan(
+        &self,
+        context: &TargetRequest<'_>,
+        prefix: &Path,
+        software_version: Option<&str>,
+    ) -> Result<Value> {
+        #[cfg(target_os = "linux")]
+        {
+            software::install_plan(self, context, prefix, software_version)
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = (context, prefix, software_version);
+            Err(unavailable())
+        }
+    }
 }

@@ -23,6 +23,7 @@ pub(super) enum Handler {
     Plan,
     SoftwarePlan,
     SoftwareAcquire,
+    ProgramInstallPlan,
 }
 
 const HARNESS: Parameter = Parameter {
@@ -79,6 +80,30 @@ const SOFTWARE_PARAMETERS: &[Parameter] = &[
 ];
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["program", "install", "plan"],
+        summary: "Plan a new program directory with a bound absent destination and an authenticated empty-stage component plan; no installation.",
+        parameters: &[
+            STATE_DIR,
+            HARNESS,
+            VERSION,
+            TARGET,
+            SCOPE,
+            Parameter {
+                name: "prefix",
+                summary: "Absent absolute software directory under an existing plain parent, disjoint from target and state.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "software-version",
+                summary: "Exact harness program version; omission uses the authenticated component's compiled pin.",
+                kind: ParameterType::String,
+                required: false,
+            },
+        ],
+        handler: super::Handler::Provider(Handler::ProgramInstallPlan),
+    },
     Declaration {
         path: &["provider", "software", "plan"],
         summary: "Observe an exact software plan through an authenticated provider with read-only target and prefix mounts.",
@@ -143,6 +168,7 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         | Handler::Status
         | Handler::Plan
         | Handler::SoftwarePlan
+        | Handler::ProgramInstallPlan
         | Handler::SoftwareAcquire => {
             let parent = args
                 .get_one::<PathBuf>("state-dir")
@@ -160,6 +186,7 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                 Handler::Status
                 | Handler::Plan
                 | Handler::SoftwarePlan
+                | Handler::ProgramInstallPlan
                 | Handler::SoftwareAcquire => {
                     let target = args
                         .get_one::<PathBuf>("target")
@@ -179,6 +206,16 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                     };
                     if matches!(handler, Handler::Status) {
                         runtime.status(&context)
+                    } else if matches!(handler, Handler::ProgramInstallPlan) {
+                        let prefix = args.get_one::<PathBuf>("prefix").ok_or_else(|| {
+                            Failure::input("the explicit software prefix is required")
+                        })?;
+                        runtime.program_install_plan(
+                            &context,
+                            prefix,
+                            args.get_one::<String>("software-version")
+                                .map(String::as_str),
+                        )
                     } else if matches!(handler, Handler::SoftwarePlan | Handler::SoftwareAcquire) {
                         let request = software::Request::parse(
                             &files::read(
