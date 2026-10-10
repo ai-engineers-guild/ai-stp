@@ -378,6 +378,10 @@ expiry and idempotency checks; successful replay does not rewind newer work.
 
 Planning uses query-only SQLite with deferred read transactions. A missing
 registry is represented by an in-memory bootstrap and creates no directory.
+The same read-only view covers interrupted initialization before database
+creation or the schema transaction. A complete schema left in DELETE mode may
+be read without switching journal mode; the next writer resumes WAL activation.
+Missing databases with unexpected companion files and unknown schemas refuse.
 Apply initializes the explicit registry if absent; a later source/precondition
 refusal may leave that empty registry, but commits no domain records or artifacts.
 Existing WAL housekeeping remains SQLite's responsibility. Local passport and

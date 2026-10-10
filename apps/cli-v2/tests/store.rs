@@ -14,6 +14,7 @@ use serde_json::{Value, json};
 
 #[test]
 fn durable_revision_history_replay_conflict_and_atomic_rollback() -> Result<(), Box<dyn Error>> {
+    interrupted_bootstrap_remains_readable_and_resumable()?;
     let root = tempfile::tempdir()?;
     assert!(Store::open(root.path(), false).is_err());
     assert_eq!(fs::read_dir(root.path())?.count(), 0);
@@ -267,6 +268,76 @@ fn durable_revision_history_replay_conflict_and_atomic_rollback() -> Result<(), 
         fs::read(&path)?,
         before,
         "a newer registry was changed before refusal"
+    );
+    Ok(())
+}
+
+fn interrupted_bootstrap_remains_readable_and_resumable() -> Result<(), Box<dyn Error>> {
+    let root = tempfile::tempdir()?;
+    let namespace = root.path().join("ai-stp-v2-state");
+    fs::create_dir(&namespace)?;
+    fs::write(
+        namespace.join("owner"),
+        b"ai-stp-cli-v2 local registry v1\n",
+    )?;
+    fs::write(namespace.join("lock"), b"")?;
+    let path = namespace.join("registry.sqlite3");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&namespace, fs::Permissions::from_mode(0o700))?;
+        for name in ["owner", "lock"] {
+            fs::set_permissions(namespace.join(name), fs::Permissions::from_mode(0o600))?;
+        }
+    }
+    // Interruption after ownership, before creating the database. Orphaned
+    // companions must never be mistaken for a fresh, empty registry.
+    drop(Store::planning(root.path())?);
+    assert!(!path.exists());
+    fs::write(namespace.join("registry.sqlite3-wal"), b"foreign companion")?;
+    assert!(Store::planning(root.path()).is_err());
+    assert!(Store::open(root.path(), true).is_err());
+    assert!(!path.exists());
+    assert_eq!(
+        fs::read(namespace.join("registry.sqlite3-wal"))?,
+        b"foreign companion"
+    );
+    fs::remove_file(namespace.join("registry.sqlite3-wal"))?;
+    fs::write(&path, b"")?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o600))?;
+    }
+    // Interruption after durable file creation, before the schema transaction.
+    drop(Store::planning(root.path())?);
+    assert!(fs::read(&path)?.is_empty());
+    assert_eq!(fs::read_dir(&namespace)?.count(), 3);
+    drop(Store::open(root.path(), true)?);
+    let db = rusqlite::Connection::open(&path)?;
+    db.pragma_update(None, "journal_mode", "DELETE")?;
+    drop(db);
+    // Interruption after schema commit, before activation of WAL. Planning is
+    // query-only; the next writer resumes the existing valid database in place.
+    let before = fs::read(&path)?;
+    let mut planning = Store::planning(root.path())?;
+    planning.transaction(|tx| {
+        let tables:i64=tx.query_row("SELECT count(*) FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%'",[],|r|r.get(0)).map_err(|_|Failure::precondition("fixture schema read"))?;
+        assert_eq!(tables,51);
+        assert!(tx.execute("INSERT INTO operation(operation_id,kind,state,started_at) VALUES ('x','x','x','x')",[]).is_err());
+        Ok(())
+    })?;
+    drop(planning);
+    assert_eq!(fs::read(&path)?, before);
+    drop(Store::open(root.path(), true)?);
+    let db = rusqlite::Connection::open(&path)?;
+    assert_eq!(
+        db.query_row("PRAGMA journal_mode", [], |r| r.get::<_, String>(0))?,
+        "wal"
+    );
+    assert_eq!(
+        db.query_row("PRAGMA integrity_check", [], |r| r.get::<_, String>(0))?,
+        "ok"
     );
     Ok(())
 }
