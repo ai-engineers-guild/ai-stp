@@ -1,13 +1,14 @@
 ---
 description: "Bounded deterministic package for a public harness provider."
-last_verified: "2026-09-24"
+last_verified: "2026-10-11"
 ---
 
 # Harness bundle
 
 ## Structure
 
-The `ai-stp-bundle/1` format is a canonical uncompressed ZIP under `ADR-0049`.
+The `ai-stp-bundle/2` format is a canonical uncompressed ZIP under `ADR-0049`
+and the adaptation binding in `ADR-0144`.
 It is a byte sequence, not a conceptual directory tree.
 
 ```text
@@ -55,11 +56,24 @@ scope. Each component binding carries stable ID, version, passport digest,
 projection kind and exact member paths. Every bundled file owner must have one
 binding and every owned file path must occur in that binding. Missing bindings,
 a profile for another scope, an unbound owner or a file outside its adaptation
-fail before archive serialization. During the staged provider rollout `/1`
-remains byte-identical and carries none of these fields; it is removed from the
-first supported release after every provider advertises `/2`.
+fail before archive serialization. Current released providers advertise `/2`;
+the retired `/1` format is not a current installation route.
 
 A file record contains a normalized relative path, SHA-256, size, permitted mode, and surface owner. The contents of `files/` must match the manifest exactly.
+
+The Rust compiler additionally retains an assembled contribution's ownership in
+that file record: `contribution` contains `parser_id` (`json/1` or `toml/1`),
+`ownership_key` and `host_digest`. The digest is SHA-256 of the observed host's
+exact bytes; explicit null means observed absence. JSONC uses `json/1` with its
+`.jsonc` path. The package still contains the complete assembled file, but only
+the declared key belongs to the component. These fields participate in the
+manifest digest. Files without contributions retain their existing encoding.
+
+Native provider planning requires explicit `recovery_mode=forward` for such a
+package and checks the authenticated provider's capability before invocation.
+Providers 0.0.89 cannot perform that operation. Coordinated component reader
+release and native writable acceptance remain prerequisites; a compiled bundle
+or a successful read-only validation is not proof of those steps.
 
 ## Determinism
 
@@ -211,4 +225,6 @@ Bundle validation creates no state. The exact argv/response contract belongs to
 `provider-protocol.md`: validation and the provider plan repeat both identities
 and the size of these same ZIP bytes. The immutable operation plan binds the
 provider plan to the bundle under `ADR-0050`. Apply revalidates cached bytes and
-requires the exact provider plan digest, a lock, a backup, and target revalidation.
+requires the exact provider plan digest, a lock and target revalidation. Released
+compatibility installation captures a backup. Explicit forward recovery is a
+separate admitted capability; it must not silently select that backup lifecycle.

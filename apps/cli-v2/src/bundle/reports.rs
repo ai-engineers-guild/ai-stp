@@ -111,6 +111,7 @@ pub(crate) fn inspect_snapshot(
                 files.push(File {
                     member,
                     owner: id.into(),
+                    contribution: None,
                 });
             }
         }

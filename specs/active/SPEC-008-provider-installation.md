@@ -17,6 +17,13 @@ The previous estate of providers has been removed (`ADR-0119`, `ADR-0120`). It r
 
 The closed authoring loop of setup systems is a check and coordination loop: it is not cloned to the user, is not a dependency or source of runtime behavior, and does not participate in the operation of the application. Direct writing of `ai_stp` to native directories is prohibited.
 
+The isolated Rust compiler retains each assembled configuration contribution's
+parser, owned top-level key and exact host digest (or observed absence) in its
+bundle file record. Its read-only provider planning adapter requires explicit
+forward recovery for those packages. Preserved host fields are not ownership
+claims. The released 0.0.89 components cannot execute this path; coordinated
+reader release and native writable acceptance remain pending under ADR-0227.
+
 ## Terms
 
 - `ProviderRelease` - signed exact artifact of the public manager of the setup.

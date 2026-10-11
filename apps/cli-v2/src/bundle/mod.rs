@@ -41,6 +41,7 @@ pub struct Bundle {
 struct File {
     member: Member,
     owner: String,
+    contribution: Option<Value>,
 }
 
 fn invalid(message: &str) -> Failure {
@@ -165,6 +166,7 @@ pub(crate) fn compile_snapshot(
             .collect::<Result<_>>()?;
         let mut member_paths = Vec::new();
         for mut member in members {
+            let mut contribution = None;
             let declaration = declared
                 .get(member.path.as_str())
                 .ok_or_else(|| invalid("a projection file has no declaration"))?;
@@ -186,6 +188,9 @@ pub(crate) fn compile_snapshot(
                         "the configuration parser does not match its host format",
                     ));
                 }
+                contribution = Some(json!({"parser_id":parser,
+                    "ownership_key":text(declaration, "ownership_key")?,
+                    "host_digest":host.map(digest::sha256)}));
                 member.bytes = crate::authoring::contribution::assemble(
                     format,
                     host,
@@ -211,6 +216,7 @@ pub(crate) fn compile_snapshot(
             files.push(File {
                 member,
                 owner: id.into(),
+                contribution,
             });
         }
         member_paths.sort();
