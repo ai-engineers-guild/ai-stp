@@ -39,8 +39,12 @@ pub(super) fn build(
     let entries: Vec<_> = files
         .iter()
         .map(|file| {
-            json!({"path":file.member.path,"digest":digest::sha256(&file.member.bytes),
-        "byte_length":file.member.bytes.len(),"mode":file.member.mode,"owner":file.owner})
+            let mut entry = json!({"path":file.member.path,"digest":digest::sha256(&file.member.bytes),
+                "byte_length":file.member.bytes.len(),"mode":file.member.mode,"owner":file.owner});
+            if let Some(contribution) = &file.contribution {
+                entry["contribution"] = contribution.clone();
+            }
+            entry
         })
         .collect();
     let mut manifest = json!({"schema_version":1,"bundle_format":"ai-stp-bundle/2","protocol_version":1,"builder_version":"1.0",

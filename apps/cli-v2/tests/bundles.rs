@@ -831,6 +831,32 @@ fn mcp_contributions(store: &mut Store, declarations: &[Value]) -> Result<(), Bo
     assert!(bundle::compile(store, &setup, &target, &evidence, &provider, &Hosts::new()).is_err());
     let hosts: Hosts = [("mcp.json".into(), Some(br#"{"theme":"night"}"#.to_vec()))].into();
     let built = bundle::compile(store, &setup, &target, &evidence, &provider, &hosts)?;
+    assert_eq!(
+        built.manifest["files"][0]["contribution"],
+        json!({
+            "parser_id":"json/1", "ownership_key":"mcpServers",
+            "host_digest":digest::sha256(br#"{"theme":"night"}"#)
+        })
+    );
+    let now: jiff::Timestamp = "2030-01-01T00:00:00Z".parse()?;
+    let mut request = json!({"operation":"install",
+        "operation_id":"operation_00000000000000000000000000",
+        "expires_at":"2030-01-01T00:05:00.000Z",
+        "bundle":{"bundle_format":"ai-stp-bundle/2", "bundle_digest":built.manifest["bundle_digest"],
+            "artifact_digest":built.artifact_digest, "bundle_size":built.archive.len()}});
+    let parse = |value: &Value| -> Result<ai_stp_cli_v2::provider::plan::Request, Box<dyn Error>> {
+        Ok(ai_stp_cli_v2::provider::plan::Request::parse(
+            &serde_json::to_vec(value)?,
+            now,
+        )?)
+    };
+    assert!(
+        parse(&request)?
+            .check_configuration_ownership(&built.archive)
+            .is_err()
+    );
+    request["recovery_mode"] = "forward".into();
+    parse(&request)?.check_configuration_ownership(&built.archive)?;
     let reports = bundle::reports::inspect(
         store,
         std::slice::from_ref(&setup),
@@ -898,6 +924,10 @@ fn mcp_contributions(store: &mut Store, declarations: &[Value]) -> Result<(), Bo
     assert!(!refusal.message.contains("synthetic-sensitive-value"));
     let absent: Hosts = [("mcp.json".into(), None)].into();
     let fresh = bundle::compile(store, &setup, &target, &evidence, &provider, &absent)?;
+    assert_eq!(
+        fresh.manifest["files"][0]["contribution"]["host_digest"],
+        Value::Null
+    );
     assert_ne!(
         built.manifest["input_digest"],
         fresh.manifest["input_digest"]

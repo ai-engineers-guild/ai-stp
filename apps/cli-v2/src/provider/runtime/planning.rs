@@ -20,6 +20,7 @@ pub(super) fn observe(
     bundle: &[u8],
 ) -> Result<Value> {
     request.check_bundle(bundle, jiff::Timestamp::now())?;
+    request.check_configuration_ownership(bundle)?;
     let target = Target::open(context.path)?;
     let state = target.state_parent(context.state_parent)?;
     let trust = trust::refresh_at(&state)?;

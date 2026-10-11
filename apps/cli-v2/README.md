@@ -1899,6 +1899,13 @@ structured credential checks to the complete result, including unowned fields
 and embedded MCP values, regardless of the component's logical kind. A credential
 removed with the replaced key is not part of the result; a recognized credential
 retained elsewhere refuses the complete bundle without returning an archive.
+Each assembled file retains `contribution.parser_id`, `ownership_key` and
+`host_digest` (explicit null for observed absence) in its manifest record.
+Preserved host fields do not become component ownership. The provider planning
+adapter refuses these packages without explicit forward recovery; the observed
+provider must declare that mode. Published providers 0.0.89 cannot execute this
+path. The corresponding component reader must ship before a native writer uses
+it; compilation alone does not establish installation readiness.
 Native external references stay unresolved. Provider execution must revalidate
 host observations. Compilation does not read target files or authorize installation. Bundle limits
 are 2,000 files, 4 MiB per file and 64 MiB including package metadata; selected

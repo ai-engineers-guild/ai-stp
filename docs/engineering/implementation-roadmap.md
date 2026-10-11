@@ -103,6 +103,10 @@ Execute the remaining integration in this order:
    author-to-install journey as its remaining services become available;
    command counts and isolated installation proofs are not acceptance.
 2. Complete configuration execution without automatic backups. Extend the
+   native bundle's bound contribution ownership through the component reader;
+   accept JSON, JSONC and TOML replacement/withdrawal without claiming preserved
+   host fields. The compiler now retains the key and host digest, and its
+   planning adapter refuses an implicit compatibility recovery path. Then extend the
    existing native program lifecycle to the configuration services. Retain caller operation IDs,
    complete original plan digests, admitted-operation recovery after expiry and
    historical outcomes after later operations. Verify exact effects and refuse
