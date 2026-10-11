@@ -1,0 +1,53 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-repository-plan-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Resolve a repository URL before an explicit source binding.",
+  "properties": {
+    "authorization_revision": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "title": "Authorization Revision"
+    },
+    "expected_revision": {
+      "minimum": 1,
+      "title": "Expected Revision",
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "repository_url": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Repository Url",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "repository_url",
+    "authorization_revision",
+    "expected_revision",
+    "idempotency_key"
+  ],
+  "title": "CorporateRepositoryPlanRequest",
+  "type": "object"
+}

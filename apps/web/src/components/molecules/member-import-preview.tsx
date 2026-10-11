@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/atoms/badge";
+import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
 import type { MemberImportRow } from "@/lib/member-import";
 
 /** Reusable recipient review for file and pasted-list imports. No mutations. */
@@ -23,44 +24,44 @@ export function MemberImportPreview({
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
       tabIndex={0}
     >
-      <table className="w-full border-collapse text-sm">
+      <Table>
         <caption className="sr-only">{t("importPreview")}</caption>
-        <thead className="bg-muted sticky top-0">
-          <tr>
+        <THead className="bg-muted sticky top-0">
+          <Tr>
             {["importRow", "email", "nameColumn", "status"].map((key) => (
-              <th key={key} scope="col" className="px-3 py-3 text-left text-xs font-medium">
+              <Th key={key} className="py-3">
                 {t(key)}
-              </th>
+              </Th>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </Tr>
+        </THead>
+        <TBody>
           {loading || !rows.length ? (
-            <tr>
-              <td colSpan={4} className="text-muted-foreground p-6 text-center">
+            <Tr>
+              <Td colSpan={4} className="text-muted-foreground p-6 text-center">
                 <p role="status">{t(loading ? "readingFile" : "emptyImportPreview")}</p>
-              </td>
-            </tr>
+              </Td>
+            </Tr>
           ) : (
             rows.map((row) => (
-              <tr key={row.rowNumber} className="border-border border-t align-top">
-                <td className="text-muted-foreground px-3 py-3 tabular-nums">{row.rowNumber}</td>
-                <td className="max-w-56 px-3 py-3 [overflow-wrap:anywhere] break-words">
+              <Tr key={row.rowNumber} className="align-top">
+                <Td className="text-muted-foreground py-3 tabular-nums">{row.rowNumber}</Td>
+                <Td className="max-w-56 py-3 [overflow-wrap:anywhere] break-words">
                   {row.email || "—"}
-                </td>
-                <td className="max-w-56 px-3 py-3 [overflow-wrap:anywhere] break-words">
+                </Td>
+                <Td className="max-w-56 py-3 [overflow-wrap:anywhere] break-words">
                   {row.displayName || "—"}
-                </td>
-                <td className="px-3 py-3">
+                </Td>
+                <Td className="py-3">
                   <Badge variant={row.error ? "destructive" : "success"} className="font-sans">
                     {t(row.error ?? "importReady")}
                   </Badge>
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ))
           )}
-        </tbody>
-      </table>
+        </TBody>
+      </Table>
     </div>
   );
 }

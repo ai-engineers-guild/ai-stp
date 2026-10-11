@@ -175,7 +175,8 @@ async def test_extended_projection_authorizes_names_before_facets(
         ]
     else:
         streams += [
-            [SimpleNamespace(id=category, name="Language")],
+            [SimpleNamespace(id=category, name="Language", area_id=None)],
+            [],
             [
                 SimpleNamespace(technology_id=visible, category_id=identity)
                 for identity in (category, secret_category)

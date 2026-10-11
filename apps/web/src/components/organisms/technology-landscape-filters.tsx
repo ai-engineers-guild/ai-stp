@@ -1,125 +1,288 @@
-import { getTranslations } from "next-intl/server";
+"use client";
 
+import { useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/atoms/button";
-import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
-import { Link } from "@/lib/i18n/navigation";
-import type { CorporateContext } from "@/lib/api/generated/types.gen";
+import { Select } from "@/components/atoms/select";
+import { ExpandableSearch } from "@/components/molecules/expandable-search";
+import { RefineSurface } from "@/components/molecules/filter-surface";
+import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
+import { Link, useRouter } from "@/lib/i18n/navigation";
+import type { CorporateContext, CategoryView } from "@/lib/api/generated/types.gen";
+import { Icon } from "@/theme";
+import { useTechnologyTaxonomy } from "@/lib/technology-taxonomy";
 
-const dimensions = {
-  view: ["table", "grouped", "radar", "relationships"],
-  context: ["production", "development", "testing", "browser_support"],
-  review: ["proposed", "confirmed", "rejected", "overridden", "retired"],
-  freshness: ["current", "stale", "absent", "unknown"],
-  lifecycle: ["draft", "active", "deprecated", "archived"],
-  project_lifecycle: ["active", "deprecated", "archived", "deleted"],
-  activity: ["active", "inactive", "unknown"],
-  source_availability: ["unknown", "available", "unavailable"],
-  adoption: ["none", "assess", "trial", "adopt", "hold"],
-} as const;
+const SINGLE_FILTERS = [
+  "category_id",
+  "team_id",
+  "review",
+  "context",
+  "freshness",
+  "adoption",
+  "lifecycle",
+] as const;
 
-export async function TechnologyLandscapeFilters({
+type SingleFilter = (typeof SINGLE_FILTERS)[number];
+
+function landscapeQuery(filters: Record<string, string | string[]>) {
+  const query = new URLSearchParams();
+  for (const [name, value] of Object.entries(filters))
+    for (const entry of [value].flat()) query.append(name, entry);
+  query.delete("offset");
+  return query;
+}
+
+function landscapeHref(params: URLSearchParams) {
+  const text = params.toString();
+  return `/corporate/technology-landscape${text ? `?${text}` : ""}`;
+}
+
+function viewHref(filters: Record<string, string | string[]>, next: string) {
+  const params = landscapeQuery(filters);
+  params.set("view", next);
+  return landscapeHref(params);
+}
+
+export function TechnologyLandscapeFilters({
   filters,
   context,
+  categories = [],
+  launch,
 }: {
-  filters: Record<string, string>;
+  filters: Record<string, string | string[]>;
   context: CorporateContext;
+  categories?: CategoryView[];
+  launch?: ReactNode;
 }) {
-  const t = await getTranslations("technology");
+  const t = useTranslations("technology");
+  const w = useTranslations("technology.workspace");
+  const h = useTranslations("hub");
+  const router = useRouter();
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [queryDraft, setQueryDraft] = useState(
+    typeof filters.query === "string" ? filters.query : "",
+  );
+  const view = filters.view === "table" ? "table" : "grouped";
+  const activeCount =
+    [filters.project_ids ?? filters.project_id ?? []].flat().filter(Boolean).length +
+    SINGLE_FILTERS.filter((key) => typeof filters[key] === "string" && filters[key]).length;
+
+  function push(mutate: (params: URLSearchParams) => void) {
+    const params = landscapeQuery(filters);
+    mutate(params);
+    router.push(landscapeHref(params));
+  }
+
   return (
-    <form className="space-y-4" method="get">
-      <h2 className="text-xl font-medium">{t("filters")}</h2>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="space-y-2">
-          <Label htmlFor="landscape-query">{t("search")}</Label>
-          <Input id="landscape-query" name="query" maxLength={200} defaultValue={filters.query} />
-        </div>
-        {Object.entries(dimensions).map(([key, values]) => (
-          <FilterSelect
-            key={key}
-            name={key}
-            label={t(key)}
-            value={filters[key]}
-            all={t("all")}
-            options={values.map((value) => ({ value, label: t(`values.${value}`) }))}
-          />
-        ))}
-        <FilterSelect
-          name="project_id"
-          label={t("project")}
-          value={filters.project_id}
-          all={t("all")}
-          options={context.projects.map((p) => ({ value: p.project_id, label: p.name }))}
+    <>
+      <div className="technology-toolbar">
+        <ExpandableSearch
+          id="landscape-search"
+          value={queryDraft}
+          onChange={setQueryDraft}
+          onSubmit={() => {
+            push((params) => {
+              params.delete("query");
+              const needle = queryDraft.trim();
+              if (needle) params.set("query", needle);
+            });
+          }}
+          label={h("openSearch")}
+          fieldLabel={w("searchTechnology")}
+          placeholder={w("searchTechnology")}
         />
-        <FilterSelect
-          name="team_id"
-          label={t("team")}
-          value={filters.team_id}
-          all={t("all")}
-          options={context.teams.map((p) => ({ value: p.team_id, label: p.name }))}
-        />
-        <div className="space-y-2">
-          <Label htmlFor="landscape-category">{t("category")}</Label>
-          <Input id="landscape-category" name="category_id" defaultValue={filters.category_id} />
+        <Button
+          variant="outline"
+          aria-expanded={filtersOpen}
+          aria-controls="landscape-filters"
+          onClick={() => {
+            setFiltersOpen((open) => !open);
+          }}
+        >
+          <Icon name="filter" size="sm" />
+          {activeCount ? `${t("filters")} (${activeCount})` : t("filters")}
+        </Button>
+        <div className="technology-view-switch" aria-label={t("view")}>
+          <Button asChild variant="ghost" className={view === "grouped" ? "technology-active" : ""}>
+            <Link
+              href={viewHref(filters, "grouped")}
+              aria-current={view === "grouped" ? "page" : undefined}
+            >
+              <Icon name="cards" size="sm" />
+              {w("map")}
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" className={view === "table" ? "technology-active" : ""}>
+            <Link
+              href={viewHref(filters, "table")}
+              aria-current={view === "table" ? "page" : undefined}
+            >
+              <Icon name="list" size="sm" />
+              {w("table")}
+            </Link>
+          </Button>
         </div>
+        {launch}
       </div>
-      <div className="flex flex-wrap gap-4">
-        {["include_history", "include_inactive"].map((key) => (
-          <label key={key} className="flex min-h-11 items-center gap-2">
-            <input
-              type="checkbox"
-              name={key}
-              value="true"
-              defaultChecked={filters[key] === "true"}
-            />
-            {t(key === "include_history" ? "history" : "inactive")}
-          </label>
-        ))}
-      </div>
-      {filters.technology_id && (
-        <input type="hidden" name="technology_id" value={filters.technology_id} />
-      )}
-      <div className="flex flex-wrap gap-3">
-        <Button type="submit" size="lg">
-          {t("apply")}
-        </Button>
-        <Button asChild variant="outline" size="lg">
-          <Link href="/corporate/technology-landscape">{t("reset")}</Link>
-        </Button>
-      </div>
-    </form>
+      {filtersOpen ? (
+        <LandscapeFilterSurface
+          filters={filters}
+          context={context}
+          categories={categories}
+          onApply={(next) => {
+            push(next);
+            setFiltersOpen(false);
+          }}
+          onClose={() => {
+            setFiltersOpen(false);
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 
-function FilterSelect({
-  name,
-  label,
-  value,
-  all,
-  options,
+function LandscapeFilterSurface({
+  filters,
+  context,
+  categories,
+  onApply,
+  onClose,
 }: {
-  name: string;
-  label: string;
-  value: string | undefined;
-  all: string;
-  options: Array<{ value: string; label: string }>;
+  filters: Record<string, string | string[]>;
+  context: CorporateContext;
+  categories: CategoryView[];
+  onApply: (mutate: (params: URLSearchParams) => void) => void;
+  onClose: () => void;
 }) {
+  const t = useTranslations("technology");
+  const w = useTranslations("technology.workspace");
+  const localize = useTechnologyTaxonomy();
+  const [projects, setProjects] = useState<string[]>(
+    [filters.project_ids ?? filters.project_id ?? []].flat().filter(Boolean),
+  );
+  const [singles, setSingles] = useState<Record<SingleFilter, string>>(
+    () =>
+      Object.fromEntries(
+        SINGLE_FILTERS.map((key) => [key, typeof filters[key] === "string" ? filters[key] : ""]),
+      ) as Record<SingleFilter, string>,
+  );
+  const singleOptions: Record<SingleFilter, { value: string; label: string }[]> = {
+    category_id: categories.map((c) => ({ value: c.category_id, label: localize(c).name })),
+    team_id: context.teams.map((c) => ({ value: c.team_id, label: c.name })),
+    review: ["proposed", "confirmed", "rejected", "overridden"].map((value) => ({
+      value,
+      label: t(`values.${value}`),
+    })),
+    context: ["production", "development", "testing", "browser_support"].map((value) => ({
+      value,
+      label: t(`values.${value}`),
+    })),
+    freshness: ["current", "stale", "absent", "unknown"].map((value) => ({
+      value,
+      label: t(`values.${value}`),
+    })),
+    adoption: ["adopt", "trial", "assess", "hold"].map((value) => ({
+      value,
+      label: t(`values.${value}`),
+    })),
+    lifecycle: ["draft", "active", "deprecated", "archived"].map((value) => ({
+      value,
+      label: t(`values.${value}`),
+    })),
+  };
   return (
-    <div className="space-y-2">
-      <Label htmlFor={`landscape-${name}`}>{label}</Label>
-      <select
-        id={`landscape-${name}`}
-        name={name}
-        defaultValue={value ?? ""}
-        className="border-input bg-background text-foreground focus-visible:ring-ring h-11 w-full rounded-sm border px-3 text-sm focus-visible:ring-2"
-      >
-        <option value="">{all}</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
+    <RefineSurface
+      id="landscape-filters"
+      labels={{ filtersButton: t("filters"), closeFilters: t("close") }}
+      onClose={onClose}
+    >
+      <p className="text-muted-foreground -mt-3 mb-4 text-sm">{w("filterDescription")}</p>
+      <div className="grid min-w-0 items-start gap-5 md:grid-cols-2">
+        <div className="min-w-0 space-y-2 text-sm">
+          <Label htmlFor="landscape-organization" className="font-medium">
+            {w("organization")}
+          </Label>
+          <Select
+            id="landscape-organization"
+            value={context.organization.organization_id}
+            onChange={() => {}}
+          >
+            <option value={context.organization.organization_id}>{w("allOrganization")}</option>
+          </Select>
+        </div>
+        <div className="min-w-0 space-y-2 text-sm">
+          <span className="font-medium">{w("allProjects")}</span>
+          <SearchableMultiSelect
+            name="project_ids"
+            label={w("allProjects")}
+            searchLabel={w("searchProject")}
+            options={context.projects.map((p) => ({ value: p.project_id, label: p.name }))}
+            selected={projects}
+            onChange={setProjects}
+            modal
+            closeLabel={t("close")}
+            emptyHint={w("allProjects")}
+          />
+        </div>
+        {SINGLE_FILTERS.map((name) => (
+          <div key={name} className="min-w-0 space-y-2 text-sm">
+            <Label htmlFor={`landscape-${name}`} className="font-medium">
+              {t(name === "category_id" ? "category" : name === "team_id" ? "team" : name)}
+            </Label>
+            <Select
+              id={`landscape-${name}`}
+              value={singles[name]}
+              onChange={(event) => {
+                setSingles((previous) => ({ ...previous, [name]: event.target.value }));
+              }}
+            >
+              <option value="">{t("all")}</option>
+              {singleOptions[name].map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </div>
         ))}
-      </select>
-    </div>
+      </div>
+      <div className="border-border bg-card sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t py-5">
+        <Button
+          type="button"
+          variant="ghost"
+          className="underline underline-offset-4"
+          onClick={() => {
+            setProjects([]);
+            setSingles(
+              Object.fromEntries(SINGLE_FILTERS.map((key) => [key, ""])) as Record<
+                SingleFilter,
+                string
+              >,
+            );
+          }}
+        >
+          {t("reset")}
+        </Button>
+        <Button
+          type="button"
+          onClick={() => {
+            onApply((params) => {
+              params.delete("project_ids");
+              params.delete("project_id");
+              for (const value of projects) params.append("project_ids", value);
+              for (const name of SINGLE_FILTERS) {
+                params.delete(name);
+                if (singles[name]) params.set(name, singles[name]);
+              }
+            });
+          }}
+        >
+          <Icon name="filter" size="sm" />
+          {t("apply")}
+        </Button>
+      </div>
+    </RefineSurface>
   );
 }

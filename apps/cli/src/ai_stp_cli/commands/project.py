@@ -1575,6 +1575,7 @@ def technology_publish(parameters: Mapping[str, object]) -> Answer[TechnologySca
         expected_revision=expected_revision,
         idempotency_key=_required(parameters, "idempotency-key"),
         handoff=built.handoff,
+        source="local",
     )
     held = cloud_auth.required("technology scan publication")
     return Answer(

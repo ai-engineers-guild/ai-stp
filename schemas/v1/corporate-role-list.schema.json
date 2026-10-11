@@ -11,21 +11,6 @@
           "title": "Name",
           "type": "string"
         },
-        "parent_role": {
-          "anyOf": [
-            {
-              "description": "Tenant-local role name.",
-              "maxLength": 64,
-              "minLength": 1,
-              "pattern": "^[a-z][a-z0-9_-]*$",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Parent Role"
-        },
         "permissions": {
           "items": {
             "type": "string"
@@ -48,7 +33,6 @@
       },
       "required": [
         "name",
-        "parent_role",
         "permissions",
         "revision",
         "schema_version"

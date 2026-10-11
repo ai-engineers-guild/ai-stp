@@ -29,6 +29,7 @@ export function CorporateEntityDetail({
   resourceId,
   title,
   state,
+  meta,
   rail,
   adminMenu,
 }: {
@@ -39,6 +40,8 @@ export function CorporateEntityDetail({
   resourceId: string;
   title: string;
   state?: string;
+  /** Extra header marks beside the state badge (e.g. a member's job title). */
+  meta?: ReactNode;
   rail?: ReactNode;
   adminMenu?: ReactNode;
 }) {
@@ -80,7 +83,14 @@ export function CorporateEntityDetail({
           />
         }
         title={presentation?.name ?? title}
-        meta={visibleState ? <Badge variant="outline">{visibleState}</Badge> : null}
+        meta={
+          meta || visibleState ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {meta}
+              {visibleState ? <Badge variant="outline">{visibleState}</Badge> : null}
+            </div>
+          ) : null
+        }
         menu={
           <EntityDetailMenu
             moreLabel={access("more")}

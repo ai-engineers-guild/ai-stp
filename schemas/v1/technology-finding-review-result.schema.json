@@ -1,0 +1,23 @@
+{
+  "$id": "urn:ai-stp:schema:v1:technology-finding-review-result",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "updated": {
+      "minimum": 0,
+      "title": "Updated",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "organization_id",
+    "updated"
+  ],
+  "title": "TechnologyFindingReviewResult",
+  "type": "object"
+}

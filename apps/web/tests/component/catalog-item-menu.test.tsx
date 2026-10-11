@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { MenuItem } from "@/components/atoms/menu";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
@@ -85,9 +85,9 @@ describe("CatalogItemMenu", () => {
         version="1.0"
         href="/objects/component/cmp_example"
         leadingItems={[
-          <DropdownMenu.Item key="visibility">Make public</DropdownMenu.Item>,
-          <DropdownMenu.Item key="edit">Edit public presentation</DropdownMenu.Item>,
-          <DropdownMenu.Item key="access">Manage access</DropdownMenu.Item>,
+          <MenuItem key="visibility">Make public</MenuItem>,
+          <MenuItem key="edit">Edit public presentation</MenuItem>,
+          <MenuItem key="access">Manage access</MenuItem>,
         ]}
         labels={{ ...labels, report: "Report component" }}
       />,

@@ -5,8 +5,7 @@ import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
 import { ApiError } from "@/lib/api/errors";
-import { fieldErrorsFromDetails, type FieldErrors } from "@/lib/api/field-errors";
-import { privateApiRequest, type PrivateRequestOptions } from "@/lib/api/http";
+import { privateApiRequest } from "@/lib/api/http";
 import { corporateAuditFilters, type CorporateAuditFilterValues } from "@/lib/api/corporate-audit";
 import { readCorporateContext, readCorporateOrganizations } from "@/lib/api/corporate";
 import { CORPORATE_ORG_COOKIE } from "@/lib/auth/cookies";
@@ -21,7 +20,6 @@ import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
 
 import type {
   CorporateAuditExport,
-  CorporateContext,
   CorporateDirectoryView,
   TechnologyMergePlanView,
   ProjectTechnologyView,
@@ -30,18 +28,6 @@ import type {
   SetupDetail,
   ComponentDetail,
 } from "@/lib/api/generated/types.gen";
-
-type CorporateMutation = {
-  csrfToken: string;
-  organizationId: string;
-  path: string;
-  method: "POST" | "PUT" | "PATCH" | "DELETE";
-  body: unknown;
-};
-
-type MutationResult =
-  | { ok: true; data: unknown }
-  | { ok: false; message: string; code?: string; fieldErrors?: FieldErrors };
 
 type AuditExportResult = { ok: true; data: CorporateAuditExport } | { ok: false; message: string };
 
@@ -198,97 +184,6 @@ export async function corporateTechnologyMergePlanAction(input: {
       ok: false,
       message: error instanceof ApiError ? error.message : common("requestFailed"),
     };
-  }
-}
-
-export async function corporateMutationAction(input: CorporateMutation): Promise<MutationResult> {
-  const common = await getTranslations("common");
-  if (
-    !/^organization_[A-Za-z0-9_-]{20,80}$/.test(input.organizationId) ||
-    !input.path.startsWith(`/v1/corporate/organizations/${input.organizationId}/`) ||
-    input.path.includes("..")
-  ) {
-    return { ok: false, message: common("invalidRequest"), fieldErrors: {} };
-  }
-  try {
-    assertCsrf(input.csrfToken, await readCsrfToken());
-    if (!(await readSession()))
-      return { ok: false, message: common("notSignedIn"), fieldErrors: {} };
-    const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
-    if (!sessionToken) return { ok: false, message: common("notSignedIn"), fieldErrors: {} };
-    const options: PrivateRequestOptions = {
-      method: input.method,
-      body: input.body,
-      sessionToken,
-    };
-    const data = await privateApiRequest<unknown>(input.path, options);
-    revalidatePath("/[locale]/corporate", "layout");
-    return { ok: true, data };
-  } catch (error) {
-    return error instanceof ApiError
-      ? {
-          ok: false,
-          message: error.message,
-          code: error.code,
-          fieldErrors: fieldErrorsFromDetails(error.details, error.message),
-        }
-      : { ok: false, message: common("requestFailed"), fieldErrors: {} };
-  }
-}
-
-export async function corporateTeamAssignmentsAction(input: {
-  csrfToken: string;
-  organizationId: string;
-  assignments: Array<{
-    accountId: string;
-    teamId: string;
-    role: "staff" | "lead";
-    operation: "assign" | "remove";
-    idempotencyKey: string;
-  }>;
-}): Promise<{ completed: string[]; message?: string }> {
-  const common = await getTranslations("common");
-  const completed: string[] = [];
-  if (
-    !/^organization_[A-Za-z0-9_-]{20,80}$/.test(input.organizationId) ||
-    !input.assignments.length ||
-    input.assignments.length > 256
-  ) {
-    return { completed, message: common("invalidRequest") };
-  }
-  try {
-    assertCsrf(input.csrfToken, await readCsrfToken());
-    if (!(await readSession())) return { completed, message: common("notSignedIn") };
-    const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
-    if (!sessionToken) return { completed, message: common("notSignedIn") };
-    const path = `/v1/corporate/organizations/${input.organizationId}`;
-    for (const assignment of input.assignments) {
-      const context = await privateApiRequest<CorporateContext>(`${path}/context`, {
-        sessionToken,
-      });
-      await privateApiRequest(`${path}/membership-assignments`, {
-        sessionToken,
-        method: "POST",
-        body: {
-          schema_version: 1,
-          account_id: assignment.accountId,
-          team_id: assignment.teamId,
-          team_role: assignment.role,
-          operation: assignment.operation,
-          authorization_revision: context.organization.authorization_revision,
-          idempotency_key: assignment.idempotencyKey,
-        },
-      });
-      completed.push(assignment.idempotencyKey);
-    }
-    return { completed };
-  } catch (error) {
-    return {
-      completed,
-      message: error instanceof ApiError ? error.message : common("requestFailed"),
-    };
-  } finally {
-    revalidatePath("/[locale]/corporate", "layout");
   }
 }
 

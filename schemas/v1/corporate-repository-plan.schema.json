@@ -1,0 +1,92 @@
+{
+  "$defs": {
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-repository-plan",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorization_revision": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "title": "Authorization Revision"
+    },
+    "default_branch": {
+      "title": "Default Branch",
+      "type": "string"
+    },
+    "expected_revision": {
+      "title": "Expected Revision",
+      "type": "integer"
+    },
+    "expires_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "namespace_id": {
+      "title": "Namespace Id",
+      "type": "string"
+    },
+    "observed_revision": {
+      "title": "Observed Revision",
+      "type": "string"
+    },
+    "plan_digest": {
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "plan_key": {
+      "title": "Plan Key",
+      "type": "string"
+    },
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "provider": {
+      "enum": [
+        "github",
+        "gitlab"
+      ],
+      "title": "Provider",
+      "type": "string"
+    },
+    "repository_id": {
+      "title": "Repository Id",
+      "type": "string"
+    },
+    "repository_url": {
+      "title": "Repository Url",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "repository_url",
+    "provider",
+    "repository_id",
+    "namespace_id",
+    "name",
+    "default_branch",
+    "observed_revision",
+    "expected_revision",
+    "authorization_revision",
+    "plan_key",
+    "plan_digest",
+    "expires_at"
+  ],
+  "title": "CorporateRepositoryPlan",
+  "type": "object"
+}

@@ -10,11 +10,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "docs_scripts"
 CONFIG = SCRIPTS / ".markdownlint-cli2.jsonc"
-BINARY = (
-    SCRIPTS
-    / "node_modules"
-    / ".bin"
-    / ("markdownlint-cli2.cmd" if sys.platform == "win32" else "markdownlint-cli2")
+# npm installs a `.cmd` shim on Windows; Bun installs a `.exe` one.
+_BINARY_NAMES = (
+    ("markdownlint-cli2.cmd", "markdownlint-cli2.exe")
+    if sys.platform == "win32"
+    else ("markdownlint-cli2",)
+)
+BINARY = next(
+    (
+        SCRIPTS / "node_modules" / ".bin" / name
+        for name in _BINARY_NAMES
+        if (SCRIPTS / "node_modules" / ".bin" / name).is_file()
+    ),
+    SCRIPTS / "node_modules" / ".bin" / _BINARY_NAMES[0],
 )
 
 

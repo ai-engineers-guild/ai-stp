@@ -6,7 +6,7 @@ import { ApiError } from "@/lib/api/errors";
 import { apiRequest } from "@/lib/api/http";
 import { sessionCookieValue } from "@/lib/auth/require-session";
 
-import type { InstallationHeartbeatList } from "@/components/installations/types";
+import type { InstallationHeartbeatList } from "@/lib/installations-types";
 
 export const dynamic = "force-dynamic";
 

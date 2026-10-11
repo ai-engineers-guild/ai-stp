@@ -2,10 +2,11 @@
 
 /* eslint-disable max-lines-per-function, @typescript-eslint/no-confusing-void-expression */
 
+import { Select } from "@/components/atoms/select";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
@@ -44,6 +45,7 @@ export function CorporateServicePrincipalsPanel({
   capabilities: readonly string[];
   labels: {
     title: string;
+    name: string;
     role: string;
     scope: string;
     organization: string;
@@ -75,7 +77,7 @@ export function CorporateServicePrincipalsPanel({
   function submit(method: "POST" | "PATCH" | "DELETE", path: string, body: unknown) {
     setMessage(null);
     startTransition(async () => {
-      const result = await corporateMutationAction({
+      const result = await corporateMutation({
         csrfToken,
         organizationId,
         path,
@@ -109,7 +111,7 @@ export function CorporateServicePrincipalsPanel({
           }}
         >
           <div className="space-y-1.5">
-            <Label htmlFor="principal-name">{labels.title}</Label>
+            <Label htmlFor="principal-name">{labels.name}</Label>
             <Input
               id="principal-name"
               required
@@ -119,7 +121,7 @@ export function CorporateServicePrincipalsPanel({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="principal-role">{labels.role}</Label>
-            <select
+            <Select
               id="principal-role"
               required
               value={role}
@@ -131,11 +133,11 @@ export function CorporateServicePrincipalsPanel({
                   {item.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="principal-scope">{labels.scope}</Label>
-            <select
+            <Select
               id="principal-scope"
               required
               value={scope}
@@ -157,7 +159,7 @@ export function CorporateServicePrincipalsPanel({
                   </option>
                 ))}
               </optgroup>
-            </select>
+            </Select>
           </div>
           <Button type="submit" disabled={busy} className="self-end">
             {busy ? labels.creating : labels.create}

@@ -8,36 +8,48 @@ from ai_stp_api.errors import ApiError
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.corporate.service import bootstrap, create_project
 from ai_stp_api.slices.technology.detection import (
+    export_scan_findings,
+    launch_scans,
     list_mappings,
+    list_scans,
     publish_mapping,
     publish_scan,
     read_mapping,
     read_scan,
+    read_scan_detail,
+    read_scan_findings,
     read_unmapped,
     review_unmapped,
 )
 from ai_stp_api.slices.technology.service import (
+    change_area_lifecycle,
     change_category_lifecycle,
     change_lifecycle,
     import_seed,
+    list_areas,
+    read_area,
+    write_area,
     write_category,
     write_project_technology,
 )
 from ai_stp_contracts.corporate import CorporateBootstrapRequest, CorporateProjectCreateRequest
 from ai_stp_contracts.technology import (
+    AreaLifecycleRequest,
+    AreaWriteRequest,
     CategoryLifecycleRequest,
     CategoryWriteRequest,
     ProjectTechnologyWriteRequest,
     TechnologyLifecycleRequest,
     TechnologyMappingRequest,
+    TechnologyScanLaunchRequest,
     TechnologyScanRequest,
     TechnologySeedRequest,
     TechnologyUnmappedReviewRequest,
 )
 from ai_stp_contracts.technology_seed import SEED_COORDINATES_VERSION, SEED_TECHNOLOGIES
 from ai_stp_foundation.ids import new_id
-from ai_stp_platform.models import Account
-from ai_stp_platform.organization_models import Organization
+from ai_stp_platform.models import Account, Device
+from ai_stp_platform.organization_models import Organization, ProjectIdentity, ProjectLink
 from ai_stp_platform.technology_models import (
     TechnologyCoordinateMapping,
     TechnologyScan,
@@ -742,3 +754,771 @@ async def test_category_draft_lifecycle(
         request_id="category-draft",
     )
     assert demoted.state == "draft"
+
+
+async def test_scan_journal_launch_and_detail(
+    db_session: AsyncSession,
+) -> None:
+    """The journal lists published scans; launch rejects unlinked projects."""
+    account_id = new_id("account")
+    db_session.add(Account(id=account_id, status="active"))
+    await db_session.flush()
+    ctx = AuthContext(account_id, "journal-test", None, "active", False, False)
+    org = (
+        await bootstrap(
+            db_session,
+            payload=CorporateBootstrapRequest(
+                organization_name="Scan journal acceptance",
+                superadmin_account_id=account_id,
+                idempotency_key="journal-bootstrap-0001",
+            ),
+            request_id="journal-test",
+        )
+    ).organization_id
+    await import_seed(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        payload=TechnologySeedRequest(
+            authorization_revision=1, idempotency_key="journal-seed-0001"
+        ),
+        request_id="journal-test",
+    )
+    technology_id = SEED_TECHNOLOGIES[0][0]
+    await change_lifecycle(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        technology_id=technology_id,
+        payload=TechnologyLifecycleRequest(
+            lifecycle="active",
+            expected_revision=1,
+            authorization_revision=2,
+            idempotency_key="journal-approve-0001",
+        ),
+        request_id="journal-test",
+    )
+    first = await create_project(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        payload=CorporateProjectCreateRequest(
+            name="Scanned project",
+            authorization_revision=3,
+            idempotency_key="journal-project-0001",
+        ),
+        request_id="journal-test",
+    )
+    second = await create_project(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        payload=CorporateProjectCreateRequest(
+            name="Unscanned project",
+            authorization_revision=4,
+            idempotency_key="journal-project-0002",
+        ),
+        request_id="journal-test",
+    )
+    third = await create_project(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        payload=CorporateProjectCreateRequest(
+            name="GitHub scanned project",
+            authorization_revision=5,
+            idempotency_key="journal-project-0003",
+        ),
+        request_id="journal-test",
+    )
+    scan_request = TechnologyScanRequest.model_validate(
+        {
+            "authorization_revision": 6,
+            "expected_revision": 1,
+            "idempotency_key": "journal-scan-0001",
+            "source": "local",
+            "handoff": {
+                "organization_id": org,
+                "project_id": first.project_id,
+                "scan_id": new_id("scan"),
+                "scope": "dependencies",
+                "complete": True,
+                "detector_version": "v1",
+                "mapping_version": SEED_COORDINATES_VERSION,
+                "observations": [
+                    {
+                        "technology_id": technology_id,
+                        "fact": {
+                            "context": "production",
+                            "version": "1.2.3",
+                            "version_kind": "observed_version",
+                            "evidence": [
+                                {
+                                    "source": "observed",
+                                    "path": "requirements.lock",
+                                    "observed_at": "2026-09-12T00:00:00.000Z",
+                                    "detector_version": "v1",
+                                    "mapping_version": SEED_COORDINATES_VERSION,
+                                }
+                            ],
+                        },
+                    }
+                ],
+                "unmapped_coordinates": [
+                    {
+                        "kind": "package",
+                        "coordinate": "pip:unknown-widget",
+                        "context": "production",
+                        "version": "0.9.0",
+                        "evidence": [
+                            {
+                                "source": "declared",
+                                "path": "requirements.txt",
+                                "observed_at": "2026-09-12T00:00:00.000Z",
+                                "detector_version": "v1",
+                                "mapping_version": SEED_COORDINATES_VERSION,
+                            }
+                        ],
+                    }
+                ],
+            },
+        }
+    )
+    published = await publish_scan(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        project_id=first.project_id,
+        payload=scan_request,
+        request_id="journal-test",
+    )
+
+    journal = await list_scans(db_session, ctx=ctx, organization_id=org, request_id="journal-test")
+    assert journal.total == 1
+    entry = journal.items[0]
+    assert entry.scan_id == published.scan_id
+    assert entry.project_id == first.project_id
+    assert entry.project_name == "Scanned project"
+    assert entry.source == "local"
+    assert entry.status == "succeeded"
+    assert entry.found == 1
+    assert entry.pending == 0
+    assert entry.dependencies == 1
+
+    filtered = await list_scans(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        project_id=second.project_id,
+        request_id="journal-test",
+    )
+    assert filtered.total == 0
+
+    detail = await read_scan_detail(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        scan_id=published.scan_id,
+        request_id="journal-test",
+    )
+    assert detail.project_id == first.project_id
+    assert detail.source == "local"
+    assert detail.status == "succeeded"
+    assert detail.found == 1
+    assert detail.pending == 0
+    assert detail.dependencies == 1
+    assert detail.detector_version == "v1"
+    assert detail.mapping_version == SEED_COORDINATES_VERSION
+    assert detail.complete is True
+    states = {finding.coordinate: finding for finding in detail.findings}
+    resolved = next(
+        finding for finding in detail.findings if finding.technology_id == technology_id
+    )
+    assert resolved.state == "resolved"
+    assert resolved.technology_id == technology_id
+    assert resolved.version == "1.2.3"
+    assert resolved.version_kind == "observed_version"
+    assert resolved.evidence[0].path == "requirements.lock"
+    # A declared-but-unrecognized package lists as a dependency, not a
+    # technology — it also sits in the unmapped queue until a review or a
+    # mapping gives it an identity.
+    opened = states["pip:unknown-widget"]
+    assert opened.tier == "dependency"
+    assert opened.state == "open"
+    assert opened.technology_id is None
+    assert opened.evidence[0].path == "requirements.txt"
+    unmapped = await read_unmapped(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        scan_id=published.scan_id,
+        request_id="journal-test",
+    )
+    queued = {entry.coordinate for entry in unmapped.coordinates}
+    assert queued == {"pip:unknown-widget"}
+
+    # A candidate review shows up in the scan detail without changing history.
+    await review_unmapped(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        payload=TechnologyUnmappedReviewRequest.model_validate(
+            {
+                "authorization_revision": 7,
+                "idempotency_key": "journal-review-0001",
+                "kind": "package",
+                "coordinate": "pip:unknown-widget",
+                "candidate_technology_id": technology_id,
+            }
+        ),
+        request_id="journal-test",
+    )
+    detail = await read_scan_detail(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        scan_id=published.scan_id,
+        request_id="journal-test",
+    )
+    opened = {finding.coordinate: finding for finding in detail.findings}["pip:unknown-widget"]
+    assert opened.state == "candidate"
+    assert opened.tier == "technology"
+    assert opened.candidate_technology_id == technology_id
+
+    # A linked GitLab project queues a scan job; an unlinked one is rejected.
+    device_id = new_id("device")
+    db_session.add(Device(id=device_id, account_id=account_id, public_key="journal-device"))
+    provider_id = new_id("provider_project")
+    db_session.add(
+        ProjectIdentity(
+            id=provider_id,
+            organization_id=org,
+            namespace="provider",
+            external_key=f"gitlab:{provider_id}",
+            display_name="group/service",
+            provider_kind="gitlab",
+            state="active",
+        )
+    )
+    await db_session.flush()
+    db_session.add(
+        ProjectLink(
+            id=new_id("project_link"),
+            plan_id=new_id("link_plan"),
+            plan_digest="sha256:" + "a" * 64,
+            organization_id=org,
+            actor_account_id=account_id,
+            device_id=device_id,
+            local_project_id=new_id("project"),
+            remote_project_id=second.project_id,
+            provider_project_id=provider_id,
+            state="linked",
+            local_revision="local1",
+            remote_revision="remote1",
+            provider_revision="provider1",
+            create_idempotency_key="journal-link-0001",
+        )
+    )
+    github_provider_id = new_id("provider_project")
+    db_session.add(
+        ProjectIdentity(
+            id=github_provider_id,
+            organization_id=org,
+            namespace="provider",
+            external_key=f"github:{github_provider_id}",
+            display_name="org/service",
+            provider_kind="github",
+            state="active",
+        )
+    )
+    await db_session.flush()
+    db_session.add(
+        ProjectLink(
+            id=new_id("project_link"),
+            plan_id=new_id("link_plan"),
+            plan_digest="sha256:" + "b" * 64,
+            organization_id=org,
+            actor_account_id=account_id,
+            device_id=device_id,
+            local_project_id=new_id("project"),
+            remote_project_id=third.project_id,
+            provider_project_id=github_provider_id,
+            state="linked",
+            local_revision="local1",
+            remote_revision="remote1",
+            provider_revision="provider1",
+            create_idempotency_key="journal-link-0002",
+        )
+    )
+    await db_session.flush()
+
+    launch = await launch_scans(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        payload=TechnologyScanLaunchRequest.model_validate(
+            {
+                "authorization_revision": 8,
+                "idempotency_key": "journal-launch-0001",
+                "project_ids": [first.project_id, second.project_id, third.project_id],
+            }
+        ),
+        request_id="journal-test",
+    )
+    assert len(launch.items) == 3
+    by_project = {item.project_id: item for item in launch.items}
+    rejected = by_project[first.project_id]
+    assert rejected.state == "rejected"
+    assert "repository" in (rejected.detail or "")
+    queued = by_project[second.project_id]
+    assert queued.state == "queued"
+    assert queued.scan_id is not None and queued.job_id is not None
+    github_queued = by_project[third.project_id]
+    assert github_queued.state == "queued"
+    assert github_queued.scan_id is not None and github_queued.job_id is not None
+
+    journal = await list_scans(db_session, ctx=ctx, organization_id=org, request_id="journal-test")
+    assert journal.total == 3
+    queued_row = {item.scan_id: item for item in journal.items}[queued.scan_id]
+    assert queued_row.status == "queued"
+    assert queued_row.source == "gitlab"
+    assert queued_row.project_id == second.project_id
+    assert queued_row.found == 0
+    github_row = {item.scan_id: item for item in journal.items}[github_queued.scan_id]
+    assert github_row.status == "queued"
+    assert github_row.source == "github"
+    assert github_row.project_id == third.project_id
+
+    queued_detail = await read_scan_detail(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        scan_id=queued.scan_id,
+        request_id="journal-test",
+    )
+    assert queued_detail.status == "queued"
+    assert queued_detail.findings == []
+
+    filtered = await list_scans(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        project_id=second.project_id,
+        request_id="journal-test",
+    )
+    assert [item.scan_id for item in filtered.items] == [queued.scan_id]
+
+    # A replayed launch returns the stored receipt instead of new jobs.
+    replay = await launch_scans(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        payload=TechnologyScanLaunchRequest.model_validate(
+            {
+                "authorization_revision": 8,
+                "idempotency_key": "journal-launch-0001",
+                "project_ids": [first.project_id, second.project_id, third.project_id],
+            }
+        ),
+        request_id="journal-test",
+    )
+    assert replay == launch
+    duplicate = await launch_scans(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        payload=TechnologyScanLaunchRequest.model_validate(
+            {
+                "authorization_revision": 8,
+                "idempotency_key": "journal-launch-0002",
+                "project_ids": [second.project_id, third.project_id],
+            }
+        ),
+        request_id="duplicate-launch",
+    )
+    assert all(item.state == "rejected" for item in duplicate.items)
+    assert all("already queued or running" in (item.detail or "") for item in duplicate.items)
+    assert (
+        await list_scans(db_session, ctx=ctx, organization_id=org, request_id="after-duplicate")
+    ).total == 3
+
+
+async def test_technology_area_lifecycle_and_category_binding(
+    db_session: AsyncSession,
+) -> None:
+    """Areas carry draft→active→archived states and guard bound categories."""
+    account_id = new_id("account")
+    db_session.add(Account(id=account_id, status="active"))
+    await db_session.flush()
+    ctx = AuthContext(account_id, "area-test", None, "active", False, False)
+    org = (
+        await bootstrap(
+            db_session,
+            payload=CorporateBootstrapRequest(
+                organization_name="Area acceptance",
+                superadmin_account_id=account_id,
+                idempotency_key="area-bootstrap-0001",
+            ),
+            request_id="area-test",
+        )
+    ).organization_id
+    area = await write_area(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        area_id=None,
+        payload=AreaWriteRequest.model_validate(
+            {
+                "authorization_revision": 1,
+                "expected_revision": 0,
+                "idempotency_key": "area-create-0001",
+                "metadata": {"name": "Data platform"},
+                "state": "draft",
+            }
+        ),
+        request_id="area-test",
+    )
+    assert area.state == "draft"
+    activated = await change_area_lifecycle(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        area_id=area.area_id,
+        payload=AreaLifecycleRequest.model_validate(
+            {
+                "authorization_revision": 2,
+                "expected_revision": 1,
+                "idempotency_key": "area-activate-0001",
+                "target": "active",
+            }
+        ),
+        request_id="area-test",
+    )
+    assert activated.state == "active"
+
+    bound = await write_category(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        category_id=None,
+        payload=CategoryWriteRequest.model_validate(
+            {
+                "authorization_revision": 3,
+                "expected_revision": 0,
+                "idempotency_key": "area-category-0001",
+                "metadata": {"name": "Query engines"},
+                "area_id": area.area_id,
+            }
+        ),
+        request_id="area-test",
+    )
+    assert bound.area_id == area.area_id
+
+    # An update without area_id preserves the binding.
+    renamed = await write_category(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        category_id=bound.category_id,
+        payload=CategoryWriteRequest.model_validate(
+            {
+                "authorization_revision": 4,
+                "expected_revision": 1,
+                "idempotency_key": "area-category-0002",
+                "metadata": {"name": "Query engine"},
+            }
+        ),
+        request_id="area-test",
+    )
+    assert renamed.name == "Query engine"
+    assert renamed.area_id == area.area_id
+
+    # The area cannot be archived while a category is bound to it.
+    with pytest.raises(ApiError, match="bound categories"):
+        await change_area_lifecycle(
+            db_session,
+            ctx=ctx,
+            organization_id=org,
+            area_id=area.area_id,
+            payload=AreaLifecycleRequest.model_validate(
+                {
+                    "authorization_revision": 5,
+                    "expected_revision": 2,
+                    "idempotency_key": "area-archive-0001",
+                    "target": "archived",
+                }
+            ),
+            request_id="area-test",
+        )
+
+    # An explicit null unbinds; the area then archives cleanly.
+    unbound = await write_category(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        category_id=bound.category_id,
+        payload=CategoryWriteRequest.model_validate(
+            {
+                "authorization_revision": 5,
+                "expected_revision": 2,
+                "idempotency_key": "area-category-0003",
+                "metadata": {"name": "Query engine"},
+                "area_id": None,
+            }
+        ),
+        request_id="area-test",
+    )
+    assert unbound.area_id is None
+    archived = await change_area_lifecycle(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        area_id=area.area_id,
+        payload=AreaLifecycleRequest.model_validate(
+            {
+                "authorization_revision": 6,
+                "expected_revision": 2,
+                "idempotency_key": "area-archive-0002",
+                "target": "archived",
+            }
+        ),
+        request_id="area-test",
+    )
+    assert archived.state == "archived"
+
+    # An archived area refuses new category bindings.
+    with pytest.raises(ApiError, match="technology area is unavailable"):
+        await write_category(
+            db_session,
+            ctx=ctx,
+            organization_id=org,
+            category_id=bound.category_id,
+            payload=CategoryWriteRequest.model_validate(
+                {
+                    "authorization_revision": 7,
+                    "expected_revision": 3,
+                    "idempotency_key": "area-category-0004",
+                    "metadata": {"name": "Query engine"},
+                    "area_id": area.area_id,
+                }
+            ),
+            request_id="area-test",
+        )
+    assert (
+        await read_area(
+            db_session,
+            ctx=ctx,
+            organization_id=org,
+            area_id=area.area_id,
+            request_id="area-test",
+        )
+    ).state == "archived"
+    assert area.area_id in {
+        item.area_id
+        for item in (
+            await list_areas(db_session, ctx=ctx, organization_id=org, request_id="area-test")
+        ).items
+    }
+
+
+async def test_scan_findings_resource_and_exports(
+    db_session: AsyncSession,
+) -> None:
+    """The findings resource serves the same curated rows the review page does."""
+    account_id = new_id("account")
+    db_session.add(Account(id=account_id, status="active"))
+    await db_session.flush()
+    ctx = AuthContext(account_id, "findings-test", None, "active", False, False)
+    org = (
+        await bootstrap(
+            db_session,
+            payload=CorporateBootstrapRequest(
+                organization_name="Findings acceptance",
+                superadmin_account_id=account_id,
+                idempotency_key="findings-bootstrap-0001",
+            ),
+            request_id="findings-test",
+        )
+    ).organization_id
+    await import_seed(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        payload=TechnologySeedRequest(
+            authorization_revision=1, idempotency_key="findings-seed-0001"
+        ),
+        request_id="findings-test",
+    )
+    project = await create_project(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        payload=CorporateProjectCreateRequest(
+            name="Findings project",
+            authorization_revision=2,
+            idempotency_key="findings-project-0001",
+        ),
+        request_id="findings-test",
+    )
+    evidence = {
+        "source": "observed",
+        "path": "uv.lock",
+        "observed_at": "2026-09-12T00:00:00.000Z",
+        "detector_version": "v3",
+        "mapping_version": SEED_COORDINATES_VERSION,
+    }
+    published = await publish_scan(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        project_id=project.project_id,
+        payload=TechnologyScanRequest.model_validate(
+            {
+                "authorization_revision": 3,
+                "expected_revision": 1,
+                "idempotency_key": "findings-scan-0001",
+                "source": "local",
+                "handoff": {
+                    "organization_id": org,
+                    "project_id": project.project_id,
+                    "scan_id": new_id("scan"),
+                    "scope": "dependencies",
+                    "complete": True,
+                    "detector_version": "v3",
+                    "mapping_version": SEED_COORDINATES_VERSION,
+                    "observations": [],
+                    "coordinates": [
+                        {
+                            "kind": "package",
+                            "coordinate": "fastapi",
+                            "context": "production",
+                            "version": ">=0.100",
+                            "version_kind": "declared_range",
+                            "evidence": [
+                                {**evidence, "source": "declared", "path": "pyproject.toml"},
+                                evidence,
+                            ],
+                        },
+                        {
+                            "kind": "package",
+                            "coordinate": "resolver-only-dep",
+                            "context": "production",
+                            "version": "1.0.0",
+                            "version_kind": "observed_version",
+                            "evidence": [evidence],
+                        },
+                        {
+                            "kind": "package",
+                            "coordinate": "acme-internal-stdlib",
+                            "context": "production",
+                            "version": "2.1.0",
+                            "version_kind": "declared_range",
+                            "evidence": [
+                                {
+                                    **evidence,
+                                    "source": "declared",
+                                    "path": "requirements.txt",
+                                }
+                            ],
+                        },
+                        {
+                            "kind": "configuration",
+                            "coordinate": "conftest.py",
+                            "context": "testing",
+                            "evidence": [
+                                {**evidence, "source": "configured", "path": "conftest.py"}
+                            ],
+                        },
+                    ],
+                    "unmapped_coordinates": [
+                        {
+                            "kind": "package",
+                            "coordinate": "acme-internal-stdlib",
+                            "context": "production",
+                            "version": "2.1.0",
+                            "version_kind": "declared_range",
+                            "evidence": [
+                                {
+                                    **evidence,
+                                    "source": "declared",
+                                    "path": "requirements.txt",
+                                }
+                            ],
+                        }
+                    ],
+                },
+            }
+        ),
+        request_id="findings-test",
+    )
+
+    detail = await read_scan_detail(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        scan_id=published.scan_id,
+        request_id="findings-test",
+    )
+    listing = await read_scan_findings(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        scan_id=published.scan_id,
+        request_id="findings-test",
+    )
+    assert listing.scan_id == published.scan_id
+    assert listing.project_id == project.project_id
+    assert listing.organization_id == org
+    assert listing.findings == detail.findings
+    coordinates = {finding.coordinate: finding for finding in listing.findings}
+    assert "fastapi" in coordinates
+    assert "conftest.py" in coordinates
+    # Resolver output the project never declared is not a review finding.
+    assert "resolver-only-dep" not in coordinates
+    # A declared dependency nobody recognizes lists as a dependency — it also
+    # sits in the unmapped queue until a review or a mapping gives it an identity.
+    assert coordinates["acme-internal-stdlib"].tier == "dependency"
+    queue = await read_unmapped(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        scan_id=published.scan_id,
+        request_id="findings-test",
+    )
+    assert {entry.coordinate for entry in queue.coordinates} == {"acme-internal-stdlib"}
+
+    csv_body, csv_media = await export_scan_findings(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        scan_id=published.scan_id,
+        format="csv",
+        request_id="findings-test",
+    )
+    assert csv_media == "text/csv"
+    assert "fastapi" in csv_body
+    assert "conftest.py" in csv_body
+    assert "resolver-only-dep" not in csv_body
+    assert "package,dependency,acme-internal-stdlib" in csv_body
+
+    md_body, md_media = await export_scan_findings(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        scan_id=published.scan_id,
+        format="md",
+        request_id="findings-test",
+    )
+    assert md_media == "text/markdown"
+    assert md_body.startswith(f"# Technology scan `{published.scan_id}`")
+    assert "| package | technology | fastapi |" in md_body
+
+    # Findings of a scan that does not exist are unavailable, not empty.
+    with pytest.raises(ApiError, match="unavailable"):
+        await read_scan_findings(
+            db_session,
+            ctx=ctx,
+            organization_id=org,
+            scan_id=new_id("scan"),
+            request_id="findings-test",
+        )

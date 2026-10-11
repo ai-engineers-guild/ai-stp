@@ -1,9 +1,6 @@
 "use client";
 
-import { toast } from "sonner";
-
-import { Button } from "@/components/atoms/button";
-import { Icon } from "@/theme";
+import { ClipboardIconButton } from "@/components/molecules/clipboard-icon-button";
 
 export function CopyValue({
   value,
@@ -21,20 +18,7 @@ export function CopyValue({
       <code className="min-w-0 truncate text-sm" title={value}>
         {value}
       </code>
-      <Button
-        type="button"
-        variant="outline"
-        size="icon"
-        aria-label={label}
-        onClick={() => {
-          void navigator.clipboard
-            .writeText(value)
-            .then(() => toast.success(copied))
-            .catch(() => toast.error(failed));
-        }}
-      >
-        <Icon name="copy" size="sm" />
-      </Button>
+      <ClipboardIconButton value={value} label={label} copiedLabel={copied} errorLabel={failed} />
     </div>
   );
 }

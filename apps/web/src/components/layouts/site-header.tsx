@@ -7,7 +7,7 @@ import { corporateHref } from "@/lib/features/corporate-path";
 import { Button } from "@/components/atoms/button";
 import { KeyboardNavigation } from "@/components/molecules/keyboard-navigation";
 import { ThemeToggle } from "@/components/molecules/theme-toggle";
-import { AccountControl } from "@/components/organisms/account-drawer";
+import { AccountControl } from "@/components/organisms/account-control";
 import { Link, usePathname } from "@/lib/i18n/navigation";
 import { localeNeutralPathname } from "@/lib/i18n/locale-path";
 import type { AppLocale } from "@/lib/i18n/routing";
@@ -53,9 +53,12 @@ export function SiteHeader({
   const corporatePages = useSessionUiSlice((s) => s.corporateNavPages);
   const pathname = usePathname();
   const visibleCorporatePages = corporatePages ?? corporateNavigationPages;
+  // The SaaS landing keeps the rail's DOM contract but hides its desktop
+  // presentation, so a collapse control there would toggle nothing visible.
   const hasSidebar =
-    !corporate ||
-    ((corporateSessionVerified || isSignedIn) &&
+    (!corporate && pathname !== "/") ||
+    (corporate &&
+      (corporateSessionVerified || isSignedIn) &&
       Boolean(visibleCorporatePages?.length) &&
       !/\/(?:login|signup)(?:\/|$)/.test(pathname));
   const contactItem = siteNavigation({ signedIn: isSignedIn, docsHref }).find(

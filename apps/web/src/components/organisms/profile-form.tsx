@@ -18,7 +18,7 @@ import { Icon } from "@/theme/icons";
 import { Link } from "@/lib/i18n/navigation";
 import type { OwnerPublicProfile } from "@/lib/api/public-profile";
 import { ENTITY_EDITOR_CONFIGS } from "@/lib/entity-editor-contract";
-import { PROFILE_BIO_MAX, useProfileForm } from "@/components/organisms/use-profile-form";
+import { PROFILE_BIO_MAX, useProfileForm } from "@/lib/use-profile-form";
 
 type ProfileFormProps = {
   initial: OwnerPublicProfile;

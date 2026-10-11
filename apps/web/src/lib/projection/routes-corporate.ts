@@ -1,6 +1,10 @@
 import { getTranslations } from "next-intl/server";
 
 import { searchComponents } from "@/lib/api/catalog";
+import { readCorporateContext } from "@/lib/api/corporate";
+import { apiRequest } from "@/lib/api/http";
+import type { CorporateTelemetryPolicyView } from "@/lib/api/generated/types.gen";
+import { sessionCookieValue } from "@/lib/auth/require-session";
 import { corporateNavPage } from "@/lib/corporate-navigation";
 import { presentPage } from "@/lib/projection/presenters";
 import type { MachineRoute } from "@/lib/projection/route-table";
@@ -76,20 +80,57 @@ export const CORPORATE_ROUTES: MachineRoute[] = [
       return presentPage({ title: t("title"), links: [[t("title"), "/corporate/reports"]] });
     },
   })),
+  {
+    pattern: "corporate/admin/telemetry",
+    resolve: async () => {
+      const t = await getTranslations("technology");
+      const hub = await getTranslations("hub");
+      const session = (await sessionCookieValue()) ?? "";
+      const context = await readCorporateContext(session);
+      const title = hub("telemetry");
+      if (!context) return presentPage({ title, summary: t("empty") });
+      if (!context.capabilities.includes("telemetry.read"))
+        return presentPage({ title, summary: t("forbidden") });
+      const policy = await apiRequest<CorporateTelemetryPolicyView>(
+        `/v1/corporate/organizations/${context.organization.organization_id}/telemetry/policy`,
+        { sessionToken: session },
+      ).catch(() => null);
+      if (!policy) return presentPage({ title, summary: t("telemetryUnavailable") });
+      const on = (v: boolean) => t(v ? "policyEnabled" : "policyDisabled");
+      return presentPage({
+        title,
+        fields: [
+          [t("heartbeatCardTitle"), on(policy.heartbeat_enabled)],
+          [t("heartbeatInterval"), `${policy.heartbeat_interval_seconds}s`],
+          [t("inventoryScanReporting"), on(policy.inventory_scan_enabled)],
+          [t("usageCollectionReporting"), on(policy.usage_collection_enabled)],
+          [t("telemetryRawRetention"), String(policy.raw_retention_days)],
+          [t("telemetryAggregateRetention"), String(policy.aggregate_retention_days)],
+          [t("reportTimezone"), policy.report_timezone],
+        ],
+      });
+    },
+  },
   // ADR-0219: the machine inventory names the same destinations the rail owns.
   ...(
     [
       ["corporate/organization", "/corporate"],
       ["corporate/technology-landscape", "/corporate"],
+      ["corporate/technology-scans", "/corporate/technology-landscape"],
+      ["corporate/technology-scans/:scanId", "/corporate/technology-scans"],
       ["corporate/categories", "/corporate/technology-landscape"],
       ["corporate/technology-mappings", "/corporate/technology-landscape"],
-      ["corporate/organization/admins/access", "/corporate/organization/admins"],
-      ["corporate/organization/admins/audit", "/corporate/organization/admins"],
-      ["corporate/organization/admins/job-titles", "/corporate/organization/admins"],
-      ["corporate/organization/admins/settings", "/corporate/organization/admins"],
-      ["corporate/organization/admins/security", "/corporate/organization/admins"],
-      ["corporate/organization/admins/employees", "/corporate/organization/admins"],
-      ["corporate/organization/admins/employees/:accountId", "/corporate/organization/admins"],
+      ["corporate/admin/invitations", "/corporate/admin/members"],
+      ["corporate/admin/access-model", "/corporate/admin/members"],
+      ["corporate/admin/audit", "/corporate/admin/members"],
+      ["corporate/admin/job-titles", "/corporate/admin/members"],
+      ["corporate/admin/tech-categories", "/corporate/admin/members"],
+      ["corporate/admin/technology-areas", "/corporate/admin/members"],
+      ["corporate/admin/settings", "/corporate/admin/members"],
+      ["corporate/admin/security", "/corporate/admin/members"],
+      ["corporate/admin/telemetry", "/corporate/admin/members"],
+      ["corporate/admin/employee-access", "/corporate/admin/members"],
+      ["corporate/admin/employee-access/:accountId", "/corporate/admin/members"],
     ] as const
   ).map(([pattern, back]): MachineRoute => {
     const page = corporateNavPage(`/${pattern.replace(/\/:.*$/, "")}`);

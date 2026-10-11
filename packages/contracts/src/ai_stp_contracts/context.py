@@ -147,6 +147,7 @@ CAPABILITY_RESOURCES = frozenset(
         "invitation",
         "saml",
         "deployment",
+        "area",
         "category",
         "project_team",
         "project_technology",

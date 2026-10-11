@@ -7,9 +7,8 @@ import {
   PeopleRole,
   PeopleTeams,
   PersonIdentity,
-  peopleCellClass,
-  peopleHeadClass,
-} from "@/components/organisms/corporate-people-ui";
+} from "@/components/molecules/people-ui";
+import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
 import type {
   CorporateContext,
   CorporateInvitation,
@@ -47,10 +46,10 @@ export function InvitationTable({
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
       tabIndex={0}
     >
-      <table className="w-full min-w-[950px] border-collapse text-sm">
-        <thead>
-          <tr className="border-border border-b">
-            <th className="w-11">
+      <Table className="min-w-[950px]">
+        <THead>
+          <Tr>
+            <Th className="w-11">
               <PeopleCheckbox
                 label={t("selectPage")}
                 checked={
@@ -62,27 +61,25 @@ export function InvitationTable({
                 }
                 onChange={selectPage}
               />
-            </th>
+            </Th>
             {["invitee", "role", "status", "teams", "invitedBy", "sent", "expires", "actions"].map(
               (key) => (
-                <th key={key} scope="col" className={peopleHeadClass}>
-                  {t(key)}
-                </th>
+                <Th key={key}>{t(key)}</Th>
               ),
             )}
-          </tr>
-        </thead>
-        <tbody>
+          </Tr>
+        </THead>
+        <TBody>
           {rows.map((row) => {
             const state = invitationDisplayState(row, now);
             const teams = context.teams.filter((team) => row.team_ids.includes(team.team_id));
             return (
-              <tr
+              <Tr
                 key={row.invitation_id}
                 data-invitation-state={state}
-                className="border-border hover:bg-muted/30 border-b last:border-0"
+                className="hover:bg-muted/30"
               >
-                <td>
+                <Td className="p-0">
                   <PeopleCheckbox
                     label={t("selectPerson", { name: row.display_name })}
                     checked={selected.includes(row.invitation_id)}
@@ -90,14 +87,14 @@ export function InvitationTable({
                       toggle(row.invitation_id, checked);
                     }}
                   />
-                </td>
-                <td className={`${peopleCellClass} max-w-72 py-4`}>
+                </Td>
+                <Td className="max-w-72 py-4">
                   <PersonIdentity name={row.display_name} email={row.recipient_email} />
-                </td>
-                <td className={peopleCellClass}>
+                </Td>
+                <Td>
                   <PeopleRole role={row.role} />
-                </td>
-                <td className={peopleCellClass}>
+                </Td>
+                <Td>
                   <Badge
                     variant="outline"
                     className={`border-transparent font-sans font-normal tracking-normal ${state === "accepted" ? "bg-success/15" : state === "revoked" ? "bg-destructive/15" : "bg-warning/15"}`}
@@ -107,31 +104,27 @@ export function InvitationTable({
                   {row.delivery_state === "failed" ? (
                     <p className="text-destructive mt-1 text-xs">{t("deliveryFailed")}</p>
                   ) : null}
-                </td>
-                <td className={peopleCellClass}>
+                </Td>
+                <Td>
                   {teams.length ? (
                     <PeopleTeams teams={teams} />
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}
-                </td>
-                <td className={`${peopleCellClass} whitespace-nowrap`}>
+                </Td>
+                <Td className="whitespace-nowrap">
                   {members.find((member) => member.account_id === row.issuer_account_id)
                     ?.display_name ??
                     row.issuer_account_id ??
                     "—"}
-                </td>
-                <td
-                  className={`${peopleCellClass} text-muted-foreground whitespace-nowrap tabular-nums`}
-                >
+                </Td>
+                <Td className="text-muted-foreground whitespace-nowrap tabular-nums">
                   {row.created_at.slice(0, 10)}
-                </td>
-                <td
-                  className={`${peopleCellClass} text-muted-foreground whitespace-nowrap tabular-nums`}
-                >
+                </Td>
+                <Td className="text-muted-foreground whitespace-nowrap tabular-nums">
                   {row.expires_at.slice(0, 10)}
-                </td>
-                <td className="text-right">
+                </Td>
+                <Td className="text-right">
                   {canInvite && isOutstandingInvitation(row, now) ? (
                     <CatalogChoiceMenu
                       variant="ghost"
@@ -151,19 +144,19 @@ export function InvitationTable({
                   ) : (
                     <span className="text-muted-foreground px-4">—</span>
                   )}
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             );
           })}
           {!rows.length ? (
-            <tr>
-              <td colSpan={9} className="text-muted-foreground py-14 text-center">
+            <Tr>
+              <Td colSpan={9} className="text-muted-foreground py-14 text-center">
                 {t("noMatchingInvitations")}
-              </td>
-            </tr>
+              </Td>
+            </Tr>
           ) : null}
-        </tbody>
-      </table>
+        </TBody>
+      </Table>
     </div>
   );
 }

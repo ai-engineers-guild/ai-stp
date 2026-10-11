@@ -11,7 +11,8 @@ from datetime import UTC, datetime
 from typing import Literal, cast
 
 from pydantic import BaseModel
-from sqlalchemy import delete, func, select
+from sqlalchemy import ColumnElement, Text, delete, func, or_, select
+from sqlalchemy import cast as sa_cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
@@ -54,6 +55,7 @@ from ai_stp_contracts.corporate import (
     CorporateProjectUpdateRequest,
     CorporateProjectView,
     CorporateRoleCreateRequest,
+    CorporateRoleDeleteRequest,
     CorporateRoleList,
     CorporateRoleUpdateRequest,
     CorporateRoleView,
@@ -65,6 +67,9 @@ from ai_stp_contracts.corporate import (
     CorporateTeamCatalogObject,
     CorporateTeamCreateRequest,
     CorporateTeamList,
+    CorporateTeammate,
+    CorporateTeammateContext,
+    CorporateTeammates,
     CorporateTeamUpdateRequest,
     CorporateTeamView,
     GrantScopeKind,
@@ -88,10 +93,11 @@ from ai_stp_platform.catalog_ownership_models import (
 )
 from ai_stp_platform.catalog_read import get_visible_metadata
 from ai_stp_platform.corporate_authorization import (
+    bulk_effective_permissions,
     corporate_effective_permissions,
     explain_effective_permissions,
     has_corporate_permission,
-    role_closure_permissions,
+    role_permissions,
 )
 from ai_stp_platform.models import AccessGrant, Account, AuditEvent, CatalogIdentity, Device
 from ai_stp_platform.organization_models import (
@@ -110,7 +116,6 @@ from ai_stp_platform.organization_models import (
     Organization,
     OrganizationMembership,
     ProjectIdentity,
-    ProjectLink,
 )
 from ai_stp_platform.organization_models import (
     CorporateCatalogAssignment as CorporateCatalogAssignmentRow,
@@ -121,16 +126,24 @@ from ai_stp_platform.organization_models import (
 from ai_stp_platform.organization_models import (
     CorporateRole as CorporateRoleRow,
 )
+from ai_stp_platform.repository_bindings import repository_links
 from ai_stp_platform.technology_models import (
     ProjectTeamRelation,
     ProjectTechnologyRelation,
     Technology,
+    TechnologyCategory,
     TechnologyTeamResponsibility,
 )
+from ai_stp_platform.technology_taxonomy import install_technology_taxonomy
 from ai_stp_platform.tenant_scope import set_tenant_scope
 
 TECHNOLOGY_PERMISSIONS = frozenset(
     {
+        "area.create",
+        "area.read",
+        "area.update",
+        "area.delete",
+        "area.list",
         "category.create",
         "category.read",
         "category.update",
@@ -214,6 +227,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "member.read",
             "member.update",
             "member.delete",
+            "member.manage",
             "project.read",
             "project.update",
             "project.list",
@@ -707,7 +721,6 @@ async def _role_view(db: AsyncSession, row: CorporateRoleRow) -> CorporateRoleVi
     )
     return CorporateRoleView(
         name=row.name,
-        parent_role=row.parent_role,
         permissions=permissions,
         revision=row.revision,
     )
@@ -720,39 +733,9 @@ def _role_permissions(payload: list[str]) -> list[str]:
     return permissions
 
 
-async def _validate_role_parent(
-    db: AsyncSession, *, organization_id: str, role_name: str, parent_role: str | None
-) -> None:
-    if not _ROLE_NAME_RE.fullmatch(role_name) or (
-        parent_role is not None and not _ROLE_NAME_RE.fullmatch(parent_role)
-    ):
+def _validate_role_name(role_name: str) -> None:
+    if not _ROLE_NAME_RE.fullmatch(role_name):
         raise ApiError(ErrorCategory.VALIDATION, "corporate role name is invalid")
-    if parent_role is None:
-        return
-    if parent_role == role_name:
-        raise ApiError(ErrorCategory.VALIDATION, "corporate role hierarchy contains a cycle")
-    if (
-        await db.scalar(
-            select(CorporateRoleRow.name).where(
-                CorporateRoleRow.organization_id == organization_id,
-                CorporateRoleRow.name == parent_role,
-            )
-        )
-        is None
-    ):
-        raise ApiError(ErrorCategory.VALIDATION, "corporate parent role is unavailable")
-    current: str | None = parent_role
-    seen: set[str] = set()
-    while current is not None and current not in seen and len(seen) < 32:
-        seen.add(current)
-        current = await db.scalar(
-            select(CorporateRoleRow.parent_role).where(
-                CorporateRoleRow.organization_id == organization_id,
-                CorporateRoleRow.name == current,
-            )
-        )
-    if current == role_name or len(seen) >= 32:
-        raise ApiError(ErrorCategory.VALIDATION, "corporate role hierarchy contains a cycle")
 
 
 def _service_principal_view(
@@ -811,6 +794,7 @@ async def bootstrap(
     db.add(organization)
     await db.flush()
     await set_tenant_scope(db, organization.id)
+    await (await db.connection()).run_sync(install_technology_taxonomy, organization.id)
     membership = OrganizationMembership(
         organization_id=organization.id,
         account_id=account.id,
@@ -821,9 +805,9 @@ async def bootstrap(
     await db.flush()
     db.add_all(
         (
-            CorporateRoleRow(organization_id=organization.id, name="superadmin", parent_role=None),
-            CorporateRoleRow(organization_id=organization.id, name="lead", parent_role=None),
-            CorporateRoleRow(organization_id=organization.id, name="staff", parent_role=None),
+            CorporateRoleRow(organization_id=organization.id, name="superadmin"),
+            CorporateRoleRow(organization_id=organization.id, name="lead"),
+            CorporateRoleRow(organization_id=organization.id, name="staff"),
         )
     )
     for role, permissions in ROLE_PERMISSIONS.items():
@@ -991,9 +975,40 @@ async def _scope_target_exists(
             )
             is not None
         )
-    # Catalog-object, telemetry, and system resources have no
-    # B2B-01 resource table yet; accepting arbitrary IDs would create a grant
-    # that cannot be tenant-checked. Their owning feature must add this check.
+    if scope_kind == "catalog_object":
+        return (
+            await db.scalar(
+                select(CatalogIdentity.stable_id)
+                .where(
+                    CatalogIdentity.organization_id == organization_id,
+                    CatalogIdentity.stable_id == scope_id,
+                )
+                .union(
+                    select(CorporateCatalogOwnershipRow.stable_id).where(
+                        CorporateCatalogOwnershipRow.organization_id == organization_id,
+                        CorporateCatalogOwnershipRow.stable_id == scope_id,
+                    ),
+                    select(CorporateCatalogAssignmentRow.stable_id).where(
+                        CorporateCatalogAssignmentRow.organization_id == organization_id,
+                        CorporateCatalogAssignmentRow.stable_id == scope_id,
+                        CorporateCatalogAssignmentRow.state == "current",
+                    ),
+                )
+                .limit(1)
+            )
+            is not None
+        )
+    if scope_kind == "category":
+        return (
+            await db.scalar(
+                select(TechnologyCategory.id).where(
+                    TechnologyCategory.organization_id == organization_id,
+                    TechnologyCategory.id == scope_id,
+                    TechnologyCategory.state == "active",
+                )
+            )
+            is not None
+        )
     return False
 
 
@@ -1136,11 +1151,11 @@ async def assert_delegable_permissions(
 async def assert_delegable_roles(
     db: AsyncSession, *, organization_id: str, account_id: str, roles: Collection[str]
 ) -> None:
-    """Every role's closed permission set (own grants plus ancestors) must fit
-    inside the issuer's effective organization permissions."""
-    closures = await role_closure_permissions(db, organization_id=organization_id, roles=roles)
+    """Every role's permission set must fit inside the issuer's effective
+    organization permissions."""
+    grants = await role_permissions(db, organization_id=organization_id, roles=roles)
     granted: set[str] = set()
-    for permissions in closures.values():
+    for permissions in grants.values():
         granted |= set(permissions)
     await assert_delegable_permissions(
         db, organization_id=organization_id, account_id=account_id, permissions=granted
@@ -1169,26 +1184,22 @@ async def assert_delegable_coverage(
 
 async def _role_coverage(db: AsyncSession, *, organization_id: str, role: str) -> str:
     """An organization-scope binding propagates only when the role carries the
-    full administrative closure — a persisted write-time choice, not
+    full administrative permission set — a persisted write-time choice, not
     evaluation-time inference from the role name."""
-    closures = await role_closure_permissions(
-        db, organization_id=organization_id, roles={role, "superadmin"}
-    )
-    admin = closures.get("superadmin", frozenset())
-    return "descendants" if admin and admin <= closures.get(role, frozenset()) else "self"
+    grants = await role_permissions(db, organization_id=organization_id, roles={role, "superadmin"})
+    admin = grants.get("superadmin", frozenset())
+    return "descendants" if admin and admin <= grants.get(role, frozenset()) else "self"
 
 
 async def _org_admin_state(
     db: AsyncSession, *, organization_id: str
 ) -> tuple[set[str], frozenset[str]]:
     """Active user accounts whose organization-scope effective permissions cover
-    the full superadmin closure, plus that closure. Bindings at other scope
+    the full superadmin permission set, plus that set. Bindings at other scope
     kinds never count: organization administration is an organization-scope
     decision."""
-    closures = await role_closure_permissions(
-        db, organization_id=organization_id, roles={"superadmin"}
-    )
-    admin_set = closures.get("superadmin", frozenset())
+    grants = await role_permissions(db, organization_id=organization_id, roles={"superadmin"})
+    admin_set = grants.get("superadmin", frozenset())
     if not admin_set:
         return set(), admin_set
     rows = list(
@@ -1214,7 +1225,7 @@ async def _org_admin_state(
     for binding in rows:
         if binding.account_id is not None:
             by_account.setdefault(binding.account_id, set()).add(binding.role)
-    role_grants = await role_closure_permissions(
+    role_grants = await role_permissions(
         db,
         organization_id=organization_id,
         roles={role for roles in by_account.values() for role in roles},
@@ -1242,9 +1253,7 @@ async def _assert_superadmin_survives(
     if account_id not in admins:
         return
     if membership_active_after and org_roles_after:
-        after = await role_closure_permissions(
-            db, organization_id=organization_id, roles=org_roles_after
-        )
+        after = await role_permissions(db, organization_id=organization_id, roles=org_roles_after)
         remaining = set[str]().union(*after.values())
         if admin_set <= remaining:
             return
@@ -1431,36 +1440,19 @@ async def create_role(
     )
     if receipt is not None:
         return CorporateRoleView.model_validate(receipt.response_body)
-    await _validate_role_parent(
-        db,
-        organization_id=organization_id,
-        role_name=payload.name,
-        parent_role=payload.parent_role,
-    )
+    _validate_role_name(payload.name)
     permissions = _role_permissions(payload.permissions)
     await assert_delegable_permissions(
         db,
         organization_id=organization_id,
         account_id=ctx.account_id,
-        permissions=set(permissions)
-        | (
-            set(
-                (
-                    await role_closure_permissions(
-                        db, organization_id=organization_id, roles={payload.parent_role}
-                    )
-                ).get(payload.parent_role, frozenset())
-            )
-            if payload.parent_role
-            else set()
-        ),
+        permissions=set(permissions),
     )
     if await db.get(CorporateRoleRow, (organization_id, payload.name)) is not None:
         raise ApiError(ErrorCategory.CONFLICT, "corporate role already exists")
     row = CorporateRoleRow(
         organization_id=organization_id,
         name=payload.name,
-        parent_role=payload.parent_role,
     )
     db.add(row)
     db.add_all(
@@ -1508,15 +1500,6 @@ async def list_roles(
         ).all()
     )
     response = CorporateRoleList(items=[await _role_view(db, row) for row in rows])
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="role.list",
-        target_table="corporate_role",
-        target_id=organization_id,
-        request_id=request_id,
-    )
     return response
 
 
@@ -1533,15 +1516,6 @@ async def read_role(
     if row is None:
         raise ApiError(ErrorCategory.NOT_FOUND, "corporate role not found")
     response = await _role_view(db, row)
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="role.read",
-        target_table="corporate_role",
-        target_id=role_name,
-        request_id=request_id,
-    )
     return response
 
 
@@ -1582,32 +1556,14 @@ async def update_role(
         raise ApiError(ErrorCategory.CONFLICT, "built-in corporate role is immutable")
     if row.revision != payload.expected_revision:
         raise ApiError(ErrorCategory.CONFLICT, "corporate role revision changed")
-    await _validate_role_parent(
-        db,
-        organization_id=organization_id,
-        role_name=role_name,
-        parent_role=payload.parent_role,
-    )
     permissions = _role_permissions(payload.permissions)
     await assert_delegable_permissions(
         db,
         organization_id=organization_id,
         account_id=ctx.account_id,
-        permissions=set(permissions)
-        | (
-            set(
-                (
-                    await role_closure_permissions(
-                        db, organization_id=organization_id, roles={payload.parent_role}
-                    )
-                ).get(payload.parent_role, frozenset())
-            )
-            if payload.parent_role
-            else set()
-        ),
+        permissions=set(permissions),
     )
     before = await _role_view(db, row)
-    row.parent_role = payload.parent_role
     row.revision += 1
     await db.execute(
         delete(CorporateRolePermission).where(
@@ -1654,7 +1610,7 @@ async def delete_role(
     ctx: AuthContext,
     organization_id: str,
     role_name: str,
-    payload: CorporateDeleteRequest,
+    payload: CorporateRoleDeleteRequest,
     request_id: str | None,
 ) -> CorporateDeleteResult:
     fingerprint = mutation_fingerprint(payload.model_dump(mode="json", exclude={"idempotency_key"}))
@@ -1685,21 +1641,86 @@ async def delete_role(
         raise ApiError(ErrorCategory.CONFLICT, "built-in corporate role is immutable")
     if row.revision != payload.expected_revision:
         raise ApiError(ErrorCategory.CONFLICT, "corporate role revision changed")
-    in_use = await db.scalar(
-        select(CorporateRoleBinding.id).where(
-            CorporateRoleBinding.organization_id == organization_id,
-            CorporateRoleBinding.role == role_name,
-            CorporateRoleBinding.state == "active",
-        )
+    bindings = list(
+        (
+            await db.scalars(
+                select(CorporateRoleBinding).where(
+                    CorporateRoleBinding.organization_id == organization_id,
+                    CorporateRoleBinding.role == role_name,
+                )
+            )
+        ).all()
     )
-    child = await db.scalar(
-        select(CorporateRoleRow.name).where(
-            CorporateRoleRow.organization_id == organization_id,
-            CorporateRoleRow.parent_role == role_name,
-        )
+    memberships = list(
+        (
+            await db.scalars(
+                select(OrganizationMembership).where(
+                    OrganizationMembership.organization_id == organization_id,
+                    OrganizationMembership.role == role_name,
+                )
+            )
+        ).all()
     )
-    if in_use is not None or child is not None:
+    replacement = payload.replacement_role
+    if replacement is not None:
+        if replacement == role_name:
+            raise ApiError(
+                ErrorCategory.VALIDATION, "replacement role must differ from deleted role"
+            )
+        replacement_row = await db.scalar(
+            select(CorporateRoleRow.name).where(
+                CorporateRoleRow.organization_id == organization_id,
+                CorporateRoleRow.name == replacement,
+            )
+        )
+        if replacement_row is None:
+            raise ApiError(ErrorCategory.CONFLICT, "replacement corporate role not found")
+        await assert_delegable_roles(
+            db,
+            organization_id=organization_id,
+            account_id=ctx.account_id,
+            roles={replacement},
+        )
+    elif bindings or memberships:
         raise ApiError(ErrorCategory.CONFLICT, "corporate role is still referenced")
+    if bindings or memberships:
+        admins, admin_set = await _org_admin_state(db, organization_id=organization_id)
+        affected = {
+            binding.account_id
+            for binding in bindings
+            if binding.principal_type == "user"
+            and binding.account_id is not None
+            and binding.state == "active"
+            and binding.scope_kind == "organization"
+        } | {membership.account_id for membership in memberships}
+        for account_id in affected & admins:
+            org_roles_after = await _member_org_roles_after(
+                db,
+                organization_id=organization_id,
+                account_id=account_id,
+                replacement=("organization", replacement) if replacement is not None else None,
+            )
+            org_roles_after.discard(role_name)
+            await _assert_superadmin_survives(
+                db,
+                organization_id=organization_id,
+                account_id=account_id,
+                admins=admins,
+                admin_set=admin_set,
+                org_roles_after=org_roles_after,
+                membership_active_after=await _membership_is_active(
+                    db, organization_id=organization_id, account_id=account_id
+                ),
+            )
+    for binding in bindings:
+        if replacement is not None and binding.state == "active":
+            binding.role = replacement
+            binding.revision += 1
+        else:
+            await db.delete(binding)
+    for membership in memberships:
+        membership.role = replacement or "staff"
+        membership.revision += 1
     await db.delete(row)
     organization.policy_revision += 1
     response = CorporateDeleteResult(resource_id=role_name)
@@ -1798,15 +1819,6 @@ async def list_job_titles(
             .limit(256)
         )
     ).all()
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="job_title.list",
-        target_table="corporate_job_title",
-        target_id=organization_id,
-        request_id=request_id,
-    )
     return CorporateJobTitleList(items=[job_title_view(row) for row in rows])
 
 
@@ -1961,6 +1973,20 @@ async def insert_membership_graph(
                 organization_id=organization_id,
                 project_id=project_id,
                 account_id=account_id,
+                role="staff",
+            )
+        )
+        db.add(
+            CorporateRoleBinding(
+                id=new_id("operation"),
+                organization_id=organization_id,
+                account_id=account_id,
+                role="staff",
+                scope_kind="project",
+                scope_id=project_id,
+                state="active",
+                origin="assignment",
+                coverage="self",
             )
         )
     return membership
@@ -2111,15 +2137,6 @@ async def list_members(
             .limit(256)
         )
     ).all()
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="member.list",
-        target_table="organization_membership",
-        target_id=organization_id,
-        request_id=request_id,
-    )
     account_ids = [member.account_id for member, _ in rows]
     contacts = dict(
         (
@@ -2531,15 +2548,6 @@ async def read_member(
     row = result.one_or_none()
     if row is None:
         raise ApiError(ErrorCategory.PERMISSION, "member access denied")
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="member.read",
-        target_table="organization_membership",
-        target_id=account_id,
-        request_id=request_id,
-    )
     from ai_stp_api.slices.corporate.subject_access import subject_available_actions
 
     actions = await subject_available_actions(
@@ -2549,7 +2557,42 @@ async def read_member(
         subject_kind="employee",
         subject_id=account_id,
     )
-    return member_view(*row).model_copy(update={"available_actions": actions})
+    member, account = row
+    contact = await db.scalar(
+        select(func.min(CorporateProvisionedIdentity.normalized_email)).where(
+            CorporateProvisionedIdentity.organization_id == organization_id,
+            CorporateProvisionedIdentity.account_id == account_id,
+        )
+    )
+    activity = await db.scalar(
+        select(func.max(Device.last_seen_at)).where(Device.account_id == account_id)
+    )
+    title = (
+        await db.scalar(
+            select(CorporateJobTitle.name).where(
+                CorporateJobTitle.organization_id == organization_id,
+                CorporateJobTitle.id == member.job_title_id,
+            )
+        )
+        if member.job_title_id
+        else None
+    )
+    return member_view(member, account, title).model_copy(
+        update={
+            "available_actions": actions,
+            "contact_email": contact,
+            "joined_at": format_timestamp(
+                member.created_at.replace(tzinfo=UTC)
+                if member.created_at.tzinfo is None
+                else member.created_at
+            ),
+            "last_activity_at": format_timestamp(
+                activity.replace(tzinfo=UTC) if activity.tzinfo is None else activity
+            )
+            if activity
+            else None,
+        }
+    )
 
 
 async def create_binding(
@@ -2680,15 +2723,6 @@ async def list_bindings(
             )
         ).all()
     )
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="binding.list",
-        target_table="corporate_role_binding",
-        target_id=organization_id,
-        request_id=request_id,
-    )
     return CorporateBindingList(items=[_binding_view(row) for row in rows])
 
 
@@ -2709,15 +2743,6 @@ async def read_binding(
     )
     if row is None:
         raise ApiError(ErrorCategory.PERMISSION, "binding access denied")
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="binding.read",
-        target_table="corporate_role_binding",
-        target_id=binding_id,
-        request_id=request_id,
-    )
     return _binding_view(row)
 
 
@@ -3058,15 +3083,6 @@ async def list_projects(
             await db.scalars(query.order_by(CorporateProject.name, CorporateProject.id).limit(256))
         ).all()
     )
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="project.list",
-        target_table="corporate_project",
-        target_id=organization_id,
-        request_id=request_id,
-    )
     return CorporateProjectList(items=[_project_view(row) for row in rows])
 
 
@@ -3094,15 +3110,6 @@ async def read_project(
     )
     if row is None:
         raise ApiError(ErrorCategory.PERMISSION, "project access denied")
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="project.read",
-        target_table="corporate_project",
-        target_id=project_id,
-        request_id=request_id,
-    )
     from ai_stp_api.slices.corporate.subject_access import subject_available_actions
 
     actions = await subject_available_actions(
@@ -3112,20 +3119,21 @@ async def read_project(
         subject_kind="project",
         subject_id=project_id,
     )
+    source_links = repository_links()
     linked = list(
         (
             await db.scalars(
                 select(ProjectIdentity)
                 .join(
-                    ProjectLink,
-                    (ProjectLink.organization_id == ProjectIdentity.organization_id)
-                    & (ProjectLink.provider_project_id == ProjectIdentity.id),
+                    source_links,
+                    (source_links.c.organization_id == ProjectIdentity.organization_id)
+                    & (source_links.c.provider_project_id == ProjectIdentity.id),
                 )
                 .where(
-                    ProjectLink.organization_id == organization_id,
-                    ProjectLink.remote_project_id == project_id,
-                    ProjectLink.state == "linked",
-                    ProjectIdentity.provider_kind == "gitlab",
+                    source_links.c.organization_id == organization_id,
+                    source_links.c.remote_project_id == project_id,
+                    source_links.c.state == "linked",
+                    ProjectIdentity.provider_kind.in_(["gitlab", "github"]),
                 )
                 .distinct()
                 .order_by(ProjectIdentity.id)
@@ -3138,6 +3146,7 @@ async def read_project(
     repositories = [
         CorporateProjectRepository(
             provider_project_id=identity.id,
+            provider=cast(Literal["gitlab", "github"], identity.provider_kind),
             namespace=identity.observed_name or identity.display_name,
             repository_url=identity.current_url,
             default_branch=identity.provider_default_branch,
@@ -3573,15 +3582,6 @@ async def read_team(
     )
     if row is None:
         raise ApiError(ErrorCategory.PERMISSION, "team access denied")
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="team.read",
-        target_table="corporate_team",
-        target_id=team_id,
-        request_id=request_id,
-    )
     return await team_view(db, row, ctx=ctx, profile=True)
 
 
@@ -3938,15 +3938,6 @@ async def read_service_principal(
     )
     if row is None or binding is None:
         raise ApiError(ErrorCategory.PERMISSION, "service principal access denied")
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="service_principal.read",
-        target_table="corporate_service_principal",
-        target_id=service_principal_id,
-        request_id=request_id,
-    )
     return _service_principal_view(row, binding)
 
 
@@ -3980,15 +3971,6 @@ async def list_service_principals(
                 .limit(256)
             )
         ).all()
-    )
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="service_principal.list",
-        target_table="corporate_service_principal",
-        target_id=organization_id,
-        request_id=request_id,
     )
     return CorporateServicePrincipalList(
         items=[_service_principal_view(principal, binding) for principal, binding in rows]
@@ -4110,15 +4092,6 @@ async def list_teams(
             if len(visible) == 256:
                 break
     await rows.close()
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="team.list",
-        target_table="corporate_team",
-        target_id=organization_id,
-        request_id=request_id,
-    )
     return CorporateTeamList(items=visible)
 
 
@@ -4242,6 +4215,10 @@ async def assign_member(
             CorporateProjectMember, (organization_id, project.id, payload.account_id)
         )
         before["project_assigned"] = project_member is not None
+        before["project_role"] = project_member.role if project_member is not None else None
+        # Participation role maps to one access binding role (ADR-0230); the
+        # member's organization role is never copied into project scope.
+        project_binding_role = "lead" if payload.project_role in {"owner", "lead"} else "staff"
         if payload.operation == "remove":
             if project_member is not None:
                 await db.delete(project_member)
@@ -4250,7 +4227,7 @@ async def assign_member(
                 db,
                 organization_id=organization_id,
                 account_id=ctx.account_id,
-                roles={member.role},
+                roles={project_binding_role},
             )
             if project_member is None:
                 db.add(
@@ -4258,8 +4235,11 @@ async def assign_member(
                         organization_id=organization_id,
                         project_id=project.id,
                         account_id=payload.account_id,
+                        role=payload.project_role,
                     )
                 )
+            else:
+                project_member.role = payload.project_role
         active_project_bindings = list(
             (
                 await db.scalars(
@@ -4283,7 +4263,7 @@ async def assign_member(
                     id=new_id("operation"),
                     organization_id=organization_id,
                     account_id=payload.account_id,
-                    role=member.role,
+                    role=project_binding_role,
                     scope_kind="project",
                     scope_id=project.id,
                     state="active",
@@ -4299,6 +4279,7 @@ async def assign_member(
         team_id=payload.team_id,
         project_id=payload.project_id,
         team_role=payload.team_role,
+        project_role=payload.project_role,
         operation=payload.operation,
         bindings=[_binding_view(row) for row in bindings],
     )
@@ -4324,6 +4305,9 @@ async def assign_member(
                 "team_role": payload.team_role if payload.operation == "assign" else None,
                 "project_assigned": payload.operation == "assign"
                 if payload.project_id is not None
+                else None,
+                "project_role": payload.project_role
+                if payload.project_id is not None and payload.operation == "assign"
                 else None,
             },
         },
@@ -4380,26 +4364,110 @@ async def read_context(
             scope_id=row.id,
         )
     ][:256]
+    repositories: dict[str, list[CorporateProjectRepository]] = {}
+    source_links = repository_links()
+    linked = (
+        await db.execute(
+            select(source_links.c.remote_project_id, ProjectIdentity)
+            .join(
+                ProjectIdentity,
+                (source_links.c.organization_id == ProjectIdentity.organization_id)
+                & (source_links.c.provider_project_id == ProjectIdentity.id),
+            )
+            .where(
+                source_links.c.organization_id == organization_id,
+                source_links.c.remote_project_id.in_([row.id for row in project_rows]),
+                source_links.c.state == "linked",
+                ProjectIdentity.provider_kind.in_(["gitlab", "github"]),
+            )
+            .distinct()
+            .order_by(ProjectIdentity.id)
+        )
+    ).all()
+    for project_id, identity in linked:
+        if identity.current_url is not None:
+            repositories.setdefault(project_id, []).append(
+                CorporateProjectRepository(
+                    provider_project_id=identity.id,
+                    provider=cast(Literal["github", "gitlab"], identity.provider_kind),
+                    namespace=identity.observed_name or identity.display_name,
+                    repository_url=identity.current_url,
+                    default_branch=identity.provider_default_branch,
+                    observed_revision=identity.provider_observed_revision,
+                    observed_at=format_timestamp(identity.observed_at)
+                    if identity.observed_at
+                    else None,
+                )
+            )
     response = CorporateContext(
         organization=organization_view(organization),
         member=member_view(membership, account),
         bindings=[_binding_view(row) for row in bindings],
-        projects=[_project_view(row) for row in project_rows],
+        projects=[
+            _project_view(row).model_copy(update={"repositories": repositories.get(row.id, [])})
+            for row in project_rows
+        ],
         teams=(
             await list_teams(db, ctx=ctx, organization_id=organization_id, request_id=request_id)
         ).items,
         capabilities=permissions,
     )
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="organization.context.read",
-        target_table="organization",
-        target_id=organization_id,
-        request_id=request_id,
-    )
     return response
+
+
+def _audit_where(
+    audit_time: ColumnElement[datetime],
+    *,
+    before_id: int | None,
+    before_created_at: str | None,
+    actor_account_id: str | None,
+    action: str | None,
+    target_id: str | None,
+    target_table: str | None,
+    outcome: str | None,
+    q: str | None,
+    created_from: str | None,
+    created_to: str | None,
+) -> list[ColumnElement[bool]]:
+    """Shared audit journal predicates; list and export must not drift."""
+    clauses: list[ColumnElement[bool]] = []
+    if before_created_at is not None:
+        cursor_created_at = datetime.fromisoformat(before_created_at)
+        if before_id is None:
+            clauses.append(audit_time < cursor_created_at)
+        else:
+            clauses.append(
+                (audit_time < cursor_created_at)
+                | ((audit_time == cursor_created_at) & (AuditEvent.id < before_id))
+            )
+    elif before_id is not None:
+        clauses.append(AuditEvent.id < before_id)
+    if actor_account_id is not None:
+        clauses.append(AuditEvent.actor_account_id == actor_account_id)
+    if action is not None:
+        clauses.append(AuditEvent.action == action)
+    if target_id is not None:
+        clauses.append(AuditEvent.target_id == target_id)
+    if target_table is not None:
+        clauses.append(AuditEvent.target_table == target_table)
+    if outcome is not None:
+        clauses.append(AuditEvent.outcome == outcome)
+    if q is not None:
+        escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        pattern = f"%{escaped}%"
+        clauses.append(
+            or_(
+                AuditEvent.action.ilike(pattern, escape="\\"),
+                AuditEvent.target_id.ilike(pattern, escape="\\"),
+                AuditEvent.reason.ilike(pattern, escape="\\"),
+                sa_cast(AuditEvent.payload, Text).ilike(pattern, escape="\\"),
+            )
+        )
+    if created_from is not None:
+        clauses.append(audit_time >= datetime.fromisoformat(created_from))
+    if created_to is not None:
+        clauses.append(audit_time <= datetime.fromisoformat(created_to))
+    return clauses
 
 
 async def list_audit(
@@ -4412,38 +4480,54 @@ async def list_audit(
     actor_account_id: str | None,
     action: str | None,
     target_id: str | None,
+    target_table: str | None,
+    outcome: str | None,
+    q: str | None,
     created_from: str | None,
     created_to: str | None,
+    limit: int,
+    offset: int,
     request_id: str | None,
 ) -> CorporateAuditList:
     await authorize(db, ctx=ctx, organization_id=organization_id, permission="audit.list")
     audit_time = func.date_trunc("milliseconds", AuditEvent.created_at)
-    query = select(AuditEvent).where(AuditEvent.organization_id == organization_id)
-    if before_created_at is not None:
-        cursor_created_at = datetime.fromisoformat(before_created_at)
-        if before_id is None:
-            query = query.where(audit_time < cursor_created_at)
-        else:
-            query = query.where(
-                (audit_time < cursor_created_at)
-                | ((audit_time == cursor_created_at) & (AuditEvent.id < before_id))
-            )
-    elif before_id is not None:
-        query = query.where(AuditEvent.id < before_id)
-    if actor_account_id is not None:
-        query = query.where(AuditEvent.actor_account_id == actor_account_id)
-    if action is not None:
-        query = query.where(AuditEvent.action == action)
-    if target_id is not None:
-        query = query.where(AuditEvent.target_id == target_id)
-    if created_from is not None:
-        query = query.where(audit_time >= datetime.fromisoformat(created_from))
-    if created_to is not None:
-        query = query.where(audit_time <= datetime.fromisoformat(created_to))
-    rows = list(
-        (await db.scalars(query.order_by(audit_time.desc(), AuditEvent.id.desc()).limit(101))).all()
+    content_filters = {
+        "actor_account_id": actor_account_id,
+        "action": action,
+        "target_id": target_id,
+        "target_table": target_table,
+        "outcome": outcome,
+        "q": q,
+        "created_from": created_from,
+        "created_to": created_to,
+    }
+    # `total` is the stable count for numbered pagination: cursor parameters only
+    # position the window and must not shrink it.
+    total = await db.scalar(
+        select(func.count(AuditEvent.id)).where(
+            AuditEvent.organization_id == organization_id,
+            *_audit_where(audit_time, before_id=None, before_created_at=None, **content_filters),
+        )
     )
-    page = rows[:100]
+    query = select(AuditEvent).where(
+        AuditEvent.organization_id == organization_id,
+        *_audit_where(
+            audit_time,
+            before_id=before_id,
+            before_created_at=before_created_at,
+            **content_filters,
+        ),
+    )
+    rows = list(
+        (
+            await db.scalars(
+                query.order_by(audit_time.desc(), AuditEvent.id.desc())
+                .offset(offset)
+                .limit(limit + 1)
+            )
+        ).all()
+    )
+    page = rows[:limit]
     await emit_audit(
         db,
         actor_account_id=ctx.account_id,
@@ -4453,10 +4537,12 @@ async def list_audit(
         target_id=organization_id,
         request_id=request_id,
     )
+    has_next = len(rows) > limit
     return CorporateAuditList(
         items=[_audit_entry(row) for row in page],
-        next_before_created_at=(_audit_entry(page[-1]).created_at if len(rows) > 100 else None),
-        next_before_id=page[-1].id if len(rows) > 100 else None,
+        total=total or 0,
+        next_before_created_at=(_audit_entry(page[-1]).created_at if has_next and page else None),
+        next_before_id=page[-1].id if has_next and page else None,
     )
 
 
@@ -4497,35 +4583,38 @@ async def export_audit(
     actor_account_id: str | None,
     action: str | None,
     target_id: str | None,
+    target_table: str | None,
+    outcome: str | None,
+    q: str | None,
     created_from: str | None,
     created_to: str | None,
+    limit: int,
+    offset: int,
     request_id: str | None,
 ) -> CorporateAuditExport:
     await authorize(db, ctx=ctx, organization_id=organization_id, permission="audit.export")
     audit_time = func.date_trunc("milliseconds", AuditEvent.created_at)
-    query = select(AuditEvent).where(AuditEvent.organization_id == organization_id)
-    if before_created_at is not None:
-        cursor_created_at = datetime.fromisoformat(before_created_at)
-        if before_id is None:
-            query = query.where(audit_time < cursor_created_at)
-        else:
-            query = query.where(
-                (audit_time < cursor_created_at)
-                | ((audit_time == cursor_created_at) & (AuditEvent.id < before_id))
-            )
-    elif before_id is not None:
-        query = query.where(AuditEvent.id < before_id)
-    if actor_account_id is not None:
-        query = query.where(AuditEvent.actor_account_id == actor_account_id)
-    if action is not None:
-        query = query.where(AuditEvent.action == action)
-    if target_id is not None:
-        query = query.where(AuditEvent.target_id == target_id)
-    if created_from is not None:
-        query = query.where(audit_time >= datetime.fromisoformat(created_from))
-    if created_to is not None:
-        query = query.where(audit_time <= datetime.fromisoformat(created_to))
-    rows = list((await db.scalars(query.order_by(audit_time, AuditEvent.id).limit(10000))).all())
+    query = select(AuditEvent).where(
+        AuditEvent.organization_id == organization_id,
+        *_audit_where(
+            audit_time,
+            before_id=before_id,
+            before_created_at=before_created_at,
+            actor_account_id=actor_account_id,
+            action=action,
+            target_id=target_id,
+            target_table=target_table,
+            outcome=outcome,
+            q=q,
+            created_from=created_from,
+            created_to=created_to,
+        ),
+    )
+    rows = list(
+        (
+            await db.scalars(query.order_by(audit_time, AuditEvent.id).offset(offset).limit(limit))
+        ).all()
+    )
     response = CorporateAuditExport(
         organization_id=organization_id,
         exported_at=format_timestamp(datetime.now(UTC)),
@@ -4566,11 +4655,11 @@ async def read_delegation(
             select(CorporateRoleRow.name).where(CorporateRoleRow.organization_id == organization_id)
         )
     )
-    closures = await role_closure_permissions(db, organization_id=organization_id, roles=role_names)
+    grants = await role_permissions(db, organization_id=organization_id, roles=role_names)
     grantable = [
-        CorporateGrantableRole(name=name, permissions=sorted(closures[name]))
-        for name in sorted(closures)
-        if closures[name] <= caller
+        CorporateGrantableRole(name=name, permissions=sorted(grants[name]))
+        for name in sorted(grants)
+        if grants[name] <= caller
     ]
     descendants = (
         await db.scalar(
@@ -4584,15 +4673,6 @@ async def read_delegation(
             )
         )
     ) is not None
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="delegation.read",
-        target_table="corporate_role_binding",
-        target_id=organization_id,
-        request_id=request_id,
-    )
     return CorporateDelegationView(
         organization_id=organization_id,
         grantable_roles=grantable,
@@ -4714,15 +4794,6 @@ async def list_permission_grants(
     if account_id is not None:
         query = query.where(CorporatePermissionGrant.account_id == account_id)
     rows = list((await db.scalars(query.order_by(CorporatePermissionGrant.id).limit(256))).all())
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="permission_grant.list",
-        target_table="corporate_permission_grant",
-        target_id=organization_id,
-        request_id=request_id,
-    )
     return CorporatePermissionGrantList(items=[_grant_view(row) for row in rows])
 
 
@@ -4816,15 +4887,6 @@ async def read_member_access(
                     select(OrganizationMembership.id).where(
                         OrganizationMembership.organization_id == organization_id,
                         OrganizationMembership.account_id == scope_id,
-                    )
-                )
-            ) is not None
-        elif scope_kind == "catalog_object":
-            exists = (
-                await db.scalar(
-                    select(CatalogIdentity.stable_id).where(
-                        CatalogIdentity.organization_id == organization_id,
-                        CatalogIdentity.stable_id == scope_id,
                     )
                 )
             ) is not None
@@ -4924,15 +4986,6 @@ async def read_member_access(
         )
         for permission in sorted(effective_set)
     ]
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        organization_id=organization_id,
-        action="member_access.read",
-        target_table="organization_membership",
-        target_id=account_id,
-        request_id=request_id,
-    )
     return CorporateMemberAccess(
         organization_id=organization_id,
         account_id=account_id,
@@ -4956,4 +5009,165 @@ async def read_member_access(
         ],
         effective=effective_rows,
         authorization_revision=organization.policy_revision,
+    )
+
+
+async def list_teammates(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+) -> CorporateTeammates:
+    """Scoped people projection (ADR-0230).
+
+    The gate is active membership, not `member.list`: the latter keeps the
+    administrative roster. What the caller sees beyond that is the
+    organization's `people_visibility` policy plus any scoped `member.list`
+    grants they hold at the exact team/project scope. The projection carries
+    only identity and participation role — never email, job title, or the
+    organization role."""
+    organization, _membership = await _organization_and_membership(
+        db, ctx=ctx, organization_id=organization_id
+    )
+    visibility = cast("Literal['members','teammates','admins']", organization.people_visibility)
+    teams = {
+        row.id: row.name
+        for row in (
+            await db.scalars(
+                select(CorporateTeam).where(
+                    CorporateTeam.organization_id == organization_id,
+                    CorporateTeam.state == "active",
+                )
+            )
+        ).all()
+    }
+    projects = {
+        row.id: row.name
+        for row in (
+            await db.scalars(
+                select(CorporateProject).where(
+                    CorporateProject.organization_id == organization_id,
+                    CorporateProject.state == "active",
+                )
+            )
+        ).all()
+    }
+    team_members = list(
+        (
+            await db.scalars(
+                select(CorporateTeamMember).where(
+                    CorporateTeamMember.organization_id == organization_id,
+                    CorporateTeamMember.team_id.in_(teams or {""}),
+                )
+            )
+        ).all()
+    )
+    project_members = list(
+        (
+            await db.scalars(
+                select(CorporateProjectMember).where(
+                    CorporateProjectMember.organization_id == organization_id,
+                    CorporateProjectMember.project_id.in_(projects or {""}),
+                )
+            )
+        ).all()
+    )
+    caller_teams = {row.team_id for row in team_members if row.account_id == ctx.account_id}
+    caller_projects = {
+        row.project_id for row in project_members if row.account_id == ctx.account_id
+    }
+
+    org_wide = await has_corporate_permission(
+        db,
+        organization_id=organization_id,
+        principal_type="user",
+        principal_id=ctx.account_id,
+        permission="member.list",
+        scope_kind="organization",
+        scope_id=organization_id,
+    )
+    if visibility == "members" or org_wide:
+        visible_teams = set(teams)
+        visible_projects = set(projects)
+    else:
+        team_perms = await bulk_effective_permissions(
+            db,
+            organization_id=organization_id,
+            principal_type="user",
+            principal_id=ctx.account_id,
+            scope_kind="team",
+            scope_ids=list(teams),
+        )
+        project_perms = await bulk_effective_permissions(
+            db,
+            organization_id=organization_id,
+            principal_type="user",
+            principal_id=ctx.account_id,
+            scope_kind="project",
+            scope_ids=list(projects),
+        )
+        elevated_teams = {
+            scope_id for scope_id, perms in (team_perms or {}).items() if "member.list" in perms
+        }
+        elevated_projects = {
+            scope_id for scope_id, perms in (project_perms or {}).items() if "member.list" in perms
+        }
+        if visibility == "teammates":
+            visible_teams = caller_teams | elevated_teams
+            visible_projects = caller_projects | elevated_projects
+        else:
+            visible_teams = elevated_teams
+            visible_projects = elevated_projects
+
+    subjects: dict[str, list[CorporateTeammateContext]] = {}
+    for row in team_members:
+        if row.team_id in visible_teams:
+            subjects.setdefault(row.account_id, []).append(
+                CorporateTeammateContext(
+                    kind="team", id=row.team_id, name=teams[row.team_id], role=row.role
+                )
+            )
+    for row in project_members:
+        if row.project_id in visible_projects:
+            subjects.setdefault(row.account_id, []).append(
+                CorporateTeammateContext(
+                    kind="project",
+                    id=row.project_id,
+                    name=projects[row.project_id],
+                    role=row.role,
+                )
+            )
+    subjects.setdefault(ctx.account_id, [])
+
+    name_rows = (
+        await db.execute(
+            select(
+                OrganizationMembership.account_id,
+                func.coalesce(OrganizationMembership.display_name, Account.display_name),
+            )
+            .join(Account, Account.id == OrganizationMembership.account_id)
+            .where(
+                OrganizationMembership.organization_id == organization_id,
+                OrganizationMembership.state == "active",
+                OrganizationMembership.account_id.in_(subjects or {""}),
+            )
+        )
+    ).all()
+    names: dict[str, str | None] = {
+        account_id: cast("str | None", display_name) for account_id, display_name in name_rows
+    }
+    items = [
+        CorporateTeammate(
+            account_id=account_id,
+            display_name=names.get(account_id),
+            contexts=sorted(contexts, key=lambda context: (context.kind, context.name)),
+        )
+        for account_id, contexts in subjects.items()
+        if account_id in names or account_id == ctx.account_id
+    ]
+    items.sort(key=lambda item: (item.display_name or item.account_id, item.account_id))
+    return CorporateTeammates(
+        organization_id=organization_id,
+        people_visibility=visibility,
+        items=items[:512],
     )

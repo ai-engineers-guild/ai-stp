@@ -1,10 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 
 const save = vi.hoisted(() => vi.fn());
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: { count?: number }) =>
     values?.count !== undefined ? `${key}:${values.count}` : key,
+}));
+vi.mock("@/lib/i18n/navigation", () => ({
+  Link: ({ children, ...props }: React.ComponentProps<"a">) => <a {...props}>{children}</a>,
 }));
 vi.mock("@/components/organisms/corporate-governance-controls", () => ({
   useGovernanceMutation: () => ({ busy: false, message: null, save }),
@@ -12,18 +15,18 @@ vi.mock("@/components/organisms/corporate-governance-controls", () => ({
 
 import { CorporateTelemetryPolicyControls } from "@/components/organisms/corporate-telemetry-policy-controls";
 
-function renderForm() {
+beforeEach(() => save.mockClear());
+
+function renderForm(tab: "heartbeat" | "usage" | "retention" = "heartbeat") {
   render(
     <CorporateTelemetryPolicyControls
       policy={null}
+      tab={tab}
       organizationId="organization_test"
       authorizationRevision={7}
       csrfToken="csrf"
     />,
   );
-  fireEvent.change(screen.getByLabelText("telemetryLegalBasis"), {
-    target: { value: "consent" },
-  });
 }
 
 function submit() {
@@ -57,10 +60,10 @@ it("maps a custom minute interval back to seconds", () => {
   );
 });
 
-it("submits toggle switches as boolean strings", () => {
+it("submits the heartbeat switch as a boolean string", () => {
   renderForm();
   // The heartbeat switch starts enabled (policy fallback); uncheck it.
-  fireEvent.click(screen.getByRole("checkbox", { name: "heartbeatReporting" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "heartbeatCardTitle" }));
   submit();
   expect(save).toHaveBeenCalledWith(
     expect.any(String),
@@ -82,4 +85,46 @@ it("maps the advanced retry max from minutes to seconds", () => {
     "PUT",
     expect.any(Function),
   );
+});
+
+it("submits the usage tab switches and blocks registration without collection", () => {
+  renderForm("usage");
+  fireEvent.click(screen.getByRole("checkbox", { name: "usageRegistrationRequired" }));
+  submit();
+  // Registration without collection is refused client-side; nothing is sent.
+  expect(save).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("checkbox", { name: "usageCollectionReporting" }));
+  submit();
+  expect(save).toHaveBeenCalledWith(
+    expect.any(String),
+    expect.objectContaining({
+      usage_collection_enabled: true,
+      usage_registration_required: true,
+      inventory_scan_enabled: false,
+    }),
+    "PUT",
+    expect.any(Function),
+  );
+});
+
+it("submits the retention tab without touching heartbeat fields", () => {
+  renderForm("retention");
+  fireEvent.change(screen.getByLabelText("telemetryLegalBasis"), {
+    target: { value: "consent" },
+  });
+  submit();
+  expect(save).toHaveBeenCalledWith(
+    expect.any(String),
+    expect.objectContaining({
+      legal_basis: "consent",
+      raw_retention_days: 90,
+      aggregate_retention_days: 365,
+      report_timezone: "UTC",
+    }),
+    "PUT",
+    expect.any(Function),
+  );
+  const body = save.mock.calls[0]?.[1] as Record<string, unknown>;
+  // Heartbeat fields merge from the known policy rather than the visible tab.
+  expect(body).toMatchObject({ heartbeat_enabled: true, heartbeat_interval_seconds: 21600 });
 });

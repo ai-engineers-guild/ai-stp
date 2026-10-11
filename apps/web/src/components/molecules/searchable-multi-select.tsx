@@ -21,6 +21,8 @@ type SearchableMultiSelectProps = {
   closeLabel?: string;
   selectionSuffix?: string | undefined;
   emptyHint?: string | undefined;
+  createLabel?: string | undefined;
+  onCreate?: (() => void) | undefined;
 };
 
 function optionValue(option: Option): string {
@@ -60,6 +62,8 @@ export function SearchableMultiSelect({
   closeLabel = "Close",
   selectionSuffix = "selected",
   emptyHint = "Select one or more options",
+  createLabel,
+  onCreate,
 }: SearchableMultiSelectProps) {
   const id = useId();
   const titleId = `${id}-title`;
@@ -104,6 +108,7 @@ export function SearchableMultiSelect({
         : [];
     setChecked(updated);
     onChange?.(updated);
+    if (!multiple && next) closeDialog();
   }
 
   function closeDialog() {
@@ -222,6 +227,19 @@ export function SearchableMultiSelect({
                 );
               })}
             </div>
+            {createLabel && onCreate && (
+              <button
+                type="button"
+                className="text-primary focus-visible:ring-ring hover:bg-muted flex min-h-11 w-full items-center gap-2 rounded-sm px-3 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none"
+                onClick={() => {
+                  closeDialog();
+                  onCreate();
+                }}
+              >
+                <Icon name="plus" size="sm" />
+                {createLabel}
+              </button>
+            )}
           </div>
         </dialog>
       </div>

@@ -55,7 +55,9 @@
         "organization",
         "team",
         "project",
-        "technology"
+        "technology",
+        "category",
+        "catalog_object"
       ],
       "title": "Scope Kind",
       "type": "string"

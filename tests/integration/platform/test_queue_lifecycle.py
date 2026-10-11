@@ -66,7 +66,6 @@ async def test_tenant_jobs_are_partitioned_and_revalidate_delayed_authorization(
                     CorporateRole(
                         organization_id=organization_id,
                         name="staff",
-                        parent_role=None,
                     ),
                     CorporateRolePermission(
                         organization_id=organization_id,

@@ -12,7 +12,7 @@ import {
 } from "@/components/molecules/entity-editor-layout";
 import { MarkdownEditor } from "@/components/molecules/markdown-editor";
 import { PresentationMediaEditor } from "@/components/organisms/presentation-media-editor";
-import { useObjectPresentationForm } from "@/components/organisms/use-object-presentation-form";
+import { useObjectPresentationForm } from "@/lib/use-object-presentation-form";
 import type { OwnerPresentationMedia } from "@/lib/api/owner";
 import { ENTITY_EDITOR_CONFIGS } from "@/lib/entity-editor-contract";
 

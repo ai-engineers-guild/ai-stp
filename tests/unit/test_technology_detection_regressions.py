@@ -1,5 +1,6 @@
 """Real-world manifest shapes and incomplete-scan boundaries for milestone 8."""
 
+import tarfile
 from io import BytesIO
 from pathlib import Path
 
@@ -127,7 +128,7 @@ def test_docker_stage_alias_is_not_an_image(tmp_path: Path) -> None:
 
 
 def test_depth_limit_is_incomplete(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(project_index, "MAX_DEPTH", 1)
+    monkeypatch.setattr("ai_stp_sources.project_index.MAX_DEPTH", 1)
     deep = tmp_path / "nested"
     deep.mkdir()
     (deep / "main.py").write_text("pass", encoding="utf-8")
@@ -160,7 +161,7 @@ def test_detection_time_limit_returns_partial(
 ) -> None:
     (tmp_path / "package.json").write_text("{}", encoding="utf-8")
     index = project_index.build(tmp_path)
-    monkeypatch.setattr(project_index, "MAX_SECONDS", 0)
+    monkeypatch.setattr("ai_stp_sources.project_index.MAX_SECONDS", 0)
     scan = tech_detect.detect(index)
     assert not scan.complete
     assert scan.stopped_by == "detection time budget"
@@ -197,3 +198,78 @@ def test_binary_probe_does_not_read_the_rest_of_an_image(
     monkeypatch.setattr(Path, "open", open_binary)
     assert not project_index.build(tmp_path).entries
     assert stream.bytes_read == project_index.BINARY_PROBE_BYTES
+
+
+def test_lock_rows_follow_the_declared_context(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\ndependencies = ["fastapi>=0.100"]\n[dependency-groups]\ntest = ["pytest>=8"]\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "uv.lock").write_text(
+        "version = 1\n"
+        '[[package]]\nname = "fastapi"\nversion = "0.115.0"\n'
+        '[[package]]\nname = "pytest"\nversion = "8.3.3"\n'
+        '[[package]]\nname = "transitive-dep"\nversion = "1.0.0"\n',
+        encoding="utf-8",
+    )
+    scan = tech_detect.detect(project_index.build(tmp_path))
+    contexts = {d.coordinate: d.context for d in scan.detections if d.kind == "package"}
+    # Lock rows restate the declaration's context instead of inventing a
+    # production finding for test tooling.
+    assert contexts["pytest"] == "testing"
+    assert contexts["fastapi"] == "production"
+    # A package the lock alone observed stays a production-context detection;
+    # curation, not the detector, decides it is resolver noise.
+    assert contexts["transitive-dep"] == "production"
+    # The lock's resolved version lands on the declared finding, in context.
+    assert any(
+        d.context == "testing" and d.version == "8.3.3"
+        for d in scan.detections
+        if d.coordinate == "pytest"
+    )
+    assert all(d.context != "production" for d in scan.detections if d.coordinate == "pytest")
+
+
+def test_same_manifest_duplicate_contexts_fold(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\ndependencies = ["httpx>=0.27"]\n'
+        '[project.optional-dependencies]\ncli = ["httpx>=0.27"]\n',
+        encoding="utf-8",
+    )
+    scan = tech_detect.detect(project_index.build(tmp_path))
+    rows = [d for d in scan.detections if d.kind == "package" and d.coordinate == "httpx"]
+    assert [row.context for row in rows] == ["production"]
+    assert {trace.path for row in rows for trace in row.traces} == {"pyproject.toml"}
+
+
+def _tarball(files: dict[str, bytes]) -> bytes:
+    buffer = BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+        for name, payload in sorted(files.items()):
+            info = tarfile.TarInfo(name=f"repo-deadbeef/{name}")
+            info.size = len(payload)
+            archive.addfile(info, BytesIO(payload))
+    return buffer.getvalue()
+
+
+def test_oversized_archive_member_is_present_but_unreadable() -> None:
+    archive = _tarball(
+        {
+            "pyproject.toml": b'[project]\ndependencies = ["fastapi>=0.100"]\n',
+            "uv.lock": b" " * (project_index.MAX_FILE_BYTES + 1),
+        }
+    )
+    from ai_stp_sources.tech_detect import detect_archive
+
+    scan = detect_archive(archive)
+    assert not scan.complete
+    assert scan.stopped_by == "unreadable manifest"
+    # Presence signatures still fire on the oversized member's entry.
+    assert ("alias", "uv") in {(d.kind, d.coordinate) for d in scan.detections}
+    # Readable members still produce their findings.
+    assert ("package", "fastapi") in {(d.kind, d.coordinate) for d in scan.detections}
+    # No package rows may be invented from a lock file nobody read.
+    assert not any(
+        detection.kind == "package" and any(trace.path == "uv.lock" for trace in detection.traces)
+        for detection in scan.detections
+    )

@@ -1,11 +1,14 @@
 import { cookies } from "next/headers";
 import { cache } from "react";
+import { searchComponents, searchSetups } from "@/lib/api/catalog";
+import { asCursorToken } from "@/lib/brands";
 
 import { apiRequest } from "@/lib/api/http";
 import { ApiError } from "@/lib/api/errors";
 import { CORPORATE_ORG_COOKIE } from "@/lib/auth/cookies";
 
 import type {
+  CategoryList,
   CorporateAuditList,
   CorporateBindingList,
   CorporateContext,
@@ -27,6 +30,7 @@ import type {
   CorporateJobTitleList,
   CorporateMemberAccess,
   CorporateDelegationView,
+  CorporateTeammates,
 } from "./generated/types.gen";
 
 export const readCorporateContext = cache(
@@ -122,6 +126,17 @@ export async function readCorporateDirectoryPage(
     page: requestedPage,
     pageSize: requestedPageSize,
   };
+}
+
+export async function readCorporateTeammates(
+  sessionToken: string,
+): Promise<CorporateTeammates | null> {
+  const organization = await readCorporateOrganization(sessionToken);
+  if (!organization) return null;
+  return apiRequest<CorporateTeammates>(
+    `/v1/corporate/organizations/${organization.organization_id}/teammates`,
+    { sessionToken },
+  );
 }
 
 export async function readCorporateDirectoryPages(
@@ -405,3 +420,64 @@ export {
   readCorporateAssignmentDistribution,
   readEffectiveCorporateAssignment,
 } from "./corporate-distribution";
+
+export async function readCorporateCatalogScopeOptions(
+  session: string,
+  organizationId: string,
+  capabilities: readonly string[],
+) {
+  const options: { value: string; label: string }[] = [];
+  if (capabilities.includes("catalog_object.read")) {
+    for (const search of [searchComponents, searchSetups]) {
+      let cursor: string | null = null;
+      do {
+        const page:
+          Awaited<ReturnType<typeof searchComponents>> | Awaited<ReturnType<typeof searchSetups>> =
+          await search({
+            sessionToken: session,
+            organization_id: organizationId,
+            page_size: 64,
+            ...(cursor ? { cursor: asCursorToken(cursor) } : {}),
+          });
+        options.push(
+          ...[...page.items, ...page.experimental].map((item) => ({
+            value: `catalog_object:${item.stable_id}`,
+            label: typeof item.display_name === "string" ? item.display_name : item.latest_name,
+          })),
+        );
+        const next: string | null = page.page.next_cursor;
+        if (next === cursor && next) throw new Error("Catalog scope pagination did not advance");
+        cursor = next;
+      } while (cursor);
+    }
+  }
+
+  return options;
+}
+
+export async function readCorporateScopeTechnologies(
+  session: string,
+  organizationId: string,
+  capabilities: readonly string[],
+) {
+  if (!capabilities.includes("technology.list")) return [];
+  const directory = await readCorporateDirectoryPages(session, organizationId, {
+    resource: "technologies",
+  });
+  return directory.items;
+}
+
+export async function readCorporateCategoryScopeOptions(
+  session: string,
+  organizationId: string,
+  capabilities: readonly string[],
+) {
+  if (!capabilities.includes("category.list")) return [];
+  const list = await apiRequest<CategoryList>(
+    `/v1/corporate/organizations/${organizationId}/technology-categories`,
+    { sessionToken: session },
+  );
+  return list.items
+    .filter((item) => item.state === "active")
+    .map((item) => ({ value: `category:${item.category_id}`, label: item.name }));
+}

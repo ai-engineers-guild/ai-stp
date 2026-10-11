@@ -142,6 +142,22 @@ _CHAIN_TABLES = (
     "technology_unmapped_coordinate",
 )
 
+#: Catalog rows a later revision removes on purpose: `0114_corporate_role_flat`
+#: drops `corporate_role.parent_role` after flattening inherited permissions,
+#: and `0112_participation_people_visibility` rewrites the two scope-kind check
+#: constraints to admit `category` (ADR-0230), so their old definitions vanish.
+_OLD_SCOPE_KIND_DEF = (
+    "CHECK (((scope_kind)::text = ANY ((ARRAY['system'::character varying, "
+    "'organization'::character varying, 'team'::character varying, "
+    "'project'::character varying, 'technology'::character varying, "
+    "'catalog_object'::character varying, 'telemetry'::character varying])::text[])))"
+)
+_REMOVED_BY_LATER_REVISIONS = {
+    ("corporate_role", "parent_role", "YES", "character varying"),
+    ("corporate_role_binding", "ck_role_binding_scope_kind", _OLD_SCOPE_KIND_DEF),
+    ("corporate_permission_grant", "ck_permission_grant_scope_kind", _OLD_SCOPE_KIND_DEF),
+}
+
 
 def _skip_chain_like_production(database_url: str, config: Config) -> None:
     """Leave a database at `0111` without the chain, as production stood.
@@ -235,7 +251,7 @@ def test_replay_restores_the_chain_a_reordered_history_skipped(
     # the catalog of a database that ran the chain in order does. Revisions
     # after `0112` legitimately add objects, so the check is containment, not
     # equality: every catalog row that existed before the replay still exists.
-    assert _rows(complete) <= _rows(_catalog(isolated_database_url))
+    assert _rows(complete) - _REMOVED_BY_LATER_REVISIONS <= _rows(_catalog(isolated_database_url))
     for table in _CHAIN_TABLES:
         assert (
             asyncio.run(
@@ -253,13 +269,15 @@ def test_replay_changes_nothing_on_a_database_that_ran_the_chain(
     isolated_database_url: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    from alembic.script import ScriptDirectory
+
     monkeypatch.setenv("AI_STP_DB_URL", isolated_database_url)
     config = Config("alembic.ini")
     command.upgrade(config, "0111_corporate_access_provenance")
     before = _catalog(isolated_database_url)
     command.upgrade(config, "head")
-    assert _version(isolated_database_url) == "0115_saml_sso_request"
-    assert _rows(before) <= _rows(_catalog(isolated_database_url))
+    assert _version(isolated_database_url) == ScriptDirectory.from_config(config).get_current_head()
+    assert _rows(before) - _REMOVED_BY_LATER_REVISIONS <= _rows(_catalog(isolated_database_url))
 
 
 def test_dashboard_migration_has_tenant_policies_and_downgrades(
@@ -426,11 +444,14 @@ def test_identity_migration_preserves_distinct_account_suffixes(
     asyncio.run(seed())
     command.upgrade(config, "head")
     assigned = asyncio.run(names())
-    assert {row[0] for row in assigned} == set(account_ids)
-    assert len({row[1] for row in assigned}) == len(account_ids)
-    assert len({row[2] for row in assigned}) == len(account_ids)
-    assert all(normalize_handle(row[1]) == row[1] for row in assigned)
-    assert all(len(row[1]) <= HANDLE_MAX_LENGTH for row in assigned)
+    # `0121_corporate_fixture_demo` seeds its own accounts; the identity
+    # assertions apply to the accounts this test planted.
+    mine = [row for row in assigned if row[0] in set(account_ids)]
+    assert {row[0] for row in mine} == set(account_ids)
+    assert len({row[1] for row in mine}) == len(account_ids)
+    assert len({row[2] for row in mine}) == len(account_ids)
+    assert all(normalize_handle(row[1]) == row[1] for row in mine)
+    assert all(len(row[1]) <= HANDLE_MAX_LENGTH for row in mine)
 
     command.upgrade(config, "head")
     assert asyncio.run(names()) == assigned

@@ -1,18 +1,16 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
-import {
-  corporateCatalogSearchAction,
-  corporateCatalogVersionsAction,
-  corporateMutationAction,
-} from "@/actions/corporate";
+import { corporateCatalogSearchAction, corporateCatalogVersionsAction } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { Textarea } from "@/components/atoms/textarea";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { useRouter } from "@/lib/i18n/navigation";
 
 type Option = { value: string; label: string };
@@ -90,7 +88,7 @@ function EmployeeCatalogFields({
       {selected ? (
         <div className="space-y-2">
           <p className="text-muted-foreground text-sm">{selected.name}</p>
-          <select
+          <Select
             aria-label={h("exactVersion")}
             value={version}
             disabled={busy}
@@ -105,7 +103,7 @@ function EmployeeCatalogFields({
                 {item}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
       ) : null}
     </div>
@@ -192,7 +190,7 @@ function CorporateCreateFields({
           </div>
           <div className="space-y-2">
             <Label htmlFor={`${formId}-role`}>{c("role")}</Label>
-            <select
+            <Select
               id={`${formId}-role`}
               name="role"
               required
@@ -203,7 +201,7 @@ function CorporateCreateFields({
                   {role}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
           {select("team_ids", h("teams"), options.teams)}
           {select("project_ids", h("projects"), options.projects)}
@@ -357,7 +355,7 @@ export function CorporateCreateForm({
     if (retry.current?.effect !== effect) retry.current = { effect, key: crypto.randomUUID() };
     setBusy(true);
     setMessage(null);
-    const result = await corporateMutationAction({
+    const result = await corporateMutation({
       organizationId,
       csrfToken,
       method: "POST",

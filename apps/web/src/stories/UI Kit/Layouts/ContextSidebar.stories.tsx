@@ -2,7 +2,8 @@ import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { Button } from "@/components/atoms/button";
 import { ContextRail, ContextSidebar, type RailItem } from "@/components/layouts/context-rail";
-import { CORPORATE_NAV_PAGES, resolveCorporateRail } from "@/lib/corporate-navigation";
+import { CORPORATE_NAV_PAGES } from "@/lib/corporate-navigation";
+import { resolveCorporateRail } from "@/lib/corporate-rail";
 import { useSessionUiSlice } from "@/lib/stores/session-ui-slice";
 import { useUiSlice } from "@/lib/stores/ui-slice";
 import { Icon } from "@/theme/icons";
@@ -106,7 +107,7 @@ export const Collapsed: Story = {
 };
 function AdministrationStory() {
   const [mainNavigation, setMainNavigation] = useState(false);
-  const pathname = "/corporate/organization/admins/roles";
+  const pathname = "/corporate/admin/roles";
   return (
     <ContextSidebar
       corporate
@@ -126,9 +127,9 @@ function AdministrationStory() {
 export const Administration: Story = {
   render: () => <AdministrationStory />,
   args: {
-    pathname: "/corporate/organization/admins/roles",
+    pathname: "/corporate/admin/roles",
     scope: "administration",
-    items: items("/corporate/organization/admins/roles"),
+    items: items("/corporate/admin/roles"),
     back: null,
   },
 };
@@ -155,9 +156,9 @@ export const Restricted: Story = {
 };
 export const DeniedAdministration: Story = {
   args: {
-    pathname: "/corporate/organization/admins",
+    pathname: "/corporate/admin/members",
     scope: "root",
-    items: items("/corporate/organization/admins", false, [
+    items: items("/corporate/admin/members", false, [
       "overview",
       "catalog",
       "organization",

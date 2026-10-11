@@ -37,6 +37,7 @@ class JobType(StrEnum):
     REPOSITORY_METRICS = "repository_metrics"
     GITHUB_ARCHIVE = "github_archive"
     GITLAB_TECHNOLOGY_SCAN = "gitlab_technology_scan"
+    GITHUB_TECHNOLOGY_SCAN = "github_technology_scan"
     CATALOG_ENRICHMENT = "catalog_enrichment"
     SEO_BUILD = "seo_build"
     SEO_ENRICH = "seo_enrich"

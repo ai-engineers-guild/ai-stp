@@ -1,14 +1,16 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { useRouter } from "@/lib/i18n/navigation";
 import type {
+  AreaView,
   CategoryView,
   CorporateProjectLifecycleRequest,
   CorporateProjectView,
@@ -50,7 +52,7 @@ export function useGovernanceMutation(authority: GovernanceAuthority) {
     setBusy(true);
     void (async () => {
       try {
-        const result = await corporateMutationAction({ ...authority, path, method, body });
+        const result = await corporateMutation({ ...authority, path, method, body });
         if (!result.ok) {
           setMessage(result.message);
           return;
@@ -84,6 +86,78 @@ export function CategoryLifecycleControls({
   const [state, setState] = useState(category.state ?? "active");
   const mutation = useGovernanceMutation(authority);
   const path = `/v1/corporate/organizations/${authority.organizationId}/technology-categories/${category.category_id}`;
+  const targets: {
+    target: "draft" | "active" | "archived";
+    method: "POST" | "DELETE";
+    allowed: boolean;
+  }[] =
+    state === "draft"
+      ? [
+          { target: "active", method: "POST", allowed: canRestore },
+          { target: "archived", method: "DELETE", allowed: canRemove },
+        ]
+      : state === "archived"
+        ? [{ target: "active", method: "POST", allowed: canRestore }]
+        : [
+            { target: "draft", method: "POST", allowed: canRestore },
+            { target: "archived", method: "DELETE", allowed: canRemove },
+          ];
+  const actions = targets.filter((item) => item.allowed);
+  if (!actions.length) return null;
+  return (
+    <div className="mt-3 space-y-2" aria-busy={mutation.busy}>
+      <div className="flex flex-wrap gap-3">
+        {actions.map((action) => (
+          <Button
+            key={action.target}
+            size="lg"
+            variant="outline"
+            disabled={mutation.busy}
+            onClick={() => {
+              mutation.save(
+                action.method === "DELETE" ? path : `${path}/lifecycle`,
+                {
+                  expected_revision: revision.current,
+                  ...(action.method === "POST" ? { target: action.target } : {}),
+                },
+                action.method,
+                () => {
+                  revision.current += 1;
+                  setState(action.target);
+                },
+              );
+            }}
+          >
+            {t(
+              mutation.busy
+                ? "saving"
+                : action.target === "active"
+                  ? "restore"
+                  : `transition.${action.target}`,
+            )}
+          </Button>
+        ))}
+      </div>
+      {mutation.message && <p role="status">{mutation.message}</p>}
+    </div>
+  );
+}
+
+export function AreaLifecycleControls({
+  area,
+  canRemove,
+  canRestore,
+  ...authority
+}: Authority & {
+  area: AreaView;
+  canRemove: boolean;
+  canRestore: boolean;
+}) {
+  const t = useTranslations("technology");
+  const revision = useRef(area.revision);
+  const [state, setState] = useState(area.state ?? "active");
+  const mutation = useGovernanceMutation(authority);
+  const path = `/v1/corporate/organizations/${authority.organizationId}/technology-areas/${area.area_id}`;
   const targets: {
     target: "draft" | "active" | "archived";
     method: "POST" | "DELETE";
@@ -257,7 +331,7 @@ export function ProjectActivityEditor({
       <fieldset disabled={mutation.busy} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="project-source-availability">{t("source_availability")}</Label>
-          <select
+          <Select
             id="project-source-availability"
             name="source_availability"
             defaultValue={activity.source_availability ?? "unknown"}
@@ -268,7 +342,7 @@ export function ProjectActivityEditor({
                 {t(`values.${value}`)}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="project-activity-time">{t("activityTime")}</Label>
@@ -282,7 +356,7 @@ export function ProjectActivityEditor({
         </div>
         <div className="space-y-2">
           <Label htmlFor="project-activity-override">{t("activityOverride")}</Label>
-          <select
+          <Select
             id="project-activity-override"
             name="activity_override"
             defaultValue={activity.activity_override ?? ""}
@@ -291,7 +365,7 @@ export function ProjectActivityEditor({
             <option value="">{t("clearOverride")}</option>
             <option value="active">{t("values.active")}</option>
             <option value="inactive">{t("values.inactive")}</option>
-          </select>
+          </Select>
         </div>
       </fieldset>
       <Button type="submit" size="lg" disabled={mutation.busy}>

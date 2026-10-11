@@ -1,13 +1,13 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/atoms/button";
-import { Input } from "@/components/atoms/input";
+import { ExpandableSearch } from "@/components/molecules/expandable-search";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
 import { RefineSurface } from "@/components/molecules/filter-surface";
-import { cn } from "@/lib/cn";
 import { Link } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";
 import {
@@ -19,7 +19,7 @@ import {
   type DirectoryResource,
   type CorporateCatalogFacet,
   type CorporateCatalogFacetConfig,
-} from "./corporate-directory-types";
+} from "@/lib/corporate-directory-types";
 import type { CorporateDirectoryFacets } from "@/lib/api/generated/types.gen";
 
 type Selected = Partial<Record<DirectoryFacet, string[]>>;
@@ -77,41 +77,6 @@ function activeCount(
   );
 }
 
-function SearchField({
-  query,
-  open,
-  onChange,
-}: {
-  query: string;
-  open: boolean;
-  onChange: (value: string) => void;
-}) {
-  const t = useTranslations("hub");
-  return (
-    <div className={cn("border-border bg-card rounded-lg border p-3", !open && "sr-only")}>
-      <label htmlFor="directory-search" className="space-y-1.5 text-sm font-medium">
-        <span>{t("search")}</span>
-        <span className="relative block">
-          <Icon
-            name="search"
-            size="sm"
-            className="text-muted-foreground absolute top-1/2 left-3 -translate-y-1/2"
-          />
-          <Input
-            id="directory-search"
-            value={query}
-            onChange={(event) => {
-              onChange(event.target.value);
-            }}
-            placeholder={t("search")}
-            className="h-11 pl-10"
-          />
-        </span>
-      </label>
-    </div>
-  );
-}
-
 // eslint-disable-next-line max-lines-per-function
 export function CorporateDirectoryToolbar({
   resource,
@@ -139,7 +104,6 @@ export function CorporateDirectoryToolbar({
   const t = useTranslations("hub");
   const catalog = useTranslations("catalog");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(Boolean(query));
   const dialogId = `corporate-${resource}-filters`;
   const count = activeCount(selected, leadOnly, catalogSelected);
   const [draftSelected, setDraftSelected] = useState(selected);
@@ -161,19 +125,14 @@ export function CorporateDirectoryToolbar({
   return (
     <div className="space-y-3">
       <div className="flex min-w-0 flex-wrap items-center justify-end gap-3">
-        <Button
-          type="button"
-          variant={searchOpen ? "default" : "outline"}
-          size="icon"
-          aria-expanded={searchOpen}
-          aria-label={t("openSearch")}
-          title={t("search")}
-          onClick={() => {
-            setSearchOpen((open) => !open);
-          }}
-        >
-          <Icon name="search" size="sm" />
-        </Button>
+        <ExpandableSearch
+          id="directory-search"
+          value={query}
+          onChange={onQueryChange}
+          label={t("openSearch")}
+          fieldLabel={t("search")}
+          placeholder={t("search")}
+        />
         <Button
           type="button"
           variant={filtersOpen || count ? "default" : "outline"}
@@ -239,7 +198,6 @@ export function CorporateDirectoryToolbar({
           </Button>
         ) : null}
       </div>
-      <SearchField query={query} open={searchOpen} onChange={onQueryChange} />
       {filtersOpen ? (
         <RefineSurface
           id={dialogId}
@@ -310,7 +268,7 @@ export function CorporateDirectoryToolbar({
             ) : null}
             <label className="min-w-0 space-y-2 text-sm">
               <span className="font-medium">{t("sortBy")}</span>
-              <select
+              <Select
                 value={draftSort}
                 onChange={(event) => {
                   setDraftSort(event.target.value as "name" | "name_desc");
@@ -319,7 +277,7 @@ export function CorporateDirectoryToolbar({
               >
                 <option value="name">{t("sortName")}</option>
                 <option value="name_desc">{catalog("sortDescending")}</option>
-              </select>
+              </Select>
             </label>
           </div>
           <div className="border-border bg-card sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t py-5">

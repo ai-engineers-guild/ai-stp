@@ -36,14 +36,14 @@ class _TenantRow:
     )
 
 
-class TechnologyCategory(_TenantRow, Base):
-    __tablename__ = "technology_category"
+class TechnologyArea(_TenantRow, Base):
+    """A technology landscape area grouping categories for one organization."""
+
+    __tablename__ = "technology_area"
     __table_args__ = (
-        UniqueConstraint("organization_id", "normalized_name", name="uq_technology_category_name"),
-        CheckConstraint("revision >= 1", name="ck_technology_category_revision"),
-        CheckConstraint(
-            "state IN ('draft','active','archived')", name="ck_technology_category_state"
-        ),
+        UniqueConstraint("organization_id", "normalized_name", name="uq_technology_area_name"),
+        CheckConstraint("revision >= 1", name="ck_technology_area_revision"),
+        CheckConstraint("state IN ('draft','active','archived')", name="ck_technology_area_state"),
     )
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -51,6 +51,36 @@ class TechnologyCategory(_TenantRow, Base):
     description: Mapped[str] = mapped_column(
         String(2000), nullable=False, default="", server_default=""
     )
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    provenance: Mapped[str] = mapped_column(String(256), nullable=False)
+    state: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="active", server_default="active"
+    )
+
+
+class TechnologyCategory(_TenantRow, Base):
+    __tablename__ = "technology_category"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "normalized_name", name="uq_technology_category_name"),
+        ForeignKeyConstraint(
+            ["organization_id", "area_id"],
+            ["technology_area.organization_id", "technology_area.id"],
+            ondelete="RESTRICT",
+            name="fk_technology_category_area",
+        ),
+        CheckConstraint("revision >= 1", name="ck_technology_category_revision"),
+        CheckConstraint(
+            "state IN ('draft','active','archived')", name="ck_technology_category_state"
+        ),
+    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    area_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    normalized_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(
+        String(2000), nullable=False, default="", server_default=""
+    )
+    icon: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     provenance: Mapped[str] = mapped_column(String(256), nullable=False)
     state: Mapped[str] = mapped_column(
@@ -327,7 +357,12 @@ class TechnologyScan(_TenantRow, Base):
         String(16), nullable=False, default="remote", server_default="remote"
     )
     fingerprint: Mapped[str] = mapped_column(String(71), nullable=False)
+    source: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    repository: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    branch: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    commit: Mapped[str | None] = mapped_column(String(128), nullable=True)
     handoff: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     __table_args__ = (
         ForeignKeyConstraint(
             ["organization_id", "project_id", "project_namespace"],
@@ -339,6 +374,11 @@ class TechnologyScan(_TenantRow, Base):
             ondelete="RESTRICT",
         ),
         CheckConstraint("project_namespace = 'remote'", name="ck_technology_scan_namespace"),
+        CheckConstraint(
+            "source IS NULL OR source IN ('gitlab','github','local')",
+            name="ck_technology_scan_source",
+        ),
+        Index("ix_technology_scan_project", "organization_id", "project_id"),
     )
 
 
@@ -360,6 +400,49 @@ class TechnologyCoordinateMapping(_TenantRow, Base):
     coordinate: Mapped[str] = mapped_column(String(512), primary_key=True)
     technology_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     provenance: Mapped[str] = mapped_column(String(256), nullable=False)
+    published_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class TechnologyFindingReview(_TenantRow, Base):
+    """Mutable interpretation kept separately from the immutable scan evidence."""
+
+    __tablename__ = "technology_finding_review"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "scan_id"],
+            ["technology_scan.organization_id", "technology_scan.id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "technology_id"],
+            ["technology.organization_id", "technology.id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "category_id"],
+            ["technology_category.organization_id", "technology_category.id"],
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "review IN ('confirmed','rejected','dependency')", name="ck_finding_review"
+        ),
+        CheckConstraint("revision >= 1", name="ck_finding_review_revision"),
+    )
+    scan_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    finding_key: Mapped[str] = mapped_column(String(71), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    coordinate: Mapped[str] = mapped_column(String(512), nullable=False)
+    context: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    technology_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    category_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    review: Mapped[str] = mapped_column(String(16), nullable=False)
+    comment: Mapped[str] = mapped_column(String(500), nullable=False, default="", server_default="")
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class TechnologyUnmappedCoordinate(_TenantRow, Base):

@@ -14,7 +14,7 @@ import { ExactSourceLink } from "@/components/molecules/exact-source-link";
 import {
   ComponentTargetMatrix,
   targetMatrixLabels,
-} from "@/components/molecules/component-target-matrix";
+} from "@/components/organisms/component-target-matrix";
 import { OsBadgeList } from "@/components/molecules/os-badge-list";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
