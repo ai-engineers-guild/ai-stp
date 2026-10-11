@@ -1,6 +1,6 @@
 ---
 description: "SPEC-008: Providers, installation and recovery."
-last_verified: "2026-09-24"
+last_verified: "2026-10-11"
 ---
 
 # SPEC-008: Providers, installation and recovery
@@ -31,7 +31,7 @@ The closed authoring loop of setup systems is a check and coordination loop: it 
 - `REQ-802`: All seven closed set providers implement a common versioned protocol core and machine-readable `provider-info`; product-specific software lifecycle and launch are declared capabilities, not fictitious required commands. Each announcement is read from its exact released provider; all seven current providers declare the program lifecycle. Launch is announced only when the product can be pointed at `--target` for every owned surface. Antigravity announces `launch` bound to the documented `~/.gemini` home with an empty `config_home_env`; an alternate root is refused by name. Do not invent `ANTIGRAVITY_*`.
 - `REQ-803`: The provider has sole ownership of native projection, locks, staging directory, target change, backup, state and restore; he owns the program and launches only with an explicitly declared capability.
 - `REQ-804`: Package checking disallows absolute and parent paths, directory escaping, symbolic and hard links, special devices, normalized path repeat, and exceeding limits.
-- `REQ-805`: The plan has no side effects and is bound to the current target hash, provider and environment versions, and expiration date.
+- `REQ-805`: The plan has no side effects and is bound to the current target hash, provider and environment versions, and expiration date. Python and Rust readers accept an explicit `recovery_mode=forward` only for a bundle install/replace when the provider declares that request field. The exact artifact must echo the requested mode and must not bind backup, native capture or restore state. Unsupported, changed and unsolicited modes refuse. Released components 0.0.89 do not implement this mode; reader admission does not authorize configuration execution or change the existing recovery behavior.
 - `REQ-806`: The application requires an exact hash of the plan, a lock, and re-validation of the target after acquiring the lock.
 - `REQ-807`: A backup is created before the first change. Preserved native setup
   capture and exact return follow SPEC-068; narrower mutation recovery retains
@@ -112,7 +112,7 @@ The version of the contract is agreed upon before the operation. The old provide
 | `REQ-802` | The semantic compliance check compares `provider-info` with the actual CLI actions of all seven providers. |
 | `REQ-803` | A negative check proves that there is no direct target entry from `ai_stp`. |
 | `REQ-804` | The set of malicious packages covers all classes of paths, links, devices and limits. |
-| `REQ-805` | Checking the snapshot confirms that there have been no changes since the plan was built. |
+| `REQ-805` | Checking the snapshot confirms that there have been no changes since the plan was built. `test_cli_plan_request_fields`, `test_cli_provider_conformance_v3` and the native `provider_plan` proof accept declared forward admission and reject unsupported, unsolicited, rehashed conflicting mode/capture/backup/restore claims. |
 | `REQ-806` | A changed target and a changed plan hash will block application. Program commands use the same resolved prefix for plan, apply, and journal even when the caller supplies an alias. A provider's typed no-effect stale refusal settles as stale; an invalid or lost apply response remains recoverable as partial. |
 | `REQ-807` | Failure checks confirm pre-write backup and retention of unmanaged data. |
 | `REQ-808` | A status or ready to run error does not toggle the active pointer. |

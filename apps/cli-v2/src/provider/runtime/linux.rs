@@ -386,6 +386,9 @@ impl Launcher {
             "--provider-release-digest".into(),
             digest::sha256(bytes).into(),
         ];
+        if let Some(mode) = &request.recovery_mode {
+            arguments.extend(["--recovery-mode".into(), mode.as_str().into()]);
+        }
         if scope != Scope::Global {
             arguments.extend(["--target-scope".into(), scope.as_str().into()]);
         }

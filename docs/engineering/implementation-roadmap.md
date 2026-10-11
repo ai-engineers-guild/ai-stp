@@ -1,6 +1,6 @@
 ---
 description: "Current ai_stp status and the ordered plan for remaining work."
-last_verified: "2026-10-10"
+last_verified: "2026-10-11"
 ---
 
 # Current status and plan
@@ -19,7 +19,7 @@ The owner's October 8 instruction activates
 [#57](https://github.com/ai-engineers-guild/ai-stp/issues/57), superseding its
 earlier rewrite deferral. The objective is a complete native CLI with explicit
 business scope, a small risk-based proof set and a controlled production switch.
-Python CLI 0.0.43 remains the shipped engine. C0 froze migration evidence;
+The Python CLI remains the production engine. C0 froze migration evidence;
 C1 establishes the isolated native preview under `apps/cli-v2`, without transferring
 production state ownership. Its code-adjacent README owns the preview contract;
 command details come from the executable registry, not copied specifications.
@@ -84,6 +84,14 @@ preserved all 106 identities, advanced 85 changed sealed passports once and kept
 all original/current passports, exact artifacts and latest index versions.
 These are bounded C4 results; they do not complete configuration installation,
 native connected capabilities or production cutover.
+
+The current C4 reader wave accepts explicit `recovery_mode=forward` only from
+declaring providers and binds it to bundle install/replace plans in Python and
+Rust. Backup/capture/restore claims and an unrequested mode refuse. Kit 0.2.16
+opens the closed capability set; it must ship in the compatible consumer before
+the component rollout. Released components 0.0.89 do not support this mode and
+are refused before its optional flag is sent. This is protocol preparation,
+not configuration execution or production cutover.
 
 Execute the remaining integration in this order:
 
@@ -284,8 +292,8 @@ and the issues it links) and setup-systems #316.
 | Local-first CLI | SQLite registry, passports/revisions, discovery/adoption, selection, bundle, install/status/diff/update/rollback/recovery, machine help, and canonical Skill |
 | Platform | `/v1`, PostgreSQL, object storage, queue, authentication/devices, sync, publication, grants/reports, public catalog, article, and SEO projections |
 | Web | Landing, catalog/detail, account/device/owner surfaces, content hub, machine projections, and a three-OS test matrix |
-| Providers | Seven public setup systems at `0.0.88`, read through the vendored provider kit `0.2.15` and protocol v3: native configuration, backup/recovery and software lifecycle. Launch completeness per provider is measured evidence, not a property of the release. |
-| Release | `ai-stp-cli==0.0.43` on PyPI with its GitHub Release (SBOM, manifest, `SHA256SUMS`). Automatic provider acquisition uses PyPI with the CLI-managed verifier (`ADR-0171`); explicit GitHub acquisition retains its attestation policy. Self-update of the CLI wheel is `SPEC-072` / `ADR-0170`. Source integration, package publication and installed PATH identity are separate observations. |
+| Providers | Seven public setup systems at `0.0.89`, read through protocol v3. Source kit `0.2.16` prepares explicit forward-recovery admission; released components still use `0.2.15` and do not implement that mode. Native configuration execution remains pending. Launch completeness per provider is measured evidence, not a property of the release. |
+| Release | The Python `ai-stp-cli` distribution is published on PyPI with a matching immutable GitHub tag and release artifacts (SBOM, manifest, `SHA256SUMS`); exact accepted release identities belong to the dated publication receipts. Automatic provider acquisition uses PyPI with the CLI-managed verifier (`ADR-0171`); explicit GitHub acquisition retains its attestation policy. Self-update of the CLI wheel is `SPEC-072` / `ADR-0170`. The source version in `apps/cli/pyproject.toml`, package publication and installed PATH identity are separate observations. |
 | Desktop | `ai-stp-desktop` 0.0.8: a Tauri 2 shell over the CLI machine contract with a frozen CLI sidecar (`ADR-0222`); deb, rpm and AppImage for Linux, an aarch64 dmg, and an exe and msi for Windows, unsigned. |
 | Catalog | The canonical first-party corpus models seven harness families and four postures. Identity projection, exact target assurance, and normal-path publication/readback evidence are implemented in the current platform closeout for `#146`/`#155`. |
 | OBT support tiers | All seven harnesses are `beta` (`SUPPORT_TIERS`, `SPEC-033` REQ-3315). `primary` remains a valid later GA label with no current members |

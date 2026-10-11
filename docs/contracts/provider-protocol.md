@@ -1,6 +1,6 @@
 ---
 description: "Commands, execution boundary, and state mapping of a public provider."
-last_verified: "2026-09-29"
+last_verified: "2026-10-11"
 ---
 
 # Provider protocol
@@ -348,6 +348,26 @@ is `recover-operation`: `prepared` restores the exact pre-operation target;
 invoke this command after read-only `status`, but never repeats `apply-operation`.
 An incomplete capture without a published journal is retained in an archive by
 `recover-operation`; recovery changes no target configuration in that case.
+
+### Explicit forward recovery admission
+
+The consumer accepts the optional `recovery_mode` capability in
+`plan_request_fields`. For a bundle `install` or `replace`, a caller may request
+`--recovery-mode forward` only when the provider declares it. The exact plan
+must bind `recovery_mode: "forward"`; omitted or changed echoes refuse even if
+the returned plan digest is valid. A caller that did not request the mode also
+refuses a plan that introduces it. Backup references, complete native capture
+and restore identities are incompatible with this mode. No other mode value
+or operation is accepted.
+
+The intended effect is forward completion from retained admitted intent and
+desired activation payload, without copying the old configuration. This reader
+contract does not establish that a provider implements that effect. Components
+0.0.89 do not declare it, so the native consumer refuses the request before
+invoking the optional flag. The compatible consumer must be released before
+providers advertise the field. Omitted-mode plans retain the existing recovery
+semantics above. Writable native configuration remains unavailable until its
+provider implementation and interrupted execution are verified.
 
 ### Complete native capture
 

@@ -181,7 +181,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             },
             Parameter {
                 name: "request",
-                summary: "Closed plan request JSON up to 8 KiB: operation, operation_id, expires_at and exact bundle binding.",
+                summary: "Closed plan request JSON up to 8 KiB: operation, operation_id, expires_at, exact bundle binding and optional recovery_mode=forward; requires declared component support.",
                 kind: ParameterType::Path,
                 required: true,
             },

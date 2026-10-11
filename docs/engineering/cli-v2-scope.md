@@ -8,7 +8,7 @@ last_verified: "2026-10-07"
 This is the frozen C0 design and evidence record for
 [#57](https://github.com/ai-engineers-guild/ai-stp/issues/57), before the first
 Rust slice. Current native preview behavior belongs to `apps/cli-v2` and its
-code-adjacent README. Python CLI 0.0.43 remains the production runtime.
+code-adjacent README. The Python CLI remains the production runtime until verified cutover.
 [ADR-0227](../adr/ADR-0227-rust-cli-v2-migration-boundary.md) owns the migration
 boundary. The [implementation roadmap](implementation-roadmap.md) is the sole
 ordered plan; this document explains what that plan must preserve and prove.

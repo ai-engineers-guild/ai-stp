@@ -41,12 +41,27 @@ pub(crate) struct Binding {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum RecoveryMode {
+    Forward,
+}
+
+impl RecoveryMode {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            Self::Forward => "forward",
+        }
+    }
+}
+
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Request {
     pub(crate) operation: String,
     pub(crate) operation_id: String,
     pub(crate) expires_at: String,
     pub(crate) bundle: Binding,
+    pub(crate) recovery_mode: Option<RecoveryMode>,
 }
 
 /// Exact external observations expected in the provider's plan artifact.
@@ -59,6 +74,18 @@ pub struct Observed<'a> {
 }
 
 impl Request {
+    /// Refuse unsupported recovery before invoking an optional provider flag.
+    pub fn check_provider(&self, provider: &Info) -> Result<()> {
+        if self.recovery_mode.is_some()
+            && !super::contains(&provider.document()["plan_request_fields"], "recovery_mode")
+        {
+            return Err(Failure::precondition(
+                "the observed provider does not declare forward configuration recovery",
+            ));
+        }
+        Ok(())
+    }
+
     pub fn parse(bytes: &[u8], now: Timestamp) -> Result<Self> {
         if bytes.len() > 8192 {
             return Err(invalid());
@@ -117,6 +144,7 @@ impl Request {
 
     pub fn planned(&self, bytes: &[u8], observed: &Observed<'_>, now: Timestamp) -> Result<Value> {
         self.check_time(now)?;
+        self.check_provider(observed.provider)?;
         let response = response(bytes)?;
         let effects = response["effects"].as_array().ok_or_else(invalid)?;
         if effects.is_empty()
@@ -149,6 +177,9 @@ impl Request {
         });
         if observed.scope != Scope::Global {
             plan["target_scope"] = observed.scope.as_str().into();
+        }
+        if let Some(mode) = &self.recovery_mode {
+            plan["recovery_mode"] = mode.as_str().into();
         }
         let mut expected = serde_json::to_value(&self.bundle).map_err(|_| invalid())?;
         expected["valid"] = true.into();

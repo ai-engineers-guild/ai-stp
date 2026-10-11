@@ -21,6 +21,7 @@
           "capture_mode",
           "end_state",
           "instruction_section",
+          "recovery_mode",
           "target_scope"
         ],
         "type": "string"
