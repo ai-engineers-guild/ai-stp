@@ -46527,7 +46527,8 @@
                       "items": [],
                       "next_before_created_at": null,
                       "next_before_id": null,
-                      "schema_version": 1
+                      "schema_version": 1,
+                      "total": 0
                     }
                   }
                 },
@@ -53088,6 +53089,7 @@
                     "summary": "An authorized empty directory exposes no fabricated cards or facets.",
                     "value": {
                       "facets": {
+                        "areas": [],
                         "categories": [],
                         "job_titles": [],
                         "leads": [],
@@ -75617,6 +75619,7 @@
                           "area_id": null,
                           "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                           "description": "",
+                          "icon": null,
                           "name": "Runtime",
                           "provenance": "manual",
                           "revision": 1
@@ -75840,6 +75843,7 @@
                       "area_id": null,
                       "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "description": "",
+                      "icon": null,
                       "name": "Runtime",
                       "provenance": "manual",
                       "revision": 1
@@ -76084,6 +76088,7 @@
                       "area_id": null,
                       "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "description": "",
+                      "icon": null,
                       "name": "Runtime",
                       "provenance": "manual",
                       "revision": 2,
@@ -76288,6 +76293,7 @@
                       "area_id": null,
                       "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "description": "",
+                      "icon": null,
                       "name": "Runtime",
                       "provenance": "manual",
                       "revision": 1
@@ -76519,6 +76525,7 @@
                       "area_id": null,
                       "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "description": "",
+                      "icon": null,
                       "name": "Runtime",
                       "provenance": "manual",
                       "revision": 2
@@ -76764,6 +76771,7 @@
                       "area_id": null,
                       "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "description": "",
+                      "icon": null,
                       "name": "Runtime",
                       "provenance": "manual",
                       "revision": 2,

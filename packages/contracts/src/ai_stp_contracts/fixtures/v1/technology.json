@@ -28,7 +28,8 @@
         "revision": 2,
         "provenance": "manual",
         "state": "archived",
-        "area_id": null
+        "area_id": null,
+        "icon": null
       },
       "error_code": null
     },
@@ -60,7 +61,8 @@
         "revision": 2,
         "provenance": "manual",
         "state": "active",
-        "area_id": null
+        "area_id": null,
+        "icon": null
       },
       "error_code": null
     },
@@ -224,7 +226,8 @@
         "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "revision": 1,
         "provenance": "manual",
-        "area_id": null
+        "area_id": null,
+        "icon": null
       },
       "error_code": null
     },
@@ -487,7 +490,8 @@
             "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
             "revision": 1,
             "provenance": "manual",
-            "area_id": null
+            "area_id": null,
+            "icon": null
           }
         ]
       },
@@ -623,7 +627,8 @@
         "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "revision": 1,
         "provenance": "manual",
-        "area_id": null
+        "area_id": null,
+        "icon": null
       },
       "error_code": null
     },
@@ -912,7 +917,8 @@
         "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "revision": 2,
         "provenance": "manual",
-        "area_id": null
+        "area_id": null,
+        "icon": null
       },
       "error_code": null
     },
