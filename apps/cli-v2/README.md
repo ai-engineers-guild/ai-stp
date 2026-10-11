@@ -565,6 +565,14 @@ The observed provider must advertise the exact scope and request fields. The
 response uses the shared generated v3 status schema and must name that canonical
 target, harness and provider. Retained provider versions and drift remain
 observations, not assertions that a current setup is installed or ready.
+Optional `configuration_ownership` reports recorded whole-file and structured-key
+ownership through the shared v3 schema. The native reader checks sorted unique
+paths and keys, bounded relative paths, parser/extension agreement and equality
+with clean `written_paths`. Omission or null means unobserved ownership, not an
+empty target. A drifted record remains a record, not verified current contents.
+Kit 0.2.17 must reach a released consumer before a component emits this member;
+the current 0.0.89 components do not emit it. This read contract does not enable
+configuration writes.
 The provider's `target_digest` covers owned bytes: an unmanaged nonempty target
 can carry the same digest as an empty target. It is not a whole-directory hash.
 The report retains the exact response digest and observation time. It creates

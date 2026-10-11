@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
+from pathlib import Path
 from typing import cast
 
 import pytest
@@ -128,6 +129,18 @@ def test_runtime_enforces_the_same_closed_schema() -> None:
         "provider fetch --harness <id> --json",
         "provider conformance --harness <id> --executable <path> --json",
     ]
+    vectors = json.loads(
+        Path("apps/cli-v2/tests/fixtures/provider-status-ownership.json").read_text()
+    )
+    for case in vectors["cases"]:
+        value = vectors["base"] | case["patch"]
+        for key in case.get("remove", []):
+            value.pop(key)
+        if case["accepted"]:
+            assert provider_status.require_wire(value) == value, case["id"]
+        else:
+            with pytest.raises(CliFailure):
+                provider_status.require_wire(value)
 
 
 def test_clean_state_requires_every_flat_provenance_field() -> None:

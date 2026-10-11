@@ -107,7 +107,10 @@ Execute the remaining integration in this order:
    accept JSON, JSONC and TOML replacement/withdrawal without claiming preserved
    host fields. The compiler now retains the key and host digest, and its
    planning adapter refuses an implicit compatibility recovery path. Then extend the
-   existing native program lifecycle to the configuration services. Retain caller operation IDs,
+   existing native program lifecycle to the configuration services. Release the
+   kit-0.2.17 status reader before components expose recorded configuration
+   ownership; consumers must not couple withdrawal to private component files.
+   Retain caller operation IDs,
    complete original plan digests, admitted-operation recovery after expiry and
    historical outcomes after later operations. Verify exact effects and refuse
    unrelated drift before claiming a connected author-to-install journey.

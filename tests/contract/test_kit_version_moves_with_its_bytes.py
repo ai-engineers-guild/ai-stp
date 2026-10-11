@@ -31,8 +31,8 @@ from typing import Any, cast
 IDENTITY = Path("provider-kit/v3/KIT-IDENTITY.json")
 
 #: Update **both** together, or not at all.
-EXPECTED_VERSION = "0.2.16"
-EXPECTED_AGGREGATE = "sha256:9be41bec0c7c7393a899ce70e988c7c0a666be708f9e37395ae2d3c54c143886"
+EXPECTED_VERSION = "0.2.17"
+EXPECTED_AGGREGATE = "sha256:120fb3a40c903a8cf79045d92c466fa1e5b8281ed2214d69b4d2b95d9fd2cd85"
 
 
 def _identity() -> dict[str, Any]:

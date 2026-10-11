@@ -1,0 +1,701 @@
+{
+  "base": {
+    "backups": [
+      {
+        "backup_ref": "slot-000000000001",
+        "operation": "replace",
+        "setup_id": null,
+        "held": true,
+        "hold_reason": "baseline-control"
+      }
+    ],
+    "canonical_target": "/tmp/provider-status-target",
+    "cleanup_state": "none",
+    "harness_id": "codex",
+    "journal": null,
+    "protocol_version": 3,
+    "provider_id": "codex-setup-system",
+    "provider_state": {
+      "present": true,
+      "readable": true,
+      "setup_stable_id": "setup_01M00000000000000000000000",
+      "setup_version": "1.0",
+      "operation_id": "operation_status_contract",
+      "backup_ref": "slot-000000000002",
+      "recorded_identity": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "drift_state": "clean"
+    },
+    "shadowed_by": [],
+    "state": "managed",
+    "target_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "target_identity_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "state_schema": 4,
+    "provider_version": "0.0.47",
+    "provider_build_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "provider_release_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "setup_stable_id": "setup_01M00000000000000000000000",
+    "setup_version": "1.0",
+    "setup_version_passport_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "setup_definition_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "component_refs": [
+      "component_01M00000000000000000000000"
+    ],
+    "bundle_format": "ai-stp-bundle/1",
+    "bundle_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "artifact_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "projection_profile_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "provider_plan_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "operation_id": "operation_status_contract",
+    "target_precondition_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "native_ownership": [
+      "AGENTS.md",
+      "config.toml"
+    ],
+    "written_paths": [
+      "AGENTS.md",
+      "config.toml"
+    ],
+    "backup_ref": "slot-000000000002",
+    "previous_verified_identity": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "drift_state": "clean"
+  },
+  "cases": [
+    {
+      "id": "legacy-omission",
+      "accepted": true,
+      "patch": {}
+    },
+    {
+      "id": "unavailable-is-not-empty",
+      "accepted": true,
+      "patch": {
+        "configuration_ownership": null
+      }
+    },
+    {
+      "id": "declared-ownership",
+      "accepted": true,
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": []
+          },
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "toml/1",
+            "ownership_keys": [
+              "mcp_servers"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-path",
+      "accepted": false,
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "duplicate-path",
+      "accepted": false,
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": []
+          },
+          {
+            "path": "AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": []
+          },
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "toml/1",
+            "ownership_keys": [
+              "mcp_servers"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "out-of-order",
+      "accepted": false,
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "toml/1",
+            "ownership_keys": [
+              "mcp_servers"
+            ]
+          },
+          {
+            "path": "AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "whole-key",
+      "accepted": false,
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": [
+              "user"
+            ]
+          },
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "toml/1",
+            "ownership_keys": [
+              "mcp_servers"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "whole-parser",
+      "accepted": false,
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "AGENTS.md",
+            "ownership": "whole",
+            "parser_id": "json/1",
+            "ownership_keys": []
+          },
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "toml/1",
+            "ownership_keys": [
+              "mcp_servers"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "escaping-path",
+      "accepted": false,
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "../AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": []
+          },
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "toml/1",
+            "ownership_keys": [
+              "mcp_servers"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "aliased-path",
+      "accepted": false,
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "./AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": []
+          },
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "toml/1",
+            "ownership_keys": [
+              "mcp_servers"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "absolute-path",
+      "accepted": false,
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "/AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": []
+          },
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "toml/1",
+            "ownership_keys": [
+              "mcp_servers"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "backslash-path",
+      "accepted": false,
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "folder\\AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": []
+          },
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "toml/1",
+            "ownership_keys": [
+              "mcp_servers"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "control-path",
+      "accepted": false,
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": []
+          },
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "toml/1",
+            "ownership_keys": [
+              "mcp_servers"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "extra-field",
+      "accepted": false,
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": [],
+            "unexpected": true
+          },
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "toml/1",
+            "ownership_keys": [
+              "mcp_servers"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "wrong-parser",
+      "accepted": false,
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": []
+          },
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "json/1",
+            "ownership_keys": [
+              "mcp_servers"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "empty-keys",
+      "accepted": false,
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": []
+          },
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "toml/1",
+            "ownership_keys": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "duplicate-key",
+      "accepted": false,
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": []
+          },
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "toml/1",
+            "ownership_keys": [
+              "mcp_servers",
+              "mcp_servers"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsorted-keys",
+      "accepted": false,
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": []
+          },
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "toml/1",
+            "ownership_keys": [
+              "z",
+              "a"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "control-key",
+      "accepted": false,
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": []
+          },
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "toml/1",
+            "ownership_keys": [
+              ""
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "wide-key",
+      "accepted": false,
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": []
+          },
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "toml/1",
+            "ownership_keys": [
+              "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "fresh-empty-record",
+      "accepted": true,
+      "remove": [
+        "state_schema",
+        "provider_version",
+        "provider_build_digest",
+        "provider_release_digest",
+        "setup_stable_id",
+        "setup_version",
+        "setup_version_passport_digest",
+        "setup_definition_digest",
+        "component_refs",
+        "bundle_format",
+        "bundle_digest",
+        "artifact_digest",
+        "projection_profile_digest",
+        "provider_plan_digest",
+        "operation_id",
+        "target_precondition_digest",
+        "native_ownership",
+        "written_paths",
+        "backup_ref",
+        "previous_verified_identity",
+        "drift_state"
+      ],
+      "patch": {
+        "configuration_ownership": [],
+        "provider_state": {
+          "present": false
+        },
+        "state": "unmanaged"
+      }
+    },
+    {
+      "id": "absent-record-cannot-own-files",
+      "accepted": false,
+      "remove": [
+        "state_schema",
+        "provider_version",
+        "provider_build_digest",
+        "provider_release_digest",
+        "setup_stable_id",
+        "setup_version",
+        "setup_version_passport_digest",
+        "setup_definition_digest",
+        "component_refs",
+        "bundle_format",
+        "bundle_digest",
+        "artifact_digest",
+        "projection_profile_digest",
+        "provider_plan_digest",
+        "operation_id",
+        "target_precondition_digest",
+        "native_ownership",
+        "written_paths",
+        "backup_ref",
+        "previous_verified_identity",
+        "drift_state"
+      ],
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": []
+          },
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "toml/1",
+            "ownership_keys": [
+              "mcp_servers"
+            ]
+          }
+        ],
+        "provider_state": {
+          "present": false
+        },
+        "state": "unmanaged"
+      }
+    },
+    {
+      "id": "unreadable-record-is-unavailable",
+      "accepted": true,
+      "remove": [
+        "state_schema",
+        "provider_version",
+        "provider_build_digest",
+        "provider_release_digest",
+        "setup_stable_id",
+        "setup_version",
+        "setup_version_passport_digest",
+        "setup_definition_digest",
+        "component_refs",
+        "bundle_format",
+        "bundle_digest",
+        "artifact_digest",
+        "projection_profile_digest",
+        "provider_plan_digest",
+        "operation_id",
+        "target_precondition_digest",
+        "native_ownership",
+        "written_paths",
+        "backup_ref",
+        "previous_verified_identity",
+        "drift_state"
+      ],
+      "patch": {
+        "configuration_ownership": null,
+        "provider_state": {
+          "present": true,
+          "readable": false,
+          "found_schema": 99,
+          "detail": "unknown schema"
+        },
+        "state": "unmanaged"
+      }
+    },
+    {
+      "id": "unreadable-record-cannot-claim-ownership",
+      "accepted": false,
+      "remove": [
+        "state_schema",
+        "provider_version",
+        "provider_build_digest",
+        "provider_release_digest",
+        "setup_stable_id",
+        "setup_version",
+        "setup_version_passport_digest",
+        "setup_definition_digest",
+        "component_refs",
+        "bundle_format",
+        "bundle_digest",
+        "artifact_digest",
+        "projection_profile_digest",
+        "provider_plan_digest",
+        "operation_id",
+        "target_precondition_digest",
+        "native_ownership",
+        "written_paths",
+        "backup_ref",
+        "previous_verified_identity",
+        "drift_state"
+      ],
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": []
+          },
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "toml/1",
+            "ownership_keys": [
+              "mcp_servers"
+            ]
+          }
+        ],
+        "provider_state": {
+          "present": true,
+          "readable": false,
+          "found_schema": 99,
+          "detail": "unknown schema"
+        },
+        "state": "unmanaged"
+      }
+    },
+    {
+      "id": "recorded-ownership-under-drift",
+      "accepted": true,
+      "remove": [
+        "state_schema",
+        "provider_version",
+        "provider_build_digest",
+        "provider_release_digest",
+        "setup_stable_id",
+        "setup_version",
+        "setup_version_passport_digest",
+        "setup_definition_digest",
+        "component_refs",
+        "bundle_format",
+        "bundle_digest",
+        "artifact_digest",
+        "projection_profile_digest",
+        "provider_plan_digest",
+        "operation_id",
+        "target_precondition_digest",
+        "native_ownership",
+        "written_paths",
+        "backup_ref",
+        "previous_verified_identity",
+        "drift_state"
+      ],
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": []
+          },
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "toml/1",
+            "ownership_keys": [
+              "mcp_servers"
+            ]
+          }
+        ],
+        "provider_state": {
+          "present": true,
+          "readable": true,
+          "setup_stable_id": "setup_01M00000000000000000000000",
+          "setup_version": "1.0",
+          "operation_id": "operation_status_contract",
+          "backup_ref": "slot-000000000002",
+          "recorded_identity": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "drift_state": "local_drift"
+        },
+        "state": "managed"
+      }
+    }
+  ]
+}

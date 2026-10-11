@@ -306,7 +306,11 @@ STATUS_VERIFIED_FIELDS: Final[tuple[str, ...]] = tuple(
 #: command-specific evidence the contract and ADR-0052 document — the parser
 #: has always read it, so the wire schema names it rather than refusing what
 #: it was written to accept (ADR-0125 ordering, again: reader first).
-STATUS_OPTIONAL_FIELDS: Final[tuple[str, ...]] = ("instruction_region", "authorization")
+STATUS_OPTIONAL_FIELDS: Final[tuple[str, ...]] = (
+    "instruction_region",
+    "authorization",
+    "configuration_ownership",
+)
 
 STATUS_STATES: Final[tuple[str, ...]] = ("managed", "unmanaged", "missing")
 DRIFT_STATES: Final[tuple[str, ...]] = ("clean", "local_drift", "unknown")
@@ -972,12 +976,61 @@ def _status_backup_schema() -> dict[str, object]:
     }
 
 
+def _configuration_ownership_schema() -> dict[str, object]:
+    """Recorded path/key ownership, not a statement that current bytes are clean."""
+    return _nullable(
+        {
+            "type": "array",
+            "maxItems": 8192,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "minLength": 1, "maxLength": 4096},
+                    "ownership": {"enum": ["whole", "contribution"]},
+                    "parser_id": {"enum": [None, "json/1", "toml/1"]},
+                    "ownership_keys": {
+                        "type": "array",
+                        "maxItems": 2000,
+                        "uniqueItems": True,
+                        "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 255,
+                            "pattern": r"^[^\u0000-\u001f\u007f-\u009f]+$",
+                        },
+                    },
+                },
+                "required": ["path", "ownership", "parser_id", "ownership_keys"],
+                "additionalProperties": False,
+                "allOf": [
+                    {
+                        "if": {"properties": {"ownership": {"const": "whole"}}},
+                        "then": {
+                            "properties": {
+                                "parser_id": {"type": "null"},
+                                "ownership_keys": {"maxItems": 0},
+                            }
+                        },
+                        "else": {
+                            "properties": {
+                                "parser_id": {"type": "string"},
+                                "ownership_keys": {"minItems": 1},
+                            }
+                        },
+                    }
+                ],
+            },
+        }
+    )
+
+
 def _build_status_wire_schema() -> dict[str, object]:
     """Machine-owned closed schema for the protocol-v3 ``status`` response."""
     digest_ref: dict[str, object] = {"$ref": "#/$defs/digest"}
     nullable_digest = _nullable(digest_ref)
     text_or_null = _nullable({"type": "string", "minLength": 1})
     properties: dict[str, object] = {
+        "configuration_ownership": _configuration_ownership_schema(),
         "backups": {"type": "array", "items": _status_backup_schema()},
         "canonical_target": {"type": "string", "minLength": 1},
         "cleanup_state": {"type": "string", "enum": sorted(CLEANUP_STATES)},
