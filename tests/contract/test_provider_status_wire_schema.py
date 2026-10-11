@@ -139,8 +139,9 @@ def test_runtime_enforces_the_same_closed_schema() -> None:
         if case["accepted"]:
             assert provider_status.require_wire(value) == value, case["id"]
         else:
-            with pytest.raises(CliFailure):
+            with pytest.raises(CliFailure) as caught:
                 provider_status.require_wire(value)
+            assert caught.value.code == "AI_STP_SCHEMA_UNSUPPORTED", case["id"]
 
 
 def test_clean_state_requires_every_flat_provenance_field() -> None:
