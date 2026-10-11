@@ -406,6 +406,7 @@ async def test_linked_gitlab_languages_publish_only_proposed_canonical_facts(
     assert project_view.json()["repositories"] == [
         {
             "provider_project_id": provider_id,
+            "provider": "gitlab",
             "namespace": "team/service",
             "repository_url": "https://gitlab.com/team/service",
             "default_branch": "main",
