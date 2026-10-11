@@ -40,6 +40,7 @@ from ai_stp_passports import (
 )
 from ai_stp_passports.versions import ComponentType, ProjectionKind, TargetScope
 from ai_stp_sources.archive import MAX_ARCHIVE_BYTES, reject_secret_name
+from ai_stp_sources.codex_identity import skill_identities
 from ai_stp_sources.errors import (
     CATALOG_COLLISION,
     INCOMPLETE_PASSPORT,
@@ -362,6 +363,11 @@ def _projection(draft: EmbeddedDraft) -> tuple[bytes, JsonValue]:
         path: content
         for path, (_source_name, content) in zip(draft.managed_paths, source_files, strict=True)
     }
+    native_ids = (
+        skill_identities(contents)
+        if draft.harness_id == "codex" and draft.component_type == "skill"
+        else {}
+    )
     members: list[JsonValue] = [
         {
             "path": path,
@@ -371,7 +377,7 @@ def _projection(draft: EmbeddedDraft) -> tuple[bytes, JsonValue]:
                 "digest": digest_bytes(ARTIFACT_DIGEST_DOMAIN, content),
                 "size_bytes": len(content),
             },
-            "native_ids": [],
+            "native_ids": cast(JsonValue, native_ids.get(path, [])),
             "content_format": "application/octet-stream",
             "parser_id": None,
             "ownership": "whole",

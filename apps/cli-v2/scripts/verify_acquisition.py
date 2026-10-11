@@ -164,7 +164,7 @@ def fixture(root: Path) -> tuple[dict[str, bytes], dict[str, Any], dict[str, Any
 def embedded_setup(setup: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     document = copy.deepcopy(setup)
     document["stable_id"] = new_id("setup")
-    payload = b'model_reasoning_effort = "high"\n'
+    payload = b"---\nname: inspect-source\ndescription: Inspect exact source bytes.\n---\nReview.\n"
     frozen = freeze_setup_definition(
         setup_id=document["stable_id"],
         version=document["version"],
@@ -177,19 +177,19 @@ def embedded_setup(setup: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
             EmbeddedDraft(
                 snapshot=SourceSnapshot(
                     kind="path",
-                    canonical_coordinate="path:embedded-setting",
-                    exact_identity="embedded-setting",
+                    canonical_coordinate="path:embedded-skill",
+                    exact_identity="embedded-skill",
                     component_digest=digest_bytes("ai-stp:artifact:v1", payload),
-                    files={"config.toml": payload},
+                    files={"SKILL.md": payload},
                 ),
-                component_type="setting",
-                name="embedded-setting",
-                description="Explicit native setting for acquisition proof.",
+                component_type="skill",
+                name="Display label differs from invocation",
+                description="Byte-derived native skill for acquisition proof.",
                 license_spdx="MIT",
                 harness_id="codex",
                 target_scope="global",
                 stable_id=new_id("component"),
-                managed_paths=("config.toml",),
+                managed_paths=("skills/source-review/SKILL.md",),
             ),
         ),
         catalog_ids=frozenset(ref["stable_id"] for ref in setup["components"]),
