@@ -131,6 +131,37 @@ impl Request {
         Ok(())
     }
 
+    /// Refuse an ownership-bearing package before an incompatible provider plan.
+    /// Identity and expiry are checked separately against these same bytes.
+    pub fn check_configuration_ownership(&self, bytes: &[u8]) -> Result<()> {
+        let entries = crate::archive::decode(
+            bytes,
+            crate::archive::Limits {
+                entries: 2006,
+                file_bytes: 4 * 1024 * 1024,
+                content_bytes: MAX_BUNDLE_BYTES,
+                archive_bytes: MAX_BUNDLE_BYTES,
+            },
+        )?;
+        let manifest = entries
+            .first()
+            .filter(|entry| entry.path == "bundle.json")
+            .ok_or_else(invalid)?;
+        let manifest = wire::parse(&manifest.bytes)?;
+        if self.recovery_mode.is_none()
+            && manifest["files"]
+                .as_array()
+                .ok_or_else(invalid)?
+                .iter()
+                .any(|file| file.get("contribution").is_some())
+        {
+            return Err(Failure::precondition(
+                "assembled configuration contributions require forward recovery and an observed supporting provider",
+            ));
+        }
+        Ok(())
+    }
+
     /// Verify every redundant echo, without deriving trust from the response.
     pub fn validation(&self, bytes: &[u8]) -> Result<Value> {
         let response = response(bytes)?;
