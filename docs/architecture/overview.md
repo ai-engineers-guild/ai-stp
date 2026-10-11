@@ -1,6 +1,6 @@
 ---
 description: "Overall data flow and the boundaries of the local and server environments."
-last_verified: "2026-08-04"
+last_verified: "2026-10-10"
 ---
 
 # Architecture Overview
@@ -52,7 +52,7 @@ Harness Bundle
         ↓
 provider plan
         ↓
-backup / apply / launch / status / restore
+exact apply / verification / launch / status / recovery
 ```
 
 ## Ownership Chain
@@ -66,7 +66,7 @@ CLI and core
   filter candidates, deterministically build and validate packages,
   and invoke the provider
 
-Provider
+Provider component
   owns the harness program, native target, locks, backups,
   application, launch, state, and restoration
 
@@ -80,7 +80,11 @@ Each layer accepts the result of the previous one and does not redo its work. Th
 
 ## Final-State Owner
 
-`ai_stp` does not write native harness files directly. The only writer is the public provider for that harness.
+The ai-stp CLI orchestrator does not write native harness files directly. Its
+managed provider component is the only writer for that harness. Components
+retain their public repositories and authenticated releases, while the Rust CLI
+owns the user workflow ([ADR-0228](../adr/ADR-0228-setup-systems-are-ai-stp-components.md)).
+Native installation remains pending until its complete recovery journey passes.
 
 ## Trust
 

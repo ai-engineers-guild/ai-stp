@@ -935,6 +935,14 @@ class SetupVersionResponse(ContractModel):
         return self
 
 
+class ComponentArtifactQuery(ContractModel):
+    """Optional exact declared projection; omission retains the primary artifact."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+
+    digest: Annotated[str | None, Field(pattern=DIGEST_PATTERN)] = None
+
+
 class SetupContextBudgetQuery(ContractModel):
     """Optional estimator choice for one exact setup context budget."""
 

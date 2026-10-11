@@ -30,6 +30,7 @@ from ai_stp_contracts.catalog import (
     SetupSearchRequest,
 )
 from ai_stp_contracts.http import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
+from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.ids import stable_id_pattern
 from ai_stp_foundation.versioning import VersionError, parse_version
 from ai_stp_platform.catalog_usage import (
@@ -710,6 +711,7 @@ async def read_component_artifact(
     db: Annotated[AsyncSession, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
     ctx: Annotated[AuthContext | None, Depends(optional_auth)],
+    digest: Annotated[str | None, Query(pattern=DIGEST_PATTERN)] = None,
 ) -> StreamingResponse:
     """Return verified component bytes without exposing the opaque object key."""
     stable_id = require_component_id(stable_id)
@@ -723,6 +725,7 @@ async def read_component_artifact(
             stable_id=stable_id,
             version=version,
             account_id=ctx.account_id if ctx is not None else None,
+            artifact_digest=digest,
         )
         await _count_artifact_download(request, db, stable_id)
     except ArtifactNotFound as exc:

@@ -47,11 +47,6 @@ def _sri_sha512(payload: bytes) -> str:
     return f"sha512-{digest}"
 
 
-def _go_h1(payload: bytes) -> str:
-    digest = base64.b64encode(hashlib.sha256(payload).digest()).decode("ascii")
-    return f"h1:{digest}"
-
-
 def _tar(files: dict[str, str], *, prefix: str) -> bytes:
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
@@ -63,9 +58,9 @@ def _tar(files: dict[str, str], *, prefix: str) -> bytes:
     return buffer.getvalue()
 
 
-def _zip(files: dict[str, str]) -> bytes:
+def _zip(files: dict[str, str], *, compression: int = zipfile.ZIP_STORED) -> bytes:
     buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, "w") as archive:
+    with zipfile.ZipFile(buffer, "w", compression=compression) as archive:
         for name, content in files.items():
             archive.writestr(name, content.encode("utf-8"))
     return buffer.getvalue()
@@ -358,21 +353,40 @@ async def test_crates_checksum_mismatch_fails_closed() -> None:
 
 
 @pytest.mark.asyncio
-async def test_go_records_module_zip_hash_and_sumdb_evidence() -> None:
-    archive = _zip({"github.com/Azure/mod@v1.2.3/go.mod": "module github.com/Azure/mod\n"})
-    zip_hash = _go_h1(archive)
+@pytest.mark.parametrize("compression", [zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED])
+@pytest.mark.parametrize(
+    ("version", "escaped_version", "zip_hash"),
+    [
+        ("v1.2.3", "v1.2.3", "h1:fiBHkuZvtmSvjRNZhE5mIC23iwt/yZCPpSvQE/ZV85Q="),
+        ("v1.2.3-RC1", "v1.2.3-!r!c1", "h1:exP8QAcop2iu9+POF17z1MHLGAP4XzJ3xdEdvKWyxYc="),
+    ],
+)
+async def test_go_records_module_zip_hash_and_sumdb_evidence(
+    compression: int, version: str, escaped_version: str, zip_hash: str
+) -> None:
+    files = {
+        f"github.com/Azure/mod@{version}/go.mod": "module github.com/Azure/mod\n",
+        f"github.com/Azure/mod@{version}/README.md": "Module source proof.\n",
+    }
+    if compression == zipfile.ZIP_DEFLATED:
+        files = dict(reversed(tuple(files.items())))
+    archive = _zip(files, compression=compression)
+    # Goldens observed with golang.org/x/mod v0.28.0 HashZip and EscapeVersion.
+    # Hashes include README bytes and original names, ignoring ZIP encoding.
     registry = Registry()
     registry.add(
-        "https://proxy.golang.org/github.com/!azure/mod/@v/v1.2.3.info",
-        {"Version": "v1.2.3", "Time": "2026-01-01T00:00:00Z"},
+        f"https://proxy.golang.org/github.com/!azure/mod/@v/{escaped_version}.info",
+        {"Version": version, "Time": "2026-01-01T00:00:00Z"},
     )
-    registry.add("https://proxy.golang.org/github.com/!azure/mod/@v/v1.2.3.zip", archive)
     registry.add(
-        "https://sum.golang.org/lookup/github.com/!azure/mod@v1.2.3",
-        f"111\ngithub.com/Azure/mod v1.2.3 {zip_hash}\n",
+        f"https://proxy.golang.org/github.com/!azure/mod/@v/{escaped_version}.zip", archive
+    )
+    registry.add(
+        f"https://sum.golang.org/lookup/github.com/!azure/mod@{escaped_version}",
+        f"111\ngithub.com/Azure/mod {version} {zip_hash}\n",
     )
     snapshot = await resolve_source(
-        PackageIntent(ecosystem="go", name="github.com/Azure/mod", version="v1.2.3"),
+        PackageIntent(ecosystem="go", name="github.com/Azure/mod", version=version),
         fetch=registry.fetch,
     )
     evidence = snapshot.package_evidence
@@ -380,14 +394,17 @@ async def test_go_records_module_zip_hash_and_sumdb_evidence() -> None:
     assert evidence.module == "github.com/Azure/mod"
     assert evidence.zip_hash == zip_hash
     assert evidence.sumdb_hash == zip_hash
+    assert snapshot.exact_identity == version
     assert snapshot.files["go.mod"].startswith(b"module ")
     assert registry.hosts() == {"proxy.golang.org", "sum.golang.org"}
     _assert_observation(snapshot)
 
 
 @pytest.mark.asyncio
-async def test_go_version_and_checksum_mismatch_fail_closed() -> None:
-    archive = _zip({"mod@v1.0.0/go.mod": "module example.com/mod\n"})
+async def test_go_version_and_checksum_mismatch_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    archive = _zip({"example.com/mod@v1.0.0/go.mod": "module example.com/mod\n"})
     registry = Registry()
     registry.add(
         "https://proxy.golang.org/example.com/mod/@v/v1.0.0.info",
@@ -416,6 +433,27 @@ async def test_go_version_and_checksum_mismatch_fail_closed() -> None:
             fetch=mismatch.fetch,
         )
     assert integrity.value.code == INTEGRITY_MISMATCH
+
+    # Every file participates in the Go hash, including non-metadata members.
+    for name in ["other/mod@v1.0.0/go.mod", "example.com/mod@v1.0.0/../outside"]:
+        mismatch.add(
+            "https://proxy.golang.org/example.com/mod/@v/v1.0.0.zip",
+            _zip({name: "module example.com/mod\n"}),
+        )
+        with pytest.raises(SourceError) as unsafe:
+            await resolve_source(
+                PackageIntent(ecosystem="go", name="example.com/mod", version="v1.0.0"),
+                fetch=mismatch.fetch,
+            )
+        assert unsafe.value.code == UNSAFE_ARCHIVE
+    mismatch.add("https://proxy.golang.org/example.com/mod/@v/v1.0.0.zip", archive)
+    monkeypatch.setattr("ai_stp_sources.package.MAX_EXTRACTED_BYTES", 1)
+    with pytest.raises(SourceError) as bounded:
+        await resolve_source(
+            PackageIntent(ecosystem="go", name="example.com/mod", version="v1.0.0"),
+            fetch=mismatch.fetch,
+        )
+    assert bounded.value.code == UNSAFE_ARCHIVE
 
 
 @pytest.mark.asyncio

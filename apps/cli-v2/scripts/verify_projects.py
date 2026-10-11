@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from ai_stp_cli.local import project_index, projects
-from ai_stp_contracts.cli.project import ProjectCandidates, ProjectIndex
+from ai_stp_contracts.cli.project import ProjectCandidates, ProjectIndex, ProjectSymbols
 
 Runner = Callable[[Path, Path, list[str], int], dict[str, Any]]
 
@@ -67,6 +67,20 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
         if path.is_file()
     }
     assert before == after
+    (root / "src" / "outline.py").write_text(
+        '"""def Fake(): pass"""\nclass Public: pass\ndef main(): pass\n', encoding="utf-8"
+    )
+    symbols_answer = run(binary, home, ["project", "symbols", "--root", str(root)], 0)["data"]
+    survey = ProjectSymbols.model_validate(symbols_answer)
+    assert survey.state == "complete"
+    python = next(row for row in survey.languages if row.language == "python")
+    assert python.method == "syntax_tree" and python.symbols == 2
+    assert python.entry_points == ["src/outline.py"]
+    rust = next(row for row in survey.languages if row.language == "rust")
+    assert rust.method == "line_scan" and rust.entry_points == ["src/main.rs"]
+    assert (
+        run(binary, home, ["project", "symbols", "--root", str(root)], 0)["data"] == symbols_answer
+    )
     assert "must-not-be-echoed" not in str(answer)
     false_markers = temporary / "false-markers"
     false_markers.mkdir()
@@ -95,6 +109,8 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
         deep = deep / "deeper"
         deep.mkdir()
     result = run(binary, home, ["project", "index", "--root", str(root)], 0)["data"]
+    assert result["state"] == "partial" and result["stopped_by"] == "depth budget"
+    result = run(binary, home, ["project", "symbols", "--root", str(root)], 0)["data"]
     assert result["state"] == "partial" and result["stopped_by"] == "depth budget"
     crowded = temporary / "crowded"
     crowded.mkdir()

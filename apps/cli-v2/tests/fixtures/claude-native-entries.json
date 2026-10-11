@@ -1,0 +1,203 @@
+[
+  {
+    "id": "plain",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: plain\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "folder",
+      "plain"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "boolean-word",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: yes\ndescription: yes\n---\nInspect source.\n"
+    },
+    "names": [
+      "folder",
+      "yes"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "merge",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\ndefaults: &defaults\n  name: merged\n<<: *defaults\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "folder",
+      "merged"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "alias",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nalias: &alias aliased\nname: *alias\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "aliased",
+      "folder"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "date",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: 2026-09-26\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "2026-09-26",
+      "folder"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "binary",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: !!binary aGVsbG8=\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "aGVsbG8=",
+      "folder"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "mixed-null",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: nUlL\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "folder",
+      "nUlL"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "quoted-mixed-null",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: \"nUlL\"\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "folder",
+      "nUlL"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "leading-zero",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: 0123\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "123",
+      "folder"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "boolean",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: true\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "folder",
+      "true"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "quoted-number",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\nname: \"0123\"\ndescription: Inspect.\n---\nInspect source.\n"
+    },
+    "names": [
+      "0123",
+      "folder"
+    ],
+    "adoptable": true
+  },
+  {
+    "id": "bom",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "\ufeff---\nname: inspect\ndescription: Inspect.\n---\nBody.\n"
+    },
+    "names": [
+      "folder",
+      "inspect"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "leading-blank",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "\n---\nname: inspect\ndescription: Inspect.\n---\nBody.\n"
+    },
+    "names": [
+      "folder"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "opening-space",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "--- \nname: inspect\ndescription: Inspect.\n---\nBody.\n"
+    },
+    "names": [
+      "folder",
+      "inspect"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "opening-tab",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "---\t\nname: inspect\ndescription: Inspect.\n---\nBody.\n"
+    },
+    "names": [
+      "folder",
+      "inspect"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "indented-opening",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "  ---\nname: inspect\ndescription: Inspect.\n---\nBody.\n"
+    },
+    "names": [
+      "folder"
+    ],
+    "adoptable": false
+  },
+  {
+    "id": "four-dashes",
+    "kind": "skill",
+    "files": {
+      "skills/folder/SKILL.md": "----\nname: inspect\ndescription: Inspect.\n---\nBody.\n"
+    },
+    "names": [
+      "folder"
+    ],
+    "adoptable": false
+  }
+]

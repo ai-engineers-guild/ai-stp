@@ -2,21 +2,37 @@
 
 from __future__ import annotations
 
+import json
+
+import pytest
+
 from ai_stp_cli.local import composition, native_transform
+from ai_stp_foundation.canonical import JsonValue
 
 
-def test_cursor_mcp_becomes_opencode_local_command_array() -> None:
+@pytest.mark.parametrize(
+    "server",
+    [
+        {"command": "npx", "args": ["docs-mcp"], "env": {"MODE": "read"}},
+        {"type": "local", "command": ["npx", "docs-mcp"], "environment": {"MODE": "read"}},
+    ],
+)
+def test_mcp_command_and_literal_environment_survive_conversion(
+    server: dict[str, JsonValue],
+) -> None:
     target = composition.rule_for("mcp", "opencode")
     assert target is not None
-    encoded = native_transform.encode_mcp_servers(
-        {"docs": {"command": "npx", "args": ["docs-mcp"]}}, target
-    )
+    encoded = native_transform.encode_mcp_servers({"docs": server}, target)
     assert encoded is not None
-    payload, _losses = encoded
-    text = payload.decode("utf-8")
-    assert '"type": "local"' in text
-    assert '"npx"' in text
-    assert '"docs-mcp"' in text
+    payload, losses = encoded
+    assert not losses
+    assert json.loads(payload) == {
+        "docs": {
+            "type": "local",
+            "command": ["npx", "docs-mcp"],
+            "environment": {"MODE": "read"},
+        }
+    }
 
 
 def test_a_url_only_mcp_server_has_no_stdio_encoding() -> None:
@@ -26,6 +42,37 @@ def test_a_url_only_mcp_server_has_no_stdio_encoding() -> None:
         native_transform.encode_mcp_servers(
             {"docs": {"url": "https://example.invalid/mcp"}}, target
         )
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"enabled": False},
+        {"disabled_tools": ["delete"]},
+        {"enabled_tools": ["read"]},
+        {"cwd": "/synthetic/project"},
+        {"tool_timeout_sec": 60},
+        {"unknown": "setting"},
+        {"type": "http"},
+        {"url": "https://example.invalid/mcp"},
+        {"args": [1]},
+        {"args": None},
+        {"env": {"MODE": True}},
+        {"env": {"MODE": "one"}, "environment": {"MODE": "two"}},
+        {"command": ["server", "one"], "args": ["two"]},
+        {"env": {"MODE": "${MODE}"}},
+        {"args": ["{env:MODE}"]},
+    ],
+)
+def test_mcp_conversion_refuses_lost_controls_and_ambiguous_values(
+    extra: dict[str, JsonValue],
+) -> None:
+    target = composition.rule_for("mcp", "opencode")
+    assert target is not None
+    assert (
+        native_transform.encode_mcp_servers({"docs": {"command": "server", **extra}}, target)
         is None
     )
 

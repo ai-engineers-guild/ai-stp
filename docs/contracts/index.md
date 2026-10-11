@@ -34,7 +34,7 @@ last_verified: "2026-08-03"
 | [corporate-heartbeat.md](corporate-heartbeat.md) | Corporate installation heartbeat HTTP routes, authorization, and the closed health-state set. | 2026-09-24 |
 | [deep-links.md](deep-links.md) | Grammar of canonical URLs and CLI references for component, setup, publisher, and report intent. | 2026-08-15 |
 | [device-passport.md](device-passport.md) | Device passport fields, privacy, and the permitted summary for the server and web. | 2026-08-04 |
-| [eligibility-constraints.md](eligibility-constraints.md) | Mechanical constraints before agent selection: a closed list of rejection reasons, check order, and two independent eligibility axes. | 2026-09-03 |
+| [eligibility-constraints.md](eligibility-constraints.md) | Mechanical constraints before agent selection: a closed list of rejection reasons, check order, and two independent eligibility axes. | 2026-10-09 |
 | [environments.md](environments.md) | Project environment composition, native reservations and prerequisite inspection. | 2026-09-07 |
 | [estate-release.md](estate-release.md) | Immutable estate release record binding one consumer cut to exact provider evidence. | 2026-09-24 |
 | [federated-sources.md](federated-sources.md) | Machine contract for shared descriptors used by local ports and metadata adapters. | 2026-08-16 |
@@ -57,7 +57,7 @@ last_verified: "2026-08-03"
 | [report-case.md](report-case.md) | Private report case: allowed content, preview, states, and auditable moderator actions. | 2026-09-04 |
 | [runtime-usage-events.md](runtime-usage-events.md) | Runtime usage event ingestion, scoped reports, drill-down, and export routes for corporate telemetry. | 2026-09-25 |
 | [selection-impact.md](selection-impact.md) | Machine contract for the local context budget, capability delta, and blast radius. | 2026-08-15 |
-| [selection-proposal.md](selection-proposal.md) | Ephemeral composition proposal, its confirmation, and atomic persistence of a SetupVersion. | 2026-08-25 |
+| [selection-proposal.md](selection-proposal.md) | Ephemeral composition proposal, its confirmation, and atomic persistence of a SetupVersion. | 2026-10-08 |
 | [seo-publication-projection.md](seo-publication-projection.md) | Machine boundary for server-side SEO revisions, discovery documents, and model enrichment. | 2026-08-29 |
 | [setup-evaluation.md](setup-evaluation.md) | Machine contract for the profile, plan, and result of local evaluation of an exact SetupVersion. | 2026-09-06 |
 | [setup-graph.md](setup-graph.md) | Exact setup dependency closure: node, deterministic order, closed failure list, and resource limits. | 2026-08-08 |

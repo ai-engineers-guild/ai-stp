@@ -136,7 +136,9 @@ whole Python workspace.
 
 Platform tests with PostgreSQL (`tests/api/platform`, `tests/integration/platform`)
 read `AI_STP_TEST_DB_URL`. Without it they skip. The local DSN and container are in
-`QUICKSTART.md`; CI starts `postgres:18` and sets the same URL.
+`QUICKSTART.md`; CI starts the official PostgreSQL image from Docker's ECR Public
+distribution and sets the same URL. Its digest matches production; the registry
+choice avoids Docker Hub's anonymous pull limits on shared runners.
 
 Test isolation is defined by the repository, not by a test author's memory.
 `tests/conftest.py` redirects XDG directories into a temporary tree and replaces

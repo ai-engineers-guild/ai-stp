@@ -19,11 +19,11 @@ last_verified: "2026-08-03"
 | [dependency-policy.md](dependency-policy.md) | Rules of Python, Node, external tools, and provider dependencies. | 2026-10-07 |
 | [failure-catalog.md](failure-catalog.md) | Historical failure lessons extracted from retired experiments, with current regression owners. | 2026-09-04 |
 | [federated-source-threat-model.md](federated-source-threat-model.md) | Threat model for federated local ports and metadata adapters. | 2026-08-16 |
-| [first-party-corpus.md](first-party-corpus.md) | Rebuilding and publishing the first-party corpus from exact attested setup-system releases. | 2026-09-24 |
+| [first-party-corpus.md](first-party-corpus.md) | Rebuilding and publishing the first-party corpus from exact attested setup-system releases. | 2026-10-10 |
 | [git-workflow.md](git-workflow.md) | Rules for branches, commits, pull requests, and cross-repository changes. | 2026-09-20 |
 | [github-connector-operations.md](github-connector-operations.md) | Operator runbook for the single GitHub App used by source access and repository actions. | 2026-09-09 |
 | [implementation-canon.md](implementation-canon.md) | Classification of specs, docs, and tests against implemented non-corporate code. | 2026-10-08 |
-| [implementation-roadmap.md](implementation-roadmap.md) | Current ai_stp status and the ordered plan for remaining work. | 2026-10-08 |
+| [implementation-roadmap.md](implementation-roadmap.md) | Current ai_stp status and the ordered plan for remaining work. | 2026-10-10 |
 | [local-technology-detection-plan.md](local-technology-detection-plan.md) | Implementation plan for issue #222: deterministic local technology-stack detection in the CLI producing the versioned TechnologyScanHandoff. | 2026-09-21 |
 | [quality-gates.md](quality-gates.md) | Required checks and release evidence. | 2026-10-07 |
 | [real-provider-evidence.md](real-provider-evidence.md) | How to run the full lifecycle against released providers and what is checked in the process. | 2026-08-29 |

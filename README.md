@@ -101,19 +101,25 @@ native surface. The matrix is `ai-stp toolchain harness-capabilities`.
 
 An unknown harness is `undefined`. Automatic install is refused.
 
-## Current direction: complete the first supported alpha
+## Current direction: native Rust CLI
 
-`0.0.16` was the first supported alpha contract; the `0.0.x` alpha line
-continues as one public `ai-stp-cli` wheel (`ADR-0146`) — `apps/cli` carries
-the current version. The current program finishes verified
-provider delivery — GitHub attested releases by default, PyPI provenance as a
-second path (`ADR-0141`) — the consumer-owned recoverable multi-root install
-over unchanged provider v3 (`ADR-0145`), and one exact estate release record.
-`main` is the default and protected release branch; work PRs enter `dev`
-before promotion into `main` with administrator bypass and no mandatory
-approvals (`ADR-0180`, amended). Rust and
-new component kinds are deferred; there is no calendar promise for a language
-rewrite.
+The native `ai-stp-v2` preview is available for Linux x86-64, Apple Silicon
+macOS and Windows x86-64 in
+[GitHub Releases](https://github.com/ai-engineers-guild/ai-stp/releases?q=cli-v2-v).
+Archives include checksums and build provenance. The binary runs without Python
+and uses explicit isolated state. Its implemented capabilities, platform
+requirements and verification instructions live in
+[`apps/cli-v2/README.md`](apps/cli-v2/README.md).
+
+The production `ai-stp` executable remains the Python CLI until verified
+state ownership transfer (`ADR-0227`). Native configuration installation,
+connected account/sync/publication, automated updates and desktop distribution
+remain unfinished. Setup systems are ai-stp installation components with
+separate release repositories (`ADR-0228`).
+
+`main` is the protected release branch; work starts from `dev` and enters it by
+PR before promotion to `main`. For a new workstation, follow
+[CONTRIBUTING.md](CONTRIBUTING.md#development-on-a-new-workstation).
 
 Phase status belongs to
 [`docs/engineering/implementation-roadmap.md`](docs/engineering/implementation-roadmap.md):
@@ -148,8 +154,8 @@ AGPL-3.0-or-later. Network use of the platform is covered: if `ai-stp` is
 offered as a service, the source of the modified version stays available to
 those users.
 
-The catalog belongs to the guild. Public harness providers are separate
-projects under their own licenses.
+The catalog belongs to the guild. Public harness installation components
+retain their separate repositories and licenses.
 
 Components and setups published by users are independent works licensed by
 their authors; the platform license does not apply to them.

@@ -251,6 +251,7 @@ def impact_report(parameters: Mapping[str, object]) -> Answer[SelectionImpactRep
         )
     raw_price = str(parameters.get("price-profile") or "")
     with closing(open_readonly(registry)) as connection:
+        connection.execute("BEGIN")
         return Answer(
             impact.selection_report(
                 connection,
@@ -285,6 +286,7 @@ def blast_radius(parameters: Mapping[str, object]) -> Answer[BlastRadiusReport]:
             ],
         )
     with closing(open_readonly(registry)) as connection:
+        connection.execute("BEGIN")
         return Answer(
             impact.blast_radius(
                 connection,
@@ -348,6 +350,13 @@ def _target(
     `language:go` from its capabilities and had Go components refused for a
     capability it has. Reading the index directly is both cheaper and complete.
     """
+    operating_system = _operating_system()
+    architecture = _architecture()
+    if not operating_system or not architecture:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the operating system and architecture must be observed before selection",
+        )
     resolved = root.resolve()
     # Names, languages and whether `.git` exists — no digest is read below, so
     # none is computed. That was three quarters of the walk (`#453`).
@@ -356,8 +365,8 @@ def _target(
 
     return eligibility.Target(
         harness_id=harness,
-        os=_operating_system(),
-        arch=platform.machine().lower(),
+        os=operating_system,
+        arch=architecture,
         harness_version=_version_of(harnesses.detect(detector)),
         capabilities=eligibility.observed_capabilities(
             languages=sorted({item.language for item in index.entries if item.language}),
@@ -380,7 +389,12 @@ def _target(
 
 def _operating_system() -> str:
     system = platform.system().lower()
-    return {"darwin": "darwin", "linux": "linux", "windows": "windows"}.get(system, system)
+    return "macos" if system == "darwin" else system
+
+
+def _architecture() -> str:
+    machine = platform.machine().lower()
+    return {"amd64": "x86_64", "aarch64": "arm64"}.get(machine, machine)
 
 
 def _version_of(found: harnesses.Found) -> str:
@@ -2075,11 +2089,6 @@ def _bundle_sources(
         content_format = str(
             document.get("artifact_format") or _value(facts.get("content_format")) or ""
         )
-        payload = content.get(connection, digest)
-        expanded = components.expand(
-            payload,
-            content_format or components.COMPONENT_FILE_FORMAT,
-        )
         if content_format == components.PROJECTION_FORMAT:
             passport = ComponentVersionPassport.model_validate(document)
             try:
@@ -2094,7 +2103,16 @@ def _bundle_sources(
                     "the component has no adaptation for the requested harness scope",
                     details={"stable_id": item.stable_id, "scope": target.scope},
                 ) from error
-            verify_projection(scope, payload)
+            payload = content.get(connection, scope.projection_artifact.digest)
+            try:
+                verify_projection(scope, payload)
+            except ValueError as error:
+                raise CliFailure(
+                    "AI_STP_PRECONDITION_FAILED",
+                    "the selected component projection differs from its declared manifest",
+                    details={"stable_id": item.stable_id, "scope": target.scope},
+                ) from error
+            expanded = components.expand(payload, scope.projection_format)
             expanded_by_path = {member.path: member for member in expanded}
             for declared in scope.members:
                 if declared.object_type != "file":
@@ -2117,6 +2135,11 @@ def _bundle_sources(
                     )
                 )
             continue
+        payload = content.get(connection, digest)
+        expanded = components.expand(
+            payload,
+            content_format or components.COMPONENT_FILE_FORMAT,
+        )
         if rule.declared_key:
             # `ADR-0129`: this component's landing is a key inside a file the
             # provider already owns, so it compiles into a contribution to that

@@ -623,7 +623,7 @@ states. Playwright acceptance inspects the deployed local Docker workspace.
 
 Scan journal and detail expose `scan_types` derived from retained finding kinds: dependencies, configurations, and languages. An empty or queued scan has no invented scan type. Confirming a selected category preserves the technology's other category bindings.
 
-Multi-project repository launches share a batch identity. After a scan changes the policy revision, queued siblings whose authority matched the immediately preceding revision are reauthorized at the current revision under the organization lock. Denied or already stale jobs remain rejected; unrelated batches are unchanged (`ADR-0228`).
+Multi-project repository launches share a batch identity. After a scan changes the policy revision, queued siblings whose authority matched the immediately preceding revision are reauthorized at the current revision under the organization lock. Denied or already stale jobs remain rejected; unrelated batches are unchanged (`ADR-0231`).
 
 ## Corporate repository selection
 

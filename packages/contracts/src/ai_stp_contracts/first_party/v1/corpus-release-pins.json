@@ -1,51 +1,51 @@
 {
   "antigravity": {
-    "artifact_digest": "sha256:90f2c7f6342d88eddc6d5795a5095be5679604dfeeaa31d4aa381458449aaf5e",
-    "commit": "8e6d20e7f8b5d63f397a9f3520e22d84a7fc5e27",
+    "artifact_digest": "sha256:3aff1c1f3d67079337e7f8468a041e1ecdf581b94ce6beebbc7d6b51e3f29612",
+    "commit": "4fa1bcaadaf37dc93808106d3758c64e992204e2",
     "repository": "github.com/NDDev-OpenNetwork/antigravity-setup-system",
-    "tag": "0.0.74",
+    "tag": "0.0.89",
     "trust_level": "verified_publisher"
   },
   "claude-code": {
-    "artifact_digest": "sha256:72ccd2d6e440e530a0c907416c683802614e302988d60d9b13e0df105d874d3f",
-    "commit": "8cdd9b474f3321c4ac6ab1240fbbe3be1c707d01",
+    "artifact_digest": "sha256:ff1ff6299e60a073aab8b91f471a16151ab9d92fc6a146d1f16ac565c38f5f37",
+    "commit": "ab8860fcf0a79729aa41b8451f523775884d0ed2",
     "repository": "github.com/NDDev-OpenNetwork/claude-setup-system",
-    "tag": "0.0.67",
+    "tag": "0.0.89",
     "trust_level": "verified_publisher"
   },
   "codex": {
-    "artifact_digest": "sha256:2f955de060322dc05a3590bf6e8cff6397f0c4ef52dc28ef5e0458ef04cb2591",
-    "commit": "838d1fd93d272220227252c584b4fd8001939e98",
+    "artifact_digest": "sha256:84967e0a499460f3b22a83690ad232dd01e18d9ed70dd1b500564c6c651856af",
+    "commit": "4d0c54cf986a44c3dbf0a81e4d9a22cf24d4f312",
     "repository": "github.com/NDDev-OpenNetwork/codex-setup-system",
-    "tag": "0.0.67",
+    "tag": "0.0.89",
     "trust_level": "verified_publisher"
   },
   "cursor": {
-    "artifact_digest": "sha256:7f20949fcc32cbe90e75af59e686a113b65b2a7ac89104dbe7935c56da9723b9",
-    "commit": "480aac7fb461d5a78b20d6477624d373115e88ab",
+    "artifact_digest": "sha256:78b48c436a2169c344fdf7965e52b38adbde442e8d49eb5249dec2c58449aed3",
+    "commit": "f9934785fe0ec51842284f3b57dcab192cc88a2d",
     "repository": "github.com/NDDev-OpenNetwork/cursor-setup-system",
-    "tag": "0.0.67",
+    "tag": "0.0.89",
     "trust_level": "verified_publisher"
   },
   "grok-build": {
-    "artifact_digest": "sha256:2bd61bf06adcfd8b932aa4b6ac9560518bd320eb88cbe2e62da63d4ee428dc00",
-    "commit": "26f262bb583e1948ca03ac9a7d62e6b8b1598abe",
+    "artifact_digest": "sha256:203f7e5b20bd31d4132e71ebdf5f3686083393503478a16f8a83eafd6e92c02a",
+    "commit": "527db9b6c8ba21dbdac4c62a9e96654cec6904f7",
     "repository": "github.com/NDDev-OpenNetwork/grok-setup-system",
-    "tag": "0.0.67",
+    "tag": "0.0.89",
     "trust_level": "verified_publisher"
   },
   "opencode": {
-    "artifact_digest": "sha256:fc436cde9b0c581b3667ab3f71532f201c43dad70c3281dd9872acee1506b605",
-    "commit": "9d3d6b6a73d169bc228b26993de09929e2458f3a",
+    "artifact_digest": "sha256:a02bacf7bb5a4b90df8bf5b933eb2d923bcaba283c1b871898ef64a2d4ae8041",
+    "commit": "a88a30e0ea9f5f97bf779787a9e2d48c1daa6813",
     "repository": "github.com/NDDev-OpenNetwork/opencode-setup-system",
-    "tag": "0.0.67",
+    "tag": "0.0.89",
     "trust_level": "verified_publisher"
   },
   "pi": {
-    "artifact_digest": "sha256:b510a60c9df471b5eb99ef4c9cb3df778b741296cf90d0aa3a7f6d3480342b4a",
-    "commit": "2b131edda39a167df0c31e9fc2858c500ed9f23b",
+    "artifact_digest": "sha256:c4fef00fb77ce0eeec9180673d17b2628bd1d4782c70d89f5255e37030e5eb8a",
+    "commit": "41e3f27103fc15ec99347a227b0317f0efaa2a6f",
     "repository": "github.com/NDDev-OpenNetwork/pi-setup-system",
-    "tag": "0.0.67",
+    "tag": "0.0.89",
     "trust_level": "verified_publisher"
   }
 }

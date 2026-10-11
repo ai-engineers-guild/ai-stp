@@ -508,6 +508,7 @@ back-gen:
     {{ run }} python -m ai_stp_contracts.schemas schemas/v1
     {{ run }} python -m ai_stp_contracts.inventory_record
     {{ run }} python -m ai_stp_contracts.web_projections
+    {{ run }} python -m ai_stp_contracts.technology_seed
     {{ run }} python release_scripts/provider_kit.py provider-kit/v3
     {{ run }} python release_scripts/verifier_requirements.py
     {{ run }} python release_scripts/first_party_corpus_digests.py
@@ -522,6 +523,7 @@ back-static:
     {{ run }} python -m ai_stp_contracts.schemas --check schemas/v1
     {{ run }} python -m ai_stp_contracts.inventory_record --check
     {{ run }} python -m ai_stp_contracts.web_projections --check
+    {{ run }} python -m ai_stp_contracts.technology_seed --check
     {{ run }} python release_scripts/provider_kit.py --check provider-kit/v3
     {{ run }} python release_scripts/verifier_requirements.py --check
     {{ run }} python release_scripts/first_party_corpus_digests.py --check
@@ -719,17 +721,17 @@ cli-v2-gen:
 [group('cli-v2')]
 cli-v2-static:
     cd apps/cli-v2 && cargo fmt --check
-    cd apps/cli-v2 && cargo clippy --locked --all-targets -- -D warnings
+    cd apps/cli-v2 && python3 scripts/with_libclang.py cargo clippy --locked --all-targets -- -D warnings
 
 # Canonical vectors, real binary behavior and adversarial signed provenance
 [group('cli-v2')]
 cli-v2-test:
-    cd apps/cli-v2 && cargo test --locked
+    cd apps/cli-v2 && python3 scripts/with_libclang.py cargo test --locked
 
 # Optimized native executable and explicit provider evidence runner
 [group('cli-v2')]
 cli-v2-build:
-    cd apps/cli-v2 && cargo build --locked --release --bins --examples
+    cd apps/cli-v2 && python3 scripts/with_libclang.py cargo build --locked --release --bins --examples
 
 # Existing envelope consumer, registry digest and live-WAL backup compatibility
 [group('cli-v2')]

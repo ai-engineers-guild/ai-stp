@@ -318,6 +318,81 @@ async def test_current_projection_counts_members_instead_of_archive_metadata(
 
 
 @pytest.mark.asyncio
+async def test_setup_budget_reads_the_selected_non_primary_harness_projection(
+    context_harness: ContextHarness,
+) -> None:
+    h = context_harness
+    members = {
+        harness: next(
+            item
+            for item in canonical_versions()
+            if isinstance(item.passport, ComponentVersionPassport)
+            and item.passport.component_type == "instruction"
+            and item.passport.adaptations[0].harness_id == harness
+        )
+        for harness in ("claude-code", "codex")
+    }
+    primary, selected = members["claude-code"], members["codex"]
+    assert isinstance(primary.passport, ComponentVersionPassport)
+    assert isinstance(selected.passport, ComponentVersionPassport)
+    component = primary.passport.model_dump(mode="json")
+    component["stable_id"] = new_id("component")
+    component["adaptations"] = [
+        primary.passport.adaptations[0].model_dump(mode="json"),
+        selected.passport.adaptations[0].model_dump(mode="json"),
+    ]
+    component = _sealed(component)
+    component_digest = await _record(h, component, primary.artifact)
+    await h.store.put_immutable(
+        selected.artifact,
+        expected_digest=selected.passport.artifact.digest,
+        expected_size=selected.passport.artifact.size_bytes,
+        owner_account_id=component["owner_id"],
+    )
+    setup = dict(next(row[1] for row in seed_corpus() if row[0] == "setup"))
+    setup_payload = b"exact setup artifact"
+    setup.update(
+        stable_id=new_id("setup"),
+        harness_id="codex",
+        components=[
+            {
+                "stable_id": component["stable_id"],
+                "version": component["version"],
+                "passport_digest": component_digest,
+            }
+        ],
+        artifact={
+            "digest": digest_bytes(ARTIFACT_DIGEST_DOMAIN, setup_payload),
+            "size_bytes": len(setup_payload),
+        },
+    )
+    setup = _sealed(setup)
+    await _record(h, setup, setup_payload)
+    response = await h.client.get(_url(setup), params={"estimator_profile": "ai-stp:utf8-bytes/1"})
+    assert response.status_code == 200, response.text
+    expected = sum(
+        member.content_artifact.size_bytes
+        for member in selected.passport.adaptations[0].scope_adaptations[0].members
+        if member.content_artifact is not None
+    )
+    assert response.json()["status"] == "ready", response.text
+    assert response.json()["total_tokens"] == expected
+    reads = h.objects.reads
+    ambiguous = await h.client.get(_url(component))
+    assert ambiguous.json()["reason"] == "adaptation_selection_required"
+    assert h.objects.reads == reads
+    key = h.store.key_for_digest(
+        selected.passport.artifact.digest, owner_account_id=component["owner_id"]
+    )
+    h.objects.objects[(h.store.bucket, key)]["body"] = b"corrupt selected projection"
+    corrupt = await h.client.get(_url(setup))
+    assert corrupt.status_code == 200
+    assert corrupt.json()["status"] == "unavailable"
+    assert corrupt.json()["components"][0]["tokens"] is None
+    assert corrupt.json()["reason"] == "artifact_corrupt"
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("tamper", ["none", "outer_ref", "embedded_identity"])
 async def test_embedded_setup_estimate_verifies_the_exact_member_graph(
     context_harness: ContextHarness, tamper: str

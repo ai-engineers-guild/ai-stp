@@ -1,0 +1,416 @@
+[
+  {
+    "id": "plain-name",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nname: inspect\ndescription: Inspect.\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "inspect"
+    ]
+  },
+  {
+    "id": "quoted-name",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nname: \"inspect\"\ndescription: \"Inspect.\"\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "\"inspect\""
+    ]
+  },
+  {
+    "id": "single-quotes",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nname: 'inspect'\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "'inspect'"
+    ]
+  },
+  {
+    "id": "missing-name",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\ndescription: Inspect.\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "review"
+    ]
+  },
+  {
+    "id": "empty-name",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nname:   \n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "review"
+    ]
+  },
+  {
+    "id": "null-name",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nname: null\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "null"
+    ]
+  },
+  {
+    "id": "array-name",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nname: [inspect, review]\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "[inspect, review]"
+    ]
+  },
+  {
+    "id": "mapping-name",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nname: {name: inspect}\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "{name: inspect}"
+    ]
+  },
+  {
+    "id": "numeric-name",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nname: 0x2A\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "0x2A"
+    ]
+  },
+  {
+    "id": "folded-name",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nname: >-\n  inspect\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      ">-"
+    ]
+  },
+  {
+    "id": "inline-comment",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nname: inspect # keep\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "inspect # keep"
+    ]
+  },
+  {
+    "id": "case-insensitive-keys",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nNAME: inspect\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "inspect"
+    ]
+  },
+  {
+    "id": "last-name-wins",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nname: first\nNAME: second\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "second"
+    ]
+  },
+  {
+    "id": "nested-name-is-flat",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nmetadata:\n  name: nested\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "nested"
+    ]
+  },
+  {
+    "id": "name-with-colon",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nname: inspect:review\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "inspect:review"
+    ]
+  },
+  {
+    "id": "arbitrary-metadata",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nname: inspect\nmodel: \"inherit\"\ntools: [Read, Write]\nreadonly: yes\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "inspect"
+    ]
+  },
+  {
+    "id": "empty-header",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\n\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "review"
+    ]
+  },
+  {
+    "id": "bom-field",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\n﻿name: inspect\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "inspect"
+    ]
+  },
+  {
+    "id": "empty-body",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nname: inspect\n---\n \t\n"
+    },
+    "adoptable": false,
+    "names": []
+  },
+  {
+    "id": "reserved-name",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nname: claude-code-tutor\n---\nInspect.\n"
+    },
+    "adoptable": false,
+    "names": []
+  },
+  {
+    "id": "fallback-spelling",
+    "kind": "agent",
+    "files": {
+      "agents/Team_  Review.MARKDOWN": "---\ndescription: Inspect.\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "Team-Review"
+    ]
+  },
+  {
+    "id": "mdc-extension",
+    "kind": "agent",
+    "files": {
+      "agents/review.mDc": "---\nname: inspect\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "inspect"
+    ]
+  },
+  {
+    "id": "hidden-file",
+    "kind": "agent",
+    "files": {
+      "agents/.review.md": "---\nname: inspect\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "inspect"
+    ]
+  },
+  {
+    "id": "hidden-directory",
+    "kind": "agent",
+    "files": {
+      "agents/.hidden/review.md": "---\nname: inspect\n---\nInspect.\n"
+    },
+    "adoptable": false,
+    "names": []
+  },
+  {
+    "id": "excluded-directory",
+    "kind": "agent",
+    "files": {
+      "agents/node_modules/review.md": "---\nname: inspect\n---\nInspect.\n"
+    },
+    "adoptable": false,
+    "names": []
+  },
+  {
+    "id": "depth-ten",
+    "kind": "agent",
+    "files": {
+      "agents/a/a/a/a/a/a/a/a/a/a/review.md": "---\nname: inspect\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "inspect"
+    ]
+  },
+  {
+    "id": "depth-eleven",
+    "kind": "agent",
+    "files": {
+      "agents/a/a/a/a/a/a/a/a/a/a/a/review.md": "---\nname: inspect\n---\nInspect.\n"
+    },
+    "adoptable": false,
+    "names": []
+  },
+  {
+    "id": "unsupported-extension",
+    "kind": "agent",
+    "files": {
+      "agents/review.txt": "---\nname: inspect\n---\nInspect.\n"
+    },
+    "adoptable": false,
+    "names": []
+  },
+  {
+    "id": "control-name",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nname: inspect\treview\n---\nInspect.\n"
+    },
+    "adoptable": false,
+    "names": [
+      "inspect\treview"
+    ]
+  },
+  {
+    "id": "noncanonical-name",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nname: café\n---\nInspect.\n"
+    },
+    "adoptable": false,
+    "names": [
+      "café"
+    ]
+  },
+  {
+    "id": "long-name",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nname: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n---\nInspect.\n"
+    },
+    "adoptable": false,
+    "names": [
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    ]
+  },
+  {
+    "id": "preamble",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "Preamble\n---\nname: inspect\n---\nInspect.\n"
+    },
+    "adoptable": false,
+    "names": [
+      "inspect"
+    ]
+  },
+  {
+    "id": "padded-opening",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "--- \nname: inspect\n---\nInspect.\n"
+    },
+    "adoptable": false,
+    "names": [
+      "inspect"
+    ]
+  },
+  {
+    "id": "bom-opening",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "﻿---\nname: inspect\n---\nInspect.\n"
+    },
+    "adoptable": false,
+    "names": []
+  },
+  {
+    "id": "missing-header",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "Inspect.\n"
+    },
+    "adoptable": false,
+    "names": []
+  },
+  {
+    "id": "unclosed-header",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\nname: inspect\nInspect.\n"
+    },
+    "adoptable": false,
+    "names": []
+  },
+  {
+    "id": "crlf",
+    "kind": "agent",
+    "files": {
+      "agents/review.md": "---\r\nname: inspect\r\n---\r\nInspect.\r\n"
+    },
+    "adoptable": true,
+    "names": [
+      "inspect"
+    ]
+  },
+  {
+    "id": "project-root",
+    "kind": "agent",
+    "scope": "project",
+    "files": {
+      ".cursor/agents/review.md": "---\nname: inspect\n---\nInspect.\n"
+    },
+    "adoptable": true,
+    "names": [
+      "inspect"
+    ]
+  },
+  {
+    "id": "duplicate-names",
+    "kind": "agent",
+    "files": {
+      "agents/team/one/review.md": "---\ndescription: Inspect.\n---\nInspect.\n",
+      "agents/team/two/review.md": "---\ndescription: Inspect.\n---\nInspect.\n"
+    },
+    "adoptable": false,
+    "names": [
+      "review",
+      "review"
+    ]
+  }
+]

@@ -7,6 +7,7 @@ Every child runs with an empty PATH and an isolated, initially empty home.
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -19,9 +20,12 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any
 
+import verify_authoring
 import verify_catalog
 import verify_environment
+import verify_identity
 import verify_projects
+import verify_selection
 
 from ai_stp_cli.local import revisions, versions
 from ai_stp_cli.local.database import open_registry
@@ -29,8 +33,12 @@ from ai_stp_contracts.cli.components import PassportView, VersionLine
 from ai_stp_contracts.cli.registry import MachineHelp
 from ai_stp_contracts.cli.runtime import ConfigReport
 from ai_stp_foundation.canonical import JsonValue
-from ai_stp_foundation.digests import digest_canonical
+from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_foundation.envelope import ErrorEnvelope, SuccessEnvelope
+from ai_stp_sources.definition import unpack_component_tree
+from ai_stp_sources.files import files_digest
+from ai_stp_sources.models import SourceSnapshot
+from ai_stp_sources.resolve import validate_frozen_snapshot
 
 
 def run(binary: Path, home: Path, args: list[str], expected: int = 0) -> dict[str, Any]:
@@ -88,15 +96,40 @@ def prove(binary: Path, root: Path) -> None:
     assert run(binary, home, ["version"])["data"]["runtime"] == "rust"
     run(binary, home, ["unknown"], 2)
     prove_config(binary, home, root)
+    prove_template(binary, home, root)
+    prove_scaffold(binary, home, root)
+    prove_source_capture(binary, home, root)
+    verify_identity.prove(binary, home, root, run)
+    verify_authoring.prove(binary, home, root, run)
     prove_objects(binary, home, root)
     verify_projects.prove(binary, home, root, run)
     verify_catalog.prove(binary, home, root, run)
     verify_environment.prove(binary, home, root, run)
+    verify_selection.prove(binary, home, root, run)
 
     live = root / "live.sqlite"
     backup = root / "backup.sqlite"
     source = open_registry(live)
     try:
+        # The native clean bootstrap keeps the complete persisted format,
+        # including constraints and indexes, without the migration history.
+        bootstrap = Path(__file__).resolve().parents[1] / "src" / "store" / "schema.sql"
+        with closing(sqlite3.connect(":memory:")) as fresh:
+            fresh.executescript(bootstrap.read_text(encoding="utf-8"))
+            query = (
+                "SELECT type, name, tbl_name, coalesce(sql, '') FROM sqlite_schema "
+                "WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name"
+            )
+            expected_schema = [
+                (kind, name, table, " ".join(sql.split()))
+                for kind, name, table, sql in source.execute(query)
+            ]
+            actual_schema = [
+                (kind, name, table, " ".join(sql.split()))
+                for kind, name, table, sql in fresh.execute(query)
+            ]
+            assert actual_schema == expected_schema, "native state format drifted"
+            assert fresh.execute("PRAGMA user_version").fetchone()[0] == 53
         source.execute("PRAGMA wal_autocheckpoint=0")
         source.execute(
             "INSERT INTO entity(stable_id, kind, created_at) VALUES (?, ?, ?)",
@@ -224,6 +257,145 @@ def prove_config(binary: Path, home: Path, root: Path) -> None:
     run(binary, home, ["config", "show", "--config", str(config)], 2)
 
 
+def prove_scaffold(binary: Path, home: Path, root: Path) -> None:
+    from ai_stp_contracts.authoring import ComponentTemplateDescriptor
+    from ai_stp_contracts.component_passport import ComponentPassportPatch
+
+    folder = root / "scaffold"
+    folder.mkdir()
+    pairs = [(kind, "none") for kind in ("instruction", "skill", "command", "agent")]
+    pairs.extend(
+        ("cli", language)
+        for language in ("python", "typescript", "javascript", "rust", "go", "dart-flutter")
+    )
+    for kind, language in pairs:
+        output = folder / f"{kind}-{language}"
+        response = run(
+            binary,
+            home,
+            [
+                "component",
+                "scaffold",
+                "plan",
+                "--type",
+                kind,
+                "--language",
+                language,
+                "--name",
+                "safe-component",
+                "--output",
+                str(output),
+            ],
+        )["data"]
+        plan = response["plan"]
+        expected = response["plan_digest"]
+        assert digest_canonical("ai-stp:scaffold-plan:v1", plan) == expected
+        assert not output.exists()
+        ComponentTemplateDescriptor.model_validate_json(plan["files"][".ai-stp-template.json"])
+        ComponentPassportPatch.model_validate_json(plan["files"]["component-passport.json"])
+        path = folder / f"{kind}-{language}.plan.json"
+        path.write_text(json.dumps(plan), encoding="utf-8")
+        apply = ["component", "scaffold", "apply", "--plan", str(path), "--plan-digest", expected]
+        result = run(binary, home, apply)["data"]
+        assert result["outcome"] == "created" and result["publication_ready"] is False
+        assert result["staging_cleanup_pending"] is False
+        assert result["files_written"] == len(plan["files"]) == 4
+        for name, content in plan["files"].items():
+            assert (output / name).read_bytes() == content.encode()
+        assert run(binary, home, apply)["data"]["outcome"] == "already_matches"
+        assert not any(output.rglob("README.md"))
+        assert not (output / ".git").exists()
+        assert not (output / "eval-profile.json").exists()
+        assert not list(folder.glob(".ai-stp-scaffold-*"))
+        inspect = ["component", "source", "inspect", "--root", str(output)]
+        captured = run(binary, home, inspect)["data"]
+        assert captured["source_ready"] is False
+        assert captured["execution"] == "not_run" and captured["publication"] == "not_assessed"
+        assert {item["code"] for item in captured["issues"]} == {
+            "description_incomplete",
+            "scaffold_marker",
+        }
+        assert len(captured["files"]) == 1
+        patch = json.loads((output / "component-passport.json").read_bytes())
+        patch["description"] = "A bounded implementation for local review."
+        (output / "component-passport.json").write_text(json.dumps(patch), encoding="utf-8")
+        described = run(binary, home, inspect)["data"]
+        assert described["source_ready"] is False
+        assert described["source_digest"] == captured["source_digest"]
+        assert described["snapshot_digest"] != captured["snapshot_digest"]
+        assert [item["code"] for item in described["issues"]] == ["scaffold_marker"]
+    assert not list(home.iterdir())
+
+
+def prove_template(binary: Path, home: Path, root: Path) -> None:
+    from ai_stp_cli.local import authoring
+    from ai_stp_contracts.cli.components import ComponentTemplateView
+
+    template = root / "template.md"
+    source = authoring.scaffold("skill", "review-kit")
+    template.write_bytes(source.replace("\n", "\r\n").encode())
+    arguments = [
+        "component",
+        "template",
+        "render",
+        "--template",
+        str(template),
+        "--name",
+        "review-kit",
+        "--component-root",
+        "skills/review-kit",
+        "--harness",
+    ]
+    for harness in sorted(authoring.HARNESSES):
+        actual = ComponentTemplateView.model_validate(
+            run(binary, home, [*arguments, harness])["data"]
+        )
+        expected = authoring.render(
+            source,
+            harness_id=harness,
+            component_name="review-kit",
+            component_root="skills/review-kit",
+        )
+        assert actual.content == expected.content
+        assert actual.placeholders == list(expected.placeholders)
+        assert actual.source_digest == "sha256:" + hashlib.sha256(source.encode()).hexdigest()
+        assert (
+            actual.rendered_digest
+            == "sha256:" + hashlib.sha256(actual.content.encode()).hexdigest()
+        )
+    # CommonMark owns code boundaries, including a longer outer fence, quote
+    # containers, indentation and valid fences that continue to end of input.
+    for literal in (
+        "````text\n```\n{{unknown}}\n````\n",
+        "> ```text\n> {{unknown}}\n> ```\n",
+        "    {{unknown}}\n",
+        "```text\n{{unknown}}\n",
+    ):
+        template.write_text("Before {{component_name}}.\n\n" + literal, encoding="utf-8")
+        actual = ComponentTemplateView.model_validate(
+            run(binary, home, [*arguments, "codex"])["data"]
+        )
+        assert actual.content == "Before review-kit.\n\n" + literal
+        assert actual.placeholders == ["component_name"]
+    for malformed in (
+        "{{unknown}}\n",
+        "{{component_name\n",
+        "{{/harness}}\n",
+        "{{#harness:codex,codex}}\nx\n{{/harness}}\n",
+        "{{#harness:codex}}\n{{#harness:pi}}\n",
+        "{{#harness:undefined}}\nx\n{{/harness}}\n",
+        "{{#harness:codex}}\n",
+        "x" * (64 * 1024 + 1),
+    ):
+        template.write_text(malformed, encoding="utf-8")
+        run(binary, home, [*arguments, "codex"], 2)
+    template.write_text("{{component_root}}\n" * 300, encoding="utf-8")
+    expanded_arguments = arguments.copy()
+    expanded_arguments[expanded_arguments.index("--component-root") + 1] = "segment/" * 40 + "leaf"
+    run(binary, home, [*expanded_arguments, "codex"], 2)
+    assert list(home.iterdir()) == []
+
+
 def prove_objects(binary: Path, home: Path, root: Path) -> None:
     state = root / "objects.sqlite"
     backup = root / "objects-backup.sqlite"
@@ -326,6 +498,32 @@ def prove_objects(binary: Path, home: Path, root: Path) -> None:
         ]
         answer = run(binary, home, command + options, 4)
         assert answer["error"]["code"] == code
+
+
+def prove_source_capture(binary: Path, home: Path, root: Path) -> None:
+    source = root / "external-source"
+    source.mkdir()
+    payload = "Original e\u0301 source bytes.\n".encode()
+    (source / "note.txt").write_bytes(payload)
+    args = ["component", "source", "capture", "--root", str(root), "--path", source.name]
+    result = run(binary, home, args)["data"]
+    assert result == run(binary, home, args)["data"]
+    encoded = result["artifact"]["bytes_b64"]
+    artifact = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
+    assert result["artifact"]["digest"] == digest_bytes("ai-stp:artifact:v1", artifact)
+    assert result["artifact"]["size_bytes"] == len(artifact)
+    files = unpack_component_tree(artifact)
+    assert files == {"note.txt": payload}
+    snapshot = dict(result["snapshot"])
+    assert snapshot.pop("file_paths") == sorted(files)
+    model = SourceSnapshot.model_validate({**snapshot, "files": files})
+    validate_frozen_snapshot(model)
+    assert model.exact_identity == model.component_digest == files_digest(files)
+    assert not model.author_verified and not model.component_verified and not model.target_write
+    assert result["filesystem_accessed"] and not result["network_accessed"]
+    assert str(root) not in json.dumps(result)
+    assert (source / "note.txt").read_bytes() == payload
+    assert list(source.iterdir()) == [source / "note.txt"]
 
 
 def benchmark(binary: Path, root: Path) -> None:

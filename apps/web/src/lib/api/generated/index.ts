@@ -456,6 +456,7 @@ export {
   type CompleteLegalOnboardingResponse,
   type CompleteLegalOnboardingResponses,
   type ComponentAdaptation,
+  type ComponentArtifactQuery,
   type ComponentContextBudget,
   type ComponentDetail,
   type ComponentId,

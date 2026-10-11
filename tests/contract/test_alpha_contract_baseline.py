@@ -31,4 +31,3 @@ def test_readme_promises_no_calendar_language_rewrite() -> None:
         text = path.read_text(encoding="utf-8")
         assert "31 December 2026" not in text
         assert "will be rewritten in Rust" not in text
-        assert "0.0.16" in text

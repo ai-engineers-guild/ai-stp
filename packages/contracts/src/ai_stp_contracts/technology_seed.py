@@ -1743,3 +1743,33 @@ SEED_COORDINATES: Final = tuple(
     for suffix, _name, _aliases, _categories, coordinates in _SEED_ROWS
     for kind, coordinate in coordinates
 )
+
+
+def main() -> None:
+    """Project the canonical mapping into the native binary without a runtime bridge."""
+    import argparse
+    import json
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--check", action="store_true")
+    arguments = parser.parse_args()
+    target = (
+        Path(__file__).resolve().parents[4] / "apps/cli-v2/src/projects/technology/coordinates.json"
+    )
+    document = {
+        "version": SEED_COORDINATES_VERSION,
+        "provenance": SEED_PROVENANCE,
+        "entries": sorted(SEED_COORDINATES),
+    }
+    rendered = json.dumps(document, ensure_ascii=False, indent=2) + "\n"
+    if arguments.check:
+        if not target.exists() or target.read_text(encoding="utf-8") != rendered:
+            raise SystemExit("native technology coordinates differ; run just back-gen")
+    else:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(rendered, encoding="utf-8")
+
+
+if __name__ == "__main__":
+    main()

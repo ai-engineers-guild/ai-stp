@@ -14,7 +14,9 @@ what an earlier one wrote, and that is ordinary file handling.
 
 from __future__ import annotations
 
+import ctypes
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -147,21 +149,7 @@ def test_every_kernel_call_declares_its_signature() -> None:
     suite's type checker never sees.
     """
     source = Path(windows_launcher.__file__).read_text(encoding="utf-8")
-    called = {
-        name
-        for name in (
-            "CreateJobObjectW",
-            "SetInformationJobObject",
-            "AssignProcessToJobObject",
-            "ResumeThread",
-            "TerminateProcess",
-            "CloseHandle",
-            "WaitForSingleObject",
-            "GetExitCodeProcess",
-            "SetHandleInformation",
-        )
-        if f"kernel.{name}(" in source
-    }
+    called = set(re.findall(r"kernel\.([A-Za-z0-9_]+)\(", source))
     declared = set(windows_launcher._KERNEL_SIGNATURES)  # pyright: ignore[reportPrivateUsage]
     assert called <= declared, f"undeclared kernel32 calls: {sorted(called - declared)}"
 
@@ -174,9 +162,18 @@ def test_a_handle_returning_call_is_not_declared_as_an_int() -> None:
     assert signatures["CreateJobObjectW"][1] is ctypes.c_void_p
 
 
-def test_the_process_starts_suspended_so_nothing_escapes_the_job() -> None:
-    """Assigned before it runs, or a fast child is outside the job that owns it."""
-    source = Path(windows_launcher.__file__).read_text(encoding="utf-8")
-    creation = source[source.index("created = api.kernel.CreateProcessW") :]
-    assert "_CREATE_SUSPENDED" in source
-    assert "AssignProcessToJobObject" in creation[: creation.index("ResumeThread")]
+def test_missing_job_refuses_before_process_setup(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Containment is mandatory even when creating/configuring its job fails."""
+
+    class Kernel:
+        def CreatePipe(self, *_args: object) -> None:
+            pytest.fail("process setup continued after job creation failed")
+
+    def unavailable_job(_api: object) -> None:
+        return None
+
+    monkeypatch.setattr(windows_launcher, "_job", unavailable_job)
+    monkeypatch.setattr(ctypes, "get_last_error", lambda: 5, raising=False)
+    api = windows_launcher._Api(Kernel(), None, None)  # pyright: ignore[reportPrivateUsage]
+    with pytest.raises(OSError, match="isolation job"):
+        windows_launcher.AppContainerProcess(api, ctypes.c_void_p(), [], {})

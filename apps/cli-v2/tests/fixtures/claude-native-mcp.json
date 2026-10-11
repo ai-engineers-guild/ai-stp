@@ -1,0 +1,568 @@
+[
+  {
+    "id": "stdio-default",
+    "server": {
+      "command": "/bin/false"
+    },
+    "native_loaded": true,
+    "accepted": true
+  },
+  {
+    "id": "stdio-explicit",
+    "server": {
+      "type": "stdio",
+      "command": "/bin/false",
+      "args": [],
+      "env": {
+        "LOG_LEVEL": "info"
+      }
+    },
+    "native_loaded": true,
+    "accepted": true
+  },
+  {
+    "id": "empty",
+    "server": {},
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "url-no-type",
+    "server": {
+      "url": "https://example.invalid/mcp"
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "http",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp"
+    },
+    "native_loaded": true,
+    "accepted": true
+  },
+  {
+    "id": "http-alias",
+    "server": {
+      "type": "streamable-http",
+      "url": "https://example.invalid/mcp"
+    },
+    "native_loaded": true,
+    "accepted": true
+  },
+  {
+    "id": "sse",
+    "server": {
+      "type": "sse",
+      "url": "https://example.invalid/mcp"
+    },
+    "native_loaded": true,
+    "accepted": true
+  },
+  {
+    "id": "ws",
+    "server": {
+      "type": "ws",
+      "url": "wss://example.invalid/mcp"
+    },
+    "native_loaded": true,
+    "accepted": true
+  },
+  {
+    "id": "sdk",
+    "server": {
+      "type": "sdk",
+      "name": "review"
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "unknown",
+    "server": {
+      "type": "other",
+      "command": "/bin/false"
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "type-null",
+    "server": {
+      "type": null,
+      "command": "/bin/false"
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "command-number",
+    "server": {
+      "command": 42
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "command-empty",
+    "server": {
+      "command": ""
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "command-space",
+    "server": {
+      "command": " "
+    },
+    "native_loaded": true,
+    "accepted": false
+  },
+  {
+    "id": "args-string",
+    "server": {
+      "command": "/bin/false",
+      "args": "oops"
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "args-number",
+    "server": {
+      "command": "/bin/false",
+      "args": [
+        42
+      ]
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "args-null",
+    "server": {
+      "command": "/bin/false",
+      "args": null
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "env-number",
+    "server": {
+      "command": "/bin/false",
+      "env": {
+        "LOG_LEVEL": 42
+      }
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "env-null",
+    "server": {
+      "command": "/bin/false",
+      "env": null
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "url-number",
+    "server": {
+      "type": "http",
+      "url": 42
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "url-empty",
+    "server": {
+      "type": "http",
+      "url": ""
+    },
+    "native_loaded": true,
+    "accepted": false
+  },
+  {
+    "id": "url-relative",
+    "server": {
+      "type": "http",
+      "url": "relative"
+    },
+    "native_loaded": true,
+    "accepted": true
+  },
+  {
+    "id": "url-reference",
+    "server": {
+      "type": "http",
+      "url": "${REVIEW_URL}"
+    },
+    "native_loaded": true,
+    "accepted": true
+  },
+  {
+    "id": "headers-number",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "headers": {
+        "Accept": 42
+      }
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "headers-null",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "headers": null
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "http-command",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "command": "/bin/false"
+    },
+    "native_loaded": true,
+    "accepted": true
+  },
+  {
+    "id": "stdio-url",
+    "server": {
+      "command": "/bin/false",
+      "url": "https://example.invalid/mcp"
+    },
+    "native_loaded": true,
+    "accepted": true
+  },
+  {
+    "id": "unknown-field",
+    "server": {
+      "command": "/bin/false",
+      "futureMetadata": 42
+    },
+    "native_loaded": true,
+    "accepted": true
+  },
+  {
+    "id": "helper-string",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "headersHelper": "/bin/false"
+    },
+    "native_loaded": true,
+    "accepted": true
+  },
+  {
+    "id": "helper-number",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "headersHelper": 42
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "helper-null",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "headersHelper": null
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "oauth-empty",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": {}
+    },
+    "native_loaded": true,
+    "accepted": true
+  },
+  {
+    "id": "oauth-null",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": null
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "oauth-string",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": "invalid"
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "oauth-client-id",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": {
+        "clientId": "public-client"
+      }
+    },
+    "native_loaded": true,
+    "accepted": true
+  },
+  {
+    "id": "oauth-client-id-number",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": {
+        "clientId": 42
+      }
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "oauth-port",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": {
+        "callbackPort": 8080
+      }
+    },
+    "native_loaded": true,
+    "accepted": true
+  },
+  {
+    "id": "oauth-port-zero",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": {
+        "callbackPort": 0
+      }
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "oauth-port-large",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": {
+        "callbackPort": 65536
+      }
+    },
+    "native_loaded": true,
+    "accepted": false
+  },
+  {
+    "id": "oauth-port-fraction",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": {
+        "callbackPort": 1.5
+      }
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "oauth-port-string",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": {
+        "callbackPort": "8080"
+      }
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "oauth-metadata",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": {
+        "authServerMetadataUrl": "https://example.invalid/meta"
+      }
+    },
+    "native_loaded": true,
+    "accepted": true
+  },
+  {
+    "id": "oauth-metadata-http",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": {
+        "authServerMetadataUrl": "http://example.invalid/meta"
+      }
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "oauth-metadata-relative",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": {
+        "authServerMetadataUrl": "relative"
+      }
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "oauth-scopes",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": {
+        "scopes": "read write"
+      }
+    },
+    "native_loaded": true,
+    "accepted": true
+  },
+  {
+    "id": "oauth-scopes-array",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": {
+        "scopes": [
+          "read"
+        ]
+      }
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "ws-oauth-invalid",
+    "server": {
+      "type": "ws",
+      "url": "wss://example.invalid/mcp",
+      "oauth": "invalid"
+    },
+    "native_loaded": true,
+    "accepted": true
+  },
+  {
+    "id": "sse-oauth-invalid",
+    "server": {
+      "type": "sse",
+      "url": "https://example.invalid/mcp",
+      "oauth": "invalid"
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "stdio-env-boolean",
+    "server": {
+      "command": "/bin/false",
+      "env": {
+        "LOG_LEVEL": true
+      }
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "oauth-metadata-uppercase",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": {
+        "authServerMetadataUrl": "HTTPS://example.invalid/meta"
+      }
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "oauth-metadata-padded",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": {
+        "authServerMetadataUrl": " https://example.invalid/meta "
+      }
+    },
+    "native_loaded": true,
+    "accepted": true
+  },
+  {
+    "id": "oauth-metadata-opaque",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": {
+        "authServerMetadataUrl": "https:relative"
+      }
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "oauth-metadata-triple-slash",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": {
+        "authServerMetadataUrl": "https:///example.invalid/meta"
+      }
+    },
+    "native_loaded": true,
+    "accepted": true
+  },
+  {
+    "id": "oauth-metadata-large-port",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": {
+        "authServerMetadataUrl": "https://example.invalid:65536/meta"
+      }
+    },
+    "native_loaded": false,
+    "accepted": false
+  },
+  {
+    "id": "oauth-metadata-fragment",
+    "server": {
+      "type": "http",
+      "url": "https://example.invalid/mcp",
+      "oauth": {
+        "authServerMetadataUrl": "https://example.invalid/meta#public"
+      }
+    },
+    "native_loaded": true,
+    "accepted": true
+  }
+]

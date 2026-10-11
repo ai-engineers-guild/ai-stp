@@ -263,13 +263,13 @@ def test_install_key_rejects_an_identity_outside_the_charset() -> None:
         install_task_start("bad id with spaces")
 
 
-def test_device_login_copy_uses_the_account_start() -> None:
-    """Expired / spent codes and the Devices hint used to teach a fake leaf."""
+def test_device_login_recovery_does_not_replay_the_example_task() -> None:
+    """A fixed task key replays old intent; recovery must ask for a fresh login."""
     held = LOGIN
     for locale in ("en", "ru"):
         messages = json.loads(Path(f"apps/web/messages/{locale}.json").read_text(encoding="utf-8"))
-        assert held in messages["deviceLogin"]["expired"]
-        assert held in messages["deviceLogin"]["resolved"]
+        assert held not in messages["deviceLogin"]["expired"]
+        assert held not in messages["deviceLogin"]["resolved"]
         assert "auth login" not in messages["deviceLogin"]["expired"]
         assert "auth login" not in messages["deviceLogin"]["resolved"]
         assert held in messages["devices"]["authorizeHint"]

@@ -1,0 +1,454 @@
+use std::{error::Error, fs, process::Command};
+
+use serde_json::Value;
+
+#[cfg(target_os = "linux")]
+#[test]
+fn mounted_target_is_verified_before_provider_execution() -> Result<(), Box<dyn Error>> {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+    let root = tempfile::tempdir()?;
+    let target = root.path().join("target");
+    fs::create_dir(&target)?;
+    fs::write(target.join("marker"), b"exact\n")?;
+    let prefix = root.path().join("prefix");
+    fs::create_dir(&prefix)?;
+    fs::write(prefix.join("program"), b"retained\n")?;
+    let provider = root.path().join("provider");
+    fs::write(
+        &provider,
+        br##"#!/bin/sh
+test "$1" = status || exit 20
+test "$HOME" = /home && test -z "$PATH" || exit 21
+test ! -e /etc/passwd || exit 22
+read -r value < /target/marker
+test "$value" = exact || exit 23
+for entry in /proc/self/fd/*; do
+    test ! -d "$entry" || exit 24
+done
+if { printf changed > /target/marker; } 2>/dev/null; then exit 25; fi
+if { printf created > /target/new; } 2>/dev/null; then exit 26; fi
+if { printf changed > /prefix/program; } 2>/dev/null; then exit 27; fi
+printf provider-ran
+"##,
+    )?;
+    fs::set_permissions(&provider, fs::Permissions::from_mode(0o500))?;
+    let metadata = target.metadata()?;
+    let prefix_metadata = prefix.metadata()?;
+    let run = |read_only: bool,
+               device: u64,
+               inode: u64,
+               prefix_read_only: bool,
+               prefix_inode: u64,
+               count: u64| {
+        let mut command = Command::new("/usr/bin/bwrap");
+        command
+            .args([
+                "--unshare-all",
+                "--die-with-parent",
+                "--new-session",
+                "--cap-drop",
+                "ALL",
+                "--ro-bind",
+                "/usr",
+                "/usr",
+                "--ro-bind-try",
+                "/lib",
+                "/lib",
+                "--ro-bind-try",
+                "/lib64",
+                "/lib64",
+                "--ro-bind-try",
+                "/bin",
+                "/bin",
+                "--proc",
+                "/proc",
+                "--dev",
+                "/dev",
+                "--tmpfs",
+                "/tmp",
+                "--ro-bind",
+            ])
+            .arg(&provider)
+            .args([
+                "/run/provider",
+                "--ro-bind",
+                env!("CARGO_BIN_EXE_ai-stp-v2"),
+                "/run/entry",
+            ])
+            .arg(if read_only { "--ro-bind" } else { "--bind" })
+            .arg(&target)
+            .arg("/target")
+            .arg(if prefix_read_only {
+                "--ro-bind"
+            } else {
+                "--bind"
+            })
+            .arg(&prefix)
+            .args(["/prefix", "--", "/run/entry", "--ai-stp-target-entry"])
+            .arg(count.to_string())
+            .arg(device.to_string())
+            .arg(inode.to_string())
+            .arg("/target");
+        if count == 2 {
+            command
+                .arg(prefix_metadata.dev().to_string())
+                .arg(prefix_inode.to_string())
+                .arg("/prefix");
+        }
+        command
+            .arg("status")
+            .env_clear()
+            .env("HOME", "/home")
+            .env("PATH", "")
+            .output()
+    };
+    let control = run(
+        true,
+        metadata.dev(),
+        metadata.ino(),
+        true,
+        prefix_metadata.ino(),
+        2,
+    );
+    let Ok(control) = control else {
+        eprintln!("Host launcher unavailable; no positive target-mount evidence claimed");
+        return Ok(());
+    };
+    // Launcher refusal is distinct from entry refusal (70), which is a failure here.
+    if control.status.code() == Some(1) && control.stdout.is_empty() {
+        eprintln!("Host namespaces unavailable; no positive target-mount evidence claimed");
+        return Ok(());
+    }
+    assert!(control.status.success());
+    assert_eq!(control.stdout, b"provider-ran");
+    assert!(control.stderr.is_empty());
+    for (read_only, device, inode) in [
+        (true, metadata.dev(), metadata.ino() ^ 1),
+        (true, metadata.dev() ^ 1, metadata.ino()),
+        (false, metadata.dev(), metadata.ino()),
+    ] {
+        let output = run(read_only, device, inode, true, prefix_metadata.ino(), 2)?;
+        assert_eq!(output.status.code(), Some(70));
+        assert!(output.stdout.is_empty() && output.stderr.is_empty());
+    }
+    let single = run(
+        true,
+        metadata.dev(),
+        metadata.ino(),
+        true,
+        prefix_metadata.ino(),
+        1,
+    )?;
+    assert!(single.status.success());
+    assert_eq!(single.stdout, b"provider-ran");
+    for (read_only, inode) in [
+        (false, prefix_metadata.ino()),
+        (true, prefix_metadata.ino() ^ 1),
+    ] {
+        let output = run(true, metadata.dev(), metadata.ino(), read_only, inode, 2)?;
+        assert_eq!(output.status.code(), Some(70));
+        assert!(output.stdout.is_empty() && output.stderr.is_empty());
+    }
+    assert_eq!(fs::read(prefix.join("program"))?, b"retained\n");
+    assert_eq!(fs::read_dir(&target)?.count(), 1);
+    assert_eq!(fs::read(target.join("marker"))?, b"exact\n");
+    synthetic_prefix_requires_its_exact_readonly_view(&provider)?;
+    writable_stage_requires_a_private_parent_and_bound_root()?;
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn writable_stage_requires_a_private_parent_and_bound_root() -> Result<(), Box<dyn Error>> {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+    let root = tempfile::tempdir()?;
+    let stage = root.path().join("stage");
+    fs::create_dir(&stage)?;
+    let provider = root.path().join("provider");
+    fs::write(
+        &provider,
+        br##"#!/bin/sh
+test ! -e /private-parent/neighbor || exit 40
+if { printf forbidden > /private-parent/outside; } 2>/dev/null; then exit 41; fi
+/usr/bin/mkdir /private-parent/programs/created || exit 42
+printf stage-written
+"##,
+    )?;
+    fs::set_permissions(&provider, fs::Permissions::from_mode(0o500))?;
+    for (parent_readonly, root_readonly, correct_identity, accepted) in [
+        (true, false, true, true),
+        (false, false, true, false),
+        (true, true, true, false),
+        (true, false, false, false),
+    ] {
+        let mut command = Command::new("/usr/bin/bwrap");
+        command.args([
+            "--unshare-all",
+            "--die-with-parent",
+            "--new-session",
+            "--cap-drop",
+            "ALL",
+            "--ro-bind",
+            "/usr",
+            "/usr",
+            "--ro-bind-try",
+            "/lib",
+            "/lib",
+            "--ro-bind-try",
+            "/lib64",
+            "/lib64",
+            "--ro-bind-try",
+            "/bin",
+            "/bin",
+            "--proc",
+            "/proc",
+            "--dev",
+            "/dev",
+            "--tmpfs",
+            "/observed",
+            "--remount-ro",
+            "/observed",
+            "--tmpfs",
+            "/private-parent",
+        ]);
+        command
+            .arg(if root_readonly { "--ro-bind" } else { "--bind" })
+            .arg(&stage)
+            .arg("/private-parent/programs");
+        if parent_readonly {
+            command.args(["--remount-ro", "/private-parent"]);
+        }
+        command
+            .arg("--ro-bind")
+            .arg(&provider)
+            .arg("/run/provider")
+            .args(["--ro-bind", env!("CARGO_BIN_EXE_ai-stp-v2"), "/run/entry"]);
+        let meta = stage.metadata()?;
+        let inode = if correct_identity { meta.ino() } else { 0 };
+        command.args(["--","/bin/sh","-c",&format!(
+            "umask 077; /run/entry --ai-stp-target-entry 1 $(/usr/bin/stat -c '%d %i' /observed) /observed --ai-stp-writable-prefix {} {} /private-parent/programs apply",
+            meta.dev(),inode)]);
+        let output = command.env_clear().env("PATH", "").output()?;
+        assert!(output.stderr.is_empty());
+        if accepted {
+            assert!(output.status.success(), "{output:?}");
+            assert_eq!(output.stdout, b"stage-written");
+            assert_eq!(
+                stage.join("created").metadata()?.permissions().mode() & 0o777,
+                0o755
+            );
+            fs::remove_dir(stage.join("created"))?;
+        } else {
+            assert_eq!(output.status.code(), Some(70));
+            assert!(output.stdout.is_empty());
+            assert_eq!(fs::read_dir(&stage)?.count(), 0);
+        }
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn synthetic_prefix_requires_its_exact_readonly_view(
+    provider: &std::path::Path,
+) -> Result<(), Box<dyn Error>> {
+    use std::os::unix::fs::PermissionsExt;
+    let provider = provider.with_extension("missing");
+    fs::write(
+        &provider,
+        br##"#!/bin/sh
+if test "$1" = empty; then
+    test -d /empty-prefix-parent/programs || exit 30
+    if { printf created > /empty-prefix-parent/programs/new; } 2>/dev/null; then exit 31; fi
+else
+    test "$1" = missing && test ! -e /empty-prefix-parent/programs || exit 31
+fi
+test ! -e /empty-prefix-parent/private || exit 32
+if { printf created > /empty-prefix-parent/programs; } 2>/dev/null; then exit 33; fi
+printf prefix-observed
+"##,
+    )?;
+    fs::set_permissions(&provider, fs::Permissions::from_mode(0o500))?;
+    for (view, readonly, exists, nonempty, accepted) in [
+        ("missing", true, false, false, true),
+        ("missing", false, false, false, false),
+        ("missing", true, true, false, false),
+        ("empty", true, true, false, true),
+        ("empty", false, true, false, false),
+        ("empty", true, false, false, false),
+        ("empty", true, true, true, false),
+    ] {
+        let mut command = Command::new("/usr/bin/bwrap");
+        command
+            .args([
+                "--unshare-all",
+                "--die-with-parent",
+                "--cap-drop",
+                "ALL",
+                "--ro-bind",
+                "/usr",
+                "/usr",
+                "--ro-bind-try",
+                "/lib",
+                "/lib",
+                "--ro-bind-try",
+                "/lib64",
+                "/lib64",
+                "--ro-bind-try",
+                "/bin",
+                "/bin",
+                "--proc",
+                "/proc",
+                "--dev",
+                "/dev",
+                "--tmpfs",
+                "/observed",
+                "--remount-ro",
+                "/observed",
+                "--tmpfs",
+                "/empty-prefix-parent",
+                "--ro-bind",
+            ])
+            .arg(&provider)
+            .args([
+                "/run/provider",
+                "--ro-bind",
+                env!("CARGO_BIN_EXE_ai-stp-v2"),
+                "/run/entry",
+            ]);
+        if exists {
+            command.args(["--dir", "/empty-prefix-parent/programs"]);
+        }
+        if nonempty {
+            command.args(["--dir", "/empty-prefix-parent/programs/foreign"]);
+        }
+        if readonly {
+            command.args(["--remount-ro", "/empty-prefix-parent"]);
+        }
+        // A separate target is an empty, read-only mount. Its physical
+        // identity is measured inside the namespace before invoking the entry.
+        command.args(["--", "/bin/sh", "-c", &format!(
+            "/run/entry --ai-stp-target-entry 1 $(/usr/bin/stat -c '%d %i' /observed) /observed --ai-stp-{view}-prefix /empty-prefix-parent/programs {view}")]);
+        let output = command.env_clear().env("PATH", "").output()?;
+        if accepted {
+            assert!(output.status.success(), "{:?}", output);
+            assert_eq!(output.stdout, b"prefix-observed");
+        } else {
+            assert_eq!(output.status.code(), Some(70));
+            assert!(output.stdout.is_empty());
+        }
+        assert!(output.stderr.is_empty());
+    }
+    Ok(())
+}
+
+#[test]
+fn network_observation_is_measured_or_explicitly_unavailable() -> Result<(), Box<dyn Error>> {
+    let home = tempfile::tempdir()?;
+    let output = Command::new(env!("CARGO_BIN_EXE_ai-stp-v2"))
+        .args(["provider", "network", "--json"])
+        .env("PATH", "")
+        .env("HOME", home.path())
+        .env("XDG_DATA_HOME", home.path())
+        .env("AI_STP_PARENT_ONLY", "must-not-be-inherited")
+        .output()?;
+    assert!(output.stderr.is_empty());
+    let envelope: Value = serde_json::from_slice(&output.stdout)?;
+    assert!(!output.status.success() || std::env::consts::OS == "linux");
+    if output.status.success() {
+        assert_eq!(envelope["ok"], true);
+        let report = &envelope["data"];
+        assert_eq!(report["enforcement"], "enforced");
+        assert_eq!(report["isolated"], "denied");
+        assert_eq!(report["launcher"], "bubblewrap");
+        assert_eq!(report["filesystem"], "declared_runtime_only");
+        assert_eq!(report["positive_control"].as_array().map(Vec::len), Some(3));
+        assert!(
+            report["launcher_digest"]
+                .as_str()
+                .is_some_and(|s| s.len() == 71)
+        );
+    } else {
+        // Unprivileged namespaces may be disabled by the host, including CI.
+        // Refusal is not positive evidence of isolation; live evidence is separate.
+        assert_eq!(output.status.code(), Some(5));
+        assert_eq!(envelope["ok"], false);
+        assert_eq!(envelope["error"]["code"], "AI_STP_DEPENDENCY_UNAVAILABLE");
+    }
+    assert_eq!(fs::read_dir(home.path())?.count(), 0);
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn private_probe_reaches_real_listeners_and_rejects_invalid_inputs() -> Result<(), Box<dyn Error>> {
+    use std::{
+        io::Read,
+        net::{TcpListener, UdpSocket},
+        time::Duration,
+    };
+    let tcp4 = TcpListener::bind("127.0.0.1:0")?;
+    let tcp6 = TcpListener::bind("[::1]:0")?;
+    let udp = UdpSocket::bind("127.0.0.1:0")?;
+    tcp4.set_nonblocking(true)?;
+    tcp6.set_nonblocking(true)?;
+    udp.set_read_timeout(Some(Duration::from_secs(1)))?;
+    let nonce = "01M4G0A87QK78WG7SGXXDD2CJ3";
+    let invoke = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_ai-stp-v2"))
+            .arg("--internal-provider-network-probe")
+            .args(args)
+            .env_clear()
+            .output()
+    };
+    let output = invoke(&[
+        &tcp4.local_addr()?.port().to_string(),
+        &tcp6.local_addr()?.port().to_string(),
+        &udp.local_addr()?.port().to_string(),
+        nonce,
+    ])?;
+    assert!(output.status.success());
+    assert!(output.stderr.is_empty());
+    assert_eq!(
+        serde_json::from_slice::<Value>(&output.stdout)?["sent"],
+        serde_json::json!([true, true, true])
+    );
+    for listener in [tcp4, tcp6] {
+        let (mut socket, _) = listener.accept()?;
+        socket.set_read_timeout(Some(Duration::from_secs(1)))?;
+        let mut bytes = Vec::new();
+        Read::by_ref(&mut socket).take(64).read_to_end(&mut bytes)?;
+        assert_eq!(bytes, nonce.as_bytes());
+    }
+    let mut bytes = [0u8; 64];
+    let (size, _) = udp.recv_from(&mut bytes)?;
+    assert_eq!(&bytes[..size], nonce.as_bytes());
+    for args in [
+        vec![],
+        vec!["0", "1", "2", nonce],
+        vec!["1", "2", "65536", nonce],
+        vec!["1", "2", "3", "secret-argument"],
+        vec!["1", "2", "3", nonce, "extra"],
+    ] {
+        let output = invoke(&args)?;
+        assert_eq!(output.status.code(), Some(2));
+        assert!(output.stdout.is_empty() && output.stderr.is_empty());
+    }
+    for args in [
+        vec!["--ai-stp-target-entry"],
+        vec!["--ai-stp-target-entry", "secret", "0", "/tmp", "status"],
+        vec!["--ai-stp-target-entry", "0", "0", "/", "status"],
+        vec!["--ai-stp-provider-worker"],
+        vec![
+            "--ai-stp-provider-worker",
+            "ai-stp-provider-01ARZ3NDEKTSV4RRFFQ69G5FAV.service",
+        ],
+        vec!["--ai-stp-provider-worker", "secret-argument", "extra"],
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_ai-stp-v2"))
+            .args(args)
+            .env_clear()
+            .output()?;
+        assert_eq!(output.status.code(), Some(70));
+        assert!(output.stdout.is_empty() && output.stderr.is_empty());
+    }
+    Ok(())
+}
