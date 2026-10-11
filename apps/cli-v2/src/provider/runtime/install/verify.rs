@@ -238,6 +238,17 @@ pub(super) fn payload(
     entry_point: &str,
     final_prefix: &Path,
 ) -> Result<Value> {
+    payload_at(root, source, version, entry_point, final_prefix, true)
+}
+
+pub(super) fn payload_at(
+    root: &Dir,
+    source: &mut File,
+    version: &str,
+    entry_point: &str,
+    final_prefix: &Path,
+    fresh: bool,
+) -> Result<Value> {
     let started = Instant::now();
     let command = entry_point.strip_prefix("bin/").ok_or_else(invalid)?;
     let (expected, archive_entries) = archive(source, command, started)?;
@@ -289,10 +300,11 @@ pub(super) fn payload(
         .map(|e| e.map(|e| e.file_name()))
         .collect::<std::io::Result<BTreeSet<_>>>()
         .map_err(|_| invalid())?;
-    if bin_members
-        != [command, marker_name.as_str(), manifest_name.as_str()]
-            .map(std::ffi::OsString::from)
-            .into()
+    if fresh
+        && bin_members
+            != [command, marker_name.as_str(), manifest_name.as_str()]
+                .map(std::ffi::OsString::from)
+                .into()
     {
         return Err(invalid());
     }
@@ -305,10 +317,11 @@ pub(super) fn payload(
         .map(|e| e.map(|e| e.file_name()))
         .collect::<std::io::Result<BTreeSet<_>>>()
         .map_err(|_| invalid())?;
-    if members
-        != [version, "bin", ".nddev-software"]
-            .map(std::ffi::OsString::from)
-            .into()
+    if fresh
+        && members
+            != [version, "bin", ".nddev-software"]
+                .map(std::ffi::OsString::from)
+                .into()
     {
         return Err(invalid());
     }

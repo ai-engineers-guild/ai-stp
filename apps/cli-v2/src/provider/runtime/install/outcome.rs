@@ -43,7 +43,7 @@ pub(super) fn applied(bytes: &[u8], plan: &Plan) -> Result<Value> {
     let response: Applied = serde_json::from_value(value.clone()).map_err(|_| invalid())?;
     if response.state != "verified"
         || !response.recovered.is_empty()
-        || response.operation != "software_install"
+        || response.operation != plan.operation()?
         || response.version != plan.provider_plan["plan"]["software_version"]
         || response.entry_point
             != plan.provider_plan["plan"]["software_artifacts"][0]["entry_point"]
@@ -80,13 +80,12 @@ struct Completed {
     provider_version: String,
     prefix: String,
     installation_performed: bool,
-    verification: Verification,
+    verification: Value,
     provider_result: Value,
 }
 
 pub(super) fn validate(value: &Value, plan: &Plan, digest: &str) -> Result<()> {
     let outcome: Completed = serde_json::from_value(value.clone()).map_err(|_| invalid())?;
-    let proof = &outcome.verification;
     let response = applied(
         &serde_json::to_vec(&outcome.provider_result).map_err(|_| invalid())?,
         plan,
@@ -98,7 +97,15 @@ pub(super) fn validate(value: &Value, plan: &Plan, digest: &str) -> Result<()> {
         || outcome.provider_version != plan.provider_version
         || outcome.prefix != plan.prefix.path
         || !outcome.installation_performed
-        || proof.verification != "exact_vendor_archive_inventory"
+    {
+        return Err(invalid());
+    }
+    validate_verification(&outcome.verification, &response)
+}
+
+pub(super) fn validate_verification(value: &Value, response: &Value) -> Result<()> {
+    let proof: Verification = serde_json::from_value(value.clone()).map_err(|_| invalid())?;
+    if proof.verification != "exact_vendor_archive_inventory"
         || !(1..=65_536).contains(&proof.files)
         || !(proof.files..=65_536).contains(&proof.archive_entries)
         || proof.bytes > 8 * 1024 * 1024 * 1024

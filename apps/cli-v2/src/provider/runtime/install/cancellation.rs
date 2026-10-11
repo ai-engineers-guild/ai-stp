@@ -26,6 +26,9 @@ pub(in crate::provider::runtime) fn cancel(
     digest: &str,
 ) -> Result<Value> {
     let plan = Plan::parse(bytes, digest)?;
+    if plan.action != "program.install" {
+        return Err(super::plan::invalid());
+    }
     let previous = Journal::history(parent, &plan, digest)?;
     if let Some(record) = &previous {
         if let Some(result) = outcome(record)? {

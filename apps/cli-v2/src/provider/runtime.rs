@@ -65,6 +65,23 @@ pub fn program_install_cancel(parent: &Path, bytes: &[u8], digest: &str) -> Resu
     }
 }
 
+pub fn program_change_apply(
+    parent: &Path,
+    bytes: &[u8],
+    digest: &str,
+    action: &str,
+) -> Result<Value> {
+    #[cfg(target_os = "linux")]
+    {
+        install::change::apply(parent, bytes, digest, action)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (parent, bytes, digest, action);
+        Err(unavailable())
+    }
+}
+
 pub fn platform() -> Result<&'static str> {
     match (std::env::consts::OS, std::env::consts::ARCH) {
         ("linux", "x86_64") => Ok("linux/x86_64"),
@@ -92,6 +109,23 @@ pub struct TargetRequest<'a> {
 }
 
 impl Runtime {
+    pub fn program_change_plan(
+        &self,
+        context: &TargetRequest<'_>,
+        prefix: &Path,
+        version: Option<&str>,
+        action: &str,
+    ) -> Result<Value> {
+        #[cfg(target_os = "linux")]
+        {
+            install::change::plan(self, context, prefix, version, action)
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = (context, prefix, version, action);
+            Err(unavailable())
+        }
+    }
     pub fn observe() -> Result<Self> {
         #[cfg(target_os = "linux")]
         {

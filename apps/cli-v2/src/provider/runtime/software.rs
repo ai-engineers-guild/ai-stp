@@ -17,11 +17,11 @@ use crate::{
 };
 use std::path::Path;
 
-struct Observation {
-    report: Value,
-    target: Target,
-    prefix: Prefix,
-    state: Dir,
+pub(super) struct Observation {
+    pub report: Value,
+    pub target: Target,
+    pub prefix: Prefix,
+    pub state: Dir,
 }
 
 pub(super) fn observe(
@@ -33,7 +33,7 @@ pub(super) fn observe(
     Ok(observe_held(runtime, context, prefix, request, View::Observed)?.report)
 }
 
-fn observe_held(
+pub(super) fn observe_held(
     runtime: &Runtime,
     context: &TargetRequest<'_>,
     prefix: &Path,

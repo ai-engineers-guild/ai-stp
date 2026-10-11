@@ -32,6 +32,18 @@ pub(super) struct Prefix {
     pub path: String,
     pub expected_state: String,
     pub parent_identity: Identity,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub existing: Option<Existing>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct Existing {
+    pub identity: Identity,
+    pub entry_point: String,
+    pub preserved_digest: String,
+    pub launch_digest: String,
+    pub selected_is_active: bool,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -61,9 +73,7 @@ pub(super) struct Plan {
 }
 
 pub(super) fn invalid() -> Failure {
-    Failure::precondition(
-        "the original program installation plan or its physical binding is invalid",
-    )
+    Failure::precondition("the original program operation plan or its physical binding is invalid")
 }
 
 fn path(value: &str) -> bool {
@@ -102,7 +112,10 @@ impl Plan {
             .parse::<Timestamp>()
             .map_err(|_| invalid())?;
         if plan.schema_version != 1
-            || plan.action != "program.install"
+            || !matches!(
+                plan.action.as_str(),
+                "program.install" | "program.update" | "program.remove"
+            )
             || !passport::stable_id(&plan.operation_id, "operation")
             || !passport::timestamp(&plan.created_at)
             || !passport::timestamp(&plan.expires_at)
@@ -116,7 +129,6 @@ impl Plan {
             || !valid_identity(&plan.state_parent_identity)
             || !valid_identity(&plan.target.identity)
             || !valid_identity(&plan.prefix.parent_identity)
-            || plan.prefix.expected_state != "missing"
             || [
                 &plan.component.archive_digest,
                 &plan.component.executable_digest,
@@ -127,6 +139,26 @@ impl Plan {
         {
             return Err(invalid());
         }
+        match (&plan.prefix.existing, plan.action.as_str()) {
+            (None, "program.install") if plan.prefix.expected_state == "missing" => (),
+            (Some(existing), "program.update" | "program.remove")
+                if plan.prefix.expected_state == "existing"
+                    && valid_identity(&existing.identity)
+                    && hash(&existing.preserved_digest)
+                    && hash(&existing.launch_digest)
+                    && existing
+                        .entry_point
+                        .strip_prefix("bin/")
+                        .is_some_and(|name| {
+                            !name.is_empty()
+                                && name.len() <= 128
+                                && name.bytes().all(|b| {
+                                    b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.')
+                                })
+                                && !matches!(name, "." | "..")
+                        }) => {}
+            _ => return Err(invalid()),
+        }
         plan.scope()?;
         let inner = &plan.provider_plan["plan"];
         if inner["operation_id"] != plan.operation_id
@@ -135,7 +167,7 @@ impl Plan {
             || inner["software_prefix"] != plan.prefix.path
             || inner["provider_version"] != plan.provider_version
             || inner["provider_release_digest"] != plan.component.executable_digest
-            || inner["operation"] != "software_install"
+            || inner["operation"] != plan.operation()?
         {
             return Err(invalid());
         }
@@ -157,13 +189,22 @@ impl Plan {
     pub fn request(&self, at: Timestamp) -> Result<Request> {
         Request::parse(
             &serde_json::to_vec(&json!({
-                "operation":"software_install", "operation_id":self.operation_id,
+                "operation":self.operation()?, "operation_id":self.operation_id,
                 "expires_at":self.expires_at,
                 "software_version":self.provider_plan["plan"]["software_version"],
             }))
             .map_err(|_| invalid())?,
             at,
         )
+    }
+
+    pub fn operation(&self) -> Result<&'static str> {
+        match self.action.as_str() {
+            "program.install" => Ok("software_install"),
+            "program.update" => Ok("software_update"),
+            "program.remove" => Ok("software_remove"),
+            _ => Err(invalid()),
+        }
     }
 
     pub fn value(&self) -> Result<Value> {

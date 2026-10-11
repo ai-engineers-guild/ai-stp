@@ -3,7 +3,8 @@
 Native preview of the ai-stp CLI. One Cargo package contains a headless library
 and the `ai-stp-v2` executable. The supported production executable is still
 `ai-stp`; the preview uses explicit isolated state. On Linux it can install a
-harness program into a new directory through an authenticated setup component.
+harness program into a new directory, update it and remove an exact version
+through an authenticated setup component.
 
 ## Preview distribution
 
@@ -75,8 +76,8 @@ The pin is a choice, not authentication or installation eligibility.
 
 The existing `provider` command group is the expert interface inside this CLI.
 No separate setup-system command is required for implemented read, preparation
-or fresh-program installation journeys. Configuration installation, existing
-program updates/removal, other-OS isolation, native self-update and the
+or program installation, update and removal journeys. Configuration installation,
+other-OS isolation, native self-update and the
 production switch remain C4/C6/C7 work.
 
 ## Contract
@@ -785,8 +786,51 @@ or unpublished operation. It records `cancelling` before discarding only its
 bound generated stage, then commits terminal `cancelled`. Repeating cancel or
 apply resumes interrupted cancellation. A moved/published root cannot be
 cancelled; its original apply must finish publication. Cancellation never removes
-the final program directory. Configuration replacement, program update/removal,
-active-agent handoff, other-OS isolation and production cutover remain separate.
+the final program directory.
+
+`program update plan` and `program remove plan` use the same explicit state,
+harness, target, scope and component version options. They require an existing
+physical prefix. Update accepts an exact `--software-version` or resolves the
+component's compiled pin. Removal requires `--software-version`; the active
+version is never inferred as deletion authority. Their matching `apply` command
+accepts only the original plan and its digest. Passing a plan to another verb,
+including installation cancellation, refuses.
+
+These plans bind the existing prefix identity and two independent inventories:
+the command's launch entries and all entries outside the selected version,
+its three launch entries and component bookkeeping. Regular file bytes and
+modes, directory modes and literal symlink targets are retained in the latter
+checksum; hardlinked files and unsupported filesystem objects refuse. Inspection
+is bounded to 65,536 entries, 8 GiB, depth 64 and five minutes. The component
+receives only that held prefix as a writable mount; the target remains read-only.
+Removal downloads no vendor artifact. Update uses the same held, authenticated
+artifact and exact payload verifier as fresh installation.
+
+The native journal records `applying` before invocation and `verified` only
+after independent readback. Update verifies the entire selected vendor payload,
+marker, manifest and final entry link. Removal verifies the selected version is
+absent: removing the active version removes its launch entries; removing an
+inactive version preserves them. Both verify the unrelated inventory and target
+are unchanged. They do not create configuration backups. A pending retry lets
+the component validate its own extraction/quarantine state before final native
+readback, rather than treating those temporary entries as unrelated files.
+
+A per-prefix process lock serializes invocation and verification within one
+native state. It releases after interruption; the component's durable writer
+admission remains authoritative across clients. The original apply resumes an
+admitted operation after expiry. A request never admitted by the component must
+still be unexpired; an expired request requires a new plan. Native intent alone
+does not extend component admission. There is no in-place cancellation command.
+Unrelated changes or a replaced directory refuse; they are not overwritten to
+make recovery pass. Terminal receipts replay without network or current-prefix
+access and remain historical evidence, not current installation verification.
+An external writer using another state can change the prefix after component
+completion; if that precedes native readback, the native operation refuses
+instead of claiming an independently verified result.
+
+Machine help marks all program plans as `plan` and apply/cancel as `apply` with
+`plan_digest` confirmation. Configuration replacement, active-agent handoff,
+other-OS isolation and production cutover remain separate.
 
 `program inspect --prefix --entry-point` reads the public providers' software
 layout at an explicit absolute prefix with an existing parent. The entry point
