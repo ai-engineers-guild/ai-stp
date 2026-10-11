@@ -95,6 +95,13 @@ This is protocol preparation, not configuration execution or production cutover.
 
 Execute the remaining integration in this order:
 
+The shared Python embedded producer now derives Codex skill invocation IDs from
+exact mapped files, with the same native corpus and a real Rust acquisition,
+SQLite and owned-authoring journey. This addresses the Codex skill defect in
+[#752](https://github.com/ai-engineers-guild/ai-stp/issues/752); other embedded
+harness/kind producers still require qualification. Retained definitions are
+not rewritten and both acquired verification flags remain false.
+
 1. Reconcile C3 business coverage alongside C4, including remaining harness
    formats, credential handling and native transformations. Correct the embedded
    source producer's missing byte-derived native identities
