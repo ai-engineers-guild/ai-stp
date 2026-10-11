@@ -1,6 +1,6 @@
 ---
 description: "Classification of specs, docs, and tests against implemented non-corporate code."
-last_verified: "2026-10-08"
+last_verified: "2026-10-11"
 ---
 
 # Implementation canon
@@ -43,7 +43,7 @@ Test tags used in later rows: **keep** (real I/O against live modules), **replac
 | CLI expert registry | `apps/cli/src/ai_stp_cli/commands/`, `registry.py` | Lazy command-family loading; machine help defines the registered leaves |
 | Rust CLI v2 | `apps/cli-v2`; ADR-0227; frozen C0 command ledger | C1–C2 native preview: metadata, explicit configuration/snapshot reads, bounded project evidence, public catalog/cache, declared environment prerequisites and native provenance verification. Its README owns the preview contract and its registry owns command help. Python remains the production CLI/state writer; ordered work belongs only to the roadmap |
 | Local registry / passports | `apps/cli/src/ai_stp_cli/local/`, `packages/passports` | code-backed |
-| Providers / install | `apps/cli/src/ai_stp_cli/provider/`, `provider-kit/v3` | kit `0.2.15`; code-backed |
+| Providers / install | `apps/cli/src/ai_stp_cli/provider/`, `provider-kit/v3` | kit `0.2.16`; explicit forward-recovery reader admission is code-backed; provider execution remains pending |
 | API `/v1` | `apps/api/src/ai_stp_api/slices/`, `packages/contracts`, `schemas/v1` | code-backed |
 | Platform | `apps/platform/src/ai_stp_platform/` (content, legal, official_upstream, queue, safety, seo, storage) | code-backed |
 | Web | `apps/web/` | code-backed |

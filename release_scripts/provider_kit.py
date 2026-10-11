@@ -58,7 +58,9 @@ KIT_IDENTITY_SCHEMA: Final[str] = "ai-stp-provider-kit-identity/1"
 #: and ADR-0052 always documented — the parser accepted it while the schema
 #: refused it, so the schema now names what the parser reads (ADR-0125,
 #: reader first, again).
-KIT_VERSION: Final[str] = "0.2.15"
+#: 0.2.16 admits explicit forward configuration recovery before providers
+#: advertise it. Omitted recovery mode retains the existing capture contract.
+KIT_VERSION: Final[str] = "0.2.16"
 
 #: The kit README. It documents the contract rather than being part of it, so
 #: it is rendered here and compared byte for byte but stays outside

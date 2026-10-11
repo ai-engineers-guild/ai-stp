@@ -570,7 +570,7 @@ deadline/output bounds also cover this path. CLI maintainers own updates and
 advisory checks; removing target handle transfer removes this dependency.
 
 `provider plan` takes the same explicit target/provider coordinates plus a bundle
-file and a closed request JSON of at most 8 KiB. The request fields are
+file and a closed request JSON of at most 8 KiB. The required request fields are
 `operation` (`install` or `replace`), `operation_id` (an `operation_` ULID),
 `expires_at` (UTC with milliseconds, strictly future and at most fifteen minutes
 away), and `bundle`. That binding contains exactly `bundle_format`
@@ -589,6 +589,15 @@ scope/profile, operation ID, expiry and platform. Unknown plan fields, implicit
 native capture, changed echoes or a forged digest refuse. Effects must be
 nonempty bounded strings and agree between artifact and response. Stable
 provider refusals retain only their bounded reason code, excluding raw detail.
+
+An optional `recovery_mode: "forward"` requests configuration recovery without
+automatic old-state backups. It requires the authenticated component to declare
+`recovery_mode` in `plan_request_fields`; otherwise the CLI refuses before
+sending the flag. The exact plan must echo the requested mode and retain null
+backup and restore identities, with no native capture. A mode introduced by the
+provider without a request is also refused. Components 0.0.89 do not implement
+this capability. This prepares the compatible reader and does not expose
+configuration apply or establish interrupted recovery.
 
 The external plan digest uses [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785)
 over the original wire strings in domain `ai-stp:provider-plan:v3`. It preserves

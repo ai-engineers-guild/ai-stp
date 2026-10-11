@@ -25,6 +25,7 @@ pub(super) fn observe(
     let trust = trust::refresh_at(&state)?;
     let artifact = artifact::fetch(context.harness, context.version, platform()?, &trust)?;
     let (info, mut report) = runtime.information(&artifact)?;
+    request.check_provider(&info)?;
     if !info.supports_target(context.scope) {
         return Err(Failure::precondition(
             "the observed provider does not support this target scope",

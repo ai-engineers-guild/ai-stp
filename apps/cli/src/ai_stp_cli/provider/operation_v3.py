@@ -160,6 +160,7 @@ def plan_operation_arguments(
     accepted_request_fields: frozenset[str] = frozenset(),
     capture_mode: str | None = None,
     instruction_section: str | None = None,
+    recovery_mode: str | None = None,
 ) -> tuple[str, ...]:
     """Build the `plan-operation` argv once, for every caller that needs one.
 
@@ -177,6 +178,15 @@ def plan_operation_arguments(
     wrong pair: getting it wrong raises here rather than at a provider.
     """
     software = operation in SOFTWARE_OPERATIONS
+    _check_recovery_request(
+        recovery_mode,
+        operation=operation,
+        backup_ref=backup_ref,
+        capture_mode=capture_mode,
+        bundle=bundle,
+    )
+    if recovery_mode is not None and "recovery_mode" not in accepted_request_fields:
+        raise _refused("this provider does not declare forward configuration recovery")
     if software and prefix is None:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
@@ -203,6 +213,8 @@ def plan_operation_arguments(
         # Absolute, because the provider resolves it against nothing: a relative
         # prefix would land wherever the provider happened to be started from.
         arguments = (*arguments, "--prefix", str(prefix.resolve()))
+    if recovery_mode is not None:
+        arguments = (*arguments, "--recovery-mode", recovery_mode)
     if backup_ref is not None:
         arguments = (*arguments, "--backup-ref", backup_ref)
     if capture_mode is not None:
@@ -356,6 +368,26 @@ def profile_digest(capabilities: protocol_v3.ProviderCapabilities, target_scope:
     raise _refused("the provider declares no projection profile for this scope", scope=target_scope)
 
 
+def _check_recovery_request(
+    recovery_mode: str | None,
+    *,
+    operation: protocol_v3.Operation,
+    backup_ref: str | None,
+    capture_mode: str | None,
+    bundle: bundle_protocol.Binding | None,
+) -> None:
+    if recovery_mode is not None and (
+        recovery_mode != "forward"
+        or operation not in {protocol_v3.Operation.INSTALL, protocol_v3.Operation.REPLACE}
+        or backup_ref is not None
+        or capture_mode is not None
+        or bundle is None
+    ):
+        raise _refused(
+            "forward recovery requires a bundle install or replace without backup or capture"
+        )
+
+
 def require_native_capture(
     artifact: dict[str, JsonValue], *, operation: protocol_v3.Operation, capture_mode: str | None
 ) -> None:
@@ -429,6 +461,7 @@ def require_plan(
     target_scope: str = "global",
     surviving: tuple[Surviving, ...] | None = None,
     capture_mode: str | None = None,
+    recovery_mode: str | None = None,
 ) -> ProviderPlan:
     """Require the provider's exact canonical plan and its redundant echoes."""
     _raise_invocation_error(answer)
@@ -450,6 +483,21 @@ def require_plan(
     if not isinstance(raw, dict):
         raise _refused("the provider did not return a v3 plan artifact")
     artifact = cast(dict[str, JsonValue], raw)
+    _check_recovery_request(
+        recovery_mode,
+        operation=operation,
+        backup_ref=backup_ref,
+        capture_mode=capture_mode,
+        bundle=bundle,
+    )
+    if artifact.get("recovery_mode") != recovery_mode or (
+        recovery_mode is not None
+        and (
+            "recovery_mode" not in capabilities.plan_request_fields
+            or artifact.get("native_capture") is not None
+        )
+    ):
+        raise _refused("the provider plan does not bind the requested configuration recovery mode")
     digest = str(answer.get("plan_digest", ""))
     if not is_digest(digest) or digest_canonical(protocol_v3.PLAN_DOMAIN, artifact) != digest:
         raise _refused("the provider plan digest does not bind its exact artifact")

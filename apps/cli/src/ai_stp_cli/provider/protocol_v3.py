@@ -81,7 +81,7 @@ OPTIONAL_INFO_FIELDS: Final[frozenset[str]] = frozenset(
 #: before any provider may declare it. `--instruction-section` is sent only
 #: to a provider that lists both the operation and this field (`ADR-0125`).
 PLAN_REQUEST_FIELDS: Final[frozenset[str]] = frozenset(
-    {"target_scope", "end_state", "capture_mode", "instruction_section"}
+    {"target_scope", "end_state", "capture_mode", "instruction_section", "recovery_mode"}
 )
 
 #: Request-side arguments a provider says it accepts on `status`, by the same
