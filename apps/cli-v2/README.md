@@ -577,9 +577,9 @@ ownership through the shared v3 schema. The native reader checks sorted unique
 paths and keys, bounded relative paths, parser/extension agreement and equality
 with clean `written_paths`. Omission or null means unobserved ownership, not an
 empty target. A drifted record remains a record, not verified current contents.
-Kit 0.2.17 must reach a released consumer before a component emits this member;
-the current 0.0.89 components do not emit it. This read contract does not enable
-configuration writes.
+The released Python 0.0.45 reader carries kit 0.2.17, which admits this member
+before its coordinated component rollout. Components before 0.0.90 do not emit
+it. This read contract does not enable configuration writes.
 The provider's `target_digest` covers owned bytes: an unmanaged nonempty target
 can carry the same digest as an empty target. It is not a whole-directory hash.
 The report retains the exact response digest and observation time. It creates
@@ -621,9 +621,12 @@ automatic old-state backups. It requires the authenticated component to declare
 `recovery_mode` in `plan_request_fields`; otherwise the CLI refuses before
 sending the flag. The exact plan must echo the requested mode and retain null
 backup and restore identities, with no native capture. A mode introduced by the
-provider without a request is also refused. Components 0.0.89 do not implement
-this capability. This prepares the compatible reader and does not expose
-configuration apply or establish interrupted recovery.
+provider without a request is also refused. Components before 0.0.90 do not
+implement this capability. The component's forward transaction retains desired
+bytes and the original operation; its release qualification belongs to
+[#764](https://github.com/ai-engineers-guild/ai-stp/issues/764). The native CLI
+still exposes only configuration observation and planning. It does not expose
+configuration apply or claim a complete consumer recovery journey.
 
 The external plan digest uses [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785)
 over the original wire strings in domain `ai-stp:provider-plan:v3`. It preserves
@@ -1918,9 +1921,9 @@ Each assembled file retains `contribution.parser_id`, `ownership_key` and
 `host_digest` (explicit null for observed absence) in its manifest record.
 Preserved host fields do not become component ownership. The provider planning
 adapter refuses these packages without explicit forward recovery; the observed
-provider must declare that mode. Published providers 0.0.89 cannot execute this
-path. The corresponding component reader must ship before a native writer uses
-it; compilation alone does not establish installation readiness.
+provider must declare that mode. This requires component 0.0.90 or newer; an
+older managed or explicit version refuses before invocation. Component release
+acceptance and native configuration execution remain separate from compilation.
 Native external references stay unresolved. Provider execution must revalidate
 host observations. Compilation does not read target files or authorize installation. Bundle limits
 are 2,000 files, 4 MiB per file and 64 MiB including package metadata; selected
