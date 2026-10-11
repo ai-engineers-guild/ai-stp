@@ -146,3 +146,18 @@ it("renders the sortable table view instead of area cards when view=table", asyn
   await user.click(nameButton);
   expect(screen.getByRole("dialog")).toBeVisible();
 });
+
+it("opens the standard technology action menu from a table row", async () => {
+  const user = userEvent.setup();
+  renderLandscape(landscape, [], { view: "table" });
+  const table = screen.getByRole("table", { name: "Technology summary" });
+  const [more] = within(table).getAllByRole("button", { name: "More actions" });
+  if (!more) throw new Error("More actions button is missing");
+  await user.click(more);
+  expect(await screen.findByRole("menuitem", { name: "Open FastAPI" })).toHaveAttribute(
+    "href",
+    "/corporate/technologies/technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+  );
+  await user.click(screen.getByRole("menuitem", { name: "Preview" }));
+  expect(screen.getByRole("dialog")).toBeVisible();
+});

@@ -23,7 +23,7 @@ function administrationEntries(
   item: (entry: CorporateNavPage) => CorporateNavItem,
 ): CorporateRailEntry[] {
   // The server list covers every corporate context; this rail owns only the
-  // administration pages plus the explicit landscape cross-link below.
+  // administration pages.
   const administration = allowed.filter((entry) => entry.context === "administration");
   const children = new Map<NonNullable<CorporateNavPage["group"]>, CorporateNavItem[]>();
   for (const entry of administration) {
@@ -32,10 +32,6 @@ function administrationEntries(
     bucket.push(item(entry));
     children.set(entry.group, bucket);
   }
-  // The technology landscape directory is also reachable from Reference data.
-  children
-    .get("referenceData")
-    ?.push(...allowed.filter((entry) => entry.id === "landscape").map(item));
   const entries: CorporateRailEntry[] = [];
   const emitted = new Set<string>();
   for (const entry of administration) {

@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import en from "../../messages/en.json";
 import ru from "../../messages/ru.json";
+import { CORPORATE_NAV_PAGES } from "../../src/lib/corporate-navigation-pages";
 
 const SRC_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../src");
 
@@ -38,6 +39,49 @@ function walkSource(dir: string): string[] {
   });
 }
 
+function walkFiles(dir: string): Array<{ file: string; text: string }> {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === "stories" || entry.name === "generated") return [];
+      return walkFiles(full);
+    }
+    if (!/\.(ts|tsx)$/.test(entry.name)) return [];
+    return [{ file: full, text: readFileSync(full, "utf8") }];
+  });
+}
+
+const TRANSLATOR_BINDING =
+  /\b(\w+)\s*=\s*(?:await\s+)?(?:useTranslations|getTranslations)\(\s*["']([\w.]*)["']\s*\)/g;
+
+function usedKeys(file: string, text: string, known: Set<string>): string[] {
+  const namespaces = new Map<string, Set<string>>();
+  for (const match of text.matchAll(TRANSLATOR_BINDING)) {
+    const [, identifier, namespace] = match;
+    if (identifier === undefined || namespace === undefined) continue;
+    const bucket = namespaces.get(identifier) ?? new Set<string>();
+    bucket.add(namespace);
+    namespaces.set(identifier, bucket);
+  }
+  const missing: string[] = [];
+  for (const [identifier, bucket] of namespaces) {
+    // A helper may receive the translator as a parameter (t: (key) => string);
+    // its namespace is unknowable statically, so only require that the key
+    // exists somewhere in the catalog rather than under a bound namespace.
+    const param = new RegExp(`[({,]\\s*${identifier}\\s*[,:)}]`).test(text);
+    const calls = new RegExp(`\\b${identifier}\\(\\s*["']([\\w.]+)["']`, "g");
+    for (const match of text.matchAll(calls)) {
+      const leaf = match[1];
+      if (leaf === undefined) continue;
+      const resolved = param
+        ? [...known].some((key) => key === leaf || key.endsWith(`.${leaf}`))
+        : [...bucket].some((ns) => known.has(ns ? `${ns}.${leaf}` : leaf));
+      if (!resolved) missing.push(`${file}: ${identifier}("${leaf}")`);
+    }
+  }
+  return missing;
+}
+
 describe("i18n parity (REQ-2203, REQ-2311)", () => {
   const enEntries = flatten(en);
   const ruEntries = flatten(ru);
@@ -61,6 +105,25 @@ describe("i18n parity (REQ-2203, REQ-2311)", () => {
       const leaf = key.split(".").at(-1) ?? key;
       return !source.includes(`"${leaf}"`) && !source.includes(`'${leaf}'`);
     });
+    expect(missing).toEqual([]);
+  });
+
+  it("every literal key used through a bound translator exists", () => {
+    const known = new Set(enKeys);
+    const missing = walkFiles(SRC_ROOT).flatMap(({ file, text }) => usedKeys(file, text, known));
+    expect(missing).toEqual([]);
+  });
+
+  it("every corporate rail label resolves in the hub namespace", () => {
+    const hubKeys = new Set(
+      enKeys.filter((key) => key.startsWith("hub.")).map((key) => key.slice(4)),
+    );
+    const labels = CORPORATE_NAV_PAGES.flatMap((page) =>
+      [page.label, page.rootLabel, page.group].filter(
+        (label): label is string => typeof label === "string",
+      ),
+    );
+    const missing = labels.filter((label) => !hubKeys.has(label));
     expect(missing).toEqual([]);
   });
 });

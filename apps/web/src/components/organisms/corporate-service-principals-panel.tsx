@@ -45,6 +45,7 @@ export function CorporateServicePrincipalsPanel({
   capabilities: readonly string[];
   labels: {
     title: string;
+    name: string;
     role: string;
     scope: string;
     organization: string;
@@ -110,7 +111,7 @@ export function CorporateServicePrincipalsPanel({
           }}
         >
           <div className="space-y-1.5">
-            <Label htmlFor="principal-name">{labels.title}</Label>
+            <Label htmlFor="principal-name">{labels.name}</Label>
             <Input
               id="principal-name"
               required

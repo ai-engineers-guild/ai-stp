@@ -5,12 +5,8 @@ import { Badge } from "@/components/atoms/badge";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { TechnologyActivityPolicy } from "@/components/organisms/corporate-governance-controls";
-import { CorporateTelemetryPolicyControls } from "@/components/organisms/corporate-telemetry-policy-controls";
-import { ApiError } from "@/lib/api/errors";
-import { apiRequest } from "@/lib/api/http";
 import { readCorporateContext } from "@/lib/api/corporate";
 import { readTechnologyCapabilities, readTechnologyLandscapePolicy } from "@/lib/api/technology";
-import type { CorporateTelemetryPolicyView } from "@/lib/api/generated/types.gen";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 import { Link } from "@/lib/i18n/navigation";
@@ -34,13 +30,10 @@ export default async function CorporateSettingsPage({
   const canManageLandscape =
     permissions.capabilities.includes("landscape.manage") &&
     permissions.capabilities.includes("landscape.read");
-  const canManageTelemetry =
-    context.capabilities.includes("telemetry.read") &&
-    context.capabilities.includes("telemetry.manage");
   const canManageGit = context.capabilities.some((permission) =>
     permission.startsWith("connector."),
   );
-  if (!canManageLandscape && !canManageTelemetry && !canManageGit)
+  if (!canManageLandscape && !canManageGit)
     return (
       <StatePanel kind="error" title={t("organizationSettings")} description={t("forbidden")} />
     );
@@ -52,19 +45,6 @@ export default async function CorporateSettingsPage({
       landscapePolicy = await readTechnologyLandscapePolicy(session, organizationId);
     } catch {
       landscapeUnavailable = true;
-    }
-  }
-
-  let telemetryPolicy: CorporateTelemetryPolicyView | null = null;
-  let telemetryUnavailable = false;
-  if (canManageTelemetry) {
-    try {
-      telemetryPolicy = await apiRequest<CorporateTelemetryPolicyView>(
-        `/v1/corporate/organizations/${organizationId}/telemetry/policy`,
-        { sessionToken: session },
-      );
-    } catch (error) {
-      if (!(error instanceof ApiError && error.status === 404)) telemetryUnavailable = true;
     }
   }
   const authority = {
@@ -84,20 +64,6 @@ export default async function CorporateSettingsPage({
       </header>
       <HistoryBackButton label={corporate("backToWorkspace")} fallback="/corporate/admin/members" />
 
-      {canManageTelemetry &&
-        (telemetryUnavailable ? (
-          <StatePanel
-            kind="error"
-            title={t("telemetryPolicy")}
-            description={t("telemetryUnavailable")}
-          />
-        ) : (
-          <CorporateTelemetryPolicyControls
-            policy={telemetryPolicy}
-            {...authority}
-            authorizationRevision={context.organization.authorization_revision}
-          />
-        ))}
       {canManageLandscape &&
         (landscapeUnavailable || !landscapePolicy ? (
           <StatePanel kind="error" title={t("activityPolicy")} description={t("unavailable")} />

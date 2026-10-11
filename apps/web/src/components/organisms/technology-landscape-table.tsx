@@ -1,15 +1,38 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
+import { MenuItem } from "@/components/atoms/menu";
 import { Select } from "@/components/atoms/select";
 import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
 import { PagePager } from "@/components/molecules/page-pager";
+import { EntityDetailMenu } from "@/components/organisms/entity-detail-menu";
+import type { TechnologyLandscapeRow } from "@/lib/api/generated/types.gen";
 import { Icon } from "@/theme";
 import { versions, type LandscapeState } from "./technology-landscape-state";
 
 export function TechnologyLandscapeTable({ state }: { state: LandscapeState }) {
+  const h = useTranslations("hub");
   const { t, w, setActive, sort, setSort, classification, shown, landscape } = state;
+  const rowMenu = (row: TechnologyLandscapeRow) => (
+    <EntityDetailMenu
+      moreLabel={h("moreActions")}
+      openLabel={w("openTechnology", { name: row.technology.name })}
+      openHref={`/corporate/technologies/${encodeURIComponent(row.technology.technology_id)}`}
+      adminItems={
+        <MenuItem
+          onSelect={() => {
+            setActive(row);
+          }}
+        >
+          <Icon name="eye" size="sm" />
+          {w("preview")}
+        </MenuItem>
+      }
+    />
+  );
   return (
     <section className="technology-summary">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -99,18 +122,7 @@ export function TechnologyLandscapeTable({ state }: { state: LandscapeState }) {
                         : w("standard")}
                   </Badge>
                 </Td>
-                <Td>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={w("openTechnology", { name: row.technology.name })}
-                    onClick={() => {
-                      setActive(row);
-                    }}
-                  >
-                    <Icon name="more" size="sm" />
-                  </Button>
-                </Td>
+                <Td>{rowMenu(row)}</Td>
               </Tr>
             ))}
           </TBody>

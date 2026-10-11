@@ -81,6 +81,7 @@ export default async function CorporateSecurityPage({
           capabilities={context.capabilities}
           labels={{
             title: corporate("servicePrincipals"),
+            name: corporate("name"),
             role: corporate("role"),
             scope: corporate("scope"),
             organization: corporate("organization"),
