@@ -16,7 +16,7 @@ test("member administration filters, selection export, invite and bulk history",
   page.on("console", (message) => {
     if (message.type() === "error") errors.push(`${message.text()} ${message.location().url}`);
   });
-  const root = "/en/corporate/organization/admins";
+  const root = "/en/corporate/admin/members";
   const favicon = await page.request.get("/favicon.ico");
   expect(favicon.status()).toBe(200);
   expect(favicon.headers()["content-type"]).toContain("image/png");
@@ -29,13 +29,6 @@ test("member administration filters, selection export, invite and bulk history",
   await mkdir(dir, { recursive: true });
   await page.locator('[data-ui="site-header"]').getByRole("button", { name: /theme/i }).click();
   await expect(page.locator("html")).toHaveClass(/dark/);
-  const primary = await main
-    .getByRole("button", { name: "Add member", exact: true })
-    .evaluate((node) => getComputedStyle(node).backgroundColor);
-  await expect(main.getByRole("link", { name: "Members", exact: true })).toHaveCSS(
-    "border-bottom-color",
-    primary,
-  );
   await page.screenshot({ path: path.join(dir, `members-reference-${info.project.name}.png`) });
   await main.getByRole("button", { name: "Page 2", exact: true }).click();
   await expect(page).toHaveURL(/page=2/);
@@ -54,7 +47,7 @@ test("member administration filters, selection export, invite and bulk history",
   expect(csv).not.toContain("#token");
   await main.getByRole("searchbox").clear();
   await main.getByRole("button", { name: "Clear selection", exact: true }).click();
-  await main.getByRole("link", { name: "Invitations", exact: true }).click();
+  await page.goto("/en/corporate/admin/invitations");
   await main.getByRole("button", { name: "Invite member", exact: true }).click();
   let dialog = page.getByRole("dialog", { name: "Invite member", exact: true });
   await expect(dialog.locator("#invite-email")).toBeFocused();
@@ -111,10 +104,8 @@ test("member administration filters, selection export, invite and bulk history",
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.keyboard.press("Escape");
   await expect(main.getByRole("button", { name: "Invite member", exact: true })).toBeFocused();
-  await page.goto("/ru/corporate/organization/admins");
-  await expect(
-    page.getByRole("heading", { name: "Участники и приглашения", exact: true }),
-  ).toBeVisible();
+  await page.goto("/ru/corporate/admin/members");
+  await expect(page.getByRole("heading", { name: "Участники", exact: true })).toBeVisible();
   await expect(page.locator("#locale-select")).toHaveText("en");
   await expect(page.locator("#main-content tbody")).toContainText(/назад|вчера|сегодня/);
   await expect(page.locator("#main-content tbody")).not.toContainText(/ago|this minute/);

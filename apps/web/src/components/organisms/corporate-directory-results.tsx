@@ -1,7 +1,7 @@
 "use client";
 
 import { Select } from "@/components/atoms/select";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { CorporateDirectoryCard } from "@/components/organisms/corporate-directory-card";
@@ -235,6 +235,7 @@ function useDirectoryResultControls({
   const [catalogSelected, setCatalogSelected] = useState(initialCatalogSelected);
   const router = useRouter();
   const pathname = usePathname();
+  const pendingUrl = useRef<{ url: URL; navigate: boolean } | null>(null);
 
   useEffect(() => {
     function restore() {
@@ -254,21 +255,36 @@ function useDirectoryResultControls({
     };
   }, [catalogFacets, filters, initialCatalogSelected, resource]);
 
-  function persist(name: string, values: string[]) {
-    const url = new URL(window.location.href);
-    url.searchParams.delete("status");
-    url.searchParams.delete("state");
-    url.searchParams.delete(name);
-    values.forEach((value) => {
-      url.searchParams.append(name, value);
+  // Query mutations accumulate on one pending URL and flush once per task so a
+  // multi-facet apply (e.g. Reset all + Apply) cannot overwrite earlier edits.
+  function mutateParams(mutate: (params: URLSearchParams) => void, navigate: boolean) {
+    const pending = pendingUrl.current ?? { url: new URL(window.location.href), navigate: false };
+    pendingUrl.current = pending;
+    mutate(pending.url.searchParams);
+    pending.navigate = pending.navigate || navigate;
+    setReturnFilters(pending.url.searchParams.toString());
+    queueMicrotask(() => {
+      const flushed = pendingUrl.current;
+      pendingUrl.current = null;
+      if (!flushed) return;
+      if (flushed.navigate) router.push(`${pathname}${flushed.url.search}`);
+      else window.history.replaceState(window.history.state, "", flushed.url);
     });
-    if (serverPaginated && name !== "view") {
-      url.searchParams.set("page", "1");
-      router.push(`${pathname}${url.search}`);
-    } else {
-      window.history.replaceState(window.history.state, "", url);
-    }
-    setReturnFilters(url.searchParams.toString());
+  }
+
+  function persist(name: string, values: string[]) {
+    mutateParams(
+      (params) => {
+        params.delete("status");
+        params.delete("state");
+        params.delete(name);
+        values.forEach((value) => {
+          params.append(name, value);
+        });
+        if (serverPaginated && name !== "view") params.set("page", "1");
+      },
+      serverPaginated && name !== "view",
+    );
   }
 
   function changeQuery(value: string) {
@@ -297,23 +313,21 @@ function useDirectoryResultControls({
   }
 
   function changePageSize(value: number) {
-    const url = new URL(window.location.href);
-    url.searchParams.set("page_size", String(value));
-    url.searchParams.set("page", "1");
-    setReturnFilters(url.searchParams.toString());
-    if (serverPaginated) router.push(`${pathname}${url.search}`);
+    mutateParams((params) => {
+      params.set("page_size", String(value));
+      params.set("page", "1");
+    }, serverPaginated);
   }
 
   function applyCatalogFacets(values: Partial<Record<CorporateCatalogFacet, string[]>>) {
-    const url = new URL(window.location.href);
-    url.searchParams.set("page", "1");
-    for (const facet of catalogFacets) {
-      url.searchParams.delete(facet.key);
-      for (const value of values[facet.key] ?? []) url.searchParams.append(facet.key, value);
-    }
+    mutateParams((params) => {
+      params.set("page", "1");
+      for (const facet of catalogFacets) {
+        params.delete(facet.key);
+        for (const value of values[facet.key] ?? []) params.append(facet.key, value);
+      }
+    }, catalogFacets.length > 0);
     setCatalogSelected(values);
-    setReturnFilters(url.searchParams.toString());
-    router.push(`${pathname}${url.search ? url.search : ""}`);
   }
 
   return {

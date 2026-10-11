@@ -31,6 +31,7 @@ from ai_stp_platform.technology_models import (
     EmployeeTechnology,
     ProjectTechnologyRelation,
     Technology,
+    TechnologyArea,
     TechnologyCategory,
     TechnologyClassification,
     TechnologyTeamResponsibility,
@@ -61,6 +62,7 @@ def select_directory(
                 not query.category_ids
                 or any(ref.id in query.category_ids for ref in item.categories)
             )
+            and (not query.area_ids or any(ref.id in query.area_ids for ref in item.areas))
             and (
                 not query.job_title_ids
                 or (item.job_title is not None and item.job_title.id in query.job_title_ids)
@@ -324,6 +326,23 @@ async def read_directory(
                     nodes[category.id] = CorporateDirectoryReference(
                         kind="category", id=category.id, name=category.name
                     )
+            category_area = {
+                category.id: category.area_id
+                for category in categories
+                if category.area_id is not None
+            }
+            for area in (
+                await db.scalars(
+                    select(TechnologyArea).where(
+                        TechnologyArea.organization_id == organization_id,
+                        TechnologyArea.state == "active",
+                    )
+                )
+            ).all():
+                if await permitted("area.read", "organization", organization_id):
+                    nodes[area.id] = CorporateDirectoryReference(
+                        kind="area", id=area.id, name=area.name
+                    )
             classifications = (
                 await db.scalars(
                     select(TechnologyClassification).where(
@@ -361,6 +380,14 @@ async def read_directory(
                                 if relation.technology_id == technology.id
                             }
                         ),
+                        areas=references(
+                            {
+                                category_area[relation.category_id]
+                                for relation in classifications
+                                if relation.technology_id == technology.id
+                                and relation.category_id in category_area
+                            }
+                        ),
                         available_actions=await available_actions("technology", technology.id),
                     )
                 )
@@ -382,6 +409,7 @@ async def read_directory(
                     technologies=extended_facet("technologies"),
                     projects=extended_facet("projects"),
                     categories=extended_facet("categories"),
+                    areas=extended_facet("areas"),
                     job_titles=sorted(
                         job_title_refs.values(), key=lambda ref: (ref.name.casefold(), ref.id)
                     ),

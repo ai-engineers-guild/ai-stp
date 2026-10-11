@@ -9,12 +9,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_contracts.technology import (
+    TechnologyDetectedCoordinate,
     TechnologyEvidence,
     TechnologyObservation,
     TechnologyScanHandoff,
     TechnologyUnmappedCoordinate,
     TechnologyUsageFact,
 )
+from ai_stp_platform.technology_findings import declared_package_dirs, lock_only_transitive
 from ai_stp_platform.technology_models import TechnologyCoordinateMapping
 from ai_stp_sources import tech_detect
 
@@ -132,6 +134,7 @@ async def detection_handoff(
     coordinate; an ambiguous or absent mapping keeps the finding in
     ``unmapped_coordinates`` for review rather than guessing an identity.
     """
+    detections = tuple(detections)
     mappings = await db.scalars(
         select(TechnologyCoordinateMapping).where(
             TechnologyCoordinateMapping.organization_id == organization_id,
@@ -145,7 +148,17 @@ async def detection_handoff(
     detector = f"repository-content-v{tech_detect.DETECTOR_VERSION}"
     grouped: dict[tuple[str, tech_detect.UsageContext], _Slot] = {}
     unmapped: dict[tuple[str, str], tech_detect.Detection] = {}
+    # A lock row restating nothing declared is resolver output: it belongs in
+    # the raw inventory (`coordinates`) but not in the org's review queue,
+    # where it would ask a human to map a transitive dependency.
+    declared = declared_package_dirs(
+        (item.kind, item.coordinate, item.traces) for item in detections
+    )
     for detection in detections:
+        if detection.kind == "package" and lock_only_transitive(
+            detection.coordinate, detection.traces, declared
+        ):
+            continue
         technology_id = snapshot.resolve(detection.kind, detection.coordinate)
         if technology_id is None:
             if _COORDINATE.fullmatch(detection.coordinate):
@@ -179,7 +192,7 @@ async def detection_handoff(
         project_id=project_id,
         scan_id=scan_id,
         scope=f"{provider}/{provider_project_id}",
-        complete=complete,
+        complete=complete and len(detections) <= 4096 and len(unmapped) <= 512,
         detector_version=detector,
         mapping_version=mapping_version,
         observations=[
@@ -194,12 +207,38 @@ async def detection_handoff(
             )
             for (technology_id, context), slot in sorted(grouped.items())
         ],
+        coordinates=[
+            TechnologyDetectedCoordinate(
+                kind=item.kind,
+                coordinate=item.coordinate,
+                context=item.context,
+                technology_id=snapshot.resolve(item.kind, item.coordinate),
+                version=item.version,
+                version_kind=item.version_kind,
+                evidence=[
+                    TechnologyEvidence(
+                        source=trace.source,
+                        path=trace.path,
+                        reference=trace.reference,
+                        observed_at=observed_at,
+                        source_revision=head,
+                        confidence=trace.confidence,
+                        detector_version=detector,
+                        mapping_version=mapping_version,
+                    )
+                    for trace in item.traces[:8]
+                ],
+            )
+            for item in detections
+            if _COORDINATE.fullmatch(item.coordinate)
+        ][:4096],
         unmapped_coordinates=[
             TechnologyUnmappedCoordinate(
                 kind=detection.kind,
                 coordinate=detection.coordinate,
                 context=detection.context,
                 version=detection.version,
+                version_kind=detection.version_kind,
                 evidence=[
                     TechnologyEvidence(
                         source=trace.source,

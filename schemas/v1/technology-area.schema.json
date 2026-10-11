@@ -1,0 +1,65 @@
+{
+  "$id": "urn:ai-stp:schema:v1:technology-area",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "area_id": {
+      "pattern": "^area_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Area Id",
+      "type": "string"
+    },
+    "description": {
+      "default": "",
+      "maxLength": 2000,
+      "title": "Description",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "provenance": {
+      "title": "Provenance",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "state": {
+      "anyOf": [
+        {
+          "enum": [
+            "draft",
+            "active",
+            "archived"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "State"
+    }
+  },
+  "required": [
+    "area_id",
+    "description",
+    "name",
+    "organization_id",
+    "provenance",
+    "revision"
+  ],
+  "title": "AreaView",
+  "type": "object"
+}

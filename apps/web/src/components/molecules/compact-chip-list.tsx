@@ -14,17 +14,19 @@ export function CompactChipList({
   variant = "outline",
   className,
   hrefForValue,
+  limit = VISIBLE_LIMIT,
 }: {
   values: readonly string[];
   label: string;
   variant?: "default" | "secondary" | "outline" | "success" | "warning" | "destructive";
   className?: string;
   hrefForValue?: (value: string) => string | undefined;
+  limit?: number | undefined;
 }) {
   const unique = [...new Set(values)].filter(Boolean);
   if (unique.length === 0) return null;
-  const visible = unique.slice(0, VISIBLE_LIMIT);
-  const hidden = unique.slice(VISIBLE_LIMIT);
+  const visible = unique.slice(0, limit);
+  const hidden = unique.slice(limit);
 
   return (
     <div className={cn("flex min-w-0 flex-wrap items-center gap-1", className)} aria-label={label}>

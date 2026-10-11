@@ -951,6 +951,10 @@ export type CategoryView = {
    */
   description: string;
   /**
+   * Icon
+   */
+  icon: string | null;
+  /**
    * Name
    */
   name: string;
@@ -2250,6 +2254,53 @@ export type CorporateAuditExport = {
 };
 
 /**
+ * CorporateAuditExportQuery
+ *
+ * Journal export shares the list filters; one dump may return up to 10 000 rows.
+ */
+export type CorporateAuditExportQuery = {
+  /**
+   * Action
+   */
+  action?: string | null;
+  /**
+   * Actor Account Id
+   */
+  actor_account_id?: string | null;
+  before_created_at?: Timestamp | null;
+  /**
+   * Before Id
+   */
+  before_id?: number | null;
+  created_from?: Timestamp | null;
+  created_to?: Timestamp | null;
+  /**
+   * Limit
+   */
+  limit?: number;
+  /**
+   * Offset
+   */
+  offset?: number;
+  /**
+   * Outcome
+   */
+  outcome?: "succeeded" | "denied" | "failed" | null;
+  /**
+   * Q
+   */
+  q?: string | null;
+  /**
+   * Target Id
+   */
+  target_id?: string | null;
+  /**
+   * Target Table
+   */
+  target_table?: string | null;
+};
+
+/**
  * CorporateAuditList
  */
 export type CorporateAuditList = {
@@ -2266,6 +2317,10 @@ export type CorporateAuditList = {
    * Schema Version
    */
   schema_version: 1;
+  /**
+   * Total
+   */
+  total: number;
   [key: string]: unknown;
 };
 
@@ -2289,9 +2344,29 @@ export type CorporateAuditQuery = {
   created_from?: Timestamp | null;
   created_to?: Timestamp | null;
   /**
+   * Limit
+   */
+  limit?: number;
+  /**
+   * Offset
+   */
+  offset?: number;
+  /**
+   * Outcome
+   */
+  outcome?: "succeeded" | "denied" | "failed" | null;
+  /**
+   * Q
+   */
+  q?: string | null;
+  /**
    * Target Id
    */
   target_id?: string | null;
+  /**
+   * Target Table
+   */
+  target_table?: string | null;
 };
 
 /**
@@ -2340,7 +2415,14 @@ export type CorporateBinding = {
    * Scope Kind
    */
   scope_kind:
-    "system" | "organization" | "team" | "project" | "technology" | "catalog_object" | "telemetry";
+    | "system"
+    | "organization"
+    | "team"
+    | "project"
+    | "technology"
+    | "category"
+    | "catalog_object"
+    | "telemetry";
   /**
    * Service Principal Id
    */
@@ -2402,7 +2484,14 @@ export type CorporateBindingRequest = {
    * Scope Kind
    */
   scope_kind:
-    "system" | "organization" | "team" | "project" | "technology" | "catalog_object" | "telemetry";
+    | "system"
+    | "organization"
+    | "team"
+    | "project"
+    | "technology"
+    | "category"
+    | "catalog_object"
+    | "telemetry";
 };
 
 /**
@@ -2440,7 +2529,14 @@ export type CorporateBindingUpdateRequest = {
    * Scope Kind
    */
   scope_kind:
-    "system" | "organization" | "team" | "project" | "technology" | "catalog_object" | "telemetry";
+    | "system"
+    | "organization"
+    | "team"
+    | "project"
+    | "technology"
+    | "category"
+    | "catalog_object"
+    | "telemetry";
   /**
    * State
    */
@@ -3352,6 +3448,10 @@ export type CorporateDeleteResult = {
  */
 export type CorporateDirectoryFacets = {
   /**
+   * Areas
+   */
+  areas: Array<CorporateDirectoryReference>;
+  /**
    * Categories
    */
   categories: Array<CorporateDirectoryReference>;
@@ -3383,6 +3483,10 @@ export type CorporateDirectoryFacets = {
  */
 export type CorporateDirectoryItem = {
   /**
+   * Areas
+   */
+  areas: Array<CorporateDirectoryReference>;
+  /**
    * Available Actions
    */
   available_actions: Array<string>;
@@ -3406,7 +3510,7 @@ export type CorporateDirectoryItem = {
   /**
    * Kind
    */
-  kind: "project" | "team" | "employee" | "technology" | "category" | "job_title";
+  kind: "project" | "team" | "employee" | "technology" | "category" | "area" | "job_title";
   /**
    * Leads
    */
@@ -3448,6 +3552,10 @@ export type CorporateDirectoryItem = {
  * CorporateDirectoryQuery
  */
 export type CorporateDirectoryQuery = {
+  /**
+   * Area Ids
+   */
+  area_ids?: Array<string>;
   /**
    * Category Ids
    */
@@ -3517,7 +3625,7 @@ export type CorporateDirectoryReference = {
   /**
    * Kind
    */
-  kind: "project" | "team" | "employee" | "technology" | "category" | "job_title";
+  kind: "project" | "team" | "employee" | "technology" | "category" | "area" | "job_title";
   /**
    * Name
    */
@@ -3962,7 +4070,8 @@ export type CorporateEffectivePermission = {
   /**
    * Scope Kind
    */
-  scope_kind: "organization" | "team" | "project" | "technology" | "catalog_object" | "member";
+  scope_kind:
+    "organization" | "team" | "project" | "technology" | "category" | "catalog_object" | "member";
   /**
    * Source Records
    */
@@ -4388,7 +4497,8 @@ export type CorporateMemberAccess = {
   /**
    * Scope Kind
    */
-  scope_kind: "organization" | "team" | "project" | "technology" | "catalog_object" | "member";
+  scope_kind:
+    "organization" | "team" | "project" | "technology" | "category" | "catalog_object" | "member";
   [key: string]: unknown;
 };
 
@@ -4603,6 +4713,10 @@ export type CorporateMembershipAssignment = {
    */
   project_id: string | null;
   /**
+   * Project Role
+   */
+  project_role: "owner" | "lead" | "contributor" | "staff";
+  /**
    * Schema Version
    */
   schema_version: 1;
@@ -4639,6 +4753,10 @@ export type CorporateMembershipAssignmentRequest = {
    */
   project_id?: string | null;
   /**
+   * Project Role
+   */
+  project_role?: "owner" | "lead" | "contributor" | "staff";
+  /**
    * Schema Version
    */
   schema_version?: 1;
@@ -4655,7 +4773,8 @@ export type CorporateMembershipAssignmentRequest = {
 /**
  * CorporateMembershipPolicy
  *
- * Email-domain allowlist for joining the organization.
+ * Email-domain allowlist for joining the organization, plus the people
+ * visibility policy (ADR-0230).
  */
 export type CorporateMembershipPolicy = {
   /**
@@ -4670,6 +4789,10 @@ export type CorporateMembershipPolicy = {
    * Organization Id
    */
   organization_id: string;
+  /**
+   * People Visibility
+   */
+  people_visibility: "members" | "teammates" | "admins";
   /**
    * Schema Version
    */
@@ -4690,6 +4813,10 @@ export type CorporateMembershipPolicyRequest = {
    */
   authorization_revision: number;
   idempotency_key: IdempotencyKey;
+  /**
+   * People Visibility
+   */
+  people_visibility?: "members" | "teammates" | "admins";
   /**
    * Schema Version
    */
@@ -4830,7 +4957,9 @@ export type CorporatePermissionDefinition = {
   /**
    * Scopes
    */
-  scopes: Array<"organization" | "team" | "project" | "technology" | "catalog_object" | "member">;
+  scopes: Array<
+    "organization" | "team" | "project" | "technology" | "category" | "catalog_object" | "member"
+  >;
   [key: string]: unknown;
 };
 
@@ -4873,7 +5002,7 @@ export type CorporatePermissionGrant = {
   /**
    * Scope Kind
    */
-  scope_kind: "organization" | "team" | "project" | "technology";
+  scope_kind: "organization" | "team" | "project" | "technology" | "category" | "catalog_object";
   /**
    * Service Principal Id
    */
@@ -4940,7 +5069,7 @@ export type CorporatePermissionGrantRequest = {
   /**
    * Scope Kind
    */
-  scope_kind: "organization" | "team" | "project" | "technology";
+  scope_kind: "organization" | "team" | "project" | "technology" | "category" | "catalog_object";
   /**
    * Service Principal Id
    */
@@ -5212,6 +5341,106 @@ export type CorporateProjectView = {
 };
 
 /**
+ * CorporateRepositoryBindRequest
+ */
+export type CorporateRepositoryBindRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Plan Digest
+   */
+  plan_digest: string;
+  plan_key: IdempotencyKey;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * CorporateRepositoryPlan
+ */
+export type CorporateRepositoryPlan = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  /**
+   * Default Branch
+   */
+  default_branch: string;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  expires_at: Timestamp;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Namespace Id
+   */
+  namespace_id: string;
+  /**
+   * Observed Revision
+   */
+  observed_revision: string;
+  /**
+   * Plan Digest
+   */
+  plan_digest: string;
+  /**
+   * Plan Key
+   */
+  plan_key: string;
+  /**
+   * Project Id
+   */
+  project_id: string;
+  /**
+   * Provider
+   */
+  provider: "github" | "gitlab";
+  /**
+   * Repository Id
+   */
+  repository_id: string;
+  /**
+   * Repository Url
+   */
+  repository_url: string;
+};
+
+/**
+ * CorporateRepositoryPlanRequest
+ *
+ * Resolve a repository URL before an explicit source binding.
+ */
+export type CorporateRepositoryPlanRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Repository Url
+   */
+  repository_url: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
  * CorporateRoleCreateRequest
  */
 export type CorporateRoleCreateRequest = {
@@ -5227,13 +5456,32 @@ export type CorporateRoleCreateRequest = {
    */
   name: string;
   /**
-   * Parent Role
-   */
-  parent_role?: string | null;
-  /**
    * Permissions
    */
   permissions?: Array<string>;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * CorporateRoleDeleteRequest
+ */
+export type CorporateRoleDeleteRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Replacement Role
+   */
+  replacement_role?: string | null;
   /**
    * Schema Version
    */
@@ -5269,10 +5517,6 @@ export type CorporateRoleUpdateRequest = {
   expected_revision: number;
   idempotency_key: IdempotencyKey;
   /**
-   * Parent Role
-   */
-  parent_role?: string | null;
-  /**
    * Permissions
    */
   permissions: Array<string>;
@@ -5292,10 +5536,6 @@ export type CorporateRoleView = {
    * Tenant-local role name.
    */
   name: string;
-  /**
-   * Parent Role
-   */
-  parent_role: string | null;
   /**
    * Permissions
    */
@@ -5342,7 +5582,14 @@ export type CorporateServicePrincipalCreateRequest = {
    * Scope Kind
    */
   scope_kind?:
-    "system" | "organization" | "team" | "project" | "technology" | "catalog_object" | "telemetry";
+    | "system"
+    | "organization"
+    | "team"
+    | "project"
+    | "technology"
+    | "category"
+    | "catalog_object"
+    | "telemetry";
 };
 
 /**
@@ -5617,6 +5864,79 @@ export type CorporateTeamView = {
    * Technology Ids
    */
   technology_ids: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateTeammate
+ *
+ * Reduced people projection — no email, job title, or organization role.
+ */
+export type CorporateTeammate = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  /**
+   * Contexts
+   */
+  contexts: Array<CorporateTeammateContext>;
+  /**
+   * Display Name
+   */
+  display_name: string | null;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateTeammateContext
+ *
+ * One participation context a teammate shares with the caller.
+ */
+export type CorporateTeammateContext = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Kind
+   */
+  kind: "team" | "project";
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Role
+   */
+  role: string;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateTeammates
+ */
+export type CorporateTeammates = {
+  /**
+   * Items
+   */
+  items: Array<CorporateTeammate>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * People Visibility
+   */
+  people_visibility: "members" | "teammates" | "admins";
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
   [key: string]: unknown;
 };
 
@@ -14706,6 +15026,10 @@ export type TechnologyCategoryMetadata = {
    */
   description?: string;
   /**
+   * Icon
+   */
+  icon?: string | null;
+  /**
    * Name
    */
   name: string;
@@ -14770,6 +15094,40 @@ export type TechnologyDecisionView = {
 };
 
 /**
+ * TechnologyDetectedCoordinate
+ */
+export type TechnologyDetectedCoordinate = {
+  /**
+   * Context
+   */
+  context?: "production" | "development" | "testing" | "browser_support" | null;
+  /**
+   * Coordinate
+   */
+  coordinate: string;
+  /**
+   * Evidence
+   */
+  evidence?: Array<TechnologyEvidence>;
+  /**
+   * Kind
+   */
+  kind: "package" | "image" | "executable" | "configuration" | "alias";
+  /**
+   * Technology Id
+   */
+  technology_id?: string | null;
+  /**
+   * Version
+   */
+  version?: string | null;
+  /**
+   * Version Kind
+   */
+  version_kind?: "unknown" | "declared_range" | "observed_version";
+};
+
+/**
  * TechnologyEvidence
  */
 export type TechnologyEvidence = {
@@ -14802,6 +15160,86 @@ export type TechnologyEvidence = {
    * Source Revision
    */
   source_revision?: string | null;
+};
+
+/**
+ * TechnologyFindingDecision
+ */
+export type TechnologyFindingDecision = {
+  /**
+   * Category Id
+   */
+  category_id?: string | null;
+  /**
+   * Comment
+   */
+  comment?: string;
+  /**
+   * Context
+   */
+  context?: "production" | "development" | "testing" | "browser_support" | null;
+  /**
+   * Coordinate
+   */
+  coordinate: string;
+  /**
+   * Expected Revision
+   */
+  expected_revision?: number;
+  /**
+   * Kind
+   */
+  kind: "package" | "image" | "executable" | "configuration" | "alias";
+  /**
+   * Review
+   */
+  review: "confirmed" | "rejected" | "dependency";
+  /**
+   * Scan Id
+   */
+  scan_id: string;
+  /**
+   * Technology Id
+   */
+  technology_id?: string | null;
+};
+
+/**
+ * TechnologyFindingReviewRequest
+ */
+export type TechnologyFindingReviewRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  /**
+   * Expected Revision
+   */
+  expected_revision?: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Items
+   */
+  items: Array<TechnologyFindingDecision>;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * TechnologyFindingReviewResult
+ */
+export type TechnologyFindingReviewResult = {
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Updated
+   */
+  updated: number;
+  [key: string]: unknown;
 };
 
 /**
@@ -14878,6 +15316,10 @@ export type TechnologyLandscapeQuery = {
    * Include Inactive
    */
   include_inactive?: boolean;
+  /**
+   * Include Proposed
+   */
+  include_proposed?: boolean;
   /**
    * Lifecycle
    */
@@ -15288,7 +15730,7 @@ export type TechnologyMetadata = {
   /**
    * Category Ids
    */
-  category_ids: Array<string>;
+  category_ids?: Array<string>;
   /**
    * Description
    */
@@ -15378,9 +15820,21 @@ export type TechnologyScanDetail = {
   complete: boolean;
   created_at: Timestamp;
   /**
+   * Dependencies
+   */
+  dependencies: number;
+  /**
    * Detector Version
    */
   detector_version: string | null;
+  /**
+   * Duration Seconds
+   */
+  duration_seconds: number | null;
+  /**
+   * Error
+   */
+  error: string | null;
   /**
    * Findings
    */
@@ -15414,6 +15868,14 @@ export type TechnologyScanDetail = {
    */
   scan_id: string;
   /**
+   * Scan Types
+   */
+  scan_types: Array<"dependencies" | "configs" | "languages">;
+  /**
+   * Scope
+   */
+  scope: string | null;
+  /**
    * Source
    */
   source: "gitlab" | "github" | "local";
@@ -15435,6 +15897,14 @@ export type TechnologyScanFinding = {
    */
   candidate_technology_id: string | null;
   /**
+   * Category Id
+   */
+  category_id: string | null;
+  /**
+   * Comment
+   */
+  comment: string;
+  /**
    * Context
    */
   context: "production" | "development" | "testing" | "browser_support" | null;
@@ -15451,13 +15921,33 @@ export type TechnologyScanFinding = {
    */
   kind: "package" | "image" | "executable" | "configuration" | "alias";
   /**
+   * Review
+   */
+  review: "proposed" | "confirmed" | "rejected" | "dependency";
+  /**
+   * Review Revision
+   */
+  review_revision: number;
+  /**
    * State
    */
-  state: "resolved" | "candidate" | "open";
+  state: "resolved" | "candidate" | "open" | "rejected";
   /**
    * Technology Id
    */
   technology_id: string | null;
+  /**
+   * Technology Key
+   */
+  technology_key: string | null;
+  /**
+   * Technology Name
+   */
+  technology_name: string | null;
+  /**
+   * Tier
+   */
+  tier: "technology" | "dependency";
   /**
    * Version
    */
@@ -15470,6 +15960,60 @@ export type TechnologyScanFinding = {
 };
 
 /**
+ * TechnologyScanFindingList
+ *
+ * One scan's curated findings as a standalone resource for export.
+ */
+export type TechnologyScanFindingList = {
+  /**
+   * Branch
+   */
+  branch: string | null;
+  /**
+   * Commit
+   */
+  commit: string | null;
+  /**
+   * Complete
+   */
+  complete: boolean;
+  created_at: Timestamp;
+  /**
+   * Detector Version
+   */
+  detector_version: string | null;
+  /**
+   * Findings
+   */
+  findings: Array<TechnologyScanFinding>;
+  /**
+   * Mapping Version
+   */
+  mapping_version: string | null;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Project Id
+   */
+  project_id: string;
+  /**
+   * Project Name
+   */
+  project_name: string | null;
+  /**
+   * Repository
+   */
+  repository: string | null;
+  /**
+   * Scan Id
+   */
+  scan_id: string;
+  [key: string]: unknown;
+};
+
+/**
  * TechnologyScanHandoff
  */
 export type TechnologyScanHandoff = {
@@ -15477,6 +16021,10 @@ export type TechnologyScanHandoff = {
    * Complete
    */
   complete: boolean;
+  /**
+   * Coordinates
+   */
+  coordinates?: Array<TechnologyDetectedCoordinate>;
   /**
    * Detector Version
    */
@@ -15619,6 +16167,18 @@ export type TechnologyScanListEntry = {
   commit: string | null;
   created_at: Timestamp;
   /**
+   * Dependencies
+   */
+  dependencies: number;
+  /**
+   * Duration Seconds
+   */
+  duration_seconds: number | null;
+  /**
+   * Error
+   */
+  error: string | null;
+  /**
    * Found
    */
   found: number;
@@ -15642,6 +16202,14 @@ export type TechnologyScanListEntry = {
    * Scan Id
    */
   scan_id: string;
+  /**
+   * Scan Types
+   */
+  scan_types: Array<"dependencies" | "configs" | "languages">;
+  /**
+   * Scope
+   */
+  scope: string | null;
   /**
    * Source
    */
@@ -15892,6 +16460,10 @@ export type TechnologyUnmappedCoordinate = {
    * Version
    */
   version?: string | null;
+  /**
+   * Version Kind
+   */
+  version_kind?: "unknown" | "declared_range" | "observed_version";
 };
 
 /**
@@ -19659,9 +20231,29 @@ export type ListCorporateAuditData = {
     created_from?: Timestamp | null;
     created_to?: Timestamp | null;
     /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+    /**
+     * Outcome
+     */
+    outcome?: "succeeded" | "denied" | "failed" | null;
+    /**
+     * Q
+     */
+    q?: string | null;
+    /**
      * Target Id
      */
     target_id?: string | null;
+    /**
+     * Target Table
+     */
+    target_table?: string | null;
   };
   url: "/v1/corporate/organizations/{organization_id}/audit";
 };
@@ -19736,9 +20328,29 @@ export type ExportCorporateAuditData = {
     created_from?: Timestamp | null;
     created_to?: Timestamp | null;
     /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+    /**
+     * Outcome
+     */
+    outcome?: "succeeded" | "denied" | "failed" | null;
+    /**
+     * Q
+     */
+    q?: string | null;
+    /**
      * Target Id
      */
     target_id?: string | null;
+    /**
+     * Target Table
+     */
+    target_table?: string | null;
   };
   url: "/v1/corporate/organizations/{organization_id}/audit/export";
 };
@@ -21439,6 +22051,10 @@ export type ReadCorporateDirectoryData = {
     organization_id: string;
   };
   query: {
+    /**
+     * Area Ids
+     */
+    area_ids?: Array<string>;
     /**
      * Category Ids
      */
@@ -24750,6 +25366,146 @@ export type ListCorporateProjectMembersResponses = {
 export type ListCorporateProjectMembersResponse =
   ListCorporateProjectMembersResponses[keyof ListCorporateProjectMembersResponses];
 
+export type BindCorporateProjectRepositoryData = {
+  body: CorporateRepositoryBindRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Typed corporate project identifier.
+     */
+    project_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/projects/{project_id}/repository";
+};
+
+export type BindCorporateProjectRepositoryErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type BindCorporateProjectRepositoryError =
+  BindCorporateProjectRepositoryErrors[keyof BindCorporateProjectRepositoryErrors];
+
+export type BindCorporateProjectRepositoryResponses = {
+  /**
+   * Confirm a checked repository source without launching a scan.
+   */
+  200: CorporateProjectView;
+};
+
+export type BindCorporateProjectRepositoryResponse =
+  BindCorporateProjectRepositoryResponses[keyof BindCorporateProjectRepositoryResponses];
+
+export type PlanCorporateProjectRepositoryData = {
+  body: CorporateRepositoryPlanRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Typed corporate project identifier.
+     */
+    project_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/projects/{project_id}/repository-plan";
+};
+
+export type PlanCorporateProjectRepositoryErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type PlanCorporateProjectRepositoryError =
+  PlanCorporateProjectRepositoryErrors[keyof PlanCorporateProjectRepositoryErrors];
+
+export type PlanCorporateProjectRepositoryResponses = {
+  /**
+   * Check a repository before explicitly linking it to a project.
+   */
+  200: CorporateRepositoryPlan;
+};
+
+export type PlanCorporateProjectRepositoryResponse =
+  PlanCorporateProjectRepositoryResponses[keyof PlanCorporateProjectRepositoryResponses];
+
 export type ListProjectTeamsData = {
   body?: never;
   headers?: {
@@ -25356,7 +26112,7 @@ export type CreateCorporateRoleResponse =
   CreateCorporateRoleResponses[keyof CreateCorporateRoleResponses];
 
 export type DeleteCorporateRoleData = {
-  body: CorporateDeleteRequest;
+  body: CorporateRoleDeleteRequest;
   headers: {
     /**
      * Wire major the client speaks. An unknown one fails typed.
@@ -25416,7 +26172,7 @@ export type DeleteCorporateRoleError = DeleteCorporateRoleErrors[keyof DeleteCor
 
 export type DeleteCorporateRoleResponses = {
   /**
-   * Remove an unused tenant-local role.
+   * Remove a tenant-local role, reassigning its holders to a replacement role.
    */
   200: CorporateDeleteResult;
 };
@@ -25875,6 +26631,64 @@ export type UpdateCorporateServicePrincipalResponses = {
 
 export type UpdateCorporateServicePrincipalResponse =
   UpdateCorporateServicePrincipalResponses[keyof UpdateCorporateServicePrincipalResponses];
+
+export type ReadCorporateTeammatesData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/teammates";
+};
+
+export type ReadCorporateTeammatesErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadCorporateTeammatesError =
+  ReadCorporateTeammatesErrors[keyof ReadCorporateTeammatesErrors];
+
+export type ReadCorporateTeammatesResponses = {
+  /**
+   * Scoped people projection: co-members of the caller's teams and projects.
+   */
+  200: CorporateTeammates;
+};
+
+export type ReadCorporateTeammatesResponse =
+  ReadCorporateTeammatesResponses[keyof ReadCorporateTeammatesResponses];
 
 export type ListCorporateTeamsData = {
   body?: never;
@@ -28148,6 +28962,68 @@ export type ChangeTechnologyCategoryLifecycleResponses = {
 export type ChangeTechnologyCategoryLifecycleResponse =
   ChangeTechnologyCategoryLifecycleResponses[keyof ChangeTechnologyCategoryLifecycleResponses];
 
+export type ReviewTechnologyFindingsData = {
+  body: TechnologyFindingReviewRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-findings/review";
+};
+
+export type ReviewTechnologyFindingsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReviewTechnologyFindingsError =
+  ReviewTechnologyFindingsErrors[keyof ReviewTechnologyFindingsErrors];
+
+export type ReviewTechnologyFindingsResponses = {
+  /**
+   * Review retained findings and refresh their current interpretation.
+   */
+  200: TechnologyFindingReviewResult;
+};
+
+export type ReviewTechnologyFindingsResponse =
+  ReviewTechnologyFindingsResponses[keyof ReviewTechnologyFindingsResponses];
+
 export type ReadTechnologyLandscapeData = {
   body?: never;
   headers?: {
@@ -28191,6 +29067,10 @@ export type ReadTechnologyLandscapeData = {
      * Include Inactive
      */
     include_inactive?: boolean;
+    /**
+     * Include Proposed
+     */
+    include_proposed?: boolean;
     /**
      * Lifecycle
      */
@@ -28794,6 +29674,192 @@ export type ReadTechnologyScanDetailResponses = {
 
 export type ReadTechnologyScanDetailResponse =
   ReadTechnologyScanDetailResponses[keyof ReadTechnologyScanDetailResponses];
+
+export type ReadTechnologyScanFindingsData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Immutable scan ID.
+     */
+    scan_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-scans/{scan_id}/findings";
+};
+
+export type ReadTechnologyScanFindingsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadTechnologyScanFindingsError =
+  ReadTechnologyScanFindingsErrors[keyof ReadTechnologyScanFindingsErrors];
+
+export type ReadTechnologyScanFindingsResponses = {
+  /**
+   * Read one scan's curated findings as a standalone resource.
+   */
+  200: TechnologyScanFindingList;
+};
+
+export type ReadTechnologyScanFindingsResponse =
+  ReadTechnologyScanFindingsResponses[keyof ReadTechnologyScanFindingsResponses];
+
+export type ExportTechnologyScanFindingsCsvData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Immutable scan ID.
+     */
+    scan_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-scans/{scan_id}/findings.csv";
+};
+
+export type ExportTechnologyScanFindingsCsvErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ExportTechnologyScanFindingsCsvError =
+  ExportTechnologyScanFindingsCsvErrors[keyof ExportTechnologyScanFindingsCsvErrors];
+
+export type ExportTechnologyScanFindingsCsvResponses = {
+  /**
+   * Download one scan's findings as CSV.
+   */
+  200: Blob | File;
+};
+
+export type ExportTechnologyScanFindingsCsvResponse =
+  ExportTechnologyScanFindingsCsvResponses[keyof ExportTechnologyScanFindingsCsvResponses];
+
+export type ExportTechnologyScanFindingsMarkdownData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Immutable scan ID.
+     */
+    scan_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-scans/{scan_id}/findings.md";
+};
+
+export type ExportTechnologyScanFindingsMarkdownErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ExportTechnologyScanFindingsMarkdownError =
+  ExportTechnologyScanFindingsMarkdownErrors[keyof ExportTechnologyScanFindingsMarkdownErrors];
+
+export type ExportTechnologyScanFindingsMarkdownResponses = {
+  /**
+   * Download one scan's findings as Markdown.
+   */
+  200: Blob | File;
+};
+
+export type ExportTechnologyScanFindingsMarkdownResponse =
+  ExportTechnologyScanFindingsMarkdownResponses[keyof ExportTechnologyScanFindingsMarkdownResponses];
 
 export type ImportTechnologySeedData = {
   body: TechnologySeedRequest;

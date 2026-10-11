@@ -1,18 +1,19 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { corporateMutationAction, corporateProjectUsageAction } from "@/actions/corporate";
+import type { corporateProjectUsageAction } from "@/actions/corporate";
+import type { corporateMutation } from "@/lib/api/corporate-mutation";
 import type { TechnologyView } from "@/lib/api/generated/types.gen";
 
 const { mutation, refresh, push, loadUsage } = vi.hoisted(() => ({
-  mutation: vi.fn<typeof corporateMutationAction>(),
+  mutation: vi.fn<typeof corporateMutation>(),
   refresh: vi.fn(),
   push: vi.fn(),
   loadUsage: vi.fn<typeof corporateProjectUsageAction>(),
 }));
 vi.mock("@/actions/corporate", () => ({
-  corporateMutationAction: mutation,
   corporateProjectUsageAction: loadUsage,
 }));
+vi.mock("@/lib/api/corporate-mutation", () => ({ corporateMutation: mutation }));
 vi.mock("@/lib/i18n/navigation", () => ({ useRouter: () => ({ refresh, push }) }));
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 
@@ -25,7 +26,6 @@ import {
   CategoryLifecycleControls,
   ProjectActivityEditor,
   ProjectLifecycleControls,
-  TechnologyActivityPolicy,
 } from "@/components/organisms/corporate-governance-controls";
 
 const props = {
@@ -46,6 +46,7 @@ describe("manual registry creation", () => {
       area_id: null,
       name: "Runtime",
       description: "",
+      icon: null,
       provenance: "manual",
       state: "active" as const,
       revision: 3,
@@ -76,6 +77,7 @@ describe("manual registry creation", () => {
       area_id: null,
       name: "Runtime",
       description: "Governed family",
+      icon: null,
       revision: 3,
       provenance: "manual",
     };
@@ -165,31 +167,6 @@ describe("manual registry creation", () => {
       expected_revision: 6,
     });
     expect(mutation.mock.calls[0]?.[0].path).toMatch(/\/lifecycle$/);
-  });
-
-  it("creates an explicit organization activity policy from revision zero", async () => {
-    mutation.mockResolvedValue({ ok: true, data: {} });
-    const { container } = render(
-      <TechnologyActivityPolicy
-        {...props}
-        policy={{
-          organization_id: props.organizationId,
-          inactivity_months: 9,
-          revision: 0,
-        }}
-      />,
-    );
-    fireEvent.change(screen.getByLabelText("inactivityMonths"), { target: { value: "12" } });
-    const form = container.querySelector("form");
-    if (!form) throw new Error("policy form is missing");
-    fireEvent.submit(form);
-    await waitFor(() => {
-      expect(mutation).toHaveBeenCalledOnce();
-    });
-    expect(mutation.mock.calls[0]?.[0].body).toMatchObject({
-      expected_revision: 0,
-      inactivity_months: 12,
-    });
   });
 
   it("pins the edited record revision across capability refresh and preserves the unsaved name", async () => {

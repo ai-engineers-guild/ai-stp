@@ -73,10 +73,20 @@ it("highlights the corporate destination that owns the current route", async () 
     true,
   );
   expect(landscape && isPrimaryNavigationActive(landscape, "/corporate/categories")).toBe(true);
-  expect(
-    organization && isPrimaryNavigationActive(organization, "/corporate/organization/admins"),
-  ).toBe(false);
-  expect(admins && isPrimaryNavigationActive(admins, "/corporate/organization/admins")).toBe(true);
+  expect(organization && isPrimaryNavigationActive(organization, "/corporate/admin/members")).toBe(
+    false,
+  );
+  expect(admins && isPrimaryNavigationActive(admins, "/corporate/admin/members")).toBe(true);
+  expect(landscape && isPrimaryNavigationActive(landscape, "/corporate/technology-mappings")).toBe(
+    true,
+  );
+  expect(admins && isPrimaryNavigationActive(admins, "/corporate/admin/tech-categories")).toBe(
+    true,
+  );
+  expect(admins && isPrimaryNavigationActive(admins, "/corporate/admin/technology-areas")).toBe(
+    true,
+  );
+  expect(admins && isPrimaryNavigationActive(admins, "/corporate/admin/settings")).toBe(true);
 });
 
 it("does not load corporate data for an unauthenticated visitor", async () => {
@@ -109,22 +119,19 @@ it.each([
         "overview",
         "organization",
         "administration",
+        "invitations",
         "accessMatrix",
         "roles",
-        "auditJournal",
         "employeeAccess",
-        "technologyAreas",
         "jobTitles",
+        "technologyCategories",
+        "technologyAreas",
         "settings",
-        "security",
-        "dashboard",
+        "auditJournal",
       ],
     },
   ],
-  [
-    "team.list",
-    { administration: false, pages: ["overview", "organization", "teams", "dashboard"] },
-  ],
+  ["team.list", { administration: false, pages: ["overview", "organization", "teams"] }],
 ])("resolves %s authority on the server", async (capability, expected) => {
   vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
   mocks.session.mockResolvedValue({ accountId: "account_test" });

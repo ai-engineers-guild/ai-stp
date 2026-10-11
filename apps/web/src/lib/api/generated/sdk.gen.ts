@@ -21,6 +21,9 @@ import type {
   AssignCorporateMemberData,
   AssignCorporateMemberErrors,
   AssignCorporateMemberResponses,
+  BindCorporateProjectRepositoryData,
+  BindCorporateProjectRepositoryErrors,
+  BindCorporateProjectRepositoryResponses,
   BindPublicationArtifactData,
   BindPublicationArtifactErrors,
   BindPublicationArtifactResponses,
@@ -211,6 +214,12 @@ import type {
   ExportCorporateTelemetryData,
   ExportCorporateTelemetryErrors,
   ExportCorporateTelemetryResponses,
+  ExportTechnologyScanFindingsCsvData,
+  ExportTechnologyScanFindingsCsvErrors,
+  ExportTechnologyScanFindingsCsvResponses,
+  ExportTechnologyScanFindingsMarkdownData,
+  ExportTechnologyScanFindingsMarkdownErrors,
+  ExportTechnologyScanFindingsMarkdownResponses,
   HealthLiveData,
   HealthLiveErrors,
   HealthLiveResponses,
@@ -388,6 +397,9 @@ import type {
   PlanCorporateAssignmentData,
   PlanCorporateAssignmentErrors,
   PlanCorporateAssignmentResponses,
+  PlanCorporateProjectRepositoryData,
+  PlanCorporateProjectRepositoryErrors,
+  PlanCorporateProjectRepositoryResponses,
   PlanGithubActionData,
   PlanGithubActionErrors,
   PlanGithubActionResponses,
@@ -519,6 +531,9 @@ import type {
   ReadCorporateServicePrincipalResponses,
   ReadCorporateTeamData,
   ReadCorporateTeamErrors,
+  ReadCorporateTeammatesData,
+  ReadCorporateTeammatesErrors,
+  ReadCorporateTeammatesResponses,
   ReadCorporateTeamResponses,
   ReadCorporateTelemetryPolicyData,
   ReadCorporateTelemetryPolicyErrors,
@@ -669,6 +684,9 @@ import type {
   ReadTechnologyScanDetailErrors,
   ReadTechnologyScanDetailResponses,
   ReadTechnologyScanErrors,
+  ReadTechnologyScanFindingsData,
+  ReadTechnologyScanFindingsErrors,
+  ReadTechnologyScanFindingsResponses,
   ReadTechnologyScanResponses,
   ReadTechnologyUnmappedCoordinatesData,
   ReadTechnologyUnmappedCoordinatesErrors,
@@ -706,6 +724,9 @@ import type {
   ResolveProjectConflictData,
   ResolveProjectConflictErrors,
   ResolveProjectConflictResponses,
+  ReviewTechnologyFindingsData,
+  ReviewTechnologyFindingsErrors,
+  ReviewTechnologyFindingsResponses,
   ReviewTechnologyUnmappedCoordinateData,
   ReviewTechnologyUnmappedCoordinateErrors,
   ReviewTechnologyUnmappedCoordinateResponses,
@@ -3297,6 +3318,54 @@ export const listCorporateProjectMembers = <ThrowOnError extends boolean = false
   });
 
 /**
+ * Confirm a checked repository source without launching a scan.
+ */
+export const bindCorporateProjectRepository = <ThrowOnError extends boolean = false>(
+  options: Options<BindCorporateProjectRepositoryData, ThrowOnError>,
+): RequestResult<
+  BindCorporateProjectRepositoryResponses,
+  BindCorporateProjectRepositoryErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    BindCorporateProjectRepositoryResponses,
+    BindCorporateProjectRepositoryErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/projects/{project_id}/repository",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Check a repository before explicitly linking it to a project.
+ */
+export const planCorporateProjectRepository = <ThrowOnError extends boolean = false>(
+  options: Options<PlanCorporateProjectRepositoryData, ThrowOnError>,
+): RequestResult<
+  PlanCorporateProjectRepositoryResponses,
+  PlanCorporateProjectRepositoryErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    PlanCorporateProjectRepositoryResponses,
+    PlanCorporateProjectRepositoryErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/projects/{project_id}/repository-plan",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
  * Read authorized canonical relationships from either endpoint.
  */
 export const listProjectTeams = <ThrowOnError extends boolean = false>(
@@ -3449,7 +3518,7 @@ export const createCorporateRole = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Remove an unused tenant-local role.
+ * Remove a tenant-local role, reassigning its holders to a replacement role.
  */
 export const deleteCorporateRole = <ThrowOnError extends boolean = false>(
   options: Options<DeleteCorporateRoleData, ThrowOnError>,
@@ -3612,6 +3681,22 @@ export const updateCorporateServicePrincipal = <ThrowOnError extends boolean = f
       "Content-Type": "application/json",
       ...options.headers,
     },
+  });
+
+/**
+ * Scoped people projection: co-members of the caller's teams and projects.
+ */
+export const readCorporateTeammates = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporateTeammatesData, ThrowOnError>,
+): RequestResult<ReadCorporateTeammatesResponses, ReadCorporateTeammatesErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadCorporateTeammatesResponses,
+    ReadCorporateTeammatesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/teammates",
+    ...options,
   });
 
 /**
@@ -4221,6 +4306,26 @@ export const changeTechnologyCategoryLifecycle = <ThrowOnError extends boolean =
   });
 
 /**
+ * Review retained findings and refresh their current interpretation.
+ */
+export const reviewTechnologyFindings = <ThrowOnError extends boolean = false>(
+  options: Options<ReviewTechnologyFindingsData, ThrowOnError>,
+): RequestResult<ReviewTechnologyFindingsResponses, ReviewTechnologyFindingsErrors, ThrowOnError> =>
+  (options.client ?? client).put<
+    ReviewTechnologyFindingsResponses,
+    ReviewTechnologyFindingsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technology-findings/review",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
  * Read filtered authorized landscape and distinct project counts.
  */
 export const readTechnologyLandscape = <ThrowOnError extends boolean = false>(
@@ -4381,6 +4486,66 @@ export const readTechnologyScanDetail = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/technology-scans/{scan_id}",
+    ...options,
+  });
+
+/**
+ * Read one scan's curated findings as a standalone resource.
+ */
+export const readTechnologyScanFindings = <ThrowOnError extends boolean = false>(
+  options: Options<ReadTechnologyScanFindingsData, ThrowOnError>,
+): RequestResult<
+  ReadTechnologyScanFindingsResponses,
+  ReadTechnologyScanFindingsErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadTechnologyScanFindingsResponses,
+    ReadTechnologyScanFindingsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technology-scans/{scan_id}/findings",
+    ...options,
+  });
+
+/**
+ * Download one scan's findings as CSV.
+ */
+export const exportTechnologyScanFindingsCsv = <ThrowOnError extends boolean = false>(
+  options: Options<ExportTechnologyScanFindingsCsvData, ThrowOnError>,
+): RequestResult<
+  ExportTechnologyScanFindingsCsvResponses,
+  ExportTechnologyScanFindingsCsvErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ExportTechnologyScanFindingsCsvResponses,
+    ExportTechnologyScanFindingsCsvErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technology-scans/{scan_id}/findings.csv",
+    ...options,
+  });
+
+/**
+ * Download one scan's findings as Markdown.
+ */
+export const exportTechnologyScanFindingsMarkdown = <ThrowOnError extends boolean = false>(
+  options: Options<ExportTechnologyScanFindingsMarkdownData, ThrowOnError>,
+): RequestResult<
+  ExportTechnologyScanFindingsMarkdownResponses,
+  ExportTechnologyScanFindingsMarkdownErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ExportTechnologyScanFindingsMarkdownResponses,
+    ExportTechnologyScanFindingsMarkdownErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technology-scans/{scan_id}/findings.md",
     ...options,
   });
 

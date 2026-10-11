@@ -88,6 +88,7 @@ from ai_stp_platform.technology_models import (
     TechnologyUsageFact,
 )
 from ai_stp_platform.technology_scan_merge import project_technology_view
+from ai_stp_platform.technology_taxonomy import classify_seed_technologies
 
 
 async def read_landscape_policy(
@@ -419,6 +420,9 @@ async def import_seed(
             for technology_id, kind, coordinate in SEED_COORDINATES
         )
         mapping_written = True
+    await (await db.connection()).run_sync(
+        classify_seed_technologies, organization_id, created_technologies
+    )
     if created_categories or created_technologies or mapping_written:
         organization.policy_revision += 1
     await db.flush()
@@ -623,6 +627,7 @@ async def read_landscape(
                     fact.review == filters.review
                     if filters.review
                     else fact.review in ("confirmed", "overridden")
+                    or (filters.include_proposed and fact.review == "proposed")
                 )
             ]
             if selected:
@@ -1460,6 +1465,7 @@ async def list_categories(
                 area_id=row.area_id,
                 name=row.name,
                 description=row.description,
+                icon=row.icon,
                 revision=row.revision,
                 provenance=row.provenance,
                 state=cast(Literal["draft", "active", "archived"], row.state),
@@ -1495,6 +1501,7 @@ async def read_category(
         area_id=row.area_id,
         name=row.name,
         description=row.description,
+        icon=row.icon,
         revision=row.revision,
         provenance=row.provenance,
         state=cast(Literal["draft", "active", "archived"], row.state),
@@ -1733,6 +1740,7 @@ async def write_category(
             "name": row.name,
             "description": row.description,
             "area_id": row.area_id,
+            "icon": row.icon,
             "revision": row.revision,
         }
         if row
@@ -1745,6 +1753,7 @@ async def write_category(
             area_id=payload.area_id,
             name=payload.metadata.name,
             normalized_name=normalized,
+            icon=payload.metadata.icon,
             provenance="manual",
             revision=1,
             state=payload.state or "active",
@@ -1760,6 +1769,7 @@ async def write_category(
     row.description = payload.metadata.description
     if "area_id" in payload.model_fields_set:
         row.area_id = payload.area_id
+    row.icon = payload.metadata.icon
     organization.policy_revision += 1
     await db.flush()
     response = CategoryView(
@@ -1767,6 +1777,7 @@ async def write_category(
         area_id=row.area_id,
         name=row.name,
         description=row.description,
+        icon=row.icon,
         revision=row.revision,
         provenance=row.provenance,
         state=cast(Literal["draft", "active", "archived"], row.state),
@@ -1822,6 +1833,7 @@ async def change_category_lifecycle(
         area_id=row.area_id,
         name=row.name,
         description=row.description,
+        icon=row.icon,
         revision=row.revision,
         provenance=row.provenance,
         state=cast(Literal["draft", "active", "archived"], row.state),
@@ -1835,6 +1847,7 @@ async def change_category_lifecycle(
         area_id=row.area_id,
         name=row.name,
         description=row.description,
+        icon=row.icon,
         revision=row.revision,
         provenance=row.provenance,
         state=payload.target,
@@ -2261,8 +2274,8 @@ async def list_areas(
     organization_id: str,
     request_id: str | None,
 ) -> AreaList:
-    await authorize(db, ctx=ctx, organization_id=organization_id, permission="category.list")
-    await authorize(db, ctx=ctx, organization_id=organization_id, permission="category.read")
+    await authorize(db, ctx=ctx, organization_id=organization_id, permission="area.list")
+    await authorize(db, ctx=ctx, organization_id=organization_id, permission="area.read")
     rows = list(
         (
             await db.scalars(
@@ -2292,7 +2305,7 @@ async def read_area(
     area_id: str,
     request_id: str | None,
 ) -> AreaView:
-    await authorize(db, ctx=ctx, organization_id=organization_id, permission="category.read")
+    await authorize(db, ctx=ctx, organization_id=organization_id, permission="area.read")
     row = await db.get(TechnologyArea, (organization_id, area_id))
     if row is None:
         raise ApiError(ErrorCategory.PERMISSION, "technology area is unavailable")
@@ -2323,7 +2336,7 @@ async def write_area(
     operation = (
         "technology_area.create" if payload.expected_revision == 0 else "technology_area.update"
     )
-    permission = "category.create" if payload.expected_revision == 0 else "category.update"
+    permission = "area.create" if payload.expected_revision == 0 else "area.update"
     organization, receipt = await authorize_idempotent(
         db,
         ctx=ctx,
@@ -2410,7 +2423,7 @@ async def change_area_lifecycle(
         db,
         ctx=ctx,
         organization_id=organization_id,
-        permission="category.delete" if payload.target == "archived" else "category.update",
+        permission="area.delete" if payload.target == "archived" else "area.update",
         authorization_revision=payload.authorization_revision,
         idempotency_key=payload.idempotency_key,
         operation=operation,

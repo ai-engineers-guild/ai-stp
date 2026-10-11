@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "standard_family": "ai-stp-standard/1",
-  "contract_digest": "sha256:46317758706161cbe88898a7c3e23607838b0ca4a9b4ded0a34a180c0b269ea7",
+  "contract_digest": "sha256:18d5ef07e55870d69f9c0d050ec947dac5a5934b7f0ce0ad165d309fd62eeb0e",
   "axes": [
     {
       "name": "standard_family",
@@ -910,6 +910,10 @@
     },
     {
       "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-audit-export-query"
+    },
+    {
+      "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:corporate-audit-list"
     },
     {
@@ -1202,7 +1206,23 @@
     },
     {
       "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-repository-bind-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-repository-plan"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-repository-plan-request"
+    },
+    {
+      "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:corporate-role-create-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-role-delete-request"
     },
     {
       "axis": "http_schema",
@@ -1247,6 +1267,10 @@
     {
       "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:corporate-team-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:corporate-teammates"
     },
     {
       "axis": "http_schema",
@@ -2014,6 +2038,22 @@
     },
     {
       "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-area"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-area-lifecycle-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-area-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-area-write-request"
+    },
+    {
+      "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:technology-category-lifecycle-request"
     },
     {
@@ -2035,6 +2075,14 @@
     {
       "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:technology-decision-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-finding-review-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-finding-review-result"
     },
     {
       "axis": "http_schema",
@@ -2099,6 +2147,30 @@
     {
       "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:technology-owner-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-scan-detail"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-scan-finding-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-scan-launch-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-scan-launch-result"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-scan-list"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:technology-scan-list-query"
     },
     {
       "axis": "http_schema",

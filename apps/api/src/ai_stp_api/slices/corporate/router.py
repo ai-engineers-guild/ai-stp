@@ -27,6 +27,7 @@ from ai_stp_api.slices.corporate import (
     overview,
     permissions,
     profiles,
+    repositories,
     service,
     telemetry_policy,
     telemetry_rights,
@@ -83,6 +84,7 @@ from ai_stp_contracts.corporate import (
     CorporateProjectUpdateRequest,
     CorporateProjectView,
     CorporateRoleCreateRequest,
+    CorporateRoleDeleteRequest,
     CorporateRoleList,
     CorporateRoleUpdateRequest,
     CorporateRoleView,
@@ -92,6 +94,7 @@ from ai_stp_contracts.corporate import (
     CorporateServicePrincipalView,
     CorporateTeamCreateRequest,
     CorporateTeamList,
+    CorporateTeammates,
     CorporateTeamUpdateRequest,
     CorporateTeamView,
     OrganizationId,
@@ -113,6 +116,7 @@ router.include_router(installation_inventory.router)
 router.include_router(dashboard.router)
 router.include_router(gitlab.router)
 router.include_router(github_languages.router)
+router.include_router(repositories.router)
 router.include_router(usage_events.router)
 router.include_router(usage_reports.router)
 router.include_router(invitations.router)
@@ -454,6 +458,18 @@ async def list_members(
     return await service.list_members(
         db, ctx=ctx, organization_id=organization_id, request_id=_request_id(request)
     )
+
+
+@router.get(
+    "/corporate/organizations/{organization_id}/teammates",
+    response_model=CorporateTeammates,
+)
+async def list_teammates(
+    organization_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateTeammates:
+    return await service.list_teammates(db, ctx=ctx, organization_id=organization_id)
 
 
 @router.patch(
@@ -819,7 +835,7 @@ async def update_role(
 async def delete_role(
     organization_id: str,
     role_name: str,
-    payload: CorporateDeleteRequest,
+    payload: CorporateRoleDeleteRequest,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     ctx: Annotated[AuthContext, Depends(require_auth)],
@@ -1154,8 +1170,13 @@ async def list_audit(
     actor_account_id: Annotated[str | None, Query(max_length=64)] = None,
     action: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
     target_id: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
+    target_table: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
+    outcome: Annotated[Literal["succeeded", "denied", "failed"] | None, Query()] = None,
+    q: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
     created_from: Timestamp | None = None,
     created_to: Timestamp | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> CorporateAuditList:
     return await service.list_audit(
         db,
@@ -1166,8 +1187,13 @@ async def list_audit(
         actor_account_id=actor_account_id,
         action=action,
         target_id=target_id,
+        target_table=target_table,
+        outcome=outcome,
+        q=q,
         created_from=created_from,
         created_to=created_to,
+        limit=limit,
+        offset=offset,
         request_id=_request_id(request),
     )
 
@@ -1186,8 +1212,13 @@ async def export_audit(
     actor_account_id: Annotated[str | None, Query(max_length=64)] = None,
     action: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
     target_id: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
+    target_table: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
+    outcome: Annotated[Literal["succeeded", "denied", "failed"] | None, Query()] = None,
+    q: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
     created_from: Timestamp | None = None,
     created_to: Timestamp | None = None,
+    limit: Annotated[int, Query(ge=1, le=10000)] = 10000,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> CorporateAuditExport:
     return await service.export_audit(
         db,
@@ -1198,7 +1229,12 @@ async def export_audit(
         actor_account_id=actor_account_id,
         action=action,
         target_id=target_id,
+        target_table=target_table,
+        outcome=outcome,
+        q=q,
         created_from=created_from,
         created_to=created_to,
+        limit=limit,
+        offset=offset,
         request_id=_request_id(request),
     )

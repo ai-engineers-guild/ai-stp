@@ -1,46 +1,30 @@
-/* eslint-disable max-lines, max-lines-per-function, @typescript-eslint/no-confusing-void-expression */
+/* eslint-disable max-lines-per-function */
 "use client";
 
-import { Select } from "@/components/atoms/select";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
+import { permissionEntity, permissionLabel, roleTitle } from "@/lib/corporate-permission-ui";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
-import { Label } from "@/components/atoms/label";
 
 import type {
   CorporateBinding,
   CorporatePermissionGrant,
   CorporatePermissionDefinition,
   CorporateProjectView,
-  CorporateRoleView,
   CorporateTeamView,
 } from "@/lib/api/generated/types.gen";
 
-type Method = "POST" | "DELETE";
-
-const field = (formData: FormData, name: string) => {
-  const value = formData.get(name);
-  return typeof value === "string" ? value.trim() : "";
-};
-
 type Labels = {
   bindings: string;
-  team: string;
-  project: string;
   role: string;
   scope: string;
   organization: string;
-  operation: string;
-  assign: string;
-  remove: string;
-  create: string;
-  creating: string;
   revoke: string;
   revoking: string;
-  coverage: string;
   coverageSelf: string;
   coverageDescendants: string;
   originMembership: string;
@@ -50,102 +34,97 @@ type Labels = {
   noBindings: string;
   directGrants: string;
   directGrantsBody: string;
-  grantAction: string;
-  permission: string;
   issuer: string;
   noGrants: string;
   saved: string;
-  targetRequired: string;
-  assignments: string;
-  update: string;
   confirmRevoke: string;
 };
 
 /**
- * Member-scoped access mutations for the Employee access screen: role
- * bindings, direct scoped allows, and team/project assignment. The server
- * re-checks delegation bounds for every write; grantable roles come from the
- * caller's delegation view so the UI cannot offer a role the API would reject.
+ * Read-only access record for one member inside the Employee access drawer:
+ * role bindings with scope and origin, and direct scoped allows, each with a
+ * revoke action. Granting access happens in the page-level Grant access
+ * dialog; the server re-checks delegation bounds on every revoke.
  */
 export function CorporateMemberAccessPanel({
   csrfToken,
   organizationId,
   authorizationRevision,
-  accountId,
   teams,
   projects,
-  roles,
-  grantableRoleNames,
   bindings,
   grants,
   capabilities,
   definitions,
   labels,
+  membershipRole,
+  scopeOptions = [],
 }: {
   csrfToken: string;
   organizationId: string;
   authorizationRevision: number;
-  accountId: string;
   teams: readonly CorporateTeamView[];
   projects: readonly CorporateProjectView[];
-  roles: readonly CorporateRoleView[];
-  grantableRoleNames: readonly string[] | null;
   bindings: readonly CorporateBinding[];
   grants: readonly CorporatePermissionGrant[];
   capabilities: readonly string[];
   definitions: readonly CorporatePermissionDefinition[];
   labels: Labels;
+  membershipRole?: string;
+  scopeOptions?: readonly { value: string; label: string }[];
 }) {
+  const a = useTranslations("accessUi");
   const router = useRouter();
   const [busy, startTransition] = useTransition();
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
-  const [grantScopeKind, setGrantScopeKind] = useState("organization");
-  const report = (text: string, error = false) => setMessage({ text, error });
   const can = (permission: string) => capabilities.includes(permission);
-  const roleOptions =
-    grantableRoleNames !== null ? grantableRoleNames : roles.map((role) => role.name);
+  const scopeName = (kind: string, id: string) =>
+    kind === "organization"
+      ? labels.organization
+      : (scopeOptions.find((scope) => scope.value === `${kind}:${id}`)?.label ??
+        teams.find((team) => team.team_id === id)?.name ??
+        projects.find((project) => project.project_id === id)?.name ??
+        id);
+  const permissionName = (name: string) => {
+    const definition = definitions.find((item) => item.name === name);
+    return definition
+      ? `${a(`entities.${permissionEntity(definition.resource)}.name`)} · ${permissionLabel(definition, a)}`
+      : name;
+  };
 
-  function submit(method: Method, path: string, body: unknown) {
+  function submit(path: string, body: unknown) {
     setMessage(null);
     startTransition(async () => {
-      const result = await corporateMutationAction({
+      const result = await corporateMutation({
         csrfToken,
         organizationId,
         path,
-        method,
+        method: "DELETE",
         body,
       });
-      report(result.ok ? labels.saved : result.message, !result.ok);
+      setMessage({ text: result.ok ? labels.saved : result.message, error: !result.ok });
       if (result.ok) router.refresh();
     });
   }
 
   function revokeBinding(binding: CorporateBinding) {
     if (!window.confirm(labels.confirmRevoke)) return;
-    submit(
-      "DELETE",
-      `/v1/corporate/organizations/${organizationId}/bindings/${binding.binding_id}`,
-      {
-        schema_version: 1,
-        expected_revision: binding.revision,
-        authorization_revision: authorizationRevision,
-        idempotency_key: crypto.randomUUID(),
-      },
-    );
+    submit(`/v1/corporate/organizations/${organizationId}/bindings/${binding.binding_id}`, {
+      schema_version: 1,
+      expected_revision: binding.revision,
+      authorization_revision: authorizationRevision,
+      idempotency_key: crypto.randomUUID(),
+    });
   }
 
   function revokeGrant(grant: CorporatePermissionGrant) {
     if (!window.confirm(labels.confirmRevoke)) return;
-    submit(
-      "DELETE",
-      `/v1/corporate/organizations/${organizationId}/permission-grants/${grant.grant_id}`,
-      {
-        schema_version: 1,
-        expected_revision: grant.revision,
-        authorization_revision: authorizationRevision,
-        idempotency_key: crypto.randomUUID(),
-      },
-    );
+    submit(`/v1/corporate/organizations/${organizationId}/permission-grants/${grant.grant_id}`, {
+      schema_version: 1,
+      expected_revision: grant.revision,
+      authorization_revision: authorizationRevision,
+      idempotency_key: crypto.randomUUID(),
+    });
   }
 
   const originLabel = (origin: CorporateBinding["origin"] | null) =>
@@ -159,7 +138,7 @@ export function CorporateMemberAccessPanel({
 
   return (
     <div className="space-y-6">
-      <div aria-live="polite" className="min-h-5">
+      <div aria-live="polite">
         {message ? (
           <p
             role={message.error ? "alert" : undefined}
@@ -176,115 +155,67 @@ export function CorporateMemberAccessPanel({
 
       <section>
         <h3 className="font-medium">{labels.bindings}</h3>
-        {bindings.length ? (
-          <ul className="mt-3 space-y-2">
-            {bindings.map((binding) => (
-              <li
-                key={binding.binding_id}
-                className="border-border flex flex-wrap items-center justify-between gap-2 rounded border p-3 text-sm"
-              >
-                <span className="min-w-0">
-                  <span className="font-medium">{binding.role}</span>
-                  <span className="text-muted-foreground font-mono text-xs">
-                    {" "}
-                    {binding.scope_kind}:{binding.scope_id}
-                  </span>
-                </span>
-                <span className="flex shrink-0 items-center gap-2">
-                  <Badge variant="secondary">{originLabel(binding.origin)}</Badge>
-                  <Badge variant="outline">
-                    {binding.coverage === "descendants"
-                      ? labels.coverageDescendants
-                      : labels.coverageSelf}
-                  </Badge>
-                  {binding.state === "active" && can("binding.delete") ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={busy}
-                      onClick={() => revokeBinding(binding)}
-                    >
-                      {busy ? labels.revoking : labels.revoke}
-                    </Button>
-                  ) : (
-                    <Badge variant="warning">{binding.state}</Badge>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
+        {bindings.length || membershipRole ? (
+          <div className="border-border mt-3 overflow-x-auto rounded-md border">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-muted/30 text-muted-foreground">
+                <tr>
+                  <th className="p-2">{labels.role}</th>
+                  <th className="p-2">{labels.scope}</th>
+                  <th className="p-2">{a("source")}</th>
+                  <th className="p-2">
+                    <span className="sr-only">{labels.revoke}</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {membershipRole && !bindings.some((binding) => binding.origin === "membership") ? (
+                  <tr className="border-border border-t">
+                    <td className="p-2 font-medium">{roleTitle(membershipRole, a)}</td>
+                    <td className="p-2">{labels.organization}</td>
+                    <td className="text-muted-foreground p-2">{labels.originMembership}</td>
+                    <td />
+                  </tr>
+                ) : null}
+                {bindings.map((binding) => (
+                  <tr key={binding.binding_id} className="border-border border-t">
+                    <td className="p-2 font-medium">{roleTitle(binding.role, a)}</td>
+                    <td className="p-2">
+                      <span className="block">
+                        {scopeName(binding.scope_kind, binding.scope_id)}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {binding.coverage === "descendants"
+                          ? labels.coverageDescendants
+                          : labels.coverageSelf}
+                      </span>
+                    </td>
+                    <td className="text-muted-foreground p-2">{originLabel(binding.origin)}</td>
+                    <td className="p-2">
+                      {binding.state === "active" && can("binding.delete") ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => {
+                            revokeBinding(binding);
+                          }}
+                        >
+                          {busy ? labels.revoking : labels.revoke}
+                        </Button>
+                      ) : (
+                        <Badge variant="warning">{binding.state}</Badge>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <p className="text-muted-foreground mt-2 text-sm">{labels.noBindings}</p>
         )}
-
-        {can("binding.create") && roleOptions.length ? (
-          <details className="mt-4">
-            <summary className="cursor-pointer text-sm font-medium">{labels.create}</summary>
-            <form
-              className="mt-3 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-5"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const formData = new FormData(event.currentTarget);
-                const [scopeKind, scopeId] = field(formData, "scope").split(":", 2);
-                if (!scopeKind || !scopeId) {
-                  report(labels.targetRequired, true);
-                  return;
-                }
-                submit("POST", `/v1/corporate/organizations/${organizationId}/bindings`, {
-                  schema_version: 1,
-                  account_id: accountId,
-                  role: field(formData, "role"),
-                  scope_kind: scopeKind,
-                  scope_id: scopeId,
-                  coverage: field(formData, "coverage") || "self",
-                  authorization_revision: authorizationRevision,
-                  idempotency_key: crypto.randomUUID(),
-                });
-              }}
-            >
-              <div className="space-y-1.5">
-                <Label htmlFor="binding-role">{labels.role}</Label>
-                <Select
-                  id="binding-role"
-                  name="role"
-                  required
-                  className="border-input bg-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
-                >
-                  {roleOptions.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="binding-scope">{labels.scope}</Label>
-                <ScopeField
-                  id="binding-scope"
-                  teams={teams}
-                  projects={projects}
-                  organizationId={organizationId}
-                  organizationLabel={labels.organization}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="binding-coverage">{labels.coverage}</Label>
-                <Select
-                  id="binding-coverage"
-                  name="coverage"
-                  className="border-input bg-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
-                >
-                  <option value="self">{labels.coverageSelf}</option>
-                  <option value="descendants">{labels.coverageDescendants}</option>
-                </Select>
-              </div>
-              <Button type="submit" disabled={busy}>
-                {busy ? labels.creating : labels.create}
-              </Button>
-            </form>
-          </details>
-        ) : null}
       </section>
 
       <section>
@@ -298,10 +229,10 @@ export function CorporateMemberAccessPanel({
                 className="border-border flex flex-wrap items-center justify-between gap-2 rounded border p-3 text-sm"
               >
                 <span className="min-w-0">
-                  <span className="font-mono text-xs font-medium">{grant.permission}</span>
-                  <span className="text-muted-foreground font-mono text-xs">
+                  <span className="text-xs font-medium">{permissionName(grant.permission)}</span>
+                  <span className="text-muted-foreground block text-xs">
                     {" "}
-                    {grant.scope_kind}:{grant.scope_id}
+                    {scopeName(grant.scope_kind, grant.scope_id)}
                   </span>
                   <span className="text-muted-foreground block text-xs">
                     {labels.issuer} {grant.issuer_account_id}
@@ -313,7 +244,9 @@ export function CorporateMemberAccessPanel({
                     variant="outline"
                     size="sm"
                     disabled={busy}
-                    onClick={() => revokeGrant(grant)}
+                    onClick={() => {
+                      revokeGrant(grant);
+                    }}
                   >
                     {busy ? labels.revoking : labels.revoke}
                   </Button>
@@ -326,199 +259,7 @@ export function CorporateMemberAccessPanel({
         ) : (
           <p className="text-muted-foreground mt-2 text-sm">{labels.noGrants}</p>
         )}
-
-        {can("binding.create") ? (
-          <details className="mt-4">
-            <summary className="cursor-pointer text-sm font-medium">{labels.grantAction}</summary>
-            <form
-              className="mt-3 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const formData = new FormData(event.currentTarget);
-                const [scopeKind, scopeId] = field(formData, "scope").split(":", 2);
-                if (!scopeKind || !scopeId) {
-                  report(labels.targetRequired, true);
-                  return;
-                }
-                submit("POST", `/v1/corporate/organizations/${organizationId}/permission-grants`, {
-                  schema_version: 1,
-                  account_id: accountId,
-                  permission: field(formData, "permission"),
-                  scope_kind: scopeKind,
-                  scope_id: scopeId,
-                  authorization_revision: authorizationRevision,
-                  idempotency_key: crypto.randomUUID(),
-                });
-              }}
-            >
-              <div className="space-y-1.5">
-                <Label htmlFor="grant-permission">{labels.permission}</Label>
-                <Select
-                  id="grant-permission"
-                  name="permission"
-                  required
-                  className="border-input bg-background focus-visible:ring-ring h-10 w-full rounded-md border px-3 font-mono text-xs focus-visible:ring-2 focus-visible:outline-none"
-                >
-                  <option value="">—</option>
-                  {(definitions.length
-                    ? definitions
-                        .filter(
-                          (definition) =>
-                            definition.scopes.includes(
-                              grantScopeKind as (typeof definition.scopes)[number],
-                            ) && capabilities.includes(definition.name),
-                        )
-                        .map((definition) => definition.name)
-                    : capabilities.filter((permission) => permission.includes("."))
-                  ).map((permission) => (
-                    <option key={permission} value={permission}>
-                      {permission}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="grant-scope">{labels.scope}</Label>
-                <ScopeField
-                  id="grant-scope"
-                  teams={teams}
-                  projects={projects}
-                  organizationId={organizationId}
-                  organizationLabel={labels.organization}
-                  onKindChange={setGrantScopeKind}
-                />
-              </div>
-              <Button type="submit" disabled={busy}>
-                {busy ? labels.creating : labels.grantAction}
-              </Button>
-            </form>
-          </details>
-        ) : null}
       </section>
-
-      {can("member.manage") ? (
-        <section>
-          <h3 className="font-medium">{labels.assignments}</h3>
-          <form
-            className="mt-3 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const formData = new FormData(event.currentTarget);
-              const teamId = field(formData, "teamId");
-              const projectId = field(formData, "projectId");
-              if (!teamId && !projectId) {
-                report(labels.targetRequired, true);
-                return;
-              }
-              submit(
-                "POST",
-                `/v1/corporate/organizations/${organizationId}/membership-assignments`,
-                {
-                  schema_version: 1,
-                  account_id: accountId,
-                  team_id: teamId || null,
-                  project_id: projectId || null,
-                  team_role: field(formData, "teamRole") || "staff",
-                  operation: field(formData, "operation") || "assign",
-                  authorization_revision: authorizationRevision,
-                  idempotency_key: crypto.randomUUID(),
-                },
-              );
-            }}
-          >
-            <div className="space-y-1.5">
-              <Label htmlFor="assign-team">{labels.team}</Label>
-              <Select
-                id="assign-team"
-                name="teamId"
-                className="border-input bg-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
-              >
-                <option value="">—</option>
-                {teams.map((team) => (
-                  <option key={team.team_id} value={team.team_id}>
-                    {team.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="assign-project">{labels.project}</Label>
-              <Select
-                id="assign-project"
-                name="projectId"
-                className="border-input bg-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
-              >
-                <option value="">—</option>
-                {projects.map((project) => (
-                  <option key={project.project_id} value={project.project_id}>
-                    {project.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="assign-operation">{labels.operation}</Label>
-              <Select
-                id="assign-operation"
-                name="operation"
-                className="border-input bg-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
-              >
-                <option value="assign">{labels.assign}</option>
-                <option value="remove">{labels.remove}</option>
-              </Select>
-            </div>
-            <Button type="submit" disabled={busy}>
-              {busy ? labels.creating : labels.update}
-            </Button>
-          </form>
-        </section>
-      ) : null}
     </div>
-  );
-}
-
-/**
- * One select carrying both scope kind and id as `kind:id`, so the chosen scope
- * can never mix a team kind with a project id.
- */
-function ScopeField({
-  id,
-  teams,
-  projects,
-  organizationId,
-  organizationLabel,
-  onKindChange,
-}: {
-  id: string;
-  teams: readonly CorporateTeamView[];
-  projects: readonly CorporateProjectView[];
-  organizationId: string;
-  organizationLabel: string;
-  onKindChange?: (kind: string) => void;
-}) {
-  return (
-    <Select
-      id={id}
-      name="scope"
-      defaultValue={`organization:${organizationId}`}
-      onChange={(event) => onKindChange?.(event.target.value.split(":", 1)[0] ?? "organization")}
-      className="border-input bg-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
-    >
-      <option value={`organization:${organizationId}`}>{organizationLabel}</option>
-      <optgroup label="teams">
-        {teams.map((team) => (
-          <option key={team.team_id} value={`team:${team.team_id}`}>
-            {team.name}
-          </option>
-        ))}
-      </optgroup>
-      <optgroup label="projects">
-        {projects.map((project) => (
-          <option key={project.project_id} value={`project:${project.project_id}`}>
-            {project.name}
-          </option>
-        ))}
-      </optgroup>
-    </Select>
   );
 }

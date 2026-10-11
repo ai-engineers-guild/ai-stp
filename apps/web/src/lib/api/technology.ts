@@ -107,9 +107,14 @@ export async function readCategoryDirectory(sessionToken: string, organizationId
   const permissions = await readTechnologyCapabilities(sessionToken, organizationId);
   if (!permissions.capabilities.includes("category.list")) return null;
   const path = `/v1/corporate/organizations/${organizationId}`;
+  const canReadAreas =
+    permissions.capabilities.includes("area.list") &&
+    permissions.capabilities.includes("area.read");
   const [categories, areas] = await Promise.all([
     privateApiRequest<CategoryList>(`${path}/technology-categories`, { sessionToken }),
-    privateApiRequest<AreaList>(`${path}/technology-areas`, { sessionToken }).catch(() => null),
+    canReadAreas
+      ? privateApiRequest<AreaList>(`${path}/technology-areas`, { sessionToken }).catch(() => null)
+      : null,
   ]);
   return { permissions, categories, areas };
 }
@@ -129,7 +134,9 @@ export async function readCategoryDetail(
     permissions.capabilities.includes("technology.list")
       ? readCategoryTechnologies(sessionToken, path, categoryId)
       : null,
-    privateApiRequest<AreaList>(`${path}/technology-areas`, { sessionToken }).catch(() => null),
+    permissions.capabilities.includes("area.list") && permissions.capabilities.includes("area.read")
+      ? privateApiRequest<AreaList>(`${path}/technology-areas`, { sessionToken }).catch(() => null)
+      : null,
   ]);
   return { permissions, category, technologies, areas };
 }
@@ -402,6 +409,7 @@ export const LANDSCAPE_FILTER_KEYS = [
   "freshness",
   "include_history",
   "include_inactive",
+  "include_proposed",
   "offset",
   "limit",
   "project_offset",

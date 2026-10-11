@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/atoms/button";
-import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/atoms/menu";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/atoms/dialog";
-import { resolveCorporateRail } from "@/lib/corporate-navigation";
+import { RailItems, railItemClass, type RailItem } from "@/components/layouts/context-rail-items";
+import { resolveCorporateRail } from "@/lib/corporate-rail";
 import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
 import { corporateHref } from "@/lib/features/corporate-path";
 import { Link, usePathname } from "@/lib/i18n/navigation";
@@ -18,15 +18,8 @@ import { cn } from "@/lib/cn";
 import { UI } from "@/lib/ui-selectors";
 import { Icon, type IconName } from "@/theme/icons";
 
-export type RailItem = {
-  id: string;
-  href: string;
-  label: string;
-  icon: IconName;
-  active: boolean;
-  external?: boolean | undefined;
-  children?: RailItem[] | undefined;
-};
+export type { RailItem };
+
 const siteIcons: Record<string, IconName> = {
   home: "cards",
   catalog: "objects",
@@ -35,145 +28,6 @@ const siteIcons: Record<string, IconName> = {
   content: "list",
   contact: "mail",
 };
-const itemClass =
-  "text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring flex min-h-11 min-w-0 items-center gap-3 rounded-sm px-3 text-sm outline-none focus-visible:ring-2";
-const activeClass =
-  "bg-primary/5 dark:bg-primary/10 text-primary font-medium before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-sm before:bg-primary";
-
-function RailItems({
-  items,
-  collapsed,
-  scope,
-  onNavigate,
-}: {
-  items: RailItem[];
-  collapsed: boolean;
-  scope: string;
-  onNavigate: () => void;
-}) {
-  const t = useTranslations("nav");
-  const [disclosures, setDisclosures] = useState<Record<string, boolean>>({});
-  function link(item: RailItem, child = false) {
-    const props = {
-      "data-ui":
-        item.id === UI.navigation.account || item.id === UI.navigation.contact
-          ? `sidebar-${item.id}`
-          : item.id,
-      "aria-current": item.active ? ("page" as const) : undefined,
-      title: collapsed ? item.label : undefined,
-      className: cn(
-        itemClass,
-        "relative",
-        child && !collapsed && "pl-6",
-        collapsed && "justify-center px-0",
-        item.active && activeClass,
-      ),
-      onClick: onNavigate,
-    };
-    const content = (
-      <>
-        <Icon name={item.icon} size="md" />
-        <span className={collapsed ? "sr-only" : "min-w-0 flex-1"}>{item.label}</span>
-      </>
-    );
-    return item.external ? (
-      <a key={item.id} href={item.href} {...props}>
-        {content}
-      </a>
-    ) : (
-      <Link key={item.id} href={item.href} prefetch={false} {...props}>
-        {content}
-      </Link>
-    );
-  }
-  return items.map((item) => {
-    if (!item.children?.length) return link(item);
-    const key = `${scope}:${item.id}`;
-    const open = disclosures[key] ?? (item.active || item.children.some((child) => child.active));
-    const toggle = () => {
-      setDisclosures((current) => ({ ...current, [key]: !open }));
-    };
-    const label = t(open ? "collapseSection" : "expandSection", { section: item.label });
-    if (collapsed)
-      return (
-        <Menu key={item.id} modal={false}>
-          <MenuTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              data-ui={item.id}
-              aria-label={item.label}
-              title={item.label}
-              data-active={item.active || item.children.some((child) => child.active)}
-              className={cn(
-                itemClass,
-                "relative w-full justify-center px-0",
-                (item.active || item.children.some((child) => child.active)) && activeClass,
-              )}
-            >
-              <Icon name={item.icon} size="md" />
-            </Button>
-          </MenuTrigger>
-          <MenuContent
-            side="right"
-            align="start"
-            sideOffset={8}
-            aria-label={item.label}
-            className="max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-52 overflow-y-auto"
-          >
-            {(item.href ? [item, ...item.children] : item.children).map((child) => (
-              <MenuItem key={child.id} asChild>
-                <Link
-                  href={child.href}
-                  prefetch={false}
-                  data-ui={child.id}
-                  aria-current={child.active ? "page" : undefined}
-                  className={cn(
-                    itemClass,
-                    "focus:bg-muted",
-                    child.active && "text-primary font-medium",
-                  )}
-                  onClick={onNavigate}
-                >
-                  <Icon name={child.icon} size="md" />
-                  <span className="min-w-0 flex-1 break-words">{child.label}</span>
-                </Link>
-              </MenuItem>
-            ))}
-          </MenuContent>
-        </Menu>
-      );
-    return (
-      <div key={item.id} className="space-y-1">
-        <div className="flex min-w-0 items-center">
-          {item.href ? <div className="min-w-0 flex-1">{link(item)}</div> : null}
-          <Button
-            type="button"
-            variant="ghost"
-            size={item.href ? "icon" : "default"}
-            aria-label={label}
-            aria-expanded={open}
-            aria-controls={`${scope}-${item.id}`}
-            className={cn("h-11 shrink-0", !item.href && "w-full justify-start gap-3 px-3 text-sm")}
-            onClick={toggle}
-          >
-            {!item.href ? (
-              <>
-                <Icon name={item.icon} size="md" />
-                <span className="flex-1 text-left">{item.label}</span>
-              </>
-            ) : null}
-            <Icon name={open ? "chevronUp" : "chevronDown"} size="sm" />
-          </Button>
-        </div>
-        <div id={`${scope}-${item.id}`} hidden={!open} className="space-y-1">
-          {item.children.map((child) => link(child, true))}
-        </div>
-      </div>
-    );
-  });
-}
 
 /** Shared Human navigation, extended from the original corporate rail (ADR-0219). */
 export function ContextRail({
@@ -258,7 +112,7 @@ export function ContextRail({
       active: isPrimaryNavigationActive({ ...item, href: corporateHref(item.href) }, pathname),
       external: item.external,
     }));
-  const items: RailItem[] = corporate
+  const allItems: RailItem[] = corporate
     ? corporateNav.entries.map((entry) => ({
         ...entry,
         id: `corporate-nav-${entry.id}`,
@@ -270,6 +124,10 @@ export function ContextRail({
         })),
       }))
     : publicItems;
+  // Administration is a leaf link pinned under a divider at the rail bottom.
+  const items = allItems.map((item) =>
+    item.id === "corporate-nav-administration" ? { ...item, pinned: true } : item,
+  );
   const scope = corporate ? corporateNav.context : "saas";
   const corporateBack = corporate ? corporateNav.back : null;
   const parent = publicItems.find(
@@ -362,7 +220,11 @@ export function ContextSidebar({
           <Button
             type="button"
             variant="ghost"
-            className={cn(itemClass, "w-full justify-start", isCollapsed && "justify-center px-0")}
+            className={cn(
+              railItemClass,
+              "w-full justify-start",
+              isCollapsed && "justify-center px-0",
+            )}
             aria-label={nav("backToNavigation")}
             title={nav("backToNavigation")}
             onClick={onShowMainNavigation}
@@ -375,7 +237,7 @@ export function ContextSidebar({
           <Link
             data-ui={UI.navigation.back}
             href={back.href}
-            className={cn(itemClass, isCollapsed && "justify-center px-0")}
+            className={cn(railItemClass, isCollapsed && "justify-center px-0")}
             title={back.label}
             onClick={closeMenu}
           >
@@ -410,7 +272,7 @@ export function ContextSidebar({
           id="desktop-context-navigation"
           data-ui={corporate ? UI.corporate.contextNavList : UI.shell.primaryNav}
           aria-label={nav("primaryLabel")}
-          className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 py-4"
+          className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 py-4"
         >
           {contents(collapsed)}
         </nav>
@@ -442,7 +304,7 @@ export function ContextSidebar({
             <nav
               id="mobile-context-navigation"
               aria-label={nav("primaryLabel")}
-              className="min-h-0 flex-1 space-y-2 overflow-y-auto"
+              className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto"
             >
               {contents(false, true)}
             </nav>

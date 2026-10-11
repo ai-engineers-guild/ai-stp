@@ -1,17 +1,122 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import type { CorporateProjectView, CorporateTeamView } from "@/lib/api/generated/types.gen";
 import { Badge } from "@/components/atoms/badge";
-import { InitialsAvatar } from "@/components/atoms/avatar-image";
-import { Select } from "@/components/atoms/select";
 import { CompactChipList } from "@/components/molecules/compact-chip-list";
 import { Link } from "@/lib/i18n/navigation";
+import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
+import { pageWindow } from "@/lib/page-window";
 import { Icon } from "@/theme";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+} from "@/components/atoms/sheet";
+
+/** Shared detail drawer for the People & Access workspaces. */
+export function CorporateDetailDrawer({
+  open,
+  onOpenChange,
+  title,
+  description,
+  wide,
+  actions,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description?: string | undefined;
+  wide?: boolean;
+  /** Row-level actions rendered in the sticky header, left of the close button. */
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
+  const t = useTranslations("people");
+  const returnFocus = useRef<HTMLElement | null>(null);
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
+      <SheetContent
+        className={`top-20 scroll-pt-20 overflow-y-auto p-5 ${wide ? "w-[min(calc(100vw-1rem),48rem)]" : "w-[min(calc(100vw-1rem),26rem)]"}`}
+        onOpenAutoFocus={() => {
+          returnFocus.current =
+            document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          returnFocus.current?.focus();
+        }}
+      >
+        <div className="border-border bg-background sticky -top-5 z-10 -mx-5 -mt-5 mb-5 flex items-start justify-between gap-3 border-b px-5 py-4">
+          <div className="min-w-0">
+            <SheetTitle className="truncate text-lg font-medium">{title}</SheetTitle>
+            <SheetDescription
+              className={description ? "text-muted-foreground mt-1 truncate text-sm" : "sr-only"}
+            >
+              {description ?? title}
+            </SheetDescription>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            {actions}
+            <SheetClose asChild>
+              <Button variant="ghost" size="icon" aria-label={t("close")}>
+                <Icon name="close" size="sm" />
+              </Button>
+            </SheetClose>
+          </div>
+        </div>
+        {children}
+      </SheetContent>
+    </Sheet>
+  );
+}
 
 export const PEOPLE_PAGE_SIZE = 10;
+export const peopleSelectClass =
+  "border-input bg-background focus-visible:ring-ring h-11 w-full min-w-0 rounded-sm border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none";
+export const peopleHeadClass =
+  "text-muted-foreground h-12 px-3 text-left text-xs font-medium whitespace-nowrap";
+export const peopleCellClass = "px-3 py-2 text-sm";
+
+/**
+ * Shared table shell for the People & Access workspaces: labelled scroll
+ * region with keyboard access, `framed` for the bordered-card variant.
+ * Callers own their thead/tbody; column classes come from the kit constants.
+ */
+export function PeopleTable({
+  label,
+  minWidth,
+  framed = false,
+  children,
+}: {
+  label: string;
+  minWidth?: string;
+  framed?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      role="region"
+      aria-label={label}
+      // Keyboard access is required for scrolling the table on narrow viewports.
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+      tabIndex={0}
+      className={`focus-visible:ring-ring min-w-0 overflow-x-auto focus-visible:ring-2 focus-visible:outline-none ${
+        framed ? "border-border rounded-lg border" : ""
+      }`}
+    >
+      <table aria-label={label} className={`w-full border-collapse ${minWidth ?? ""}`}>
+        {children}
+      </table>
+    </div>
+  );
+}
 
 /** Native history keeps filtering instant, addressable, and restorable on Back. */
 export function usePeopleFilters() {
@@ -70,10 +175,10 @@ export function PeopleSelect({
   options: readonly { value: string; label: string }[];
 }) {
   return (
-    <Select
+    <select
       aria-label={label}
       value={value}
-      className="sm:w-auto sm:min-w-32"
+      className={`${peopleSelectClass} sm:w-auto sm:min-w-32`}
       onChange={(event) => {
         onChange(event.target.value);
       }}
@@ -84,7 +189,7 @@ export function PeopleSelect({
           {option.label}
         </option>
       ))}
-    </Select>
+    </select>
   );
 }
 
@@ -126,13 +231,25 @@ export function PersonIdentity({
   you = false,
 }: {
   name: string;
-  email?: string;
+  email?: string | undefined;
   you?: boolean;
 }) {
   const t = useTranslations("people");
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <InitialsAvatar name={name} />
+      <span
+        aria-hidden
+        className="bg-muted text-foreground grid size-8 shrink-0 place-items-center rounded-full text-xs font-medium"
+      >
+        {initials}
+      </span>
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <span className="truncate">{name}</span>
@@ -148,10 +265,94 @@ export function PersonIdentity({
   );
 }
 
+export function PeoplePager({
+  total,
+  page,
+  pageSize = PEOPLE_PAGE_SIZE,
+  onPage,
+  kind,
+}: {
+  total: number;
+  page: number;
+  pageSize?: number;
+  onPage: (page: number) => void;
+  kind: "members" | "invitations" | "events";
+}) {
+  const t = useTranslations("people");
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const visible = pageWindow(page, pages, 1);
+  return (
+    <footer className="border-border flex flex-wrap items-center justify-between gap-3 border-t py-3">
+      <p aria-live="polite" className="text-muted-foreground text-sm tabular-nums">
+        {t(
+          kind === "members"
+            ? "showingMembers"
+            : kind === "invitations"
+              ? "showingInvitations"
+              : "showingEvents",
+          {
+            start: total ? (page - 1) * pageSize + 1 : 0,
+            end: Math.min(page * pageSize, total),
+            total,
+          },
+        )}
+      </p>
+      <nav aria-label={t("pagination")} className="flex items-center gap-1">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label={t("previousPage")}
+          disabled={page <= 1}
+          onClick={() => {
+            onPage(page - 1);
+          }}
+        >
+          <Icon name="chevronLeft" size="sm" />
+        </Button>
+        {visible.map((value, index) =>
+          value === "gap" ? (
+            <span key={`gap-${index}`} aria-hidden className="text-muted-foreground px-1">
+              &hellip;
+            </span>
+          ) : (
+            <Button
+              key={value}
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-current={value === page ? "page" : undefined}
+              aria-label={t("page", { page: value })}
+              className={value === page ? "border-primary text-primary border" : ""}
+              onClick={() => {
+                onPage(value);
+              }}
+            >
+              {value}
+            </Button>
+          ),
+        )}
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label={t("nextPage")}
+          disabled={page >= pages}
+          onClick={() => {
+            onPage(page + 1);
+          }}
+        >
+          <Icon name="chevronRight" size="sm" />
+        </Button>
+      </nav>
+    </footer>
+  );
+}
+
 export function PeopleRole({ role }: { role: string }) {
   return (
     <Link
-      href={`/corporate/organization/admins/roles?role=${encodeURIComponent(role)}`}
+      href={`/corporate/admin/roles?role=${encodeURIComponent(role)}`}
       className="focus-visible:ring-ring inline-block rounded-sm hover:underline focus-visible:ring-2 focus-visible:outline-none"
     >
       <Badge variant="secondary" className="font-sans font-normal tracking-normal">
@@ -173,5 +374,81 @@ export function PeopleTeams({ teams }: { teams: readonly { team_id: string; name
         return team ? `/corporate/teams/${encodeURIComponent(team.team_id)}` : undefined;
       }}
     />
+  );
+}
+
+/**
+ * One select carrying both scope kind and id as `kind:id`, so the chosen scope
+ * can never mix a team kind with a project id.
+ */
+export function ScopeField({
+  id,
+  teams,
+  projects,
+  organizationId,
+  organizationLabel,
+  onKindChange,
+  options,
+}: {
+  id: string;
+  teams: readonly CorporateTeamView[];
+  projects: readonly CorporateProjectView[];
+  organizationId: string;
+  organizationLabel: string;
+  onKindChange?: (kind: string) => void;
+  options: readonly { value: string; label: string }[];
+}) {
+  const a = useTranslations("accessUi");
+  return (
+    <select
+      id={id}
+      name="scope"
+      defaultValue={`organization:${organizationId}`}
+      onChange={(event) => onKindChange?.(event.target.value.split(":", 1)[0] ?? "organization")}
+      className="border-input bg-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
+    >
+      <option value={`organization:${organizationId}`}>{organizationLabel}</option>
+      <optgroup label={a("entities.team.name")}>
+        {teams.map((team) => (
+          <option key={team.team_id} value={`team:${team.team_id}`}>
+            {team.name}
+          </option>
+        ))}
+      </optgroup>
+      <optgroup label={a("entities.technology.name")}>
+        {options
+          .filter((option) => option.value.startsWith("technology:"))
+          .map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+      </optgroup>
+      <optgroup label={a("entities.category.name")}>
+        {options
+          .filter((option) => option.value.startsWith("category:"))
+          .map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+      </optgroup>
+      <optgroup label={a("entities.catalog_object.name")}>
+        {options
+          .filter((option) => option.value.startsWith("catalog_object:"))
+          .map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+      </optgroup>
+      <optgroup label={a("entities.project.name")}>
+        {projects.map((project) => (
+          <option key={project.project_id} value={`project:${project.project_id}`}>
+            {project.name}
+          </option>
+        ))}
+      </optgroup>
+    </select>
   );
 }

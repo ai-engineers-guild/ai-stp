@@ -36,7 +36,9 @@ describe("useConnectorFlow", () => {
         deps: [],
       }),
     );
-    await waitFor(() => expect(result.current.status).toEqual(connectedStatus));
+    await waitFor(() => {
+      expect(result.current.status).toEqual(connectedStatus);
+    });
     expect(result.current.connected).toBe(true);
     expect(result.current.source?.state).toBe("connected");
     expect(result.current.admin).toBeUndefined();
@@ -50,7 +52,9 @@ describe("useConnectorFlow", () => {
         deps: [],
       }),
     );
-    await waitFor(() => expect(result.current.error).toBe("unauthorized"));
+    await waitFor(() => {
+      expect(result.current.error).toBe("unauthorized");
+    });
     expect(result.current.status).toBeNull();
   });
 
@@ -66,7 +70,9 @@ describe("useConnectorFlow", () => {
     act(() => {
       result.current.run(() => Promise.resolve(fail("rate_limited")), vi.fn(), failed);
     });
-    await waitFor(() => expect(result.current.error).toBe("rate_limited"));
+    await waitFor(() => {
+      expect(result.current.error).toBe("rate_limited");
+    });
     expect(failed).toHaveBeenCalledOnce();
   });
 
@@ -83,9 +89,9 @@ describe("useConnectorFlow", () => {
       result.current.connect("source");
       await Promise.resolve();
     });
-    await waitFor(() =>
-      expect(flow.navigateConnectionWindow).toHaveBeenCalledWith(null, "https://auth"),
-    );
+    await waitFor(() => {
+      expect(flow.navigateConnectionWindow).toHaveBeenCalledWith(null, "https://auth");
+    });
     expect(flow.watchConnection).toHaveBeenCalledOnce();
   });
 });

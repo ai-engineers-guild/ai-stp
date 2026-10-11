@@ -1,302 +1,261 @@
-import { getTranslations } from "next-intl/server";
+"use client";
 
+import { useState } from "react";
 import { Badge } from "@/components/atoms/badge";
-import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
 import { Button } from "@/components/atoms/button";
-import { landscapeSearchParams } from "@/lib/api/technology";
+import { Menu, MenuTrigger, MenuContent, MenuItem } from "@/components/atoms/menu";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/atoms/dialog";
 import { Link } from "@/lib/i18n/navigation";
-import type {
-  AreaView,
-  CategoryView,
-  TechnologyLandscapeRow,
-  TechnologyLandscapeView,
-} from "@/lib/api/generated/types.gen";
+import { Icon, type IconName } from "@/theme";
+import { technologyAreaIcon } from "@/lib/technology-taxonomy";
+import {
+  useLandscapePresentation,
+  versions,
+  type LandscapeAreaGroup,
+  type LandscapeState,
+} from "./technology-landscape-state";
+import { TechnologyLandscapeTable } from "./technology-landscape-table";
 
-type Labels = Record<
-  | "technology"
-  | "projects"
-  | "proposed"
-  | "previous"
-  | "next"
-  | "activity"
-  | "groupedNote"
-  | "decisionUnavailable"
-  | "noKnownUse"
-  | "active"
-  | "inactive"
-  | "unknown"
-  | "source_availability"
-  | "available"
-  | "unavailable"
-  | "versions"
-  | "unclassified",
-  string
->;
+const CATEGORY_LIMIT = 5;
+const TECHNOLOGY_LIMIT = 5;
 
-type Filters = Record<string, string | string[]>;
-
-function filterQuery(filters: Filters, extra: Record<string, string>) {
-  const params = new URLSearchParams(landscapeSearchParams(filters));
-  for (const [key, value] of Object.entries(extra)) params.set(key, value);
-  return params;
-}
-
-export async function TechnologyLandscapeResults({
-  landscape,
-  filters,
-  categories = null,
-  areas = null,
-}: {
-  landscape: TechnologyLandscapeView;
-  filters: Filters;
-  categories?: CategoryView[] | null;
-  areas?: AreaView[] | null;
-}) {
-  const t = await getTranslations("technology");
-  const labels: Labels = {
-    technology: t("technology"),
-    projects: t("projects"),
-    proposed: t("proposed"),
-    previous: t("previous"),
-    next: t("next"),
-    activity: t("activity"),
-    groupedNote: t("groupedNote"),
-    decisionUnavailable: t("decisionUnavailable"),
-    noKnownUse: t("noKnownUse"),
-    active: t("values.active"),
-    inactive: t("values.inactive"),
-    unknown: t("values.unknown"),
-    source_availability: t("source_availability"),
-    available: t("values.available"),
-    unavailable: t("values.unavailable"),
-    versions: t("scans.columns.version"),
-    unclassified: t("areas.unclassified"),
-  };
-  if (landscape.filters.view === "grouped") {
-    const byId = new Map(categories?.map((item) => [item.category_id, item]) ?? []);
-    const areaById = new Map(areas?.map((item) => [item.area_id, item]) ?? []);
-    const groups = new Map<string, Map<string, TechnologyLandscapeRow[]>>();
-    for (const row of landscape.items) {
-      const ids = row.technology.category_ids.length ? row.technology.category_ids : [""];
-      for (const id of ids) {
-        const category = byId.get(id);
-        const areaId = category?.area_id ?? "";
-        const areaName = areaById.get(areaId)?.name ?? labels.unclassified;
-        const bucket = groups.get(areaName) ?? new Map<string, TechnologyLandscapeRow[]>();
-        const key = category?.name ?? (id || labels.unclassified);
-        bucket.set(key, [...(bucket.get(key) ?? []), row]);
-        groups.set(areaName, bucket);
-      }
-    }
-    return (
-      <div className="space-y-8">
-        <p className="text-muted-foreground max-w-prose text-sm">{labels.groupedNote}</p>
-        {[...groups.entries()]
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([area, items]) => (
-            <section key={area} className="space-y-4">
-              <h2 className="text-2xl font-medium">{area}</h2>
-              {[...items.entries()]
-                .sort(([a], [b]) => a.localeCompare(b))
-                .map(([category, rows]) => (
-                  <section key={category} className="space-y-3">
-                    <h3 className="text-xl font-medium break-all">{category}</h3>
-                    <LandscapeTable
-                      rows={rows}
-                      filters={filters}
-                      landscape={landscape}
-                      labels={labels}
-                    />
-                  </section>
-                ))}
-            </section>
-          ))}
-      </div>
-    );
-  }
-  if (landscape.filters.view === "radar") {
-    const placements = [null, "none", "assess", "trial", "adopt", "hold"] as const;
-    return (
-      <div className="space-y-6">
-        {placements.map((placement) => {
-          const rows = landscape.items.filter(
-            (row) => (row.decision?.adoption ?? null) === placement,
-          );
-          return rows.length ? (
-            <section key={placement ?? "unavailable"} className="space-y-3">
-              <h2 className="text-xl font-medium">
-                {placement === null ? labels.decisionUnavailable : t(`values.${placement}`)}
-              </h2>
-              <LandscapeTable rows={rows} filters={filters} landscape={landscape} labels={labels} />
-            </section>
-          ) : null;
-        })}
-      </div>
-    );
-  }
-  if (landscape.filters.view === "relationships")
-    return (
-      <ul className="divide-border divide-y">
-        {landscape.items.map((row) => (
-          <li key={row.technology.technology_id} className="space-y-3 py-4">
-            <h2 className="text-xl font-medium">
-              <TechnologyLink row={row} />
-            </h2>
-            <p className="text-sm tabular-nums">
-              {labels.projects}: {row.project_count}; {labels.proposed}:{" "}
-              {row.proposed_project_count}
-            </p>
-            <ProjectLinks row={row} filters={filters} landscape={landscape} labels={labels} />
-          </li>
-        ))}
-      </ul>
-    );
+export function TechnologyLandscapeResults(props: Parameters<typeof useLandscapePresentation>[0]) {
+  const state = useLandscapePresentation(props);
   return (
-    <LandscapeTable
-      rows={landscape.items}
-      filters={filters}
-      landscape={landscape}
-      labels={labels}
-    />
+    <div className="space-y-3">
+      {state.grouped ? (
+        <TechnologyLandscapeMap state={state} />
+      ) : (
+        <TechnologyLandscapeTable state={state} />
+      )}
+      <TechnologyLandscapeDialog state={state} />
+    </div>
   );
 }
 
-function TechnologyLink({ row }: { row: TechnologyLandscapeRow }) {
+export function TechnologyLandscapeMap({ state }: { state: LandscapeState }) {
+  const { w, groups } = state;
   return (
-    <Link
-      href={`/corporate/technologies/${row.technology.technology_id}`}
-      className="inline-flex min-h-11 items-center underline underline-offset-4"
+    <section>
+      <h2 className="text-xl font-medium">{w("landscapeHeading")}</h2>
+      <p className="text-muted-foreground mb-3 text-sm">{w("landscapeDescription")}</p>
+      <div className="technology-map-grid">
+        {groups.map((group) => (
+          <LandscapeAreaCard
+            key={group.key}
+            group={group}
+            icon={technologyAreaIcon(group.areaId ?? group.name)}
+            state={state}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function LandscapeAreaCard({
+  group,
+  icon,
+  state,
+}: {
+  group: LandscapeAreaGroup;
+  icon: IconName;
+  state: LandscapeState;
+}) {
+  const { w, setActive } = state;
+  const [allCategories, setAllCategories] = useState(false);
+  const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
+  const [allTech, setAllTech] = useState<ReadonlySet<string>>(new Set());
+  const visible = allCategories ? group.categories : group.categories.slice(0, CATEGORY_LIMIT);
+  const hiddenCount = group.categories.length - visible.length;
+  function toggleCategory(key: string) {
+    setOpen((previous) => {
+      const next = new Set(previous);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+  function expandAll() {
+    setAllCategories(true);
+    setOpen(new Set(group.categories.map((category) => category.key)));
+  }
+  function collapseAll() {
+    setAllCategories(false);
+    setOpen(new Set());
+    setAllTech(new Set());
+  }
+  return (
+    <section className="technology-domain">
+      <header>
+        <Icon name={icon} />
+        <h3>{group.name}</h3>
+        <Menu>
+          <MenuTrigger asChild>
+            <Button size="icon" variant="ghost" className="size-7" aria-label={w("areaActions")}>
+              <Icon name="more" size="sm" />
+            </Button>
+          </MenuTrigger>
+          <MenuContent>
+            <MenuItem onSelect={expandAll}>{w("expandAll")}</MenuItem>
+            <MenuItem onSelect={collapseAll}>{w("collapseAll")}</MenuItem>
+            {group.areaId && (
+              <MenuItem asChild>
+                <Link href={`/corporate/technologies?area_ids=${group.areaId}`}>
+                  {w("openTechnologies")}
+                </Link>
+              </MenuItem>
+            )}
+          </MenuContent>
+        </Menu>
+      </header>
+      {!group.categories.length && (
+        <p className="text-muted-foreground text-xs">{w("emptyArea")}</p>
+      )}
+      {visible.map((category) => (
+        <div key={category.key} className="space-y-1">
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring flex min-h-6 w-full items-center gap-1.5 rounded-sm text-left text-xs focus-visible:ring-2 focus-visible:outline-none"
+            aria-expanded={open.has(category.key)}
+            onClick={() => {
+              toggleCategory(category.key);
+            }}
+          >
+            <Icon
+              name={open.has(category.key) ? "chevronDown" : "chevronRight"}
+              size="sm"
+              className="shrink-0"
+            />
+            <span className="min-w-0 flex-1 truncate">{category.name}</span>
+            <Badge variant="secondary" className="shrink-0">
+              {category.rows.length}
+            </Badge>
+          </button>
+          {open.has(category.key) && (
+            <div className="flex flex-wrap gap-2 pl-4">
+              {(allTech.has(category.key)
+                ? category.rows
+                : category.rows.slice(0, TECHNOLOGY_LIMIT)
+              ).map((row) => (
+                <Button
+                  key={row.technology.technology_id}
+                  variant="secondary"
+                  className="technology-chip"
+                  onClick={() => {
+                    setActive(row);
+                  }}
+                >
+                  {row.technology.name}
+                </Button>
+              ))}
+              {category.rows.length > TECHNOLOGY_LIMIT && (
+                <Button
+                  variant="ghost"
+                  className="technology-chip"
+                  aria-expanded={allTech.has(category.key)}
+                  aria-label={w("moreTechnologies", {
+                    count: category.rows.length - TECHNOLOGY_LIMIT,
+                  })}
+                  onClick={() => {
+                    setAllTech((previous) => {
+                      const next = new Set(previous);
+                      if (next.has(category.key)) next.delete(category.key);
+                      else next.add(category.key);
+                      return next;
+                    });
+                  }}
+                >
+                  {allTech.has(category.key)
+                    ? w("showLess")
+                    : `+${category.rows.length - TECHNOLOGY_LIMIT}`}
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+      {hiddenCount > 0 ? (
+        <Button
+          variant="ghost"
+          className="technology-chip self-start"
+          aria-label={w("moreCategories", { count: hiddenCount })}
+          onClick={() => {
+            setAllCategories(true);
+          }}
+        >
+          +{hiddenCount}
+        </Button>
+      ) : allCategories && group.categories.length > CATEGORY_LIMIT ? (
+        <Button
+          variant="ghost"
+          className="technology-chip self-start"
+          onClick={() => {
+            setAllCategories(false);
+          }}
+        >
+          {w("showLess")}
+        </Button>
+      ) : null}
+    </section>
+  );
+}
+
+export function TechnologyLandscapeDialog({ state }: { state: LandscapeState }) {
+  const { t, w, active, setActive, classification } = state;
+  return (
+    <Dialog
+      open={active !== null}
+      onOpenChange={(open) => {
+        if (!open) setActive(null);
+      }}
     >
-      {row.technology.name}
-    </Link>
-  );
-}
-
-function rowVersions(row: TechnologyLandscapeRow): string[] {
-  return [
-    ...new Set(
-      row.projects.flatMap((project) =>
-        project.usage.facts.map((fact) => fact.version).filter(Boolean),
-      ),
-    ),
-  ].sort() as string[];
-}
-
-function LandscapeTable({
-  rows,
-  filters,
-  landscape,
-  labels,
-}: {
-  rows: TechnologyLandscapeRow[];
-  filters: Filters;
-  landscape: TechnologyLandscapeView;
-  labels: Labels;
-}) {
-  return (
-    <div className="overflow-x-auto">
-      <Table className="w-full text-left text-sm">
-        <caption className="sr-only">
-          {labels.technology} — {labels.projects}
-        </caption>
-        <THead>
-          <Tr>
-            <Th className="p-3 font-medium">
-              {labels.technology}
-            </Th>
-            <Th className="p-3 font-medium">
-              {labels.versions}
-            </Th>
-            <Th className="p-3 font-medium">
-              {labels.projects}
-            </Th>
-            <Th className="p-3 font-medium">
-              {labels.proposed}
-            </Th>
-          </Tr>
-        </THead>
-        <TBody>
-          {rows.map((row) => (
-            <Tr key={row.technology.technology_id} className="align-top">
-              <Th scope="row" className="p-3 font-medium">
-                <TechnologyLink row={row} />
-              </Th>
-              <Td className="p-3">
-                <span className="flex flex-wrap gap-1">
-                  {rowVersions(row).map((version) => (
-                    <Badge key={version} variant="outline">
-                      <code className="font-mono text-xs">{version}</code>
-                    </Badge>
+      <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+        <DialogTitle>{active?.technology.name}</DialogTitle>
+        <DialogDescription>
+          {active?.technology.description || w("technologyUsage")}
+        </DialogDescription>
+        {active && (
+          <>
+            <p className="text-sm">
+              {classification(active, true)} / {classification(active, false)}
+            </p>
+            <p className="text-sm">
+              {w("versions")}: {versions(active)}
+            </p>
+            <ul className="divide-border divide-y">
+              {active.projects.map((project) => (
+                <li key={project.project_id} className="space-y-2 py-3">
+                  <Link
+                    className="font-medium underline underline-offset-4"
+                    href={`/corporate/projects/${project.project_id}`}
+                  >
+                    {project.name}
+                  </Link>
+                  {project.usage.facts.map((fact, index) => (
+                    <div key={index} className="text-sm">
+                      <span>
+                        {t(`values.${fact.context}`)} · {fact.version || "—"} ·{" "}
+                        {t(`values.${fact.review}`)}
+                      </span>
+                      <ul className="text-muted-foreground text-xs">
+                        {fact.evidence.map((e, i) => (
+                          <li key={i}>{e.path ?? e.reference ?? e.source}</li>
+                        ))}
+                      </ul>
+                    </div>
                   ))}
-                  {!rowVersions(row).length && "—"}
-                </span>
-              </Td>
-              <Td className="p-3">
-                <span className="tabular-nums">{row.project_count}</span>
-                {!row.project_count && !row.proposed_project_count && (
-                  <p className="text-muted-foreground mt-2">{labels.noKnownUse}</p>
-                )}
-                <ProjectLinks row={row} filters={filters} landscape={landscape} labels={labels} />
-              </Td>
-              <Td className="p-3 tabular-nums">{row.proposed_project_count}</Td>
-            </Tr>
-          ))}
-        </TBody>
-      </Table>
-    </div>
-  );
-}
-
-function ProjectLinks({
-  row,
-  filters,
-  landscape,
-  labels,
-}: {
-  row: TechnologyLandscapeRow;
-  filters: Filters;
-  landscape: TechnologyLandscapeView;
-  labels: Labels;
-}) {
-  const offset = landscape.filters.project_offset ?? 0;
-  const limit = landscape.filters.project_limit ?? 128;
-  function href(next: number) {
-    return `/corporate/technology-landscape?${filterQuery(filters, { technology_id: row.technology.technology_id, offset: "0", project_offset: String(next) })}`;
-  }
-  return (
-    <div className="space-y-2">
-      <ul className="mt-2 space-y-1">
-        {row.projects.map((project) => (
-          <li key={project.project_id}>
-            <Link
-              className="inline-flex min-h-11 items-center underline underline-offset-4"
-              href={`/corporate/projects/${project.project_id}?${filterQuery(filters, {})}`}
-            >
-              {project.name}
-            </Link>
-            <span className="text-muted-foreground block text-xs">
-              {labels.activity}: {labels[project.activity]}
-              {" · "}
-              {labels.source_availability}: {labels[project.source_availability ?? "unknown"]}
-            </span>
-          </li>
-        ))}
-      </ul>
-      <nav
-        className="flex flex-wrap gap-2"
-        aria-label={`${row.technology.name} — ${labels.projects}`}
-      >
-        {offset > 0 && (
-          <Button asChild size="lg" variant="outline">
-            <Link href={href(Math.max(0, offset - limit))}>{labels.previous}</Link>
-          </Button>
+                </li>
+              ))}
+            </ul>
+            <Button asChild variant="outline">
+              <Link href={`/corporate/technologies/${active.technology.technology_id}`}>
+                {w("openRegistry")}
+              </Link>
+            </Button>
+          </>
         )}
-        {offset + limit < row.project_count && (
-          <Button asChild size="lg" variant="outline">
-            <Link href={href(offset + limit)}>{labels.next}</Link>
-          </Button>
-        )}
-      </nav>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -24,12 +24,12 @@
           "type": "array"
         },
         "category_ids": {
+          "default": [],
           "items": {
             "pattern": "^category_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
             "type": "string"
           },
           "maxItems": 32,
-          "minItems": 1,
           "title": "Category Ids",
           "type": "array"
         },

@@ -52,6 +52,7 @@ const allowed = corporateNavPageIds([
   "organization.manage",
   "audit.list",
   "landscape.manage",
+  "telemetry.read",
 ]);
 beforeEach(() => {
   vi.stubGlobal(
@@ -110,10 +111,10 @@ it("discloses a group without navigating and lets the sidebar collapse and resto
   expect(desktop()).toHaveAttribute("data-collapsed", "false");
 });
 it("replaces the rail with grouped administration and omits the redundant overview back link", () => {
-  route.path = "/corporate/organization/admins/roles";
+  route.path = "/corporate/admin/roles";
   renderCorporate();
   const nav = within(desktop());
-  for (const group of ["peopleAndAccess", "referenceData", "security", "organization", "audit"])
+  for (const group of ["peopleAndAccess", "referenceData"])
     expect(
       nav.getByRole("button", {
         name: `${group === "peopleAndAccess" ? "collapseSection" : "expandSection"} ${group}`,
@@ -123,16 +124,22 @@ it("replaces the rail with grouped administration and omits the redundant overvi
   expect(nav.getByRole("link", { name: "roles" })).toHaveAttribute("aria-current", "page");
   expect(nav.getByRole("link", { name: "employeeAccess" })).toHaveAttribute(
     "href",
-    "/corporate/organization/admins/employees",
+    "/corporate/admin/employee-access",
   );
+  // Single-item groups render flat rather than as disclosures.
+  for (const id of ["security", "telemetry", "auditJournal"])
+    expect(nav.getByRole("link", { name: id })).toBeVisible();
+  expect(
+    nav.queryByRole("button", { name: /expandSection (security|organization|audit)/ }),
+  ).toBeNull();
 });
 it("never shows admin pages from a URL without server availability", () => {
-  route.path = "/corporate/organization/admins";
+  route.path = "/corporate/admin/members";
   render(<ContextRail corporate docsHref="https://docs.test" allowedPages={[]} />);
   expect(desktop()).toBeNull();
 });
 it("keeps permitted root destinations available on a denied administration page", () => {
-  route.path = "/corporate/organization/admins";
+  route.path = "/corporate/admin/members";
   useSessionUiSlice.setState({ signedInHint: true });
   render(
     <ContextRail
@@ -144,7 +151,7 @@ it("keeps permitted root destinations available on a denied administration page"
   const nav = within(desktop());
   expect(nav.getByRole("link", { name: "overview" })).toBeVisible();
   expect(nav.getByRole("link", { name: "catalog" })).toBeVisible();
-  expect(nav.queryByRole("link", { name: "membersAndInvitations" })).toBeNull();
+  expect(nav.queryByRole("link", { name: "members" })).toBeNull();
   expect(nav.queryByRole("button", { name: "backToNavigation" })).toBeNull();
   expect(desktop().querySelectorAll('[aria-current="page"]')).toHaveLength(0);
 });
@@ -172,9 +179,9 @@ it.each([false, true])(
     );
     const check = (root: HTMLElement) => {
       expect(
-        root.querySelectorAll(
-          'a[href*="/account"],a[href$="/objects"],a[href$="/access"],a[href$="/reports"],a[href$="/devices"],a[href$="/assigned"],a[href$="/likes"]',
-        ),
+        // Personal destinations all live under /account (or /corporate/account);
+        // corporate links like /corporate/reports legitimately share the tail.
+        root.querySelectorAll('a[href*="/account"]'),
       ).toHaveLength(0);
       expect(root.textContent).not.toContain("corporateHub");
     };
@@ -196,7 +203,7 @@ it("contains focus, closes on Escape and navigation, and stays closed on Back/Fo
   await user.click(within(screen.getByRole("dialog")).getByRole("link", { name: "teams" }));
   expect(screen.queryByRole("dialog")).toBeNull();
   await user.click(trigger);
-  route.path = "/corporate/organization/admins";
+  route.path = "/corporate/admin/members";
   rerender(<ContextRail corporate docsHref="https://docs.test" allowedPages={allowed} />);
   expect(screen.queryByRole("dialog")).toBeNull();
   route.path = "/corporate/teams/team_1";
@@ -304,11 +311,11 @@ it("closes the mobile modal at the desktop breakpoint and keeps the desktop pref
 });
 
 it("returns from any administration route to the main rail without changing the page", async () => {
-  route.path = "/corporate/organization/admins/employees/account_a";
+  route.path = "/corporate/admin/employee-access/account_a";
   const user = userEvent.setup();
   const { rerender } = renderCorporate();
   await user.click(within(desktop()).getByRole("button", { name: "backToNavigation" }));
-  expect(route.path).toBe("/corporate/organization/admins/employees/account_a");
+  expect(route.path).toBe("/corporate/admin/employee-access/account_a");
   const nav = within(desktop());
   expect(nav.getByRole("link", { name: "overview" })).toBeVisible();
   expect(nav.getByRole("link", { name: "catalog" })).toBeVisible();
@@ -321,7 +328,7 @@ it("returns from any administration route to the main rail without changing the 
     within(screen.getByRole("dialog")).getByRole("button", { name: "backToNavigation" }),
   );
   expect(within(screen.getByRole("dialog")).getByRole("link", { name: "catalog" })).toBeVisible();
-  route.path = "/corporate/organization/admins/roles";
+  route.path = "/corporate/admin/roles";
   rerender(<ContextRail corporate docsHref="https://docs.test" allowedPages={allowed} />);
   expect(within(desktop()).getByRole("link", { name: "roles" })).toHaveAttribute(
     "aria-current",

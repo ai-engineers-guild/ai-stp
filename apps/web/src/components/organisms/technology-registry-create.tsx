@@ -3,15 +3,11 @@
 import { useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
-import {
-  AreaField,
-  CategoryStateField,
-  TechnologyFields,
-} from "@/components/organisms/technology-registry-fields";
+import { AreaField, TechnologyFields } from "@/components/organisms/technology-registry-fields";
 import { useRouter } from "@/lib/i18n/navigation";
 import type {
   AreaView,
@@ -51,6 +47,8 @@ function registryMetadata(
   kind: RegistryKind,
   data: FormData,
   categories: CategoryView[] | null,
+  record: TechnologyView | CategoryView | AreaView | undefined,
+  essential: boolean,
 ): TechnologyAreaMetadata | TechnologyCategoryMetadata | TechnologyMetadata {
   const text = formText(data);
   const lines = (key: string) =>
@@ -58,7 +56,15 @@ function registryMetadata(
       .split("\n")
       .map((value) => value.trim())
       .filter(Boolean);
+  if (kind === "category")
+    // The form has no icon control; a PUT without it would wipe the stored icon.
+    return {
+      name: text("name"),
+      description: text("description"),
+      icon: (record as CategoryView | undefined)?.icon ?? null,
+    };
   if (kind !== "technology") return { name: text("name"), description: text("description") };
+  const technology = record as TechnologyView | undefined;
   return {
     name: text("name"),
     description: text("description"),
@@ -66,9 +72,9 @@ function registryMetadata(
       categories === null
         ? text("category_ids").split(/\s+/).filter(Boolean)
         : data.getAll("category_ids").filter((value): value is string => typeof value === "string"),
-    aliases: lines("aliases"),
-    icon_url: text("icon_url") || null,
-    official_urls: lines("official_urls"),
+    aliases: essential ? (technology?.aliases ?? []) : lines("aliases"),
+    icon_url: essential ? (technology?.icon_url ?? null) : text("icon_url") || null,
+    official_urls: essential ? (technology?.official_urls ?? []) : lines("official_urls"),
   };
 }
 
@@ -133,7 +139,7 @@ export function TechnologyRegistrySeed({
           };
           setMessage(null);
           startTransition(async () => {
-            const result = await corporateMutationAction({
+            const result = await corporateMutation({
               csrfToken,
               organizationId,
               method: "POST",
@@ -161,6 +167,24 @@ export function TechnologyRegistrySeed({
   );
 }
 
+function registrySubmitLabel(
+  t: (key: string) => string,
+  kind: RegistryKind,
+  record: unknown,
+  busy: boolean,
+) {
+  if (busy) return t("saving");
+  return t(record ? "saveChanges" : REGISTRY_TITLE_KEYS.create[kind]);
+}
+
+function registrySubmitDisabled(
+  kind: RegistryKind,
+  record: unknown,
+  categories: CategoryView[] | null,
+) {
+  return Boolean(record) && kind === "technology" && categories?.length === 0;
+}
+
 export function TechnologyRegistryCreate({
   kind,
   organizationId,
@@ -171,6 +195,8 @@ export function TechnologyRegistryCreate({
   initial,
   initialCategory,
   initialArea,
+  onCreated,
+  essential = false,
 }: {
   kind: RegistryKind;
   organizationId: string;
@@ -181,6 +207,9 @@ export function TechnologyRegistryCreate({
   initial?: TechnologyView;
   initialCategory?: CategoryView;
   initialArea?: AreaView;
+  onCreated?: (record: TechnologyView | CategoryView | AreaView) => void;
+  /** Essential mode edits name, description and categories only; media and aliases are preserved. */
+  essential?: boolean;
 }) {
   const t = useTranslations("technology");
   const router = useRouter();
@@ -194,7 +223,7 @@ export function TechnologyRegistryCreate({
 
   function submit(form: HTMLFormElement) {
     const data = new FormData(form);
-    const metadata = registryMetadata(kind, data, categories);
+    const metadata = registryMetadata(kind, data, categories, record, essential);
     const effect = JSON.stringify(metadata);
     if (retry.current?.effect !== effect) retry.current = { effect, key: crypto.randomUUID() };
     const body = registryBody(kind, data, {
@@ -207,7 +236,7 @@ export function TechnologyRegistryCreate({
     });
     setMessage(null);
     startTransition(async () => {
-      const result = await corporateMutationAction({
+      const result = await corporateMutation({
         csrfToken,
         organizationId,
         path: `/v1/corporate/organizations/${organizationId}/${REGISTRY_ENDPOINTS[kind]}${recordId ? `/${recordId}` : ""}`,
@@ -221,6 +250,7 @@ export function TechnologyRegistryCreate({
       retry.current = null;
       if (record) recordRevision.current += 1;
       if (!record) form.reset();
+      onCreated?.(result.data as TechnologyView | CategoryView | AreaView);
       setMessage(t("saved"));
       router.refresh();
     });
@@ -249,28 +279,30 @@ export function TechnologyRegistryCreate({
             defaultValue={record?.name}
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor={`${prefix}-description`}>{t("details")}</Label>
-          <Input
-            id={`${prefix}-description`}
-            name="description"
-            maxLength={kind === "category" ? 2000 : 4000}
-            defaultValue={record?.description}
-          />
-        </div>
+        {record && (
+          <div className="space-y-2">
+            <Label htmlFor={`${prefix}-description`}>{t("details")}</Label>
+            <Input
+              id={`${prefix}-description`}
+              name="description"
+              maxLength={kind === "category" ? 2000 : 4000}
+              defaultValue={record.description}
+            />
+          </div>
+        )}
         {kind === "category" && areas != null && (
           <AreaField prefix={prefix} areas={areas} initial={initialCategory} />
         )}
-        {kind !== "technology" && !record && <CategoryStateField prefix={prefix} />}
         {kind === "technology" && (
-          <TechnologyFields prefix={prefix} categories={categories} initial={initial} />
+          <TechnologyFields
+            prefix={prefix}
+            categories={categories}
+            initial={initial}
+            essential={essential}
+          />
         )}
-        <Button
-          type="submit"
-          size="lg"
-          disabled={kind === "technology" && categories?.length === 0}
-        >
-          {t(busy ? "saving" : record ? "saveChanges" : REGISTRY_TITLE_KEYS.create[kind])}
+        <Button type="submit" size="lg" disabled={registrySubmitDisabled(kind, record, categories)}>
+          {registrySubmitLabel(t, kind, record, busy)}
         </Button>
       </fieldset>
       {message && (
@@ -341,7 +373,7 @@ export function TechnologyLifecycleControls({
               };
               setMessage(null);
               startTransition(async () => {
-                const result = await corporateMutationAction({
+                const result = await corporateMutation({
                   csrfToken,
                   organizationId,
                   body,

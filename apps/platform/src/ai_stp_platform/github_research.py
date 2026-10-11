@@ -68,7 +68,8 @@ class GitHubScanAdapter:
             raise PermanentJobFailure("linked GitHub project is unavailable")
         try:
             int(identity.immutable_repository_id.removeprefix("github:"))
-            int(identity.provider_installation_id)
+            if identity.provider_installation_id != "public":
+                int(identity.provider_installation_id)
         except ValueError:
             raise PermanentJobFailure("github repository identity is incomplete") from None
 
@@ -76,32 +77,49 @@ class GitHubScanAdapter:
         self, db: AsyncSession, identity: ProjectIdentity
     ) -> RepositorySnapshot:
         repository_id = int((identity.immutable_repository_id or "").removeprefix("github:"))
-        installation_id = int(identity.provider_installation_id or 0)
+        installation_id = (
+            0
+            if identity.provider_installation_id == "public"
+            else int(identity.provider_installation_id or 0)
+        )
         try:
-            _connector, token = await load_connector(
-                db,
-                account_id=self._principal_id,
-                purpose="source",
-                settings=self._settings,
-            )
-            repository = await require_repository(
-                self._client,
-                token=token,
-                purpose="source",
-                settings=self._settings,
-                installation_id=installation_id,
-                repository_id=repository_id,
-            )
-            metadata = object_data(
-                (await self._client.api("GET", f"/repositories/{repository_id}", token=token)).data
-            )
+            if identity.provider_installation_id == "public":
+                token = None
+                metadata = object_data(
+                    (
+                        await self._client.api("GET", f"/repositories/{repository_id}", token=None)
+                    ).data
+                )
+                if metadata.get("private") is not False:
+                    raise GitHubError("github_repository_inaccessible")
+                full_name = metadata.get("full_name")
+                if not isinstance(full_name, str) or metadata.get("id") != repository_id:
+                    raise GitHubError("invalid_upstream_response")
+            else:
+                _connector, token = await load_connector(
+                    db, account_id=self._principal_id, purpose="source", settings=self._settings
+                )
+                repository = await require_repository(
+                    self._client,
+                    token=token,
+                    purpose="source",
+                    settings=self._settings,
+                    installation_id=installation_id,
+                    repository_id=repository_id,
+                )
+                full_name = repository.full_name
+                metadata = object_data(
+                    (
+                        await self._client.api("GET", f"/repositories/{repository_id}", token=token)
+                    ).data
+                )
             branch = metadata.get("default_branch")
             if not isinstance(branch, str) or not 1 <= len(branch) <= 128:
                 raise GitHubError("invalid_upstream_response")
             commits_data = (
                 await self._client.api(
                     "GET",
-                    f"/repos/{repository.full_name}/commits",
+                    f"/repos/{full_name}/commits",
                     token=token,
                     params={"sha": branch, "per_page": 1},
                 )
@@ -119,7 +137,7 @@ class GitHubScanAdapter:
             ):
                 raise GitHubError("invalid_upstream_response")
             archive = await download_repository_tarball(
-                repository.full_name, head, fetch=self._client.fetch, token=token
+                full_name, head, fetch=self._client.fetch, token=token
             )
         except GitHubError as error:
             raise _translate(error) from error
@@ -128,7 +146,7 @@ class GitHubScanAdapter:
         self._installation_id = installation_id
         self._repository_id = repository_id
         return RepositorySnapshot(
-            repository=repository.full_name,
+            repository=full_name,
             branch=branch,
             head=head,
             archive=archive,
@@ -137,9 +155,11 @@ class GitHubScanAdapter:
 
     def still_bound(self, identity: ProjectIdentity, snapshot: RepositorySnapshot) -> bool:
         del snapshot
-        return identity.provider_installation_id == str(self._installation_id) and (
-            identity.immutable_repository_id or ""
-        ).removeprefix("github:") == str(self._repository_id)
+        return identity.provider_installation_id == (
+            "public" if self._installation_id == 0 else str(self._installation_id)
+        ) and (identity.immutable_repository_id or "").removeprefix("github:") == str(
+            self._repository_id
+        )
 
     def request_digest(self, value: object) -> str:
         return request_digest(value)

@@ -1,5 +1,6 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Badge } from "@/components/atoms/badge";
+import { CategoryIconBadge } from "@/components/molecules/category-icon-badge";
 import { TechnologyRegistryCreate } from "@/components/organisms/technology-registry-create";
 import { CategoryLifecycleControls } from "@/components/organisms/corporate-governance-controls";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
@@ -56,6 +57,11 @@ export default async function CategoryDetailPage({
       <HistoryBackButton label={h("backToCategories")} fallback="/corporate/categories" />
       <header className="space-y-2">
         <h1 className="flex flex-wrap items-center gap-3 text-3xl font-medium">
+          <CategoryIconBadge
+            icon={detail.category.icon}
+            seed={detail.category.category_id}
+            size={16}
+          />
           {detail.category.name}
           {detail.category.state && detail.category.state !== "active" && (
             <Badge variant={detail.category.state === "draft" ? "warning" : "secondary"}>
@@ -74,7 +80,6 @@ export default async function CategoryDetailPage({
             kind="category"
             initialCategory={detail.category}
             categories={null}
-            areas={detail.areas?.items ?? null}
             {...mutation}
           />
         </details>

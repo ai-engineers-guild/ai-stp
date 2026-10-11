@@ -4,7 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import messages from "../../messages/en.json";
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { CorporateResourceActions } from "@/components/organisms/corporate-resource-actions";
 import { ProjectionDockView } from "@/components/molecules/projection-dock-view";
 import type { ReactNode } from "react";
@@ -21,8 +21,8 @@ vi.mock("@/lib/i18n/navigation", () => ({
     </a>
   ),
 }));
-vi.mock("@/actions/corporate", () => ({
-  corporateMutationAction: vi.fn(),
+vi.mock("@/lib/api/corporate-mutation", () => ({
+  corporateMutation: vi.fn(),
 }));
 
 function wrap(children: ReactNode) {
@@ -40,7 +40,6 @@ const resourceProps = {
   resource: "roles" as const,
   resourceId: "auditor",
   name: "auditor",
-  parentRole: "staff",
   rolePermissions: ["team.read"],
   state: "base",
   revision: 1,
@@ -57,17 +56,16 @@ describe("corporate resource actions", () => {
     render(wrap(<CorporateResourceActions {...resourceProps} />));
     await user.click(screen.getByRole("button", { name: "Actions" }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-    await user.clear(screen.getByLabelText(messages.corporate.parentRole));
-    await user.type(screen.getByLabelText(messages.corporate.parentRole), "superadmin");
+    await user.clear(screen.getByLabelText(messages.corporate.permissions));
+    await user.type(screen.getByLabelText(messages.corporate.permissions), "team.write");
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     await user.click(screen.getByRole("button", { name: "Actions" }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-    expect(screen.getByLabelText(messages.corporate.parentRole)).toHaveValue("staff");
     expect(screen.getByLabelText(messages.corporate.permissions)).toHaveValue("team.read");
   });
   it("reuses a failed resource effect key but changes it for an edited draft", async () => {
     const user = userEvent.setup();
-    vi.mocked(corporateMutationAction).mockResolvedValue({ ok: false, message: "Conflict" });
+    vi.mocked(corporateMutation).mockResolvedValue({ ok: false, message: "Conflict" });
     render(wrap(<CorporateResourceActions {...resourceProps} />));
     await user.click(screen.getByRole("button", { name: "Actions" }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
@@ -75,41 +73,41 @@ describe("corporate resource actions", () => {
     await screen.findByText("Conflict");
     await user.click(screen.getByRole("button", { name: messages.corporate.update }));
     await waitFor(() => {
-      expect(corporateMutationAction).toHaveBeenCalledTimes(2);
+      expect(corporateMutation).toHaveBeenCalledTimes(2);
     });
-    expect(vi.mocked(corporateMutationAction).mock.calls[1]?.[0].body).toEqual(
-      vi.mocked(corporateMutationAction).mock.calls[0]?.[0].body,
+    expect(vi.mocked(corporateMutation).mock.calls[1]?.[0].body).toEqual(
+      vi.mocked(corporateMutation).mock.calls[0]?.[0].body,
     );
-    await user.clear(screen.getByLabelText(messages.corporate.parentRole));
-    await user.type(screen.getByLabelText(messages.corporate.parentRole), "lead");
+    await user.clear(screen.getByLabelText(messages.corporate.permissions));
+    await user.type(screen.getByLabelText(messages.corporate.permissions), "team.write");
     await user.click(screen.getByRole("button", { name: messages.corporate.update }));
     await waitFor(() => {
-      expect(corporateMutationAction).toHaveBeenCalledTimes(3);
+      expect(corporateMutation).toHaveBeenCalledTimes(3);
     });
-    expect(vi.mocked(corporateMutationAction).mock.calls[2]?.[0].body).not.toMatchObject({
+    expect(vi.mocked(corporateMutation).mock.calls[2]?.[0].body).not.toMatchObject({
       idempotency_key: (
-        vi.mocked(corporateMutationAction).mock.calls[0]?.[0].body as { idempotency_key: string }
+        vi.mocked(corporateMutation).mock.calls[0]?.[0].body as { idempotency_key: string }
       ).idempotency_key,
     });
   });
   it("retains the resource draft and operation key after a transport failure", async () => {
     const user = userEvent.setup();
-    vi.mocked(corporateMutationAction)
+    vi.mocked(corporateMutation)
       .mockRejectedValueOnce(new Error("Connection lost"))
       .mockResolvedValueOnce({ ok: false, message: "Conflict" });
     render(wrap(<CorporateResourceActions {...resourceProps} />));
     await user.click(screen.getByRole("button", { name: "Actions" }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-    await user.clear(screen.getByLabelText(messages.corporate.parentRole));
-    await user.type(screen.getByLabelText(messages.corporate.parentRole), "lead");
+    await user.clear(screen.getByLabelText(messages.corporate.permissions));
+    await user.type(screen.getByLabelText(messages.corporate.permissions), "team.write");
     await user.click(screen.getByRole("button", { name: messages.corporate.update }));
     await screen.findByText(messages.common.apiUnavailable);
-    expect(screen.getByLabelText(messages.corporate.parentRole)).toHaveValue("lead");
+    expect(screen.getByLabelText(messages.corporate.permissions)).toHaveValue("team.write");
     expect(screen.getByRole("button", { name: messages.corporate.update })).toBeEnabled();
     await user.click(screen.getByRole("button", { name: messages.corporate.update }));
     await screen.findByText("Conflict");
-    expect(vi.mocked(corporateMutationAction).mock.calls[1]?.[0].body).toEqual(
-      vi.mocked(corporateMutationAction).mock.calls[0]?.[0].body,
+    expect(vi.mocked(corporateMutation).mock.calls[1]?.[0].body).toEqual(
+      vi.mocked(corporateMutation).mock.calls[0]?.[0].body,
     );
   });
 });

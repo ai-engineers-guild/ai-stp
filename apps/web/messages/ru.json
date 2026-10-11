@@ -44,6 +44,9 @@
     "searchStructure": "Поиск проектов, команд и сотрудников",
     "clearFilters": "Сбросить фильтры",
     "sharedNodesHint": "Общие команды и сотрудники показаны под каждым связанным объектом. Назначения через команду отмечены отдельно.",
+    "teammates": "Коллеги по работе",
+    "teammatesBody": "Люди из ваших команд и проектов. Полный реестр доступен администраторам.",
+    "teammatesEmpty": "Пока нет общих команд или проектов.",
     "teamLeads": "Тимлиды",
     "lead": "Тимлид",
     "staff": "Участник",
@@ -69,12 +72,16 @@
     "ownerUnassigned": "Владелец не назначен",
     "edit": "Редактировать",
     "contributor": "Команда-участник",
-    "teamRole": "Роль команды в проекте",
+    "projectRoleOwner": "Владелец",
+    "projectRoleLead": "Лид",
+    "projectRoleContributor": "Участник-контрибьютор",
+    "projectRoleStaff": "Участник",
     "unlink": "Убрать связь",
     "navigation": "Корпоративный Hub",
     "dashboard": "Дашборд",
     "overview": "Обзор",
     "organization": "Организация",
+    "organizationSettings": "Настройки организации",
     "landscape": "Ландшафт",
     "employees": "Сотрудники",
     "projects": "Проекты",
@@ -88,13 +95,13 @@
     "reports": "Отчёты",
     "catalog": "Каталог",
     "administration": "Администрирование",
-    "membersAndInvitations": "Участники и приглашения",
+    "members": "Участники",
+    "invitations": "Приглашения",
     "accessModel": "Модель доступа",
     "roles": "Роли",
     "employeeAccess": "Доступ сотрудника",
     "accessMatrix": "Матрица доступа",
     "auditJournal": "Журнал аудита",
-    "settings": "Настройки",
     "backToHub": "Назад в Корпоративный Hub",
     "usageTruncated": "Показаны первые {shown} из {total} назначений",
     "overviewBody": "Организация и её технологический ландшафт.",
@@ -152,8 +159,12 @@
     "referenceData": "Справочники",
     "security": "Безопасность",
     "audit": "Аудит",
+
     "scans": "Сканы",
-    "technologyAreas": "Технологические области"
+    "technologyAreas": "Технологические области",
+    "technologyMap": "Карта технологий",
+    "areas": "Области",
+    "telemetry": "Телеметрия"
   },
   "corporateReports": {
     "title": "Отчёты",
@@ -336,7 +347,6 @@
     "inactivityMonths": "Порог неактивности (календарные месяцы)",
     "organizationSettings": "Настройки организации",
     "telemetryPolicy": "Политика heartbeat и приватности",
-    "telemetryPolicyDescription": "Настройте периодичность отчетов об установках, повторы, порог устаревания и хранение телеметрии.",
     "telemetryUnavailable": "Политика телеметрии недоступна. Перезагрузите страницу и попробуйте снова.",
     "telemetryLegalBasis": "Правовое основание телеметрии",
     "chooseTelemetryLegalBasis": "Выберите правовое основание",
@@ -346,7 +356,6 @@
     "telemetryNotice": "Уведомление пользователям (необязательно)",
     "telemetryRawRetention": "Срок хранения исходных данных (дни)",
     "telemetryAggregateRetention": "Срок хранения агрегатов (дни)",
-    "heartbeatReporting": "Heartbeat-отчеты об установках",
     "inventoryScanReporting": "Сканирование установленных компонентов",
     "usageCollectionReporting": "Сбор событий использования",
     "reportTimezone": "Часовой пояс отчёта (имя IANA)",
@@ -372,9 +381,6 @@
     "editTechnology": "Редактировать технологию",
     "saveChanges": "Сохранить изменения",
     "view": "Представление",
-    "groupedNote": "Технология может входить в несколько категорий. Каждый счётчик — уникальные проекты для этой технологии; строки категорий не складываются в общий итог.",
-    "decisionUnavailable": "Решение об adoption недоступно или не указано",
-    "noKnownUse": "Нет известного применения с такими фильтрами",
     "editCategory": "Редактировать категорию",
     "mergedIdentity": "Сохранённый идентификатор ведёт к канонической технологии",
     "version": "Версия (необязательно)",
@@ -390,29 +396,13 @@
     },
     "importSeed": "Импортировать начальный справочник",
     "seedDescription": "Добавить 23 категории и начальные технологии в статусе черновика. Существующие записи и ваши изменения сохранятся; импорт не утверждает технологии.",
-    "mappingTitle": "Маппинг технологий",
+    "mappingTitle": "Маппинг",
     "mappingDescription": "Координаты, которые сканирование не смогло разрешить, кандидаты на разбор и опубликованные снимки маппинга.",
     "mappingQueue": "Неразобранные координаты",
-    "mappingQueueDescription": "Кандидат — это предложение. Оно вступает в силу, только когда координата записывается в новый опубликованный снимок.",
     "mappingQueueEmpty": "Все координаты разобраны.",
-    "mappingOpenCount": "{count, plural, one {# открытая} few {# открытые} many {# открытых} other {# открытые}}",
-    "mappingShowResolved": "Показать {count, plural, one {# разобранную} few {# разобранные} many {# разобранных} other {# разобранные}}",
-    "mappingHideResolved": "Скрыть разобранные",
-    "mappingApply": "Опубликовать маппинг",
-    "mappingApplyAll": "Опубликовать {count, plural, one {# кандидата} few {# кандидата} many {# кандидатов} other {# кандидатов}}",
     "mappingCandidate": "Кандидат:",
-    "mappingCandidateLabel": "Технология-кандидат",
-    "mappingNoCandidate": "Нет кандидата",
     "mappingResolved": "Связана с",
-    "mappingProjects": "{count, plural, one {# проект} few {# проекта} many {# проектов} other {# проекта}}",
-    "mappingCreateTechnology": "Создать технологию для этой очереди",
     "mappingVersions": "Опубликованные снимки",
-    "mappingVersionsDescription": "Неизменяемые снимки маппинга координат. Разрешение определяет самый новый снимок.",
-    "mappingVersionsEmpty": "Снимков организации пока нет.",
-    "mappingEntries": "{count, plural, one {# запись} few {# записи} many {# записей} other {# записи}}",
-    "mappingSnapshot": "Снимок {version}",
-    "mappingSnapshotMissing": "Этот снимок недоступен.",
-    "mappingSearch": "Фильтр координат",
     "mappingState": {
       "open": "открыта",
       "resolved": "разобрана"
@@ -463,10 +453,7 @@
       "trial": "Пробное применение",
       "adopt": "Принята",
       "hold": "Приостановлена",
-      "table": "Таблица",
-      "grouped": "По категориям",
-      "radar": "Радар adoption",
-      "relationships": "Связи технологий и проектов"
+      "dependency": "Зависимость"
     },
     "title": "Ландшафт технологий",
     "description": "Уникальные доступные проекты после применения фильтров. Предложенные применения считаются отдельно.",
@@ -495,9 +482,6 @@
     "open": "Открыть проект",
     "backToWorkspace": "Назад в корпоративное пространство",
     "backToTechnologies": "Назад к технологиям",
-    "sectionDeviceHeartbeat": "Хартбит устройств",
-    "sectionInventoryUsage": "Инвентаризация и использование",
-    "sectionPrivacyReporting": "Приватность и отчёты",
     "advanced": "Расширенные",
     "heartbeatRetryMaxMinutes": "Максимальная задержка повтора (минуты)",
     "heartbeatInterval": "Интервал хартбита",
@@ -508,18 +492,11 @@
     "minutesLabel": "{count, plural, one {# минута} few {# минуты} many {# минут} other {# минуты}}",
     "hoursLabel": "{count, plural, one {# час} few {# часа} many {# часов} other {# часов}}",
     "daysLabel": "{count, plural, one {# день} few {# дня} many {# дней} other {# дней}}",
-    "heartbeatEnabledHint": "Каждая установленная CLI сообщает о работе с этим периодом. Отключение останавливает новые отчёты; данные сохраняются.",
     "heartbeatIntervalHint": "Как часто каждое зарегистрированное устройство сообщает, что оно живо.",
     "heartbeatStaleHint": "Устройство помечается устаревшим, если за это окно не пришёл ни один хартбит.",
     "heartbeatRetryBaseHint": "Начальная задержка перед повторной отправкой неудачного отчёта; растёт с каждой попыткой.",
     "heartbeatRetryMaxHint": "Максимальная задержка между повторами после неудачных отправок.",
-    "inventoryScanHint": "Периодическая инвентаризация компонентов на каждой установке.",
-    "usageCollectionHint": "Агрегированные события использования, сообщаемые установками.",
-    "usageRegistrationHint": "Требует локальной регистрации установок до приёма их событий использования.",
-    "telemetryLegalBasisHint": "Правовое основание сбора телеметрии, заявленное организацией.",
-    "telemetryRawRetentionHint": "Как долго хранятся сырые события до удаления.",
-    "telemetryAggregateRetentionHint": "Как долго хранятся агрегаты после удаления сырых данных.",
-    "reportTimezoneHint": "Часовой пояс IANA для суточных периодов отчётов.",
+
     "scans": {
       "title": "Сканы",
       "description": "Журнал локальных и серверных сканов технологий.",
@@ -568,17 +545,14 @@
         "pending": "Требует разбора",
         "branch": "Ветка",
         "commit": "Коммит",
-        "classification": "Область / Категория",
         "version": "Версия",
         "evidence": "Источник обнаружения"
       },
       "findings": "Находки",
-      "foundCount": "{count, plural, one {# находка} few {# находки} many {# находок} other {# находок}}",
-      "pendingCount": "{count, plural, one {# требует разбора} few {# требуют разбора} many {# требуют разбора} other {# требуют разбора}}",
       "detectorVersion": "детектор {version}",
       "mappingVersion": "маппинг {version}",
-      "openInMapping": "Разобрать {count, plural, one {# находку} few {# находки} many {# находок} other {# находок}} в «Маппинге»",
-      "empty": "Сканов пока нет."
+      "empty": "Сканов пока нет.",
+      "launchActive": "Скан уже в очереди или выполняется"
     },
     "areas": {
       "title": "Технологические области",
@@ -588,8 +562,734 @@
       "field": "Технологическая область",
       "unassigned": "Без области",
       "unclassified": "Без классификации",
-      "empty": "Технологических областей пока нет."
-    }
+      "empty": "Технологических областей пока нет.",
+      "all": "Все области"
+    },
+    "workspace": {
+      "organization": "Организация",
+      "allOrganization": "Вся организация",
+      "allProjects": "Все проекты",
+      "searchProject": "Найти проект",
+      "searchTechnology": "Найти технологию…",
+      "map": "Карта",
+      "table": "Таблица",
+      "filterDescription": "Уточните проекты, классификацию и состояния технологий.",
+      "area": "Область",
+      "versions": "Версии",
+      "status": "Статус",
+      "actions": "Действия",
+      "summary": "Сводка по технологиям",
+      "summaryDescription": "Ключевые технологии, их области, категории, версии и использование в проектах.",
+      "landscapeHeading": "Технологический ландшафт",
+      "landscapeDescription": "Технологии сгруппированы по технологическим областям и категориям. Показаны реальные версии, используемые в организации.",
+      "shown": "Показано {count} из {total}",
+      "draft": "Draft",
+      "review": "Review",
+      "standard": "Standard",
+      "openTechnology": "Открыть {name}",
+      "preview": "Предпросмотр",
+      "pagination": "Навигация по страницам",
+      "page": "Страница {page}",
+      "showPerPage": "Показать по",
+      "pageSize": "Строк на странице",
+      "ofTechnologies": "из {total} технологий",
+      "technologyUsage": "Версии и использование технологии в проектах.",
+      "openRegistry": "Открыть карточку технологии",
+      "backScans": "Назад к сканам",
+      "backLandscape": "Назад в ландшафт",
+      "publish": "Опубликовать изменения",
+      "scanTitle": "Скан {id}",
+      "scanDescription": "Результаты сканирования проекта и распознанные технологии. Здесь можно проверить находки, уточнить классификацию и исправить распознавание.",
+      "mappingDescription": "Сопоставление результатов сканирования с технологиями, категориями и областями организации. Здесь разбираются неопознанные и спорные находки.",
+      "project": "Проект",
+      "repository": "Репозиторий",
+      "source": "Источник",
+      "branch": "Ветка",
+      "commit": "Коммит",
+      "scanType": "Тип сканирования",
+      "duration": "Длительность",
+      "found": "Найдено",
+      "pending": "Требуют разбора",
+      "seconds": "{count} сек",
+      "scanFailed": "Сканирование завершилось с ошибкой. Проверьте подключение и доступ к репозиторию, затем запустите повторно.",
+      "searchMapping": "Поиск по найденному имени, технологии или проекту…",
+      "scan": "Скан",
+      "reason": "Причина",
+      "allStatuses": "Все статусы",
+      "findingSummary": "{total} находок · {pending} требуют решения · {resolved} уже сопоставлены",
+      "searchFindings": "Поиск по находкам, файлам, технологиям…",
+      "type": "Тип",
+      "allTypes": "Все типы",
+      "pendingOnly": "Только требующие разбора",
+      "file": "Файл",
+      "perPage": "{count} на странице",
+      "noFindings": "Нет находок по выбранным фильтрам.",
+      "sectionTechnologies": "Технологии",
+      "sectionDependencies": "Зависимости",
+      "findingDetails": "Разбор находки",
+      "evidence": "Доказательства",
+      "basicInfo": "Основная информация",
+      "reference": "Строка",
+      "mapping": "Сопоставление",
+      "chooseTechnology": "Выберите существующую технологию",
+      "chooseCategory": "Выберите категорию",
+      "derivedArea": "Определится по категории",
+      "applicationStatus": "Статус применения",
+      "confirm": "Подтверждено",
+      "exclude": "Исключено",
+      "comment": "Комментарий",
+      "commentPlaceholder": "Добавьте комментарий…",
+      "whatChanges": "Что будет изменено",
+      "changeExplanation": "Сопоставление обновит ландшафт и сохранится для будущих сканов. Исходная история скана останется неизменной.",
+      "confirmApply": "Подтвердить и применить",
+      "excludeFinding": "Исключить находку",
+      "chooseFinding": "Выберите находку для разбора.",
+      "createDescription": "Создайте запись справочника и продолжите сопоставление находки.",
+      "confidence": "Уверенность: {count}%",
+      "searchScans": "Поиск по проекту, репозиторию или ID скана…",
+      "dateFrom": "Начиная с даты",
+      "id": "ID",
+      "projectRepository": "Проект / Репозиторий",
+      "dateTime": "Дата и время (UTC)",
+      "openScan": "Открыть скан {id}",
+      "journalDescription": "История сканирования репозиториев и проектов. Результаты используются для обнаружения и маппинга технологий.",
+      "mapTitle": "Карта технологий",
+      "mapDescription": "Здесь показаны реальные технологии и версии, используемые в организации, сгруппированные по технологическим областям и категориям.",
+      "technologiesCount": "технологий",
+      "areasCount": "областей",
+      "scannedProjects": "проектов со сканами",
+      "needsReview": "требуют разбора",
+      "lastScan": "Последний скан",
+      "neverScanned": "Ещё не выполнялся",
+      "findingState": {
+        "open": "Не распознано",
+        "candidate": "Требует проверки",
+        "resolved": "Подтверждено",
+        "rejected": "Исключено",
+        "confirmation": "Требует подтверждения",
+        "category": "Требует категории",
+        "dependency": "Зависимость"
+      },
+      "resetFinding": "Сбросить",
+      "downloadFindings": "Скачать находки",
+      "downloadCsv": "Скачать CSV",
+      "reasonState": {
+        "unrecognized": "Не распознано",
+        "candidate": "Требует проверки",
+        "excluded": "Исключено",
+        "confirmed": "Подтверждено",
+        "category": "Требует категории",
+        "confirmation": "Требует подтверждения",
+        "dependency": "Зависимость"
+      },
+      "category": "Категория",
+      "createTechnology": "Создать технологию",
+      "scanTypes": {
+        "dependencies": "Зависимости",
+        "configs": "Конфиги",
+        "languages": "Языки"
+      },
+      "emptyArea": "Нет найденных технологий",
+      "evidenceCount": "Файлов: {count}",
+      "moveToDependencies": "Переместить в депенденси",
+      "makeTechnology": "Сделать технологией",
+      "editTechnology": "Изменить технологию",
+      "editTechnologyDescription": "Переименуйте или переклассифицируйте неверно распознанную технологию.",
+      "exportDescription": "Выберите, что выгрузить, затем формат файла.",
+      "exportScope": "Что выгрузить",
+      "exportFormat": "Формат",
+      "exportScopes": {
+        "technologies": "Технологии",
+        "findings": "Файндинги (зависимости)",
+        "both": "Всё"
+      },
+      "exportFormats": {
+        "md": "Markdown (.md)",
+        "csv": "CSV (.csv)",
+        "json": "JSON (.json)"
+      },
+      "areaActions": "Действия области",
+      "expandAll": "Развернуть всё",
+      "collapseAll": "Свернуть всё",
+      "openTechnologies": "Перейти к списку технологий",
+      "moreCategories": "Показать ещё {count}",
+      "moreTechnologies": "Показать ещё {count}",
+      "showLess": "Свернуть"
+    },
+    "close": "Закрыть",
+    "taxonomy": {
+      "area_00000000000000000000000001": {
+        "name": "Languages and runtimes",
+        "label": "Языки и среды выполнения"
+      },
+      "area_00000000000000000000000002": {
+        "name": "Client applications and interfaces",
+        "label": "Клиентские приложения и интерфейсы"
+      },
+      "area_00000000000000000000000003": {
+        "name": "Server applications",
+        "label": "Серверные приложения"
+      },
+      "area_00000000000000000000000004": {
+        "name": "Integration and messaging",
+        "label": "Интеграция и обмен сообщениями"
+      },
+      "area_00000000000000000000000005": {
+        "name": "Data storage and search",
+        "label": "Хранение и поиск данных"
+      },
+      "area_00000000000000000000000006": {
+        "name": "Data processing and analytics",
+        "label": "Обработка и аналитика данных"
+      },
+      "area_00000000000000000000000007": {
+        "name": "Artificial intelligence and ML",
+        "label": "Искусственный интеллект и ML"
+      },
+      "area_00000000000000000000000008": {
+        "name": "Compute and infrastructure",
+        "label": "Вычисления и инфраструктура"
+      },
+      "area_00000000000000000000000009": {
+        "name": "Networks and traffic management",
+        "label": "Сети и управление трафиком"
+      },
+      "area_00000000000000000000000010": {
+        "name": "Security and access",
+        "label": "Безопасность и доступ"
+      },
+      "area_00000000000000000000000011": {
+        "name": "Observability and reliability",
+        "label": "Наблюдаемость и надёжность"
+      },
+      "area_00000000000000000000000012": {
+        "name": "Development, testing and delivery",
+        "label": "Разработка, тестирование и поставка"
+      },
+      "area_00000000000000000000000013": {
+        "name": "Shared SaaS services",
+        "label": "Общие сервисы SaaS"
+      },
+      "category_00000000000000000000001101": {
+        "name": "Programming and query languages",
+        "label": "Языки программирования и запросов"
+      },
+      "category_00000000000000000000001102": {
+        "name": "Compilers",
+        "label": "Компиляторы"
+      },
+      "category_00000000000000000000001103": {
+        "name": "Interpreters",
+        "label": "Интерпретаторы"
+      },
+      "category_00000000000000000000001104": {
+        "name": "Language runtimes and virtual machines",
+        "label": "Языковые рантаймы и виртуальные машины"
+      },
+      "category_00000000000000000000001201": {
+        "name": "Web interfaces",
+        "label": "Веб-интерфейсы"
+      },
+      "category_00000000000000000000001202": {
+        "name": "Cross-platform UI frameworks",
+        "label": "Кроссплатформенные UI-фреймворки"
+      },
+      "category_00000000000000000000001203": {
+        "name": "Native mobile development",
+        "label": "Нативная мобильная разработка"
+      },
+      "category_00000000000000000000001204": {
+        "name": "Desktop interfaces",
+        "label": "Настольные интерфейсы"
+      },
+      "category_00000000000000000000001205": {
+        "name": "Console interfaces",
+        "label": "Консольные интерфейсы"
+      },
+      "category_00000000000000000000001206": {
+        "name": "State management",
+        "label": "Управление состоянием"
+      },
+      "category_00000000000000000000001207": {
+        "name": "UI component systems",
+        "label": "Системы UI-компонентов"
+      },
+      "category_00000000000000000000001301": {
+        "name": "Server web and API frameworks",
+        "label": "Серверные веб- и API-фреймворки"
+      },
+      "category_00000000000000000000001302": {
+        "name": "Application servers",
+        "label": "Серверы приложений"
+      },
+      "category_00000000000000000000001303": {
+        "name": "Business rule engines",
+        "label": "Движки бизнес-правил"
+      },
+      "category_00000000000000000000001304": {
+        "name": "Business process engines",
+        "label": "Движки бизнес-процессов"
+      },
+      "category_00000000000000000000001305": {
+        "name": "Specialized application engines",
+        "label": "Специализированные прикладные движки"
+      },
+      "category_00000000000000000000001306": {
+        "name": "Serialization and validation",
+        "label": "Сериализация и валидация"
+      },
+      "category_00000000000000000000001401": {
+        "name": "RPC and interservice communication",
+        "label": "RPC и межсервисное взаимодействие"
+      },
+      "category_00000000000000000000001402": {
+        "name": "Protocols and API contracts",
+        "label": "Протоколы и API-контракты"
+      },
+      "category_00000000000000000000001403": {
+        "name": "API management",
+        "label": "Управление API"
+      },
+      "category_00000000000000000000001404": {
+        "name": "Integration platforms and connectors",
+        "label": "Интеграционные платформы и коннекторы"
+      },
+      "category_00000000000000000000001405": {
+        "name": "Message brokers",
+        "label": "Брокеры сообщений"
+      },
+      "category_00000000000000000000001406": {
+        "name": "Persistent event streams",
+        "label": "Сохраняемые потоки событий"
+      },
+      "category_00000000000000000000001407": {
+        "name": "Task queues",
+        "label": "Очереди задач"
+      },
+      "category_00000000000000000000001408": {
+        "name": "Distributed workflow engines",
+        "label": "Движки распределённых workflow"
+      },
+      "category_00000000000000000000001501": {
+        "name": "Relational databases",
+        "label": "Реляционные СУБД"
+      },
+      "category_00000000000000000000001502": {
+        "name": "Document databases",
+        "label": "Документные СУБД"
+      },
+      "category_00000000000000000000001503": {
+        "name": "Key-value databases",
+        "label": "Key-value-хранилища"
+      },
+      "category_00000000000000000000001504": {
+        "name": "Graph databases",
+        "label": "Графовые СУБД"
+      },
+      "category_00000000000000000000001505": {
+        "name": "Specialized databases",
+        "label": "Специализированные СУБД"
+      },
+      "category_00000000000000000000001506": {
+        "name": "Analytical databases",
+        "label": "Аналитические СУБД"
+      },
+      "category_00000000000000000000001507": {
+        "name": "Caches",
+        "label": "Кэши"
+      },
+      "category_00000000000000000000001508": {
+        "name": "Search engines",
+        "label": "Поисковые движки"
+      },
+      "category_00000000000000000000001509": {
+        "name": "Vector engines",
+        "label": "Векторные движки"
+      },
+      "category_00000000000000000000001510": {
+        "name": "Object storage",
+        "label": "Объектное хранение"
+      },
+      "category_00000000000000000000001511": {
+        "name": "File storage",
+        "label": "Файловое хранение"
+      },
+      "category_00000000000000000000001512": {
+        "name": "Block storage",
+        "label": "Блочное хранение"
+      },
+      "category_00000000000000000000001513": {
+        "name": "Database drivers and ORM",
+        "label": "Драйверы и ORM"
+      },
+      "category_00000000000000000000001514": {
+        "name": "Database migrations and administration",
+        "label": "Миграции и администрирование БД"
+      },
+      "category_00000000000000000000001601": {
+        "name": "Data ingestion and replication",
+        "label": "Загрузка и репликация данных"
+      },
+      "category_00000000000000000000001602": {
+        "name": "Data transformation and modeling",
+        "label": "Трансформация и моделирование"
+      },
+      "category_00000000000000000000001603": {
+        "name": "Batch processing",
+        "label": "Пакетная обработка"
+      },
+      "category_00000000000000000000001604": {
+        "name": "Stream processing",
+        "label": "Потоковая обработка"
+      },
+      "category_00000000000000000000001605": {
+        "name": "SQL query engines",
+        "label": "SQL-движки запросов"
+      },
+      "category_00000000000000000000001606": {
+        "name": "Pipeline orchestration",
+        "label": "Оркестрация конвейеров"
+      },
+      "category_00000000000000000000001607": {
+        "name": "BI and reporting",
+        "label": "BI и отчётность"
+      },
+      "category_00000000000000000000001608": {
+        "name": "Semantic layers",
+        "label": "Семантические слои"
+      },
+      "category_00000000000000000000001609": {
+        "name": "Data quality",
+        "label": "Качество данных"
+      },
+      "category_00000000000000000000001610": {
+        "name": "Data catalogs and lineage",
+        "label": "Каталоги и происхождение данных"
+      },
+      "category_00000000000000000000001611": {
+        "name": "Analytical storage formats",
+        "label": "Форматы аналитического хранения"
+      },
+      "category_00000000000000000000001701": {
+        "name": "ML frameworks",
+        "label": "ML-фреймворки"
+      },
+      "category_00000000000000000000001702": {
+        "name": "Dataset preparation",
+        "label": "Подготовка датасетов"
+      },
+      "category_00000000000000000000001703": {
+        "name": "Model training",
+        "label": "Обучение"
+      },
+      "category_00000000000000000000001704": {
+        "name": "Experiments and model registries",
+        "label": "Эксперименты и реестры моделей"
+      },
+      "category_00000000000000000000001705": {
+        "name": "Models",
+        "label": "Модели"
+      },
+      "category_00000000000000000000001706": {
+        "name": "Inference servers and APIs",
+        "label": "Серверы и API инференса"
+      },
+      "category_00000000000000000000001707": {
+        "name": "Agent frameworks",
+        "label": "Агентные фреймворки"
+      },
+      "category_00000000000000000000001708": {
+        "name": "Context retrieval",
+        "label": "Поиск контекста"
+      },
+      "category_00000000000000000000001709": {
+        "name": "Model evaluation and monitoring",
+        "label": "Оценка качества и мониторинг моделей"
+      },
+      "category_00000000000000000000001801": {
+        "name": "Operating systems",
+        "label": "Операционные системы"
+      },
+      "category_00000000000000000000001802": {
+        "name": "Virtualization",
+        "label": "Виртуализация"
+      },
+      "category_00000000000000000000001803": {
+        "name": "Compute platforms",
+        "label": "Вычислительные платформы"
+      },
+      "category_00000000000000000000001804": {
+        "name": "Container runtimes",
+        "label": "Контейнерные рантаймы"
+      },
+      "category_00000000000000000000001805": {
+        "name": "Container orchestration",
+        "label": "Оркестрация контейнеров"
+      },
+      "category_00000000000000000000001806": {
+        "name": "Serverless",
+        "label": "Serverless"
+      },
+      "category_00000000000000000000001807": {
+        "name": "Infrastructure as Code",
+        "label": "Инфраструктура как код"
+      },
+      "category_00000000000000000000001808": {
+        "name": "Configuration management",
+        "label": "Конфигурационное управление"
+      },
+      "category_00000000000000000000001901": {
+        "name": "DNS and service discovery",
+        "label": "DNS и обнаружение сервисов"
+      },
+      "category_00000000000000000000001902": {
+        "name": "Virtual networks",
+        "label": "Виртуальные сети"
+      },
+      "category_00000000000000000000001903": {
+        "name": "Load balancers",
+        "label": "Балансировщики"
+      },
+      "category_00000000000000000000001904": {
+        "name": "Reverse proxies",
+        "label": "Обратные прокси"
+      },
+      "category_00000000000000000000001905": {
+        "name": "Forward proxies",
+        "label": "Прямые прокси"
+      },
+      "category_00000000000000000000001906": {
+        "name": "Ingress and egress gateways",
+        "label": "Ingress- и egress-шлюзы"
+      },
+      "category_00000000000000000000001907": {
+        "name": "Service mesh",
+        "label": "Service mesh"
+      },
+      "category_00000000000000000000001908": {
+        "name": "CDN",
+        "label": "CDN"
+      },
+      "category_00000000000000000000001909": {
+        "name": "VPN and private connections",
+        "label": "VPN и частные соединения"
+      },
+      "category_00000000000000000000002001": {
+        "name": "Authentication and SSO",
+        "label": "Аутентификация и SSO"
+      },
+      "category_00000000000000000000002002": {
+        "name": "Authorization",
+        "label": "Авторизация"
+      },
+      "category_00000000000000000000002003": {
+        "name": "Identity management",
+        "label": "Управление идентичностями"
+      },
+      "category_00000000000000000000002004": {
+        "name": "Secrets and keys",
+        "label": "Секреты и ключи"
+      },
+      "category_00000000000000000000002005": {
+        "name": "Certificates",
+        "label": "Сертификаты"
+      },
+      "category_00000000000000000000002006": {
+        "name": "Security analysis",
+        "label": "Анализ безопасности"
+      },
+      "category_00000000000000000000002007": {
+        "name": "Runtime protection",
+        "label": "Защита выполнения"
+      },
+      "category_00000000000000000000002008": {
+        "name": "Vulnerability management",
+        "label": "Управление уязвимостями"
+      },
+      "category_00000000000000000000002009": {
+        "name": "Security audit",
+        "label": "Аудит безопасности"
+      },
+      "category_00000000000000000000002101": {
+        "name": "Metrics",
+        "label": "Метрики"
+      },
+      "category_00000000000000000000002102": {
+        "name": "Logs",
+        "label": "Логи"
+      },
+      "category_00000000000000000000002103": {
+        "name": "Tracing",
+        "label": "Трассировка"
+      },
+      "category_00000000000000000000002104": {
+        "name": "Profiling",
+        "label": "Профилирование"
+      },
+      "category_00000000000000000000002105": {
+        "name": "Error monitoring",
+        "label": "Мониторинг ошибок"
+      },
+      "category_00000000000000000000002106": {
+        "name": "Telemetry collection",
+        "label": "Сбор телеметрии"
+      },
+      "category_00000000000000000000002107": {
+        "name": "Alerts and incidents",
+        "label": "Оповещения и инциденты"
+      },
+      "category_00000000000000000000002108": {
+        "name": "Backup",
+        "label": "Резервное копирование"
+      },
+      "category_00000000000000000000002109": {
+        "name": "Recovery",
+        "label": "Восстановление"
+      },
+      "category_00000000000000000000002110": {
+        "name": "Resilience testing",
+        "label": "Проверки устойчивости"
+      },
+      "category_00000000000000000000002111": {
+        "name": "Resource and cost management",
+        "label": "Управление ресурсами и затратами"
+      },
+      "category_00000000000000000000002201": {
+        "name": "Source control",
+        "label": "Управление кодом"
+      },
+      "category_00000000000000000000002202": {
+        "name": "IDEs",
+        "label": "IDE"
+      },
+      "category_00000000000000000000002203": {
+        "name": "Package managers",
+        "label": "Менеджеры пакетов"
+      },
+      "category_00000000000000000000002204": {
+        "name": "Build tools",
+        "label": "Сборка"
+      },
+      "category_00000000000000000000002205": {
+        "name": "Artifact registries",
+        "label": "Реестры артефактов"
+      },
+      "category_00000000000000000000002206": {
+        "name": "CI/CD",
+        "label": "CI/CD"
+      },
+      "category_00000000000000000000002207": {
+        "name": "Testing",
+        "label": "Тестирование"
+      },
+      "category_00000000000000000000002208": {
+        "name": "Linters and type checking",
+        "label": "Линтеры и проверка типов"
+      },
+      "category_00000000000000000000002209": {
+        "name": "Deployment and GitOps",
+        "label": "Развёртывание и GitOps"
+      },
+      "category_00000000000000000000002210": {
+        "name": "Developer portals",
+        "label": "Порталы разработчиков"
+      },
+      "category_00000000000000000000002211": {
+        "name": "Documentation",
+        "label": "Документация"
+      },
+      "category_00000000000000000000002301": {
+        "name": "Tenant management",
+        "label": "Управление клиентскими организациями"
+      },
+      "category_00000000000000000000002302": {
+        "name": "Plans and features",
+        "label": "Тарифы и доступные функции"
+      },
+      "category_00000000000000000000002303": {
+        "name": "Subscriptions, billing and payments",
+        "label": "Подписки, биллинг и платежи"
+      },
+      "category_00000000000000000000002304": {
+        "name": "Usage accounting",
+        "label": "Учёт потребления"
+      },
+      "category_00000000000000000000002305": {
+        "name": "Quotas",
+        "label": "Квоты"
+      },
+      "category_00000000000000000000002306": {
+        "name": "Feature flags",
+        "label": "Feature flags"
+      },
+      "category_00000000000000000000002307": {
+        "name": "Notifications",
+        "label": "Уведомления"
+      },
+      "category_00000000000000000000002308": {
+        "name": "Content and media",
+        "label": "Контент и медиа"
+      },
+      "category_00000000000000000000002309": {
+        "name": "Localization",
+        "label": "Локализация"
+      },
+      "category_00000000000000000000002310": {
+        "name": "Product analytics",
+        "label": "Продуктовая аналитика"
+      }
+    },
+    "openEntry": "Открыть",
+    "entryCount": "{count, plural, one {# запись} few {# записи} many {# записей} other {# записей}}",
+    "entryDialogDescription": "Название, описание и принадлежность к области.",
+    "telemetryPageDescription": "Настройка сбора телеметрии и сроков хранения данных организации.",
+    "telemetryTab": {
+      "heartbeat": "Heartbeat",
+      "usage": "Использование",
+      "retention": "Хранение данных"
+    },
+    "policyEnabled": "Включено",
+    "policyDisabled": "Выключено",
+    "heartbeatCardTitle": "Heartbeat устройств",
+    "heartbeatCardDescription": "Управление периодическими отчётами установок о работоспособности.",
+    "heartbeatEnabledState": "Отчёты heartbeat активны.",
+    "heartbeatDisabledState": "Отчёты heartbeat приостановлены.",
+    "schedulerTitle": "Планировщик и такты",
+    "schedulerDescription": "Как на установках выполняется проверка heartbeat.",
+    "schedulerTickCadence": "Период такта",
+    "schedulerFollowsInterval": "Следует интервалу heartbeat",
+    "schedulerRetrySchedule": "Расписание повторов",
+    "schedulerRetryMax": "макс. {value}",
+    "schedulerStaleAfter": "Устаревает через",
+    "schedulerKind": "Планировщик",
+    "schedulerOsManaged": "Управляется ОС",
+    "schedulerNote": "Такт heartbeat проверяет, наступил ли срок отчёта, перечитывает текущую политику и отправляет heartbeat только когда он должен быть отправлен. Изменение интервала обновит расписание на установках.",
+    "usageCardTitle": "Инвентаризация и использование",
+    "usageCardDescription": "Настройка сбора данных инвентаризации и использования с установок.",
+    "inventoryScanDescription": "Сбор данных об установленных инструментах, технологиях и конфигурациях.",
+    "inventoryScanEnabledState": "Сканирование активно.",
+    "inventoryScanDisabledState": "Сканирование выключено.",
+    "usageCollectionDescription": "Сбор обезличенных данных о фактическом использовании инструментов и технологий.",
+    "usageCollectionEnabledState": "Сбор данных активен.",
+    "usageCollectionDisabledState": "Сбор данных выключен.",
+    "usageRegistrationDescription": "Требовать от установок регистрации локального использования для отправки данных.",
+    "usageRegistrationEnabledState": "Регистрация локального использования обязательна.",
+    "usageRegistrationDisabledState": "Регистрация локального использования не требуется.",
+    "usageRegistrationNote": "При включённой регистрации локального использования сбор данных об использовании также должен быть включён.",
+    "usageAboutTitle": "О данных использования",
+    "usageAboutBody": "Данные использования помогают понять, как инструменты и технологии применяются в организации.",
+    "usageAboutNote": "Собираются только технические данные использования. Исходный код, содержимое и персональные данные не собираются. Данные используются для аналитики продукта, отчётности и улучшения платформы.",
+    "retentionCardTitle": "Хранение данных и отчётность",
+    "retentionCardDescription": "Срок хранения данных телеметрии и правовое основание их обработки.",
+    "telemetryLegalBasisCaption": "Правовое основание обработки данных телеметрии.",
+    "telemetryRawRetentionCaption": "Срок хранения сырых данных телеметрии до удаления.",
+    "telemetryAggregateRetentionCaption": "Срок хранения агрегированных данных телеметрии.",
+    "telemetryNoticeCaption": "Уведомление может показываться пользователям и в документации.",
+    "reportTimezoneCaption": "Часовой пояс для отчётности и агрегации телеметрии.",
+    "telemetryScopeNote": "Телеметрия включает только технические данные об использовании и инвентаризации. Исходный код, содержимое и персональные данные не собираются.",
+    "advancedSettingsTitle": "Дополнительные настройки",
+    "advancedSettingsDescription": "Дополнительная конфигурация хранения данных и отчётности.",
+    "customRetentionDays": "Свой срок (дней)"
   },
   "githubConnector": {
     "backToAccount": "Назад к аккаунту",
@@ -714,6 +1414,55 @@
     "editProfile": "Редактировать профиль",
     "privacy": "Конфиденциальность",
     "backToNavigation": "Основная навигация"
+  },
+  "technologyCategories": {
+    "title": "Категории технологий",
+    "body": "Создавайте, изменяйте и архивируйте категории для организации технологий.",
+    "noOrganization": "Корпоративная организация недоступна.",
+    "searchIcons": "Поиск иконок",
+    "searchCategories": "Поиск категорий",
+    "uploadIcon": "Загрузить иконку",
+    "uploading": "Загрузка…",
+    "iconUploadFailed": "Не удалось загрузить иконку. PNG, JPEG или WebP до 5 МБ.",
+    "allCategories": "Все категории",
+    "state": "Состояние",
+    "state_active": "Активна",
+    "state_draft": "Черновик",
+    "state_archived": "В архиве",
+    "export": "Экспорт",
+    "addCategory": "Добавить категорию",
+    "archiveSelected": "В архив",
+    "nameColumn": "Название",
+    "technologiesColumn": "Технологии",
+    "description": "Описание",
+    "actions": "Действия",
+    "categoryActions": "Действия для {name}",
+    "edit": "Изменить",
+    "manageTechnologies": "Управление технологиями",
+    "restore": "Восстановить",
+    "deleteCategory": "Удалить категорию",
+    "noMatches": "Ничего не найдено. Измените имя или фильтр.",
+    "empty": "Категории технологий ещё не созданы.",
+    "close": "Закрыть",
+    "categoryIcon": "Иконка категории",
+    "changeIcon": "Сменить иконку",
+    "nameRequired": "Название",
+    "linkedTechnologies": "Связанные технологии",
+    "linkedCount": "{count} технологий",
+    "moreTechnologies": "+{count} ещё",
+    "revision": "Ревизия",
+    "provenance": "Источник",
+    "cancel": "Отмена",
+    "saving": "Сохраняем…",
+    "saveChanges": "Сохранить изменения",
+    "save": "Сохранить",
+    "chooseIcon": "Выберите иконку категории",
+    "chooseIconHint": "Иконка хранится в этом браузере, пока API категорий не поддерживает иконки.",
+    "searchTechnologies": "Поиск технологий",
+    "selectedSuffix": "выбрано",
+    "saved": "Сохранено",
+    "linkPartial": "Не удалось обновить {count} технологий. У технологии должна остаться хотя бы одна категория.",
+    "editCategory": "Изменить категорию"
   },
   "theme": {
     "projectionLabel": "Формат сайта",
@@ -1588,6 +2337,7 @@
     "browse": "Перейти в каталог"
   },
   "objects": {
+    "backToObject": "Назад к объекту",
     "backToObjects": "Назад к вашим объектам",
     "viewPublic": "Открыть публичную страницу",
     "manageObject": "Управлять объектом",
@@ -1898,6 +2648,7 @@
     "triage": "Обновить состояние",
     "reason": "Причина",
     "reasonRequired": "Укажите причину.",
+    "publicResponse": "Публичный ответ",
     "confirm": "Подтвердить действие",
     "block": "Заблокировать версию",
     "hide": "Скрыть версию",
@@ -1992,40 +2743,41 @@
     "accessAdministration": "Управление доступом",
     "accessMatrix": "Матрица доступа",
     "accessMatrixBody": "Разрешения каждой роли, сгруппированные по сущностям.",
-    "accessMatrixGroups": "Области",
     "accessModel": "Модель доступа",
-    "accessModelBody": "Все применимые действия организации: сущности, области действия и роли, которым они выданы.",
-    "addMember": "Добавить участника",
+    "allJobTitles": "Все должности",
+    "assignEmployees": "Назначить сотрудников",
+    "assignPartial": "Не удалось обновить {count} сотрудников.",
+    "assignedEmployees": "Назначенные сотрудники",
+    "createJobTitle": "Создать должность",
+    "deleteJobTitle": "Удалить должность",
+    "deleteJobTitleConfirm": "«{name}» будет переведена в архив и скрыта из новых назначений.",
+    "editJobTitle": "Изменить должность",
+    "jobTitleActions": "Действия для {name}",
+    "linkedEmployees": "Сотрудники",
+    "linkedEmployeesCount": "{count} сотрудников",
     "openAccess": "Доступ",
+    "removeAssignment": "Снять назначение",
+    "restoreJobTitle": "Восстановить",
+    "searchJobTitles": "Поиск должностей",
     "searchMembers": "Найти участников",
     "noMatchingMembers": "По текущему запросу участников нет.",
     "deliveryFailed": "Доставка не удалась. Отзовите приглашение и отправьте новое.",
     "entitiesAndActions": "Сущности и действия",
-    "roleMatrix": "Матрица ролей",
     "searchPermissions": "Найти разрешения",
-    "noMatchingPermissions": "По текущему запросу разрешений нет.",
-    "requiresParent": "Требует {parent}",
-    "systemRole": "Встроенная",
-    "customRole": "Пользовательская",
+    "selectedSuffix": "выбрано",
     "createRole": "Создать роль",
-    "editRoleBody": "Обновите родителя роли и список разрешений.",
-    "roleUsedBy": "Назначения",
-    "noRoleAssignments": "Активных назначений этой роли нет.",
-    "inheritedPermissions": "Унаследованные",
-    "ownPermissions": "Собственные разрешения",
-    "deleteRoleConfirm": "Удалить роль? Сначала нужно убрать назначения.",
+    "editRoleBody": "Изменить название и список разрешений роли.",
+    "renameRoleHint": "Переименование копирует роль под новым именем и переносит её держателей.",
+    "assignRoleBody": "Назначить роль {name} сотрудникам организации как прямое назначение на уровне организации.",
+    "deleteRoleBody": "Удалить роль {name}? Все текущие назначения перейдут к роли-замене.",
+    "replacementRole": "Роль-замена",
+    "replacementRoleBody": "Сотрудники и связи с этой ролью будут переназначены на выбранную роль.",
     "copyId": "Копировать ID",
     "employeeAccessTitle": "Доступ сотрудника",
-    "employeeAccessBody": "Все источники доступа сотрудника и эффективный набор решений в выбранной области.",
-    "effectiveDecisions": "Эффективный доступ",
-    "effectiveDecisionsBody": "Разрешения сотрудника в выбранной области с записями, которые их выдают.",
     "roleBindings": "Привязки ролей",
     "directGrants": "Прямые разрешения",
     "directGrantsBody": "Разрешения отдельных действий в области, выданные без роли.",
-    "privateGrants": "Приватные гранты каталога",
     "noGrants": "Прямых разрешений нет.",
-    "noPrivateGrants": "Приватных грантов нет.",
-    "grantAction": "Выдать действие",
     "selectScope": "Область",
     "allScopes": "Организация",
     "coverage": "Покрытие",
@@ -2037,7 +2789,6 @@
     "originDirect": "Напрямую",
     "originServicePrincipal": "Сервисный принципал",
     "issuer": "Выдал",
-    "noEffective": "В этой области эффективных разрешений нет.",
     "actions": "Действия",
     "active": "Активен",
     "administration": "Администрирование",
@@ -2051,19 +2802,13 @@
     "auditJournal": "Журнал аудита",
     "auditUi": {
       "allEmployees": "Все сотрудники",
-      "searchEmployee": "Поиск сотрудников",
       "close": "Закрыть",
       "target": "ID объекта",
-      "filterEvents": "Показать события",
       "action": "Действие",
       "allActions": "Все действия",
       "from": "С",
       "to": "По",
-      "latestEvents": "Последние события",
-      "olderEvents": "Более ранние события",
       "event": "{entity}: {operation}",
-      "profileUpdated": "Изменён профиль сотрудника",
-      "otherEvent": "Событие организации",
       "entities": {
         "member": "Сотрудник",
         "team": "Команда",
@@ -2074,19 +2819,113 @@
         "catalog_assignment": "Назначение setup или компонента",
         "audit": "Журнал",
         "organization": "Организация",
-        "corporate": "Corporate Hub"
+        "corporate": "Corporate Hub",
+        "delegation": "Делегирование",
+        "invitation": "Приглашение",
+        "member_access": "Проверка доступа",
+        "membership": "Членство",
+        "policy": "Политика",
+        "permission_grant": "Прямой грант",
+        "job_title": "Должность",
+        "catalog_object": "Объект каталога",
+        "catalog_ownership": "Владение каталогом",
+        "catalog_maintainer": "Сопровождение каталога",
+        "catalog_verification": "Верификация каталога",
+        "catalog_lifecycle": "Жизненный цикл каталога",
+        "employee_technology": "Технология сотрудника",
+        "ownership": "Владение",
+        "owner": "Владелец",
+        "technology": "Технология",
+        "category": "Категория технологий",
+        "telemetry": "Телеметрия",
+        "telemetry_usage": "Использование (телеметрия)",
+        "telemetry_installation": "Установка (телеметрия)",
+        "dashboard": "Дашборд",
+        "grant": "Грант каталога",
+        "http": "HTTP-запрос",
+        "profile": "Профиль",
+        "request": "Запрос",
+        "report": "Отчёт",
+        "publication": "Публикация",
+        "content": "Контент",
+        "auth": "Вход",
+        "device": "Устройство",
+        "sync": "Синхронизация",
+        "github": "GitHub",
+        "gitlab": "GitLab"
       },
       "operations": {
-        "create": "создание",
-        "update": "изменение",
-        "delete": "удаление",
-        "read": "просмотр",
+        "create": "создано",
+        "created": "создано",
+        "update": "обновлено",
+        "delete": "удалено",
+        "read": "просмотрено",
         "list": "просмотр списка",
-        "write": "изменение назначения",
-        "export": "экспорт",
-        "lifecycle": "изменение статуса",
-        "bootstrap": "инициализация",
-        "replay": "повтор запроса"
+        "write": "изменено",
+        "export": "экспортировано",
+        "lifecycle": "изменён статус",
+        "bootstrap": "инициализировано",
+        "replay": "запрос повторён",
+        "assign": "назначено",
+        "remove": "удалено",
+        "revoke": "отозвано",
+        "revoked": "отозвано",
+        "accepted": "принято",
+        "claimed": "принято в работу",
+        "rejected": "отклонено",
+        "denied": "отказано",
+        "expired": "истекло",
+        "sent": "отправлено",
+        "replayed": "повторено",
+        "duplicate": "дубликат проигнорирован",
+        "domain_rejected": "домен отклонён",
+        "email_confirm_sent": "подтверждение отправлено",
+        "issuer_denied": "инициатору отказано",
+        "org_inactive": "организация неактивна",
+        "token_invalid": "недействительный токен",
+        "confirm_token_invalid": "недействительный токен подтверждения",
+        "confirm_account_mismatch": "несовпадение аккаунта",
+        "replace": "заменено",
+        "aggregate": "агрегировано",
+        "ingest": "принято",
+        "batch": "пакет принят",
+        "inventory": "инвентаризация собрана",
+        "triaged": "обработано",
+        "requested": "запрошено",
+        "registered": "зарегистрировано",
+        "reregistered": "перерегистрировано",
+        "approved": "одобрено",
+        "exchanged": "обменян",
+        "refreshed": "обновлено",
+        "reactivated": "реактивировано",
+        "linked": "связано",
+        "unlinked": "отвязано",
+        "link_created": "связано",
+        "link_planned": "связь запланирована",
+        "link_unlinked": "отвязано",
+        "unlink_planned": "отвязка запланирована",
+        "sync_planned": "синхронизация запланирована",
+        "sync_applied": "синхронизация применена",
+        "revision_pushed": "ревизия отправлена",
+        "started": "запущено",
+        "completed": "завершено",
+        "disconnected": "отключено",
+        "unavailable": "недоступно",
+        "prepared": "подготовлено",
+        "imported": "импортировано",
+        "bound": "привязано",
+        "confirmed": "подтверждено",
+        "published": "опубликовано",
+        "unpublished": "снято с публикации",
+        "superseded": "заменено новым",
+        "conflict": "конфликт",
+        "claim_requested": "запрошено подтверждение",
+        "family_created": "семейство создано",
+        "family_updated": "семейство обновлено",
+        "distribute": "распределено",
+        "created_direct": "выдан напрямую",
+        "invitation_created": "приглашение создано",
+        "invitation_revoked": "приглашение отозвано"
       },
       "outcomes": {
         "succeeded": "Выполнено",
@@ -2097,7 +2936,127 @@
         "user": "Действие сотрудника",
         "service_principal": "Действие сервисного аккаунта",
         "system": "Системное действие"
-      }
+      },
+      "reason": "Причина",
+      "actions": {
+        "member": {
+          "profile": {
+            "update": "Профиль сотрудника обновлён"
+          }
+        },
+        "member_access": {
+          "read": "Открыта проверка доступа"
+        },
+        "membership": {
+          "policy": {
+            "write": "Политика членства обновлена"
+          }
+        },
+        "corporate": {
+          "bootstrap": "Рабочая область инициализирована"
+        },
+        "dashboard": {
+          "ci_check": {
+            "write": "Зафиксирована проверка CI"
+          }
+        },
+        "grant": {
+          "accepted": "Доступ к каталогу принят",
+          "created_direct": "Выдан доступ к каталогу",
+          "invitation_created": "Создано приглашение в каталог",
+          "invitation_revoked": "Приглашение в каталог отозвано",
+          "reactivated": "Доступ к каталогу возобновлён",
+          "revoked": "Доступ к каталогу отозван"
+        }
+      },
+      "targets": {
+        "account": "Аккаунт",
+        "account_session": "Сессия",
+        "access_grant": "Грант каталога",
+        "article": "Статья",
+        "article_repository_state": "Состояние репозитория",
+        "audit_event": "Событие журнала",
+        "avatar_asset": "Аватар",
+        "catalog_metadata": "Метаданные каталога",
+        "corporate_assignment_distribution": "Распределение назначений",
+        "corporate_bootstrap_receipt": "Запрос настройки",
+        "corporate_catalog_assignment": "Назначение каталога",
+        "corporate_catalog_lifecycle": "Жизненный цикл каталога",
+        "corporate_catalog_maintainer": "Сопровождающий каталога",
+        "corporate_catalog_ownership": "Владение каталогом",
+        "corporate_catalog_verification": "Верификация каталога",
+        "corporate_ci_check": "Проверка CI",
+        "corporate_dashboard_view": "Вид дашборда",
+        "corporate_invitation": "Приглашение",
+        "corporate_job_title": "Должность",
+        "corporate_mutation_receipt": "Запрос",
+        "corporate_permission_grant": "Прямой грант",
+        "corporate_project": "Проект",
+        "corporate_role": "Роль",
+        "corporate_role_binding": "Привязка доступа",
+        "corporate_service_principal": "Сервисный аккаунт",
+        "corporate_team": "Команда",
+        "device": "Устройство",
+        "device_authorization": "Авторизация устройства",
+        "employee_technology": "Технология сотрудника",
+        "github_action_plan": "Действие GitHub",
+        "github_connector": "Коннектор GitHub",
+        "github_source_binding": "Источник GitHub",
+        "grant_invitation": "Приглашение в каталог",
+        "http_route": "Маршрут",
+        "installation_heartbeat": "Heartbeat установки",
+        "installation_inventory_snapshot": "Снимок инвентаризации",
+        "installation_operation_fact": "Факт операции",
+        "oauth_identity": "Личность",
+        "organization": "Организация",
+        "organization_membership": "Участник",
+        "organization_technology_decision": "Решение по технологии",
+        "ownership_claim": "Заявка на владение",
+        "project_identity": "Проект",
+        "project_link": "Связь проекта",
+        "project_link_plan": "План связи",
+        "project_revision": "Ревизия проекта",
+        "project_sync_plan": "План синхронизации",
+        "project_team_relation": "Команда проекта",
+        "project_technology_relation": "Технология проекта",
+        "project_unlink_plan": "План отвязки",
+        "publication_plan": "План публикации",
+        "report_case": "Отчёт",
+        "runtime_usage_event": "Событие использования",
+        "runtime_usage_export": "Экспорт использования",
+        "setup_family": "Семейство setup",
+        "sync_event_receipt": "Событие синхронизации",
+        "sync_revision": "Ревизия синхронизации",
+        "technology": "Технология",
+        "technology_category": "Категория",
+        "technology_coordinate_mapping": "Сопоставление координат",
+        "technology_landscape_policy": "Политика ландшафта",
+        "technology_scan": "Скан технологий",
+        "technology_team_responsibility": "Ответственность команды",
+        "technology_unmapped_coordinate": "Нераспознанная координата",
+        "telemetry_audit": "Аудит телеметрии",
+        "telemetry_event": "Событие телеметрии",
+        "telemetry_policy": "Политика телеметрии",
+        "telemetry_revocation": "Отзыв телеметрии"
+      },
+      "search": "Поиск по автору, действию, объекту или деталям…",
+      "actor": "Автор",
+      "allActors": "Все авторы",
+      "targetType": "Тип объекта",
+      "allTypes": "Все типы",
+      "outcome": "Результат",
+      "allOutcomes": "Все результаты",
+      "reset": "Сбросить",
+      "eventCount": "{count, plural, one {# событие} few {# события} many {# событий} other {# события}}",
+      "auditTable": "События аудита",
+      "timestamp": "Время",
+      "details": "Детали",
+      "eventDetails": "Детали события",
+      "requestId": "ID запроса",
+      "changes": "Изменения",
+      "noChanges": "Дополнительные данные об изменениях для этого события не записаны.",
+      "rowsPerPage": "Строк на странице",
+      "openEvent": "Открыть событие {id}"
     },
     "avatar": "Аватар",
     "backToWorkspace": "Назад в пространство",
@@ -2117,12 +3076,9 @@
     "domainPolicyBody": "Если включено, присоединиться и быть приглашёнными могут только получатели с разрешённых доменов.",
     "domainRestrict": "Разрешить вход только с разрешённых доменов",
     "domains": "Разрешённые домены",
-    "domainsHint": "Через запятую или пробел, например: example.com subsidiary.org",
-    "domainsPlaceholder": "example.com, subsidiary.org",
     "download": "Скачать",
     "edit": "Редактировать",
     "editEntityPresentation": "Редактирование: {name}",
-    "effectiveAccess": "Ваши эффективные права",
     "email": "Email",
     "employeeAuthoredComponents": "Созданные компоненты",
     "employeeAuthoredSetups": "Созданные сетапы",
@@ -2151,7 +3107,6 @@
     "exportingAudit": "Экспортируем…",
     "failed": "У вас нет прав для этого действия.",
     "granted": "Есть",
-    "grantedBy": "Назначено через",
     "id": "ID",
     "importPlaceholder": "name@example.com, Иван Иванов",
     "invitations": "Приглашения",
@@ -2162,7 +3117,7 @@
     "jobTitleName": "Название должности",
     "jobTitleNoItems": "Должности ещё не созданы.",
     "jobTitleRetired": "Архивная",
-    "jobTitleSave": "Сохранить должность",
+    "jobTitleSave": "Сохранить",
     "jobTitleState": "Состояние",
     "jobTitles": "Должности",
     "jobTitlesDescription": "Создавайте, переименовывайте, архивируйте и восстанавливайте должности для профилей сотрудников и фильтров каталога.",
@@ -2185,12 +3140,17 @@
     "noOrganization": "Корпоративная организация недоступна.",
     "noRoles": "Роли не определены.",
     "noServicePrincipals": "Нет сервисных субъектов.",
+    "notAssigned": "Не назначено",
     "notGranted": "Нет",
     "open": "Открыть",
     "operation": "Операция",
     "organization": "Организация",
     "organizationRole": "Роль в организации",
-    "parentRole": "Родительская роль",
+    "peopleVisibility": "Видимость людей",
+    "peopleVisibilityAdmins": "Только администраторы",
+    "peopleVisibilityHint": "Кого видно в директории: всех участников организации, только коллег по общим командам и проектам или только администраторов.",
+    "peopleVisibilityMembers": "Все участники организации",
+    "peopleVisibilityTeammates": "Коллеги по общим командам и проектам",
     "permission": "Разрешение",
     "permissions": "Разрешения",
     "project": "Проект",
@@ -2210,7 +3170,6 @@
     "saved": "Создано",
     "saving": "Сохраняем…",
     "scope": "Область",
-    "scopeId": "ID области",
     "searchEmployees": "Поиск сотрудников",
     "searchTeams": "Поиск команд",
     "servicePrincipals": "Сервисные субъекты",
@@ -2223,7 +3182,7 @@
     "team": "Команда",
     "teamDetails": "Данные команды",
     "teamDetailsBody": "Это корпоративная область команды, доступная вашему аккаунту.",
-    "teamRole": "Роль в этой команде",
+
     "teams": "Команды",
     "today": "Сегодня",
     "unknownEmployee": "Сотрудник без имени",
@@ -2231,7 +3190,7 @@
     "suspend": "Приостановить",
     "activate": "Активировать",
     "rolesBody": "Системные определения неизменяемы; пользовательские роли управляются здесь. Унаследованные разрешения приходят от родительских ролей.",
-    "roleAssignments": "Назначения",
+
     "revision": "Ревизия",
     "gitManagement": "Управление Git",
     "gitManagementBody": "Git-провайдеры, доступные организации. Гранты возможностей (connector.{provider}.{use,read,write,create,visibility,access}) назначаются через роли.",
@@ -2240,18 +3199,60 @@
     "gitNoGrants": "Вашим ролям не назначены гранты коннектора.",
     "gitManageProvider": "Управлять",
     "gitGrantsHint": "Гранты коннектора редактируются на",
-    "gitGrantsLink": "странице ролей"
+    "gitGrantsLink": "странице ролей",
+    "viewAllEmployees": "Все сотрудники ({count})",
+    "securityPageDescription": "Управление политиками аутентификации и доступа организации.",
+    "auditJournalDescription": "Отслеживание изменений и действий в организации.",
+    "addDomain": "Добавить домен",
+    "domain": "домен",
+    "domainEntryLabel": "Домен {index}",
+    "removeDomain": "Удалить {domain}",
+    "policySettings": "Настройки политики",
+    "domainRestrictHint": "Пользователи с адресами других доменов не смогут зарегистрироваться или быть приглашёнными в организацию.",
+    "domainPolicyNote": "Существующие участники с другими доменами сохранят доступ.",
+    "domainsRequired": "Добавьте хотя бы один домен или отключите ограничение.",
+    "invalidDomain": "«{domain}» — недопустимый почтовый домен. Используйте DNS-имя вида company.com.",
+    "domainPlaceholder": "company.com",
+    "ssoTitle": "Единый вход (SSO)",
+    "ssoDescription": "Вход участников через корпоративного провайдера идентификации вместо отдельного пароля.",
+    "ssoUnavailable": "Единый вход для организации пока недоступен в этом развёртывании. Провайдеры уровня развёртывания (например, Authentik или Keycloak) настраивает администратор платформы.",
+    "ssoUnavailableWithProviders": "Единый вход уровня организации пока недоступен в этом развёртывании. Провайдеры входа, настроенные администратором платформы: {providers}.",
+    "ssoEnable": "Включить провайдера",
+    "ssoEnabled": "Включён",
+    "ssoNotConfigured": "Не настроен",
+    "ssoIdpMetadataUrl": "URL метаданных IdP",
+    "ssoIdpMetadataHint": "Вставьте URL документа метаданных вашего провайдера идентификации.",
+    "ssoIssuerUrl": "URL издателя (issuer)",
+    "ssoClientId": "Client ID",
+    "ssoEntityId": "Entity ID провайдера услуг",
+    "ssoAcsUrl": "ACS URL (consumer)",
+    "ssoRedirectUrl": "Redirect URL",
+    "ssoMetadataPlaceholder": "https://idp.example.com/saml/metadata",
+    "ssoIssuerPlaceholder": "https://sso.example.com/realms/org",
+    "ssoClientIdPlaceholder": "ai-stp",
+    "ssoProviders": {
+      "saml": {
+        "title": "SAML",
+        "description": "Корпоративные SAML 2.0 провайдеры, например ADFS или Okta."
+      },
+      "oidc": {
+        "title": "OIDC",
+        "description": "Провайдеры OpenID Connect, например Authentik или Keycloak."
+      }
+    }
   },
   "people": {
     "corporate": "Корпоративная версия",
     "administration": "Администрирование",
     "peopleAndAccess": "Участники и доступ",
     "breadcrumbs": "Навигационная цепочка",
-    "pageBody": "Управляйте участниками и приглашениями организации. Добавляйте людей, назначайте роли и настраивайте доступ.",
+    "pageBody": "Управляйте участниками организации: назначайте роли, должности и команды, контролируйте доступ.",
+    "referenceData": "Справочные данные",
     "totalMembers": "Всего участников",
     "pendingInvitations": "Ожидают приглашения",
     "members": "Участники",
     "invitations": "Приглашения",
+    "invitationsBody": "Приглашайте людей в организацию и отслеживайте ожидающие приглашения.",
     "teams": "Команды",
     "roles": "Роли",
     "you": "Вы",
@@ -2265,8 +3266,6 @@
     "joined": "Сначала давние участники",
     "name": "Имя: А–Я",
     "name_desc": "Имя: Я–А",
-    "addMember": "Добавить участника",
-    "addMemberBody": "Добавьте человека в организацию, назначьте роль и выберите команды.",
     "directoryActions": "Действия со списком",
     "downloadCsv": "Скачать CSV",
     "selected": "Выбрано: {count}",
@@ -2368,7 +3367,17 @@
     "noGrantableRoles": "Нет ролей, которые вы можете назначить с текущими правами. Проверьте матрицу доступа перед отправкой приглашений.",
     "roleUnavailable": "недоступна",
     "roleGrantHint": "Недоступные роли содержат права, которые вы не можете назначать. Проверьте матрицу доступа организации.",
-    "rolesUnavailable": "Не удалось проверить, какие роли вы можете назначать. Обновите страницу и попробуйте снова."
+    "rolesUnavailable": "Не удалось проверить, какие роли вы можете назначать. Обновите страницу и попробуйте снова.",
+    "editMember": "Редактировать участника",
+    "editMembers": "Изменить {count} участников",
+    "editSelected": "Изменить выбранных",
+    "bulkEditBody": "Назначить роль, должность или команду всем выбранным. Пустые поля не меняются.",
+    "keepUnchanged": "Без изменений",
+    "addToTeam": "Добавить в команду",
+    "teamLeads": "Лид команды в",
+    "teamLeadsHint": "Выберите команды, где участник — лид",
+    "editPartial": "Не удалось обновить {count}. Повторите для них.",
+    "showingEvents": "{start}–{end} из {total}"
   },
   "gitlabConnector": {
     "title": "GitLab-коннектор",
@@ -2429,5 +3438,268 @@
     "warning_repository_access": "Получатель получит доступ к проекту в GitLab.",
     "warning_repository_access_revoked": "Участник потеряет доступ к проекту в GitLab.",
     "warning_repository_created": "В GitLab будет создан новый репозиторий от вашего имени."
+  },
+  "projectRepository": {
+    "title": "Репозиторий",
+    "empty": "Репозиторий GitHub или GitLab не привязан.",
+    "link": "Связать GitHub / GitLab",
+    "url": "Ссылка на репозиторий",
+    "hint": "Публичный репозиторий GitHub или репозиторий в настроенном GitLab организации.",
+    "branch": "Ветка",
+    "check": "Проверить репозиторий",
+    "confirm": "Связать репозиторий",
+    "confirmHint": "Свяжите этот репозиторий с проектом. Сканирование запускается отдельно.",
+    "working": "Проверка…",
+    "cancel": "Отмена",
+    "placeholder": "https://github.com/owner/repository"
+  },
+  "accessUi": {
+    "accessBody": "RBAC организации: разделы, пользователи, приглашения, сущности и доступные операции. Вход в аккаунт и права публичного каталога управляются отдельно.",
+    "rolesBody": "Управляйте ролями и разрешениями. Роли определяют доступные действия в выбранной области.",
+    "employeeBody": "Управляйте индивидуальным доступом, ролями и действующими разрешениями.",
+    "entitiesAndActions": "Сущности и действия",
+    "sectionsTab": "Разделы",
+    "entity": "Сущность",
+    "entityAction": "Сущность / действие",
+    "searchEntities": "Поиск сущностей…",
+    "searchSections": "Поиск разделов…",
+    "searchRoles": "Поиск ролей…",
+    "allGroups": "Все группы",
+    "allRoles": "Все роли",
+    "systemRoles": "Системные роли",
+    "customRoles": "Пользовательские роли",
+    "details": "Подробности",
+    "openDetails": "Открыть сведения: {name}",
+    "overview": "Обзор",
+    "actionsTab": "Действия",
+    "entityType": "Тип сущности",
+    "scope": "Область",
+    "availableActions": "Доступные действия ({count})",
+    "availableRoles": "Доступно ролям",
+    "sectionDetails": "Сведения о разделе",
+    "section": "Раздел",
+    "description": "Описание",
+    "visibleWhen": "Условие видимости",
+    "keyPermissions": "Ключевые разрешения",
+    "area": "Область",
+    "authenticatedVisibility": "Любой авторизованный участник",
+    "capabilityVisibility": "Есть хотя бы одно указанное разрешение",
+    "adminVisibility": "Есть разрешение на администрирование",
+    "availableToYou": "Доступно вам",
+    "unavailableToYou": "Недоступно вам",
+    "openSection": "Открыть раздел",
+    "entityCount": "Сущностей: {count}",
+    "sectionCount": "Разделов: {count}",
+    "noResults": "Нет результатов по выбранным фильтрам",
+    "granted": "Выдано",
+    "notGranted": "Не выдано",
+    "forbidden": "Для просмотра ролей и модели доступа нужны соответствующие разрешения.",
+    "permissions": "Разрешения",
+    "assignments": "Назначения",
+    "createRole": "Создать роль",
+    "editRole": "Изменить роль",
+    "otherActions": "Другие действия",
+    "immutableRole": "Разрешения системной роли доступны только для чтения.",
+    "noAssignments": "У этой роли нет активных назначений.",
+    "grantAccess": "Выдать доступ",
+    "grantAccessBody": "Выберите сотрудников и что им выдать: роль в области или отдельное разрешение напрямую.",
+    "grantKind": "Что выдать",
+    "grantRoleMode": "Роль",
+    "grantPermissionMode": "Разрешение",
+    "grantScopeHint": "Область ниже организации сужает выдачу только до этого объекта.",
+    "grants": "Гранты доступа",
+    "employee": "Сотрудник",
+    "searchEmployees": "Поиск сотрудников…",
+    "accessLevel": "Уровень доступа",
+    "organizationAccess": "Организация",
+    "scopedAccess": "По областям",
+    "rolesAndAssignments": "Роли и назначения",
+    "effectivePermissions": "Действующие разрешения",
+    "activity": "Активность",
+    "groups": {
+      "discovery": "Просмотр",
+      "content": "Содержимое",
+      "relations": "Связи",
+      "presentation": "Представление",
+      "lifecycle": "Жизненный цикл"
+    },
+    "areas": {
+      "organization": "Организация",
+      "administration": "Администрирование",
+      "product": "Продукт",
+      "referenceData": "Справочники",
+      "security": "Безопасность",
+      "insights": "Аналитика",
+      "root": "Общее",
+      "landscape": "Ландшафт"
+    },
+    "roleNames": {
+      "superadmin": "Суперадминистратор",
+      "lead": "Руководитель команды",
+      "staff": "Сотрудник"
+    },
+    "roleDescriptions": {
+      "superadmin": "Администрирование организации и управление ресурсами.",
+      "lead": "Управление ресурсами команды и доступом участников в назначенных областях.",
+      "staff": "Базовый доступ для участников организации.",
+      "custom": "Разрешения, настроенные для этой организации."
+    },
+    "entities": {
+      "member": {
+        "name": "Пользователи",
+        "description": "Участники этой организации"
+      },
+      "team": {
+        "name": "Команды",
+        "description": "Команды организации"
+      },
+      "project": {
+        "name": "Проекты",
+        "description": "Проекты и инициативы"
+      },
+      "technology": {
+        "name": "Технологии",
+        "description": "Технологии и инструменты"
+      },
+      "category": {
+        "name": "Категории технологий",
+        "description": "Классификация технологий"
+      },
+      "job_title": {
+        "name": "Должности",
+        "description": "Справочник должностей"
+      },
+      "catalog_object": {
+        "name": "Объекты каталога",
+        "description": "Компоненты и сетапы"
+      },
+      "role": {
+        "name": "Роли",
+        "description": "Роли доступа и разрешения"
+      },
+      "binding": {
+        "name": "Назначения доступа",
+        "description": "Назначения ролей и гранты по областям"
+      },
+      "organization": {
+        "name": "Настройки организации",
+        "description": "Конфигурация организации"
+      },
+      "audit": {
+        "name": "Журнал аудита",
+        "description": "События системы и история"
+      },
+      "service_principal": {
+        "name": "Сервисные субъекты",
+        "description": "Сервисный доступ и учётные данные"
+      },
+      "telemetry": {
+        "name": "Отчёты активности",
+        "description": "Активность сотрудников и установок"
+      },
+      "telemetry_usage": {
+        "name": "Отчёты использования",
+        "description": "События и отчёты использования harness"
+      },
+      "landscape": {
+        "name": "Технологический ландшафт",
+        "description": "Связи и представления технологий"
+      },
+      "invitation": {
+        "name": "Приглашения",
+        "description": "Создание, список и отзыв приглашений организации (member.invite)"
+      }
+    },
+    "actions": {
+      "list": "Список",
+      "read": "Просмотр",
+      "create": "Создать",
+      "update": "Изменить",
+      "edit": "Изменить",
+      "delete": "Удалить",
+      "invite": "Пригласить",
+      "manage": "Управлять",
+      "link": "Связать",
+      "unlink": "Отвязать",
+      "export": "Экспорт",
+      "write": "Записать активность",
+      "ingest": "Отправить использование",
+      "events": "События",
+      "assign": "Назначить",
+      "maintainer": "Ответственные",
+      "ownership_transfer": "Передать владение",
+      "publish": "Опубликовать",
+      "verify": "Проверить",
+      "lifecycle": "Изменить жизненный цикл",
+      "audit": "История",
+      "explain": "Объяснить доступ",
+      "approve": "Одобрить",
+      "merge": "Объединить",
+      "responsibility": "Ответственность",
+      "scan_publish": "Опубликовать сканирование",
+      "scan": "Опубликовать сканирование",
+      "project_team_create": "Добавление команд",
+      "project_team_read": "Просмотр команд",
+      "project_team_list": "Список команд",
+      "project_team_update": "Изменение команд",
+      "project_team_delete": "Удаление команд",
+      "project_technology_create": "Добавление технологий",
+      "project_technology_read": "Просмотр технологий",
+      "project_technology_list": "Список технологий",
+      "project_technology_update": "Изменение технологий",
+      "project_technology_delete": "Удаление технологий",
+      "technology_team_create": "Добавление ответственных команд",
+      "technology_team_read": "Просмотр ответственных команд",
+      "technology_team_list": "Список ответственных команд",
+      "technology_team_update": "Изменение ответственных команд",
+      "technology_team_delete": "Удаление ответственных команд",
+      "technology_decision_create": "Добавление решений",
+      "technology_decision_read": "Просмотр решений",
+      "technology_decision_list": "Список решений",
+      "technology_decision_update": "Изменение решений",
+      "technology_decision_delete": "Удаление решений"
+    },
+    "scopes": {
+      "organization": "Организация",
+      "team": "Команда",
+      "project": "Проект",
+      "technology": "Технология",
+      "category": "Категория",
+      "catalog_object": "Объект каталога",
+      "member": "Сотрудник"
+    },
+    "sections": {
+      "overview": "Главная панель и точка входа.",
+      "catalog": "Просмотр компонентов и сетапов.",
+      "organization": "Люди, команды, проекты и структура организации.",
+      "landscape": "Технологии и их связи.",
+      "administration": "Справочник участников организации.",
+      "invitations": "Ожидающие и принятые приглашения участников.",
+      "employees": "Справочник сотрудников и профили.",
+      "projects": "Проекты, ресурсы и участники.",
+      "teams": "Структура команд и участники.",
+      "technologies": "Реестр технологий и ответственность.",
+      "technologyCategories": "Администрирование категорий технологий.",
+      "reports": "Отчёты сотрудников, установок и использования.",
+      "categories": "Справочник категорий технологий.",
+      "mappings": "Связи между технологиями.",
+      "accessMatrix": "Сущности, действия и видимость разделов приложения.",
+      "roles": "Определения ролей и разрешения.",
+      "auditJournal": "События аудита организации.",
+      "employeeAccess": "Индивидуальный доступ и назначения по областям.",
+      "jobTitles": "Справочник должностей.",
+      "security": "Сервисные субъекты и политики аутентификации.",
+      "dashboard": "Настраиваемый обзор и быстрые ссылки."
+    },
+    "organizationRole": "Роль в организации",
+    "source": "Источник",
+    "allAreas": "Все области",
+    "employeeAccess": "Доступ сотрудников",
+    "name": "Имя",
+    "joined": "Присоединился",
+    "viewAsList": "Показать списком",
+    "viewAsMatrix": "Показать матрицей",
+    "searchPermissions": "Поиск разрешений…",
+    "duplicateRole": "Создать копию роли"
   }
 }

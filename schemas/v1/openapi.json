@@ -1872,6 +1872,19 @@
             "title": "Description",
             "type": "string"
           },
+          "icon": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Icon"
+          },
           "name": {
             "maxLength": 200,
             "minLength": 1,
@@ -1909,6 +1922,7 @@
           "area_id",
           "category_id",
           "description",
+          "icon",
           "name",
           "provenance",
           "revision"
@@ -4728,6 +4742,159 @@
         "title": "CorporateAuditExport",
         "type": "object"
       },
+      "CorporateAuditExportQuery": {
+        "additionalProperties": false,
+        "description": "Journal export shares the list filters; one dump may return up to 10 000 rows.",
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Action"
+          },
+          "actor_account_id": {
+            "anyOf": [
+              {
+                "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Actor Account Id"
+          },
+          "before_created_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "before_id": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Before Id"
+          },
+          "created_from": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "created_to": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "limit": {
+            "default": 10000,
+            "maximum": 10000,
+            "minimum": 1,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "enum": [
+                  "succeeded",
+                  "denied",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Outcome"
+          },
+          "q": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Q"
+          },
+          "target_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Target Id"
+          },
+          "target_table": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Target Table"
+          }
+        },
+        "title": "CorporateAuditExportQuery",
+        "type": "object"
+      },
       "CorporateAuditList": {
         "additionalProperties": true,
         "properties": {
@@ -4767,13 +4934,19 @@
             "default": 1,
             "title": "Schema Version",
             "type": "integer"
+          },
+          "total": {
+            "minimum": 0,
+            "title": "Total",
+            "type": "integer"
           }
         },
         "required": [
           "items",
           "next_before_created_at",
           "next_before_id",
-          "schema_version"
+          "schema_version",
+          "total"
         ],
         "title": "CorporateAuditList",
         "type": "object"
@@ -4854,6 +5027,50 @@
             ],
             "default": null
           },
+          "limit": {
+            "default": 100,
+            "maximum": 100,
+            "minimum": 1,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "enum": [
+                  "succeeded",
+                  "denied",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Outcome"
+          },
+          "q": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Q"
+          },
           "target_id": {
             "anyOf": [
               {
@@ -4867,6 +5084,20 @@
             ],
             "default": null,
             "title": "Target Id"
+          },
+          "target_table": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Target Table"
           }
         },
         "title": "CorporateAuditQuery",
@@ -4951,6 +5182,7 @@
               "team",
               "project",
               "technology",
+              "category",
               "catalog_object",
               "telemetry"
             ],
@@ -5073,6 +5305,7 @@
               "team",
               "project",
               "technology",
+              "category",
               "catalog_object",
               "telemetry"
             ],
@@ -5143,6 +5376,7 @@
               "team",
               "project",
               "technology",
+              "category",
               "catalog_object",
               "telemetry"
             ],
@@ -6892,6 +7126,14 @@
       "CorporateDirectoryFacets": {
         "additionalProperties": true,
         "properties": {
+          "areas": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateDirectoryReference"
+            },
+            "title": "Areas",
+            "type": "array"
+          },
           "categories": {
             "default": [],
             "items": {
@@ -6939,6 +7181,7 @@
           }
         },
         "required": [
+          "areas",
           "categories",
           "job_titles",
           "leads",
@@ -6952,6 +7195,15 @@
       "CorporateDirectoryItem": {
         "additionalProperties": true,
         "properties": {
+          "areas": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateDirectoryReference"
+            },
+            "maxItems": 32,
+            "title": "Areas",
+            "type": "array"
+          },
           "available_actions": {
             "default": [],
             "items": {
@@ -7004,6 +7256,7 @@
               "employee",
               "technology",
               "category",
+              "area",
               "job_title"
             ],
             "title": "Kind",
@@ -7094,6 +7347,7 @@
           }
         },
         "required": [
+          "areas",
           "available_actions",
           "categories",
           "description",
@@ -7118,6 +7372,16 @@
       "CorporateDirectoryQuery": {
         "additionalProperties": false,
         "properties": {
+          "area_ids": {
+            "default": [],
+            "items": {
+              "pattern": "^area_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            "maxItems": 32,
+            "title": "Area Ids",
+            "type": "array"
+          },
           "category_ids": {
             "default": [],
             "items": {
@@ -7274,6 +7538,7 @@
               "employee",
               "technology",
               "category",
+              "area",
               "job_title"
             ],
             "title": "Kind",
@@ -8193,6 +8458,7 @@
               "team",
               "project",
               "technology",
+              "category",
               "catalog_object",
               "member"
             ],
@@ -8977,6 +9243,7 @@
               "team",
               "project",
               "technology",
+              "category",
               "catalog_object",
               "member"
             ],
@@ -9386,6 +9653,17 @@
             ],
             "title": "Project Id"
           },
+          "project_role": {
+            "default": "staff",
+            "enum": [
+              "owner",
+              "lead",
+              "contributor",
+              "staff"
+            ],
+            "title": "Project Role",
+            "type": "string"
+          },
           "schema_version": {
             "const": 1,
             "default": 1,
@@ -9417,6 +9695,7 @@
           "bindings",
           "operation",
           "project_id",
+          "project_role",
           "schema_version",
           "team_id",
           "team_role"
@@ -9462,6 +9741,17 @@
             "default": null,
             "title": "Project Id"
           },
+          "project_role": {
+            "default": "staff",
+            "enum": [
+              "owner",
+              "lead",
+              "contributor",
+              "staff"
+            ],
+            "title": "Project Role",
+            "type": "string"
+          },
           "schema_version": {
             "const": 1,
             "default": 1,
@@ -9501,7 +9791,7 @@
       },
       "CorporateMembershipPolicy": {
         "additionalProperties": true,
-        "description": "Email-domain allowlist for joining the organization.",
+        "description": "Email-domain allowlist for joining the organization, plus the people\nvisibility policy (ADR-0230).",
         "properties": {
           "allowed_email_domains": {
             "default": [],
@@ -9522,6 +9812,16 @@
             "title": "Organization Id",
             "type": "string"
           },
+          "people_visibility": {
+            "default": "teammates",
+            "enum": [
+              "members",
+              "teammates",
+              "admins"
+            ],
+            "title": "People Visibility",
+            "type": "string"
+          },
           "schema_version": {
             "const": 1,
             "default": 1,
@@ -9533,6 +9833,7 @@
           "allowed_email_domains",
           "authorization_revision",
           "organization_id",
+          "people_visibility",
           "schema_version"
         ],
         "title": "CorporateMembershipPolicy",
@@ -9558,6 +9859,16 @@
           },
           "idempotency_key": {
             "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "people_visibility": {
+            "default": "teammates",
+            "enum": [
+              "members",
+              "teammates",
+              "admins"
+            ],
+            "title": "People Visibility",
+            "type": "string"
           },
           "schema_version": {
             "const": 1,
@@ -9792,6 +10103,7 @@
                 "team",
                 "project",
                 "technology",
+                "category",
                 "catalog_object",
                 "member"
               ],
@@ -9870,7 +10182,9 @@
               "organization",
               "team",
               "project",
-              "technology"
+              "technology",
+              "category",
+              "catalog_object"
             ],
             "title": "Scope Kind",
             "type": "string"
@@ -10006,7 +10320,9 @@
               "organization",
               "team",
               "project",
-              "technology"
+              "technology",
+              "category",
+              "catalog_object"
             ],
             "title": "Scope Kind",
             "type": "string"
@@ -10560,6 +10876,177 @@
         "title": "CorporateProjectView",
         "type": "object"
       },
+      "CorporateRepositoryBindRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "authorization_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Authorization Revision"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "plan_digest": {
+            "maxLength": 71,
+            "minLength": 71,
+            "title": "Plan Digest",
+            "type": "string"
+          },
+          "plan_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "plan_key",
+          "plan_digest",
+          "authorization_revision",
+          "idempotency_key"
+        ],
+        "title": "CorporateRepositoryBindRequest",
+        "type": "object"
+      },
+      "CorporateRepositoryPlan": {
+        "additionalProperties": false,
+        "properties": {
+          "authorization_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Authorization Revision"
+          },
+          "default_branch": {
+            "title": "Default Branch",
+            "type": "string"
+          },
+          "expected_revision": {
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "expires_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "namespace_id": {
+            "title": "Namespace Id",
+            "type": "string"
+          },
+          "observed_revision": {
+            "title": "Observed Revision",
+            "type": "string"
+          },
+          "plan_digest": {
+            "title": "Plan Digest",
+            "type": "string"
+          },
+          "plan_key": {
+            "title": "Plan Key",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "provider": {
+            "enum": [
+              "github",
+              "gitlab"
+            ],
+            "title": "Provider",
+            "type": "string"
+          },
+          "repository_id": {
+            "title": "Repository Id",
+            "type": "string"
+          },
+          "repository_url": {
+            "title": "Repository Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "repository_url",
+          "provider",
+          "repository_id",
+          "namespace_id",
+          "name",
+          "default_branch",
+          "observed_revision",
+          "expected_revision",
+          "authorization_revision",
+          "plan_key",
+          "plan_digest",
+          "expires_at"
+        ],
+        "title": "CorporateRepositoryPlan",
+        "type": "object"
+      },
+      "CorporateRepositoryPlanRequest": {
+        "additionalProperties": false,
+        "description": "Resolve a repository URL before an explicit source binding.",
+        "properties": {
+          "authorization_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Authorization Revision"
+          },
+          "expected_revision": {
+            "minimum": 1,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "repository_url": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Repository Url",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "repository_url",
+          "authorization_revision",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "title": "CorporateRepositoryPlanRequest",
+        "type": "object"
+      },
       "CorporateRoleCreateRequest": {
         "additionalProperties": false,
         "properties": {
@@ -10578,22 +11065,6 @@
             "pattern": "^[a-z][a-z0-9_-]*$",
             "title": "Name",
             "type": "string"
-          },
-          "parent_role": {
-            "anyOf": [
-              {
-                "description": "Tenant-local role name.",
-                "maxLength": 64,
-                "minLength": 1,
-                "pattern": "^[a-z][a-z0-9_-]*$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Parent Role"
           },
           "permissions": {
             "items": {
@@ -10616,6 +11087,53 @@
           "idempotency_key"
         ],
         "title": "CorporateRoleCreateRequest",
+        "type": "object"
+      },
+      "CorporateRoleDeleteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "authorization_revision": {
+            "minimum": 1,
+            "title": "Authorization Revision",
+            "type": "integer"
+          },
+          "expected_revision": {
+            "minimum": 1,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "replacement_role": {
+            "anyOf": [
+              {
+                "description": "Tenant-local role name.",
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Replacement Role"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "authorization_revision",
+          "idempotency_key"
+        ],
+        "title": "CorporateRoleDeleteRequest",
         "type": "object"
       },
       "CorporateRoleList": {
@@ -10659,22 +11177,6 @@
           "idempotency_key": {
             "$ref": "#/components/schemas/IdempotencyKey"
           },
-          "parent_role": {
-            "anyOf": [
-              {
-                "description": "Tenant-local role name.",
-                "maxLength": 64,
-                "minLength": 1,
-                "pattern": "^[a-z][a-z0-9_-]*$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Parent Role"
-          },
           "permissions": {
             "items": {
               "type": "string"
@@ -10710,21 +11212,6 @@
             "title": "Name",
             "type": "string"
           },
-          "parent_role": {
-            "anyOf": [
-              {
-                "description": "Tenant-local role name.",
-                "maxLength": 64,
-                "minLength": 1,
-                "pattern": "^[a-z][a-z0-9_-]*$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parent Role"
-          },
           "permissions": {
             "items": {
               "type": "string"
@@ -10747,7 +11234,6 @@
         },
         "required": [
           "name",
-          "parent_role",
           "permissions",
           "revision",
           "schema_version"
@@ -10801,6 +11287,7 @@
               "team",
               "project",
               "technology",
+              "category",
               "catalog_object",
               "telemetry"
             ],
@@ -11322,6 +11809,127 @@
           "technology_ids"
         ],
         "title": "CorporateTeamView",
+        "type": "object"
+      },
+      "CorporateTeammate": {
+        "additionalProperties": true,
+        "description": "Reduced people projection — no email, job title, or organization role.",
+        "properties": {
+          "account_id": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "contexts": {
+            "items": {
+              "$ref": "#/components/schemas/CorporateTeammateContext"
+            },
+            "maxItems": 256,
+            "title": "Contexts",
+            "type": "array"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "account_id",
+          "contexts",
+          "display_name",
+          "schema_version"
+        ],
+        "title": "CorporateTeammate",
+        "type": "object"
+      },
+      "CorporateTeammateContext": {
+        "additionalProperties": true,
+        "description": "One participation context a teammate shares with the caller.",
+        "properties": {
+          "id": {
+            "maxLength": 64,
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "team",
+              "project"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "maxLength": 16,
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "role"
+        ],
+        "title": "CorporateTeammateContext",
+        "type": "object"
+      },
+      "CorporateTeammates": {
+        "additionalProperties": true,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CorporateTeammate"
+            },
+            "maxItems": 512,
+            "title": "Items",
+            "type": "array"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "people_visibility": {
+            "enum": [
+              "members",
+              "teammates",
+              "admins"
+            ],
+            "title": "People Visibility",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "organization_id",
+          "people_visibility",
+          "schema_version"
+        ],
+        "title": "CorporateTeammates",
         "type": "object"
       },
       "CorporateTelemetryAggregate": {
@@ -29496,6 +30104,19 @@
             "title": "Description",
             "type": "string"
           },
+          "icon": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Icon"
+          },
           "name": {
             "maxLength": 200,
             "minLength": 1,
@@ -29632,6 +30253,98 @@
         "title": "TechnologyDecisionView",
         "type": "object"
       },
+      "TechnologyDetectedCoordinate": {
+        "additionalProperties": false,
+        "properties": {
+          "context": {
+            "anyOf": [
+              {
+                "enum": [
+                  "production",
+                  "development",
+                  "testing",
+                  "browser_support"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Context"
+          },
+          "coordinate": {
+            "maxLength": 512,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._:/@+*-]+$",
+            "title": "Coordinate",
+            "type": "string"
+          },
+          "evidence": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TechnologyEvidence"
+            },
+            "maxItems": 64,
+            "title": "Evidence",
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "package",
+              "image",
+              "executable",
+              "configuration",
+              "alias"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "technology_id": {
+            "anyOf": [
+              {
+                "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Technology Id"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Version"
+          },
+          "version_kind": {
+            "default": "unknown",
+            "enum": [
+              "unknown",
+              "declared_range",
+              "observed_version"
+            ],
+            "title": "Version Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "coordinate"
+        ],
+        "title": "TechnologyDetectedCoordinate",
+        "type": "object"
+      },
       "TechnologyEvidence": {
         "additionalProperties": false,
         "properties": {
@@ -29740,6 +30453,179 @@
           "observed_at"
         ],
         "title": "TechnologyEvidence",
+        "type": "object"
+      },
+      "TechnologyFindingDecision": {
+        "additionalProperties": false,
+        "properties": {
+          "category_id": {
+            "anyOf": [
+              {
+                "pattern": "^category_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Category Id"
+          },
+          "comment": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Comment",
+            "type": "string"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "enum": [
+                  "production",
+                  "development",
+                  "testing",
+                  "browser_support"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Context"
+          },
+          "coordinate": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Coordinate",
+            "type": "string"
+          },
+          "expected_revision": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "package",
+              "image",
+              "executable",
+              "configuration",
+              "alias"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "review": {
+            "enum": [
+              "confirmed",
+              "rejected",
+              "dependency"
+            ],
+            "title": "Review",
+            "type": "string"
+          },
+          "scan_id": {
+            "pattern": "^scan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Scan Id",
+            "type": "string"
+          },
+          "technology_id": {
+            "anyOf": [
+              {
+                "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Technology Id"
+          }
+        },
+        "required": [
+          "scan_id",
+          "kind",
+          "coordinate",
+          "review"
+        ],
+        "title": "TechnologyFindingDecision",
+        "type": "object"
+      },
+      "TechnologyFindingReviewRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "authorization_revision": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^corporate:organization_[A-Za-z0-9_-]+:[1-9][0-9]*:[1-9][0-9]*$",
+                "type": "string"
+              }
+            ],
+            "title": "Authorization Revision"
+          },
+          "expected_revision": {
+            "default": 0,
+            "maximum": 0,
+            "minimum": 0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TechnologyFindingDecision"
+            },
+            "maxItems": 512,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "authorization_revision",
+          "idempotency_key",
+          "items"
+        ],
+        "title": "TechnologyFindingReviewRequest",
+        "type": "object"
+      },
+      "TechnologyFindingReviewResult": {
+        "additionalProperties": true,
+        "properties": {
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "updated": {
+            "minimum": 0,
+            "title": "Updated",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "organization_id",
+          "updated"
+        ],
+        "title": "TechnologyFindingReviewResult",
         "type": "object"
       },
       "TechnologyLandscapePolicyRequest": {
@@ -29914,6 +30800,11 @@
           "include_inactive": {
             "default": false,
             "title": "Include Inactive",
+            "type": "boolean"
+          },
+          "include_proposed": {
+            "default": false,
+            "title": "Include Proposed",
             "type": "boolean"
           },
           "lifecycle": {
@@ -30738,12 +31629,12 @@
             "type": "array"
           },
           "category_ids": {
+            "default": [],
             "items": {
               "pattern": "^category_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
               "type": "string"
             },
             "maxItems": 32,
-            "minItems": 1,
             "title": "Category Ids",
             "type": "array"
           },
@@ -30784,8 +31675,7 @@
           }
         },
         "required": [
-          "name",
-          "category_ids"
+          "name"
         ],
         "title": "TechnologyMetadata",
         "type": "object"
@@ -30939,6 +31829,12 @@
           "created_at": {
             "$ref": "#/components/schemas/Timestamp"
           },
+          "dependencies": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Dependencies",
+            "type": "integer"
+          },
           "detector_version": {
             "anyOf": [
               {
@@ -30950,6 +31846,31 @@
             ],
             "default": null,
             "title": "Detector Version"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Duration Seconds"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error"
           },
           "findings": {
             "default": [],
@@ -31017,6 +31938,31 @@
             "title": "Scan Id",
             "type": "string"
           },
+          "scan_types": {
+            "default": [],
+            "items": {
+              "enum": [
+                "dependencies",
+                "configs",
+                "languages"
+              ],
+              "type": "string"
+            },
+            "title": "Scan Types",
+            "type": "array"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Scope"
+          },
           "source": {
             "enum": [
               "gitlab",
@@ -31042,7 +31988,10 @@
           "commit",
           "complete",
           "created_at",
+          "dependencies",
           "detector_version",
+          "duration_seconds",
+          "error",
           "findings",
           "found",
           "mapping_version",
@@ -31051,6 +32000,8 @@
           "project_name",
           "repository",
           "scan_id",
+          "scan_types",
+          "scope",
           "source",
           "status"
         ],
@@ -31073,6 +32024,25 @@
             ],
             "default": null,
             "title": "Candidate Technology Id"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "pattern": "^category_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Category Id"
+          },
+          "comment": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Comment",
+            "type": "string"
           },
           "context": {
             "anyOf": [
@@ -31115,11 +32085,29 @@
             "title": "Kind",
             "type": "string"
           },
+          "review": {
+            "default": "proposed",
+            "enum": [
+              "proposed",
+              "confirmed",
+              "rejected",
+              "dependency"
+            ],
+            "title": "Review",
+            "type": "string"
+          },
+          "review_revision": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Review Revision",
+            "type": "integer"
+          },
           "state": {
             "enum": [
               "resolved",
               "candidate",
-              "open"
+              "open",
+              "rejected"
             ],
             "title": "State",
             "type": "string"
@@ -31136,6 +32124,38 @@
             ],
             "default": null,
             "title": "Technology Id"
+          },
+          "technology_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Technology Key"
+          },
+          "technology_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Technology Name"
+          },
+          "tier": {
+            "enum": [
+              "technology",
+              "dependency"
+            ],
+            "title": "Tier",
+            "type": "string"
           },
           "version": {
             "anyOf": [
@@ -31162,16 +32182,148 @@
         },
         "required": [
           "candidate_technology_id",
+          "category_id",
+          "comment",
           "context",
           "coordinate",
           "evidence",
           "kind",
+          "review",
+          "review_revision",
           "state",
           "technology_id",
+          "technology_key",
+          "technology_name",
+          "tier",
           "version",
           "version_kind"
         ],
         "title": "TechnologyScanFinding",
+        "type": "object"
+      },
+      "TechnologyScanFindingList": {
+        "additionalProperties": true,
+        "description": "One scan's curated findings as a standalone resource for export.",
+        "properties": {
+          "branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Branch"
+          },
+          "commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Commit"
+          },
+          "complete": {
+            "default": true,
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "created_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "detector_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Detector Version"
+          },
+          "findings": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TechnologyScanFinding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "mapping_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mapping Version"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "project_id": {
+            "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Project Name"
+          },
+          "repository": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Repository"
+          },
+          "scan_id": {
+            "pattern": "^scan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Scan Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "branch",
+          "commit",
+          "complete",
+          "created_at",
+          "detector_version",
+          "findings",
+          "mapping_version",
+          "organization_id",
+          "project_id",
+          "project_name",
+          "repository",
+          "scan_id"
+        ],
+        "title": "TechnologyScanFindingList",
         "type": "object"
       },
       "TechnologyScanHandoff": {
@@ -31180,6 +32332,15 @@
           "complete": {
             "title": "Complete",
             "type": "boolean"
+          },
+          "coordinates": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TechnologyDetectedCoordinate"
+            },
+            "maxItems": 4096,
+            "title": "Coordinates",
+            "type": "array"
           },
           "detector_version": {
             "maxLength": 128,
@@ -31484,6 +32645,37 @@
           "created_at": {
             "$ref": "#/components/schemas/Timestamp"
           },
+          "dependencies": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Dependencies",
+            "type": "integer"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Duration Seconds"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error"
+          },
           "found": {
             "default": 0,
             "minimum": 0,
@@ -31530,6 +32722,31 @@
             "title": "Scan Id",
             "type": "string"
           },
+          "scan_types": {
+            "default": [],
+            "items": {
+              "enum": [
+                "dependencies",
+                "configs",
+                "languages"
+              ],
+              "type": "string"
+            },
+            "title": "Scan Types",
+            "type": "array"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Scope"
+          },
           "source": {
             "enum": [
               "gitlab",
@@ -31554,12 +32771,17 @@
           "branch",
           "commit",
           "created_at",
+          "dependencies",
+          "duration_seconds",
+          "error",
           "found",
           "pending",
           "project_id",
           "project_name",
           "repository",
           "scan_id",
+          "scan_types",
+          "scope",
           "source",
           "status"
         ],
@@ -32025,6 +33247,16 @@
             ],
             "default": null,
             "title": "Version"
+          },
+          "version_kind": {
+            "default": "unknown",
+            "enum": [
+              "unknown",
+              "declared_range",
+              "observed_version"
+            ],
+            "title": "Version Kind",
+            "type": "string"
           }
         },
         "required": [
@@ -32320,12 +33552,12 @@
             "type": "array"
           },
           "category_ids": {
+            "default": [],
             "items": {
               "pattern": "^category_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
               "type": "string"
             },
             "maxItems": 32,
-            "minItems": 1,
             "title": "Category Ids",
             "type": "array"
           },
@@ -45134,6 +46366,70 @@
           },
           {
             "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "succeeded",
+                    "denied",
+                    "failed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Outcome"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
             "name": "target_id",
             "required": false,
             "schema": {
@@ -45149,6 +46445,25 @@
               ],
               "default": null,
               "title": "Target Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target_table",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Target Table"
             }
           },
           {
@@ -45435,6 +46750,70 @@
           },
           {
             "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10000,
+              "maximum": 10000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "succeeded",
+                    "denied",
+                    "failed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Outcome"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
             "name": "target_id",
             "required": false,
             "schema": {
@@ -45450,6 +46829,25 @@
               ],
               "default": null,
               "title": "Target Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target_table",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Target Table"
             }
           },
           {
@@ -51411,6 +52809,21 @@
             "schema": {
               "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "area_ids",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "pattern": "^area_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              "maxItems": 32,
+              "title": "Area Ids",
+              "type": "array"
             }
           },
           {
@@ -58967,6 +60380,7 @@
                     "idempotency_key": "corporate-assignment-0001",
                     "operation": "assign",
                     "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "project_role": "staff",
                     "schema_version": 1,
                     "team_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                     "team_role": "staff"
@@ -58992,6 +60406,7 @@
                       "bindings": [],
                       "operation": "assign",
                       "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "project_role": "staff",
                       "schema_version": 1,
                       "team_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "team_role": "staff"
@@ -59182,6 +60597,7 @@
                       ],
                       "authorization_revision": 2,
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "people_visibility": "teammates",
                       "schema_version": 1
                     }
                   }
@@ -59369,6 +60785,7 @@
                     ],
                     "authorization_revision": 1,
                     "idempotency_key": "policy-write-0001",
+                    "people_visibility": "teammates",
                     "schema_version": 1
                   }
                 }
@@ -59393,6 +60810,7 @@
                       ],
                       "authorization_revision": 2,
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "people_visibility": "teammates",
                       "schema_version": 1
                     }
                   }
@@ -63075,6 +64493,515 @@
         "summary": "Read explicit project memberships visible to the caller."
       }
     },
+    "/v1/corporate/organizations/{organization_id}/projects/{project_id}/repository": {
+      "post": {
+        "operationId": "bindCorporateProjectRepository",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Typed corporate project identifier.",
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "bindCorporateProjectRepository.corporate": {
+                  "summary": "Binding replays the plan digest and returns the project with its repository.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "idempotency_key": "fixture-bind-repository-0001",
+                    "plan_digest": "sha256:00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+                    "plan_key": "fixture-plan-repository-0001",
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CorporateRepositoryBindRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "bindCorporateProjectRepository.corporate": {
+                    "summary": "Binding replays the plan digest and returns the project with its repository.",
+                    "value": {
+                      "available_actions": [],
+                      "name": "core",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "repositories": [
+                        {
+                          "default_branch": "main",
+                          "namespace": "example",
+                          "observed_at": "2026-10-08T10:15:00.000Z",
+                          "observed_revision": "a7b1c9e2f4d6a8b0c2e4f6a8b0c2e4f6a8b0c2e4",
+                          "provider": "github",
+                          "provider_project_id": "provider_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "repository_url": "https://github.com/example/platform-api"
+                        }
+                      ],
+                      "revision": 2,
+                      "schema_version": 1,
+                      "state": "active"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CorporateProjectView"
+                }
+              }
+            },
+            "description": "Confirm a checked repository source without launching a scan.",
+            "headers": {
+              "ETag": {
+                "description": "Current version, for a later If-Match.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Confirm a checked repository source without launching a scan."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/projects/{project_id}/repository-plan": {
+      "post": {
+        "operationId": "planCorporateProjectRepository",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Typed corporate project identifier.",
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "planCorporateProjectRepository.corporate": {
+                  "summary": "A checked repository returns a digested plan the bind call must replay.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "expected_revision": 1,
+                    "idempotency_key": "fixture-plan-repository-0001",
+                    "repository_url": "https://github.com/example/platform-api",
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CorporateRepositoryPlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "planCorporateProjectRepository.corporate": {
+                    "summary": "A checked repository returns a digested plan the bind call must replay.",
+                    "value": {
+                      "authorization_revision": 1,
+                      "default_branch": "main",
+                      "expected_revision": 1,
+                      "expires_at": "2026-10-08T10:15:00.000Z",
+                      "name": "platform-api",
+                      "namespace_id": "provider_namespace_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "observed_revision": "a7b1c9e2f4d6a8b0c2e4f6a8b0c2e4f6a8b0c2e4",
+                      "plan_digest": "sha256:00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+                      "plan_key": "fixture-plan-repository-0001",
+                      "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "provider": "github",
+                      "repository_id": "provider_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "repository_url": "https://github.com/example/platform-api"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CorporateRepositoryPlan"
+                }
+              }
+            },
+            "description": "Check a repository before explicitly linking it to a project.",
+            "headers": {
+              "ETag": {
+                "description": "Current version, for a later If-Match.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Check a repository before explicitly linking it to a project."
+      }
+    },
     "/v1/corporate/organizations/{organization_id}/projects/{project_id}/teams": {
       "get": {
         "operationId": "listProjectTeams",
@@ -64773,7 +66700,6 @@
                       "items": [
                         {
                           "name": "reviewer",
-                          "parent_role": "staff",
                           "permissions": [
                             "project.read"
                           ],
@@ -64961,12 +66887,11 @@
             "application/json": {
               "examples": {
                 "createCorporateRole.corporate": {
-                  "summary": "A tenant-local custom role carries explicit inherited permissions.",
+                  "summary": "A tenant-local custom role carries an explicit permission list.",
                   "value": {
                     "authorization_revision": 1,
                     "idempotency_key": "corporate-role-create-0001",
                     "name": "reviewer",
-                    "parent_role": "staff",
                     "permissions": [
                       "project.read"
                     ],
@@ -64987,10 +66912,9 @@
               "application/json": {
                 "examples": {
                   "createCorporateRole.corporate": {
-                    "summary": "A tenant-local custom role carries explicit inherited permissions.",
+                    "summary": "A tenant-local custom role carries an explicit permission list.",
                     "value": {
                       "name": "reviewer",
-                      "parent_role": "staff",
                       "permissions": [
                         "project.read"
                       ],
@@ -65213,7 +67137,7 @@
                 }
               },
               "schema": {
-                "$ref": "#/components/schemas/CorporateDeleteRequest"
+                "$ref": "#/components/schemas/CorporateRoleDeleteRequest"
               }
             }
           },
@@ -65237,7 +67161,7 @@
                 }
               }
             },
-            "description": "Remove an unused tenant-local role.",
+            "description": "Remove a tenant-local role, reassigning its holders to a replacement role.",
             "headers": {
               "ETag": {
                 "description": "Current version, for a later If-Match.",
@@ -65382,7 +67306,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Remove an unused tenant-local role."
+        "summary": "Remove a tenant-local role, reassigning its holders to a replacement role."
       },
       "get": {
         "operationId": "readCorporateRole",
@@ -65427,7 +67351,6 @@
                     "summary": "One custom role can be read inside its tenant.",
                     "value": {
                       "name": "reviewer",
-                      "parent_role": "staff",
                       "permissions": [
                         "project.read"
                       ],
@@ -65636,7 +67559,6 @@
                     "authorization_revision": 1,
                     "expected_revision": 1,
                     "idempotency_key": "corporate-role-update-0001",
-                    "parent_role": null,
                     "permissions": [
                       "project.read",
                       "project.update"
@@ -65661,7 +67583,6 @@
                     "summary": "Role permission changes use an explicit revision.",
                     "value": {
                       "name": "reviewer",
-                      "parent_role": null,
                       "permissions": [
                         "project.read",
                         "project.update"
@@ -66932,6 +68853,199 @@
           }
         ],
         "summary": "Activate or suspend a corporate service principal."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/teammates": {
+      "get": {
+        "operationId": "readCorporateTeammates",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readCorporateTeammates.corporate": {
+                    "summary": "A member sees the bounded teammate projection under the organization policy.",
+                    "value": {
+                      "items": [
+                        {
+                          "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "contexts": [
+                            {
+                              "id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                              "kind": "team",
+                              "name": "Platform",
+                              "role": "lead"
+                            }
+                          ],
+                          "display_name": "Ada Lovelace",
+                          "schema_version": 1
+                        }
+                      ],
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "people_visibility": "teammates",
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CorporateTeammates"
+                }
+              }
+            },
+            "description": "Scoped people projection: co-members of the caller's teams and projects.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Scoped people projection: co-members of the caller's teams and projects."
       }
     },
     "/v1/corporate/organizations/{organization_id}/teams": {
@@ -72102,6 +74216,24 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "listTechnologyAreas.technology": {
+                    "summary": "Technology workspace operation uses the canonical machine contract.",
+                    "value": {
+                      "items": [
+                        {
+                          "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "description": "",
+                          "name": "Server applications",
+                          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "provenance": "manual",
+                          "revision": 1,
+                          "state": "active"
+                        }
+                      ]
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/AreaList"
                 }
@@ -72285,6 +74417,22 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "createTechnologyArea.technology": {
+                  "summary": "Technology workspace operation uses the canonical machine contract.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "expected_revision": 0,
+                    "idempotency_key": "fixture-createTechnologyArea-0001",
+                    "metadata": {
+                      "description": "",
+                      "name": "Server applications"
+                    },
+                    "schema_version": 1,
+                    "state": null
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/AreaWriteRequest"
               }
@@ -72296,6 +74444,20 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "createTechnologyArea.technology": {
+                    "summary": "Technology workspace operation uses the canonical machine contract.",
+                    "value": {
+                      "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "description": "",
+                      "name": "Server applications",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "provenance": "manual",
+                      "revision": 1,
+                      "state": "active"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/AreaView"
                 }
@@ -72505,6 +74667,17 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "archiveTechnologyArea.technology": {
+                  "summary": "Technology workspace operation uses the canonical machine contract.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "expected_revision": 1,
+                    "idempotency_key": "fixture-archiveTechnologyArea-0001",
+                    "schema_version": 1
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/TechnologyMutation"
               }
@@ -72516,6 +74689,20 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "archiveTechnologyArea.technology": {
+                    "summary": "Technology workspace operation uses the canonical machine contract.",
+                    "value": {
+                      "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "description": "",
+                      "name": "Server applications",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "provenance": "manual",
+                      "revision": 1,
+                      "state": "archived"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/AreaView"
                 }
@@ -72706,6 +74893,20 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "readTechnologyArea.technology": {
+                    "summary": "Technology workspace operation uses the canonical machine contract.",
+                    "value": {
+                      "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "description": "",
+                      "name": "Server applications",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "provenance": "manual",
+                      "revision": 1,
+                      "state": "active"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/AreaView"
                 }
@@ -72899,6 +75100,22 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "writeTechnologyArea.technology": {
+                  "summary": "Technology workspace operation uses the canonical machine contract.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "expected_revision": 1,
+                    "idempotency_key": "fixture-writeTechnologyArea-0001",
+                    "metadata": {
+                      "description": "",
+                      "name": "Server applications"
+                    },
+                    "schema_version": 1,
+                    "state": null
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/AreaWriteRequest"
               }
@@ -72910,6 +75127,20 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "writeTechnologyArea.technology": {
+                    "summary": "Technology workspace operation uses the canonical machine contract.",
+                    "value": {
+                      "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "description": "",
+                      "name": "Server applications",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "provenance": "manual",
+                      "revision": 1,
+                      "state": "active"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/AreaView"
                 }
@@ -73119,6 +75350,18 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "changeTechnologyAreaLifecycle.technology": {
+                  "summary": "Technology workspace operation uses the canonical machine contract.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "expected_revision": 1,
+                    "idempotency_key": "fixture-changeTechnologyAreaLifecycle-0001",
+                    "schema_version": 1,
+                    "target": "active"
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/AreaLifecycleRequest"
               }
@@ -73130,6 +75373,20 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "changeTechnologyAreaLifecycle.technology": {
+                    "summary": "Technology workspace operation uses the canonical machine contract.",
+                    "value": {
+                      "area_id": "area_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "description": "",
+                      "name": "Server applications",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "provenance": "manual",
+                      "revision": 1,
+                      "state": "active"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/AreaView"
                 }
@@ -73318,6 +75575,7 @@
                     "value": {
                       "items": [
                         {
+                          "area_id": null,
                           "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                           "description": "",
                           "name": "Runtime",
@@ -73540,6 +75798,7 @@
                   "createTechnologyCategory.technology": {
                     "summary": "An authorized tenant request preserves the governed canonical identifiers.",
                     "value": {
+                      "area_id": null,
                       "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "description": "",
                       "name": "Runtime",
@@ -73783,6 +76042,7 @@
                   "removeTechnologyCategory.technology": {
                     "summary": "Category lifecycle retains the governed identity and prior classifications.",
                     "value": {
+                      "area_id": null,
                       "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "description": "",
                       "name": "Runtime",
@@ -73986,6 +76246,7 @@
                   "readTechnologyCategory.technology": {
                     "summary": "An authorized tenant request preserves the governed canonical identifiers.",
                     "value": {
+                      "area_id": null,
                       "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "description": "",
                       "name": "Runtime",
@@ -74216,6 +76477,7 @@
                   "writeTechnologyCategory.technology": {
                     "summary": "An authorized tenant request preserves the governed canonical identifiers.",
                     "value": {
+                      "area_id": null,
                       "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "description": "",
                       "name": "Runtime",
@@ -74460,6 +76722,7 @@
                   "changeTechnologyCategoryLifecycle.technology": {
                     "summary": "Category lifecycle retains the governed identity and prior classifications.",
                     "value": {
+                      "area_id": null,
                       "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "description": "",
                       "name": "Runtime",
@@ -74622,6 +76885,233 @@
         "summary": "Explicitly archive or restore the same retained category identity."
       }
     },
+    "/v1/corporate/organizations/{organization_id}/technology-findings/review": {
+      "put": {
+        "operationId": "reviewTechnologyFindings",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "reviewTechnologyFindings.technology": {
+                  "summary": "Owner decisions update current usage and mapping without rewriting scan evidence.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "expected_revision": 0,
+                    "idempotency_key": "fixture-finding-review-0001",
+                    "items": [
+                      {
+                        "category_id": null,
+                        "comment": "Reviewed from the manifest",
+                        "context": "production",
+                        "coordinate": "left-pad",
+                        "expected_revision": 0,
+                        "kind": "package",
+                        "review": "confirmed",
+                        "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "technology_id": "technology_00000000000000000000000001"
+                      }
+                    ],
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/TechnologyFindingReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "reviewTechnologyFindings.technology": {
+                    "summary": "Owner decisions update current usage and mapping without rewriting scan evidence.",
+                    "value": {
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "updated": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/TechnologyFindingReviewResult"
+                }
+              }
+            },
+            "description": "Review retained findings and refresh their current interpretation.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Review retained findings and refresh their current interpretation."
+      }
+    },
     "/v1/corporate/organizations/{organization_id}/technology-landscape": {
       "get": {
         "operationId": "readTechnologyLandscape",
@@ -74763,6 +77253,16 @@
             "schema": {
               "default": false,
               "title": "Include Inactive",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_proposed",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Proposed",
               "type": "boolean"
             }
           },
@@ -76595,6 +79095,35 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "listTechnologyScans.technology": {
+                    "summary": "Technology workspace operation uses the canonical machine contract.",
+                    "value": {
+                      "items": [
+                        {
+                          "branch": "main",
+                          "commit": "a7b1c9e",
+                          "created_at": "2026-10-08T10:00:00.000Z",
+                          "dependencies": 0,
+                          "duration_seconds": 2,
+                          "error": null,
+                          "found": 0,
+                          "pending": 0,
+                          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "project_name": "Platform API",
+                          "repository": "https://gitlab.example/platform/api",
+                          "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "scan_types": [],
+                          "scope": "dependencies",
+                          "source": "gitlab",
+                          "status": "succeeded"
+                        }
+                      ],
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "total": 1
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/TechnologyScanList"
                 }
@@ -76778,6 +79307,20 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "launchTechnologyScans.technology": {
+                  "summary": "Technology workspace operation uses the canonical machine contract.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "expected_revision": 0,
+                    "idempotency_key": "fixture-launchTechnologyScans-0001",
+                    "project_ids": [
+                      "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                    ],
+                    "schema_version": 1
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/TechnologyScanLaunchRequest"
               }
@@ -76789,6 +79332,23 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "launchTechnologyScans.technology": {
+                    "summary": "Technology workspace operation uses the canonical machine contract.",
+                    "value": {
+                      "items": [
+                        {
+                          "detail": null,
+                          "job_id": 1,
+                          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "state": "queued"
+                        }
+                      ],
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/TechnologyScanLaunchResult"
                 }
@@ -76981,6 +79541,33 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "readTechnologyScanDetail.technology": {
+                    "summary": "Technology workspace operation uses the canonical machine contract.",
+                    "value": {
+                      "branch": "main",
+                      "commit": "a7b1c9e",
+                      "complete": true,
+                      "created_at": "2026-10-08T10:00:00.000Z",
+                      "dependencies": 0,
+                      "detector_version": "repository-content-v1",
+                      "duration_seconds": 2,
+                      "error": null,
+                      "findings": [],
+                      "found": 0,
+                      "mapping_version": "fixture-v1",
+                      "pending": 0,
+                      "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "project_name": "Platform API",
+                      "repository": "https://gitlab.example/platform/api",
+                      "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "scan_types": [],
+                      "scope": "dependencies",
+                      "source": "gitlab",
+                      "status": "succeeded"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/TechnologyScanDetail"
                 }
@@ -77118,6 +79705,591 @@
           }
         ],
         "summary": "Read one scan's findings, versions, and evidence."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/technology-scans/{scan_id}/findings": {
+      "get": {
+        "operationId": "readTechnologyScanFindings",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Immutable scan ID.",
+            "in": "path",
+            "name": "scan_id",
+            "required": true,
+            "schema": {
+              "pattern": "^scan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readTechnologyScanFindings.technology": {
+                    "summary": "The findings resource carries the curated rows and scan metadata exports share.",
+                    "value": {
+                      "branch": "main",
+                      "commit": "a7b1c9e",
+                      "complete": true,
+                      "created_at": "2026-10-08T10:00:00.000Z",
+                      "detector_version": "repository-content-v3",
+                      "findings": [
+                        {
+                          "candidate_technology_id": null,
+                          "category_id": null,
+                          "comment": "",
+                          "context": "production",
+                          "coordinate": "fastapi",
+                          "evidence": [
+                            {
+                              "confidence": null,
+                              "detector_version": "repository-content-v3",
+                              "mapping_version": "fixture-v1",
+                              "observed_at": "2026-10-08T10:00:00.000Z",
+                              "path": "pyproject.toml",
+                              "reference": null,
+                              "source": "declared",
+                              "source_revision": "a7b1c9e"
+                            }
+                          ],
+                          "kind": "package",
+                          "review": "proposed",
+                          "review_revision": 0,
+                          "state": "open",
+                          "technology_id": null,
+                          "technology_key": "33",
+                          "technology_name": "FastAPI",
+                          "tier": "technology",
+                          "version": ">=0.100",
+                          "version_kind": "declared_range"
+                        }
+                      ],
+                      "mapping_version": "fixture-v1",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "project_name": "Platform API",
+                      "repository": "https://gitlab.example/platform/api",
+                      "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/TechnologyScanFindingList"
+                }
+              }
+            },
+            "description": "Read one scan's curated findings as a standalone resource.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read one scan's curated findings as a standalone resource."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/technology-scans/{scan_id}/findings.csv": {
+      "get": {
+        "operationId": "exportTechnologyScanFindingsCsv",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Immutable scan ID.",
+            "in": "path",
+            "name": "scan_id",
+            "required": true,
+            "schema": {
+              "pattern": "^scan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Download one scan's findings as CSV.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Download one scan's findings as CSV."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/technology-scans/{scan_id}/findings.md": {
+      "get": {
+        "operationId": "exportTechnologyScanFindingsMarkdown",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Immutable scan ID.",
+            "in": "path",
+            "name": "scan_id",
+            "required": true,
+            "schema": {
+              "pattern": "^scan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/markdown": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Download one scan's findings as Markdown.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Download one scan's findings as Markdown."
       }
     },
     "/v1/corporate/organizations/{organization_id}/technology-seed": {

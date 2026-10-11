@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { Icon } from "@/theme";
 import type { CorporateRoleView } from "@/lib/api/generated/types.gen";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Button } from "@/components/atoms/button";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/atoms/menu";
 import { Input } from "@/components/atoms/input";
@@ -21,7 +21,6 @@ type Props = {
   resourceId: string;
   name: string;
   role?: string;
-  parentRole?: string | null;
   rolePermissions?: readonly string[];
   state: string;
   revision: number;
@@ -32,7 +31,6 @@ type Props = {
     title: string;
     name: string;
     role: string;
-    parentRole: string;
     permissions: string;
     state: string;
     update: string;
@@ -80,7 +78,7 @@ export function CorporateResourceDeleteMenuItem({
         event.preventDefault();
         if (!window.confirm(confirmLabel)) return;
         startTransition(async () => {
-          const result = await corporateMutationAction({
+          const result = await corporateMutation({
             csrfToken,
             organizationId,
             path: `/v1/corporate/organizations/${organizationId}/${resource}/${resourceId}`,
@@ -112,7 +110,6 @@ export function CorporateResourceActions({
   resourceId,
   name,
   role,
-  parentRole,
   rolePermissions,
   state,
   revision,
@@ -128,7 +125,6 @@ export function CorporateResourceActions({
   const [busy, startTransition] = useTransition();
   const [nextName, setNextName] = useState(name);
   const [nextRole, setNextRole] = useState(role ?? "staff");
-  const [nextParentRole, setNextParentRole] = useState(parentRole ?? "");
   const [nextPermissions, setNextPermissions] = useState((rolePermissions ?? []).join(", "));
   const [nextState, setNextState] = useState(state);
   const [message, setMessage] = useState<string | null>(null);
@@ -153,7 +149,7 @@ export function CorporateResourceActions({
     setMessage(null);
     startTransition(async () => {
       try {
-        const result = await corporateMutationAction({
+        const result = await corporateMutation({
           csrfToken,
           organizationId,
           path: endpoint,
@@ -187,7 +183,6 @@ export function CorporateResourceActions({
             {canUpdate && (
               <MenuItem
                 onSelect={() => {
-                  setNextParentRole(parentRole ?? "");
                   setNextPermissions((rolePermissions ?? []).join(", "));
                   setNextName(name);
                   setNextRole(role ?? "staff");
@@ -227,7 +222,6 @@ export function CorporateResourceActions({
                 ? { role: nextRole, state: nextState }
                 : resource === "roles"
                   ? {
-                      parent_role: nextParentRole || null,
                       permissions: nextPermissions
                         .split(",")
                         .map((permission) => permission.trim())
@@ -260,14 +254,6 @@ export function CorporateResourceActions({
             </>
           ) : resource === "roles" ? (
             <>
-              <Label htmlFor="corporate-resource-parent-role">{labels.parentRole}</Label>
-              <Input
-                id="corporate-resource-parent-role"
-                value={nextParentRole}
-                onChange={(event) => {
-                  setNextParentRole(event.target.value);
-                }}
-              />
               <Label htmlFor="corporate-resource-permissions">{labels.permissions}</Label>
               <Input
                 id="corporate-resource-permissions"

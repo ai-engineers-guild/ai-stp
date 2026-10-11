@@ -3,9 +3,18 @@
  * rebrand can swap the set without hunting lucide imports in every file.
  */
 import {
+  Activity,
   AlertCircle,
+  RotateCw,
+  Trash2,
+  Folder,
+  Network,
+  ShieldCheck,
+  ChartNoAxesCombined,
+  BrainCircuit,
   ArrowLeft,
   Camera,
+  CalendarDays,
   Clock3,
   CheckCircle2,
   Check,
@@ -22,6 +31,7 @@ import {
   Eye,
   Heart,
   Inbox,
+  Info,
   KeyRound,
   LayoutGrid,
   LayoutList,
@@ -86,6 +96,13 @@ const Gitlab = createLucideIcon("gitlab", [
 ]);
 
 export type IconName =
+  | "refresh"
+  | "trash"
+  | "folder"
+  | "network"
+  | "shield"
+  | "chart"
+  | "brain"
   | "search"
   | "sun"
   | "moon"
@@ -122,6 +139,7 @@ export type IconName =
   | "lock"
   | "more"
   | "moreVertical"
+  | "calendar"
   | "clock"
   | "sparkles"
   | "star"
@@ -138,11 +156,19 @@ export type IconName =
   | "component"
   | "technology"
   | "setup"
-  | "code";
+  | "code"
+  | "activity"
+  | "info";
 
 export type IconSize = keyof typeof iconSizes;
 
 const REGISTRY: Record<IconName, LucideIcon> = {
+  refresh: RotateCw,
+  folder: Folder,
+  network: Network,
+  shield: ShieldCheck,
+  chart: ChartNoAxesCombined,
+  brain: BrainCircuit,
   search: Search,
   sun: Sun,
   moon: Moon,
@@ -186,6 +212,7 @@ const REGISTRY: Record<IconName, LucideIcon> = {
   lock: LockKeyhole,
   more: MoreHorizontal,
   moreVertical: MoreVertical,
+  calendar: CalendarDays,
   clock: Clock3,
   sparkles: Sparkles,
   star: Star,
@@ -203,6 +230,9 @@ const REGISTRY: Record<IconName, LucideIcon> = {
   technology: Database,
   setup: Settings,
   code: Code,
+  activity: Activity,
+  info: Info,
+  trash: Trash2,
 };
 
 export type IconProps = Omit<LucideProps, "size"> & {

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { corporateTeamAssignmentsAction } from "@/actions/corporate";
+import { POST } from "@/app/api/corporate/team-assignments/route";
 import { privateApiRequest } from "@/lib/api/http";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -19,7 +19,6 @@ vi.mock("@/lib/auth/session", () => ({
 vi.mock("@/lib/api/http", () => ({ privateApiRequest: vi.fn() }));
 
 const input = {
-  csrfToken: "csrf",
   organizationId: "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
   assignments: [
     {
@@ -39,6 +38,16 @@ const input = {
   ],
 };
 
+function call(body: unknown) {
+  return POST(
+    new Request("http://localhost/api/corporate/team-assignments", {
+      method: "POST",
+      headers: { "x-csrf-token": "csrf" },
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
 describe("corporate assignment batches", () => {
   beforeEach(() => vi.clearAllMocks());
   it("refreshes revision between assignments and reports only completed rows on failure", async () => {
@@ -47,7 +56,10 @@ describe("corporate assignment batches", () => {
       .mockResolvedValueOnce({})
       .mockResolvedValueOnce({ organization: { authorization_revision: 4 } })
       .mockRejectedValueOnce(new Error("connection lost"));
-    const result = await corporateTeamAssignmentsAction(input);
+    const result = (await (await call(input)).json()) as {
+      completed: string[];
+      message?: string;
+    };
     expect(result.completed).toEqual(["assignment-first"]);
     expect(result.message).toBeDefined();
     expect(vi.mocked(privateApiRequest).mock.calls[1]?.[1]?.body).toMatchObject({
@@ -60,17 +72,19 @@ describe("corporate assignment batches", () => {
     });
   });
   it("rejects foreign target syntax and oversized batches before API calls", async () => {
-    const invalid = await corporateTeamAssignmentsAction({
-      ...input,
-      organizationId: "../foreign",
-    });
+    const invalid = (await (await call({ ...input, organizationId: "../foreign" })).json()) as {
+      completed: string[];
+      message?: string;
+    };
     expect(invalid.completed).toEqual([]);
-    const oversized = await corporateTeamAssignmentsAction({
-      ...input,
-      assignments: Array.from({ length: 257 }, () => input.assignments[0]).filter(
-        (row) => row !== undefined,
-      ),
-    });
+    const oversized = (await (
+      await call({
+        ...input,
+        assignments: Array.from({ length: 257 }, () => input.assignments[0]).filter(
+          (row) => row !== undefined,
+        ),
+      })
+    ).json()) as { completed: string[]; message?: string };
     expect(oversized.message).toBeDefined();
     expect(privateApiRequest).not.toHaveBeenCalled();
   });
