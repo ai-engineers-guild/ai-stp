@@ -2,17 +2,60 @@
 
 ## Before you begin
 
-Read:
+Read [AGENTS.md](AGENTS.md), the code and current contract for the area you are
+changing, and [the Git workflow](docs/engineering/git-workflow.md). Consult
+applicable specifications and ADRs when the task concerns their boundary.
+The [implementation roadmap](docs/engineering/implementation-roadmap.md) owns
+the remaining work; linked GitHub issues carry current checkpoint evidence.
 
-1. `AGENTS.md`;
-2. the applicable active specification;
-3. the architecture documents for the relevant area;
-4. the relevant ADRs;
-5. `docs/engineering/git-workflow.md`.
+## Development on a new workstation
+
+Clone the canonical repository and start from the integration branch:
+
+```bash
+git clone https://github.com/ai-engineers-guild/ai-stp.git
+cd ai-stp
+git switch --track origin/dev
+git switch -c feat/57-next-native-slice
+```
+
+Use the tool versions selected by [.github/workflows/check.yml](.github/workflows/check.yml),
+[.uv-version](.uv-version) and [.bun-version](.bun-version). Install Rust through
+rustup; [apps/cli-v2/rust-toolchain.toml](apps/cli-v2/rust-toolchain.toml) selects
+the native toolchain. The native README describes the C compiler and libclang
+prerequisites. [docs_scripts/bootstrap_just.py](docs_scripts/bootstrap_just.py)
+can install the pinned `just` into a user-owned `JUST_INSTALL_DIR` on PATH.
+
+For native CLI work, prepare the Python contract oracle and run the native gate:
+
+```bash
+just setup-python
+just cli-v2-check
+```
+
+`just setup` additionally prepares documentation and web dependencies when
+those areas are needed. Follow AGENTS.md for checks affected by each change.
+Keep lockfiles unchanged during setup. Rebuild local dependencies and caches;
+do not copy another workstation's virtual environment or target directories.
+
+Continue the Rust program from [#57](https://github.com/ai-engineers-guild/ai-stp/issues/57),
+the roadmap and [the native contract](apps/cli-v2/README.md). A published preview
+does not transfer production state ownership. Existing device credentials and
+owner state are not development inputs: authenticate the new workstation
+through the normal account flow when a connected task requires it.
+
+Setup-component changes start in their maintained authoring repository and
+follow its AGENTS.md; the seven public trees are generated outputs. The ai-stp
+repository alone is sufficient for native CLI development against published
+components. Session transcripts, local agent memories and temporary receipts
+are not prerequisites for resuming work.
 
 ## Change rule
 
-Observable behavior does not begin with code. First record the objective, boundaries, requirements, errors and partial states, security, compatibility, and acceptance criteria.
+Follow the source-of-truth and change rules in AGENTS.md. Implement within
+existing contracts directly. When a boundary changes, record an ADR if the
+architecture rule changes, implement and verify the behavior, then reconcile
+its active specification and affected documentation with the code.
 
 ## Pull request
 
@@ -44,4 +87,6 @@ Review the diff: it is the reviewed record of a machine-contract change.
 
 ## External actions
 
-Push, PR, release, provider promotion, deployment, data deletion, and credential changes are performed only after explicit authorization.
+The user's task defines authorization. Follow AGENTS.md for publication,
+deployment, irreversible data deletion and access changes; a task already
+authorizing an action does not require another confirmation for each step.

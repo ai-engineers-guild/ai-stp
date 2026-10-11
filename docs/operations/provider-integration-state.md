@@ -134,6 +134,13 @@ Bubblewrap, Windows AppContainer, and macOS the system `sandbox-exec` after a
 native transport probe. Without an executable or proof, the local phase fails
 closed; there is no trust exception.
 
+The Windows consumer assigns its kill-on-close job as a process-creation
+attribute (`PROC_THREAD_ATTRIBUTE_JOB_LIST`, Windows 10 / Server 2016 or
+newer). Job creation or attribute failure refuses execution. The native CI
+regression stops the parent before `CreateProcessW` returns and retains the
+child's process handle to check termination without confusing a reused PID.
+This lifecycle check is separate from the network probe above.
+
 The filesystem boundary is the same on all three: writable only at the target
 and explicitly named caller paths.
 

@@ -12,19 +12,23 @@ pub fn sha256(bytes: &[u8]) -> String {
     representation(&Sha256::digest(bytes))
 }
 
-fn representation(bytes: &[u8]) -> String {
+pub(crate) fn representation(bytes: &[u8]) -> String {
     let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
     format!("sha256:{hex}")
 }
 
 pub fn canonical(domain: &str, value: &Value) -> Result<String> {
+    bytes(domain, &canonical::bytes(value)?)
+}
+
+pub fn bytes(domain: &str, payload: &[u8]) -> Result<String> {
     if !DOMAINS.contains(&domain) {
         return Err(Failure::input("unknown digest domain"));
     }
     let mut hash = Sha256::new();
     hash.update(domain.as_bytes());
     hash.update([0]);
-    hash.update(canonical::bytes(value)?);
+    hash.update(payload);
     Ok(representation(&hash.finalize()))
 }
 

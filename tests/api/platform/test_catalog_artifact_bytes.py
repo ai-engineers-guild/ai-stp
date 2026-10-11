@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable
+from pathlib import Path
 from typing import Any, cast
 
 import pytest
@@ -18,6 +19,7 @@ from tests.support.catalog_seed import (
     SEED_OWNER_ACCOUNT_ID,
     load_fixture_seed,
 )
+from tests.support.component_passports import adaptation_fields
 
 from ai_stp_api.app import create_app
 from ai_stp_api.errors import CATEGORY_CODE, ErrorCategory
@@ -26,7 +28,9 @@ from ai_stp_contracts.private_access import CliPrivateVersionResponse
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_foundation.ids import new_id
+from ai_stp_passports import ComponentVersionPassport, ScopeAdaptation, seal_adaptation
 from ai_stp_passports.envelope import derive_revision_id
+from ai_stp_passports.projections import build_projection
 from ai_stp_platform.models import AccessGrant, Account, CatalogMetadata, ObjectLocation
 from ai_stp_platform.storage import ImmutableObjectStore, MemoryObjectClient
 from ai_stp_platform.storage.object_store import ARTIFACT_DIGEST_DOMAIN
@@ -109,6 +113,172 @@ async def test_public_component_and_setup_artifacts_return_verified_bytes(
         assert response.status_code == 200
         assert response.headers["content-type"] == "application/octet-stream"
         assert response.content == payload.encode()
+
+
+async def test_exact_projection_delivery_is_declared_owner_bound_and_authorized(
+    artifact_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], MemoryObjectClient, str],
+    tmp_path: Path,
+) -> None:
+    client, sessionmaker, object_client, _payload = artifact_harness
+    store = ImmutableObjectStore(settings=make_settings(tmp_path).storage, client=object_client)
+
+    def projection(harness: str, body: bytes) -> tuple[dict[str, JsonValue], bytes]:
+        fields = adaptation_fields(
+            digest=digest_bytes(ARTIFACT_DIGEST_DOMAIN, body),
+            size=len(body),
+            harness_id=harness,
+            path="skills/report/SKILL.md",
+        )
+        adaptation = cast(list[dict[str, JsonValue]], fields["adaptations"])[0]
+        scope = ScopeAdaptation.model_validate(
+            cast(list[object], adaptation["scope_adaptations"])[0]
+        )
+        payload = build_projection(scope, {scope.members[0].path: body})
+        raw = scope.model_dump(mode="json")
+        raw["projection_artifact"] = {
+            "digest": digest_bytes(ARTIFACT_DIGEST_DOMAIN, payload),
+            "size_bytes": len(payload),
+        }
+        adaptation["scope_adaptations"] = [raw]
+        return seal_adaptation(adaptation).model_dump(mode="json"), payload
+
+    first, primary_bytes = projection("claude-code", b"# Primary skill\n")
+    second, target_bytes = projection("codex", "# Target skill\ncafé 👋\n".encode())
+    target_digest = digest_bytes(ARTIFACT_DIGEST_DOMAIN, target_bytes)
+    async with sessionmaker() as session:
+        row = await session.scalar(
+            select(CatalogMetadata).where(
+                CatalogMetadata.stable_id == FIXTURE_COMPONENT_ID,
+                CatalogMetadata.version == "1.2",
+            )
+        )
+        assert row is not None
+        primary = await store.put_immutable(
+            primary_bytes,
+            expected_digest=digest_bytes(ARTIFACT_DIGEST_DOMAIN, primary_bytes),
+            expected_size=len(primary_bytes),
+            owner_account_id=row.owner_account_id,
+        )
+        target = await store.put_immutable(
+            target_bytes,
+            expected_digest=target_digest,
+            expected_size=len(target_bytes),
+            owner_account_id=row.owner_account_id,
+        )
+        document = dict(row.passport_document or {})
+        document.update(
+            adaptations=[first, second],
+            artifact={"digest": primary.digest, "size_bytes": primary.size_bytes},
+        )
+        document = ComponentVersionPassport.model_validate(document).model_dump(mode="json")
+        document["revision_id"] = derive_revision_id(document)
+        row.passport_document = document
+        row.passport_digest = digest_canonical(PASSPORT_DIGEST_DOMAIN, document)
+        row.current_revision_id = document["revision_id"]
+        location = await session.scalar(
+            select(ObjectLocation).where(
+                ObjectLocation.catalog_metadata_id == row.id, ObjectLocation.purpose == "artifact"
+            )
+        )
+        assert location is not None
+        location.digest = primary.digest
+        location.size_bytes = primary.size_bytes
+        location.content_id = primary.content_id
+        location.object_key = primary.key
+        await session.commit()
+
+    path = f"/v1/catalog/components/{FIXTURE_COMPONENT_ID}/versions/1.2/artifact"
+    assert (await client.get(path)).content == primary_bytes
+    response = await client.get(path, params={"digest": target_digest})
+    assert response.status_code == 200
+    assert response.content == target_bytes
+    assert response.headers["content-length"] == str(len(target_bytes))
+    assert (await client.get(path, params={"digest": primary.digest})).content == primary_bytes
+    assert (await client.get(path, params={"digest": "sha256:" + "f" * 64})).status_code == 404
+    malformed = await client.get(path, params={"digest": "not-a-digest"})
+    assert malformed.status_code == 400
+    assert malformed.json()["error"]["code"] == CATEGORY_CODE[ErrorCategory.VALIDATION]
+    unrelated_bytes = b"undeclared owner content"
+    unrelated = await store.put_immutable(
+        unrelated_bytes,
+        expected_digest=digest_bytes(ARTIFACT_DIGEST_DOMAIN, unrelated_bytes),
+        expected_size=len(unrelated_bytes),
+        owner_account_id=SEED_OWNER_ACCOUNT_ID,
+    )
+    assert (await client.get(path, params={"digest": unrelated.digest})).status_code == 404
+
+    # The same digest in another owner's namespace is not a recovery source.
+    del object_client.objects[(target.bucket, target.key)]
+    await store.put_immutable(
+        target_bytes,
+        expected_digest=target_digest,
+        expected_size=len(target_bytes),
+        owner_account_id=new_id("account"),
+    )
+    assert (await client.get(path, params={"digest": target_digest})).status_code == 500
+    await store.put_immutable(
+        target_bytes,
+        expected_digest=target_digest,
+        expected_size=len(target_bytes),
+        owner_account_id=SEED_OWNER_ACCOUNT_ID,
+    )
+
+    async with sessionmaker() as session:
+        retained = await session.get(CatalogMetadata, row.id)
+        assert retained is not None
+        retained.visibility = "private"
+        owner_session = await issue_session(
+            session, account_id=SEED_OWNER_ACCOUNT_ID, device_id=None, ttl_seconds=3600
+        )
+        grantee = Account(id=new_id("account"))
+        session.add(grantee)
+        await session.flush()
+        grantee_session = await issue_session(
+            session, account_id=grantee.id, device_id=None, ttl_seconds=3600
+        )
+        grant = AccessGrant(
+            id=new_id("grant"),
+            object_kind="component",
+            stable_id=FIXTURE_COMPONENT_ID,
+            major=1,
+            owner_account_id=SEED_OWNER_ACCOUNT_ID,
+            grantee_account_id=grantee.id,
+            state="active",
+        )
+        session.add(grant)
+        await session.commit()
+    assert (await client.get(path, params={"digest": target_digest})).status_code == 404
+    owner_headers = {"Authorization": f"Bearer {owner_session.raw_token}"}
+    assert (
+        await client.get(path, params={"digest": target_digest}, headers=owner_headers)
+    ).content == target_bytes
+    grantee_headers = {"Authorization": f"Bearer {grantee_session.raw_token}"}
+    assert (
+        await client.get(path, params={"digest": target_digest}, headers=grantee_headers)
+    ).content == target_bytes
+    async with sessionmaker() as session:
+        held_grant = await session.get(AccessGrant, grant.id)
+        retained = await session.get(CatalogMetadata, row.id)
+        assert held_grant is not None and retained is not None
+        held_grant.state = "revoked"
+        retained.lifecycle_state = "blocked"
+        await session.commit()
+    assert (
+        await client.get(path, params={"digest": target_digest}, headers=owner_headers)
+    ).status_code == 404
+    async with sessionmaker() as session:
+        retained = await session.get(CatalogMetadata, row.id)
+        assert retained is not None
+        retained.lifecycle_state = "active"
+        await session.commit()
+    assert (
+        await client.get(path, params={"digest": target_digest}, headers=grantee_headers)
+    ).status_code == 404
+    object_client.objects[(target.bucket, target.key)]["body"] = b"corrupt projection"
+    corrupt = await client.get(path, params={"digest": target_digest}, headers=owner_headers)
+    assert corrupt.status_code == 500
+    assert corrupt.json()["error"]["code"] == CATEGORY_CODE[ErrorCategory.CATALOG_INTEGRITY]
+    assert b"corrupt projection" not in corrupt.content
 
 
 async def test_corrupted_artifact_is_not_streamed_or_enumerated(

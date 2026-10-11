@@ -16,6 +16,17 @@ static COMPONENT: Schema = Schema::reader(include_str!(
 static SETUP: Schema = Schema::reader(include_str!(
     "../../../../schemas/v1/setup-version-passport.schema.json"
 ));
+static SCOPE: Schema = Schema::definition(
+    include_str!("../../../../schemas/v1/component-adaptation.schema.json"),
+    "ScopeAdaptation",
+);
+static ADAPTATION: Schema = Schema::new(include_str!(
+    "../../../../schemas/v1/component-adaptation.schema.json"
+));
+static MEMBER: Schema = Schema::definition(
+    include_str!("../../../../schemas/v1/component-adaptation.schema.json"),
+    "ProjectedMember",
+);
 
 pub fn validate_document(document: &Value) -> Result<()> {
     match document["kind"].as_str() {
@@ -30,6 +41,20 @@ pub fn validate_document(document: &Value) -> Result<()> {
 
 fn invalid() -> Failure {
     Failure::precondition("immutable passport has inconsistent adaptations, paths or ownership")
+}
+
+/// New local passports use the complete wire reference before computing their
+/// revision. Historical readers must not add defaults to already hashed bytes.
+pub(crate) fn normalize_component_refs(references: &mut Value) -> Result<()> {
+    for reference in references.as_array_mut().ok_or_else(invalid)? {
+        let object = reference.as_object_mut().ok_or_else(invalid)?;
+        if !object.entry("variant_id").or_insert(Value::Null).is_null() {
+            return Err(Failure::precondition(
+                "native component references do not select a variant",
+            ));
+        }
+    }
+    Ok(())
 }
 fn array(value: &Value) -> Result<&[Value]> {
     value.as_array().map(Vec::as_slice).ok_or_else(invalid)
@@ -95,35 +120,21 @@ fn validate_adaptation(adaptation: &Value) -> Result<()> {
     let scopes = array(&adaptation["scope_adaptations"])?;
     unique(scopes, "scope")?;
     for scope in scopes {
-        let members = array(&scope["members"])?;
-        let mut paths = BTreeSet::new();
-        for member in members {
-            let path = member["path"].as_str().ok_or_else(invalid)?;
-            if !paths.insert(unicase::UniCase::new(path).to_folded_case()) {
-                return Err(invalid());
-            }
-            if member["ownership"] == "contribution" {
-                if member["object_type"] != "file"
-                    || member["parser_id"].is_null()
-                    || member["ownership_key"].is_null()
-                    || member["write_semantics"] != "merge"
-                    || member["withdrawal_semantics"] != "preserve_unowned"
-                {
-                    return Err(invalid());
-                }
-            } else if !member["ownership_key"].is_null()
-                || member["write_semantics"] != "replace"
-                || member["withdrawal_semantics"] != "remove_path"
-            {
-                return Err(invalid());
-            }
-        }
+        scope_invariants(scope)?;
     }
+    let payload = adaptation_payload(adaptation)?;
+    if adaptation["adaptation_id"] != adaptation_id(&payload)? {
+        return Err(invalid());
+    }
+    Ok(())
+}
+
+fn adaptation_payload(adaptation: &Value) -> Result<Value> {
     // Adaptation IDs are over the complete model, unlike published passport
     // digests. Fill only the defaults owned by this closed adaptation contract.
     let mut payload = adaptation.clone();
     let object = payload.as_object_mut().ok_or_else(invalid)?;
-    let held = object.remove("adaptation_id").ok_or_else(invalid)?;
+    object.remove("adaptation_id");
     object.entry("source_artifact").or_insert(Value::Null);
     object.entry("transform").or_insert(Value::Null);
     for scope in object
@@ -163,12 +174,65 @@ fn validate_adaptation(adaptation: &Value) -> Result<()> {
             member.entry("native_ids").or_insert(json!([]));
         }
     }
-    let expected = digest::canonical("ai-stp:component-adaptation:v1", &payload)?.replacen(
-        "sha256:",
-        "adaptation_",
-        1,
-    );
-    if held != expected {
+    Ok(payload)
+}
+
+fn adaptation_id(payload: &Value) -> Result<String> {
+    Ok(
+        digest::canonical("ai-stp:component-adaptation:v1", payload)?.replacen(
+            "sha256:",
+            "adaptation_",
+            1,
+        ),
+    )
+}
+
+pub fn seal_adaptation(document: &Value) -> Result<Value> {
+    let mut document = adaptation_payload(document)?;
+    document = crate::canonical::parse(&crate::canonical::bytes(&document)?)?;
+    document["adaptation_id"] = adaptation_id(&document)?.into();
+    ADAPTATION.validate(&document)?;
+    validate_adaptation(&document)?;
+    Ok(document)
+}
+
+pub(crate) fn validate_scope(scope: &Value) -> Result<()> {
+    SCOPE.validate(scope)?;
+    scope_invariants(scope)
+}
+
+fn scope_invariants(scope: &Value) -> Result<()> {
+    let members = array(&scope["members"])?;
+    let mut paths = BTreeSet::new();
+    for member in members {
+        let path = member["path"].as_str().ok_or_else(invalid)?;
+        if !paths.insert(unicase::UniCase::new(path).to_folded_case()) {
+            return Err(invalid());
+        }
+        member_invariants(member)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_member(member: &Value) -> Result<()> {
+    MEMBER.validate(member)?;
+    member_invariants(member)
+}
+
+fn member_invariants(member: &Value) -> Result<()> {
+    if member["ownership"] == "contribution" {
+        if member["object_type"] != "file"
+            || member["parser_id"].is_null()
+            || member["ownership_key"].is_null()
+            || member["write_semantics"] != "merge"
+            || member["withdrawal_semantics"] != "preserve_unowned"
+        {
+            return Err(invalid());
+        }
+    } else if !member["ownership_key"].is_null()
+        || member["write_semantics"] != "replace"
+        || member["withdrawal_semantics"] != "remove_path"
+    {
         return Err(invalid());
     }
     Ok(())

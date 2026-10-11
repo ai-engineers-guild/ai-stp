@@ -1,14 +1,7 @@
 """Structural guards for the costs `#453` measured and removed.
 
-Both are written as properties rather than as durations wherever a property
-will do. A budget in seconds fails on a loaded runner and passes on a fast one
-that regressed, which makes it a check nobody can trust the third time it goes
-red — and one nobody runs protects nothing.
-
-The one timing assertion here is unavoidable, because "these run concurrently"
-is a statement about time. It is given a margin no plausible machine crosses:
-seven detections of a tenth of a second each are 0.7s in series, and the bound
-is 0.35s.
+Assert the underlying properties directly so runner load does not determine
+whether a performance regression passes.
 """
 
 import ast
@@ -18,10 +11,10 @@ import pkgutil
 import sqlite3
 import subprocess
 import sys
-import time
 from collections.abc import Iterator
 from contextlib import closing
 from pathlib import Path
+from threading import Barrier
 from typing import Any, TypeAliasType
 
 import pytest
@@ -33,9 +26,6 @@ from ai_stp_cli.local import harnesses, project_index
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_contracts.model import ContractModel
 
-#: How long each stubbed detection pretends its subprocess takes.
-DELAY = 0.1
-
 
 @pytest.fixture
 def registry() -> Iterator[sqlite3.Connection]:
@@ -46,18 +36,13 @@ def registry() -> Iterator[sqlite3.Connection]:
 def test_every_harness_is_asked_its_version_at_the_same_time(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Seven independent subprocesses, not seven waits one after another.
+    """Every detection must start before any detection can finish."""
+    # The timeout only bounds a deadlock when concurrency regresses; it is
+    # not a performance budget for the runner.
+    started = Barrier(len(harnesses.DETECTORS), timeout=10)
 
-    Measured before the fix: 1.688s in series against 0.700s together, the
-    latter bound by the slowest single program rather than by their sum.
-    `cursor` and `opencode` take about 0.62s each to answer `--version`;
-    `claude-code` and `codex` take nine milliseconds. The slow ones are
-    somebody else's program booting, and nothing here can make them faster —
-    only stop them queueing behind each other.
-    """
-
-    def slow(detector: Any, **_kwargs: Any) -> Any:
-        time.sleep(DELAY)
+    def overlapping(detector: Any, **_kwargs: Any) -> Any:
+        started.wait()
         return harnesses.Found(
             harness_id=detector.harness_id,
             title=detector.harness_id,
@@ -68,13 +53,9 @@ def test_every_harness_is_asked_its_version_at_the_same_time(
             reason="stubbed",
         )
 
-    monkeypatch.setattr(harnesses, "detect", slow)
-    started = time.perf_counter()
+    monkeypatch.setattr(harnesses, "detect", overlapping)
     found = harnesses.detect_all()
-    elapsed = time.perf_counter() - started
 
-    serial = DELAY * len(harnesses.DETECTORS)
-    assert elapsed < serial / 2, f"{elapsed:.3f}s of a {serial:.3f}s serial cost"
     # Concurrency must not reorder the answer: `map` yields in input order, and
     # a set of harnesses that arrives in completion order would make the output
     # depend on which program booted first.

@@ -11,24 +11,32 @@ sandbox_mode = "danger-full-access"
 # `indexed`, `live` -- and the one a `disabled` default would otherwise withhold.
 web_search = "live"
 
-# Every capability this build ships as `Stage::Stable` and leaves off. Measured
-# rather than chosen: the 0.151.0 feature registry carries 126 specs, 40
-# of them stable, and exactly three of those are `default_enabled: false`. The
-# rest are already on, or are under development, deprecated or removed -- and a
-# posture that switched those on would be asking for behaviour this build does
-# not stand behind.
+# Every capability this build ships as `Stage::Stable` and leaves off, minus
+# one deliberate exception. Measured rather than chosen: the 0.157.1 feature
+# registry carries 150 specs, 47 of them stable, and exactly four of those are
+# `default_enabled: false` (`codex features list` on the 0.157.1 build,
+# 2026-09-27; the pin has since moved to 0.158.0). Three are enabled below; the
+# fourth, `secret_auth_storage`, is
+# not: it moves CLI auth into an encrypted local-secrets backend, is
+# `default_enabled` on Windows only by design (the 2560-byte Credential Manager
+# blob limit does not exist here), and flipping a credential store is outside
+# what a posture may decide. The rest are already on, or are under development,
+# deprecated or removed -- and a posture that switched those on would be asking
+# for behaviour this build does not stand behind.
 #
 # **`[features]`, not `[tools]`.** This block used to read
 #
 #     [tools]
 #     view_image = true
 #
-# which set nothing at all. `ToolsToml` has three members at this pin --
-# `web_search`, `experimental_request_user_input`, `update_plan` -- and serde
-# carries no `deny_unknown_fields`, so the key parsed, was ignored, and left the
-# file claiming a capability it never turned on. `view_image` is a *feature*
-# key, and it is `default_enabled: true` anyway, so even the right spelling
-# would have changed nothing.
+# which set nothing at all on the 0.151.0 build, where `ToolsToml` had three
+# members, no `view_image`, and serde carried no `deny_unknown_fields`, so the
+# key parsed, was ignored, and left the file claiming a capability it never
+# turned on. The schema has since changed twice: `ToolsToml` at the 0.157.1
+# measurement is `{ web_search, view_image }` *with* `deny_unknown_fields`, so
+# the old line
+# now parses and sets a real key -- and would still change nothing, because
+# `view_image` is `default_enabled: true`.
 #
 # Measured against the 0.151.0 artifact with a temporary `CODEX_HOME`,
 # and with the control that makes the number mean something -- `codex doctor`
@@ -36,8 +44,9 @@ web_search = "live"
 # `[tools] view_image = true`, and for an invented `[tools]` key alike, and
 # `45 · 1` for `[features] view_image = false`. So the instrument does
 # discriminate, and the old key was indistinguishable from one nobody defined.
-# This block reports `49 enabled · 3 overridden`, `config.toml parse ok`, and no
-# startup warning.
+# Re-measured on the 0.157.1 build on 2026-09-27: `codex doctor` reads
+# this file as `55 enabled · 3 overridden`, `config.toml parse ok`, and no
+# startup warning on the block.
 #
 # `memories` persists across sessions and `multi_agent_v2` is a second
 # orchestration backend. Both are the product's own stable features rather than

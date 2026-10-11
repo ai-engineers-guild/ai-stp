@@ -6,6 +6,7 @@ pub type Result<T> = std::result::Result<T, Failure>;
 pub struct Failure {
     pub kind: ErrorKind,
     pub message: String,
+    pub details: std::collections::BTreeMap<String, Value>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -62,7 +63,7 @@ impl ErrorKind {
             Self::Internal => ("report_bug", "An unexpected internal failure occurred."),
             Self::Unavailable => (
                 "retry_if_retryable",
-                "The requested remote service is temporarily unavailable.",
+                "A required service or dependency is temporarily unavailable.",
             ),
         };
         json!({"code": self.code(), "exit_class": self.exit_code(), "handling": handling, "description": description})
@@ -74,7 +75,13 @@ impl Failure {
         Self {
             kind,
             message: message.into(),
+            details: Default::default(),
         }
+    }
+
+    pub fn with_details(mut self, details: impl IntoIterator<Item = (String, Value)>) -> Self {
+        self.details.extend(details);
+        self
     }
 
     pub fn input(message: impl Into<String>) -> Self {

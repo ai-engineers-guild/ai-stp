@@ -14,12 +14,14 @@ probe.
 
 from __future__ import annotations
 
+import ctypes
 import json
 import os
 import platform
+import queue
 import subprocess
 import sys
-import time
+import threading
 from pathlib import Path
 from typing import Any, NoReturn
 
@@ -171,14 +173,32 @@ def _unproved(reason: str) -> NoReturn:
 
 
 _HELPER = """
+import ctypes
 import sys
+from dataclasses import replace
 from pathlib import Path
 from ai_stp_cli.provider import windows_launcher
 launcher, capability = windows_launcher.discover_appcontainer()
 if launcher is None:
     print("UNPROVED " + capability.evidence[0], flush=True)
     sys.exit(3)
-print("READY", flush=True)
+api = windows_launcher._Api.load()
+class HeldCreation:
+    def __getattr__(self, name):
+        return getattr(api.kernel, name)
+
+    def CreateProcessW(self, *args):
+        created = api.kernel.CreateProcessW(*args)
+        if created:
+            information = ctypes.cast(
+                args[-1], ctypes.POINTER(windows_launcher._ProcessInformation)
+            ).contents
+            print("READY " + str(information.dwProcessId), flush=True)
+            # Hold the parent inside process creation, before any later job
+            # assignment or ResumeThread could conceal the ownership gap.
+            sys.stdin.buffer.read(1)
+        return created
+windows_launcher._Api.load = classmethod(lambda cls: replace(api, kernel=HeldCreation()))
 sleeper = windows_launcher.encoded_command("[System.Threading.Thread]::Sleep(120000)")
 launcher.run(
     (str(windows_launcher.powershell()), *sleeper),
@@ -188,125 +208,81 @@ launcher.run(
 """
 
 
-def _children_of(pid: int) -> list[int]:
-    """Read the process tree from Toolhelp without the runner's WMI service."""
-    import ctypes
-    from ctypes import wintypes
-
-    class ProcessEntry(ctypes.Structure):
-        _fields_ = [
-            ("dwSize", wintypes.DWORD),
-            ("cntUsage", wintypes.DWORD),
-            ("th32ProcessID", wintypes.DWORD),
-            ("th32DefaultHeapID", ctypes.c_size_t),
-            ("th32ModuleID", wintypes.DWORD),
-            ("cntThreads", wintypes.DWORD),
-            ("th32ParentProcessID", wintypes.DWORD),
-            ("pcPriClassBase", wintypes.LONG),
-            ("dwFlags", wintypes.DWORD),
-            ("szExeFile", wintypes.WCHAR * 260),
-        ]
-
-    load_library: Any = vars(ctypes)["WinDLL"]
-    kernel: Any = load_library("kernel32", use_last_error=True)
-    snapshot = kernel.CreateToolhelp32Snapshot(0x00000002, 0)
-    if snapshot == ctypes.c_void_p(-1).value:
-        return []
-    entry = ProcessEntry()
-    entry.dwSize = ctypes.sizeof(entry)
-    children: list[int] = []
-    try:
-        present = kernel.Process32FirstW(snapshot, ctypes.byref(entry))
-        while present:
-            if int(entry.th32ParentProcessID) == pid:
-                children.append(int(entry.th32ProcessID))
-            present = kernel.Process32NextW(snapshot, ctypes.byref(entry))
-    finally:
-        kernel.CloseHandle(snapshot)
-    return children
-
-
-def _alive(pid: int) -> bool:
-    import ctypes
-    from ctypes import wintypes
-
-    load_library: Any = vars(ctypes)["WinDLL"]
-    kernel: Any = load_library("kernel32", use_last_error=True)
-    handle = kernel.OpenProcess(0x1000, False, pid)
-    if not handle:
-        return False
-    exit_code = wintypes.DWORD()
-    try:
-        queried = kernel.GetExitCodeProcess(handle, ctypes.byref(exit_code))
-        return bool(queried) and exit_code.value == 259  # STILL_ACTIVE
-    finally:
-        kernel.CloseHandle(handle)
-
-
 @pytest.mark.skipif(not WINDOWS, reason="exercises the real job object and the grant lease")
 def test_a_killed_parent_takes_its_isolated_tree_and_its_grants_with_it(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`ADR-0133`'s two obligations, measured under a real parent kill.
+    """A child already belongs to the job before CreateProcessW returns.
 
-    The job object carries `KILL_ON_JOB_CLOSE`, so a parent that dies without
-    running any cleanup still takes the provider tree with it; and the grant
-    lease written before `icacls` runs lets the next discovery take back an ACE
-    the dead parent never revoked. Both were implemented and unit-tested with
-    fakes; this is the first run of either against the operating system.
+    The helper stops at that exact boundary. A retained native process handle
+    identifies the observed child even after its PID could have been reused.
+    The isolated lease also proves recovery after the parent skips cleanup.
     """
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
     target = tmp_path / "target"
     target.mkdir()
     script = tmp_path / "parent.py"
     script.write_text(_HELPER, encoding="utf-8")
+    load_library: Any = vars(ctypes)["WinDLL"]
+    kernel: Any = load_library("kernel32", use_last_error=True)
+    kernel.OpenProcess.argtypes = [ctypes.c_uint32, ctypes.c_int32, ctypes.c_uint32]
+    kernel.OpenProcess.restype = ctypes.c_void_p
+    kernel.WaitForSingleObject.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+    kernel.WaitForSingleObject.restype = ctypes.c_uint32
+    kernel.TerminateProcess.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+    kernel.TerminateProcess.restype = ctypes.c_int32
+    kernel.CloseHandle.argtypes = [ctypes.c_void_p]
+    kernel.CloseHandle.restype = ctypes.c_int32
+    child = None
     parent = subprocess.Popen(
         [sys.executable, str(script), str(target)],
+        stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
         encoding="utf-8",
     )
     try:
-        assert parent.stdout is not None
-        first = parent.stdout.readline().strip()
-        if first.startswith("UNPROVED"):
+        try:
+            assert parent.stdout is not None
+            output = parent.stdout
+            ready: queue.Queue[str] = queue.Queue()
+            reader = threading.Thread(target=lambda: ready.put(output.readline()), daemon=True)
+            reader.start()
+            first = ready.get(timeout=60).strip()
+            if first.startswith("UNPROVED"):
+                _unproved(first.removeprefix("UNPROVED").strip())
+            assert first.startswith("READY "), first
+            pid = int(first.removeprefix("READY "))
+            # SYNCHRONIZE observes termination; PROCESS_TERMINATE allows this
+            # test to clean up its own child even when the regression fails.
+            child = kernel.OpenProcess(0x00100001, False, pid)
+            assert child, f"the created child {pid} could not be opened"
+            assert kernel.WaitForSingleObject(child, 0) == 258, "the child is not waiting"
+            lease = windows_launcher._lease_path()  # pyright: ignore[reportPrivateUsage]
+            paths = {
+                json.loads(line).get("path")
+                for line in lease.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            }
+            target_text = str(target.resolve())
+            assert target_text in paths, "the grant was not leased before process creation"
+        finally:
             parent.kill()
-            _unproved(first.removeprefix("UNPROVED").strip())
-        assert first == "READY", first
-        deadline = time.monotonic() + 60
-        grandchildren: list[int] = []
-        while time.monotonic() < deadline and not grandchildren:
-            grandchildren = _children_of(parent.pid)
-            if not grandchildren:
-                time.sleep(0.5)
-        assert grandchildren, "the parent never started its isolated child"
-        child = grandchildren[0]
-        assert _alive(child)
-        lease = windows_launcher._lease_path()  # pyright: ignore[reportPrivateUsage]
-        leased = time.monotonic() + 30
-        target_text = str(target.resolve())
-        while time.monotonic() < leased:
-            try:
-                paths = {
-                    json.loads(line).get("path")
-                    for line in lease.read_text(encoding="utf-8").splitlines()
-                    if line.strip()
-                }
-                if target_text in paths:
-                    break
-            except (OSError, ValueError, AttributeError):
-                pass
-            time.sleep(0.25)
-        else:
-            pytest.fail("the grant was not durably leased before the parent kill")
+            parent.wait(timeout=60)
+            if parent.stdin is not None:
+                parent.stdin.close()
+            if parent.stdout is not None:
+                parent.stdout.close()
+
+        assert kernel.WaitForSingleObject(child, 30_000) == 0, (
+            "the isolated child outlived its parent before CreateProcessW returned"
+        )
+        swept = windows_launcher.sweep_abandoned_grants()
+        assert target_text in swept, swept
     finally:
-        parent.kill()
-        parent.wait(timeout=60)
-
-    gone = time.monotonic() + 30
-    while time.monotonic() < gone and _alive(child):
-        time.sleep(0.5)
-    assert not _alive(child), "the isolated child outlived its parent"
-
-    swept = windows_launcher.sweep_abandoned_grants()
-    assert target_text in swept, swept
+        if child is not None:
+            kernel.TerminateProcess(child, 1)
+            kernel.WaitForSingleObject(child, 30_000)
+            kernel.CloseHandle(child)
+        windows_launcher.sweep_abandoned_grants()

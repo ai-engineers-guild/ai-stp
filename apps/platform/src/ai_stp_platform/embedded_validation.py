@@ -163,6 +163,8 @@ def _graph_bindings(
                         bindings.append(_binding("embedded_graph", "failed", reason="conflict"))
                         return bindings
                     managed[path_item] = f"{sid}@{ver}"
+    # An exclusion may name a later member; collect the complete ownership map first.
+    for (sid, ver), passport in members.items():
         conflicts_raw: object = passport.get("conflicts")
         if isinstance(conflicts_raw, dict):
             conflict_paths_raw: object = cast(dict[str, object], conflicts_raw).get("paths")

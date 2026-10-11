@@ -3,7 +3,7 @@ description: "Keep owner finding decisions separate from immutable technology sc
 last_verified: "2026-10-08"
 ---
 
-# ADR-0228: Technology finding interpretation
+# ADR-0231: Technology finding interpretation
 
 Status: accepted.
 

@@ -17,8 +17,8 @@
 # comment used to name 1.0.5 while the baseline measured 1.0.13, and a version in
 # prose beside a value is a fact with nothing holding it. The measurement, the
 # artifact it was made against and the control that made it worth anything now
-# live in that baseline's `config.toml` row, where `check_authored_keys.py` can
-# read them.
+# live in that baseline's `config.toml` row, where `check_authored_keys.py`
+# reads them -- that check is not shipped.
 
 # The session default is the same posture, including entry points that do not
 # inherit the TUI's current mode.
@@ -72,6 +72,6 @@ enabled = true
 enabled = true
 
 [tools]
-# Full-auto may inspect files a repository ignores; git remains the source of
-# truth for what is committed, but ignore rules are not an access boundary.
+# This posture may inspect files a repository ignores; git remains the source
+# of truth for what is committed, but ignore rules are not an access boundary.
 respect_gitignore = false

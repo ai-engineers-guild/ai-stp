@@ -24,21 +24,7 @@ from ai_stp_passports.versions import (
 )
 
 OWNER_ID: Final[str] = "account_01KZET6ZKJN7S72T5H4WDV62T0"
-# Three constants stood here — `PI_LAYOUT_VERSION`, `CODEX_SKILLS_VERSION`,
-# `CURSOR_LAYOUT_VERSION` — because a published `X.Y` is immutable and three
-# families needed a corrected projection. They were replaced by a single `1.0`
-# for every member, argued from a premise that was true when written: the corpus
-# had just been rebuilt from a different repository and minted fresh identifiers,
-# so nothing here was a second attempt at an id somebody already held.
-#
-# Identity continuity made that false without changing the sentence. Measured
-# against the deployed catalogue on 2026-08-30: 40 of 98 objects were held
-# identities standing at `1.0`, already published, and all 40 had different
-# passport bytes. A constant cannot express that, because the answer differs per
-# object: what moved needs a new version and what did not must keep its own.
-#
-# So the version is recorded per object by the builder and read from the
-# manifest here. There is no corpus-wide constant left to drift.
+# Immutable object versions are retained individually in the source manifest.
 PUBLISHED_AT: Final[str] = "2026-08-13T00:00:00.000Z"
 COMPONENT_FORMAT: Final[str] = "ai-stp-component-tree/1"
 COMPONENT_FILE_FORMAT: Final[str] = "ai-stp-component-file/1"
@@ -169,23 +155,10 @@ class _ScopePolicy(ContractModel):
     harness_scopes: dict[str, Literal["global", "user_root", "project"]]
 
 
-#: Built by `release_scripts/build_first_party_corpus.py` from the seven live
-#: `*-setup-system` repositories, at the commit each one's `main` carried when
-#: it ran, with git's own tree and blob SHAs as provenance.
-#:
-#: The corpus it replaces cited five repositories that had been transferred to
-#: a personal account and archived on 2026-08-25 — 120 of 126 objects. That was
-#: not repairable in place: `source` and the commit are inside the
-#: content-addressed passport and a published `X.Y` cannot be rewritten
-#: (`REQ-2606`), so the only honest correction is different objects with new
-#: identifiers. The old ones stay published and immutable; they are simply no
-#: longer what this package carries.
-#:
-#: It cost catalogue size and the trade is deliberate: 126 objects pointing at
-#: an archive become 40 with a living source. The 60 role components came from
-#: `rldyour-claudecode` and `rldyour-codex`, both archived under the same
-#: personal account, and there is no live repository to rebuild them from —
-#: that, and not a modelling decision, is why the role corpus is gone.
+#: Captured from exact attested component releases by the corpus builder.
+#: Each posture retains its last source commit within that release; Git object
+#: hashes bind packaged bytes. The separate release-pin receipt names the full
+#: authenticated release commit. Historical public objects remain immutable.
 def _sources() -> tuple[_HarnessSource, ...]:
     raw = files(__package__).joinpath("v1/corpus-sources.json").read_bytes()
     return _SourceManifest.model_validate_json(raw).harnesses

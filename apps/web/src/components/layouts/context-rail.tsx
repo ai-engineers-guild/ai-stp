@@ -153,6 +153,9 @@ export function ContextRail({
   return (
     <ContextSidebar
       {...{ corporate, pathname, items, scope, back }}
+      // The landing hero is the only public page without a side rail; the
+      // mobile trigger stays so primary navigation remains reachable there.
+      suppressAside={!corporate && pathname === "/"}
       onShowMainNavigation={() => {
         setMainNavigationPath(pathname);
       }}
@@ -170,6 +173,7 @@ type ContextSidebarProps = {
   items: RailItem[];
   scope: string;
   back: false | { href: string; label: string } | null;
+  suppressAside?: boolean;
   onShowMainNavigation?: () => void;
   onNavigate?: () => void;
 };
@@ -179,6 +183,7 @@ export function ContextSidebar({
   items,
   scope,
   back,
+  suppressAside = false,
   onShowMainNavigation,
   onNavigate,
 }: ContextSidebarProps) {
@@ -260,23 +265,25 @@ export function ContextSidebar({
   }
   return (
     <>
-      <aside
-        data-ui={UI.shell.sidebar}
-        data-collapsed={collapsed}
-        className={cn(
-          "border-border bg-background sticky top-14 hidden h-[calc(100dvh-3.5rem)] shrink-0 flex-col border-r lg:flex",
-          collapsed ? "w-16" : "w-64",
-        )}
-      >
-        <nav
-          id="desktop-context-navigation"
-          data-ui={corporate ? UI.corporate.contextNavList : UI.shell.primaryNav}
-          aria-label={nav("primaryLabel")}
-          className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 py-4"
+      {suppressAside ? null : (
+        <aside
+          data-ui={UI.shell.sidebar}
+          data-collapsed={collapsed}
+          className={cn(
+            "border-border bg-background sticky top-14 hidden h-[calc(100dvh-3.5rem)] shrink-0 flex-col border-r lg:flex",
+            collapsed ? "w-16" : "w-64",
+          )}
         >
-          {contents(collapsed)}
-        </nav>
-      </aside>
+          <nav
+            id="desktop-context-navigation"
+            data-ui={corporate ? UI.corporate.contextNavList : UI.shell.primaryNav}
+            aria-label={nav("primaryLabel")}
+            className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 py-4"
+          >
+            {contents(collapsed)}
+          </nav>
+        </aside>
+      )}
       <div className="fixed top-2.5 left-4 z-50 lg:hidden">
         <Dialog
           open={open}

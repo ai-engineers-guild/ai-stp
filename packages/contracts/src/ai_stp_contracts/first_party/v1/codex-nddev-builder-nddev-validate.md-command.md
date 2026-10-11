@@ -8,8 +8,8 @@ For provider implementation changes, also run this checkout's checks:
 
 ```bash
 cargo fmt --all --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked --all-targets
 ```
 
 If a command here is not present, say so rather than working around it.

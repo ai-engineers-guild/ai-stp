@@ -2,9 +2,13 @@
 
 mod discovery;
 mod index;
+pub mod passports;
+mod symbols;
+pub mod technology;
 
 pub use discovery::discover;
 pub use index::index;
+pub use symbols::survey as symbols;
 
 use std::{
     path::{Path, PathBuf},
@@ -56,6 +60,7 @@ const SKIPPED: &[&str] = &[
     ".idea",
     ".vscode",
     ".ai-stp",
+    ".ai-stp-v2-project",
 ];
 const DOCUMENTS: &[&str] = &["md", "markdown", "rst", "txt", "adoc"];
 const MAX_FILE_BYTES: u64 = 1024 * 1024;

@@ -4,12 +4,21 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import io
+import stat
+import zipfile
+import zlib
 from datetime import UTC, datetime
 from typing import cast
 from urllib.parse import quote, urlsplit
 
 from ai_stp_foundation.digests import digest_bytes
-from ai_stp_sources.archive import MAX_ARCHIVE_BYTES, read_named_members
+from ai_stp_sources.archive import (
+    MAX_ARCHIVE_BYTES,
+    MAX_EXTRACTED_BYTES,
+    MAX_EXTRACTED_FILES,
+    read_named_members,
+)
 from ai_stp_sources.coordinates import canonicalize_source
 from ai_stp_sources.errors import (
     AMBIGUOUS_DISTRIBUTION,
@@ -60,9 +69,58 @@ def _sri_sha512(payload: bytes) -> str:
     return f"sha512-{digest}"
 
 
-def _go_h1(payload: bytes) -> str:
-    digest = base64.b64encode(hashlib.sha256(payload).digest()).decode("ascii")
-    return f"h1:{digest}"
+def _go_h1(payload: bytes, module: str, version: str) -> str:
+    """Go dirhash.HashZip(Hash1): hash names and contents, not ZIP encoding."""
+    if len(payload) > MAX_ARCHIVE_BYTES:
+        raise SourceError(UNSAFE_ARCHIVE, "Go module archive exceeds the accepted size")
+    summary = hashlib.sha256()
+    prefix = f"{module}@{version}/"
+    try:
+        with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+            entries = archive.infolist()
+            if not entries or len(entries) > MAX_EXTRACTED_FILES:
+                raise SourceError(UNSAFE_ARCHIVE, "Go module archive has an invalid entry count")
+            names: set[str] = set()
+            total = 0
+            for entry in sorted(entries, key=lambda item: item.filename):
+                name = entry.filename
+                if (
+                    not name.startswith(prefix)
+                    or name != entry.orig_filename
+                    or "\\" in name
+                    or any(ord(char) < 32 or ord(char) == 127 for char in name)
+                    or any(part in {"", ".", ".."} for part in name.removesuffix("/").split("/"))
+                    or name in names
+                    or (not name.isascii() and not entry.flag_bits & 0x800)
+                    or entry.flag_bits & 1
+                    or stat.S_IFMT(entry.external_attr >> 16) not in {0, stat.S_IFREG, stat.S_IFDIR}
+                    or entry.compress_type not in {zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED}
+                ):
+                    raise SourceError(
+                        UNSAFE_ARCHIVE, "Go module archive has unsafe or ambiguous entries"
+                    )
+                names.add(name)
+                total += entry.file_size
+                if total > MAX_EXTRACTED_BYTES:
+                    raise SourceError(UNSAFE_ARCHIVE, "Go module content exceeds the accepted size")
+                content_hash = hashlib.sha256()
+                length = 0
+                with archive.open(entry) as stream:
+                    while chunk := stream.read(min(65536, entry.file_size - length + 1)):
+                        length += len(chunk)
+                        if length > entry.file_size:
+                            raise SourceError(
+                                UNSAFE_ARCHIVE, "Go module member exceeds its declared size"
+                            )
+                        content_hash.update(chunk)
+                if length != entry.file_size:
+                    raise SourceError(UNSAFE_ARCHIVE, "Go module member is truncated")
+                summary.update(f"{content_hash.hexdigest()}  {name}\n".encode())
+    except (zipfile.BadZipFile, OSError, EOFError, RuntimeError, UnicodeError, zlib.error) as error:
+        raise SourceError(
+            UNSAFE_ARCHIVE, "Go module archive is not a readable bounded ZIP"
+        ) from error
+    return "h1:" + base64.b64encode(summary.digest()).decode("ascii")
 
 
 def _bounded_graph(values: dict[str, str]) -> dict[str, str]:
@@ -360,16 +418,16 @@ async def _resolve_crates(
     return _snapshot(intent, archive=archive, files=files, evidence=evidence, now=now)
 
 
-def _go_module_path(module: str) -> str:
-    encoded = "".join(f"!{char.lower()}" if char.isupper() else char for char in module)
-    return quote(encoded, safe="/@!")
+def _go_proxy_path(value: str, *, safe: str) -> str:
+    encoded = "".join(f"!{char.lower()}" if char.isupper() else char for char in value)
+    return quote(encoded, safe=safe)
 
 
 async def _resolve_go(
     intent: PackageIntent, *, fetch: FetchFn, now: datetime | None
 ) -> SourceSnapshot:
-    module = _go_module_path(intent.name)
-    version = quote(intent.version, safe="")
+    module = _go_proxy_path(intent.name, safe="/@!")
+    version = _go_proxy_path(intent.version, safe="!")
     info = await bounded_get(
         f"https://proxy.golang.org/{module}/@v/{version}.info",
         fetch=fetch,
@@ -389,7 +447,7 @@ async def _resolve_go(
     )
     _require_ok(zip_response.status_code, label="Go module zip")
     archive = zip_response.body
-    zip_hash = _go_h1(archive)
+    zip_hash = _go_h1(archive, intent.name, intent.version)
     lookup = await bounded_get(
         f"https://sum.golang.org/lookup/{module}@{version}",
         fetch=fetch,

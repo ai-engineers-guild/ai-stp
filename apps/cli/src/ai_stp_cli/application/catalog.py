@@ -54,6 +54,7 @@ from ai_stp_contracts.store_ports import (
 from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_passports.envelope import derive_revision_id
+from ai_stp_passports.projections import verify_projection
 from ai_stp_passports.versions import (
     ArtifactRef,
     ComponentVersionPassport,
@@ -331,6 +332,7 @@ class AcquiredCatalogVersion:
     view: CatalogVersionView
     passport: ComponentVersionPassport | SetupVersionPassport
     artifact: bytes
+    projections: tuple[bytes, ...] = ()
 
 
 def acquire(parameters: Mapping[str, object]) -> Answer[CatalogSetupAcquisition]:
@@ -416,6 +418,8 @@ def acquire(parameters: Mapping[str, object]) -> Answer[CatalogSetupAcquisition]
                     "AI_STP_CATALOG_INTEGRITY",
                     "verified catalogue bytes changed before local materialization",
                 )
+            for projection in item.projections:
+                content.put(connection, projection, at=at)
             document = dict(item.view.passport)
             document.pop("revision_id", None)
             stored = revisions.commit(connection, document, device_id=current.device_id)
@@ -513,7 +517,60 @@ def acquire_version(
             "the published passport identity does not match the requested version",
             details={"kind": kind, "stable_id": stable_id, "version": number},
         )
-    expected = passport.artifact
+    artifact = _acquire_artifact(
+        kind, stable_id, number, passport.artifact, offline=offline, include_private=include_private
+    )
+    payloads = {passport.artifact.digest: artifact}
+    if isinstance(passport, ComponentVersionPassport):
+        component_document = cast(dict[str, JsonValue], passport.model_dump(mode="json"))
+        components.expand(artifact, _artifact_format(component_document))
+        for adaptation in passport.adaptations:
+            for scope in adaptation.scope_adaptations:
+                expected = ArtifactRef(
+                    digest=scope.projection_artifact.digest,
+                    size_bytes=scope.projection_artifact.size_bytes,
+                )
+                if expected.digest not in payloads:
+                    payloads[expected.digest] = _acquire_artifact(
+                        kind,
+                        stable_id,
+                        number,
+                        expected,
+                        offline=offline,
+                        include_private=include_private,
+                    )
+                try:
+                    verify_projection(scope, payloads[expected.digest])
+                except ValueError as error:
+                    raise CliFailure(
+                        "AI_STP_CATALOG_INTEGRITY",
+                        "the component projection differs from its published manifest",
+                        details={"stable_id": stable_id, "version": number},
+                    ) from error
+    return AcquiredCatalogVersion(
+        view,
+        passport,
+        artifact,
+        tuple(
+            payload for address, payload in payloads.items() if address != passport.artifact.digest
+        ),
+    )
+
+
+def _acquire_artifact(
+    kind: CatalogKind,
+    stable_id: str,
+    number: str,
+    expected: ArtifactRef,
+    *,
+    offline: bool,
+    include_private: bool,
+) -> bytes:
+    if expected.size_bytes > content.MAX_CONTENT_BYTES:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the published artifact is larger than the local store accepts",
+        )
     held = cache.stored_version_artifact(expected.digest)
     if held is None and offline:
         raise CliFailure(
@@ -530,7 +587,8 @@ def acquire_version(
         expected,
         **_private_options(include_private),
     )
-    artifact = Path(path).read_bytes()
+    with Path(path).open("rb") as source:
+        artifact = source.read(expected.size_bytes + 1)
     if (
         len(artifact) != expected.size_bytes
         or digest_bytes("ai-stp:artifact:v1", artifact) != expected.digest
@@ -540,10 +598,7 @@ def acquire_version(
             "the cached version artifact no longer matches its published passport",
             details={"kind": kind, "stable_id": stable_id, "version": number},
         )
-    if isinstance(passport, ComponentVersionPassport):
-        component_document = cast(dict[str, JsonValue], passport.model_dump(mode="json"))
-        components.expand(artifact, _artifact_format(component_document))
-    return AcquiredCatalogVersion(view, passport, artifact)
+    return artifact
 
 
 def _embedded_components(acquired: AcquiredCatalogVersion) -> dict[str, AcquiredCatalogVersion]:

@@ -10,7 +10,7 @@ last_verified: "2026-08-03"
 | Document | Description | Verified |
 | -------- | ----- | ------- |
 | [domain-model.md](domain-model.md) | Product entities, their ownership, and core invariants. | 2026-09-05 |
-| [overview.md](overview.md) | Overall data flow and the boundaries of the local and server environments. | 2026-08-04 |
+| [overview.md](overview.md) | Overall data flow and the boundaries of the local and server environments. | 2026-10-10 |
 | [principles.md](principles.md) | Immutable architectural rules of ai_stp. | 2026-08-03 |
 
 <!-- END CONTENTS -->

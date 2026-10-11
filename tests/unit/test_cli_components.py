@@ -1630,22 +1630,34 @@ def test_adopting_a_host_file_contribution_records_the_key(
     assert value_of(setting, "source_locator") == ""
 
 
-def test_project_adoption_keeps_host_when_scope_has_no_contribution(
+def test_project_adoption_extracts_owned_key_without_a_provider_route(
     tmp_path: Path, registry: sqlite3.Connection
 ) -> None:
-    """Extraction and ownership must use the same scope, or MCP loses its parent key."""
+    """Lack of installation support cannot widen source ownership to the host."""
     from ai_stp_cli.commands import component as command
+    from ai_stp_cli.local import composition
 
     root = tmp_path / "project"
     configuration = root / ".codex" / "config.toml"
     configuration.parent.mkdir(parents=True)
-    payload = b'[mcp_servers.probe]\ncommand = "probe-server"\n'
+    payload = (
+        b'personal_note = "synthetic-unowned-value"\n'
+        b'[mcp_servers.probe]\ncommand = "probe-server"\n'
+    )
     configuration.write_bytes(payload)
+    assert composition.rule_for("mcp", "codex", scope="project") is None
     adopted = command.adopt(
         {"root": str(root), "path": str(configuration), "harness": "codex", "kind": "mcp"}
     ).payload
     key = adopted.facts["declared_key"]
+    locator = adopted.facts["source_locator"]
     digest = adopted.facts["content_digest"]
-    assert isinstance(key, dict) and key["value"] == ""
+    assert isinstance(key, dict) and key["value"] == "mcp_servers"
+    assert isinstance(locator, dict) and locator["value"] == ".codex/config.toml#mcp_servers"
     assert isinstance(digest, dict) and isinstance(digest["value"], str)
-    assert content.get(registry, digest["value"]) == payload
+    assert content.get(registry, digest["value"]) == b'[probe]\ncommand = "probe-server"\n'
+    assert not any(
+        b"synthetic-unowned-value" in bytes(row["bytes"])
+        for row in registry.execute("SELECT bytes FROM content")
+    )
+    assert configuration.read_bytes() == payload

@@ -1,6 +1,6 @@
 ---
 description: "Develop the Rust CLI against explicit business and compatibility boundaries, with isolated previews and one verified default-runtime cutover."
-last_verified: "2026-10-08"
+last_verified: "2026-10-10"
 ---
 
 # ADR-0227: Rust CLI v2 migration boundary
@@ -61,6 +61,18 @@ active specifications ahead of code (ADR-0194).
   process-contract consumer under ADR-0222, even though both programs use Rust;
   it does not link the new domain library as a second engine.
 
+### Local state access
+
+Native registry SQLite I/O must remain relative to its held owned-directory
+capability. Validating an ambient pathname and then passing it to SQLite leaves
+a namespace substitution window; checking the pathname afterward cannot undo a
+foreign write. The safe Rust VFS bridge retains the checked main-file handle and
+confines journal/WAL access to that same directory. The connection retains both
+native ownership and standard SQLite-compatible exclusive locks until close.
+SQLite's exclusive WAL mode keeps the index in memory; no mmap, shared-memory
+adapter, disk temporary database or second native state writer is introduced.
+Schema 53 and ordinary SQLite file/recovery compatibility remain mandatory.
+
 ### Compatibility and native dependencies
 
 The code-backed preview boundary is documented beside `apps/cli-v2`. It keeps
@@ -120,18 +132,24 @@ the acquisition slice before that service can install a provider.
 
 - Previews use an explicit separate state root and temporary harness targets.
   They do not auto-open production `registry.sqlite`, reuse production device
-  ownership or silently adopt active installations. Read compatibility starts
-  with a verified SQLite backup snapshot, not a raw copy of a WAL database.
+  ownership or silently adopt active installations. Read compatibility uses
+  explicit verified input; never treat a raw copy of a live WAL database as a
+  consistent snapshot. Synthetic compatibility fixtures are ordinary test state.
 - Preserve schema 53 semantics initially. Do not combine the language port
   with a new database design. Define the supported source-version window and
   prove migration from it; refuse newer unknown schemas. The final transition
   covers SQLite, journals, object files, backup references and credential-store
   ownership together, without exporting secrets into migration receipts.
 - Before default cutover, quiesce legacy work, check the exact state generation,
-  make and verify the backup, and transfer writer ownership atomically. Legacy
+  prove recovery against the current state, and transfer writer ownership atomically. Legacy
   binaries need an effective refusal/ownership guard before v2 can become the
   writer; a guard understood only by v2 does not protect against an old v1.
   No two active production engines write the same state.
+  Creating data/configuration backups or infrastructure/database snapshots
+  requires an explicit owner request and is not a cutover prerequisite.
+  Preserve existing recovery references and archives; do not delete them as
+  part of this policy change. Temporary build/activation state and canonical
+  Git history remain operational state.
 - A pre-cutover snapshot proves rollback only before later mutations. After
   v2 changes harness or registry state, a binary rollback is allowed only when
   the old engine can read the latest state and recovery journals. Otherwise

@@ -7,7 +7,8 @@
         "ai-stp/3",
         "ai-stp/4",
         "ai-stp/5",
-        "ai-stp/6"
+        "ai-stp/6",
+        "ai-stp/7"
       ],
       "type": "string"
     },
@@ -18,7 +19,8 @@
         "component-scaffold/3",
         "component-scaffold/4",
         "component-scaffold/5",
-        "component-scaffold/6"
+        "component-scaffold/6",
+        "component-scaffold/7"
       ],
       "type": "string"
     },
