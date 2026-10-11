@@ -16,11 +16,13 @@ So the provider says which request fields it accepts, and the set is closed.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local.bundle import BUNDLE_FORMAT
-from ai_stp_cli.provider import operation_v3, protocol_v3
+from ai_stp_cli.provider import bundle_protocol, operation_v3, protocol_v3
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
 
@@ -78,6 +80,42 @@ def test_a_provider_declaring_nothing_extra_still_parses() -> None:
     """The field is optional, and its absence is the ordinary case."""
     capabilities = protocol_v3.parse_capabilities(_info())
     assert capabilities.plan_request_fields == frozenset()
+
+
+def test_forward_recovery_is_explicit_declared_and_incompatible_with_capture(
+    tmp_path: Path,
+) -> None:
+    capabilities = protocol_v3.parse_capabilities(_info(plan_request_fields=["recovery_mode"]))
+    assert capabilities.plan_request_fields == frozenset({"recovery_mode"})
+    assert "--recovery-mode" not in _arguments()
+    binding = bundle_protocol.Binding(
+        tmp_path / "bundle.zip", BUNDLE_FORMAT, "sha256:" + "a" * 64, "sha256:" + "b" * 64, 32
+    )
+    arguments = _arguments(
+        recovery_mode="forward",
+        accepted_request_fields=capabilities.plan_request_fields,
+        bundle=binding,
+    )
+    flag = arguments.index("--recovery-mode")
+    assert arguments[flag + 1] == "forward"
+    for overrides in (
+        {"accepted_request_fields": frozenset()},
+        {"recovery_mode": "rollback"},
+        {"bundle": None},
+        {"backup_ref": "backup_01J0000000000000000000000A"},
+        {"capture_mode": "complete_native"},
+        {"operation": protocol_v3.Operation.BACKUP},
+        {"operation": protocol_v3.Operation.REMOVE},
+        {"operation": protocol_v3.Operation.SOFTWARE_INSTALL},
+    ):
+        request = {
+            "recovery_mode": "forward",
+            "accepted_request_fields": capabilities.plan_request_fields,
+            "bundle": binding,
+            **overrides,
+        }
+        with pytest.raises(CliFailure):
+            _arguments(**request)
 
 
 def test_the_declared_field_reaches_the_capabilities_a_caller_reads() -> None:

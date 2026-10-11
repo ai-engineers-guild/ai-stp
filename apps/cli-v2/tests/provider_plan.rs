@@ -51,6 +51,7 @@ fn exact_provider_plans_refuse_rehashed_foreign_inputs_and_inconsistent_echoes()
             .ok_or("target")?,
     };
     request.planned(&serde_json::to_vec(&response)?, &observed, now)?;
+    forward_recovery(&request_value, &response, &observed, now)?;
     let mut validated = response["plan"]["bundle"].clone();
     validated["valid"] = true.into();
     request.validation(&serde_json::to_vec(&validated)?)?;
@@ -135,6 +136,7 @@ fn exact_provider_plans_refuse_rehashed_foreign_inputs_and_inconsistent_echoes()
     );
     for (field, value) in [
         ("operation", json!("backup")),
+        ("recovery_mode", json!("rollback")),
         ("operation_id", json!("bad")),
         ("expires_at", json!("2030-01-01T00:15:00.001Z")),
         ("unknown", json!(true)),
@@ -156,6 +158,65 @@ fn exact_provider_plans_refuse_rehashed_foreign_inputs_and_inconsistent_echoes()
             .is_err()
     );
     software_plans(&response, &observed, now)?;
+    Ok(())
+}
+
+fn forward_recovery(
+    request: &Value,
+    response: &Value,
+    observed: &Observed<'_>,
+    now: jiff::Timestamp,
+) -> Result<(), Box<dyn Error>> {
+    let mut requested = request.clone();
+    requested["recovery_mode"] = "forward".into();
+    let forward = Request::parse(&serde_json::to_vec(&requested)?, now)?;
+    assert!(forward.check_provider(observed.provider).is_err());
+    let mut declaration = observed.provider.document().clone();
+    declaration["plan_request_fields"]
+        .as_array_mut()
+        .ok_or("request fields")?
+        .push("recovery_mode".into());
+    let capable = Info::parse(&serde_json::to_vec(&declaration)?)?;
+    forward.check_provider(&capable)?;
+    let supported = Observed {
+        provider: &capable,
+        ..*observed
+    };
+    assert!(
+        forward
+            .planned(&serde_json::to_vec(response)?, &supported, now)
+            .is_err()
+    );
+    let mut planned = response.clone();
+    planned["plan"]["recovery_mode"] = "forward".into();
+    planned["plan_digest"] = digest_plan(&planned["plan"])?.into();
+    forward.planned(&serde_json::to_vec(&planned)?, &supported, now)?;
+    assert!(
+        forward
+            .planned(&serde_json::to_vec(&planned)?, observed, now)
+            .is_err()
+    );
+    let legacy = Request::parse(&serde_json::to_vec(request)?, now)?;
+    assert!(
+        legacy
+            .planned(&serde_json::to_vec(&planned)?, &supported, now)
+            .is_err()
+    );
+    for (key, value) in [
+        ("recovery_mode", json!("rollback")),
+        ("backup_ref", json!("backup_unrequested")),
+        ("native_capture", json!({})),
+        ("restore_target_digest", json!(digest::sha256(b"old bytes"))),
+    ] {
+        let mut changed = planned.clone();
+        changed["plan"][key] = value;
+        changed["plan_digest"] = digest_plan(&changed["plan"])?.into();
+        assert!(
+            forward
+                .planned(&serde_json::to_vec(&changed)?, &supported, now)
+                .is_err()
+        );
+    }
     Ok(())
 }
 

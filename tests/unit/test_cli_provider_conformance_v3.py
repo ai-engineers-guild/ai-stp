@@ -5,6 +5,7 @@ from __future__ import annotations
 import platform
 import stat
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import cast
@@ -421,6 +422,50 @@ def _plan_answer(
         **bundle_echo,
     }
     return answer, bound, expiry, digest
+
+
+def test_forward_recovery_plans_refuse_rehashed_capture_or_unrequested_mode(tmp_path: Path) -> None:
+    answer, bound, expiry, _ = _plan_answer(tmp_path)
+    capabilities = replace(_capabilities(), plan_request_fields=frozenset({"recovery_mode"}))
+    artifact = cast(dict[str, JsonValue], answer["plan"])
+
+    def validate(mode: str | None = "forward") -> operation_v3.ProviderPlan:
+        answer["plan_digest"] = digest_canonical(protocol_v3.PLAN_DOMAIN, artifact)
+        return operation_v3.require_plan(
+            answer,
+            capabilities=capabilities,
+            release_digest=_digest("d"),
+            operation_id="operation_test_v3",
+            operation=protocol_v3.Operation.INSTALL,
+            target=tmp_path,
+            expected_target_digest=_digest("a"),
+            bundle=bound,
+            backup_ref=None,
+            permission_profile=None,
+            expires_at=expiry,
+            recovery_mode=mode,
+        )
+
+    with pytest.raises(CliFailure):
+        validate()
+    artifact["recovery_mode"] = "forward"
+    validate()
+    with pytest.raises(CliFailure):
+        validate(None)
+    for field, value in (
+        ("recovery_mode", "rollback"),
+        ("backup_ref", "slot-000000000001"),
+        ("native_capture", {}),
+        ("restore_target_digest", _digest("b")),
+    ):
+        artifact[field] = value
+        with pytest.raises(CliFailure):
+            validate()
+        artifact.pop(field)
+        artifact["recovery_mode"] = "forward"
+    capabilities = _capabilities()
+    with pytest.raises(CliFailure):
+        validate()
 
 
 def test_v3_plan_load_apply_and_status_require_the_same_exact_identity(tmp_path: Path) -> None:
