@@ -32,7 +32,7 @@ IDENTITY = Path("provider-kit/v3/KIT-IDENTITY.json")
 
 #: Update **both** together, or not at all.
 EXPECTED_VERSION = "0.2.17"
-EXPECTED_AGGREGATE = "sha256:120fb3a40c903a8cf79045d92c466fa1e5b8281ed2214d69b4d2b95d9fd2cd85"
+EXPECTED_AGGREGATE = "sha256:c0644fd07ebdea6232085dee1eda5d6175ed368294e92f2d1e2a4b9c363cbeaf"
 
 
 def _identity() -> dict[str, Any]:

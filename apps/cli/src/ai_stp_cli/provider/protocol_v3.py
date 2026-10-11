@@ -996,7 +996,7 @@ def _configuration_ownership_schema() -> dict[str, object]:
                             "type": "string",
                             "minLength": 1,
                             "maxLength": 255,
-                            "pattern": r"^[^\u0000-\u001f\u007f-\u009f]+$",
+                            "not": {"pattern": r"[\u0000-\u001f\u007f-\u009f]"},
                         },
                     },
                 },

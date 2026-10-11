@@ -448,6 +448,28 @@
       }
     },
     {
+      "id": "trailing-control-key",
+      "accepted": false,
+      "patch": {
+        "configuration_ownership": [
+          {
+            "path": "AGENTS.md",
+            "ownership": "whole",
+            "parser_id": null,
+            "ownership_keys": []
+          },
+          {
+            "path": "config.toml",
+            "ownership": "contribution",
+            "parser_id": "toml/1",
+            "ownership_keys": [
+              "managed\n"
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "wide-key",
       "accepted": false,
       "patch": {
