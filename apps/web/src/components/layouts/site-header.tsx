@@ -53,9 +53,12 @@ export function SiteHeader({
   const corporatePages = useSessionUiSlice((s) => s.corporateNavPages);
   const pathname = usePathname();
   const visibleCorporatePages = corporatePages ?? corporateNavigationPages;
+  // The SaaS landing keeps the rail's DOM contract but hides its desktop
+  // presentation, so a collapse control there would toggle nothing visible.
   const hasSidebar =
-    !corporate ||
-    ((corporateSessionVerified || isSignedIn) &&
+    (!corporate && pathname !== "/") ||
+    (corporate &&
+      (corporateSessionVerified || isSignedIn) &&
       Boolean(visibleCorporatePages?.length) &&
       !/\/(?:login|signup)(?:\/|$)/.test(pathname));
   const contactItem = siteNavigation({ signedIn: isSignedIn, docsHref }).find(

@@ -307,6 +307,16 @@ def upgrade() -> None:
 def downgrade() -> None:
     connection = op.get_bind()
     connection.execute(sa.text("SELECT set_config('ai_stp.organization_id', '*', true)"))
+    if connection.dialect.name == "postgresql":
+        # The fixture rows are development seed data, not collected evidence;
+        # removing them is a teardown, not an evidence mutation, so suspend the
+        # append-only guard only for this statement.
+        connection.execute(
+            sa.text(
+                "ALTER TABLE technology_coordinate_mapping "
+                "DISABLE TRIGGER technology_coordinate_mapping_append_only"
+            )
+        )
     for table in (
         "technology_coordinate_mapping",
         "technology_classification",
@@ -317,6 +327,13 @@ def downgrade() -> None:
     ):
         connection.execute(
             sa.text(f"DELETE FROM {table} WHERE organization_id = :org"), {"org": ORG}
+        )
+    if connection.dialect.name == "postgresql":
+        connection.execute(
+            sa.text(
+                "ALTER TABLE technology_coordinate_mapping "
+                "ENABLE TRIGGER technology_coordinate_mapping_append_only"
+            )
         )
     connection.execute(sa.text("DELETE FROM organization WHERE id = :org"), {"org": ORG})
     for account_id, _display_name, _team, _lead in EMPLOYEES:

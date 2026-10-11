@@ -265,25 +265,28 @@ export function ContextSidebar({
   }
   return (
     <>
-      {suppressAside ? null : (
-        <aside
-          data-ui={UI.shell.sidebar}
-          data-collapsed={collapsed}
-          className={cn(
-            "border-border bg-background sticky top-14 hidden h-[calc(100dvh-3.5rem)] shrink-0 flex-col border-r lg:flex",
-            collapsed ? "w-16" : "w-64",
-          )}
+      {/* The landing page hides the rail visually but keeps its DOM contract:
+          the published data-ui markers and the collapse button's aria-controls
+          target must exist on every page. */}
+      <aside
+        data-ui={UI.shell.sidebar}
+        data-collapsed={collapsed}
+        hidden={suppressAside}
+        className={cn(
+          "border-border bg-background sticky top-14 h-[calc(100dvh-3.5rem)] shrink-0 flex-col border-r",
+          suppressAside ? "hidden" : "hidden lg:flex",
+          collapsed ? "w-16" : "w-64",
+        )}
+      >
+        <nav
+          id="desktop-context-navigation"
+          data-ui={corporate ? UI.corporate.contextNavList : UI.shell.primaryNav}
+          aria-label={nav("primaryLabel")}
+          className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 py-4"
         >
-          <nav
-            id="desktop-context-navigation"
-            data-ui={corporate ? UI.corporate.contextNavList : UI.shell.primaryNav}
-            aria-label={nav("primaryLabel")}
-            className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 py-4"
-          >
-            {contents(collapsed)}
-          </nav>
-        </aside>
-      )}
+          {contents(collapsed)}
+        </nav>
+      </aside>
       <div className="fixed top-2.5 left-4 z-50 lg:hidden">
         <Dialog
           open={open}

@@ -41,6 +41,12 @@ def upgrade() -> None:
         "corporate_project_member",
         "role in ('owner', 'lead', 'contributor', 'staff')",
     )
+    if op.get_bind().dialect.name == "postgresql":
+        # A sibling branch's seed revision may already have inserted an
+        # organization row in this transaction, leaving the deferred
+        # personal-owner constraint trigger pending; Postgres refuses an ALTER
+        # on the table until it fires.
+        op.execute(sa.text("SET CONSTRAINTS personal_organization_owner_membership IMMEDIATE"))
     op.add_column(
         "organization",
         sa.Column("people_visibility", sa.String(16), nullable=False, server_default="teammates"),
