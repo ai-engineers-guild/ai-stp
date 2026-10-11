@@ -8,6 +8,8 @@ same membership/binding graph `insert_membership_graph` writes. Skipped
 entirely when a corporate organization already exists.
 """
 
+import os
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import insert
@@ -100,7 +102,20 @@ def _strings(name: str, *columns: str) -> sa.Table:
     return sa.table(name, *(sa.column(key, sa.String()) for key in columns))
 
 
+def _demo_tenant_wanted() -> bool:
+    """Whether this migration run may plant the fixture tenant.
+
+    `migrate` runs on every deployment and the demo tenant is invented data:
+    planting it on an unmarked environment — a test database, a serving
+    stack — would close the real corporate bootstrap forever. Only an
+    environment that explicitly names itself `dev` receives the fixture.
+    """
+    return os.environ.get("AI_STP_API_ENVIRONMENT", "").strip().lower() == "dev"
+
+
 def upgrade() -> None:
+    if not _demo_tenant_wanted():
+        return
     connection = op.get_bind()
     connection.execute(sa.text("SELECT set_config('ai_stp.organization_id', '*', true)"))
     if connection.scalar(sa.text("SELECT 1 FROM organization WHERE kind = 'corporate' LIMIT 1")):
