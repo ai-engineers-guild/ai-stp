@@ -5,6 +5,7 @@ pub mod managed;
 pub mod plan;
 pub mod runtime;
 pub mod software;
+pub mod status;
 pub mod trust;
 pub mod wheel;
 

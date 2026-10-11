@@ -24,6 +24,14 @@ forward recovery for those packages. Preserved host fields are not ownership
 claims. The released 0.0.89 components cannot execute this path; coordinated
 reader release and native writable acceptance remain pending under ADR-0227.
 
+The Python and Rust status readers accept optional recorded
+`configuration_ownership` through kit 0.2.17. They distinguish unavailable
+ownership from an empty record and reject ambiguous paths/keys, parser mismatches
+and disagreement with clean `written_paths`. The field describes recorded
+ownership even under local drift; it is not current-content verification or
+permission to install. Shared positive/negative vectors exercise both readers.
+The reader must be released before a component emits this member.
+
 ## Terms
 
 - `ProviderRelease` - signed exact artifact of the public manager of the setup.

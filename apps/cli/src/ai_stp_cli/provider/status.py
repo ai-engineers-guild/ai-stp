@@ -1,5 +1,6 @@
 """Strict additive fields from provider ``status`` (`ADR-0052`)."""
 
+import unicodedata
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Final, Literal, cast
@@ -41,7 +42,63 @@ def require_wire(answer: Mapping[str, JsonValue]) -> dict[str, JsonValue]:
                 "provider conformance --harness <id> --executable <path> --json",
             ],
         )
+    try:
+        _configuration_ownership(answer)
+    except UnicodeError as error:
+        raise _malformed_ownership() from error
     return dict(answer)
+
+
+def _configuration_ownership(answer: Mapping[str, JsonValue]) -> None:
+    """Check cross-field bindings after the generated schema checked the shape."""
+    rows = answer.get("configuration_ownership")
+    if rows is None:
+        return
+    assert isinstance(rows, list)
+    paths: list[str] = []
+    for row in rows:
+        assert isinstance(row, dict)
+        path = cast(str, row["path"])
+        parts = path.split("/")
+        keys = cast(list[str], row["ownership_keys"])
+        parser = row["parser_id"]
+        valid = (
+            len(path.encode("utf-8")) <= 4096
+            and not any(
+                part in {"", ".", ".."} or len(part.encode("utf-8")) > 255 for part in parts
+            )
+            and not any(char in "\\:" or unicodedata.category(char) == "Cc" for char in path)
+            and keys == sorted(set(keys))
+            and all(len(key.encode("utf-8")) <= 255 for key in keys)
+        )
+        if row["ownership"] == "contribution":
+            valid = valid and (
+                (parser == "json/1" and path.endswith((".json", ".jsonc")))
+                or (parser == "toml/1" and path.endswith(".toml"))
+            )
+        if not valid:
+            raise _malformed_ownership()
+        paths.append(path)
+    state = answer.get("provider_state")
+    if (
+        paths != sorted(set(paths))
+        or not isinstance(state, dict)
+        or (state.get("present") is not True and paths)
+        or (state.get("present") is True and state.get("readable") is not True)
+        or (
+            "written_paths" in answer
+            and set(paths) != set(cast(list[str], answer["written_paths"]))
+        )
+    ):
+        raise _malformed_ownership()
+
+
+def _malformed_ownership() -> CliFailure:
+    return CliFailure(
+        "AI_STP_SCHEMA_UNSUPPORTED",
+        "the provider status carries inconsistent recorded configuration ownership",
+        details={"field": "configuration_ownership"},
+    )
 
 
 @dataclass(frozen=True)

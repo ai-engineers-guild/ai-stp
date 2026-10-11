@@ -60,7 +60,9 @@ KIT_IDENTITY_SCHEMA: Final[str] = "ai-stp-provider-kit-identity/1"
 #: reader first, again).
 #: 0.2.16 admits explicit forward configuration recovery before providers
 #: advertise it. Omitted recovery mode retains the existing capture contract.
-KIT_VERSION: Final[str] = "0.2.16"
+#: 0.2.17 admits bounded recorded configuration ownership in status, before
+#: providers emit it. Omission is compatible and never proves empty ownership.
+KIT_VERSION: Final[str] = "0.2.17"
 
 #: The kit README. It documents the contract rather than being part of it, so
 #: it is rendered here and compared byte for byte but stays outside

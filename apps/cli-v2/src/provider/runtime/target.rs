@@ -12,12 +12,8 @@ use std::{
 use crate::{
     error::{Failure, Result},
     provider::Info,
-    wire::{self, Schema},
+    wire,
 };
-
-static STATUS: Schema = Schema::new(include_str!(
-    "../../../../../provider-kit/v3/status-response.schema.json"
-));
 
 fn invalid() -> Failure {
     Failure::precondition("the provider target is invalid, aliased or changed during observation")
@@ -156,7 +152,7 @@ impl Target {
             return Err(invalid());
         }
         let document = wire::parse(bytes)?;
-        STATUS.validate(&document)?;
+        crate::provider::status::validate(&document)?;
         if document["canonical_target"].as_str() != self.path.to_str()
             || document["harness_id"] != provider.document()["harness_id"]
             || document["provider_id"] != provider.document()["provider_id"]

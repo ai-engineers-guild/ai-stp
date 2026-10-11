@@ -22,6 +22,7 @@ fn digest_plan(value: &Value) -> Result<String, Box<dyn Error>> {
 #[test]
 fn exact_provider_plans_refuse_rehashed_foreign_inputs_and_inconsistent_echoes()
 -> Result<(), Box<dyn Error>> {
+    ownership_status()?;
     let providers: Value =
         serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
     let provider = Info::parse(&serde_json::to_vec(&providers[1])?)?;
@@ -158,6 +159,33 @@ fn exact_provider_plans_refuse_rehashed_foreign_inputs_and_inconsistent_echoes()
             .is_err()
     );
     software_plans(&response, &observed, now)?;
+    Ok(())
+}
+
+fn ownership_status() -> Result<(), Box<dyn Error>> {
+    let vectors: Value =
+        serde_json::from_str(include_str!("fixtures/provider-status-ownership.json"))?;
+    for case in vectors["cases"].as_array().ok_or("cases")? {
+        let mut document = vectors["base"].clone();
+        document
+            .as_object_mut()
+            .ok_or("base")?
+            .extend(case["patch"].as_object().ok_or("patch")?.clone());
+        if let Some(keys) = case["remove"].as_array() {
+            for key in keys {
+                document
+                    .as_object_mut()
+                    .ok_or("base")?
+                    .remove(key.as_str().ok_or("key")?);
+            }
+        }
+        assert_eq!(
+            ai_stp_cli_v2::provider::status::validate(&document).is_ok(),
+            case["accepted"] == true,
+            "{}",
+            case["id"]
+        );
+    }
     Ok(())
 }
 
