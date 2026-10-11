@@ -229,6 +229,7 @@ from ai_stp_contracts.dashboard import (
     DashboardViewList,
     DashboardViewRequest,
 )
+from ai_stp_contracts.entity_actions import EntityActionMenus, EntityActionQuery
 from ai_stp_contracts.families import (
     SetupFamilyCreateRequest,
     SetupFamilyOwner,
@@ -688,6 +689,14 @@ _DASHBOARD_VIEW_ID = PathParam(
 )
 
 OPERATIONS: Final[tuple[Operation, ...]] = (
+    Operation(
+        method="post",
+        path="/entity-actions/query",
+        operation_id="queryEntityActions",
+        summary="Read ordered entity menus for the current principal.",
+        response=EntityActionMenus,
+        body=EntityActionQuery,
+    ),
     Operation(
         method="get",
         path="/corporate/organizations/{organization_id}/catalog-ownership",

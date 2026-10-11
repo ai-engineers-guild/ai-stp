@@ -1,3 +1,5 @@
+import { entityMenuResult, publicActions } from "../entity-menu-fixture";
+import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
@@ -119,18 +121,22 @@ it("merges categories without an area into a single unclassified card", () => {
   expect(screen.getByRole("button", { name: /Loose category 1/ })).toBeVisible();
 });
 
-it("expands and collapses every category through the area action menu", async () => {
+it("expands and collapses every category through view controls", async () => {
   const user = userEvent.setup();
   renderLandscape();
-  await user.click(screen.getByRole("button", { name: "Area actions" }));
-  await user.click(await screen.findByRole("menuitem", { name: "Expand all" }));
-  expect(screen.getByRole("button", { name: "FastAPI" })).toBeVisible();
-  await user.click(screen.getByRole("button", { name: "Area actions" }));
-  expect(await screen.findByRole("menuitem", { name: "Open technology list" })).toHaveAttribute(
-    "href",
-    expect.stringContaining(`area_ids=${areas[0].area_id}`),
+  await user.click(
+    screen.getAllByRole("button", { name: "Expand all" }).at(0) ??
+      screen.getByRole("button", { name: "Expand all" }),
   );
-  await user.click(screen.getByRole("menuitem", { name: "Collapse all" }));
+  expect(screen.getByRole("button", { name: "FastAPI" })).toBeVisible();
+  expect(
+    screen.getAllByRole("link", { name: "Open technology list" }).at(0) ??
+      screen.getByRole("link", { name: "Open technology list" }),
+  ).toHaveAttribute("href", expect.stringContaining(`area_ids=${areas[0].area_id}`));
+  await user.click(
+    screen.getAllByRole("button", { name: "Collapse all" }).at(0) ??
+      screen.getByRole("button", { name: "Collapse all" }),
+  );
   expect(screen.queryByRole("button", { name: "FastAPI" })).toBeNull();
 });
 
@@ -154,10 +160,21 @@ it("opens the standard technology action menu from a table row", async () => {
   const [more] = within(table).getAllByRole("button", { name: "More actions" });
   if (!more) throw new Error("More actions button is missing");
   await user.click(more);
-  expect(await screen.findByRole("menuitem", { name: "Open FastAPI" })).toHaveAttribute(
+  expect(await screen.findByRole("menuitem", { name: "Open details" })).toHaveAttribute(
     "href",
     "/corporate/technologies/technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
   );
-  await user.click(screen.getByRole("menuitem", { name: "Preview" }));
+  await user.keyboard("{Escape}");
+  const preview = within(table).getAllByRole("button", { name: "Preview" })[0];
+  if (!preview) throw new Error("Preview missing");
+  await user.click(preview);
   expect(screen.getByRole("dialog")).toBeVisible();
 });
+
+vi.mock("@/lib/entity-action-query", () => ({
+  queryEntityActionMenu: vi.fn((subject: EntityActionSubject) =>
+    Promise.resolve(
+      entityMenuResult(subject, publicActions, `/corporate/technologies/${subject.id}`),
+    ),
+  ),
+}));

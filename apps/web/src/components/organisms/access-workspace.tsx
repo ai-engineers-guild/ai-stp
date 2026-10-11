@@ -4,8 +4,9 @@ import { Select } from "@/components/atoms/select";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { EntityActionItems } from "@/components/organisms/entity-action-items";
 import { Button } from "@/components/atoms/button";
-import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/atoms/menu";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/atoms/menu";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { CatalogAuthorLink } from "@/components/molecules/catalog-author-link";
@@ -24,7 +25,7 @@ import {
   createInvitationAction,
   revokeGrantAction,
 } from "@/actions/grants";
-import { useRouter } from "@/lib/i18n/navigation";
+import { Link, useRouter } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";
 
 export type AccessUser = {
@@ -32,6 +33,9 @@ export type AccessUser = {
   accountId: string;
   displayName: string | null;
   avatarUrl: string | null;
+  objectKind?: "component" | "setup";
+  stableId?: string;
+  major?: number;
 };
 
 type Labels = {
@@ -63,11 +67,14 @@ type Labels = {
 
 type AccessWorkspaceProps = {
   users: readonly AccessUser[];
+  incomingUsers?: readonly AccessUser[];
+  incomingLabel?: string;
   csrfToken: string;
   labels: Labels;
   initialObjectKind?: "component" | "setup" | undefined;
   initialStableId?: string | undefined;
   initialMajor?: number | undefined;
+  canCreate?: boolean;
 };
 
 function Field({
@@ -228,7 +235,7 @@ function AccessUserRow({
   const [reportOpen, setReportOpen] = useState(false);
 
   async function copyId() {
-    await navigator.clipboard.writeText(user.accountId);
+    await navigator.clipboard.writeText(user.grantId);
     toast.success(labels.copied);
   }
 
@@ -242,6 +249,15 @@ function AccessUserRow({
           verified={false}
           verifiedLabel={labels.user}
         />
+        {user.objectKind && user.stableId ? (
+          <Link
+            href={`/catalog/${user.objectKind === "component" ? "components" : "setups"}/${user.stableId}`}
+            className="text-muted-foreground block truncate font-mono text-xs hover:underline"
+          >
+            {user.stableId}
+            {user.major ? `@${user.major}.x` : ""}
+          </Link>
+        ) : null}
       </div>
       <Menu modal={false}>
         <MenuTrigger asChild>
@@ -250,32 +266,42 @@ function AccessUserRow({
           </Button>
         </MenuTrigger>
         <MenuContent>
-          <MenuItem
-            disabled={pending}
-            onSelect={() => {
-              onRevoke(user.grantId);
+          <EntityActionItems
+            subject={{ kind: "grant", id: user.grantId }}
+            entries={{
+              report: (
+                <MenuItem
+                  onSelect={() => {
+                    setReportOpen(true);
+                  }}
+                >
+                  <Icon name="flag" size="sm" />
+                  {labels.report}
+                </MenuItem>
+              ),
+              copy_id: (
+                <MenuItem
+                  onSelect={() => {
+                    void copyId();
+                  }}
+                >
+                  <Icon name="copy" size="sm" />
+                  {labels.copyId}
+                </MenuItem>
+              ),
+              revoke: (
+                <MenuItem
+                  disabled={pending}
+                  onSelect={() => {
+                    onRevoke(user.grantId);
+                  }}
+                >
+                  <Icon name="close" size="sm" />
+                  {labels.revoke}
+                </MenuItem>
+              ),
             }}
-          >
-            <Icon name="close" size="sm" />
-            {labels.revoke}
-          </MenuItem>
-          <MenuItem
-            onSelect={() => {
-              void copyId();
-            }}
-          >
-            <Icon name="copy" size="sm" />
-            {labels.copyId}
-          </MenuItem>
-          <MenuSeparator />
-          <MenuItem
-            onSelect={() => {
-              setReportOpen(true);
-            }}
-          >
-            <Icon name="flag" size="sm" />
-            {labels.report}
-          </MenuItem>
+          />
         </MenuContent>
       </Menu>
       <ContactReportDialog
@@ -292,11 +318,14 @@ function AccessUserRow({
 
 export function AccessWorkspace({
   users,
+  incomingUsers = [],
+  incomingLabel,
   csrfToken,
   labels,
   initialObjectKind,
   initialStableId,
   initialMajor,
+  canCreate = true,
 }: AccessWorkspaceProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -326,33 +355,35 @@ export function AccessWorkspace({
 
   return (
     <div className="space-y-8">
-      <InviteForm
-        labels={labels}
-        pending={pending}
-        initialObjectKind={initialObjectKind}
-        initialStableId={initialStableId}
-        initialMajor={initialMajor}
-        onCreate={(input) => {
-          run(() =>
-            input.recipientKind === "verified_email"
-              ? createInvitationAction({
-                  csrfToken,
-                  objectKind: input.kind,
-                  stableId: input.stableId,
-                  major: input.major,
-                  recipientEmail: input.recipient,
-                })
-              : createDirectGrantAction({
-                  csrfToken,
-                  objectKind: input.kind,
-                  stableId: input.stableId,
-                  major: input.major,
-                  recipientKind: input.recipientKind,
-                  recipient: input.recipient,
-                }),
-          );
-        }}
-      />
+      {canCreate ? (
+        <InviteForm
+          labels={labels}
+          pending={pending}
+          initialObjectKind={initialObjectKind}
+          initialStableId={initialStableId}
+          initialMajor={initialMajor}
+          onCreate={(input) => {
+            run(() =>
+              input.recipientKind === "verified_email"
+                ? createInvitationAction({
+                    csrfToken,
+                    objectKind: input.kind,
+                    stableId: input.stableId,
+                    major: input.major,
+                    recipientEmail: input.recipient,
+                  })
+                : createDirectGrantAction({
+                    csrfToken,
+                    objectKind: input.kind,
+                    stableId: input.stableId,
+                    major: input.major,
+                    recipientKind: input.recipientKind,
+                    recipient: input.recipient,
+                  }),
+            );
+          }}
+        />
+      ) : null}
 
       <section className="space-y-3">
         <h2 className="text-lg font-medium tracking-tight">{labels.peopleWithAccess}</h2>
@@ -372,6 +403,23 @@ export function AccessWorkspace({
           </ul>
         )}
       </section>
+
+      {incomingUsers.length ? (
+        <section className="space-y-3">
+          <h2 className="text-lg font-medium tracking-tight">{incomingLabel}</h2>
+          <ul className="border-border rounded-lg border">
+            {incomingUsers.map((user) => (
+              <AccessUserRow
+                key={user.grantId}
+                user={user}
+                labels={labels}
+                pending={pending}
+                onRevoke={setRevokeTarget}
+              />
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <div className="mx-auto max-w-lg space-y-2">
         <MutationReference label={labels.referenceId} operationId={operationId} />

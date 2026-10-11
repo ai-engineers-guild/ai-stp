@@ -1,3 +1,5 @@
+import { entityMenuResult, catalogActions } from "../entity-menu-fixture";
+import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -96,3 +98,9 @@ describe("setup detail actions", () => {
     expect(within(menu).getByRole("menuitem", { name: /Copy ID/ })).toHaveClass("min-h-11");
   });
 });
+
+vi.mock("@/lib/entity-action-query", () => ({
+  queryEntityActionMenu: vi.fn((subject: EntityActionSubject) =>
+    Promise.resolve(entityMenuResult(subject, catalogActions, `/catalog/setups/${subject.id}`)),
+  ),
+}));

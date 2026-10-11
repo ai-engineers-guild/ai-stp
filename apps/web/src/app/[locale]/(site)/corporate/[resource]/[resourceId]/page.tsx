@@ -5,7 +5,6 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { Badge } from "@/components/atoms/badge";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
-import { LocalizedResourceDeleteMenuItem } from "@/components/organisms/localized-corporate-resource-actions";
 import { CorporateCatalogAssignments } from "@/components/organisms/corporate-catalog-assignments";
 import { CorporateRelationSection } from "@/components/organisms/corporate-relation-section";
 import { relationSectionLabels } from "@/lib/corporate-directory-types";
@@ -303,9 +302,6 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
         : resource === "projects"
           ? (project?.available_actions ?? workspace.context.capabilities)
           : workspace.context.capabilities;
-  const canDelete = actionSet.includes(
-    `${resource === "members" ? "member" : resource === "roles" ? "role" : resource.slice(0, -1)}.delete`,
-  );
   return (
     <article className="mx-auto max-w-7xl space-y-8">
       <HistoryBackButton label={backLabel} fallback={parentHref} />
@@ -326,18 +322,7 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
         resource={resource === "roles" ? "teams" : resource}
         resourceId={resourceId}
         title={detail.name}
-        adminMenu={
-          canDelete ? (
-            <LocalizedResourceDeleteMenuItem
-              csrfToken={csrfToken}
-              organizationId={workspace.context.organization.organization_id}
-              authorizationRevision={workspace.context.organization.authorization_revision}
-              resource={resource}
-              resourceId={detail.id}
-              revision={detail.revision}
-            />
-          ) : null
-        }
+
         meta={
           member?.job_title_name ? <Badge variant="secondary">{member.job_title_name}</Badge> : null
         }

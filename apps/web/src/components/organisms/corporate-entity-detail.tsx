@@ -31,7 +31,6 @@ export function CorporateEntityDetail({
   state,
   meta,
   rail,
-  adminMenu,
 }: {
   presentation: CorporatePresentation | null;
   description: string;
@@ -43,7 +42,6 @@ export function CorporateEntityDetail({
   /** Extra header marks beside the state badge (e.g. a member's job title). */
   meta?: ReactNode;
   rail?: ReactNode;
-  adminMenu?: ReactNode;
 }) {
   const t = useTranslations("account");
   const h = useTranslations("hub");
@@ -94,8 +92,6 @@ export function CorporateEntityDetail({
         menu={
           <EntityDetailMenu
             moreLabel={access("more")}
-            editLabel={objects("editPresentation")}
-            editHref={presentation?.can_edit ? `${detailHref}/edit` : undefined}
             entityId={resourceId}
             shareHref={detailHref}
             copyIdLabel={h("copyId")}
@@ -103,7 +99,6 @@ export function CorporateEntityDetail({
             shareLabel={h("share")}
             reportLabel={h("report")}
             reportTarget={`corporate:${canonicalResource}:${resourceId}`}
-            adminItems={adminMenu}
           />
         }
       />

@@ -1,6 +1,7 @@
 /* eslint-disable max-lines -- Job-title table, detail panel, and assignment dialogs stay in one render owner. */
 "use client";
 
+import { useRequestedEntityAction } from "@/lib/use-requested-entity-action";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -11,7 +12,7 @@ import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { Textarea } from "@/components/atoms/textarea";
-import { CatalogChoiceMenu } from "@/components/molecules/catalog-choice-menu";
+import { EntityDetailMenu } from "@/components/organisms/entity-detail-menu";
 import { FormDialog } from "@/components/molecules/form-dialog";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
 import {
@@ -187,6 +188,28 @@ export function CorporateJobTitles({
     });
   }
 
+  const requestedTitle = jobTitles.find((item) => item.job_title_id === filters.get("entity"));
+  useRequestedEntityAction(
+    requestedTitle
+      ? { kind: "job_title", id: requestedTitle.job_title_id, organization_id: organizationId }
+      : null,
+    filters.get("action"),
+    () => {
+      if (!requestedTitle) return;
+      if (filters.get("action") === "retire") setDialog({ kind: "delete", title: requestedTitle });
+      if (filters.get("action") === "restore") setTitleState(requestedTitle, "current");
+      if (filters.get("action") === "edit") {
+        setForm({ name: requestedTitle.name, description: requestedTitle.description });
+        setDialog({ kind: "edit", title: requestedTitle });
+      }
+      if (filters.get("action") === "assign_members") {
+        setAssignSelection(
+          (linked.get(requestedTitle.job_title_id) ?? []).map((member) => member.account_id),
+        );
+        setDialog({ kind: "assign", title: requestedTitle });
+      }
+    },
+  );
   return (
     <div className="min-w-0 space-y-6">
       <section className="min-w-0 space-y-4">
@@ -271,22 +294,26 @@ export function CorporateJobTitles({
                     event.stopPropagation();
                   }}
                 >
-                  <CatalogChoiceMenu
-                    icon="moreVertical"
-                    variant="ghost"
-                    align="end"
-                    label={t("jobTitleActions", { name: title.name })}
-                    options={[
+                  <EntityDetailMenu
+                    subject={{
+                      kind: "job_title",
+                      id: title.job_title_id,
+                      organization_id: organizationId,
+                    }}
+
+                    moreLabel={t("jobTitleActions", { name: title.name })}
+                    choices={[
                       {
+                        actionId: "edit",
                         label: t("edit"),
                         icon: "edit",
                         onSelect: () => {
                           setForm({ name: title.name, description: title.description });
                           setDialog({ kind: "edit", title });
                         },
-                        disabled: !canWrite,
                       },
                       {
+                        actionId: "assign_members",
                         label: t("assignEmployees"),
                         icon: "team",
                         onSelect: () => {
@@ -297,26 +324,23 @@ export function CorporateJobTitles({
                           );
                           setDialog({ kind: "assign", title });
                         },
-                        disabled: !canAssign,
                       },
                       title.state === "current"
                         ? {
+                            actionId: "retire",
                             label: t("delete"),
                             icon: "close",
-                            separatorBefore: true,
                             onSelect: () => {
                               setDialog({ kind: "delete", title });
                             },
-                            disabled: !canWrite,
                           }
                         : {
+                            actionId: "restore",
                             label: t("restoreJobTitle"),
                             icon: "check",
-                            separatorBefore: true,
                             onSelect: () => {
                               setTitleState(title, "current");
                             },
-                            disabled: !canWrite,
                           },
                     ]}
                   />
@@ -434,27 +458,24 @@ export function CorporateJobTitles({
                             email={member.contact_email ?? undefined}
                           />
                         </Link>
+                        <EntityDetailMenu
+                          moreLabel={tp("personActions", { name: employeeName(member) })}
+                          subject={{
+                            kind: "member",
+                            id: member.account_id,
+                            organization_id: organizationId,
+                          }}
+                        />
                         {canAssign ? (
-                          <CatalogChoiceMenu
-                            icon="moreVertical"
+                          <Button
                             variant="ghost"
-                            align="end"
-                            label={tp("personActions", { name: employeeName(member) })}
-                            options={[
-                              {
-                                label: tp("viewProfile"),
-                                icon: "user",
-                                href: `/corporate/employees/${encodeURIComponent(member.account_id)}`,
-                              },
-                              {
-                                label: t("removeAssignment"),
-                                icon: "close",
-                                onSelect: () => {
-                                  setMemberTitle(member, null);
-                                },
-                              },
-                            ]}
-                          />
+                            size="sm"
+                            onClick={() => {
+                              setMemberTitle(member, null);
+                            }}
+                          >
+                            {t("removeAssignment")}
+                          </Button>
                         ) : null}
                       </li>
                     ))}

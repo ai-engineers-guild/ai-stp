@@ -34,13 +34,13 @@ _SCOPES = ("organization", "team", "project", "technology", "category", "catalog
 # is evaluated at those scopes for scoped rosters; `category` is a binding
 # scope that reaches classified technologies (ADR-0230).
 _MatrixScope = Literal[
-    "organization", "team", "project", "technology", "category", "catalog_object", "member"
+    "organization", "team", "project", "technology", "category", "catalog_object"
 ]
 _EffectiveScope = Literal[
     "organization", "team", "project", "technology", "category", "catalog_object"
 ]
 _PERMISSION_SCOPES: dict[str, tuple[_MatrixScope, ...]] = {
-    "member": ("organization", "member", "team", "project"),
+    "member": ("organization", "team", "project"),
     "project": ("organization", "project"),
     "team": ("organization", "team"),
     "technology": ("organization", "technology", "category"),
@@ -50,7 +50,7 @@ _PERMISSION_SCOPES: dict[str, tuple[_MatrixScope, ...]] = {
     "project_technology": ("organization", "project", "technology"),
     "category": ("organization", "category"),
     "catalog_object": ("organization", "catalog_object"),
-    "telemetry": ("organization", "member"),
+    "telemetry": ("organization",),
 }
 
 

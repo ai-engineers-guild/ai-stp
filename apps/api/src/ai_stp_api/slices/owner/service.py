@@ -772,14 +772,16 @@ async def read_owner_object_capabilities(
                 CatalogMetadata.published_at.is_not(None),
             )
         )
-        capabilities: list[str] = ["edit", "edit_presentation"]
+        capabilities: list[str] = ["edit", "edit_presentation", "manage_access"]
         if published is None:
             capabilities.append("delete")
         return OwnerObjectCapabilities(
             schema_version=1,
             object_kind=object_kind,
             stable_id=stable_id,
-            capabilities=cast(list[Literal["edit", "edit_presentation", "delete"]], capabilities),
+            capabilities=cast(
+                list[Literal["edit", "edit_presentation", "delete", "manage_access"]], capabilities
+            ),
         )
     capabilities = await catalog_object_capabilities(
         db,
@@ -792,7 +794,9 @@ async def read_owner_object_capabilities(
         schema_version=1,
         object_kind=object_kind,
         stable_id=stable_id,
-        capabilities=cast(list[Literal["edit", "edit_presentation", "delete"]], capabilities),
+        capabilities=cast(
+            list[Literal["edit", "edit_presentation", "delete", "manage_access"]], capabilities
+        ),
     )
 
 
@@ -857,8 +861,8 @@ async def delete_owner_object(
             principal_type="user",
             principal_id=ctx.account_id,
             permission="catalog_object.delete",
-            scope_kind="organization",
-            scope_id=organization_id,
+            scope_kind="catalog_object",
+            scope_id=stable_id,
         )
         if not allowed:
             raise ApiError(ErrorCategory.PERMISSION, "object delete is forbidden")

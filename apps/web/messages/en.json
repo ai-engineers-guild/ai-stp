@@ -159,7 +159,6 @@
     "referenceData": "Reference Data",
     "security": "Security",
     "audit": "Audit",
-
     "scans": "Scans",
     "technologyAreas": "Technology areas",
     "technologyMap": "Technology map",
@@ -496,7 +495,6 @@
     "heartbeatStaleHint": "A device is marked stale when no heartbeat arrives within this window.",
     "heartbeatRetryBaseHint": "Initial delay before retrying a failed report; grows with each attempt.",
     "heartbeatRetryMaxHint": "Largest delay between retries after repeated failures.",
-
     "scans": {
       "title": "Scans",
       "description": "Journal of local and repository technology scans.",
@@ -1239,7 +1237,6 @@
         "label": "Product analytics"
       }
     },
-    "openEntry": "Open",
     "entryCount": "{count, plural, one {# entry} other {# entries}}",
     "entryDialogDescription": "Name, description and area assignment.",
     "telemetryPageDescription": "Configure telemetry collection and data retention for your organization.",
@@ -2535,6 +2532,7 @@
     "kindComponent": "component",
     "kindSetup": "setup",
     "githubNote": "GitHub usernames are resolved by the server before access is granted.",
+    "receivedAccess": "Access received",
     "peopleWithAccess": "People with access",
     "emptyPeople": "No one has access yet.",
     "copyId": "Copy ID",
@@ -3182,7 +3180,6 @@
     "team": "Team",
     "teamDetails": "Team details",
     "teamDetailsBody": "This is the corporate team scope available to your account.",
-
     "teams": "Teams",
     "today": "Today",
     "unknownEmployee": "Unknown employee",
@@ -3190,7 +3187,6 @@
     "suspend": "Suspend",
     "activate": "Activate",
     "rolesBody": "System definitions are immutable; custom roles are managed here. Inherited permissions come from parent roles.",
-
     "revision": "Revision",
     "gitManagement": "Git management",
     "gitManagementBody": "Git providers available to this organization. Capability grants (connector.{provider}.{use,read,write,create,visibility,access}) are assigned through roles.",
@@ -3283,7 +3279,6 @@
     "joinedColumn": "Joined",
     "lastActivity": "Last activity",
     "actions": "Actions",
-    "viewProfile": "View profile",
     "manageAccess": "Manage access",
     "noEmail": "No email",
     "active": "active",

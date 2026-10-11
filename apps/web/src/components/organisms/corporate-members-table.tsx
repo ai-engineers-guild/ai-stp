@@ -2,7 +2,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Badge } from "@/components/atoms/badge";
-import { CatalogChoiceMenu } from "@/components/molecules/catalog-choice-menu";
+import { EntityDetailMenu } from "@/components/organisms/entity-detail-menu";
 import {
   PeopleCheckbox,
   PeopleRole,
@@ -54,9 +54,6 @@ function MemberRow({
   const locale = useLocale();
   const name = member.display_name ?? member.account_id;
   const profile = `/corporate/employees/${encodeURIComponent(member.account_id)}`;
-  const canInspect = context.capabilities.some((permission) =>
-    ["member.update", "member.delete"].includes(permission),
-  );
   const teams = context.teams.filter((team) =>
     team.members.some((entry) => entry.account_id === member.account_id),
   );
@@ -112,34 +109,27 @@ function MemberRow({
         {activityLabel(member.last_activity_at, now, locale)}
       </td>
       <td className="text-right">
-        <CatalogChoiceMenu
-          icon="more"
-          variant="ghost"
-          align="end"
-          label={t("personActions", { name })}
-          options={[
-            { label: t("viewProfile"), href: profile, icon: "user" },
-            ...(onEdit
+        <EntityDetailMenu
+          moreLabel={t("personActions", { name })}
+          subject={{
+            kind: "member",
+            id: member.account_id,
+            organization_id: context.organization.organization_id,
+          }}
+          choices={
+            onEdit
               ? [
                   {
+                    actionId: "edit",
                     label: t("editMember"),
-                    icon: "edit" as const,
+                    icon: "edit",
                     onSelect: () => {
                       onEdit(member);
                     },
                   },
                 ]
-              : []),
-            ...(canInspect
-              ? [
-                  {
-                    label: t("manageAccess"),
-                    href: `/corporate/admin/employee-access?employee=${encodeURIComponent(member.account_id)}`,
-                    icon: "access" as const,
-                  },
-                ]
-              : []),
-          ]}
+              : []
+          }
         />
       </td>
     </tr>

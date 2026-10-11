@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
 import type { ReactNode } from "react";
 
 import {
@@ -8,8 +9,28 @@ import {
   createInvitationAction,
   revokeGrantAction,
 } from "@/actions/grants";
+import { queryEntityActionMenu } from "@/lib/entity-action-query";
 import { AccessWorkspace } from "@/components/organisms/access-workspace";
 
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => key,
+  useLocale: () => "en",
+}));
+vi.mock("@/lib/entity-action-query", () => ({
+  queryEntityActionMenu: vi.fn((subject: EntityActionSubject) =>
+    Promise.resolve({
+      menu: {
+        subject,
+        actions: [
+          { id: "copy_id", group: "sharing" },
+          { id: "revoke", group: "danger" },
+          { id: "report", group: "support" },
+        ],
+      },
+      csrfToken: "csrf",
+    }),
+  ),
+}));
 const refresh = vi.fn();
 
 vi.mock("@/lib/i18n/navigation", () => ({
@@ -119,13 +140,14 @@ describe("AccessWorkspace direct grants", () => {
       "/en/publishers/account_01",
     );
     await user.click(screen.getByRole("button", { name: "More actions" }));
+    await screen.findByRole("menuitem", { name: "Revoke" });
     expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
-      "Revoke",
       "Copy ID",
+      "Revoke",
       "Report user",
     ]);
     await user.click(screen.getByRole("menuitem", { name: "Copy ID" }));
-    expect(writeText).toHaveBeenCalledWith("account_01");
+    expect(writeText).toHaveBeenCalledWith("grant_01");
     await user.click(screen.getByRole("button", { name: "More actions" }));
     await user.click(screen.getByRole("menuitem", { name: "Revoke" }));
     await user.click(screen.getByRole("button", { name: "Revoke access" }));
@@ -138,4 +160,51 @@ describe("AccessWorkspace direct grants", () => {
     });
     expect(confirmSpy).not.toHaveBeenCalled();
   });
+});
+
+it("keeps received grants separate and follows their read-only server menu", async () => {
+  vi.mocked(queryEntityActionMenu).mockResolvedValueOnce({
+    menu: {
+      subject: { kind: "grant", id: "received_grant" },
+      href: null,
+      revision: null,
+      authorization_revision: null,
+      object_version: null,
+      object_name: null,
+      visibility: null,
+      device_id: null,
+      actions: [{ id: "copy_id", group: "sharing" }],
+    },
+    csrfToken: "csrf",
+  });
+  const user = userEvent.setup();
+  render(
+    <AccessWorkspace
+      users={[]}
+      incomingUsers={[
+        {
+          grantId: "received_grant",
+          accountId: "author_1",
+          displayName: "Author",
+          avatarUrl: null,
+          objectKind: "component",
+          stableId: "component_received",
+          major: 2,
+        },
+      ]}
+      incomingLabel="Received access"
+      canCreate={false}
+      csrfToken="csrf"
+      labels={labels}
+    />,
+  );
+  expect(screen.getByRole("heading", { name: "Received access" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "component_received@2.x" })).toHaveAttribute(
+    "href",
+    "/en/catalog/components/component_received",
+  );
+  expect(screen.queryByRole("button", { name: "Create access" })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "More actions" }));
+  await screen.findByRole("menuitem", { name: "Copy ID" });
+  expect(screen.queryByRole("menuitem", { name: "Revoke" })).not.toBeInTheDocument();
 });

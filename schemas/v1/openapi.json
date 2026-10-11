@@ -15113,6 +15113,300 @@
         "title": "EmployeeTechnologyView",
         "type": "object"
       },
+      "EntityAction": {
+        "additionalProperties": true,
+        "properties": {
+          "group": {
+            "enum": [
+              "navigation",
+              "sharing",
+              "management",
+              "danger",
+              "support"
+            ],
+            "title": "Group",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "group",
+          "id"
+        ],
+        "title": "EntityAction",
+        "type": "object"
+      },
+      "EntityActionMenu": {
+        "additionalProperties": true,
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/EntityAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "authorization_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Authorization Revision"
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Device Id"
+          },
+          "href": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Href"
+          },
+          "object_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Object Name"
+          },
+          "object_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Object Version"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Revision"
+          },
+          "subject": {
+            "$ref": "#/components/schemas/EntityActionSubject"
+          },
+          "visibility": {
+            "anyOf": [
+              {
+                "enum": [
+                  "public",
+                  "private"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Visibility"
+          }
+        },
+        "required": [
+          "actions",
+          "authorization_revision",
+          "device_id",
+          "href",
+          "object_name",
+          "object_version",
+          "revision",
+          "subject",
+          "visibility"
+        ],
+        "title": "EntityActionMenu",
+        "type": "object"
+      },
+      "EntityActionMenus": {
+        "additionalProperties": true,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EntityActionMenu"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "schema_version"
+        ],
+        "title": "EntityActionMenus",
+        "type": "object"
+      },
+      "EntityActionQuery": {
+        "additionalProperties": false,
+        "properties": {
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "subjects": {
+            "items": {
+              "$ref": "#/components/schemas/EntityActionSubject"
+            },
+            "maxItems": 256,
+            "minItems": 1,
+            "title": "Subjects",
+            "type": "array"
+          }
+        },
+        "required": [
+          "subjects"
+        ],
+        "title": "EntityActionQuery",
+        "type": "object"
+      },
+      "EntityActionSubject": {
+        "additionalProperties": false,
+        "properties": {
+          "coordinate": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Coordinate"
+          },
+          "finding_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "package",
+                  "image",
+                  "executable",
+                  "configuration",
+                  "alias"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Finding Kind"
+          },
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "component",
+              "setup",
+              "team",
+              "project",
+              "member",
+              "technology",
+              "category",
+              "area",
+              "job_title",
+              "role",
+              "grant",
+              "invitation",
+              "finding",
+              "publisher",
+              "scan"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "organization_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Organization Id"
+          },
+          "usage_context": {
+            "anyOf": [
+              {
+                "enum": [
+                  "production",
+                  "development",
+                  "testing",
+                  "browser_support"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Usage Context"
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "EntityActionSubject",
+        "type": "object"
+      },
       "EntityId": {
         "maxLength": 128,
         "minLength": 1,
@@ -19875,7 +20169,8 @@
               "enum": [
                 "edit",
                 "edit_presentation",
-                "delete"
+                "delete",
+                "manage_access"
               ],
               "type": "string"
             },
@@ -87758,6 +88053,195 @@
           }
         ],
         "summary": "Revoke one device. Forward-acting; local data is untouched."
+      }
+    },
+    "/v1/entity-actions/query": {
+      "post": {
+        "operationId": "queryEntityActions",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "queryEntityActions.publicPublisher": {
+                  "summary": "An active public publisher exposes common actions in server order without management rights.",
+                  "value": {
+                    "schema_version": 1,
+                    "subjects": [
+                      {
+                        "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "kind": "publisher"
+                      }
+                    ]
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/EntityActionQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "queryEntityActions.publicPublisher": {
+                    "summary": "An active public publisher exposes common actions in server order without management rights.",
+                    "value": {
+                      "items": [
+                        {
+                          "actions": [
+                            {
+                              "group": "navigation",
+                              "id": "open"
+                            },
+                            {
+                              "group": "sharing",
+                              "id": "copy_id"
+                            },
+                            {
+                              "group": "sharing",
+                              "id": "copy_url"
+                            },
+                            {
+                              "group": "sharing",
+                              "id": "copy_cli"
+                            },
+                            {
+                              "group": "sharing",
+                              "id": "share"
+                            },
+                            {
+                              "group": "support",
+                              "id": "report"
+                            }
+                          ],
+                          "authorization_revision": null,
+                          "device_id": null,
+                          "href": "/publishers/account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "object_name": null,
+                          "object_version": null,
+                          "revision": null,
+                          "subject": {
+                            "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                            "kind": "publisher"
+                          },
+                          "visibility": null
+                        }
+                      ],
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/EntityActionMenus"
+                }
+              }
+            },
+            "description": "Read ordered entity menus for the current principal.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "Read ordered entity menus for the current principal."
       }
     },
     "/v1/grants": {

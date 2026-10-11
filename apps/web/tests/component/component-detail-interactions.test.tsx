@@ -1,3 +1,5 @@
+import { entityMenuResult, catalogActions } from "../entity-menu-fixture";
+import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -77,12 +79,13 @@ describe("component detail interactions", () => {
     await user.click(screen.getByRole("button", { name: "More actions" }));
     const menu = await screen.findByRole("menu");
     expect(getComputedStyle(document.body).overflow).not.toBe("hidden");
+    await within(menu).findByRole("menuitem", { name: "Copy ID" });
     const items = within(menu).getAllByRole("menuitem");
-    expect(items[0]).toHaveAccessibleName("Like");
+    expect(items[0]).toHaveAccessibleName("Open details");
     expect(within(menu).getByRole("menuitem", { name: /Copy ID/ })).toBeVisible();
     expect(within(menu).getByRole("menuitem", { name: /Copy URL/ })).toBeVisible();
     expect(within(menu).getByRole("menuitem", { name: /Copy CLI command/ })).toBeVisible();
-    expect(within(menu).getByRole("menuitem", { name: /Edit bio and media/ })).toBeVisible();
+    expect(within(menu).getByRole("menuitem", { name: /Edit public presentation/ })).toBeVisible();
     expect(within(menu).getByRole("menuitem", { name: /Report component/ })).toBeVisible();
 
     await user.click(within(menu).getByRole("menuitem", { name: /Copy ID/ }));
@@ -414,7 +417,7 @@ describe("component detail interactions", () => {
     await user.click(more);
     const menu = await screen.findByRole("menu");
     expect(menu.className).toContain("max-w-[min(20rem,calc(100vw-1.5rem))]");
-    expect(within(menu).getByRole("menuitem", { name: /Copy ID/ })).toHaveClass("min-h-11");
+    expect(await within(menu).findByRole("menuitem", { name: /Copy ID/ })).toHaveClass("min-h-11");
   });
 
   it("shows a deterministic fallback when media cannot load", () => {
@@ -437,3 +440,15 @@ describe("component detail interactions", () => {
     expect(screen.getAllByText("Signed storage").length).toBeGreaterThan(0);
   });
 });
+
+vi.mock("@/lib/entity-action-query", () => ({
+  queryEntityActionMenu: vi.fn((subject: EntityActionSubject) =>
+    Promise.resolve(
+      entityMenuResult(
+        subject,
+        [...catalogActions.slice(0, -1), "edit_presentation", "report"],
+        `/catalog/components/${subject.id}`,
+      ),
+    ),
+  ),
+}));

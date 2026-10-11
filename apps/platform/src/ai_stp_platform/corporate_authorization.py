@@ -75,13 +75,13 @@ async def role_permissions(
     return {role: frozenset(grants[role]) for role in wanted}
 
 
-async def _principal_gate(
+async def corporate_principal_active(
     session: AsyncSession,
     *,
     organization_id: str,
     principal_type: PrincipalType,
     principal_id: str,
-    authorization_revision: int | None,
+    authorization_revision: int | None = None,
 ) -> bool:
     """The prologue every evaluation shares: active corporate organization,
     matching policy revision, and an active principal record."""
@@ -288,7 +288,7 @@ async def corporate_effective_permissions(
     stale policy revision); an empty set means the principal is active but
     holds nothing at this scope. Bounded queries total — bindings, direct
     grants, role grants."""
-    if not await _principal_gate(
+    if not await corporate_principal_active(
         session,
         organization_id=organization_id,
         principal_type=principal_type,
@@ -359,7 +359,7 @@ async def explain_effective_permissions(
     so the explanation can never cite a source the evaluator ignored. Each
     record carries the permission subset it contributes at this scope —
     callers intersect per permission instead of trusting a role name."""
-    if not await _principal_gate(
+    if not await corporate_principal_active(
         session,
         organization_id=organization_id,
         principal_type=principal_type,
@@ -525,7 +525,7 @@ async def bulk_effective_permissions(
     role — the count does not grow with `scope_ids`. `None`
     mirrors the single evaluator's gate denial: callers should treat it as
     "denied for every id", not "no data"."""
-    if not await _principal_gate(
+    if not await corporate_principal_active(
         session,
         organization_id=organization_id,
         principal_type=principal_type,

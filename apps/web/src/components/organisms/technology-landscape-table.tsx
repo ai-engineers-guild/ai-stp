@@ -4,7 +4,6 @@ import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
-import { MenuItem } from "@/components/atoms/menu";
 import { Select } from "@/components/atoms/select";
 import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
 import { PagePager } from "@/components/molecules/page-pager";
@@ -18,19 +17,13 @@ export function TechnologyLandscapeTable({ state }: { state: LandscapeState }) {
   const { t, w, setActive, sort, setSort, classification, shown, landscape } = state;
   const rowMenu = (row: TechnologyLandscapeRow) => (
     <EntityDetailMenu
+      subject={{ kind: "technology", id: row.technology.technology_id }}
+      entityId={row.technology.technology_id}
+      shareHref={`/corporate/technologies/${row.technology.technology_id}`}
+      reportTarget={`corporate:technologies:${row.technology.technology_id}`}
       moreLabel={h("moreActions")}
       openLabel={w("openTechnology", { name: row.technology.name })}
       openHref={`/corporate/technologies/${encodeURIComponent(row.technology.technology_id)}`}
-      adminItems={
-        <MenuItem
-          onSelect={() => {
-            setActive(row);
-          }}
-        >
-          <Icon name="eye" size="sm" />
-          {w("preview")}
-        </MenuItem>
-      }
     />
   );
   return (
@@ -122,7 +115,21 @@ export function TechnologyLandscapeTable({ state }: { state: LandscapeState }) {
                         : w("standard")}
                   </Badge>
                 </Td>
-                <Td>{rowMenu(row)}</Td>
+                <Td>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={w("preview")}
+                      onClick={() => {
+                        setActive(row);
+                      }}
+                    >
+                      <Icon name="eye" size="sm" />
+                    </Button>
+                    {rowMenu(row)}
+                  </div>
+                </Td>
               </Tr>
             ))}
           </TBody>

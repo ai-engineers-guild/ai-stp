@@ -7575,6 +7575,135 @@ export type EmployeeTechnologyView = {
   [key: string]: unknown;
 };
 
+/**
+ * EntityAction
+ */
+export type EntityAction = {
+  /**
+   * Group
+   */
+  group: "navigation" | "sharing" | "management" | "danger" | "support";
+  /**
+   * Id
+   */
+  id: string;
+  [key: string]: unknown;
+};
+
+/**
+ * EntityActionMenu
+ */
+export type EntityActionMenu = {
+  /**
+   * Actions
+   */
+  actions: Array<EntityAction>;
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | null;
+  /**
+   * Device Id
+   */
+  device_id: string | null;
+  /**
+   * Href
+   */
+  href: string | null;
+  /**
+   * Object Name
+   */
+  object_name: string | null;
+  /**
+   * Object Version
+   */
+  object_version: string | null;
+  /**
+   * Revision
+   */
+  revision: number | null;
+  subject: EntityActionSubject;
+  /**
+   * Visibility
+   */
+  visibility: "public" | "private" | null;
+  [key: string]: unknown;
+};
+
+/**
+ * EntityActionMenus
+ */
+export type EntityActionMenus = {
+  /**
+   * Items
+   */
+  items: Array<EntityActionMenu>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * EntityActionQuery
+ */
+export type EntityActionQuery = {
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Subjects
+   */
+  subjects: Array<EntityActionSubject>;
+};
+
+/**
+ * EntityActionSubject
+ */
+export type EntityActionSubject = {
+  /**
+   * Coordinate
+   */
+  coordinate?: string | null;
+  /**
+   * Finding Kind
+   */
+  finding_kind?: "package" | "image" | "executable" | "configuration" | "alias" | null;
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Kind
+   */
+  kind:
+    | "component"
+    | "setup"
+    | "team"
+    | "project"
+    | "member"
+    | "technology"
+    | "category"
+    | "area"
+    | "job_title"
+    | "role"
+    | "grant"
+    | "invitation"
+    | "finding"
+    | "publisher"
+    | "scan";
+  /**
+   * Organization Id
+   */
+  organization_id?: string | null;
+  /**
+   * Usage Context
+   */
+  usage_context?: "production" | "development" | "testing" | "browser_support" | null;
+};
+
 export type EntityId = string;
 
 /**
@@ -10016,7 +10145,7 @@ export type OwnerObjectCapabilities = {
   /**
    * Capabilities
    */
-  capabilities: Array<"edit" | "edit_presentation" | "delete">;
+  capabilities: Array<"edit" | "edit_presentation" | "delete" | "manage_access">;
   object_kind: ObjectKind;
   /**
    * Schema Version
@@ -31927,6 +32056,50 @@ export type RevokeDeviceResponses = {
 };
 
 export type RevokeDeviceResponse = RevokeDeviceResponses[keyof RevokeDeviceResponses];
+
+export type QueryEntityActionsData = {
+  body: EntityActionQuery;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/entity-actions/query";
+};
+
+export type QueryEntityActionsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type QueryEntityActionsError = QueryEntityActionsErrors[keyof QueryEntityActionsErrors];
+
+export type QueryEntityActionsResponses = {
+  /**
+   * Read ordered entity menus for the current principal.
+   */
+  200: EntityActionMenus;
+};
+
+export type QueryEntityActionsResponse =
+  QueryEntityActionsResponses[keyof QueryEntityActionsResponses];
 
 export type ListGrantsData = {
   body?: never;

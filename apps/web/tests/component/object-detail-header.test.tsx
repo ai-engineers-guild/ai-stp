@@ -1,4 +1,7 @@
-import { render, screen, within } from "@testing-library/react";
+import { entityMenuResult, catalogActions } from "../entity-menu-fixture";
+import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
+import { render } from "../render-with-intl";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -216,3 +219,9 @@ describe("object detail header and frame", () => {
     );
   });
 });
+
+vi.mock("@/lib/entity-action-query", () => ({
+  queryEntityActionMenu: vi.fn((subject: EntityActionSubject) =>
+    Promise.resolve(entityMenuResult(subject, catalogActions, `/catalog/components/${subject.id}`)),
+  ),
+}));

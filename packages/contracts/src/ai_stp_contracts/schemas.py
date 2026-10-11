@@ -220,6 +220,7 @@ from ai_stp_contracts.dashboard import (
     DashboardViewRequest,
 )
 from ai_stp_contracts.deep_links import DeepLinkView
+from ai_stp_contracts.entity_actions import EntityActionMenus, EntityActionQuery
 from ai_stp_contracts.estate_release import EstateRelease
 from ai_stp_contracts.evaluation import (
     ComponentEvalPlan,
@@ -901,6 +902,8 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "owner-object-list-response": OwnerObjectListResponse,
     "owner-object-summary": OwnerObjectSummary,
     "owner-object-capabilities": OwnerObjectCapabilities,
+    "entity-action-query": EntityActionQuery,
+    "entity-action-menus": EntityActionMenus,
     "owner-object-detail": OwnerObjectDetail,
     "owner-version-summary": OwnerVersionSummary,
     "owner-version-detail": OwnerVersionDetail,

@@ -1,10 +1,12 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { AccessWorkspace } from "@/components/organisms/access-workspace";
+import type { AccessGrantResponse } from "@/lib/api/generated/types.gen";
 import type { AccessUser } from "@/components/organisms/access-workspace";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { ApiError } from "@/lib/api/errors";
 import { listGrants } from "@/lib/api/grants";
+import { loadEntityActionMenus } from "@/actions/entity-actions";
 import { listOwnerObjects } from "@/lib/api/owner";
 import { loadPublisherProfiles } from "@/lib/catalog-load";
 import { readCsrfToken } from "@/lib/auth/session";
@@ -20,7 +22,7 @@ export default async function AccessPage({ params, searchParams }: PageProps) {
   const { locale } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/access`);
+  const session = await requireSession(locale, `/${locale}/access`);
   const t = await getTranslations("access");
   const tc = await getTranslations("common");
   const token = await sessionCookieValue();
@@ -38,6 +40,8 @@ export default async function AccessPage({ params, searchParams }: PageProps) {
     }
     throw error;
   }
+
+  const canCreate = await mayCreateGrant(objectKind, stableId);
 
   let objectName: string | null = null;
   let objectVersion: string | null = null;
@@ -60,13 +64,17 @@ export default async function AccessPage({ params, searchParams }: PageProps) {
       (!objectKind || item.object_kind === objectKind) &&
       (!stableId || item.stable_id === stableId),
   );
-  const profiles = await loadPublisherProfiles(scopedGrants.map((item) => item.grantee_account_id));
-  const users: AccessUser[] = scopedGrants.map((item) => ({
-    grantId: item.grant_id,
-    accountId: item.grantee_account_id,
-    displayName: profiles[item.grantee_account_id]?.displayName ?? null,
-    avatarUrl: profiles[item.grantee_account_id]?.avatarUrl ?? null,
-  }));
+  const incoming = scopedGrants.filter(
+    (item) =>
+      item.grantee_account_id === session.accountId && item.owner_account_id !== session.accountId,
+  );
+  const outgoing = scopedGrants.filter((item) => item.owner_account_id === session.accountId);
+  const profiles = await loadPublisherProfiles([
+    ...outgoing.map((item) => item.grantee_account_id),
+    ...incoming.map((item) => item.owner_account_id),
+  ]);
+  const users = outgoing.map((item) => grantUser(item, profiles, false));
+  const incomingUsers = incoming.map((item) => grantUser(item, profiles, true));
 
   if (!csrf) {
     return <StatePanel kind="error" title={tc("sessionExpired")} description={tc("login")} />;
@@ -80,7 +88,7 @@ export default async function AccessPage({ params, searchParams }: PageProps) {
       </div>
       {objectKind && stableId ? (
         <Link
-          href={`/objects/${objectKind}/${stableId}`}
+          href={`/catalog/${objectKind === "component" ? "components" : "setups"}/${stableId}`}
           className="border-border bg-muted/20 hover:bg-muted/40 focus-visible:ring-ring block max-w-xl rounded-lg border p-4 focus-visible:ring-2 focus-visible:outline-none"
         >
           <p className="font-medium">{objectName ?? stableId}</p>
@@ -90,7 +98,10 @@ export default async function AccessPage({ params, searchParams }: PageProps) {
         </Link>
       ) : null}
       <AccessWorkspace
+        canCreate={canCreate}
         users={users}
+        incomingUsers={incomingUsers}
+        incomingLabel={t("receivedAccess")}
         csrfToken={csrf}
         labels={{
           create: t("createInvitation"),
@@ -124,4 +135,26 @@ export default async function AccessPage({ params, searchParams }: PageProps) {
       />
     </div>
   );
+}
+
+async function mayCreateGrant(kind: "component" | "setup" | undefined, id: string | undefined) {
+  if (!kind || !id) return true;
+  const { menus } = await loadEntityActionMenus([{ kind, id }]);
+  return menus.items[0]?.actions.some((action) => action.id === "manage_access") ?? false;
+}
+function grantUser(
+  item: AccessGrantResponse,
+  profiles: Awaited<ReturnType<typeof loadPublisherProfiles>>,
+  received: boolean,
+): AccessUser {
+  const accountId = received ? item.owner_account_id : item.grantee_account_id;
+  return {
+    grantId: item.grant_id,
+    objectKind: item.object_kind,
+    stableId: item.stable_id,
+    major: item.major,
+    accountId,
+    displayName: profiles[accountId]?.displayName ?? null,
+    avatarUrl: profiles[accountId]?.avatarUrl ?? null,
+  };
 }

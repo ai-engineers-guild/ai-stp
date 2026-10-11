@@ -203,33 +203,15 @@ function DirectoryActions({
   href: string;
   labels: Labels;
 }) {
-  const actionKind =
-    resource === "members"
-      ? "member"
-      : resource === "teams"
-        ? "team"
-        : resource === "projects"
-          ? "project"
-          : resource === "technologies"
-            ? "technology"
-            : null;
-  const canUpdate = actionKind
-    ? item.available_actions?.includes(`${actionKind}.update`) === true
-    : false;
-  const canEditPresentation = item.available_actions?.includes("entity_profile.update") === true;
-  const baseHref = href.replace(/([?#].*)?$/, "");
-  const presentationHref = `${baseHref}/edit${href.includes("?") ? href.slice(href.indexOf("?")) : ""}`;
   return (
     <EntityDetailMenu
       moreLabel={labels.moreActions}
       openLabel={labels.openDetails}
       openHref={href}
       editLabel={labels.edit}
-      editHref={canUpdate ? href : undefined}
       editPresentationLabel={labels.editPresentation}
-      editPresentationHref={canEditPresentation ? presentationHref : undefined}
       entityId={item.id}
-      shareHref={baseHref}
+      shareHref={href.split("?")[0]}
       copyIdLabel={labels.copyId}
       copyUrlLabel={labels.copyUrl}
       shareLabel={labels.share}

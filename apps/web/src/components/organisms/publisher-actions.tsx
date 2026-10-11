@@ -1,7 +1,8 @@
 "use client";
 import { toast } from "sonner";
 import { Button } from "@/components/atoms/button";
-import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/atoms/menu";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/atoms/menu";
+import { EntityActionItems } from "@/components/organisms/entity-action-items";
 import { useRouter } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";
 export function PublisherActions({
@@ -38,34 +39,62 @@ export function PublisherActions({
         </Button>
       </MenuTrigger>
       <MenuContent>
-        <MenuItem onSelect={() => void copy(window.location.href)}>
-          <Icon name="link" size="sm" /> {labels.copyLink}
-        </MenuItem>
-        <MenuItem onSelect={() => void copy(accountId)}>
-          <Icon name="copy" size="sm" /> {labels.copyId}
-        </MenuItem>
-        {cliCommand ? (
-          <MenuItem onSelect={() => void copy(cliCommand)}>
-            <Icon name="copy" size="sm" /> {labels.useCli}
-          </MenuItem>
-        ) : null}
-        {editHref && labels.editProfile ? (
-          <MenuItem
-            onSelect={() => {
-              router.push(editHref);
-            }}
-          >
-            <Icon name="edit" size="sm" /> {labels.editProfile}
-          </MenuItem>
-        ) : null}
-        <MenuSeparator />
-        <MenuItem
-          onSelect={() => {
-            router.push(reportHref);
+        <EntityActionItems
+          subject={{ kind: "publisher", id: accountId }}
+          entries={{
+            copy_url: (
+              <MenuItem
+                onSelect={() => {
+                  void copy(window.location.href);
+                }}
+              >
+                <Icon name="link" size="sm" />
+                {labels.copyLink}
+              </MenuItem>
+            ),
+            copy_id: (
+              <MenuItem
+                onSelect={() => {
+                  void copy(accountId);
+                }}
+              >
+                <Icon name="copy" size="sm" />
+                {labels.copyId}
+              </MenuItem>
+            ),
+            copy_cli: (
+              <MenuItem
+                disabled={!cliCommand}
+                onSelect={() => {
+                  if (cliCommand) void copy(cliCommand);
+                }}
+              >
+                <Icon name="copy" size="sm" />
+                {labels.useCli}
+              </MenuItem>
+            ),
+            edit_profile: (
+              <MenuItem
+                onSelect={() => {
+                  router.push(editHref ?? "/account/profile/edit");
+                }}
+              >
+                <Icon name="edit" size="sm" />
+                {labels.editProfile}
+              </MenuItem>
+            ),
+            report: (
+              <MenuItem
+                onSelect={() => {
+                  router.push(reportHref);
+                }}
+              >
+                <Icon name="flag" size="sm" />
+                {labels.report}
+              </MenuItem>
+            ),
           }}
-        >
-          <Icon name="flag" size="sm" /> {labels.report}
-        </MenuItem>
+        />
       </MenuContent>
     </Menu>
   );

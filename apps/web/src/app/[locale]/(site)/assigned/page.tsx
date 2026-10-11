@@ -6,8 +6,6 @@ import { CatalogResults } from "@/components/organisms/catalog-results";
 import { assignmentCardItem } from "@/lib/assignment-card";
 import { listCatalogAuthors, listExternalProducts } from "@/lib/api/catalog";
 import { readCorporateCatalogAssignments, readCorporateContext } from "@/lib/api/corporate";
-import { readCorporateDirectoryPages } from "@/lib/api/corporate";
-import type { CorporateCatalogOwnerMember } from "@/lib/api/corporate-catalog-ownership";
 import { ApiError } from "@/lib/api/errors";
 import type { CorporateCatalogAssignment } from "@/lib/api/generated/types.gen";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
@@ -15,7 +13,6 @@ import { readCsrfToken } from "@/lib/auth/session";
 import { loadPublisherProfiles, mapPool, readAssignedObjectSummary } from "@/lib/catalog-load";
 import { catalogQueryToRecord, parseCatalogSearchParams } from "@/lib/catalog-query";
 import { catalogResultsLabels } from "@/lib/catalog-results-labels";
-import { probeObjectMenu, type ObjectMenuOrgContext } from "@/lib/object-menu";
 import { filterAndSortOwnerObjects, ownerCatalogItem } from "@/lib/owner-catalog";
 import { OwnerObjectActions } from "@/components/organisms/owner-object-actions";
 
@@ -96,40 +93,8 @@ export default async function AssignedObjectsPage({ params, searchParams }: Page
   );
 
   const csrfToken = (await readCsrfToken()) ?? "";
-  let membersPromise: Promise<CorporateCatalogOwnerMember[] | null> | null = null;
-  const orgContext: ObjectMenuOrgContext | undefined = corporateContext
-    ? {
-        organizationId: corporateContext.organization.organization_id,
-        authorizationRevision: corporateContext.organization.authorization_revision,
-        csrfToken,
-        members: () => {
-          membersPromise ??= readCorporateDirectoryPages(
-            token,
-            corporateContext.organization.organization_id,
-            { resource: "members", include_archived: true },
-          )
-            .then((result) =>
-              result.items
-                .filter((member) => member.state === "active")
-                .map(({ id, name, state }) => ({ id, name, state })),
-            )
-            .catch(() => null);
-          return membersPromise;
-        },
-      }
-    : undefined;
-  const menuProbes = await mapPool(items, 6, (item) => {
-    const card = ownerCatalogItem(item);
-    const version =
-      card?.latest_version ?? (item.latest_version === "latest" ? null : item.latest_version);
-    return probeObjectMenu(token, item.object_kind, item.stable_id, version, orgContext);
-  });
-  const probeByKey = new Map(
-    items.map((item, index) => [`${item.object_kind}:${item.stable_id}`, menuProbes[index]]),
-  );
   const ownerActions = Object.fromEntries(
     items.map((item) => {
-      const probe = probeByKey.get(`${item.object_kind}:${item.stable_id}`);
       const card = ownerCatalogItem(item);
       const version =
         card?.latest_version ?? (item.latest_version === "latest" ? null : item.latest_version);
@@ -146,8 +111,6 @@ export default async function AssignedObjectsPage({ params, searchParams }: Page
           visibility="public"
           locale={locale}
           likesCount={card?.likes_count ?? 0}
-          capabilities={probe?.capabilities ?? []}
-          {...(probe?.ownerEdit ? { ownerEdit: probe.ownerEdit } : {})}
         />,
       ];
     }),

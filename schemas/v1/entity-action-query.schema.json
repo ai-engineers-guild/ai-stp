@@ -1,0 +1,132 @@
+{
+  "$defs": {
+    "EntityActionSubject": {
+      "additionalProperties": false,
+      "properties": {
+        "coordinate": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Coordinate"
+        },
+        "finding_kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "package",
+                "image",
+                "executable",
+                "configuration",
+                "alias"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finding Kind"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "component",
+            "setup",
+            "team",
+            "project",
+            "member",
+            "technology",
+            "category",
+            "area",
+            "job_title",
+            "role",
+            "grant",
+            "invitation",
+            "finding",
+            "publisher",
+            "scan"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "organization_id": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Organization Id"
+        },
+        "usage_context": {
+          "anyOf": [
+            {
+              "enum": [
+                "production",
+                "development",
+                "testing",
+                "browser_support"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Usage Context"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "EntityActionSubject",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:entity-action-query",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "subjects": {
+      "items": {
+        "$ref": "#/$defs/EntityActionSubject"
+      },
+      "maxItems": 256,
+      "minItems": 1,
+      "title": "Subjects",
+      "type": "array"
+    }
+  },
+  "required": [
+    "subjects"
+  ],
+  "title": "EntityActionQuery",
+  "type": "object"
+}

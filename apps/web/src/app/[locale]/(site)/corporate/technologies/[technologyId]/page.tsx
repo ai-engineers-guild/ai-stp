@@ -5,7 +5,6 @@ import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { DetailAccordion } from "@/components/molecules/detail-accordion";
 import { CorporateEntityDetail } from "@/components/organisms/corporate-entity-detail";
 import { CorporateCatalogAssignments } from "@/components/organisms/corporate-catalog-assignments";
-import { LocalizedResourceDeleteMenuItem } from "@/components/organisms/localized-corporate-resource-actions";
 import { CorporateRelationSection } from "@/components/organisms/corporate-relation-section";
 import { relationSectionLabels } from "@/lib/corporate-directory-types";
 import { readCorporatePresentation } from "@/lib/api/corporate-detail";
@@ -69,18 +68,7 @@ export default async function TechnologyDetailPage({
         resource="technologies"
         resourceId={technologyId}
         title={technology.name}
-        adminMenu={
-          technology.available_actions.includes("technology.delete") ? (
-            <LocalizedResourceDeleteMenuItem
-              csrfToken={(await readCsrfToken()) ?? ""}
-              organizationId={organizationId}
-              authorizationRevision={workspace.organization.authorization_revision}
-              resource="technologies"
-              resourceId={technologyId}
-              revision={technology.revision}
-            />
-          ) : null
-        }
+
         {...(technology.lifecycle === "active"
           ? {}
           : { state: t(`values.${technology.lifecycle}`) })}

@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
-from ai_stp_api.slices.corporate import entity_profiles, profile_uploads, service
+from ai_stp_api.slices.corporate import entity_profiles, profile_uploads, service, subject_access
 from ai_stp_api.slices.profile import service as profile_service
 from ai_stp_contracts.corporate_profiles import (
     EntityProfileFields,
@@ -74,8 +74,9 @@ async def test_edit_authority(
 ) -> None:
     db = AsyncMock()
     db.scalar.side_effect = ["technology" if owner else None]
+    monkeypatch.setattr(subject_access, "corporate_principal_active", AsyncMock(return_value=True))
     monkeypatch.setattr(
-        entity_profiles, "has_corporate_permission", AsyncMock(return_value=administrator)
+        subject_access, "has_corporate_permission", AsyncMock(return_value=administrator)
     )
     assert (
         await entity_profiles.can_edit_profile(
@@ -258,7 +259,8 @@ async def test_lead_lookup_is_tenant_and_active_team_scoped(
 ) -> None:
     db = AsyncMock()
     db.scalar.return_value = None
-    monkeypatch.setattr(entity_profiles, "has_corporate_permission", AsyncMock(return_value=False))
+    monkeypatch.setattr(subject_access, "has_corporate_permission", AsyncMock(return_value=False))
+    monkeypatch.setattr(subject_access, "corporate_principal_active", AsyncMock(return_value=True))
     tenant, actor = new_id("organization"), new_id("account")
     assert not await entity_profiles.can_edit_profile(
         db,

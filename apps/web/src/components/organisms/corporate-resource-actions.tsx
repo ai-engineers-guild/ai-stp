@@ -1,5 +1,7 @@
 "use client";
 
+import { EntityActionItems } from "@/components/organisms/entity-action-items";
+import { toast } from "sonner";
 import { Select } from "@/components/atoms/select";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -61,7 +63,7 @@ export function CorporateResourceDeleteMenuItem({
   csrfToken: string;
   organizationId: string;
   authorizationRevision: number;
-  resource: Props["resource"];
+  resource: Props["resource"] | "technology-categories" | "technology-areas";
   resourceId: string;
   revision: number;
   label: string;
@@ -69,6 +71,8 @@ export function CorporateResourceDeleteMenuItem({
 }) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
+  const common = useTranslations("common");
+  const retry = useRef<string | null>(null);
 
   return (
     <MenuItem
@@ -77,20 +81,28 @@ export function CorporateResourceDeleteMenuItem({
       onSelect={(event) => {
         event.preventDefault();
         if (!window.confirm(confirmLabel)) return;
+        retry.current ??= crypto.randomUUID();
         startTransition(async () => {
-          const result = await corporateMutation({
-            csrfToken,
-            organizationId,
-            path: `/v1/corporate/organizations/${organizationId}/${resource}/${resourceId}`,
-            method: "DELETE",
-            body: {
-              schema_version: 1,
-              expected_revision: revision,
-              authorization_revision: authorizationRevision,
-              idempotency_key: crypto.randomUUID(),
-            },
-          });
-          if (result.ok) router.refresh();
+          try {
+            const result = await corporateMutation({
+              csrfToken,
+              organizationId,
+              path: `/v1/corporate/organizations/${organizationId}/${resource}/${resourceId}`,
+              method: "DELETE",
+              body: {
+                schema_version: 1,
+                expected_revision: revision,
+                authorization_revision: authorizationRevision,
+                idempotency_key: retry.current,
+              },
+            });
+            if (result.ok) {
+              retry.current = null;
+              router.refresh();
+            } else toast.error(result.message);
+          } catch {
+            toast.error(common("requestFailed"));
+          }
         });
       }}
     >
@@ -113,8 +125,6 @@ export function CorporateResourceActions({
   rolePermissions,
   state,
   revision,
-  permissions,
-  availableActions,
   roles = [],
   labels,
 }: Props) {
@@ -130,7 +140,6 @@ export function CorporateResourceActions({
   const [message, setMessage] = useState<string | null>(null);
   const retry = useRef<{ effect: string; key: string } | null>(null);
   const endpoint = `/v1/corporate/organizations/${organizationId}/${resource}/${resourceId}`;
-  const actionSet = availableActions ?? permissions;
   const actionResource =
     resource === "members"
       ? "member"
@@ -138,9 +147,9 @@ export function CorporateResourceActions({
         ? "role"
         : resource === "technologies"
           ? "technology"
-          : resource.slice(0, -1);
-  const canUpdate = actionSet.includes(`${actionResource}.update`);
-  const canDelete = actionSet.includes(`${actionResource}.delete`);
+          : resource === "projects"
+            ? "project"
+            : "team";
 
   function submit(method: "PATCH" | "DELETE", body: Record<string, unknown>) {
     const effect = JSON.stringify({ method, body });
@@ -172,7 +181,7 @@ export function CorporateResourceActions({
 
   return (
     <section className="space-y-4">
-      {!editing && (canUpdate || canDelete) && (
+      {!editing && (
         <Menu modal={false}>
           <MenuTrigger asChild>
             <Button variant="outline" size="icon" aria-label={labels.title}>
@@ -180,38 +189,43 @@ export function CorporateResourceActions({
             </Button>
           </MenuTrigger>
           <MenuContent>
-            {canUpdate && (
-              <MenuItem
-                onSelect={() => {
-                  setNextPermissions((rolePermissions ?? []).join(", "));
-                  setNextName(name);
-                  setNextRole(role ?? "staff");
-                  setNextState(state);
-                  setEditing(true);
-                }}
-              >
-                {t("edit")}
-              </MenuItem>
-            )}
-            {canDelete && (
-              <MenuItem
-                className="text-destructive"
-                onSelect={() => {
-                  if (window.confirm(labels.confirmDelete))
-                    submit("DELETE", {
-                      schema_version: 1,
-                      expected_revision: revision,
-                      authorization_revision: authorizationRevision,
-                    });
-                }}
-              >
-                {labels.delete}
-              </MenuItem>
-            )}
+            <EntityActionItems
+              subject={{ kind: actionResource, id: resourceId, organization_id: organizationId }}
+              entries={{
+                edit: (
+                  <MenuItem
+                    onSelect={() => {
+                      setNextPermissions((rolePermissions ?? []).join(", "));
+                      setNextName(name);
+                      setNextRole(role ?? "staff");
+                      setNextState(state);
+                      setEditing(true);
+                    }}
+                  >
+                    {t("edit")}
+                  </MenuItem>
+                ),
+                delete: (
+                  <MenuItem
+                    className="text-destructive"
+                    onSelect={() => {
+                      if (window.confirm(labels.confirmDelete))
+                        submit("DELETE", {
+                          schema_version: 1,
+                          expected_revision: revision,
+                          authorization_revision: authorizationRevision,
+                        });
+                    }}
+                  >
+                    {labels.delete}
+                  </MenuItem>
+                ),
+              }}
+            />
           </MenuContent>
         </Menu>
       )}
-      {canUpdate && editing ? (
+      {editing ? (
         <form
           className="space-y-3"
           onSubmit={(event) => {

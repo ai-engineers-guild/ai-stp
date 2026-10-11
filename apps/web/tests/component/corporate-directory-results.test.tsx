@@ -1,3 +1,5 @@
+import { entityMenuResult, publicActions } from "../entity-menu-fixture";
+import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -7,7 +9,10 @@ vi.mock("@/lib/i18n/navigation", () => ({
   useRouter: () => ({ push }),
   usePathname: () => window.location.pathname.replace(/^\/en/, "") || "/",
 }));
-vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
+vi.mock("next-intl", () => ({
+  useLocale: () => "en",
+  useTranslations: () => (key: string) => key,
+}));
 import {
   CorporateDirectoryResults,
   matchesDirectoryFilters,
@@ -90,7 +95,7 @@ describe("corporate directory filters", () => {
     );
     expect(screen.getByRole("menuitem", { name: "edit" })).toHaveAttribute(
       "href",
-      "/corporate/projects/project",
+      "/corporate/projects/project/edit",
     );
     expect(screen.getByRole("menuitem", { name: "editPresentation" })).toHaveAttribute(
       "href",
@@ -232,3 +237,17 @@ describe("corporate directory filters", () => {
     expect(screen.queryByText("—")).not.toBeInTheDocument();
   });
 });
+
+vi.mock("@/lib/entity-action-query", () => ({
+  queryEntityActionMenu: vi.fn((subject: EntityActionSubject) =>
+    Promise.resolve(
+      entityMenuResult(
+        subject,
+        subject.kind === "project"
+          ? [...publicActions.slice(0, -1), "edit", "edit_presentation", "report"]
+          : publicActions,
+        `/corporate/${subject.kind === "project" ? "projects" : "teams"}/${subject.id}`,
+      ),
+    ),
+  ),
+}));

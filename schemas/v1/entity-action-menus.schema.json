@@ -1,0 +1,273 @@
+{
+  "$defs": {
+    "EntityAction": {
+      "additionalProperties": true,
+      "properties": {
+        "group": {
+          "enum": [
+            "navigation",
+            "sharing",
+            "management",
+            "danger",
+            "support"
+          ],
+          "title": "Group",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "group",
+        "id"
+      ],
+      "title": "EntityAction",
+      "type": "object"
+    },
+    "EntityActionMenu": {
+      "additionalProperties": true,
+      "properties": {
+        "actions": {
+          "items": {
+            "$ref": "#/$defs/EntityAction"
+          },
+          "title": "Actions",
+          "type": "array"
+        },
+        "authorization_revision": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Authorization Revision"
+        },
+        "device_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Device Id"
+        },
+        "href": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Href"
+        },
+        "object_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Object Name"
+        },
+        "object_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Object Version"
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revision"
+        },
+        "subject": {
+          "$ref": "#/$defs/EntityActionSubject"
+        },
+        "visibility": {
+          "anyOf": [
+            {
+              "enum": [
+                "public",
+                "private"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Visibility"
+        }
+      },
+      "required": [
+        "actions",
+        "authorization_revision",
+        "device_id",
+        "href",
+        "object_name",
+        "object_version",
+        "revision",
+        "subject",
+        "visibility"
+      ],
+      "title": "EntityActionMenu",
+      "type": "object"
+    },
+    "EntityActionSubject": {
+      "additionalProperties": false,
+      "properties": {
+        "coordinate": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Coordinate"
+        },
+        "finding_kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "package",
+                "image",
+                "executable",
+                "configuration",
+                "alias"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finding Kind"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "component",
+            "setup",
+            "team",
+            "project",
+            "member",
+            "technology",
+            "category",
+            "area",
+            "job_title",
+            "role",
+            "grant",
+            "invitation",
+            "finding",
+            "publisher",
+            "scan"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "organization_id": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Organization Id"
+        },
+        "usage_context": {
+          "anyOf": [
+            {
+              "enum": [
+                "production",
+                "development",
+                "testing",
+                "browser_support"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Usage Context"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "EntityActionSubject",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:entity-action-menus",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/EntityActionMenu"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "items",
+    "schema_version"
+  ],
+  "title": "EntityActionMenus",
+  "type": "object"
+}

@@ -1,7 +1,7 @@
 "use client";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/atoms/badge";
-import { CatalogChoiceMenu } from "@/components/molecules/catalog-choice-menu";
+import { EntityDetailMenu } from "@/components/organisms/entity-detail-menu";
 import {
   PeopleCheckbox,
   PeopleRole,
@@ -14,7 +14,7 @@ import type {
   CorporateInvitation,
   CorporateMember,
 } from "@/lib/api/generated/types.gen";
-import { isOutstandingInvitation, invitationDisplayState } from "@/lib/corporate-invitation-state";
+import { invitationDisplayState } from "@/lib/corporate-invitation-state";
 export function InvitationTable({
   rows,
   context,
@@ -23,7 +23,6 @@ export function InvitationTable({
   toggle,
   selectPage,
   now,
-  canInvite,
   revoke,
 }: {
   rows: CorporateInvitation[];
@@ -125,25 +124,24 @@ export function InvitationTable({
                   {row.expires_at.slice(0, 10)}
                 </Td>
                 <Td className="text-right">
-                  {canInvite && isOutstandingInvitation(row, now) ? (
-                    <CatalogChoiceMenu
-                      variant="ghost"
-                      icon="more"
-                      label={t("personActions", { name: row.display_name })}
-                      align="end"
-                      options={[
-                        {
-                          label: t("revokeInvitation"),
-                          onSelect: () => {
-                            revoke(row);
-                          },
-                          icon: "close",
+                  <EntityDetailMenu
+                    moreLabel={t("personActions", { name: row.display_name })}
+                    subject={{
+                      kind: "invitation",
+                      id: row.invitation_id,
+                      organization_id: context.organization.organization_id,
+                    }}
+                    choices={[
+                      {
+                        actionId: "revoke",
+                        label: t("revokeInvitation"),
+                        icon: "close",
+                        onSelect: () => {
+                          revoke(row);
                         },
-                      ]}
-                    />
-                  ) : (
-                    <span className="text-muted-foreground px-4">—</span>
-                  )}
+                      },
+                    ]}
+                  />
                 </Td>
               </Tr>
             );

@@ -164,3 +164,13 @@ server filters (actor/action/target_table/outcome/date/q) with offset
 pagination and a bounded CSV/JSON export gated on `audit.export`. Security
 keeps `SwitchRow` + `SettingsSection` + `InfoNote` composition for the
 email-domain policy.
+
+## Server entity menus
+
+`EntityActionItems` is the shared organism inside existing kit `MenuContent`.
+The previous `EntityDetailMenu`, `CatalogItemMenu` and object overflow controls
+could render entries but could not fetch one authoritative ordered projection,
+reload permissions on opening, or expose a failed authorization read for retry.
+This organism composes the existing menu, link, icon, report and mutation controls;
+it introduces no primitive, tokens or dependency. Story: `UI Kit/Organisms/EntityActionItems`.
+Component evidence: `tests/component/entity-action-items.test.tsx`.

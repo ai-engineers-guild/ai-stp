@@ -1,3 +1,5 @@
+import { entityMenuResult, publicActions } from "../entity-menu-fixture";
+import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
@@ -11,6 +13,7 @@ const { mutation, refresh } = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/api/corporate-mutation", () => ({ corporateMutation: mutation }));
 vi.mock("next-intl", () => ({
+  useLocale: () => "en",
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${Object.values(values).join(",")}` : key,
 }));
@@ -172,8 +175,8 @@ it("clears an assignment from the detail panel", async () => {
   renderPanel();
   // Cid Carrier holds jt_pm; open its detail drawer via the row.
   await user.click(screen.getByRole("cell", { name: "Project manager" }));
-  await user.click(await screen.findByRole("button", { name: "personActions:Cid Carrier" }));
-  await user.click(await screen.findByRole("menuitem", { name: "removeAssignment" }));
+  expect(await screen.findByRole("button", { name: "personActions:Cid Carrier" })).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "removeAssignment" }));
   await waitFor(() => {
     expect(mutation).toHaveBeenCalled();
   });
@@ -182,3 +185,15 @@ it("clears an assignment from the detail panel", async () => {
   expect(call?.path).toBe(`/v1/corporate/organizations/${org}/members/acc_c`);
   expect(call?.body).toMatchObject({ job_title_id: null, expected_revision: 3 });
 });
+
+vi.mock("@/lib/entity-action-query", () => ({
+  queryEntityActionMenu: vi.fn((subject: EntityActionSubject) =>
+    Promise.resolve(
+      entityMenuResult(
+        subject,
+        [...publicActions.slice(0, -1), "edit", "assign_members", "retire", "report"],
+        "/corporate/admin/job-titles",
+      ),
+    ),
+  ),
+}));

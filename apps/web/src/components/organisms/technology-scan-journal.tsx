@@ -3,13 +3,12 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Badge } from "@/components/atoms/badge";
-import { Button } from "@/components/atoms/button";
 import { Select } from "@/components/atoms/select";
 import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
 import { PagePager } from "@/components/molecules/page-pager";
 import { TechnologyFilterToolbar } from "@/components/organisms/technology-filter-toolbar";
 import { Link, useRouter } from "@/lib/i18n/navigation";
-import { Menu, MenuTrigger, MenuContent, MenuItem } from "@/components/atoms/menu";
+import { EntityDetailMenu } from "@/components/organisms/entity-detail-menu";
 import type { CorporateProjectView, TechnologyScanListEntry } from "@/lib/api/generated/types.gen";
 import { Icon } from "@/theme";
 
@@ -271,23 +270,22 @@ export function TechnologyScanJournalTable({
               <Td>{scan.status === "failed" ? "—" : scan.found}</Td>
               <Td>{scan.status === "failed" ? "—" : scan.pending}</Td>
               <Td>
-                <Menu>
-                  <MenuTrigger asChild>
-                    <Button size="icon" variant="ghost" aria-label={w("actions")}>
-                      <Icon name="more" size="sm" />
-                    </Button>
-                  </MenuTrigger>
-                  <MenuContent>
-                    <MenuItem asChild>
-                      <Link href={`/corporate/technology-scans/${scan.scan_id}`}>
-                        {w("openScan", { id: scan.scan_id })}
-                      </Link>
-                    </MenuItem>
-                    <MenuItem asChild>
-                      <Link href={`/corporate/projects/${scan.project_id}`}>{w("project")}</Link>
-                    </MenuItem>
-                  </MenuContent>
-                </Menu>
+                <EntityDetailMenu
+                  moreLabel={w("actions")}
+                  subject={{ kind: "scan", id: scan.scan_id }}
+                  choices={[
+                    {
+                      actionId: "open",
+                      label: w("openScan", { id: scan.scan_id }),
+                      href: `/corporate/technology-scans/${scan.scan_id}`,
+                    },
+                    {
+                      actionId: "open_project",
+                      label: w("project"),
+                      href: `/corporate/projects/${scan.project_id}`,
+                    },
+                  ]}
+                />
               </Td>
             </Tr>
           ))}

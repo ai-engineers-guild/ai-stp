@@ -46,7 +46,7 @@ Test tags used in later rows: **keep** (real I/O against live modules), **replac
 | Providers / install | `apps/cli/src/ai_stp_cli/provider/`, `provider-kit/v3` | kit `0.2.16`; explicit forward-recovery reader admission is code-backed; provider execution remains pending |
 | API `/v1` | `apps/api/src/ai_stp_api/slices/`, `packages/contracts`, `schemas/v1` | code-backed |
 | Platform | `apps/platform/src/ai_stp_platform/` (content, legal, official_upstream, queue, safety, seo, storage) | code-backed |
-| Web | `apps/web/` | code-backed |
+| Web | `apps/web/` | code-backed; SPEC-096 owns shared server entity menus |
 | Desktop | `apps/desktop/core`, `apps/desktop/src-tauri`, `apps/desktop/src` | CLI contract consumer under ADR-0222 |
 | Deploy / CI | `deploy/`, `.github/workflows/`, `justfile` | ops docs synced 2026-09-20; code-backed |
 | Auth / devices / grants | slices `auth`, `devices`, `grants`, `ownership` + CLI `device`, `cloud/grants` | code-backed |

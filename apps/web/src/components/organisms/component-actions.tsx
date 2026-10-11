@@ -1,23 +1,24 @@
 "use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
-import { corporateAssignContextAction, type CorporateAssignContext } from "@/actions/corporate";
+import { EntityActionItems } from "@/components/organisms/entity-action-items";
 import { Button } from "@/components/atoms/button";
-import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/atoms/menu";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/atoms/menu";
 import { ContactReportDialog } from "@/components/organisms/contact-report-dialog";
 import { CorporateAssignDialog } from "@/components/organisms/corporate-assign-dialog";
 import {
+  useObjectMenuExecution,
+  CatalogShareMenuItem,
   ObjectVisibilityDialog,
-  PrivilegedObjectMenuItems,
 } from "@/components/organisms/object-menu-privileged";
 import {
   CorporateCatalogOwnerDialog,
   type CorporateCatalogOwnerEdit,
 } from "@/components/organisms/corporate-catalog-owner-editor";
 import { useCatalogLike, type LikeState } from "@/lib/use-catalog-like";
-import { Link } from "@/lib/i18n/navigation";
 import { UI } from "@/lib/ui-selectors";
 import { Icon } from "@/theme/icons";
 
@@ -133,12 +134,13 @@ export function ObjectLikeControl({
       }}
     >
       <Icon name="heart" size="sm" fill={like.liked ? "currentColor" : "none"} />
-      {like.liked ? labels.unlike : labels.like} · {like.count}
+      {like.liked ? labels.unlike : labels.like}
+      {" · "}
+      {like.count}
     </Button>
   );
 }
 
-// eslint-disable-next-line max-lines-per-function
 export function ObjectOverflowMenu({
   stableId,
   objectKind = "component",
@@ -146,21 +148,15 @@ export function ObjectOverflowMenu({
   likesCount,
   initiallyLiked = false,
   labels,
-  openHref,
-  editHref,
-  manageAccessHref,
   cliCommand,
   canonicalUrl,
   objectName,
   ownerEdit,
   visibilityEdit,
-  objectDelete,
 }: ObjectActionProps) {
-  const [reportOpen, setReportOpen] = useState(false);
-  const [assignCtx, setAssignCtx] = useState<CorporateAssignContext | null>(null);
-  const [assignOpen, setAssignOpen] = useState(false);
-  const [ownerOpen, setOwnerOpen] = useState(false);
-  const [visibilityOpen, setVisibilityOpen] = useState(false);
+  const behavior = useObjectMenuExecution(stableId, ownerEdit, visibilityEdit);
+  const { execution, setExecution, setReportOpen, setVisibilityOpen, openOwner, openAssignment } =
+    behavior;
   const like = useLikeState({
     stableId,
     objectKind,
@@ -168,45 +164,19 @@ export function ObjectOverflowMenu({
     initiallyLiked,
     labels,
   });
+  const hub = useTranslations("hub");
+  const objects = useTranslations("objects");
   const likeMenu = labels.likeMenu ?? labels.like;
   const unlikeMenu = labels.unlikeMenu ?? "Unlike";
-  const hasPrivileged = Boolean(
-    editHref || manageAccessHref || ownerEdit || visibilityEdit || assignCtx?.ok || objectDelete,
-  );
 
   async function copy(value: string) {
     await navigator.clipboard.writeText(value);
     toast.success(labels.copied);
   }
 
-  async function share() {
-    const url = canonicalUrl ?? new URL(sharePath, location.origin).toString();
-    const nativeShare = browserShare();
-    if (nativeShare) {
-      try {
-        await nativeShare({ url });
-        return;
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-      }
-    }
-    await copy(url);
-  }
-
   return (
     <>
-      <Menu
-        modal={false}
-        onOpenChange={(open) => {
-          if (open && assignCtx === null) {
-            void corporateAssignContextAction()
-              .then(setAssignCtx)
-              .catch(() => {
-                /* A dropped probe keeps the assign entry disabled. */
-              });
-          }
-        }}
-      >
+      <Menu modal={false}>
         <MenuTrigger asChild>
           <Button
             type="button"
@@ -219,89 +189,149 @@ export function ObjectOverflowMenu({
           </Button>
         </MenuTrigger>
         <MenuContent>
-          {openHref ? (
-            <MenuItem asChild>
-              <Link href={openHref} prefetch={false}>
-                <Icon name="eye" size="sm" />
-                {labels.openDetails ?? "Open details"}
-              </Link>
-            </MenuItem>
-          ) : null}
-          <MenuItem
-            disabled={like.pending}
-            onSelect={() => {
-              like.toggle();
+          <EntityActionItems
+            subject={{ kind: objectKind, id: stableId }}
+            onLoaded={(menu, csrfToken) => {
+              setExecution({ menu, csrfToken });
             }}
-          >
-            <Icon name="heart" size="sm" fill={like.liked ? "currentColor" : "none"} />
-            {like.liked ? unlikeMenu : likeMenu}
-          </MenuItem>
-          <MenuSeparator />
-          <MenuItem
-            onSelect={() => {
-              void copy(stableId);
+            entries={{
+              copy_url: (
+                <MenuItem
+                  onSelect={() => {
+                    void copy(canonicalUrl ?? new URL(sharePath, location.origin).toString());
+                  }}
+                >
+                  <Icon name="link" size="sm" />
+                  {labels.copyUrl}
+                </MenuItem>
+              ),
+              share: (
+                <CatalogShareMenuItem
+                  path={sharePath}
+                  canonicalUrl={canonicalUrl}
+                  labels={labels}
+                />
+              ),
+              change_owner: (
+                <MenuItem
+                  onSelect={() => {
+                    void openOwner();
+                  }}
+                >
+                  <Icon name="edit" size="sm" />
+                  {hub("edit")}
+                </MenuItem>
+              ),
+              visibility: (
+                <MenuItem
+                  onSelect={() => {
+                    setVisibilityOpen(true);
+                  }}
+                >
+                  <Icon name="globe" size="sm" />
+                  {execution?.menu.visibility === "public"
+                    ? objects("makePrivate")
+                    : objects("makePublic")}
+                </MenuItem>
+              ),
+              assign: (
+                <MenuItem
+                  onSelect={() => {
+                    void openAssignment();
+                  }}
+                >
+                  <Icon name="team" size="sm" />
+                  {hub("assign")}
+                </MenuItem>
+              ),
+              copy_cli: cliCommand ? (
+                <MenuItem
+                  onSelect={() => {
+                    void copy(cliCommand);
+                  }}
+                >
+                  <Icon name="code" size="sm" />
+                  {labels.copyCli ?? "Copy CLI command"}
+                </MenuItem>
+              ) : null,
+              like: (
+                <MenuItem
+                  disabled={like.pending}
+                  onSelect={() => {
+                    like.toggle();
+                  }}
+                >
+                  <Icon name="heart" size="sm" fill={like.liked ? "currentColor" : "none"} />
+                  {like.liked ? unlikeMenu : likeMenu}
+                </MenuItem>
+              ),
+              report: (
+                <MenuItem
+                  onSelect={() => {
+                    setReportOpen(true);
+                  }}
+                >
+                  <Icon name="flag" size="sm" />
+                  {labels.report}
+                </MenuItem>
+              ),
             }}
-          >
-            <Icon name="copy" size="sm" />
-            {labels.copyId}
-          </MenuItem>
-          <MenuItem
-            onSelect={() => {
-              void copy(canonicalUrl ?? new URL(sharePath, location.origin).toString());
-            }}
-          >
-            <Icon name="link" size="sm" />
-            {labels.copyUrl}
-          </MenuItem>
-          {cliCommand ? (
-            <MenuItem
-              onSelect={() => {
-                void copy(cliCommand);
-              }}
-            >
-              <Icon name="code" size="sm" />
-              {labels.copyCli ?? "Copy CLI command"}
-            </MenuItem>
-          ) : null}
-          <MenuItem
-            onSelect={() => {
-              void share();
-            }}
-          >
-            <Icon name="link" size="sm" />
-            {labels.share}
-          </MenuItem>
-          {hasPrivileged ? <MenuSeparator /> : null}
-          <PrivilegedObjectMenuItems
-            labels={labels}
-            editHref={editHref}
-            manageAccessHref={manageAccessHref}
-            hasOwnerEdit={Boolean(ownerEdit)}
-            onOwnerOpen={() => {
-              setOwnerOpen(true);
-            }}
-            visibilityEdit={visibilityEdit}
-            onVisibilityOpen={() => {
-              setVisibilityOpen(true);
-            }}
-            assignCtx={assignCtx}
-            onAssignOpen={() => {
-              setAssignOpen(true);
-            }}
-            objectDelete={objectDelete ? { ...objectDelete, stableId } : undefined}
-            objectKind={objectKind}
           />
-          <MenuSeparator />
-          <MenuItem
-            onSelect={() => {
-              setReportOpen(true);
-            }}
-          >
-            <Icon name="flag" size="sm" />
-            {labels.report}
-          </MenuItem>
         </MenuContent>
       </Menu>
+      <ObjectMenuDialogs
+        execution={behavior}
+        objectKind={objectKind}
+        stableId={stableId}
+        objectName={objectName}
+        labels={labels}
+      />
+    </>
+  );
+}
+
+function ObjectMenuDialogs({
+  execution,
+  objectKind,
+  stableId,
+  objectName,
+  labels,
+}: {
+  execution: Pick<
+    ReturnType<typeof useObjectMenuExecution>,
+    | "assignCtx"
+    | "assignOpen"
+    | "setAssignOpen"
+    | "effectiveOwner"
+    | "ownerOpen"
+    | "setOwnerOpen"
+    | "effectiveVisibility"
+    | "visibilityOpen"
+    | "setVisibilityOpen"
+    | "reportOpen"
+    | "setReportOpen"
+  >;
+  objectKind: "component" | "setup";
+  stableId: string;
+  objectName: string | undefined;
+  labels: ObjectActionLabels;
+}) {
+  const {
+    assignCtx,
+    assignOpen,
+    setAssignOpen,
+    effectiveOwner,
+    ownerOpen,
+    setOwnerOpen,
+    effectiveVisibility,
+    visibilityOpen,
+    setVisibilityOpen,
+    reportOpen,
+    setReportOpen,
+  } = execution;
+  return (
+    <>
+      {" "}
       {assignCtx?.ok ? (
         <CorporateAssignDialog
           open={assignOpen}
@@ -312,18 +342,18 @@ export function ObjectOverflowMenu({
           objectName={objectName ?? stableId}
         />
       ) : null}
-      {ownerEdit ? (
+      {effectiveOwner ? (
         <CorporateCatalogOwnerDialog
           open={ownerOpen}
           onOpenChange={setOwnerOpen}
-          ownerEdit={ownerEdit}
+          ownerEdit={effectiveOwner}
         />
       ) : null}
-      {visibilityEdit ? (
+      {effectiveVisibility ? (
         <ObjectVisibilityDialog
           open={visibilityOpen}
           onOpenChange={setVisibilityOpen}
-          edit={visibilityEdit}
+          edit={effectiveVisibility}
           objectKind={objectKind}
           stableId={stableId}
         />
@@ -359,13 +389,4 @@ export function ComponentActions(props: ObjectActionProps) {
       </div>
     </ObjectLikeProvider>
   );
-}
-
-function browserShare(): ((data?: ShareData) => Promise<void>) | null {
-  if (typeof navigator === "undefined") return null;
-  const candidate: unknown = Reflect.get(navigator, "share");
-  if (typeof candidate !== "function") return null;
-  return async (data) => {
-    await (Reflect.apply(candidate, navigator, [data]) as Promise<unknown>);
-  };
 }

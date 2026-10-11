@@ -245,7 +245,7 @@ export async function corporateAssignContextAction(): Promise<CorporateAssignCon
     const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
     if (!sessionToken || !(await readSession())) return { ok: false };
     const context = await readCorporateContext(sessionToken);
-    if (!context?.capabilities.includes("catalog_object.assign")) return { ok: false };
+    if (!context) return { ok: false };
     const csrfToken = await readCsrfToken();
     if (!csrfToken) return { ok: false };
     const t = await getTranslations("hub");
@@ -315,7 +315,13 @@ export async function corporateSubjectSearchAction(input: {
     );
     return {
       ok: true,
-      items: data.items.map((item) => ({ value: item.id, label: item.name || item.id })),
+      items: data.items
+        .filter((item) =>
+          item.available_actions.includes(
+            input.kind === "employee" ? "member.manage" : `${input.kind}.update`,
+          ),
+        )
+        .map((item) => ({ value: item.id, label: item.name || item.id })),
     };
   } catch (error) {
     return {
