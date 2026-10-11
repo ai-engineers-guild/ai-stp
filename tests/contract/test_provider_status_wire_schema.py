@@ -130,7 +130,9 @@ def test_runtime_enforces_the_same_closed_schema() -> None:
         "provider conformance --harness <id> --executable <path> --json",
     ]
     vectors = json.loads(
-        Path("apps/cli-v2/tests/fixtures/provider-status-ownership.json").read_text()
+        Path("apps/cli-v2/tests/fixtures/provider-status-ownership.json").read_text(
+            encoding="utf-8"
+        )
     )
     for case in vectors["cases"]:
         value = vectors["base"] | case["patch"]
