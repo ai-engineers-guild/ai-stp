@@ -1,6 +1,7 @@
 //! Durable fresh-program installation; the component remains the content writer.
 
 pub(super) mod cancellation;
+pub(super) mod change;
 mod journal;
 mod outcome;
 mod plan;
@@ -62,6 +63,9 @@ fn context(plan: &Plan) -> Result<(Target, cap_std::fs::Dir)> {
 
 pub(super) fn apply(parent: &Path, bytes: &[u8], digest: &str) -> Result<Value> {
     let plan = Plan::parse(bytes, digest)?;
+    if plan.action != "program.install" {
+        return Err(invalid());
+    }
     let record = Journal::history(parent, &plan, digest)?;
     if let Some(record) = &record
         && record.phase.terminal()
@@ -181,7 +185,7 @@ pub(super) fn apply(parent: &Path, bytes: &[u8], digest: &str) -> Result<Value> 
                 stage: &stage.root,
                 prefix: Path::new(&plan.prefix.path),
                 plan: &plan.provider_plan,
-                archive: &archive.file,
+                archive: Some(&archive.file),
                 scope: plan.scope()?,
             },
         )?;

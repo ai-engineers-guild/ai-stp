@@ -26,6 +26,27 @@ pub(super) enum Handler {
     ProgramInstallPlan,
     ProgramInstallApply,
     ProgramInstallCancel,
+    ProgramUpdatePlan,
+    ProgramRemovePlan,
+    ProgramUpdateApply,
+    ProgramRemoveApply,
+}
+
+impl Handler {
+    pub(super) fn mutability(self) -> &'static str {
+        match self {
+            Self::ProgramInstallApply
+            | Self::ProgramInstallCancel
+            | Self::ProgramUpdateApply
+            | Self::ProgramRemoveApply => "apply",
+            Self::Plan
+            | Self::SoftwarePlan
+            | Self::ProgramInstallPlan
+            | Self::ProgramUpdatePlan
+            | Self::ProgramRemovePlan => "plan",
+            Self::Network | Self::Inspect | Self::Status | Self::SoftwareAcquire => "read",
+        }
+    }
 }
 
 const HARNESS: Parameter = Parameter {
@@ -85,19 +106,75 @@ const INSTALL_PARAMETERS: &[Parameter] = &[
     STATE_DIR,
     Parameter {
         name: "plan",
-        summary: "Original program installation plan JSON, at most 64 KiB.",
+        summary: "Original program operation plan JSON, at most 64 KiB.",
         kind: ParameterType::Path,
         required: true,
     },
     Parameter {
         name: "plan-digest",
-        summary: "Exact digest returned by program install plan.",
+        summary: "Exact digest returned by the corresponding program plan command.",
         kind: ParameterType::String,
         required: true,
     },
 ];
 
+const CHANGE_PREFIX: Parameter = Parameter {
+    name: "prefix",
+    summary: "Existing absolute program directory; physically bound and disjoint from target and state.",
+    kind: ParameterType::Path,
+    required: true,
+};
+const CHANGE_VERSION: Parameter = Parameter {
+    name: "software-version",
+    summary: "Exact program version; update omission uses the authenticated component pin.",
+    kind: ParameterType::String,
+    required: false,
+};
+
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["program", "update", "plan"],
+        summary: "Plan an exact update inside an existing program directory; bind preserved content and authenticated component identity.",
+        parameters: &[
+            STATE_DIR,
+            HARNESS,
+            VERSION,
+            TARGET,
+            SCOPE,
+            CHANGE_PREFIX,
+            CHANGE_VERSION,
+        ],
+        handler: super::Handler::Provider(Handler::ProgramUpdatePlan),
+    },
+    Declaration {
+        path: &["program", "remove", "plan"],
+        summary: "Plan removal of one exact component-owned program version while retaining other versions and unrelated content.",
+        parameters: &[
+            STATE_DIR,
+            HARNESS,
+            VERSION,
+            TARGET,
+            SCOPE,
+            CHANGE_PREFIX,
+            Parameter {
+                required: true,
+                ..CHANGE_VERSION
+            },
+        ],
+        handler: super::Handler::Provider(Handler::ProgramRemovePlan),
+    },
+    Declaration {
+        path: &["program", "update", "apply"],
+        summary: "Apply or resume the original existing-program update through its authenticated component; verify payload and preserved content.",
+        parameters: INSTALL_PARAMETERS,
+        handler: super::Handler::Provider(Handler::ProgramUpdateApply),
+    },
+    Declaration {
+        path: &["program", "remove", "apply"],
+        summary: "Apply or resume the original exact-version removal; verify absence, retained launch entries and preserved content.",
+        parameters: INSTALL_PARAMETERS,
+        handler: super::Handler::Provider(Handler::ProgramRemoveApply),
+    },
     Declaration {
         path: &["program", "install", "apply"],
         summary: "Apply or resume an exact fresh-program installation plan; verify its payload and publish the complete directory without replacing an existing destination.",
@@ -193,7 +270,10 @@ pub(super) const COMMANDS: &[Declaration] = &[
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     if matches!(
         handler,
-        Handler::ProgramInstallApply | Handler::ProgramInstallCancel
+        Handler::ProgramInstallApply
+            | Handler::ProgramInstallCancel
+            | Handler::ProgramUpdateApply
+            | Handler::ProgramRemoveApply
     ) {
         let parent = args
             .get_one::<PathBuf>("state-dir")
@@ -205,7 +285,21 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             .get_one::<String>("plan-digest")
             .ok_or_else(|| Failure::input("the exact installation plan digest is required"))?;
         let bytes = files::read(path, 64 * 1024)?;
-        return if matches!(handler, Handler::ProgramInstallCancel) {
+        return if matches!(
+            handler,
+            Handler::ProgramUpdateApply | Handler::ProgramRemoveApply
+        ) {
+            runtime::program_change_apply(
+                parent,
+                &bytes,
+                digest,
+                if matches!(handler, Handler::ProgramUpdateApply) {
+                    "program.update"
+                } else {
+                    "program.remove"
+                },
+            )
+        } else if matches!(handler, Handler::ProgramInstallCancel) {
             runtime::program_install_cancel(parent, &bytes, digest)
         } else {
             runtime::program_install_apply(parent, &bytes, digest)
@@ -214,14 +308,17 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     let runtime = Runtime::observe()?;
     match handler {
         Handler::Network => Ok(runtime.report()),
-        Handler::ProgramInstallApply | Handler::ProgramInstallCancel => {
-            Err(Failure::input("the installation command is invalid"))
-        }
+        Handler::ProgramInstallApply
+        | Handler::ProgramInstallCancel
+        | Handler::ProgramUpdateApply
+        | Handler::ProgramRemoveApply => Err(Failure::input("the installation command is invalid")),
         Handler::Inspect
         | Handler::Status
         | Handler::Plan
         | Handler::SoftwarePlan
         | Handler::ProgramInstallPlan
+        | Handler::ProgramUpdatePlan
+        | Handler::ProgramRemovePlan
         | Handler::SoftwareAcquire => {
             let parent = args
                 .get_one::<PathBuf>("state-dir")
@@ -240,6 +337,8 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                 | Handler::Plan
                 | Handler::SoftwarePlan
                 | Handler::ProgramInstallPlan
+                | Handler::ProgramUpdatePlan
+                | Handler::ProgramRemovePlan
                 | Handler::SoftwareAcquire => {
                     let target = args
                         .get_one::<PathBuf>("target")
@@ -259,16 +358,38 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                     };
                     if matches!(handler, Handler::Status) {
                         runtime.status(&context)
-                    } else if matches!(handler, Handler::ProgramInstallPlan) {
+                    } else if matches!(
+                        handler,
+                        Handler::ProgramInstallPlan
+                            | Handler::ProgramUpdatePlan
+                            | Handler::ProgramRemovePlan
+                    ) {
                         let prefix = args.get_one::<PathBuf>("prefix").ok_or_else(|| {
                             Failure::input("the explicit software prefix is required")
                         })?;
-                        runtime.program_install_plan(
-                            &context,
-                            prefix,
-                            args.get_one::<String>("software-version")
-                                .map(String::as_str),
-                        )
+                        if matches!(
+                            handler,
+                            Handler::ProgramUpdatePlan | Handler::ProgramRemovePlan
+                        ) {
+                            runtime.program_change_plan(
+                                &context,
+                                prefix,
+                                args.get_one::<String>("software-version")
+                                    .map(String::as_str),
+                                if matches!(handler, Handler::ProgramUpdatePlan) {
+                                    "program.update"
+                                } else {
+                                    "program.remove"
+                                },
+                            )
+                        } else {
+                            runtime.program_install_plan(
+                                &context,
+                                prefix,
+                                args.get_one::<String>("software-version")
+                                    .map(String::as_str),
+                            )
+                        }
                     } else if matches!(handler, Handler::SoftwarePlan | Handler::SoftwareAcquire) {
                         let request = software::Request::parse(
                             &files::read(
@@ -306,7 +427,11 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                         runtime.plan(&context, &request, &bundle)
                     }
                 }
-                Handler::Network | Handler::ProgramInstallApply | Handler::ProgramInstallCancel => {
+                Handler::Network
+                | Handler::ProgramInstallApply
+                | Handler::ProgramInstallCancel
+                | Handler::ProgramUpdateApply
+                | Handler::ProgramRemoveApply => {
                     Err(Failure::input("the provider command is invalid"))
                 }
             }

@@ -1,4 +1,4 @@
-//! The only writable provider mount is an owned, unpublished program stage.
+//! The only writable provider mount is the physically bound program directory.
 
 use serde_json::Value;
 use std::{
@@ -15,7 +15,7 @@ pub(super) struct Installation<'a> {
     pub stage: &'a Target,
     pub prefix: &'a Path,
     pub plan: &'a Value,
-    pub archive: &'a File,
+    pub archive: Option<&'a File>,
     pub scope: Scope,
 }
 
@@ -37,9 +37,10 @@ impl Installation<'_> {
                 .into(),
             "--provider-release-digest".into(),
             digest::sha256(component).into(),
-            "--software-artifact".into(),
-            "/run/vendor-artifact".into(),
         ];
+        if self.archive.is_some() {
+            command.extend(["--software-artifact".into(), "/run/vendor-artifact".into()]);
+        }
         if self.scope != Scope::Global {
             command.extend(["--target-scope".into(), self.scope.as_str().into()]);
         }
@@ -59,13 +60,15 @@ impl Installation<'_> {
             self.prefix.as_os_str().into(),
         ]);
         handles.push((arguments.len() - 2, root));
-        let source = rustix::io::fcntl_dupfd_cloexec(self.archive, 3).map_err(|_| unavailable())?;
-        arguments.extend([
-            "--ro-bind-fd".into(),
-            source.as_raw_fd().to_string().into(),
-            "/run/vendor-artifact".into(),
-        ]);
-        handles.push((arguments.len() - 2, source));
+        if let Some(archive) = self.archive {
+            let source = rustix::io::fcntl_dupfd_cloexec(archive, 3).map_err(|_| unavailable())?;
+            arguments.extend([
+                "--ro-bind-fd".into(),
+                source.as_raw_fd().to_string().into(),
+                "/run/vendor-artifact".into(),
+            ]);
+            handles.push((arguments.len() - 2, source));
+        }
         let bytes = serde_json::to_vec(&self.plan["plan"]).map_err(|_| unavailable())?;
         if bytes.len() > 64 * 1024 {
             return Err(unavailable());

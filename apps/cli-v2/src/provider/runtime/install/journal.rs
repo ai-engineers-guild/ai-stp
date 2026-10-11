@@ -24,6 +24,7 @@ pub(super) enum Phase {
     Prepared,
     Staged,
     Publishing,
+    Applying,
     Complete,
     Cancelling,
     Cancelled,
@@ -35,6 +36,7 @@ impl Phase {
             Self::Prepared => "prepared",
             Self::Staged => "staged",
             Self::Publishing => "publishing",
+            Self::Applying => "applying",
             Self::Complete => "verified",
             Self::Cancelling => "cancelling",
             Self::Cancelled => "cancelled",
@@ -74,6 +76,20 @@ impl Record {
             return Err(conflict());
         }
         let stage = self.stage_parent.is_some() && self.stage_root.is_some();
+        if plan.action != "program.install" {
+            if self.stage_parent.is_some() || self.stage_root.is_some() {
+                return Err(conflict());
+            }
+            return match self.phase {
+                Phase::Applying if self.result.is_none() => Ok(()),
+                Phase::Complete => super::change::validate_outcome(
+                    self.result.as_ref().ok_or_else(invalid)?,
+                    &plan,
+                    digest,
+                ),
+                _ => Err(conflict()),
+            };
+        }
         match self.phase {
             Phase::Prepared if self.stage_parent.is_none() && self.result.is_none() => Ok(()),
             Phase::Staged if stage && self.result.is_none() => Ok(()),
@@ -100,6 +116,7 @@ pub(super) struct Journal {
     operation_id: String,
     digest: String,
     _lock: OwnedDirectory,
+    _prefix_lock: OwnedDirectory,
 }
 
 fn conflict() -> Failure {
@@ -138,9 +155,22 @@ impl Journal {
         let namespace =
             OwnedDirectory::open_at(&state.directory()?, "installation-operations", OWNER, true)?
                 .ok_or_else(invalid)?;
+        // Serialize observation, component execution and independent readback.
+        // A process lock releases on interruption: an unadmitted expired request
+        // must not permanently reserve a prefix. The component's own durable
+        // admission remains authoritative across native states and processes.
+        let key = crate::digest::sha256(plan.prefix.path.as_bytes());
+        let name = format!(
+            "prefix-{}",
+            key.strip_prefix("sha256:").ok_or_else(invalid)?
+        );
+        let prefix_owner = format!("ai-stp:program-prefix/v1\n{}\n", plan.prefix.path);
+        let prefix_lock =
+            OwnedDirectory::open_at(&namespace.directory, &name, prefix_owner.as_bytes(), true)?
+                .ok_or_else(invalid)?;
         let owner = format!(
-            "ai-stp:program.install/v1\n{}\n{digest}\n",
-            plan.operation_id
+            "ai-stp:{}/v1\n{}\n{digest}\n",
+            plan.action, plan.operation_id
         );
         let lock = OwnedDirectory::open_at(
             &namespace.directory,
@@ -155,6 +185,7 @@ impl Journal {
             operation_id: plan.operation_id.clone(),
             digest: digest.into(),
             _lock: lock,
+            _prefix_lock: prefix_lock,
         })
     }
 
@@ -184,16 +215,18 @@ impl Journal {
         }
         if !matches!(
             (previous, record.phase),
-            (None, Phase::Prepared | Phase::Cancelled)
+            (None, Phase::Prepared | Phase::Cancelled | Phase::Applying)
                 | (Some(Phase::Prepared), Phase::Staged | Phase::Cancelling)
                 | (Some(Phase::Staged), Phase::Publishing | Phase::Cancelling)
                 | (Some(Phase::Publishing), Phase::Complete | Phase::Cancelling)
                 | (Some(Phase::Cancelling), Phase::Cancelled)
+                | (Some(Phase::Applying), Phase::Complete)
         ) {
             return Err(conflict());
         }
         let now = jiff::Timestamp::now().to_string();
         let finished = record.phase.terminal().then_some(&now);
+        let action = record.plan["action"].as_str().ok_or_else(invalid)?;
         store.transaction(|tx| {
             let known: Option<(String, String)> = tx.query_row(
                 "SELECT kind,state FROM operation WHERE operation_id=?",
@@ -203,11 +236,11 @@ impl Journal {
                 (None, None) => {
                     tx.execute(
                         "INSERT INTO operation(operation_id,kind,state,started_at,detail,finished_at) \
-                         VALUES (?,'program.install',?,?,?,?)",
-                        rusqlite::params![self.operation_id,record.phase.state(),now,detail,finished],
+                         VALUES (?,?,?,?,?,?)",
+                        rusqlite::params![self.operation_id,action,record.phase.state(),now,detail,finished],
                     ).map_err(database)?;
                 }
-                (Some(expected), Some((kind, state))) if kind == "program.install" && expected.state() == state => {
+                (Some(expected), Some((kind, state))) if kind == action && expected.state() == state => {
                     tx.execute(
                         "UPDATE operation SET state=?,detail=?,finished_at=? WHERE operation_id=?",
                         rusqlite::params![record.phase.state(),detail,finished,self.operation_id],
@@ -244,7 +277,7 @@ fn read_store(store: &Store, operation_id: &str, digest: &str) -> Result<Option<
         }
         let record: Record = serde_json::from_value(crate::wire::parse(detail.as_bytes())?)
             .map_err(|_| conflict())?;
-        if kind != "program.install"
+        if record.plan["action"] != kind
             || record.schema_version != 1
             || record.plan_digest != digest
             || record.phase.state() != state
