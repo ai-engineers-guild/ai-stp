@@ -60,7 +60,7 @@ pub struct Request {
     pub(crate) operation: String,
     pub(crate) operation_id: String,
     pub(crate) expires_at: String,
-    pub(crate) bundle: Binding,
+    pub(crate) bundle: Option<Binding>,
     pub(crate) recovery_mode: Option<RecoveryMode>,
 }
 
@@ -91,6 +91,9 @@ impl Request {
             return Err(invalid());
         }
         let document = wire::parse(bytes)?;
+        if document.get("bundle").is_none() {
+            return Err(invalid());
+        }
         let request: Self = serde_json::from_value(document).map_err(|_| invalid())?;
         request.check_time(now)?;
         Ok(request)
@@ -102,7 +105,18 @@ impl Request {
             .expires_at
             .parse::<Timestamp>()
             .map_err(|_| invalid())?;
-        if !matches!(self.operation.as_str(), "install" | "replace")
+        let bundle_valid = match (&self.bundle, self.operation.as_str()) {
+            (Some(bundle), "install" | "replace") => {
+                bundle.bundle_format == "ai-stp-bundle/2"
+                    && hash(&bundle.bundle_digest)
+                    && hash(&bundle.artifact_digest)
+                    && bundle.bundle_size > 0
+                    && bundle.bundle_size <= MAX_BUNDLE_BYTES
+            }
+            (None, "remove") => self.recovery_mode.is_some(),
+            _ => false,
+        };
+        if !bundle_valid
             || !passport::stable_id(&self.operation_id, "operation")
             || !passport::timestamp(&self.expires_at)
             || expires <= now
@@ -110,11 +124,6 @@ impl Request {
                 > now
                     .checked_add(std::time::Duration::from_secs(900))
                     .map_err(|_| invalid())?
-            || self.bundle.bundle_format != "ai-stp-bundle/2"
-            || !hash(&self.bundle.bundle_digest)
-            || !hash(&self.bundle.artifact_digest)
-            || self.bundle.bundle_size == 0
-            || self.bundle.bundle_size > MAX_BUNDLE_BYTES
         {
             return Err(invalid());
         }
@@ -123,9 +132,13 @@ impl Request {
 
     pub fn check_bundle(&self, bytes: &[u8], now: Timestamp) -> Result<()> {
         self.check_time(now)?;
-        if bytes.len() != self.bundle.bundle_size
-            || digest::sha256(bytes) != self.bundle.artifact_digest
-        {
+        let matches = self.bundle.as_ref().map_or_else(
+            || bytes.is_empty(),
+            |bundle| {
+                bytes.len() == bundle.bundle_size && digest::sha256(bytes) == bundle.artifact_digest
+            },
+        );
+        if !matches {
             return Err(invalid());
         }
         Ok(())
@@ -134,6 +147,13 @@ impl Request {
     /// Refuse an ownership-bearing package before an incompatible provider plan.
     /// Identity and expiry are checked separately against these same bytes.
     pub fn check_configuration_ownership(&self, bytes: &[u8]) -> Result<()> {
+        if self.bundle.is_none() {
+            return if bytes.is_empty() {
+                Ok(())
+            } else {
+                Err(invalid())
+            };
+        }
         let entries = crate::archive::decode(
             bytes,
             crate::archive::Limits {
@@ -165,7 +185,8 @@ impl Request {
     /// Verify every redundant echo, without deriving trust from the response.
     pub fn validation(&self, bytes: &[u8]) -> Result<Value> {
         let response = response(bytes)?;
-        let mut expected = serde_json::to_value(&self.bundle).map_err(|_| invalid())?;
+        let mut expected = serde_json::to_value(self.bundle.as_ref().ok_or_else(invalid)?)
+            .map_err(|_| invalid())?;
         expected["valid"] = true.into();
         if response != expected {
             return Err(invalid());
@@ -212,7 +233,11 @@ impl Request {
         if let Some(mode) = &self.recovery_mode {
             plan["recovery_mode"] = mode.as_str().into();
         }
-        let mut expected = serde_json::to_value(&self.bundle).map_err(|_| invalid())?;
+        let mut expected = self
+            .bundle
+            .as_ref()
+            .map_or_else(|| Ok(json!({})), serde_json::to_value)
+            .map_err(|_| invalid())?;
         expected["valid"] = true.into();
         expected["state"] = "planned".into();
         expected["expected_target_digest"] = observed.target_digest.into();

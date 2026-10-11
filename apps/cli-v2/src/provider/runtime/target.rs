@@ -1,4 +1,7 @@
-//! A held read-only target directory; path lookup never follows an alias.
+//! A held target directory; path lookup never follows an alias.
+
+#[path = "target_content.rs"]
+pub(crate) mod content;
 
 use cap_fs_ext::DirExt;
 use cap_std::fs::Dir;

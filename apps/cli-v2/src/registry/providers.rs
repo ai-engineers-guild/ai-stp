@@ -30,16 +30,20 @@ pub(super) enum Handler {
     ProgramRemovePlan,
     ProgramUpdateApply,
     ProgramRemoveApply,
+    ConfigurationPlan,
+    ConfigurationApply,
 }
 
 impl Handler {
     pub(super) fn mutability(self) -> &'static str {
         match self {
             Self::ProgramInstallApply
+            | Self::ConfigurationApply
             | Self::ProgramInstallCancel
             | Self::ProgramUpdateApply
             | Self::ProgramRemoveApply => "apply",
             Self::Plan
+            | Self::ConfigurationPlan
             | Self::SoftwarePlan
             | Self::ProgramInstallPlan
             | Self::ProgramUpdatePlan
@@ -242,8 +246,58 @@ pub(super) const COMMANDS: &[Declaration] = &[
         handler: super::Handler::Provider(Handler::Status),
     },
     Declaration {
+        path: &["configuration", "apply"],
+        summary: "Apply or resume one exact forward configuration plan through its authenticated component and verify target bytes independently.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "plan",
+                summary: "Original configuration plan JSON, at most 8 MiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Exact digest returned by configuration plan.",
+                kind: ParameterType::String,
+                required: true,
+            },
+            Parameter {
+                name: "bundle",
+                summary: "Original bundle for first install/replace admission; recovery uses retained bytes and removal takes no bundle.",
+                kind: ParameterType::Path,
+                required: false,
+            },
+        ],
+        handler: super::Handler::Provider(Handler::ConfigurationApply),
+    },
+    Declaration {
+        path: &["configuration", "plan"],
+        summary: "Plan exact configuration installation, replacement or removal with independent file expectations and forward recovery.",
+        parameters: &[
+            STATE_DIR,
+            HARNESS,
+            VERSION,
+            TARGET,
+            SCOPE,
+            Parameter {
+                name: "operation",
+                summary: "Configuration operation; removal withdraws recorded ownership without a bundle.",
+                kind: ParameterType::Choice(&["install", "replace", "remove"]),
+                required: true,
+            },
+            Parameter {
+                name: "bundle",
+                summary: "Exact ai-stp-bundle/2 archive, required for install/replace and forbidden for remove.",
+                kind: ParameterType::Path,
+                required: false,
+            },
+        ],
+        handler: super::Handler::Provider(Handler::ConfigurationPlan),
+    },
+    Declaration {
         path: &["provider", "plan"],
-        summary: "Validate exact bundle bytes and observe a digest-bound provider plan without authorizing or applying it.",
+        summary: "Observe an exact configuration plan without authorizing or applying it; removal requires forward recovery and no bundle.",
         parameters: &[
             STATE_DIR,
             HARNESS,
@@ -252,9 +306,9 @@ pub(super) const COMMANDS: &[Declaration] = &[
             SCOPE,
             Parameter {
                 name: "bundle",
-                summary: "Exact ai-stp-bundle/2 ZIP bytes, at most 64 MiB; no extraction or target writes.",
+                summary: "Exact ai-stp-bundle/2 ZIP bytes, required for install/replace and forbidden for remove; at most 64 MiB.",
                 kind: ParameterType::Path,
-                required: true,
+                required: false,
             },
             Parameter {
                 name: "request",
@@ -271,6 +325,7 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     if matches!(
         handler,
         Handler::ProgramInstallApply
+            | Handler::ConfigurationApply
             | Handler::ProgramInstallCancel
             | Handler::ProgramUpdateApply
             | Handler::ProgramRemoveApply
@@ -284,6 +339,14 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         let digest = args
             .get_one::<String>("plan-digest")
             .ok_or_else(|| Failure::input("the exact installation plan digest is required"))?;
+        if matches!(handler, Handler::ConfigurationApply) {
+            return runtime::configuration_apply(
+                parent,
+                &files::read(path, 8 * 1024 * 1024)?,
+                digest,
+                args.get_one::<PathBuf>("bundle").map(PathBuf::as_path),
+            );
+        }
         let bytes = files::read(path, 64 * 1024)?;
         return if matches!(
             handler,
@@ -309,10 +372,12 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     match handler {
         Handler::Network => Ok(runtime.report()),
         Handler::ProgramInstallApply
+        | Handler::ConfigurationApply
         | Handler::ProgramInstallCancel
         | Handler::ProgramUpdateApply
         | Handler::ProgramRemoveApply => Err(Failure::input("the installation command is invalid")),
         Handler::Inspect
+        | Handler::ConfigurationPlan
         | Handler::Status
         | Handler::Plan
         | Handler::SoftwarePlan
@@ -334,6 +399,7 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                     runtime.inspect(&artifact)
                 }
                 Handler::Status
+                | Handler::ConfigurationPlan
                 | Handler::Plan
                 | Handler::SoftwarePlan
                 | Handler::ProgramInstallPlan
@@ -358,6 +424,15 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                     };
                     if matches!(handler, Handler::Status) {
                         runtime.status(&context)
+                    } else if matches!(handler, Handler::ConfigurationPlan) {
+                        let operation = args.get_one::<String>("operation").ok_or_else(|| {
+                            Failure::input("the configuration operation is required")
+                        })?;
+                        let bundle = args
+                            .get_one::<PathBuf>("bundle")
+                            .map(|path| files::read(path, plan::MAX_BUNDLE_BYTES as u64))
+                            .transpose()?;
+                        runtime.configuration_plan(&context, operation, bundle.as_deref())
                     } else if matches!(
                         handler,
                         Handler::ProgramInstallPlan
@@ -418,16 +493,22 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                             )?,
                             jiff::Timestamp::now(),
                         )?;
-                        let bundle = files::read(
-                            args.get_one::<PathBuf>("bundle").ok_or_else(|| {
-                                Failure::input("the exact bundle path is required")
-                            })?,
-                            plan::MAX_BUNDLE_BYTES as u64,
-                        )?;
+                        let bundle = match (args.get_one::<PathBuf>("bundle"), &request.bundle) {
+                            (Some(path), Some(_)) => {
+                                files::read(path, plan::MAX_BUNDLE_BYTES as u64)?
+                            }
+                            (None, None) => Vec::new(),
+                            _ => {
+                                return Err(Failure::input(
+                                    "install/replace requires an exact bundle path; removal forbids one",
+                                ));
+                            }
+                        };
                         runtime.plan(&context, &request, &bundle)
                     }
                 }
                 Handler::Network
+                | Handler::ConfigurationApply
                 | Handler::ProgramInstallApply
                 | Handler::ProgramInstallCancel
                 | Handler::ProgramUpdateApply

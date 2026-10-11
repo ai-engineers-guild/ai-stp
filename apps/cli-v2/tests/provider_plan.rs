@@ -245,6 +245,42 @@ fn forward_recovery(
                 .is_err()
         );
     }
+    requested["operation"] = "remove".into();
+    assert!(Request::parse(&serde_json::to_vec(&requested)?, now).is_err());
+    requested["bundle"] = Value::Null;
+    let remove = Request::parse(&serde_json::to_vec(&requested)?, now)?;
+    remove.check_bundle(&[], now)?;
+    remove.check_configuration_ownership(&[])?;
+    assert!(remove.check_bundle(b"unexpected", now).is_err());
+    assert!(remove.check_configuration_ownership(b"unexpected").is_err());
+    assert!(remove.validation(br#"{"valid":true}"#).is_err());
+    planned["plan"]["operation"] = "remove".into();
+    planned["plan"]["bundle"] = Value::Null;
+    for field in [
+        "bundle_format",
+        "bundle_digest",
+        "artifact_digest",
+        "bundle_size",
+    ] {
+        planned.as_object_mut().ok_or("response")?.remove(field);
+    }
+    planned["plan_digest"] = digest_plan(&planned["plan"])?.into();
+    remove.planned(&serde_json::to_vec(&planned)?, &supported, now)?;
+    assert!(
+        remove
+            .planned(&serde_json::to_vec(&planned)?, observed, now)
+            .is_err()
+    );
+    for operation in ["install", "replace"] {
+        requested["operation"] = operation.into();
+        assert!(Request::parse(&serde_json::to_vec(&requested)?, now).is_err());
+    }
+    requested["operation"] = "remove".into();
+    requested["recovery_mode"] = Value::Null;
+    assert!(Request::parse(&serde_json::to_vec(&requested)?, now).is_err());
+    requested["recovery_mode"] = "forward".into();
+    requested.as_object_mut().ok_or("request")?.remove("bundle");
+    assert!(Request::parse(&serde_json::to_vec(&requested)?, now).is_err());
     Ok(())
 }
 

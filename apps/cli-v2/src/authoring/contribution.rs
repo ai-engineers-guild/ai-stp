@@ -222,3 +222,64 @@ pub fn assemble(
     text(output.as_bytes())?;
     Ok(output.into_bytes())
 }
+
+/// Replace recorded keys using one assembled bundle contribution, or withdraw
+/// them. The complete host stays in memory; unowned syntax is retained.
+#[cfg(target_os = "linux")]
+pub(crate) fn reconcile(
+    format: Format,
+    host: &[u8],
+    names: &[String],
+    incoming: Option<(&str, &[u8])>,
+) -> Result<Vec<u8>> {
+    if names.len() > 2000 {
+        return Err(invalid());
+    }
+    for name in names {
+        key(name)?;
+    }
+    let source = text(host)?;
+    let result = if format == Format::Toml {
+        let mut document: DocumentMut = source.parse().map_err(|_| invalid())?;
+        for name in names {
+            document.remove(name);
+        }
+        if let Some((name, bytes)) = incoming {
+            key(name)?;
+            let assembled: DocumentMut = text(bytes)?.parse().map_err(|_| invalid())?;
+            let value = assembled
+                .get(name)
+                .filter(|item| item.is_table_like())
+                .ok_or_else(invalid)?;
+            document.insert(name, value.clone());
+        }
+        document.to_string()
+    } else {
+        if !matches!(parse_json(source, format)?, CstInputValue::Object(_)) {
+            return Err(invalid());
+        }
+        let document = CstRootNode::parse(source, &options(format)).map_err(|_| invalid())?;
+        let object = document.object_value().ok_or_else(invalid)?;
+        for name in names {
+            if let Some(property) = object.get(name) {
+                property.remove();
+            }
+        }
+        if let Some((name, bytes)) = incoming {
+            key(name)?;
+            let value = json_value(text(bytes)?, format, name)?;
+            if !matches!(value, CstInputValue::Object(_)) {
+                return Err(invalid());
+            }
+            match object.get(name) {
+                Some(property) => property.set_value(value),
+                None => {
+                    object.append(name, value);
+                }
+            }
+        }
+        document.to_string()
+    };
+    text(result.as_bytes())?;
+    Ok(result.into_bytes())
+}

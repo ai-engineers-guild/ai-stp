@@ -1,6 +1,8 @@
 //! Authenticated component observation and confined, journaled program installation.
 
 #[cfg(target_os = "linux")]
+mod configuration;
+#[cfg(target_os = "linux")]
 pub mod entry;
 #[cfg(target_os = "linux")]
 mod execution;
@@ -94,6 +96,23 @@ pub fn platform() -> Result<&'static str> {
     }
 }
 
+pub fn configuration_apply(
+    parent: &Path,
+    bytes: &[u8],
+    digest: &str,
+    bundle: Option<&Path>,
+) -> Result<Value> {
+    #[cfg(target_os = "linux")]
+    {
+        configuration::apply::apply(parent, bytes, digest, bundle)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (parent, bytes, digest, bundle);
+        Err(unavailable())
+    }
+}
+
 pub struct Runtime {
     #[cfg(target_os = "linux")]
     launcher: linux::Launcher,
@@ -109,6 +128,23 @@ pub struct TargetRequest<'a> {
 }
 
 impl Runtime {
+    pub fn configuration_plan(
+        &self,
+        context: &TargetRequest<'_>,
+        operation: &str,
+        bundle: Option<&[u8]>,
+    ) -> Result<Value> {
+        #[cfg(target_os = "linux")]
+        {
+            configuration::plan(self, context, operation, bundle)
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = (context, operation, bundle);
+            Err(unavailable())
+        }
+    }
+
     pub fn program_change_plan(
         &self,
         context: &TargetRequest<'_>,

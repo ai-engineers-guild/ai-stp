@@ -1,4 +1,4 @@
-//! The only writable provider mount is the physically bound program directory.
+//! Explicit component write surfaces: one held program directory or configuration target.
 
 use serde_json::Value;
 use std::{
@@ -10,6 +10,85 @@ use std::{
 
 use super::{linux, target::Target, unavailable};
 use crate::{digest, error::Result, projection::Scope};
+
+#[derive(Clone, Copy)]
+pub(super) enum Execution<'a> {
+    Program(&'a Installation<'a>),
+    Configuration(&'a Configuration<'a>),
+}
+
+impl Execution<'_> {
+    pub fn mount(
+        &self,
+        arguments: &mut Vec<OsString>,
+        handles: &mut Vec<(usize, OwnedFd)>,
+    ) -> Result<()> {
+        match self {
+            Self::Program(installation) => installation.mount(arguments, handles),
+            Self::Configuration(configuration) => mount_plan(
+                configuration.plan,
+                "/run/configuration-plan",
+                8 * 1024 * 1024,
+                arguments,
+                handles,
+            ),
+        }
+    }
+}
+
+pub(super) struct Configuration<'a> {
+    pub plan: &'a Value,
+    pub request: &'a crate::provider::plan::Request,
+    pub scope: Scope,
+}
+
+impl Configuration<'_> {
+    pub fn command(&self, component: &[u8], target: &Target) -> Result<Vec<OsString>> {
+        let mut command = vec![
+            "apply-operation".into(),
+            "--json".into(),
+            "--target".into(),
+            target.path().as_os_str().into(),
+            "--plan".into(),
+            "/run/configuration-plan".into(),
+            "--plan-digest".into(),
+            self.plan["plan_digest"]
+                .as_str()
+                .ok_or_else(unavailable)?
+                .into(),
+            "--provider-release-digest".into(),
+            digest::sha256(component).into(),
+        ];
+        command.extend(linux::bundle_arguments(self.request));
+        if self.scope != Scope::Global {
+            command.extend(["--target-scope".into(), self.scope.as_str().into()]);
+        }
+        Ok(command)
+    }
+}
+
+fn mount_plan(
+    plan: &Value,
+    path: &str,
+    limit: usize,
+    arguments: &mut Vec<OsString>,
+    handles: &mut Vec<(usize, OwnedFd)>,
+) -> Result<()> {
+    let bytes = serde_json::to_vec(&plan["plan"]).map_err(|_| unavailable())?;
+    if bytes.len() > limit {
+        return Err(unavailable());
+    }
+    let plan = OwnedFd::from(linux::sealed(&bytes)?);
+    arguments.extend([
+        "--perms".into(),
+        "0400".into(),
+        "--ro-bind-data".into(),
+        plan.as_raw_fd().to_string().into(),
+        path.into(),
+    ]);
+    handles.push((arguments.len() - 2, plan));
+    Ok(())
+}
 
 pub(super) struct Installation<'a> {
     pub stage: &'a Target,
@@ -69,19 +148,12 @@ impl Installation<'_> {
             ]);
             handles.push((arguments.len() - 2, source));
         }
-        let bytes = serde_json::to_vec(&self.plan["plan"]).map_err(|_| unavailable())?;
-        if bytes.len() > 64 * 1024 {
-            return Err(unavailable());
-        }
-        let plan = OwnedFd::from(linux::sealed(&bytes)?);
-        arguments.extend([
-            "--perms".into(),
-            "0400".into(),
-            "--ro-bind-data".into(),
-            plan.as_raw_fd().to_string().into(),
-            "/run/install-plan".into(),
-        ]);
-        handles.push((arguments.len() - 2, plan));
-        Ok(())
+        mount_plan(
+            self.plan,
+            "/run/install-plan",
+            64 * 1024,
+            arguments,
+            handles,
+        )
     }
 }

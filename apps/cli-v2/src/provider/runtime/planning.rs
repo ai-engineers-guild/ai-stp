@@ -37,11 +37,14 @@ pub(super) fn observe(
         .launcher
         .status(artifact.executable()?, &target, context.scope)?;
     let before = target.response(&before_bytes, &info)?;
-    let validation_bytes =
-        runtime
+    let (validation, validation_digest) = if request.bundle.is_some() {
+        let bytes = runtime
             .launcher
             .validate(artifact.executable()?, &target, request, bundle)?;
-    let validation = request.validation(&validation_bytes)?;
+        (request.validation(&bytes)?, digest::sha256(&bytes).into())
+    } else {
+        (Value::Null, Value::Null)
+    };
     request.check_time(jiff::Timestamp::now())?;
     target.revalidate()?;
     let plan_bytes = runtime.launcher.plan(
@@ -88,7 +91,7 @@ pub(super) fn observe(
     report["status_before_digest"] = digest::sha256(&before_bytes).into();
     report["status_after_digest"] = digest::sha256(&after_bytes).into();
     report["bundle_validation"] = validation;
-    report["bundle_validation_digest"] = digest::sha256(&validation_bytes).into();
+    report["bundle_validation_digest"] = validation_digest;
     report["plan"] = plan;
     report["plan_response_digest"] = digest::sha256(&plan_bytes).into();
     report["planned_at"] = jiff::Timestamp::now().to_string().into();
