@@ -56,6 +56,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any, Final, Self, cast
 
+from ai_stp_cli.provider import protocol
 from ai_stp_cli.provider.network_launcher import (
     listener,
     port,
@@ -1001,7 +1002,12 @@ def _probe(api: _Api, sid: ctypes.c_void_p, package: str) -> tuple[bool, tuple[s
                 expired.set()
                 child.kill()
 
-            watchdog = threading.Timer(30.0, _stop)
+            # The shared boundary budget: a hosted runner measured ~37 s for
+            # this spawn, so a tighter bound would read a slow machine as a
+            # failed isolation. The watchdog still bounds a child that never
+            # answers — the kill closes the pipe and ends the read.
+            timeout = protocol.BOUNDARY.timeout_seconds
+            watchdog = threading.Timer(timeout, _stop)
             watchdog.start()
             try:
                 raw = stream.read() if stream is not None else b""
@@ -1009,7 +1015,7 @@ def _probe(api: _Api, sid: ctypes.c_void_p, package: str) -> tuple[bool, tuple[s
                 watchdog.cancel()
             exit_code = child.wait()
         if expired.is_set():
-            return False, ("the isolated probe did not answer within 30 seconds",)
+            return False, (f"the isolated probe did not answer within {timeout:g} seconds",)
         try:
             observed = cast(dict[str, object], json.loads(raw.decode("utf-8").strip()))
         except (UnicodeDecodeError, json.JSONDecodeError, TypeError) as error:

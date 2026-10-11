@@ -23,11 +23,11 @@ import subprocess
 import sys
 import threading
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import Any, NoReturn, cast
 
 import pytest
 
-from ai_stp_cli.provider import windows_launcher
+from ai_stp_cli.provider import protocol, windows_launcher
 from ai_stp_cli.provider.network_launcher import CHILD_PROBE
 from ai_stp_cli.provider.protocol_v2 import NetworkCapability, NetworkEnforcement
 
@@ -158,6 +158,66 @@ def test_the_isolated_spawn_reaches_the_target_and_not_the_network() -> None:
     assert place.read_text(encoding="utf-8") == "inside"
 
 
+def test_the_probe_watchdog_carries_the_shared_boundary_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A probe that never answers is bounded by the provider budget, not less.
+
+    The spawn itself legitimately measured ~37 s on a hosted runner, so a
+    watchdog under the shared boundary reports a slow machine as failed
+    isolation. This pins the budget the kill timer carries, on every
+    platform, with a child that answers immediately so nothing else is
+    exercised.
+    """
+    from ai_stp_cli.provider import protocol
+
+    captured: dict[str, float] = {}
+
+    class FakeTimer:
+        def __init__(self, interval: float, function: Any) -> None:
+            captured["interval"] = interval
+
+        def start(self) -> None:
+            pass
+
+        def cancel(self) -> None:
+            pass
+
+    class FakeStream:
+        def read(self) -> bytes:
+            return json.dumps({"dns_udp": "denied", "ipv4": "denied", "ipv6": "denied"}).encode()
+
+    class FakeChild:
+        stdout = FakeStream()
+
+        def wait(self) -> int:
+            return 0
+
+    class FakeProcess:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            pass
+
+        def __enter__(self) -> FakeChild:
+            return FakeChild()
+
+        def __exit__(self, *args: Any) -> None:
+            pass
+
+    monkeypatch.setattr(threading, "Timer", FakeTimer)
+    monkeypatch.setattr(windows_launcher, "AppContainerProcess", FakeProcess)
+    monkeypatch.setattr(windows_launcher, "powershell", lambda: Path("powershell.exe"))
+
+    probe = windows_launcher._probe  # pyright: ignore[reportPrivateUsage]
+    proved, _evidence = probe(
+        cast(Any, None),  # api: only forwarded into the faked AppContainerProcess
+        cast(Any, None),  # sid: same
+        "S-1-15-2-test",
+    )
+
+    assert proved
+    assert captured["interval"] == protocol.BOUNDARY.timeout_seconds
+
+
 def _unproved(reason: str) -> NoReturn:
     """A hosted runner that cannot prove the AppContainer is a red result.
 
@@ -249,7 +309,10 @@ def test_a_killed_parent_takes_its_isolated_tree_and_its_grants_with_it(
             ready: queue.Queue[str] = queue.Queue()
             reader = threading.Thread(target=lambda: ready.put(output.readline()), daemon=True)
             reader.start()
-            first = ready.get(timeout=60).strip()
+            # The helper proves discovery before it answers, and on a host
+            # where the probe child never replies that takes the full shared
+            # boundary budget plus interpreter startup and the slower spawn.
+            first = ready.get(timeout=protocol.BOUNDARY.timeout_seconds * 2).strip()
             if first.startswith("UNPROVED"):
                 _unproved(first.removeprefix("UNPROVED").strip())
             assert first.startswith("READY "), first
