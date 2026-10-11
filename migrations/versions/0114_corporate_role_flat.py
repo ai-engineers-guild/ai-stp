@@ -15,7 +15,10 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0114_corporate_role_flat"
-down_revision: str | Sequence[str] | None = "0113_technology_category_icon"
+down_revision: str | tuple[str, str] | None = (
+    "0113_technology_category_icon",
+    "0123_finding_review_dependency",
+)
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
