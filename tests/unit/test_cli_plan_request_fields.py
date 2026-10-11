@@ -98,7 +98,7 @@ def test_forward_recovery_is_explicit_declared_and_incompatible_with_capture(
     )
     flag = arguments.index("--recovery-mode")
     assert arguments[flag + 1] == "forward"
-    for overrides in (
+    refusals: tuple[dict[str, object], ...] = (
         {"accepted_request_fields": frozenset()},
         {"recovery_mode": "rollback"},
         {"bundle": None},
@@ -107,7 +107,8 @@ def test_forward_recovery_is_explicit_declared_and_incompatible_with_capture(
         {"operation": protocol_v3.Operation.BACKUP},
         {"operation": protocol_v3.Operation.REMOVE},
         {"operation": protocol_v3.Operation.SOFTWARE_INSTALL},
-    ):
+    )
+    for overrides in refusals:
         request = {
             "recovery_mode": "forward",
             "accepted_request_fields": capabilities.plan_request_fields,

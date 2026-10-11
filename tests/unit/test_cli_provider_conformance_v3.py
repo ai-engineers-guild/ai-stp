@@ -452,12 +452,13 @@ def test_forward_recovery_plans_refuse_rehashed_capture_or_unrequested_mode(tmp_
     validate()
     with pytest.raises(CliFailure):
         validate(None)
-    for field, value in (
+    mutations: tuple[tuple[str, JsonValue], ...] = (
         ("recovery_mode", "rollback"),
         ("backup_ref", "slot-000000000001"),
         ("native_capture", {}),
         ("restore_target_digest", _digest("b")),
-    ):
+    )
+    for field, value in mutations:
         artifact[field] = value
         with pytest.raises(CliFailure):
             validate()
