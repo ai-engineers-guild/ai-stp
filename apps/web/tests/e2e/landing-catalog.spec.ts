@@ -62,7 +62,8 @@ test.describe("landing → search → detail smoke (REQ-2213)", () => {
     const firstCard = page.locator("article[data-kind='component']").first();
     await expect(firstCard).toBeVisible({ timeout: 15_000 });
     await firstCard.getByRole("button", { name: "More actions" }).click();
-    await expect(page.getByRole("menuitem", { name: "Like" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Copy ID" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Like" })).toHaveCount(0);
     const overflow = await page.evaluate(() => getComputedStyle(document.body).overflow);
     expect(overflow).not.toBe("hidden");
   });
