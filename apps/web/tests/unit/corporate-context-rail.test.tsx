@@ -155,6 +155,14 @@ it("keeps permitted root destinations available on a denied administration page"
   expect(nav.queryByRole("button", { name: "backToNavigation" })).toBeNull();
   expect(desktop().querySelectorAll('[aria-current="page"]')).toHaveLength(0);
 });
+it("suppresses the desktop rail on the landing page but keeps the mobile menu", async () => {
+  route.path = "/";
+  render(<ContextRail corporate={false} docsHref="https://docs.test" />);
+  expect(document.querySelector('[data-ui="context-sidebar"]')).toBeNull();
+  await userEvent.setup().click(screen.getByRole("button", { name: "openMenu" }));
+  const dialog = screen.getByRole("dialog");
+  expect(within(dialog).getByRole("link", { name: "catalog" })).toHaveAttribute("href", "/catalog");
+});
 it("uses the same rail for the public SaaS catalog without adding account destinations", () => {
   route.path = "/catalog/components/comp_1";
   useSessionUiSlice.setState({ signedInHint: true });
