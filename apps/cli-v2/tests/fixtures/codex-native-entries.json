@@ -90,5 +90,23 @@
     "folder": "folder",
     "body": "---\nname: \"nUlL\"\ndescription: Inspect.\n---\nBody.\n",
     "name": "nUlL"
+  },
+  {
+    "id": "explicit-string-null",
+    "folder": "folder",
+    "body": "---\nname: !!str null\ndescription: Inspect.\n---\nBody.\n",
+    "name": "null"
+  },
+  {
+    "id": "explicit-string-mixed-null",
+    "folder": "folder",
+    "body": "---\nname: !!str nUlL\ndescription: Inspect.\n---\nBody.\n",
+    "name": "nUlL"
+  },
+  {
+    "id": "duplicate-name",
+    "folder": "folder",
+    "body": "---\nname: inspect\nname: changed\ndescription: Inspect.\n---\nBody.\n",
+    "name": null
   }
 ]
