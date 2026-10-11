@@ -93,8 +93,10 @@ ownership reader. The component implementation for 0.0.90 now retains desired
 bytes, binds the complete original operation and physical target, recovers
 admitted writes after interruption, and preserves historical outcomes. Its
 source process proofs include whole files and JSON/JSONC/TOML contributions,
-unowned fields, stale hosts and interrupted writes; coordinated public release
-acceptance is tracked in [#764](https://github.com/ai-engineers-guild/ai-stp/issues/764).
+unowned fields, stale hosts and interrupted writes. The coordinated public
+release also passed authenticated seven-harness Linux program lifecycles and
+separate component forward-replacement/ownership proofs. Exact artifacts and
+acceptance bounds are tracked in [#764](https://github.com/ai-engineers-guild/ai-stp/issues/764).
 Components before 0.0.90 refuse the optional mode. Native configuration
 execution and production cutover remain pending.
 
@@ -313,7 +315,7 @@ and the issues it links) and setup-systems #316.
 | Local-first CLI | SQLite registry, passports/revisions, discovery/adoption, selection, bundle, install/status/diff/update/rollback/recovery, machine help, and canonical Skill |
 | Platform | `/v1`, PostgreSQL, object storage, queue, authentication/devices, sync, publication, grants/reports, public catalog, article, and SEO projections |
 | Web | Landing, catalog/detail, account/device/owner surfaces, content hub, machine projections, and a three-OS test matrix |
-| Providers | Seven public setup systems at `0.0.89`, read through protocol v3. Source kit `0.2.16` prepares explicit forward-recovery admission; released components still use `0.2.15` and do not implement that mode. Native configuration execution remains pending. Launch completeness per provider is measured evidence, not a property of the release. |
+| Providers | Seven public ai-stp installation components use protocol v3 and implement explicit forward configuration recovery and public ownership observations. The native managed default is owned by `apps/cli-v2/src/provider/managed.rs`; exact accepted public releases and their runtime evidence are tracked in [#764](https://github.com/ai-engineers-guild/ai-stp/issues/764). Native configuration execution remains pending. A component release does not establish complete native CLI installation or launch readiness. |
 | Release | The Python `ai-stp-cli` distribution is published on PyPI with a matching immutable GitHub tag and release artifacts (SBOM, manifest, `SHA256SUMS`); exact accepted release identities belong to the dated publication receipts. Automatic provider acquisition uses PyPI with the CLI-managed verifier (`ADR-0171`); explicit GitHub acquisition retains its attestation policy. Self-update of the CLI wheel is `SPEC-072` / `ADR-0170`. The source version in `apps/cli/pyproject.toml`, package publication and installed PATH identity are separate observations. |
 | Desktop | `ai-stp-desktop` 0.0.8: a Tauri 2 shell over the CLI machine contract with a frozen CLI sidecar (`ADR-0222`); deb, rpm and AppImage for Linux, an aarch64 dmg, and an exe and msi for Windows, unsigned. |
 | Catalog | The canonical first-party corpus models seven harness families and four postures. Identity projection, exact target assurance, and normal-path publication/readback evidence are implemented in the current platform closeout for `#146`/`#155`. |
