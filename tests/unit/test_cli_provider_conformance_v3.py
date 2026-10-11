@@ -446,11 +446,11 @@ def test_forward_recovery_plans_refuse_rehashed_capture_or_unrequested_mode(tmp_
             recovery_mode=mode,
         )
 
-    with pytest.raises(CliFailure):
+    with pytest.raises(CliFailure, match="does not bind the requested configuration recovery mode"):
         validate()
     artifact["recovery_mode"] = "forward"
     validate()
-    with pytest.raises(CliFailure):
+    with pytest.raises(CliFailure, match="does not bind the requested configuration recovery mode"):
         validate(None)
     mutations: tuple[tuple[str, JsonValue], ...] = (
         ("recovery_mode", "rollback"),
@@ -460,12 +460,18 @@ def test_forward_recovery_plans_refuse_rehashed_capture_or_unrequested_mode(tmp_
     )
     for field, value in mutations:
         artifact[field] = value
-        with pytest.raises(CliFailure):
+        message = {
+            "recovery_mode": "does not bind the requested configuration recovery mode",
+            "backup_ref": "differs from exact consumer inputs",
+            "native_capture": "does not bind the requested configuration recovery mode",
+            "restore_target_digest": "non-restore provider plan binds a restored target digest",
+        }[field]
+        with pytest.raises(CliFailure, match=message):
             validate()
         artifact.pop(field)
         artifact["recovery_mode"] = "forward"
     capabilities = _capabilities()
-    with pytest.raises(CliFailure):
+    with pytest.raises(CliFailure, match="does not bind the requested configuration recovery mode"):
         validate()
 
 

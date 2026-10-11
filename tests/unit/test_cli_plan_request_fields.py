@@ -115,7 +115,12 @@ def test_forward_recovery_is_explicit_declared_and_incompatible_with_capture(
             "bundle": binding,
             **overrides,
         }
-        with pytest.raises(CliFailure):
+        message = (
+            "does not declare forward configuration recovery"
+            if "accepted_request_fields" in overrides
+            else "forward recovery requires a bundle install or replace without backup or capture"
+        )
+        with pytest.raises(CliFailure, match=message):
             _arguments(**request)
 
 
