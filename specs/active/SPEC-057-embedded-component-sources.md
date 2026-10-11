@@ -81,6 +81,13 @@ the architecture and extends ADR-0051 without changing `ComponentRef`.
   publisher, while upstream project, source, and maintainers remain separate
   attribution. It has no catalog metadata, reactions, publisher page, or direct
   search result.
+  Newly frozen Codex skills derive native invocation IDs from the exact mapped
+  `SKILL.md` bytes and the pinned Codex loader rules, including directory-name
+  fallback, visible path/depth limits and duplicate/plugin refusal. Display
+  labels never supply these IDs. The bounded YAML reader preserves scalar spelling
+  and distinguishes explicit strings from null. Retained immutable definitions
+  keep their original sealed bytes. Other embedded harness/kind identity writers
+  still require separate parity qualification; this correction does not claim it.
 - `REQ-5708`: A local/private setup may embed public Git, package, and local
   sources. Public setup publication sends the exact definition bytes to the
   server and is rejected when redistribution rights are unknown/prohibited or

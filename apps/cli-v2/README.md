@@ -82,6 +82,13 @@ production switch remain C4/C6/C7 work.
 
 ## Contract
 
+The shared embedded-definition producer derives Codex skill IDs from mapped
+native files. The acquisition proof carries a real skill through Python freeze,
+Rust validation, SQLite, owned setup authoring and offline replay. Display names
+do not become invocation IDs, and acquired embedded members retain both
+verification flags as false. Other embedded harness/kind producer identities
+remain a separate qualification boundary.
+
 `registry.rs` owns command definitions, parsing, descriptors and the registry
 digest. `help --json` is the current command reference; this document does not
 duplicate its flags. Only implemented commands are advertised. No task intent

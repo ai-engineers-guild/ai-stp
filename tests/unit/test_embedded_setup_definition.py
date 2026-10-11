@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+from dataclasses import replace
+from pathlib import Path
 from typing import cast
 
 import pytest
@@ -118,11 +121,12 @@ def _freeze(
     embedded: tuple[EmbeddedDraft, ...] = (),
     catalog_ids: frozenset[str] | None = None,
     known: dict[str, str] | None = None,
+    harness_id: str = "claude-code",
 ):
     return freeze_setup_definition(
         setup_id=SETUP,
         version="1.0",
-        harness_id="claude-code",
+        harness_id=harness_id,
         input_digest=DIGEST,
         publisher_id=OWNER,
         created_at=AT,
@@ -131,6 +135,65 @@ def _freeze(
         catalog_ids=catalog_ids or frozenset(),
         known_identities=known,
     )
+
+
+def test_embedded_codex_identity_uses_the_shared_native_corpus() -> None:
+    cases = json.loads(
+        (
+            Path(__file__).parents[2] / "apps/cli-v2/tests/fixtures/codex-native-entries.json"
+        ).read_text(encoding="utf-8")
+    )
+    for case in cases:
+        snapshot = _path_snapshot().model_copy(
+            update={"files": {"SKILL.md": case["body"].encode()}}
+        )
+        draft = replace(
+            _draft(snapshot, stable_id=EMBEDDED_ID, name="Unrelated display label"),
+            harness_id="codex",
+            managed_paths=(f"skills/{case['folder']}/SKILL.md",),
+        )
+        if case["name"] is None:
+            with pytest.raises(SourceError) as refusal:
+                _freeze(embedded=(draft,), harness_id="codex")
+            assert refusal.value.code == INVALID_SOURCE, case["id"]
+        else:
+            frozen = _freeze(embedded=(draft,), harness_id="codex")
+            document = json.loads(frozen.payload)
+            passport = document["embedded"][0]["passport"]
+            members = passport["adaptations"][0]["scope_adaptations"][0]["members"]
+            assert members[0]["native_ids"] == [case["name"]], case["id"]
+            assert validate_setup_definition(frozen.payload) is not None
+
+
+def test_embedded_codex_identity_respects_visibility_and_refuses_ambiguity() -> None:
+    from ai_stp_sources.codex_identity import skill_identities
+
+    body = b"---\nname: inspect\ndescription: Inspect.\n---\nBody.\n"
+    entry = "skills/review/SKILL.md"
+    files = {
+        entry: body,
+        "skills/review/.hidden/SKILL.md": body,
+        "skills/review/a/b/c/d/e/f/SKILL.md": body,
+        "skills/review/reference.md": b"Auxiliary content.",
+    }
+    assert skill_identities(files) == {path: ["inspect"] if path == entry else [] for path in files}
+    for extra in (
+        {"skills/duplicate/SKILL.md": body},
+        {".agents/" + entry: body},
+        {"skills/review/.codex-plugin/plugin.json": b"{}"},
+        {"instructions/SKILL.md": body},
+    ):
+        with pytest.raises(SourceError) as refusal:
+            skill_identities(files | extra)
+        assert refusal.value.code == INVALID_SOURCE
+    for payload in (
+        b"---\nname: first\nname: second\ndescription: Inspect.\n---\n",
+        b"---\nname: &name [*name]\ndescription: Inspect.\n---\n",
+        b"---\nname: inspect\ndescription: " + b"x" * (64 * 1024) + b"\n---\n",
+    ):
+        with pytest.raises(SourceError) as refusal:
+            skill_identities({entry: payload})
+        assert refusal.value.code == INVALID_SOURCE
 
 
 def test_catalog_only_freeze_stays_definition_version_1() -> None:
