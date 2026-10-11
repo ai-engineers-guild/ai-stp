@@ -82,6 +82,50 @@
       ],
       "default": null
     },
+    "limit": {
+      "default": 100,
+      "maximum": 100,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "offset": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Offset",
+      "type": "integer"
+    },
+    "outcome": {
+      "anyOf": [
+        {
+          "enum": [
+            "succeeded",
+            "denied",
+            "failed"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Outcome"
+    },
+    "q": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Q"
+    },
     "target_id": {
       "anyOf": [
         {
@@ -95,6 +139,20 @@
       ],
       "default": null,
       "title": "Target Id"
+    },
+    "target_table": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Target Table"
     }
   },
   "title": "CorporateAuditQuery",

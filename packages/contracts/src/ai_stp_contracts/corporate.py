@@ -37,8 +37,20 @@ JobTitleState = Literal["current", "retired"]
 ProjectState = Literal["active", "archived"]
 ProjectLifecycle = Literal["active", "deprecated", "archived", "deleted"]
 ScopeKind = Literal[
-    "system", "organization", "team", "project", "technology", "catalog_object", "telemetry"
+    "system",
+    "organization",
+    "team",
+    "project",
+    "technology",
+    "category",
+    "catalog_object",
+    "telemetry",
 ]
+# Participation role on a project — separate from the organization role and
+# from the access binding it materializes to (ADR-0230).
+ProjectParticipationRole = Literal["owner", "lead", "contributor", "staff"]
+# How broadly members see each other (ADR-0230).
+PeopleVisibility = Literal["members", "teammates", "admins"]
 
 
 class CorporateCatalogAssignmentRequest(ContractModel):
@@ -619,7 +631,9 @@ class CorporateBindingUpdateRequest(ContractModel):
         return self
 
 
-GrantScopeKind = Literal["organization", "team", "project", "technology"]
+GrantScopeKind = Literal[
+    "organization", "team", "project", "technology", "category", "catalog_object"
+]
 
 
 class CorporatePermissionGrantRequest(ContractModel):
@@ -697,7 +711,6 @@ class CorporateRoleCreateRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     name: CorporateRole
-    parent_role: CorporateRole | None = None
     permissions: Annotated[list[str], Field(max_length=128)] = Field(default_factory=list)
     authorization_revision: Annotated[int, Field(ge=1)]
     idempotency_key: IdempotencyKey
@@ -706,18 +719,21 @@ class CorporateRoleCreateRequest(ContractModel):
 class CorporateRoleUpdateRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
-    parent_role: CorporateRole | None = None
     permissions: Annotated[list[str], Field(max_length=128)]
     expected_revision: Annotated[int, Field(ge=1)]
     authorization_revision: Annotated[int, Field(ge=1)]
     idempotency_key: IdempotencyKey
 
 
+class CorporateRoleDeleteRequest(CorporateDeleteRequest):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    replacement_role: CorporateRole | None = None
+
+
 class CorporateRoleView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     name: CorporateRole
-    parent_role: CorporateRole | None
     permissions: Annotated[list[str], Field(max_length=128)]
     revision: Annotated[int, Field(ge=1)]
 
@@ -771,6 +787,7 @@ def _project_wire_object(schema: JsonSchemaValue) -> None:
 class CorporateProjectRepository(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     provider_project_id: str
+    provider: Literal["gitlab", "github"] = "gitlab"
     namespace: str
     repository_url: str
     default_branch: str | None = None
@@ -919,6 +936,7 @@ class CorporateMembershipAssignmentRequest(ContractModel):
     team_id: Annotated[str | None, Field(max_length=64)] = None
     project_id: Annotated[str | None, Field(max_length=64)] = None
     team_role: Literal["lead", "staff"] = "staff"
+    project_role: ProjectParticipationRole = "staff"
     operation: Literal["assign", "remove"] = "assign"
     authorization_revision: Annotated[int, Field(ge=1)]
     idempotency_key: IdempotencyKey
@@ -931,6 +949,7 @@ class CorporateMembershipAssignment(ContractModel):
     team_id: str | None
     project_id: str | None
     team_role: Literal["lead", "staff"]
+    project_role: ProjectParticipationRole = "staff"
     operation: Literal["assign", "remove"] = "assign"
     bindings: Annotated[list[CorporateBinding], Field(max_length=2)]
 
@@ -968,6 +987,7 @@ class CorporateAuditList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: Annotated[list[CorporateAuditEntry], Field(max_length=256)]
+    total: Annotated[int, Field(ge=0)]
     next_before_created_at: Timestamp | None = None
     next_before_id: int | None = None
 
@@ -987,8 +1007,19 @@ class CorporateAuditQuery(ContractModel):
     actor_account_id: AccountId | None = None
     action: Annotated[str | None, Field(min_length=1, max_length=128)] = None
     target_id: Annotated[str | None, Field(min_length=1, max_length=128)] = None
+    target_table: Annotated[str | None, Field(min_length=1, max_length=128)] = None
+    outcome: Literal["succeeded", "denied", "failed"] | None = None
+    q: Annotated[str | None, Field(min_length=1, max_length=128)] = None
     created_from: Timestamp | None = None
     created_to: Timestamp | None = None
+    limit: Annotated[int, Field(ge=1, le=100)] = 100
+    offset: Annotated[int, Field(ge=0)] = 0
+
+
+class CorporateAuditExportQuery(CorporateAuditQuery):
+    """Journal export shares the list filters; one dump may return up to 10 000 rows."""
+
+    limit: Annotated[int, Field(ge=1, le=10000)] = 10000
 
 
 class CorporateOverviewNode(ContractModel):
@@ -1129,12 +1160,14 @@ class CorporateInvitationAcceptRequest(ContractModel):
 
 
 class CorporateMembershipPolicy(ContractModel):
-    """Email-domain allowlist for joining the organization."""
+    """Email-domain allowlist for joining the organization, plus the people
+    visibility policy (ADR-0230)."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
     allowed_email_domains: Annotated[list[str], Field(max_length=64)] = []
+    people_visibility: PeopleVisibility = "teammates"
     authorization_revision: Annotated[int, Field(ge=1)]
 
 
@@ -1144,5 +1177,71 @@ class CorporateMembershipPolicyRequest(ContractModel):
     allowed_email_domains: Annotated[
         list[Annotated[str, Field(min_length=1, max_length=253)]], Field(max_length=64)
     ] = Field(default_factory=list)
+    people_visibility: PeopleVisibility = "teammates"
     authorization_revision: Annotated[int, Field(ge=1)]
     idempotency_key: IdempotencyKey
+
+
+class CorporateRepositoryPlanRequest(ContractModel):
+    """Resolve a repository URL before an explicit source binding."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    repository_url: Annotated[str, Field(min_length=1, max_length=512)]
+    authorization_revision: int | str
+    expected_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey
+
+
+class CorporateRepositoryPlan(ContractModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    project_id: str
+    repository_url: str
+    provider: Literal["github", "gitlab"]
+    repository_id: str
+    namespace_id: str
+    name: str
+    default_branch: str
+    observed_revision: str
+    expected_revision: int
+    authorization_revision: int | str
+    plan_key: str
+    plan_digest: str
+    expires_at: Timestamp
+
+
+class CorporateRepositoryBindRequest(ContractModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    plan_key: IdempotencyKey
+    plan_digest: Annotated[str, Field(min_length=71, max_length=71)]
+    authorization_revision: int | str
+    idempotency_key: IdempotencyKey
+
+
+class CorporateTeammateContext(ContractModel):
+    """One participation context a teammate shares with the caller."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    kind: Literal["team", "project"]
+    id: Annotated[str, Field(max_length=64)]
+    name: str
+    role: Annotated[str, Field(max_length=16)]
+
+
+class CorporateTeammate(ContractModel):
+    """Reduced people projection — no email, job title, or organization role."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    account_id: AccountId
+    display_name: str | None
+    contexts: Annotated[list[CorporateTeammateContext], Field(max_length=256)]
+
+
+class CorporateTeammates(ContractModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    organization_id: OrganizationId
+    people_visibility: PeopleVisibility
+    items: Annotated[list[CorporateTeammate], Field(max_length=512)]

@@ -121,10 +121,12 @@ are follow-up scope.
 - `REQ-7910`: Authorization-relevant changes atomically increment the organization
   policy revision. A mutation with a stale revision returns `capability_stale` without
   side effects; clients then refresh the capability projection.
-- `REQ-7911`: Every introduced privileged read, mutation, delete, and security-relevant
-  denial appends an organization-scoped audit event containing actor, action, target,
-  outcome, reason code, request correlation identifier, and time. The bounded audit
-  export uses the same authorization, filtering, and redaction rules.
+- `REQ-7911`: Every introduced mutation, delete, and security-relevant denial appends
+  an organization-scoped audit event containing actor, action, target, outcome,
+  reason code, request correlation identifier, and time. Ordinary reads and lists do
+  not emit journal entries; the audit journal itself is the exception — audit list
+  and export reads are audited per `REQ-7912`. The bounded audit export uses the
+  same authorization, filtering, and redaction rules.
 - `REQ-7912`: Audit events are append-only, ordered by `(created_at, id)`, bounded when
   listed, separately permissioned, and themselves audited. Stored and returned audit
   data contains no credential, token, assertion, secret, repository content, raw
@@ -146,6 +148,27 @@ are follow-up scope.
   changing account identity, organization RBAC role, team role, competence, or access.
   Job-title administration and employee filtering follow SPEC-086; authorization,
   revision, idempotency, audit, and tenant isolation follow this specification.
+- `REQ-7923`: Project participation carries its own role
+  (`owner | lead | contributor | staff`) on the project-member row, independent of
+  the member's organization role. Assigning or updating participation materializes
+  exactly one active `assignment`-origin binding at the project scope — `lead` for
+  `owner`/`lead`, `staff` for `contributor`/`staff` — and revokes the replaced one
+  in the same transaction. Removing participation revokes that binding.
+  `team_role` and `project_role` never copy the organization role into a scope.
+- `REQ-7924`: `category` is a first-class binding and direct-grant scope kind.
+  Evaluating permissions at a `technology` scope also matches rows bound to any
+  category the technology is classified under; evaluating at a `member` scope
+  matches rows bound to the member's active teams and active projects. The
+  single-scope evaluator and the bulk evaluator implement identical arms.
+- `REQ-7925`: The organization's `people_visibility` policy (`members`,
+  `teammates` — the default, or `admins`) selects who sees whom. The
+  `/teammates` endpoint is gated on active membership, not `member.list`, and
+  returns only identity plus shared team/project context and the participation
+  role — never contact data, job title, or the organization role. `members`
+  lists every participant; `teammates` limits the projection to shared contexts;
+  `admins` returns only scopes where the caller holds `member.list`. A caller
+  with organization-wide `member.list` sees the full projection under every
+  policy.
 
 ## States and errors
 
@@ -190,7 +213,10 @@ ownership.
 Corporate audit events are retained indefinitely in B2B-01. The product exposes a
 bounded, filterable journal read and a bounded portable export; both use the stable
 `(created_at, id)` cursor (`before_created_at` plus `before_id`) and there is no deletion
-endpoint. Operational database backup and restore remains the recovery path until a
+endpoint. The journal read also accepts `offset` within `limit` for numbered
+pagination and returns `total` over the content filters, excluding the cursor;
+the export shares the same filters with a larger bound. Operational database
+backup and restore remains the recovery path until a
 versioned retention policy under SPEC-013 defines deletion behavior.
 Journal ordering, cursor comparisons, and time filters use canonical UTC millisecond
 precision, matching the public timestamp representation, including existing rows
@@ -215,6 +241,9 @@ stored with PostgreSQL microsecond precision.
 | `REQ-7913` | API and Web tests expose only effective implemented capabilities and reject forged or stale mutations. |
 | `REQ-7914` | OpenAPI drift, generated-client, contract-lint, and stable-error tests pass. |
 | `REQ-7922` | Job-title API and PostgreSQL tests prove administrator-only mutation, same-tenant uniqueness, role independence, retirement behavior, audit, and non-enumeration. |
+| `REQ-7923` | Assignment tests cover participation-role persistence, the participation→binding mapping, replacement revocation, removal, and the `project_role` audit field. |
+| `REQ-7924` | `tests/api/platform/test_corporate_authorization_bulk.py` exercises the member/project and technology/category arms and asserts the single and bulk evaluators agree on every scope. |
+| `REQ-7925` | Teammates endpoint tests cover each visibility policy, scoped `member.list` elevation, the reduced projection fields, self-inclusion, and non-member denial. |
 
 ## Team hierarchy (#204)
 

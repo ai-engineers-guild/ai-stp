@@ -76,14 +76,83 @@ function isBlockedPath(pathname: string, sharedPath: string | null): boolean {
  * shared route. Cryptographic session validation runs in Node server components
  * (ADR-0041).
  */
-export default function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const legacyAdminMember = pathname.match(
-    /^(\/(?:en|ru)(?:\/ai)?)\/corporate\/organization\/admins\/members\/([^/]+)$/,
+const LEGACY_ADMIN_SEGMENTS: Record<string, string> = {
+  access: "access-model",
+  audit: "audit",
+  employees: "employee-access",
+  "job-titles": "job-titles",
+  members: "employee-access",
+  roles: "roles",
+  security: "security",
+  "tech-categories": "tech-categories",
+};
+
+/** The `admins` tree moved to named organization pages; member detail lands in the drawer. */
+function legacyAdminRedirect(request: NextRequest, pathname: string) {
+  const match = pathname.match(
+    /^(\/(?:en|ru)(?:\/ai)?)\/corporate\/organization\/admins(?:\/([^/?]+))?(?:\/([^/?]+))?\/?$/,
   );
-  if (legacyAdminMember) {
+  if (!match) return null;
+  const [, prefix, segment, tail] = match;
+  const target = segment === undefined ? "members" : LEGACY_ADMIN_SEGMENTS[segment];
+  if (
+    target === undefined ||
+    (tail !== undefined && segment !== "employees" && segment !== "members")
+  )
+    return null;
+  const url = requestOriginUrl(request);
+  const invitations = url.searchParams.get("tab") === "invitations";
+  url.pathname = `${prefix}/corporate/admin/${invitations ? "invitations" : target}`;
+  if (invitations) url.searchParams.delete("tab");
+  if (tail !== undefined) url.searchParams.set("employee", tail);
+  return NextResponse.redirect(url, 308);
+}
+
+const LEGACY_ORG_ADMIN_PAGES = new Set([
+  "access-model",
+  "audit",
+  "employee-access",
+  "invitations",
+  "job-titles",
+  "members",
+  "roles",
+  "security",
+  "tech-categories",
+]);
+
+/**
+ * The administration pages lived one generation under
+ * `/corporate/organization/{page}` before moving to `/corporate/admin/{page}`.
+ * Employee tails resolve to the directory drawer in one hop.
+ */
+function legacyOrgAdminRedirect(request: NextRequest, pathname: string) {
+  const match = pathname.match(
+    /^(\/(?:en|ru)(?:\/ai)?)\/corporate\/organization\/([^/?]+)(?:\/([^/?]+))?\/?$/,
+  );
+  if (!match) return null;
+  const [, prefix, segment, tail] = match;
+  if (!LEGACY_ORG_ADMIN_PAGES.has(segment ?? "")) return null;
+  if (tail !== undefined && segment !== "employee-access") return null;
+  const url = requestOriginUrl(request);
+  const invitations = segment === "members" && url.searchParams.get("tab") === "invitations";
+  url.pathname = invitations
+    ? `${prefix}/corporate/admin/invitations`
+    : `${prefix}/corporate/admin/${segment}`;
+  if (invitations) url.searchParams.delete("tab");
+  if (tail !== undefined) url.searchParams.set("employee", tail);
+  return NextResponse.redirect(url, 308);
+}
+
+/** Permanent redirects for retired corporate paths; checked before routing. */
+function corporateLegacyRedirect(request: NextRequest, pathname: string) {
+  const legacyAdmin = legacyAdminRedirect(request, pathname);
+  if (legacyAdmin) return legacyAdmin;
+  const legacyOrgAdmin = legacyOrgAdminRedirect(request, pathname);
+  if (legacyOrgAdmin) return legacyOrgAdmin;
+  const adminsIndex = pathname.match(/^(\/(?:en|ru)(?:\/ai)?)\/corporate\/admins?\/?$/);
+  if (adminsIndex) {
     const url = requestOriginUrl(request);
-    url.pathname = `${legacyAdminMember[1]}/corporate/organization/admins/employees/${legacyAdminMember[2]}`;
+    url.pathname = `${adminsIndex[1]}/corporate/admin/members`;
     return NextResponse.redirect(url, 308);
   }
   const legacyCorporatePublisher = pathname.match(
@@ -102,6 +171,13 @@ export default function proxy(request: NextRequest) {
     url.pathname = `${legacyCorporateCatalog[1]}/corporate/catalog`;
     return NextResponse.redirect(url, 308);
   }
+  return null;
+}
+
+export default function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const legacy = corporateLegacyRedirect(request, pathname);
+  if (legacy) return legacy;
   const sharedPath =
     COMPILED_FEATURE_PROFILE === "corporate_hub" ? corporateSharedPath(pathname) : null;
   if (COMPILED_FEATURE_PROFILE === "corporate_hub" && !sharedPath) {

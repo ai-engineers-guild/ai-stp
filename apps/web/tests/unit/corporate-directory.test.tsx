@@ -1,13 +1,13 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
-import type { corporateMutationAction } from "@/actions/corporate";
+import type { corporateMutation } from "@/lib/api/corporate-mutation";
 const { mutation, refresh, push } = vi.hoisted(() => ({
-  mutation: vi.fn<typeof corporateMutationAction>(),
+  mutation: vi.fn<typeof corporateMutation>(),
   refresh: vi.fn(),
   push: vi.fn(),
 }));
-vi.mock("@/actions/corporate", () => ({ corporateMutationAction: mutation }));
+vi.mock("@/lib/api/corporate-mutation", () => ({ corporateMutation: mutation }));
 vi.mock("@/lib/i18n/navigation", () => ({
   useRouter: () => ({ refresh, push }),
   usePathname: () => window.location.pathname.replace(/^\/en/, "") || "/",
@@ -50,7 +50,7 @@ it("restores directory filters and carries them to the detail page", () => {
   expect(screen.getByRole("link", { name: /legacy/ })).toBeVisible();
 });
 
-it("shows bounded server pagination and keeps page size in the URL", () => {
+it("shows bounded server pagination and keeps page size in the URL", async () => {
   render(
     <CorporateDirectory
       resource="teams"
@@ -70,10 +70,12 @@ it("shows bounded server pagination and keeps page size in the URL", () => {
   expect(screen.getByLabelText("Pagination")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "2" })).toHaveAttribute("href", "?page=2");
   fireEvent.change(screen.getByLabelText("pageSize"), { target: { value: "24" } });
-  expect(push).toHaveBeenCalledWith("/?page_size=24&page=1");
+  await waitFor(() => {
+    expect(push).toHaveBeenCalledWith("/?page_size=24&page=1");
+  });
 });
 
-it("restores visible rows on history navigation and preserves router history state", () => {
+it("restores visible rows on history navigation and preserves router history state", async () => {
   const routerState = { marker: "router-owned" };
   window.history.replaceState(routerState, "", "/en/corporate/teams");
   render(
@@ -90,12 +92,17 @@ it("restores visible rows on history navigation and preserves router history sta
       roles={[]}
     />,
   );
+  fireEvent.click(screen.getByLabelText("openSearch"));
   fireEvent.change(screen.getByLabelText("search"), { target: { value: "mobile" } });
+  await waitFor(() => {
+    expect(window.location.search).toBe("?query=mobile");
+  });
   expect(window.history.state).toEqual(routerState);
-  expect(window.location.search).toBe("?query=mobile");
   window.history.replaceState(routerState, "", "/en/corporate/teams?query=Web");
   fireEvent(window, new PopStateEvent("popstate"));
-  expect(screen.getByLabelText("search")).toHaveValue("Web");
+  await waitFor(() => {
+    expect(screen.getByLabelText("search")).toHaveValue("Web");
+  });
   fireEvent.click(screen.getByRole("button", { name: /filters/ }));
   expect(screen.queryByLabelText("status")).not.toBeInTheDocument();
   expect(screen.queryByRole("link", { name: /Mobile/ })).not.toBeInTheDocument();
@@ -121,6 +128,7 @@ it("searches projects and preserves a failed creation draft and receipt key on r
       roles={[]}
     />,
   );
+  fireEvent.click(screen.getByLabelText("openSearch"));
   fireEvent.change(screen.getByLabelText("search"), { target: { value: "mobile" } });
   expect(screen.getByRole("link", { name: /Mobile/ })).toHaveAttribute(
     "href",

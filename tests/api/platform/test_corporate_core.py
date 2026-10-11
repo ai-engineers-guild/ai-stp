@@ -25,6 +25,7 @@ from ai_stp_platform.organization_models import (
     CorporateProject,
     CorporateProjectMember,
     CorporateProvisionedIdentity,
+    CorporateRoleBinding,
     CorporateTeam,
     CorporateTeamMember,
     Organization,
@@ -506,6 +507,7 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
             "schema_version": 1,
             "account_id": lead_id,
             "project_id": project_id,
+            "project_role": "lead",
             "authorization_revision": revision,
             "idempotency_key": "assign-lead-0001",
         },
@@ -801,10 +803,12 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
         ]
         assert membership_audit.payload["before"] == {
             "team_role": "staff",
+            "project_role": "staff",
             "project_assigned": True,
         }
         assert membership_audit.payload["after"] == {
             "team_role": None,
+            "project_role": None,
             "project_assigned": False,
         }
 
@@ -913,28 +917,26 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
         json={
             "schema_version": 1,
             "name": "project_reviewer",
-            "parent_role": "lead",
-            "permissions": [],
+            "permissions": ["project.read", "project.update"],
             "authorization_revision": role_revision,
             "idempotency_key": "create-role-0001",
         },
         headers=auth,
     )
     assert created_role.status_code == 200, created_role.text
-    assert created_role.json()["parent_role"] == "lead"
-    missing_parent_role = await client.post(
+    assert created_role.json()["permissions"] == ["project.read", "project.update"]
+    invalid_role_name = await client.post(
         f"/v1/corporate/organizations/{organization_id}/roles",
         json={
             "schema_version": 1,
-            "name": "orphan_role",
-            "parent_role": "missing_role",
+            "name": "BadName",
             "permissions": [],
             "authorization_revision": role_revision + 1,
-            "idempotency_key": "create-orphan-role-0001",
+            "idempotency_key": "create-invalid-role-0001",
         },
         headers=auth,
     )
-    assert missing_parent_role.status_code == 400
+    assert invalid_role_name.status_code == 400
     roles = await client.get(f"/v1/corporate/organizations/{organization_id}/roles", headers=auth)
     assert roles.status_code == 200, roles.text
     assert "project_reviewer" in {item["name"] for item in roles.json()["items"]}
@@ -1029,6 +1031,33 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
     assert len(tail["items"]) == 1
     assert tail["next_before_id"] is None
     assert {item["audit_id"] for item in page["items"] + tail["items"]} == expected_ids
+    assert page["total"] == 101 and tail["total"] == 101
+    offset_page = await client.get(
+        audit_url, params={**filters, "limit": 10, "offset": 95}, headers=auth
+    )
+    assert offset_page.status_code == 200, offset_page.text
+    assert len(offset_page.json()["items"]) == 6
+    assert offset_page.json()["total"] == 101
+    for params, expected_count in (
+        ({"target_table": "organization"}, 101),
+        ({"target_table": "member"}, 0),
+        ({"outcome": "succeeded"}, 101),
+        ({"outcome": "denied"}, 0),
+        ({"q": "audit_PROBE"}, 101),
+        ({"q": "safe"}, 101),
+        ({"q": "must-not-persist"}, 0),
+        ({"q": "no-such-needle"}, 0),
+    ):
+        filtered = await client.get(audit_url, params={**filters, **params}, headers=auth)
+        assert filtered.status_code == 200, filtered.text
+        body = filtered.json()
+        assert body["total"] == expected_count, params
+        assert len(body["items"]) == min(expected_count, 100)
+    denied_export = await client.get(
+        f"{audit_url}/export", params={**filters, "outcome": "denied"}, headers=auth
+    )
+    assert denied_export.status_code == 200, denied_export.text
+    assert denied_export.json()["items"] == []
     filtered_export = await client.get(f"{audit_url}/export", params=filters, headers=auth)
     assert filtered_export.status_code == 200, filtered_export.text
     assert {item["audit_id"] for item in filtered_export.json()["items"]} == expected_ids
@@ -1320,3 +1349,141 @@ async def test_team_hierarchy_visibility_archive_and_recovery(
             "team.update",
         }
         assert all("before" in event.payload and "after" in event.payload for event in events)
+
+
+async def test_role_delete_reassigns_bindings_and_memberships(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], object],
+) -> None:
+    client, sessionmaker, _settings = db_api_client
+    owner_id, owner_token = await _account_token(sessionmaker)
+    member_id, _ = await _account_token(sessionmaker)
+    holder_id, _ = await _account_token(sessionmaker)
+    response = await client.post(
+        "/v1/corporate/bootstrap",
+        json={
+            "schema_version": 1,
+            "organization_name": "Role delete",
+            "superadmin_account_id": owner_id,
+            "idempotency_key": "role-delete-bootstrap-0001",
+        },
+        headers={"X-AI-STP-Bootstrap-Secret": "corporate-bootstrap-test-secret"},
+    )
+    assert response.status_code == 200, response.text
+    organization_id = response.json()["organization_id"]
+    auth = {"Authorization": f"Bearer {owner_token}"}
+
+    async def revision() -> int:
+        return (
+            await client.get(f"/v1/corporate/organizations/{organization_id}/context", headers=auth)
+        ).json()["organization"]["authorization_revision"]
+
+    async with sessionmaker() as db:
+        db.add_all(
+            [
+                OrganizationMembership(
+                    organization_id=organization_id,
+                    account_id=member_id,
+                    role="staff",
+                    display_name="Bound Member",
+                ),
+                OrganizationMembership(
+                    organization_id=organization_id,
+                    account_id=holder_id,
+                    role="staff",
+                    display_name="Role Holder",
+                ),
+            ]
+        )
+        await db.commit()
+    created = await client.post(
+        f"/v1/corporate/organizations/{organization_id}/roles",
+        json={
+            "schema_version": 1,
+            "name": "deprecated_role",
+            "permissions": ["team.read"],
+            "authorization_revision": await revision(),
+            "idempotency_key": "role-delete-create-0001",
+        },
+        headers=auth,
+    )
+    assert created.status_code == 200, created.text
+    bound = await client.post(
+        f"/v1/corporate/organizations/{organization_id}/bindings",
+        json={
+            "schema_version": 1,
+            "account_id": member_id,
+            "role": "deprecated_role",
+            "scope_kind": "organization",
+            "scope_id": organization_id,
+            "authorization_revision": await revision(),
+            "idempotency_key": "role-delete-bind-0001",
+        },
+        headers=auth,
+    )
+    assert bound.status_code == 200, bound.text
+    async with sessionmaker() as db:
+        holder = await db.scalar(
+            select(OrganizationMembership).where(
+                OrganizationMembership.organization_id == organization_id,
+                OrganizationMembership.account_id == holder_id,
+            )
+        )
+        assert holder is not None
+        holder.role = "deprecated_role"
+        await db.commit()
+    role_path = f"/v1/corporate/organizations/{organization_id}/roles/deprecated_role"
+    body = {
+        "schema_version": 1,
+        "expected_revision": 1,
+        "idempotency_key": "role-delete-plain-0001",
+    }
+    blocked = await client.request(
+        "DELETE",
+        role_path,
+        json={**body, "authorization_revision": await revision()},
+        headers=auth,
+    )
+    assert blocked.status_code == 409
+    missing = await client.request(
+        "DELETE",
+        role_path,
+        json={
+            **body,
+            "replacement_role": "missing_role",
+            "authorization_revision": await revision(),
+            "idempotency_key": "role-delete-missing-0001",
+        },
+        headers=auth,
+    )
+    assert missing.status_code == 409
+    deleted = await client.request(
+        "DELETE",
+        role_path,
+        json={
+            **body,
+            "replacement_role": "staff",
+            "authorization_revision": await revision(),
+            "idempotency_key": "role-delete-replace-0001",
+        },
+        headers=auth,
+    )
+    assert deleted.status_code == 200, deleted.text
+    assert (await client.get(role_path, headers=auth)).status_code == 404
+    async with sessionmaker() as db:
+        binding = await db.scalar(
+            select(CorporateRoleBinding).where(
+                CorporateRoleBinding.organization_id == organization_id,
+                CorporateRoleBinding.account_id == member_id,
+                CorporateRoleBinding.state == "active",
+            )
+        )
+        assert binding is not None
+        assert binding.role == "staff"
+        holder = await db.scalar(
+            select(OrganizationMembership).where(
+                OrganizationMembership.organization_id == organization_id,
+                OrganizationMembership.account_id == holder_id,
+            )
+        )
+        assert holder is not None
+        assert holder.role == "staff"

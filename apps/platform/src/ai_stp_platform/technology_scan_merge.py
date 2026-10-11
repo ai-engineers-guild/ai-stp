@@ -21,6 +21,7 @@ from ai_stp_contracts.technology import (
 )
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.organization_models import CorporateProject, Organization
+from ai_stp_platform.technology_interpretation import interpreted_findings, reproject_current_scans
 from ai_stp_platform.technology_models import (
     ProjectTechnologyRelation,
     TechnologyScan,
@@ -82,6 +83,7 @@ async def merge_scan_facts(
     digest: str,
     resolve_technology: ResolveTechnology,
     authorize_pair: AuthorizePair | None = None,
+    provenance: dict[str, str | None] | None = None,
 ) -> tuple[TechnologyScanResult, dict[str, Any]]:
     """Merge one handoff into the project's usage facts and store the scan.
 
@@ -93,6 +95,16 @@ async def merge_scan_facts(
     pre-mutation snapshot.
     """
     project_id = project.id
+    previous_relation_ids = set(
+        (
+            await db.scalars(
+                select(ProjectTechnologyRelation.id).where(
+                    ProjectTechnologyRelation.organization_id == organization_id,
+                    ProjectTechnologyRelation.project_id == project_id,
+                )
+            )
+        ).all()
+    )
     prior_rows = list(
         (
             await db.scalars(
@@ -227,17 +239,20 @@ async def merge_scan_facts(
         ],
         created_relation_ids=created_relation_ids,
     )
-    db.add(
-        TechnologyScan(
-            organization_id=organization_id,
-            id=handoff.scan_id,
-            project_id=project_id,
-            fingerprint=digest,
-            handoff={
-                "handoff": handoff.model_dump(mode="json"),
-                "result": response.model_dump(mode="json"),
-            },
-        )
+    provenance = provenance or {}
+    incoming = TechnologyScan(
+        organization_id=organization_id,
+        id=handoff.scan_id,
+        project_id=project_id,
+        fingerprint=digest,
+        source=provenance.get("source"),
+        repository=provenance.get("repository"),
+        branch=provenance.get("branch"),
+        commit=provenance.get("commit"),
+        handoff={
+            "handoff": handoff.model_dump(mode="json"),
+            "result": response.model_dump(mode="json"),
+        },
     )
     # Unmapped coordinates are the registry's review queue: a scope's rescan
     # replaces its rows wholesale so the queue says what the latest scan said.
@@ -271,6 +286,45 @@ async def merge_scan_facts(
             scan_id=handoff.scan_id,
             candidate_technology_id=prior_candidates.get((coordinate.kind, coordinate.coordinate)),
         )
-        for coordinate in handoff.unmapped_coordinates
+        for coordinate in {(c.kind, c.coordinate): c for c in handoff.unmapped_coordinates}.values()
     )
+    await db.flush()
+    await reproject_current_scans(
+        db,
+        organization_id,
+        project_id,
+        authorize_pair=authorize_pair,
+        resolve_technology=resolve_technology,
+        incoming=incoming,
+    )
+    current_pairs = list(
+        (
+            await db.scalars(
+                select(ProjectTechnologyRelation).where(
+                    ProjectTechnologyRelation.organization_id == organization_id,
+                    ProjectTechnologyRelation.project_id == project_id,
+                )
+            )
+        ).all()
+    )
+    affected_technologies = set(pairs) | {
+        item.technology_id
+        for item in await interpreted_findings(db, organization_id, incoming)
+        if item.technology_id is not None
+    }
+    current_pairs = [pair for pair in current_pairs if pair.technology_id in affected_technologies]
+    response = response.model_copy(
+        update={
+            "usages": [await project_technology_view(db, pair) for pair in current_pairs],
+            "created_relation_ids": [
+                pair.id for pair in current_pairs if pair.id not in previous_relation_ids
+            ],
+        }
+    )
+    incoming.handoff = {
+        "handoff": handoff.model_dump(mode="json"),
+        "result": response.model_dump(mode="json"),
+    }
+    db.add(incoming)
+    await db.flush()
     return response, before

@@ -4,7 +4,7 @@ import { NavPendingRegion } from "@/components/molecules/nav-pending-region";
 import { StatePanel } from "@/components/molecules/state-panel";
 import type { ComponentSummary, SetupSummary } from "@/lib/api/generated/types.gen";
 import type { OwnerCardItem } from "@/components/organisms/object-card";
-import { PageNav, SingleResourcePager } from "@/components/organisms/catalog-page-nav";
+import { PagePager, SingleResourcePager } from "@/components/molecules/page-pager";
 import { catalogHref } from "@/lib/catalog-query";
 import { UI } from "@/lib/ui-selectors";
 
@@ -357,9 +357,9 @@ function MixedPager({
   const totalPages = setupPages === 1 && componentPages === 1 ? 1 : setupPages + componentPages;
   if (totalPages <= 1) return null;
   return (
-    <PageNav
+    <PagePager
       label={labels.pagination ?? "Pagination"}
-      pageNumber={pageNumber}
+      page={pageNumber}
       totalPages={totalPages}
       hrefFor={(page) =>
         catalogHref(basePath, {

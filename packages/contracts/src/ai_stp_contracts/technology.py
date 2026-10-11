@@ -6,6 +6,7 @@ repository execution, or second project identity.
 
 from __future__ import annotations
 
+import re
 import unicodedata
 from pathlib import PurePosixPath
 from typing import Annotated, Literal
@@ -27,6 +28,7 @@ from ai_stp_foundation.ids import stable_id_pattern
 
 TechnologyId = Annotated[str, Field(pattern=stable_id_pattern("technology"))]
 TechnologyScanId = Annotated[str, Field(pattern=stable_id_pattern("scan"))]
+AreaId = Annotated[str, Field(pattern=stable_id_pattern("area"))]
 CategoryId = Annotated[str, Field(pattern=stable_id_pattern("category"))]
 RelationId = Annotated[str, Field(pattern=stable_id_pattern("relation"))]
 TeamId = Annotated[str, Field(pattern=stable_id_pattern("operation"))]
@@ -99,10 +101,25 @@ def safe_reference_url(value: str) -> str:
     return value
 
 
+_CATEGORY_ICON_PATTERN = r"^(lucide:[a-z0-9][a-z0-9-]{0,63}|/v1/media/avatars/avatar_[a-f0-9]{24})$"
+
+
 class TechnologyCategoryMetadata(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     name: Annotated[str, Field(min_length=1, max_length=200)]
     description: Annotated[str, Field(max_length=2000)] = ""
+    icon: Annotated[str | None, Field(max_length=2048)] = None
+
+    @field_validator("icon")
+    @classmethod
+    def safe_icon(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if value.startswith("https://"):
+            return safe_reference_url(value)
+        if not re.match(_CATEGORY_ICON_PATTERN, value):
+            raise ValueError("category icon must be a registry icon, an avatar asset, or HTTPS")
+        return value
 
     @field_validator("name")
     @classmethod
@@ -116,7 +133,7 @@ class TechnologyCategoryMetadata(ContractModel):
 class TechnologyMetadata(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     name: Annotated[str, Field(min_length=1, max_length=200)]
-    category_ids: Annotated[list[CategoryId], Field(min_length=1, max_length=32)]
+    category_ids: Annotated[list[CategoryId], Field(max_length=32)] = []
     aliases: Annotated[
         list[Annotated[str, Field(min_length=1, max_length=200)]], Field(max_length=64)
     ] = []
@@ -230,6 +247,10 @@ class TechnologyUnmappedCoordinate(ContractModel):
     coordinate: Annotated[
         str, Field(min_length=1, max_length=512, pattern=r"^[A-Za-z0-9._:/@+*-]+$")
     ]
+    context: UsageContext | None = None
+    version: Annotated[str | None, Field(max_length=128)] = None
+    version_kind: Literal["unknown", "declared_range", "observed_version"] = "unknown"
+    evidence: Annotated[list[TechnologyEvidence], Field(max_length=64)] = []
 
     @field_validator("coordinate")
     @classmethod
@@ -237,6 +258,10 @@ class TechnologyUnmappedCoordinate(ContractModel):
         if "://" in value and urlsplit(value).username is not None:
             raise ValueError("unmapped coordinates must not contain credentials")
         return value
+
+
+class TechnologyDetectedCoordinate(TechnologyUnmappedCoordinate):
+    technology_id: TechnologyId | None = None
 
 
 class TechnologyScanHandoff(ContractModel):
@@ -252,6 +277,7 @@ class TechnologyScanHandoff(ContractModel):
     mapping_version: MappingVersion
     observations: Annotated[list[TechnologyObservation], Field(max_length=4096)]
     unmapped_coordinates: Annotated[list[TechnologyUnmappedCoordinate], Field(max_length=512)] = []
+    coordinates: Annotated[list[TechnologyDetectedCoordinate], Field(max_length=4096)] = []
 
     @model_validator(mode="after")
     def explicit_identity(self) -> TechnologyScanHandoff:
@@ -390,10 +416,12 @@ class TechnologyUnmappedView(ContractModel):
 
 class TechnologyScanRequest(TechnologyMutation):
     handoff: TechnologyScanHandoff
+    source: Literal["gitlab", "github", "local"] | None = None
 
 
 class CategoryWriteRequest(TechnologyMutation):
     metadata: TechnologyCategoryMetadata
+    area_id: AreaId | None = None
     state: Literal["draft", "active"] | None = None
 
 
@@ -546,6 +574,7 @@ def _category_wire_object(schema: JsonSchemaValue) -> None:
 class CategoryView(TechnologyCategoryMetadata):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=_category_wire_object)
     category_id: CategoryId
+    area_id: AreaId | None = None
     revision: Annotated[int, Field(ge=1)]
     provenance: str
     state: Literal["draft", "active", "archived"] | None = None
@@ -554,6 +583,48 @@ class CategoryView(TechnologyCategoryMetadata):
 class CategoryList(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     items: list[CategoryView]
+
+
+class TechnologyAreaMetadata(ContractModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    name: Annotated[str, Field(min_length=1, max_length=200)]
+    description: Annotated[str, Field(max_length=2000)] = ""
+
+    @field_validator("name")
+    @classmethod
+    def governed_name(cls, value: str) -> str:
+        normalized = normalize_technology_name(value)
+        if not normalized or normalized in RESERVED_CATEGORY_NAMES:
+            raise ValueError("area is empty or names a harness/component domain kind")
+        return value
+
+
+class AreaWriteRequest(TechnologyMutation):
+    metadata: TechnologyAreaMetadata
+    state: Literal["draft", "active"] | None = None
+
+
+class AreaLifecycleRequest(TechnologyMutation):
+    target: Literal["draft", "active", "archived"]
+
+
+def _area_wire_object(schema: JsonSchemaValue) -> None:
+    open_wire_object(schema)
+    schema["required"] = [name for name in schema["required"] if name != "state"]
+
+
+class AreaView(TechnologyAreaMetadata):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=_area_wire_object)
+    organization_id: OrganizationId
+    area_id: AreaId
+    revision: Annotated[int, Field(ge=1)]
+    provenance: str
+    state: Literal["draft", "active", "archived"] | None = None
+
+
+class AreaList(ContractModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    items: list[AreaView]
 
 
 class TechnologyList(ContractModel):
@@ -609,6 +680,161 @@ class TechnologyScanView(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     handoff: TechnologyScanHandoff
     result: TechnologyScanResult
+
+
+TechnologyScanSource = Literal["gitlab", "github", "local"]
+TechnologyScanStatus = Literal["queued", "running", "succeeded", "failed"]
+
+
+class TechnologyScanListEntry(ContractModel):
+    """One row of the organization's scan journal."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    scan_id: TechnologyScanId
+    project_id: RemoteProjectId
+    project_name: str | None = None
+    repository: str | None = None
+    source: TechnologyScanSource
+    branch: str | None = None
+    commit: str | None = None
+    created_at: Timestamp
+    status: TechnologyScanStatus
+    found: Annotated[int, Field(ge=0)] = 0
+    pending: Annotated[int, Field(ge=0)] = 0
+    dependencies: Annotated[int, Field(ge=0)] = 0
+    duration_seconds: Annotated[int | None, Field(ge=0)] = None
+    error: str | None = None
+    scope: str | None = None
+    scan_types: list[Literal["dependencies", "configs", "languages"]] = []
+
+
+class TechnologyScanList(ContractModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    organization_id: OrganizationId
+    items: list[TechnologyScanListEntry]
+    total: Annotated[int, Field(ge=0)] = 0
+
+
+class TechnologyScanListQuery(ContractModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    project_id: RemoteProjectId | None = None
+
+
+class TechnologyUnmappedQuery(ContractModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    project_id: RemoteProjectId | None = None
+    scan_id: TechnologyScanId | None = None
+
+
+class TechnologyScanLaunchRequest(TechnologyMutation):
+    expected_revision: Annotated[int, Field(ge=0, le=0)] = 0
+    project_ids: Annotated[list[RemoteProjectId], Field(min_length=1, max_length=64)]
+
+    @field_validator("project_ids")
+    @classmethod
+    def distinct_projects(cls, values: list[str]) -> list[str]:
+        if len(set(values)) != len(values):
+            raise ValueError("project ids must be distinct")
+        return values
+
+
+class TechnologyScanLaunchItem(ContractModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    project_id: RemoteProjectId
+    scan_id: TechnologyScanId | None = None
+    job_id: Annotated[int, Field(ge=1)] | None = None
+    state: Literal["queued", "rejected", "failed"]
+    detail: str | None = None
+
+
+class TechnologyScanLaunchResult(ContractModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    organization_id: OrganizationId
+    items: list[TechnologyScanLaunchItem]
+
+
+class TechnologyScanFinding(ContractModel):
+    """One detector finding inside a scan: resolved or still unmapped."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    kind: Literal["package", "image", "executable", "configuration", "alias"]
+    coordinate: str
+    context: UsageContext | None = None
+    technology_id: TechnologyId | None = None
+    version: str | None = None
+    version_kind: Literal["unknown", "declared_range", "observed_version"] = "unknown"
+    evidence: list[TechnologyEvidence] = []
+    state: Literal["resolved", "candidate", "open", "rejected"]
+    tier: Literal["technology", "dependency"]
+    candidate_technology_id: TechnologyId | None = None
+    review: Literal["proposed", "confirmed", "rejected", "dependency"] = "proposed"
+    category_id: CategoryId | None = None
+    technology_key: str | None = None
+    technology_name: str | None = None
+    review_revision: Annotated[int, Field(ge=0)] = 0
+    comment: Annotated[str, Field(max_length=500)] = ""
+
+
+class TechnologyFindingDecision(ContractModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    scan_id: TechnologyScanId
+    kind: Literal["package", "image", "executable", "configuration", "alias"]
+    coordinate: Annotated[str, Field(min_length=1, max_length=512)]
+    context: UsageContext | None = None
+    technology_id: TechnologyId | None = None
+    category_id: CategoryId | None = None
+    review: Literal["confirmed", "rejected", "dependency"]
+    expected_revision: Annotated[int, Field(ge=0)] = 0
+    comment: Annotated[str, Field(max_length=500)] = ""
+
+
+class TechnologyFindingReviewRequest(TechnologyMutation):
+    expected_revision: Annotated[int, Field(ge=0, le=0)] = 0
+    items: Annotated[list[TechnologyFindingDecision], Field(min_length=1, max_length=512)]
+
+    @model_validator(mode="after")
+    def unique_findings(self) -> TechnologyFindingReviewRequest:
+        keys = [(item.scan_id, item.kind, item.coordinate, item.context) for item in self.items]
+        if len(keys) != len(set(keys)):
+            raise ValueError("finding decisions must be distinct")
+        if any(
+            item.review == "confirmed" and item.technology_id is None and item.category_id is None
+            for item in self.items
+        ):
+            raise ValueError("confirmation requires a technology or category")
+        return self
+
+
+class TechnologyFindingReviewResult(ContractModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    organization_id: OrganizationId
+    updated: Annotated[int, Field(ge=0)]
+
+
+class TechnologyScanDetail(TechnologyScanListEntry):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    detector_version: str | None = None
+    mapping_version: str | None = None
+    complete: bool = True
+    findings: list[TechnologyScanFinding] = []
+
+
+class TechnologyScanFindingList(ContractModel):
+    """One scan's curated findings as a standalone resource for export."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    organization_id: OrganizationId
+    scan_id: TechnologyScanId
+    project_id: RemoteProjectId
+    project_name: str | None = None
+    repository: str | None = None
+    branch: str | None = None
+    commit: str | None = None
+    created_at: Timestamp
+    complete: bool = True
+    detector_version: str | None = None
+    mapping_version: str | None = None
+    findings: list[TechnologyScanFinding] = []
 
 
 class ProjectTeamView(ContractModel):
@@ -696,6 +922,7 @@ class TechnologyLandscapeQuery(ContractModel):
     query: TechnologySearch | None = None
     technology_id: TechnologyId | None = None
     project_id: RemoteProjectId | None = None
+    project_ids: Annotated[list[RemoteProjectId] | None, Field(max_length=64)] = None
     team_id: TeamId | None = None
     lifecycle: TechnologyLifecycle | None = None
     project_lifecycle: ProjectLifecycle | None = None
@@ -707,6 +934,7 @@ class TechnologyLandscapeQuery(ContractModel):
     freshness: EvidenceFreshness | None = None
     include_history: bool = False
     include_inactive: bool = False
+    include_proposed: bool = False
     offset: Annotated[int, Field(ge=0)] = 0
     limit: Annotated[int, Field(ge=1, le=256)] = 128
     project_offset: Annotated[int, Field(ge=0)] = 0
@@ -741,3 +969,8 @@ class TechnologyLandscapeView(ContractModel):
     filters: TechnologyLandscapeQuery
     items: list[TechnologyLandscapeRow]
     total: Annotated[int, Field(ge=0)]
+
+
+class TechnologyFindingsExportQuery(ContractModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    format: Literal["md", "json", "csv"] = "json"

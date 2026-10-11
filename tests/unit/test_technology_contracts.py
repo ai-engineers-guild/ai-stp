@@ -19,6 +19,11 @@ from ai_stp_contracts.technology import (
     normalize_technology_name,
 )
 from ai_stp_contracts.technology_seed import SEED_CATEGORIES, SEED_TECHNOLOGIES
+from ai_stp_contracts.technology_taxonomy import (
+    TAXONOMY_AREAS,
+    TAXONOMY_CATEGORIES,
+    TAXONOMY_CLASSIFICATIONS,
+)
 from ai_stp_foundation.ids import is_valid_id, new_id
 
 
@@ -50,6 +55,19 @@ def test_seed_manifest_identity_and_classification() -> None:
         "Package manager",
         "Test runner and browser automation",
     }
+
+
+def test_functional_taxonomy_has_one_area_per_category_and_covers_every_detector_identity() -> None:
+    areas = {identifier for identifier, *_rest in TAXONOMY_AREAS}
+    categories = {identifier for identifier, *_rest in TAXONOMY_CATEGORIES}
+    assert len(areas) == 13 and len(categories) == len(TAXONOMY_CATEGORIES) == 117
+    assert all(is_valid_id(identifier, "area") for identifier in areas)
+    assert all(is_valid_id(identifier, "category") for identifier in categories)
+    assert all(area_id in areas for *_rest, area_id in TAXONOMY_CATEGORIES)
+    assert set(TAXONOMY_CLASSIFICATIONS) == {
+        identifier for identifier, _metadata in SEED_TECHNOLOGIES
+    }
+    assert all(values and set(values) <= categories for values in TAXONOMY_CLASSIFICATIONS.values())
 
 
 def test_scoped_projection_rejects_untyped_or_missing_resource_identity() -> None:

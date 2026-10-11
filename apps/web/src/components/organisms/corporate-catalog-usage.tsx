@@ -2,7 +2,7 @@ import {
   CorporateRelationSection,
   type CorporateRelationSectionLabels,
 } from "@/components/organisms/corporate-relation-section";
-import type { DirectoryResource } from "@/components/organisms/corporate-directory-types";
+import type { DirectoryResource } from "@/lib/corporate-directory-types";
 import type { CorporateCatalogUsage as CorporateCatalogUsageItem } from "@/lib/api/generated/types.gen";
 
 const SUBJECT_RESOURCES = {

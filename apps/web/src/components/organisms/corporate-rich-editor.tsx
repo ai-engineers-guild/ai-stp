@@ -6,7 +6,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { updateCorporatePresentationAction } from "@/actions/corporate-detail";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
@@ -27,7 +27,7 @@ import {
   previewSrc,
   readLocalMediaPreview,
   type PresentationMediaDraft,
-} from "@/components/organisms/use-object-presentation-form";
+} from "@/lib/use-object-presentation-form";
 import type { TechnologyMetadata } from "@/lib/api/generated/types.gen";
 import { kindFromMime, validateComponentMediaFile } from "@/lib/component-media";
 import {
@@ -215,7 +215,7 @@ export function CorporateRichEditor({
               ...(entityUpdate.kind === "team" ? { description: entityUpdate.description } : {}),
             },
           };
-    return corporateMutationAction({ csrfToken, organizationId, ...request });
+    return corporateMutation({ csrfToken, organizationId, ...request });
   }
 
   function save() {

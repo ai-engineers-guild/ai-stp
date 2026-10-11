@@ -1,10 +1,11 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
@@ -15,7 +16,7 @@ import type {
   CorporateCatalogFacetConfig,
   DirectoryItem,
   DirectoryResource,
-} from "@/components/organisms/corporate-directory-types";
+} from "@/lib/corporate-directory-types";
 import { useRouter } from "@/lib/i18n/navigation";
 import type { CorporateDirectoryFacets } from "@/lib/api/generated/types.gen";
 
@@ -105,7 +106,7 @@ function InlineCorporateCreate({
             </div>
             <div className="space-y-2">
               <Label htmlFor="create-role">{c("organizationRole")}</Label>
-              <select
+              <Select
                 id="create-role"
                 name="role"
                 className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
@@ -115,7 +116,7 @@ function InlineCorporateCreate({
                     {role}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           </>
         ) : null}
@@ -176,7 +177,7 @@ export function CorporateDirectory({
     setBusy(true);
     setMessage(null);
     try {
-      const result = await corporateMutationAction({
+      const result = await corporateMutation({
         organizationId,
         csrfToken,
         method: "POST",

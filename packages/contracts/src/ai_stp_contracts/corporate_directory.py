@@ -13,12 +13,13 @@ from ai_stp_foundation.ids import stable_id_pattern
 TeamId = Annotated[str, Field(pattern=stable_id_pattern("operation"))]
 TechnologyId = Annotated[str, Field(pattern=stable_id_pattern("technology"))]
 CategoryId = Annotated[str, Field(pattern=stable_id_pattern("category"))]
+AreaId = Annotated[str, Field(pattern=stable_id_pattern("area"))]
 ProjectId = Annotated[str, Field(pattern=stable_id_pattern("remote_project"))]
 
 
 class CorporateDirectoryReference(ContractModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-    kind: Literal["project", "team", "employee", "technology", "category", "job_title"]
+    kind: Literal["project", "team", "employee", "technology", "category", "area", "job_title"]
     id: Annotated[str, Field(min_length=1, max_length=64)]
     name: str
 
@@ -30,6 +31,7 @@ class CorporateDirectoryReference(ContractModel):
             "employee": "account",
             "technology": "technology",
             "category": "category",
+            "area": "area",
             "job_title": "job_title",
         }[self.kind]
         if not re.fullmatch(stable_id_pattern(prefix), self.id):
@@ -49,6 +51,7 @@ class CorporateDirectoryItem(CorporateDirectoryReference):
     owner: CorporateDirectoryReference | None = None
     job_title: CorporateDirectoryReference | None = None
     categories: Annotated[list[CorporateDirectoryReference], Field(max_length=32)] = []
+    areas: Annotated[list[CorporateDirectoryReference], Field(max_length=32)] = []
     available_actions: Annotated[list[str], Field(max_length=32)] = []
     is_lead: bool = False
     role: str | None = None
@@ -64,6 +67,7 @@ class CorporateDirectoryItem(CorporateDirectoryReference):
             (self.technologies, "technology"),
             (self.related_teams, "team"),
             (self.categories, "category"),
+            (self.areas, "area"),
         ):
             if any(ref.kind != expected for ref in refs) or len({ref.id for ref in refs}) != len(
                 refs
@@ -94,6 +98,7 @@ class CorporateDirectoryQuery(ContractModel):
     technology_ids: Annotated[list[TechnologyId], Field(max_length=64)] = []
     project_ids: Annotated[list[ProjectId], Field(max_length=64)] = []
     category_ids: Annotated[list[CategoryId], Field(max_length=32)] = []
+    area_ids: Annotated[list[AreaId], Field(max_length=32)] = []
     job_title_ids: Annotated[list[str], Field(max_length=64)] = []
     subject_ids: Annotated[list[str], Field(max_length=256)] = []
     is_lead: bool | None = None
@@ -109,6 +114,7 @@ class CorporateDirectoryFacets(ContractModel):
     technologies: list[CorporateDirectoryReference]
     projects: list[CorporateDirectoryReference] = []
     categories: list[CorporateDirectoryReference] = []
+    areas: list[CorporateDirectoryReference] = []
     job_titles: list[CorporateDirectoryReference] = []
 
 

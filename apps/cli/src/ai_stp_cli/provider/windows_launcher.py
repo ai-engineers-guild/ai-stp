@@ -50,11 +50,13 @@ import os
 import platform
 import socket
 import subprocess
+import threading
 from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any, Final, Self, cast
 
+from ai_stp_cli.provider import protocol
 from ai_stp_cli.provider.network_launcher import (
     listener,
     port,
@@ -990,8 +992,30 @@ def _probe(api: _Api, sid: ctypes.c_void_p, package: str) -> tuple[bool, tuple[s
         argv = [str(powershell()), *encoded_command(script)]
         with AppContainerProcess(api, sid, argv, {"PATH": os.environ.get("PATH", "")}) as child:
             stream = child.stdout
-            raw = stream.read() if stream is not None else b""
+            # A container that starts and never answers holds the pipe open
+            # forever, so the read needs the watchdog the conformance boundary
+            # carries: kill the tree, which closes the pipe, which ends the
+            # read.
+            expired = threading.Event()
+
+            def _stop() -> None:
+                expired.set()
+                child.kill()
+
+            # The shared boundary budget: a hosted runner measured ~37 s for
+            # this spawn, so a tighter bound would read a slow machine as a
+            # failed isolation. The watchdog still bounds a child that never
+            # answers — the kill closes the pipe and ends the read.
+            timeout = protocol.BOUNDARY.timeout_seconds
+            watchdog = threading.Timer(timeout, _stop)
+            watchdog.start()
+            try:
+                raw = stream.read() if stream is not None else b""
+            finally:
+                watchdog.cancel()
             exit_code = child.wait()
+        if expired.is_set():
+            return False, (f"the isolated probe did not answer within {timeout:g} seconds",)
         try:
             observed = cast(dict[str, object], json.loads(raw.decode("utf-8").strip()))
         except (UnicodeDecodeError, json.JSONDecodeError, TypeError) as error:

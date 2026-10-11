@@ -44,10 +44,12 @@
     "searchStructure": "Search projects, teams and employees",
     "clearFilters": "Clear filters",
     "sharedNodesHint": "Shared teams and employees appear under each related parent. Assignments through a team are labeled separately.",
+    "teammates": "Teammates",
+    "teammatesBody": "People on your teams and projects. The full roster is available to administrators.",
+    "teammatesEmpty": "No shared teams or projects yet.",
     "teamLeads": "Team leads",
     "lead": "Lead",
     "staff": "Staff",
-    "addMembership": "Add participation",
     "catalogAssignments": "Assigned setups and components",
     "catalogGovernanceFilters": "Corporate catalog facets",
     "catalogOwner": "Corporate owner",
@@ -69,16 +71,17 @@
     "operationalOwner": "Operational owner",
     "ownerUnassigned": "No owner assigned",
     "edit": "Edit",
-    "responsible": "Responsible team",
     "contributor": "Participating team",
-    "teamRole": "Team's role in the project",
-    "linkTeam": "Link a team",
+    "projectRoleOwner": "Owner",
+    "projectRoleLead": "Lead",
+    "projectRoleContributor": "Contributor",
+    "projectRoleStaff": "Member",
     "unlink": "Unlink",
-    "replaceOwner": "Saving will replace the project's current owning team.",
     "navigation": "Corporate Hub",
     "dashboard": "Dashboard",
     "overview": "Overview",
     "organization": "Organization",
+    "organizationSettings": "Organization settings",
     "landscape": "Landscape",
     "employees": "Employees",
     "projects": "Projects",
@@ -92,13 +95,13 @@
     "reports": "Reports",
     "catalog": "Catalog",
     "administration": "Administration",
-    "membersAndInvitations": "Members & Invitations",
+    "members": "Members",
+    "invitations": "Invitations",
     "accessModel": "Access model",
     "roles": "Roles",
     "employeeAccess": "Employee access",
     "accessMatrix": "Access matrix",
     "auditJournal": "Audit journal",
-    "settings": "Settings",
     "backToHub": "Back to Corporate Hub",
     "usageTruncated": "Showing the first {shown} of {total} assignments",
     "overviewBody": "Explore your organization and its technology landscape.",
@@ -155,7 +158,13 @@
     "peopleAndAccess": "People & Access",
     "referenceData": "Reference Data",
     "security": "Security",
-    "audit": "Audit"
+    "audit": "Audit",
+
+    "scans": "Scans",
+    "technologyAreas": "Technology areas",
+    "technologyMap": "Technology map",
+    "areas": "Areas",
+    "telemetry": "Telemetry"
   },
   "corporateReports": {
     "title": "Reports",
@@ -333,21 +342,11 @@
     "collectionDisabled": "Scanning disabled"
   },
   "technology": {
-    "mergeTitle": "Deliberate technology merge",
-    "mergeDescription": "Choose a canonical target by ID. Preview first; merge keeps source identity and history and never overwrites conflicting decisions.",
-    "mergeTarget": "Canonical target technology ID",
-    "mergePreview": "Preview merge",
-    "mergeApply": "Apply this exact merge",
-    "mergePlanSummary": "Merge {source} into {target}: {projects} projects and {teams} responsible teams.",
-    "mergePlanRetention": "Existing target relation IDs are retained. Source relations and original evidence remain historical; target approval and adoption are unchanged.",
-    "mergeExactPlan": "Exact plan digest",
-    "mergeRevisionChanged": "The source revision changed. Reload before previewing again; this target draft is retained.",
     "activityPolicy": "Repository inactivity policy",
     "activityPolicyDescription": "Calendar-month threshold for this organization. Unknown activity is not inactivity.",
     "inactivityMonths": "Inactivity threshold (calendar months)",
     "organizationSettings": "Organization settings",
     "telemetryPolicy": "Heartbeat and privacy policy",
-    "telemetryPolicyDescription": "Control installation reporting cadence, retry limits, staleness and telemetry retention for this organization.",
     "telemetryUnavailable": "The telemetry policy is unavailable. Reload the page and try again.",
     "telemetryLegalBasis": "Telemetry legal basis",
     "chooseTelemetryLegalBasis": "Choose a legal basis",
@@ -357,7 +356,6 @@
     "telemetryNotice": "Notice shown to users (optional)",
     "telemetryRawRetention": "Raw data retention (days)",
     "telemetryAggregateRetention": "Aggregate retention (days)",
-    "heartbeatReporting": "Installation heartbeat reporting",
     "inventoryScanReporting": "Installation inventory scan",
     "usageCollectionReporting": "Runtime usage collection",
     "reportTimezone": "Report time zone (IANA name)",
@@ -383,13 +381,9 @@
     "editTechnology": "Edit technology",
     "saveChanges": "Save changes",
     "view": "Presentation",
-    "groupedNote": "One technology may appear in several categories. Each count remains distinct projects for that technology; category rows are not additive totals.",
-    "decisionUnavailable": "Adoption decision unavailable or not recorded",
-    "noKnownUse": "No known matching use",
     "editCategory": "Edit category",
     "mergedIdentity": "Retained identity redirects to the canonical technology",
     "version": "Version (optional)",
-    "saveUsage": "Save technology",
     "iconUrl": "Icon URL (HTTPS)",
     "officialUrls": "Official URLs (HTTPS), one per line",
     "restore": "Restore retained state",
@@ -405,26 +399,10 @@
     "mappingTitle": "Technology mapping",
     "mappingDescription": "Coordinates scans could not resolve, review candidates, and the published coordinate snapshots.",
     "mappingQueue": "Unmapped coordinates",
-    "mappingQueueDescription": "A candidate is a suggestion. It takes effect only when the coordinate is written into a new published snapshot.",
     "mappingQueueEmpty": "Every reported coordinate is resolved.",
-    "mappingOpenCount": "{count, plural, one {# open} other {# open}}",
-    "mappingShowResolved": "Show {count} resolved",
-    "mappingHideResolved": "Hide resolved",
-    "mappingApply": "Publish mapping",
-    "mappingApplyAll": "{count, plural, one {Publish # candidate} other {Publish # candidates}}",
     "mappingCandidate": "Candidate:",
-    "mappingCandidateLabel": "Candidate technology",
-    "mappingNoCandidate": "No candidate",
     "mappingResolved": "Mapped to",
-    "mappingProjects": "{count, plural, one {# project} other {# projects}}",
-    "mappingCreateTechnology": "Create a technology for this queue",
     "mappingVersions": "Published snapshots",
-    "mappingVersionsDescription": "Immutable coordinate mappings. The newest snapshot defines resolution.",
-    "mappingVersionsEmpty": "No organization snapshots yet.",
-    "mappingEntries": "{count, plural, one {# entry} other {# entries}}",
-    "mappingSnapshot": "Snapshot {version}",
-    "mappingSnapshotMissing": "This snapshot is unavailable.",
-    "mappingSearch": "Filter coordinates",
     "mappingState": {
       "open": "open",
       "resolved": "resolved"
@@ -433,13 +411,8 @@
     "createTechnology": "Create technology draft",
     "governance": "Adoption decision",
     "responsibilities": "Responsible teams",
-    "createDecision": "Record adoption decision",
-    "editDecision": "Edit adoption decision",
     "responsibleLead": "Responsible person",
     "approvedDecision": "Approved decision",
-    "clearDecision": "Clear decision",
-    "createResponsibility": "Add responsible team",
-    "editResponsibility": "Edit responsible team",
     "name": "Name",
     "search": "Search canonical names and aliases",
     "details": "Description",
@@ -471,7 +444,6 @@
       "stale": "Stale",
       "absent": "Absent",
       "unknown": "Unknown",
-      "declared_range": "Declared version range",
       "draft": "Draft",
       "active": "Active",
       "deprecated": "Deprecated",
@@ -481,10 +453,7 @@
       "trial": "Trial",
       "adopt": "Adopt",
       "hold": "Hold",
-      "table": "Table",
-      "grouped": "By category",
-      "radar": "Adoption radar",
-      "relationships": "Technology–project links"
+      "dependency": "Dependency"
     },
     "title": "Technology landscape",
     "description": "Distinct accessible projects after the selected filters. Proposed uses are counted separately.",
@@ -513,9 +482,6 @@
     "open": "Open project",
     "backToWorkspace": "Back to corporate workspace",
     "backToTechnologies": "Back to technologies",
-    "sectionDeviceHeartbeat": "Device heartbeat",
-    "sectionInventoryUsage": "Inventory and usage",
-    "sectionPrivacyReporting": "Privacy and reporting",
     "advanced": "Advanced",
     "heartbeatRetryMaxMinutes": "Maximum retry delay (minutes)",
     "heartbeatInterval": "Heartbeat interval",
@@ -526,18 +492,804 @@
     "minutesLabel": "{count, plural, one {# minute} other {# minutes}}",
     "hoursLabel": "{count, plural, one {# hour} other {# hours}}",
     "daysLabel": "{count, plural, one {# day} other {# days}}",
-    "heartbeatEnabledHint": "Each installed CLI reports liveness on this cadence. Disabling stops new reports; existing data is kept.",
     "heartbeatIntervalHint": "How often every registered CLI device reports that it is alive.",
     "heartbeatStaleHint": "A device is marked stale when no heartbeat arrives within this window.",
     "heartbeatRetryBaseHint": "Initial delay before retrying a failed report; grows with each attempt.",
     "heartbeatRetryMaxHint": "Largest delay between retries after repeated failures.",
-    "inventoryScanHint": "Periodic inventory of harness components on each installation.",
-    "usageCollectionHint": "Aggregated runtime usage events reported by installations.",
-    "usageRegistrationHint": "Requires installations to register locally before their usage events are accepted.",
-    "telemetryLegalBasisHint": "The legal ground your organisation declares for collecting telemetry.",
-    "telemetryRawRetentionHint": "How long per-event raw data is kept before deletion.",
-    "telemetryAggregateRetentionHint": "How long rolled-up aggregates are kept after raw data is deleted.",
-    "reportTimezoneHint": "IANA time zone used to bucket daily report periods."
+
+    "scans": {
+      "title": "Scans",
+      "description": "Journal of local and repository technology scans.",
+      "launch": "Scan",
+      "launchTitle": "Scan projects",
+      "launchDescription": "Select one or more corporate projects linked to a GitHub or GitLab repository. A separate background job is queued for each project.",
+      "launchProjects": "Projects",
+      "launchNoRepository": "No linked GitHub/GitLab repository",
+      "launchStart": "Launch {count, plural, one {# scan} other {# scans}}",
+      "launchEmpty": "No corporate projects available.",
+      "launchResults": "Launch results",
+      "launchState": {
+        "queued": "Queued",
+        "rejected": "Rejected",
+        "failed": "Failed"
+      },
+      "source": {
+        "gitlab": "GitLab",
+        "github": "GitHub",
+        "local": "Local"
+      },
+      "status": {
+        "queued": "Queued",
+        "running": "Running",
+        "succeeded": "Succeeded",
+        "failed": "Failed"
+      },
+      "findingState": {
+        "open": "Open",
+        "candidate": "Candidate",
+        "resolved": "Resolved"
+      },
+      "versionKind": {
+        "unknown": "unknown version",
+        "declared_range": "declared range",
+        "observed_version": "observed"
+      },
+      "columns": {
+        "id": "ID",
+        "project": "Project",
+        "repository": "Repository",
+        "source": "Source",
+        "date": "Date",
+        "status": "Status",
+        "found": "Found",
+        "pending": "Needs review",
+        "branch": "Branch",
+        "commit": "Commit",
+        "version": "Version",
+        "evidence": "Evidence"
+      },
+      "findings": "Findings",
+      "detectorVersion": "detector {version}",
+      "mappingVersion": "mapping {version}",
+      "empty": "No scans yet.",
+      "launchActive": "A scan is already queued or running"
+    },
+    "areas": {
+      "title": "Technology areas",
+      "description": "Top-level grouping of technology categories.",
+      "create": "Create area",
+      "edit": "Edit area",
+      "field": "Technology area",
+      "unassigned": "No area",
+      "unclassified": "Unclassified",
+      "empty": "No technology areas yet.",
+      "all": "All areas"
+    },
+    "workspace": {
+      "organization": "Organization",
+      "allOrganization": "Entire organization",
+      "allProjects": "All projects",
+      "searchProject": "Find a project",
+      "searchTechnology": "Find technology…",
+      "map": "Map",
+      "table": "Table",
+      "filterDescription": "Refine projects, classification and technology states.",
+      "area": "Area",
+      "versions": "Versions",
+      "status": "Status",
+      "actions": "Actions",
+      "summary": "Technology summary",
+      "summaryDescription": "Key technologies, their areas, categories, versions and project usage.",
+      "landscapeHeading": "Technology landscape",
+      "landscapeDescription": "Technologies grouped by area and category, with actual versions used in the organization.",
+      "shown": "Showing {count} of {total}",
+      "draft": "Draft",
+      "review": "Review",
+      "standard": "Standard",
+      "openTechnology": "Open {name}",
+      "preview": "Preview",
+      "pagination": "Pagination",
+      "page": "Page {page}",
+      "showPerPage": "Show",
+      "pageSize": "Rows per page",
+      "ofTechnologies": "of {total} technologies",
+      "technologyUsage": "Technology versions and project usage.",
+      "openRegistry": "Open technology record",
+      "backScans": "Back to scans",
+      "backLandscape": "Back to landscape",
+      "publish": "Publish changes",
+      "scanTitle": "Scan {id}",
+      "scanDescription": "Project scan results and recognized technologies. Review findings, refine classification and correct detection.",
+      "mappingDescription": "Match scan results to organizational technologies, categories and areas. Review unrecognized and disputed findings.",
+      "project": "Project",
+      "repository": "Repository",
+      "source": "Source",
+      "branch": "Branch",
+      "commit": "Commit",
+      "scanType": "Scan type",
+      "duration": "Duration",
+      "found": "Found",
+      "pending": "Needs review",
+      "seconds": "{count} sec",
+      "scanFailed": "The scan failed. Check the connection and repository access, then retry.",
+      "searchMapping": "Search by detected name, technology or project…",
+      "scan": "Scan",
+      "reason": "Reason",
+      "allStatuses": "All statuses",
+      "findingSummary": "{total} findings · {pending} need review · {resolved} already matched",
+      "searchFindings": "Search findings, files, technologies…",
+      "type": "Type",
+      "allTypes": "All types",
+      "pendingOnly": "Only findings needing review",
+      "file": "File",
+      "perPage": "{count} per page",
+      "noFindings": "No findings match these filters.",
+      "sectionTechnologies": "Technologies",
+      "sectionDependencies": "Dependencies",
+      "findingDetails": "Finding review",
+      "evidence": "Evidence",
+      "basicInfo": "Basic information",
+      "reference": "Reference",
+      "mapping": "Mapping",
+      "chooseTechnology": "Choose an existing technology",
+      "chooseCategory": "Choose a category",
+      "derivedArea": "Derived from category",
+      "applicationStatus": "Application status",
+      "confirm": "Confirmed",
+      "exclude": "Excluded",
+      "comment": "Comment",
+      "commentPlaceholder": "Add a comment…",
+      "whatChanges": "What will change",
+      "changeExplanation": "The mapping updates the landscape and is retained for future scans. Original scan history remains unchanged.",
+      "confirmApply": "Confirm and apply",
+      "excludeFinding": "Exclude finding",
+      "chooseFinding": "Select a finding to review.",
+      "createDescription": "Create a directory record and continue mapping the finding.",
+      "confidence": "Confidence: {count}%",
+      "searchScans": "Search project, repository or scan ID…",
+      "dateFrom": "Starting from date",
+      "id": "ID",
+      "projectRepository": "Project / Repository",
+      "dateTime": "Date and time (UTC)",
+      "openScan": "Open scan {id}",
+      "journalDescription": "Repository and project scan history. Results are used to detect and map technologies.",
+      "mapTitle": "Technology map",
+      "mapDescription": "Actual technologies and versions used in the organization, grouped by technology area and category.",
+      "technologiesCount": "technologies",
+      "areasCount": "areas",
+      "scannedProjects": "projects with scans",
+      "needsReview": "need review",
+      "lastScan": "Last scan",
+      "neverScanned": "Not scanned yet",
+      "findingState": {
+        "open": "Unrecognized",
+        "candidate": "Needs review",
+        "resolved": "Confirmed",
+        "rejected": "Excluded",
+        "confirmation": "Requires confirmation",
+        "category": "Requires category",
+        "dependency": "Dependency"
+      },
+      "resetFinding": "Reset",
+      "downloadFindings": "Download findings",
+      "downloadCsv": "Download CSV",
+      "reasonState": {
+        "unrecognized": "Unrecognized",
+        "candidate": "Requires review",
+        "excluded": "Excluded",
+        "confirmed": "Confirmed",
+        "category": "Requires category",
+        "confirmation": "Requires confirmation",
+        "dependency": "Dependency"
+      },
+      "category": "Category",
+      "createTechnology": "Create technology",
+      "scanTypes": {
+        "dependencies": "Dependencies",
+        "configs": "Configurations",
+        "languages": "Languages"
+      },
+      "emptyArea": "No technologies found",
+      "evidenceCount": "{count} files",
+      "moveToDependencies": "Move to dependencies",
+      "makeTechnology": "Make technology",
+      "editTechnology": "Edit technology",
+      "editTechnologyDescription": "Rename or reclassify a wrongly recognized technology.",
+      "exportDescription": "Choose what to export, then the file format.",
+      "exportScope": "Scope",
+      "exportFormat": "Format",
+      "exportScopes": {
+        "technologies": "Technologies",
+        "findings": "Findings (dependencies)",
+        "both": "Both"
+      },
+      "exportFormats": {
+        "md": "Markdown (.md)",
+        "csv": "CSV (.csv)",
+        "json": "JSON (.json)"
+      },
+      "areaActions": "Area actions",
+      "expandAll": "Expand all",
+      "collapseAll": "Collapse all",
+      "openTechnologies": "Open technology list",
+      "moreCategories": "Show {count} more categories",
+      "moreTechnologies": "Show {count} more technologies",
+      "showLess": "Show less"
+    },
+    "close": "Close",
+    "taxonomy": {
+      "area_00000000000000000000000001": {
+        "name": "Languages and runtimes",
+        "label": "Languages and runtimes"
+      },
+      "area_00000000000000000000000002": {
+        "name": "Client applications and interfaces",
+        "label": "Client applications and interfaces"
+      },
+      "area_00000000000000000000000003": {
+        "name": "Server applications",
+        "label": "Server applications"
+      },
+      "area_00000000000000000000000004": {
+        "name": "Integration and messaging",
+        "label": "Integration and messaging"
+      },
+      "area_00000000000000000000000005": {
+        "name": "Data storage and search",
+        "label": "Data storage and search"
+      },
+      "area_00000000000000000000000006": {
+        "name": "Data processing and analytics",
+        "label": "Data processing and analytics"
+      },
+      "area_00000000000000000000000007": {
+        "name": "Artificial intelligence and ML",
+        "label": "Artificial intelligence and ML"
+      },
+      "area_00000000000000000000000008": {
+        "name": "Compute and infrastructure",
+        "label": "Compute and infrastructure"
+      },
+      "area_00000000000000000000000009": {
+        "name": "Networks and traffic management",
+        "label": "Networks and traffic management"
+      },
+      "area_00000000000000000000000010": {
+        "name": "Security and access",
+        "label": "Security and access"
+      },
+      "area_00000000000000000000000011": {
+        "name": "Observability and reliability",
+        "label": "Observability and reliability"
+      },
+      "area_00000000000000000000000012": {
+        "name": "Development, testing and delivery",
+        "label": "Development, testing and delivery"
+      },
+      "area_00000000000000000000000013": {
+        "name": "Shared SaaS services",
+        "label": "Shared SaaS services"
+      },
+      "category_00000000000000000000001101": {
+        "name": "Programming and query languages",
+        "label": "Programming and query languages"
+      },
+      "category_00000000000000000000001102": {
+        "name": "Compilers",
+        "label": "Compilers"
+      },
+      "category_00000000000000000000001103": {
+        "name": "Interpreters",
+        "label": "Interpreters"
+      },
+      "category_00000000000000000000001104": {
+        "name": "Language runtimes and virtual machines",
+        "label": "Language runtimes and virtual machines"
+      },
+      "category_00000000000000000000001201": {
+        "name": "Web interfaces",
+        "label": "Web interfaces"
+      },
+      "category_00000000000000000000001202": {
+        "name": "Cross-platform UI frameworks",
+        "label": "Cross-platform UI frameworks"
+      },
+      "category_00000000000000000000001203": {
+        "name": "Native mobile development",
+        "label": "Native mobile development"
+      },
+      "category_00000000000000000000001204": {
+        "name": "Desktop interfaces",
+        "label": "Desktop interfaces"
+      },
+      "category_00000000000000000000001205": {
+        "name": "Console interfaces",
+        "label": "Console interfaces"
+      },
+      "category_00000000000000000000001206": {
+        "name": "State management",
+        "label": "State management"
+      },
+      "category_00000000000000000000001207": {
+        "name": "UI component systems",
+        "label": "UI component systems"
+      },
+      "category_00000000000000000000001301": {
+        "name": "Server web and API frameworks",
+        "label": "Server web and API frameworks"
+      },
+      "category_00000000000000000000001302": {
+        "name": "Application servers",
+        "label": "Application servers"
+      },
+      "category_00000000000000000000001303": {
+        "name": "Business rule engines",
+        "label": "Business rule engines"
+      },
+      "category_00000000000000000000001304": {
+        "name": "Business process engines",
+        "label": "Business process engines"
+      },
+      "category_00000000000000000000001305": {
+        "name": "Specialized application engines",
+        "label": "Specialized application engines"
+      },
+      "category_00000000000000000000001306": {
+        "name": "Serialization and validation",
+        "label": "Serialization and validation"
+      },
+      "category_00000000000000000000001401": {
+        "name": "RPC and interservice communication",
+        "label": "RPC and interservice communication"
+      },
+      "category_00000000000000000000001402": {
+        "name": "Protocols and API contracts",
+        "label": "Protocols and API contracts"
+      },
+      "category_00000000000000000000001403": {
+        "name": "API management",
+        "label": "API management"
+      },
+      "category_00000000000000000000001404": {
+        "name": "Integration platforms and connectors",
+        "label": "Integration platforms and connectors"
+      },
+      "category_00000000000000000000001405": {
+        "name": "Message brokers",
+        "label": "Message brokers"
+      },
+      "category_00000000000000000000001406": {
+        "name": "Persistent event streams",
+        "label": "Persistent event streams"
+      },
+      "category_00000000000000000000001407": {
+        "name": "Task queues",
+        "label": "Task queues"
+      },
+      "category_00000000000000000000001408": {
+        "name": "Distributed workflow engines",
+        "label": "Distributed workflow engines"
+      },
+      "category_00000000000000000000001501": {
+        "name": "Relational databases",
+        "label": "Relational databases"
+      },
+      "category_00000000000000000000001502": {
+        "name": "Document databases",
+        "label": "Document databases"
+      },
+      "category_00000000000000000000001503": {
+        "name": "Key-value databases",
+        "label": "Key-value databases"
+      },
+      "category_00000000000000000000001504": {
+        "name": "Graph databases",
+        "label": "Graph databases"
+      },
+      "category_00000000000000000000001505": {
+        "name": "Specialized databases",
+        "label": "Specialized databases"
+      },
+      "category_00000000000000000000001506": {
+        "name": "Analytical databases",
+        "label": "Analytical databases"
+      },
+      "category_00000000000000000000001507": {
+        "name": "Caches",
+        "label": "Caches"
+      },
+      "category_00000000000000000000001508": {
+        "name": "Search engines",
+        "label": "Search engines"
+      },
+      "category_00000000000000000000001509": {
+        "name": "Vector engines",
+        "label": "Vector engines"
+      },
+      "category_00000000000000000000001510": {
+        "name": "Object storage",
+        "label": "Object storage"
+      },
+      "category_00000000000000000000001511": {
+        "name": "File storage",
+        "label": "File storage"
+      },
+      "category_00000000000000000000001512": {
+        "name": "Block storage",
+        "label": "Block storage"
+      },
+      "category_00000000000000000000001513": {
+        "name": "Database drivers and ORM",
+        "label": "Database drivers and ORM"
+      },
+      "category_00000000000000000000001514": {
+        "name": "Database migrations and administration",
+        "label": "Database migrations and administration"
+      },
+      "category_00000000000000000000001601": {
+        "name": "Data ingestion and replication",
+        "label": "Data ingestion and replication"
+      },
+      "category_00000000000000000000001602": {
+        "name": "Data transformation and modeling",
+        "label": "Data transformation and modeling"
+      },
+      "category_00000000000000000000001603": {
+        "name": "Batch processing",
+        "label": "Batch processing"
+      },
+      "category_00000000000000000000001604": {
+        "name": "Stream processing",
+        "label": "Stream processing"
+      },
+      "category_00000000000000000000001605": {
+        "name": "SQL query engines",
+        "label": "SQL query engines"
+      },
+      "category_00000000000000000000001606": {
+        "name": "Pipeline orchestration",
+        "label": "Pipeline orchestration"
+      },
+      "category_00000000000000000000001607": {
+        "name": "BI and reporting",
+        "label": "BI and reporting"
+      },
+      "category_00000000000000000000001608": {
+        "name": "Semantic layers",
+        "label": "Semantic layers"
+      },
+      "category_00000000000000000000001609": {
+        "name": "Data quality",
+        "label": "Data quality"
+      },
+      "category_00000000000000000000001610": {
+        "name": "Data catalogs and lineage",
+        "label": "Data catalogs and lineage"
+      },
+      "category_00000000000000000000001611": {
+        "name": "Analytical storage formats",
+        "label": "Analytical storage formats"
+      },
+      "category_00000000000000000000001701": {
+        "name": "ML frameworks",
+        "label": "ML frameworks"
+      },
+      "category_00000000000000000000001702": {
+        "name": "Dataset preparation",
+        "label": "Dataset preparation"
+      },
+      "category_00000000000000000000001703": {
+        "name": "Model training",
+        "label": "Model training"
+      },
+      "category_00000000000000000000001704": {
+        "name": "Experiments and model registries",
+        "label": "Experiments and model registries"
+      },
+      "category_00000000000000000000001705": {
+        "name": "Models",
+        "label": "Models"
+      },
+      "category_00000000000000000000001706": {
+        "name": "Inference servers and APIs",
+        "label": "Inference servers and APIs"
+      },
+      "category_00000000000000000000001707": {
+        "name": "Agent frameworks",
+        "label": "Agent frameworks"
+      },
+      "category_00000000000000000000001708": {
+        "name": "Context retrieval",
+        "label": "Context retrieval"
+      },
+      "category_00000000000000000000001709": {
+        "name": "Model evaluation and monitoring",
+        "label": "Model evaluation and monitoring"
+      },
+      "category_00000000000000000000001801": {
+        "name": "Operating systems",
+        "label": "Operating systems"
+      },
+      "category_00000000000000000000001802": {
+        "name": "Virtualization",
+        "label": "Virtualization"
+      },
+      "category_00000000000000000000001803": {
+        "name": "Compute platforms",
+        "label": "Compute platforms"
+      },
+      "category_00000000000000000000001804": {
+        "name": "Container runtimes",
+        "label": "Container runtimes"
+      },
+      "category_00000000000000000000001805": {
+        "name": "Container orchestration",
+        "label": "Container orchestration"
+      },
+      "category_00000000000000000000001806": {
+        "name": "Serverless",
+        "label": "Serverless"
+      },
+      "category_00000000000000000000001807": {
+        "name": "Infrastructure as Code",
+        "label": "Infrastructure as Code"
+      },
+      "category_00000000000000000000001808": {
+        "name": "Configuration management",
+        "label": "Configuration management"
+      },
+      "category_00000000000000000000001901": {
+        "name": "DNS and service discovery",
+        "label": "DNS and service discovery"
+      },
+      "category_00000000000000000000001902": {
+        "name": "Virtual networks",
+        "label": "Virtual networks"
+      },
+      "category_00000000000000000000001903": {
+        "name": "Load balancers",
+        "label": "Load balancers"
+      },
+      "category_00000000000000000000001904": {
+        "name": "Reverse proxies",
+        "label": "Reverse proxies"
+      },
+      "category_00000000000000000000001905": {
+        "name": "Forward proxies",
+        "label": "Forward proxies"
+      },
+      "category_00000000000000000000001906": {
+        "name": "Ingress and egress gateways",
+        "label": "Ingress and egress gateways"
+      },
+      "category_00000000000000000000001907": {
+        "name": "Service mesh",
+        "label": "Service mesh"
+      },
+      "category_00000000000000000000001908": {
+        "name": "CDN",
+        "label": "CDN"
+      },
+      "category_00000000000000000000001909": {
+        "name": "VPN and private connections",
+        "label": "VPN and private connections"
+      },
+      "category_00000000000000000000002001": {
+        "name": "Authentication and SSO",
+        "label": "Authentication and SSO"
+      },
+      "category_00000000000000000000002002": {
+        "name": "Authorization",
+        "label": "Authorization"
+      },
+      "category_00000000000000000000002003": {
+        "name": "Identity management",
+        "label": "Identity management"
+      },
+      "category_00000000000000000000002004": {
+        "name": "Secrets and keys",
+        "label": "Secrets and keys"
+      },
+      "category_00000000000000000000002005": {
+        "name": "Certificates",
+        "label": "Certificates"
+      },
+      "category_00000000000000000000002006": {
+        "name": "Security analysis",
+        "label": "Security analysis"
+      },
+      "category_00000000000000000000002007": {
+        "name": "Runtime protection",
+        "label": "Runtime protection"
+      },
+      "category_00000000000000000000002008": {
+        "name": "Vulnerability management",
+        "label": "Vulnerability management"
+      },
+      "category_00000000000000000000002009": {
+        "name": "Security audit",
+        "label": "Security audit"
+      },
+      "category_00000000000000000000002101": {
+        "name": "Metrics",
+        "label": "Metrics"
+      },
+      "category_00000000000000000000002102": {
+        "name": "Logs",
+        "label": "Logs"
+      },
+      "category_00000000000000000000002103": {
+        "name": "Tracing",
+        "label": "Tracing"
+      },
+      "category_00000000000000000000002104": {
+        "name": "Profiling",
+        "label": "Profiling"
+      },
+      "category_00000000000000000000002105": {
+        "name": "Error monitoring",
+        "label": "Error monitoring"
+      },
+      "category_00000000000000000000002106": {
+        "name": "Telemetry collection",
+        "label": "Telemetry collection"
+      },
+      "category_00000000000000000000002107": {
+        "name": "Alerts and incidents",
+        "label": "Alerts and incidents"
+      },
+      "category_00000000000000000000002108": {
+        "name": "Backup",
+        "label": "Backup"
+      },
+      "category_00000000000000000000002109": {
+        "name": "Recovery",
+        "label": "Recovery"
+      },
+      "category_00000000000000000000002110": {
+        "name": "Resilience testing",
+        "label": "Resilience testing"
+      },
+      "category_00000000000000000000002111": {
+        "name": "Resource and cost management",
+        "label": "Resource and cost management"
+      },
+      "category_00000000000000000000002201": {
+        "name": "Source control",
+        "label": "Source control"
+      },
+      "category_00000000000000000000002202": {
+        "name": "IDEs",
+        "label": "IDEs"
+      },
+      "category_00000000000000000000002203": {
+        "name": "Package managers",
+        "label": "Package managers"
+      },
+      "category_00000000000000000000002204": {
+        "name": "Build tools",
+        "label": "Build tools"
+      },
+      "category_00000000000000000000002205": {
+        "name": "Artifact registries",
+        "label": "Artifact registries"
+      },
+      "category_00000000000000000000002206": {
+        "name": "CI/CD",
+        "label": "CI/CD"
+      },
+      "category_00000000000000000000002207": {
+        "name": "Testing",
+        "label": "Testing"
+      },
+      "category_00000000000000000000002208": {
+        "name": "Linters and type checking",
+        "label": "Linters and type checking"
+      },
+      "category_00000000000000000000002209": {
+        "name": "Deployment and GitOps",
+        "label": "Deployment and GitOps"
+      },
+      "category_00000000000000000000002210": {
+        "name": "Developer portals",
+        "label": "Developer portals"
+      },
+      "category_00000000000000000000002211": {
+        "name": "Documentation",
+        "label": "Documentation"
+      },
+      "category_00000000000000000000002301": {
+        "name": "Tenant management",
+        "label": "Tenant management"
+      },
+      "category_00000000000000000000002302": {
+        "name": "Plans and features",
+        "label": "Plans and features"
+      },
+      "category_00000000000000000000002303": {
+        "name": "Subscriptions, billing and payments",
+        "label": "Subscriptions, billing and payments"
+      },
+      "category_00000000000000000000002304": {
+        "name": "Usage accounting",
+        "label": "Usage accounting"
+      },
+      "category_00000000000000000000002305": {
+        "name": "Quotas",
+        "label": "Quotas"
+      },
+      "category_00000000000000000000002306": {
+        "name": "Feature flags",
+        "label": "Feature flags"
+      },
+      "category_00000000000000000000002307": {
+        "name": "Notifications",
+        "label": "Notifications"
+      },
+      "category_00000000000000000000002308": {
+        "name": "Content and media",
+        "label": "Content and media"
+      },
+      "category_00000000000000000000002309": {
+        "name": "Localization",
+        "label": "Localization"
+      },
+      "category_00000000000000000000002310": {
+        "name": "Product analytics",
+        "label": "Product analytics"
+      }
+    },
+    "openEntry": "Open",
+    "entryCount": "{count, plural, one {# entry} other {# entries}}",
+    "entryDialogDescription": "Name, description and area assignment.",
+    "telemetryPageDescription": "Configure telemetry collection and data retention for your organization.",
+    "telemetryTab": {
+      "heartbeat": "Heartbeat",
+      "usage": "Usage",
+      "retention": "Data retention"
+    },
+    "policyEnabled": "Enabled",
+    "policyDisabled": "Disabled",
+    "heartbeatCardTitle": "Device heartbeat",
+    "heartbeatCardDescription": "Control periodic installation heartbeat reporting.",
+    "heartbeatEnabledState": "Installation heartbeat reporting is active.",
+    "heartbeatDisabledState": "Installation heartbeat reporting is paused.",
+    "schedulerTitle": "Scheduler & tick behavior",
+    "schedulerDescription": "Information about how the heartbeat check is executed on installations.",
+    "schedulerTickCadence": "Tick cadence",
+    "schedulerFollowsInterval": "Follows heartbeat interval",
+    "schedulerRetrySchedule": "Retry schedule",
+    "schedulerRetryMax": "max {value}",
+    "schedulerStaleAfter": "Stale after",
+    "schedulerKind": "Scheduler",
+    "schedulerOsManaged": "OS-managed",
+    "schedulerNote": "The heartbeat tick performs a due check, re-reads the current policy and sends a heartbeat report only when it is due. Changing the heartbeat interval will update the schedule on installations.",
+    "usageCardTitle": "Inventory & usage",
+    "usageCardDescription": "Configure collection of inventory and usage data from your installations.",
+    "inventoryScanDescription": "Collect inventory data about installed tools, technologies and configurations.",
+    "inventoryScanEnabledState": "Inventory scan is active.",
+    "inventoryScanDisabledState": "Inventory scan is off.",
+    "usageCollectionDescription": "Collect anonymized runtime and usage data to understand how tools and technologies are actually used.",
+    "usageCollectionEnabledState": "Runtime usage collection is active.",
+    "usageCollectionDisabledState": "Runtime usage collection is off.",
+    "usageRegistrationDescription": "Require installations to register their local usage in order to report usage data.",
+    "usageRegistrationEnabledState": "Local usage registration is required.",
+    "usageRegistrationDisabledState": "Local usage registration is not required.",
+    "usageRegistrationNote": "When local usage registration is enabled, runtime usage collection must also be enabled.",
+    "usageAboutTitle": "About usage data",
+    "usageAboutBody": "Usage data helps to understand how tools and technologies are actually used across your organization.",
+    "usageAboutNote": "Only technical usage data is collected. No source code, content or personal data is collected. Data is used for product insights, reporting and to help improve the platform.",
+    "retentionCardTitle": "Data retention & reporting",
+    "retentionCardDescription": "Configure how long telemetry data is stored and under what legal basis it is processed.",
+    "telemetryLegalBasisCaption": "Specify the legal basis for processing telemetry data.",
+    "telemetryRawRetentionCaption": "How long raw telemetry data is stored before being deleted.",
+    "telemetryAggregateRetentionCaption": "How long aggregated telemetry data is stored.",
+    "telemetryNoticeCaption": "This notice may be shown to users and in documentation.",
+    "reportTimezoneCaption": "Time zone used for telemetry reporting and data aggregation.",
+    "telemetryScopeNote": "Telemetry data includes only technical usage and inventory information. No source code, content or personal data is collected.",
+    "advancedSettingsTitle": "Advanced settings",
+    "advancedSettingsDescription": "Additional data retention and reporting configuration.",
+    "customRetentionDays": "Custom retention (days)"
   },
   "githubConnector": {
     "backToAccount": "Back to account",
@@ -662,6 +1414,55 @@
     "editProfile": "Edit profile",
     "privacy": "Privacy",
     "backToNavigation": "Main navigation"
+  },
+  "technologyCategories": {
+    "title": "Technology categories",
+    "body": "Create, edit, and archive the categories used to organize technologies.",
+    "noOrganization": "No corporate organization is available.",
+    "searchIcons": "Search icons",
+    "searchCategories": "Search categories",
+    "uploadIcon": "Upload icon",
+    "uploading": "Uploading…",
+    "iconUploadFailed": "Could not upload the icon. Use PNG, JPEG or WebP up to 5 MB.",
+    "allCategories": "All categories",
+    "state": "State",
+    "state_active": "Active",
+    "state_draft": "Draft",
+    "state_archived": "Archived",
+    "export": "Export",
+    "addCategory": "Add category",
+    "archiveSelected": "Archive selected",
+    "nameColumn": "Name",
+    "technologiesColumn": "Technologies",
+    "description": "Description",
+    "actions": "Actions",
+    "categoryActions": "Actions for {name}",
+    "edit": "Edit",
+    "manageTechnologies": "Manage technologies",
+    "restore": "Restore",
+    "deleteCategory": "Delete category",
+    "noMatches": "No matches. Try another name or filter.",
+    "empty": "No technology categories yet.",
+    "close": "Close",
+    "categoryIcon": "Category icon",
+    "changeIcon": "Change icon",
+    "nameRequired": "Name",
+    "linkedTechnologies": "Linked technologies",
+    "linkedCount": "{count} technologies",
+    "moreTechnologies": "+{count} more",
+    "revision": "Revision",
+    "provenance": "Source",
+    "cancel": "Cancel",
+    "saving": "Saving…",
+    "saveChanges": "Save changes",
+    "save": "Save",
+    "chooseIcon": "Choose category icon",
+    "chooseIconHint": "The icon is stored in this browser until the category API supports icon persistence.",
+    "searchTechnologies": "Search technologies",
+    "selectedSuffix": "selected",
+    "saved": "Saved",
+    "linkPartial": "Could not update {count} technologies. A technology must keep at least one category.",
+    "editCategory": "Edit category"
   },
   "theme": {
     "projectionLabel": "Site format",
@@ -949,23 +1750,7 @@
     "safetyAvailable": "Complete",
     "safetyPending": "Pending required checks",
     "safetyMandatory": "Required",
-    "safetyResultPassed": "Passed",
-    "safetyResultFailed": "Failed",
-    "safetyResultWarning": "Warning",
-    "safetyResultNotRun": "Not run",
-    "safetyResultDegraded": "Degraded",
-    "safetyGate": "Publication gate",
-    "safetyExtra": "Extra scanners",
-    "safetySummary": "Automated checks reduce known risks; they do not guarantee that a component is safe.",
     "safetyChecksComplete": "checks passed",
-    "safetyExpand": "Review individual checks",
-    "safetyDocumentation": "How checks work",
-    "safetyWhy": "Why",
-    "safetyFindings": "Findings",
-    "safetyRules": "Types",
-    "safetyPaths": "Files",
-    "safetyPayloadHidden": "Finding content is hidden because it may contain secrets or malicious instructions.",
-    "safetyHelp": "About safety checks",
     "safetyCheckColumn": "Safety check",
     "safetyCheck": {
       "structure": {
@@ -1552,6 +2337,7 @@
     "browse": "Browse catalog"
   },
   "objects": {
+    "backToObject": "Back to object",
     "backToObjects": "Back to your objects",
     "viewPublic": "View public page",
     "manageObject": "Manage object",
@@ -1862,6 +2648,7 @@
     "triage": "Update state",
     "reason": "Reason",
     "reasonRequired": "A reason is required.",
+    "publicResponse": "Public response",
     "confirm": "Confirm action",
     "block": "Block version",
     "hide": "Hide version",
@@ -1956,40 +2743,41 @@
     "accessAdministration": "Access administration",
     "accessMatrix": "Access matrix",
     "accessMatrixBody": "Permissions granted to each role, grouped by entity.",
-    "accessMatrixGroups": "Areas",
     "accessModel": "Access model",
-    "accessModelBody": "Every enforced action in this organization: the entities it applies to, the scopes it accepts, and the roles that hold it.",
-    "addMember": "Add member",
+    "allJobTitles": "All job titles",
+    "assignEmployees": "Assign employees",
+    "assignPartial": "Could not update {count} employees.",
+    "assignedEmployees": "Assigned employees",
+    "createJobTitle": "Create job title",
+    "deleteJobTitle": "Delete job title",
+    "deleteJobTitleConfirm": "“{name}” will be retired and hidden from new assignments.",
+    "editJobTitle": "Edit job title",
+    "jobTitleActions": "Actions for {name}",
+    "linkedEmployees": "Employees",
+    "linkedEmployeesCount": "{count} employees",
     "openAccess": "Access",
+    "removeAssignment": "Remove assignment",
+    "restoreJobTitle": "Restore",
+    "searchJobTitles": "Search job titles",
     "searchMembers": "Search members",
     "noMatchingMembers": "No members match the current search.",
     "deliveryFailed": "Delivery failed. Revoke the invitation and send a new one.",
     "entitiesAndActions": "Entities & actions",
-    "roleMatrix": "Role matrix",
     "searchPermissions": "Search permissions",
-    "noMatchingPermissions": "No permissions match the current search.",
-    "requiresParent": "Requires {parent}",
-    "systemRole": "Built-in",
-    "customRole": "Custom",
+    "selectedSuffix": "selected",
     "createRole": "Create role",
-    "editRoleBody": "Update this role's parent and permission list.",
-    "roleUsedBy": "Assignments",
-    "noRoleAssignments": "No active assignments reference this role.",
-    "inheritedPermissions": "Inherited",
-    "ownPermissions": "Own permissions",
-    "deleteRoleConfirm": "Delete this role? Assignments must be removed first.",
+    "editRoleBody": "Update this role's name and permission list.",
+    "renameRoleHint": "Renaming copies the role under the new name and moves its members.",
+    "assignRoleBody": "Grant {name} to organization members as a direct organization-scope assignment.",
+    "deleteRoleBody": "Delete the role {name}? Every current assignment moves to the replacement role.",
+    "replacementRole": "Replacement role",
+    "replacementRoleBody": "Members and bindings using this role are reassigned to the selected role.",
     "copyId": "Copy ID",
     "employeeAccessTitle": "Employee access",
-    "employeeAccessBody": "Every source that grants this member access, and the effective decision set at the selected scope.",
-    "effectiveDecisions": "Effective access",
-    "effectiveDecisionsBody": "Permissions this member holds at the selected scope, with the records that grant each one.",
     "roleBindings": "Role bindings",
     "directGrants": "Direct allows",
     "directGrantsBody": "Scoped single-action allows issued without a role.",
-    "privateGrants": "Private catalog grants",
     "noGrants": "No direct allows.",
-    "noPrivateGrants": "No private catalog grants.",
-    "grantAction": "Grant action",
     "selectScope": "Scope",
     "allScopes": "Organization",
     "coverage": "Coverage",
@@ -2001,38 +2789,26 @@
     "originDirect": "Direct",
     "originServicePrincipal": "Service principal",
     "issuer": "Issued by",
-    "noEffective": "No effective permissions at this scope.",
     "actions": "Actions",
     "active": "Active",
-    "addEmployees": "Add employees",
-    "addSelected": "Add selected ({count})",
     "administration": "Administration",
     "allEmployees": "All employees",
     "allEvents": "All matching events",
     "allTeams": "All teams",
-    "archiveTeam": "Archive team",
-    "archiveTeamConfirm": "Archive this team? Team access stops; relationships are preserved.",
     "archived": "Archived",
-    "archivedTeamBody": "This team is archived. Restore it to add employees or activate team access.",
     "assign": "Assign",
     "assigned": "In a team",
     "assignments": "Assignments",
     "auditJournal": "Audit journal",
     "auditUi": {
       "allEmployees": "All employees",
-      "searchEmployee": "Search employees",
       "close": "Close",
       "target": "Target ID",
-      "filterEvents": "Filter events",
       "action": "Action",
       "allActions": "All actions",
       "from": "From",
       "to": "To",
-      "latestEvents": "Latest events",
-      "olderEvents": "Earlier events",
       "event": "{entity}: {operation}",
-      "profileUpdated": "Employee profile updated",
-      "otherEvent": "Organization activity",
       "entities": {
         "member": "Employee",
         "team": "Team",
@@ -2043,19 +2819,113 @@
         "catalog_assignment": "Setup or component assignment",
         "audit": "Journal",
         "organization": "Organization",
-        "corporate": "Corporate Hub"
+        "corporate": "Corporate Hub",
+        "delegation": "Delegation",
+        "invitation": "Invitation",
+        "member_access": "Access review",
+        "membership": "Membership",
+        "policy": "Policy",
+        "permission_grant": "Direct grant",
+        "job_title": "Job title",
+        "catalog_object": "Catalog object",
+        "catalog_ownership": "Catalog ownership",
+        "catalog_maintainer": "Catalog maintainer",
+        "catalog_verification": "Catalog verification",
+        "catalog_lifecycle": "Catalog lifecycle",
+        "employee_technology": "Employee technology",
+        "ownership": "Ownership",
+        "owner": "Owner",
+        "technology": "Technology",
+        "category": "Technology category",
+        "telemetry": "Telemetry",
+        "telemetry_usage": "Telemetry usage",
+        "telemetry_installation": "Telemetry installation",
+        "dashboard": "Dashboard",
+        "grant": "Catalog grant",
+        "http": "HTTP request",
+        "profile": "Profile",
+        "request": "Request",
+        "report": "Report",
+        "publication": "Publication",
+        "content": "Content",
+        "auth": "Sign-in",
+        "device": "Device",
+        "sync": "Sync",
+        "github": "GitHub",
+        "gitlab": "GitLab"
       },
       "operations": {
         "create": "created",
+        "created": "created",
         "update": "updated",
         "delete": "removed",
         "read": "viewed",
         "list": "list viewed",
-        "write": "assignment changed",
+        "write": "changed",
         "export": "exported",
         "lifecycle": "status changed",
         "bootstrap": "initialized",
-        "replay": "request repeated"
+        "replay": "request repeated",
+        "assign": "assigned",
+        "remove": "removed",
+        "revoke": "revoked",
+        "revoked": "revoked",
+        "accepted": "accepted",
+        "claimed": "opened",
+        "rejected": "rejected",
+        "denied": "denied",
+        "expired": "expired",
+        "sent": "sent",
+        "replayed": "repeated",
+        "duplicate": "duplicate ignored",
+        "domain_rejected": "domain rejected",
+        "email_confirm_sent": "confirmation sent",
+        "issuer_denied": "issuer denied",
+        "org_inactive": "organization inactive",
+        "token_invalid": "invalid token",
+        "confirm_token_invalid": "invalid confirmation token",
+        "confirm_account_mismatch": "account mismatch",
+        "replace": "replaced",
+        "aggregate": "aggregated",
+        "ingest": "ingested",
+        "batch": "batch ingested",
+        "inventory": "inventory collected",
+        "triaged": "triaged",
+        "requested": "requested",
+        "registered": "registered",
+        "reregistered": "re-registered",
+        "approved": "approved",
+        "exchanged": "exchanged",
+        "refreshed": "refreshed",
+        "reactivated": "reactivated",
+        "linked": "linked",
+        "unlinked": "unlinked",
+        "link_created": "linked",
+        "link_planned": "link planned",
+        "link_unlinked": "unlinked",
+        "unlink_planned": "unlink planned",
+        "sync_planned": "sync planned",
+        "sync_applied": "sync applied",
+        "revision_pushed": "revision pushed",
+        "started": "started",
+        "completed": "completed",
+        "disconnected": "disconnected",
+        "unavailable": "unavailable",
+        "prepared": "prepared",
+        "imported": "imported",
+        "bound": "bound",
+        "confirmed": "confirmed",
+        "published": "published",
+        "unpublished": "unpublished",
+        "superseded": "superseded",
+        "conflict": "conflict",
+        "claim_requested": "claim requested",
+        "family_created": "family created",
+        "family_updated": "family updated",
+        "distribute": "distributed",
+        "created_direct": "granted directly",
+        "invitation_created": "invitation created",
+        "invitation_revoked": "invitation revoked"
       },
       "outcomes": {
         "succeeded": "Completed",
@@ -2066,36 +2936,149 @@
         "user": "Employee action",
         "service_principal": "Service account action",
         "system": "System action"
-      }
+      },
+      "reason": "Reason",
+      "actions": {
+        "member": {
+          "profile": {
+            "update": "Employee profile updated"
+          }
+        },
+        "member_access": {
+          "read": "Access review opened"
+        },
+        "membership": {
+          "policy": {
+            "write": "Membership policy updated"
+          }
+        },
+        "corporate": {
+          "bootstrap": "Workspace initialized"
+        },
+        "dashboard": {
+          "ci_check": {
+            "write": "CI check recorded"
+          }
+        },
+        "grant": {
+          "accepted": "Catalog access accepted",
+          "created_direct": "Catalog access granted",
+          "invitation_created": "Catalog invitation created",
+          "invitation_revoked": "Catalog invitation revoked",
+          "reactivated": "Catalog access reactivated",
+          "revoked": "Catalog access revoked"
+        }
+      },
+      "targets": {
+        "account": "Account",
+        "account_session": "Session",
+        "access_grant": "Catalog grant",
+        "article": "Article",
+        "article_repository_state": "Repository state",
+        "audit_event": "Journal event",
+        "avatar_asset": "Avatar",
+        "catalog_metadata": "Catalog metadata",
+        "corporate_assignment_distribution": "Assignment distribution",
+        "corporate_bootstrap_receipt": "Setup request",
+        "corporate_catalog_assignment": "Catalog assignment",
+        "corporate_catalog_lifecycle": "Catalog lifecycle",
+        "corporate_catalog_maintainer": "Catalog maintainer",
+        "corporate_catalog_ownership": "Catalog ownership",
+        "corporate_catalog_verification": "Catalog verification",
+        "corporate_ci_check": "CI check",
+        "corporate_dashboard_view": "Dashboard view",
+        "corporate_invitation": "Invitation",
+        "corporate_job_title": "Job title",
+        "corporate_mutation_receipt": "Request",
+        "corporate_permission_grant": "Direct grant",
+        "corporate_project": "Project",
+        "corporate_role": "Role",
+        "corporate_role_binding": "Access binding",
+        "corporate_service_principal": "Service account",
+        "corporate_team": "Team",
+        "device": "Device",
+        "device_authorization": "Device authorization",
+        "employee_technology": "Employee technology",
+        "github_action_plan": "GitHub action",
+        "github_connector": "GitHub connector",
+        "github_source_binding": "GitHub source",
+        "grant_invitation": "Catalog invitation",
+        "http_route": "Route",
+        "installation_heartbeat": "Installation heartbeat",
+        "installation_inventory_snapshot": "Inventory snapshot",
+        "installation_operation_fact": "Operation fact",
+        "oauth_identity": "Identity",
+        "organization": "Organization",
+        "organization_membership": "Member",
+        "organization_technology_decision": "Technology decision",
+        "ownership_claim": "Ownership claim",
+        "project_identity": "Project",
+        "project_link": "Project link",
+        "project_link_plan": "Link plan",
+        "project_revision": "Project revision",
+        "project_sync_plan": "Sync plan",
+        "project_team_relation": "Project team",
+        "project_technology_relation": "Project technology",
+        "project_unlink_plan": "Unlink plan",
+        "publication_plan": "Publication plan",
+        "report_case": "Report",
+        "runtime_usage_event": "Usage event",
+        "runtime_usage_export": "Usage export",
+        "setup_family": "Setup family",
+        "sync_event_receipt": "Sync event",
+        "sync_revision": "Sync revision",
+        "technology": "Technology",
+        "technology_category": "Category",
+        "technology_coordinate_mapping": "Coordinate mapping",
+        "technology_landscape_policy": "Landscape policy",
+        "technology_scan": "Technology scan",
+        "technology_team_responsibility": "Team responsibility",
+        "technology_unmapped_coordinate": "Unmapped coordinate",
+        "telemetry_audit": "Telemetry audit",
+        "telemetry_event": "Telemetry event",
+        "telemetry_policy": "Telemetry policy",
+        "telemetry_revocation": "Telemetry revocation"
+      },
+      "search": "Search by actor, action, target or details…",
+      "actor": "Actor",
+      "allActors": "All actors",
+      "targetType": "Target type",
+      "allTypes": "All types",
+      "outcome": "Outcome",
+      "allOutcomes": "All outcomes",
+      "reset": "Reset",
+      "eventCount": "{count, plural, one {# event} other {# events}}",
+      "auditTable": "Audit events",
+      "timestamp": "Timestamp",
+      "details": "Details",
+      "eventDetails": "Event details",
+      "requestId": "Request ID",
+      "changes": "Changes",
+      "noChanges": "No additional change data was recorded for this event.",
+      "rowsPerPage": "Rows per page",
+      "openEvent": "Open event {id}"
     },
     "avatar": "Avatar",
     "backToWorkspace": "Back to workspace",
-    "batchPartial": "Completed {count}. Some changes failed. Retry the remaining selection.",
     "bindings": "Role bindings",
     "cancel": "Cancel",
-    "chooseTeams": "Choose teams",
     "close": "Close",
     "confirmDelete": "Delete this corporate resource?",
     "create": "Create",
-    "createTeam": "Create team",
     "creating": "Creating…",
     "csv": "CSV",
     "currentFilters": "Current filters",
     "delete": "Delete",
     "deleting": "Deleting…",
     "description": "Description",
-    "descriptionHint": "Optional, up to 2,000 characters.",
     "displayName": "Display name",
     "domainPolicy": "Email domain policy",
     "domainPolicyBody": "When enabled, only recipients with an allowed domain can join or be invited.",
     "domainRestrict": "Restrict membership to allowed domains",
     "domains": "Allowed domains",
-    "domainsHint": "Comma or space separated, e.g. example.com subsidiary.org",
-    "domainsPlaceholder": "example.com, subsidiary.org",
     "download": "Download",
     "edit": "Edit",
     "editEntityPresentation": "Edit {name}",
-    "effectiveAccess": "Your effective access",
     "email": "Email",
     "employeeAuthoredComponents": "Authored components",
     "employeeAuthoredSetups": "Authored setups",
@@ -2116,8 +3099,6 @@
     "employeeTechnologiesUnavailable": "Employee technologies could not be loaded.",
     "employeeVersion": "Version",
     "emptyBody": "This account is not assigned to a corporate organization.",
-    "emptyTeam": "No employees in this team yet.",
-    "emptyTeamBody": "Add employees and choose who will lead this team.",
     "emptyTitle": "No corporate workspace",
     "expiresAt": "Expires",
     "exportAudit": "Export audit",
@@ -2126,7 +3107,6 @@
     "exportingAudit": "Exporting…",
     "failed": "You do not have permission for this action.",
     "granted": "Granted",
-    "grantedBy": "Granted by",
     "id": "ID",
     "importPlaceholder": "name@example.com, Jane Doe",
     "invitations": "Invitations",
@@ -2137,7 +3117,7 @@
     "jobTitleName": "Job title",
     "jobTitleNoItems": "No job titles have been created yet.",
     "jobTitleRetired": "Retired",
-    "jobTitleSave": "Save job title",
+    "jobTitleSave": "Save",
     "jobTitleState": "State",
     "jobTitles": "Job titles",
     "jobTitlesDescription": "Create, rename, retire, and restore the job titles used by employee profiles and directory filters.",
@@ -2146,35 +3126,31 @@
     "last7Days": "Last 7 days",
     "lead": "Lead",
     "mail": "Mail",
-    "makeLead": "Make team lead",
-    "makeStaff": "Make staff",
     "markdownPreview": "Preview",
     "markdownWrite": "Write",
     "member": "Member",
     "memberDetails": "Member details",
     "memberDetailsBody": "This account is a member of the corporate organization.",
     "members": "Members",
-    "membershipFilter": "Team membership",
     "name": "Name",
-    "noActiveLead": "No active team lead. An administrator can appoint one.",
     "noAudit": "No audit events.",
     "noBindings": "No role bindings.",
-    "noEmployeeTeams": "This employee has no team assignments.",
     "noMatches": "No matches. Try another name or filter.",
     "noMembers": "No members are available.",
     "noOrganization": "No corporate organization is available.",
-    "noOrganizationEmployees": "No employees yet. Create an employee in the workspace first.",
     "noRoles": "No roles are defined.",
     "noServicePrincipals": "No service principals.",
-    "noTeams": "No teams are assigned.",
     "notAssigned": "Not assigned",
     "notGranted": "Not granted",
-    "notInThisTeam": "Not in this team",
     "open": "Open",
     "operation": "Operation",
     "organization": "Organization",
     "organizationRole": "Organization role",
-    "parentRole": "Parent role",
+    "peopleVisibility": "People visibility",
+    "peopleVisibilityAdmins": "Administrators only",
+    "peopleVisibilityHint": "Which members appear in the directory: everyone, teammates on shared teams and projects, or administrators only.",
+    "peopleVisibilityMembers": "All organization members",
+    "peopleVisibilityTeammates": "Teammates on shared teams and projects",
     "permission": "Permission",
     "permissions": "Permissions",
     "project": "Project",
@@ -2184,9 +3160,6 @@
     "publicPresentation": "Public presentation",
     "publicPresentationEditHintNoAvatar": "Update the display name, description, media gallery, and links shown on this entity's public page.",
     "remove": "Remove",
-    "removeFromTeam": "Remove from team",
-    "removeTeamConfirm": "Remove this employee from the team? Their team access will be revoked.",
-    "restoreTeam": "Restore team",
     "revoke": "Revoke",
     "revoking": "Revoking…",
     "role": "Role",
@@ -2197,7 +3170,6 @@
     "saved": "Created",
     "saving": "Saving…",
     "scope": "Scope",
-    "scopeId": "Scope ID",
     "searchEmployees": "Search employees",
     "searchTeams": "Search teams",
     "servicePrincipals": "Service principals",
@@ -2210,19 +3182,15 @@
     "team": "Team",
     "teamDetails": "Team details",
     "teamDetailsBody": "This is the corporate team scope available to your account.",
-    "teamFilter": "Filter by team",
-    "teamMemberships": "Team memberships",
-    "teamRole": "Role in this team",
-    "teamRoleHint": "This role applies only to the selected team. Organization roles are managed separately.",
+
     "teams": "Teams",
     "today": "Today",
-    "unassigned": "Without a team",
     "unknownEmployee": "Unknown employee",
     "update": "Save changes",
     "suspend": "Suspend",
     "activate": "Activate",
     "rolesBody": "System definitions are immutable; custom roles are managed here. Inherited permissions come from parent roles.",
-    "roleAssignments": "Assignments",
+
     "revision": "Revision",
     "gitManagement": "Git management",
     "gitManagementBody": "Git providers available to this organization. Capability grants (connector.{provider}.{use,read,write,create,visibility,access}) are assigned through roles.",
@@ -2231,18 +3199,60 @@
     "gitNoGrants": "No connector grants assigned to your roles.",
     "gitManageProvider": "Manage",
     "gitGrantsHint": "Connector capability grants are edited on the",
-    "gitGrantsLink": "roles page"
+    "gitGrantsLink": "roles page",
+    "viewAllEmployees": "View all employees ({count})",
+    "securityPageDescription": "Manage authentication and access policies for your organization.",
+    "auditJournalDescription": "Track changes and actions performed in your organization.",
+    "addDomain": "Add domain",
+    "domain": "domain",
+    "domainEntryLabel": "Domain {index}",
+    "removeDomain": "Remove {domain}",
+    "policySettings": "Policy settings",
+    "domainRestrictHint": "Users with email addresses from other domains will not be able to sign up or be invited to the organization.",
+    "domainPolicyNote": "Existing members with other email domains will retain their access.",
+    "domainsRequired": "Add at least one domain or turn the restriction off.",
+    "invalidDomain": "\"{domain}\" is not a valid email domain. Use a DNS name like company.com.",
+    "domainPlaceholder": "company.com",
+    "ssoTitle": "Single sign-on",
+    "ssoDescription": "Let members sign in through your identity provider instead of a separate password.",
+    "ssoUnavailable": "Single sign-on is not enabled for this deployment yet. Deployment-level providers (for example Authentik or Keycloak) are configured by the platform administrator.",
+    "ssoUnavailableWithProviders": "Organization-managed single sign-on is not enabled for this deployment yet. Sign-in providers configured by the platform administrator: {providers}.",
+    "ssoEnable": "Enable provider",
+    "ssoEnabled": "Enabled",
+    "ssoNotConfigured": "Not configured",
+    "ssoIdpMetadataUrl": "IdP metadata URL",
+    "ssoIdpMetadataHint": "Paste the metadata document URL from your identity provider.",
+    "ssoIssuerUrl": "Issuer URL",
+    "ssoClientId": "Client ID",
+    "ssoEntityId": "Service provider entity ID",
+    "ssoAcsUrl": "ACS (consumer) URL",
+    "ssoRedirectUrl": "Redirect URL",
+    "ssoMetadataPlaceholder": "https://idp.example.com/saml/metadata",
+    "ssoIssuerPlaceholder": "https://sso.example.com/realms/org",
+    "ssoClientIdPlaceholder": "ai-stp",
+    "ssoProviders": {
+      "saml": {
+        "title": "SAML",
+        "description": "Enterprise SAML 2.0 identity providers such as ADFS or Okta."
+      },
+      "oidc": {
+        "title": "OIDC",
+        "description": "OpenID Connect providers such as Authentik or Keycloak."
+      }
+    }
   },
   "people": {
     "corporate": "Corporate",
     "administration": "Administration",
     "peopleAndAccess": "People & Access",
     "breadcrumbs": "Breadcrumbs",
-    "pageBody": "Manage your organization members and invitations. Add people, assign roles, and control access.",
+    "pageBody": "Manage organization members: assign roles, job titles, and teams, and control access.",
+    "referenceData": "Reference data",
     "totalMembers": "Total members",
     "pendingInvitations": "Pending invitations",
     "members": "Members",
     "invitations": "Invitations",
+    "invitationsBody": "Invite people to the organization and track pending invitations.",
     "teams": "Teams",
     "roles": "Roles",
     "you": "You",
@@ -2256,8 +3266,6 @@
     "joined": "Oldest members first",
     "name": "Name: A–Z",
     "name_desc": "Name: Z–A",
-    "addMember": "Add member",
-    "addMemberBody": "Add a person to your organization, assign a role, and choose their teams.",
     "directoryActions": "Directory actions",
     "downloadCsv": "Download CSV",
     "selected": "{count} selected",
@@ -2359,7 +3367,17 @@
     "noGrantableRoles": "No roles are available within your current authority. Review the access matrix before inviting members.",
     "roleUnavailable": "unavailable",
     "roleGrantHint": "Unavailable roles include permissions you cannot grant. Review your organization's access matrix.",
-    "rolesUnavailable": "Could not verify which roles you can assign. Refresh the page and try again."
+    "rolesUnavailable": "Could not verify which roles you can assign. Refresh the page and try again.",
+    "editMember": "Edit member",
+    "editMembers": "Edit {count} members",
+    "editSelected": "Edit selected",
+    "bulkEditBody": "Apply a role, job title, or team to every selected member. Empty fields keep current values.",
+    "keepUnchanged": "Keep unchanged",
+    "addToTeam": "Add to team",
+    "teamLeads": "Team lead in",
+    "teamLeadsHint": "Choose teams where this member is the lead",
+    "editPartial": "{count} updates failed. Retry them.",
+    "showingEvents": "{start}–{end} of {total}"
   },
   "gitlabConnector": {
     "title": "GitLab connector",
@@ -2420,5 +3438,268 @@
     "warning_repository_access": "The recipient gains project access on GitLab.",
     "warning_repository_access_revoked": "The member loses project access on GitLab.",
     "warning_repository_created": "A new repository is created on GitLab under your account."
+  },
+  "projectRepository": {
+    "title": "Repository",
+    "empty": "No GitHub or GitLab repository linked.",
+    "link": "Link GitHub / GitLab",
+    "url": "Repository URL",
+    "hint": "Public GitHub repository or a repository on your organization’s configured GitLab.",
+    "branch": "Branch",
+    "check": "Check repository",
+    "confirm": "Link repository",
+    "confirmHint": "Link this repository to the project. Scanning is launched separately.",
+    "working": "Checking…",
+    "cancel": "Cancel",
+    "placeholder": "https://github.com/owner/repository"
+  },
+  "accessUi": {
+    "accessBody": "Organization RBAC: application sections, users, invitations, entities and enforced actions. Account sign-in and public catalog rights are managed separately.",
+    "rolesBody": "Manage roles and their permissions. Roles define which actions are allowed within each scope.",
+    "employeeBody": "Manage individual access, roles and effective permissions.",
+    "entitiesAndActions": "Entities & actions",
+    "sectionsTab": "Sections",
+    "entity": "Entity",
+    "entityAction": "Entity / action",
+    "searchEntities": "Search entities...",
+    "searchSections": "Search sections...",
+    "searchRoles": "Search roles...",
+    "allGroups": "All groups",
+    "allRoles": "All roles",
+    "systemRoles": "System roles",
+    "customRoles": "Custom roles",
+    "details": "Details",
+    "openDetails": "Open {name} details",
+    "overview": "Overview",
+    "actionsTab": "Actions",
+    "entityType": "Entity type",
+    "scope": "Scope",
+    "availableActions": "Available actions ({count})",
+    "availableRoles": "Available to roles",
+    "sectionDetails": "Section details",
+    "section": "Section",
+    "description": "Description",
+    "visibleWhen": "Visible when",
+    "keyPermissions": "Key permissions",
+    "area": "Area",
+    "authenticatedVisibility": "Any authenticated member",
+    "capabilityVisibility": "Has at least one listed permission",
+    "adminVisibility": "Has an administration permission",
+    "availableToYou": "Available to you",
+    "unavailableToYou": "Unavailable to you",
+    "openSection": "Open section",
+    "entityCount": "{count} entities",
+    "sectionCount": "{count} sections",
+    "noResults": "No results match your filters",
+    "granted": "Granted",
+    "notGranted": "Not granted",
+    "forbidden": "You need permission to read roles and the access model.",
+    "permissions": "Permissions",
+    "assignments": "Assignments",
+    "createRole": "Create role",
+    "editRole": "Edit role",
+    "otherActions": "Other actions",
+    "immutableRole": "System role permissions are read-only.",
+    "noAssignments": "No active assignments reference this role.",
+    "grantAccess": "Grant access",
+    "grantAccessBody": "Pick the people, then what to grant: a role at a scope or a single direct permission.",
+    "grantKind": "What to grant",
+    "grantRoleMode": "Role",
+    "grantPermissionMode": "Permission",
+    "grantScopeHint": "A scope below the organization narrows the grant to that object only.",
+    "grants": "Grants",
+    "employee": "Employee",
+    "searchEmployees": "Search employees...",
+    "accessLevel": "Access level",
+    "organizationAccess": "Organization",
+    "scopedAccess": "Scoped",
+    "rolesAndAssignments": "Roles and assignments",
+    "effectivePermissions": "Effective permissions",
+    "activity": "Activity",
+    "groups": {
+      "discovery": "Discovery",
+      "content": "Content",
+      "relations": "Relations",
+      "presentation": "Presentation",
+      "lifecycle": "Lifecycle"
+    },
+    "areas": {
+      "organization": "Organization",
+      "administration": "Administration",
+      "product": "Product",
+      "referenceData": "Reference Data",
+      "security": "Security",
+      "insights": "Insights",
+      "root": "General",
+      "landscape": "Landscape"
+    },
+    "roleNames": {
+      "superadmin": "Superadmin",
+      "lead": "Team lead",
+      "staff": "Staff"
+    },
+    "roleDescriptions": {
+      "superadmin": "Full organization administration and resource management.",
+      "lead": "Manage team resources and member access within assigned scopes.",
+      "staff": "Basic access for organization members.",
+      "custom": "Custom permissions defined for this organization."
+    },
+    "entities": {
+      "member": {
+        "name": "Users",
+        "description": "User memberships in this organization"
+      },
+      "team": {
+        "name": "Teams",
+        "description": "Organizational teams"
+      },
+      "project": {
+        "name": "Projects",
+        "description": "Projects and initiatives"
+      },
+      "technology": {
+        "name": "Technologies",
+        "description": "Technologies and tools"
+      },
+      "category": {
+        "name": "Technology categories",
+        "description": "Technology taxonomy"
+      },
+      "job_title": {
+        "name": "Job titles",
+        "description": "Job title dictionary"
+      },
+      "catalog_object": {
+        "name": "Catalog objects",
+        "description": "Components and setups"
+      },
+      "role": {
+        "name": "Roles",
+        "description": "Access roles and permissions"
+      },
+      "binding": {
+        "name": "Access assignments",
+        "description": "Scoped role assignments and grants"
+      },
+      "organization": {
+        "name": "Organization settings",
+        "description": "Organization configuration"
+      },
+      "audit": {
+        "name": "Audit log",
+        "description": "System events and history"
+      },
+      "service_principal": {
+        "name": "Service principals",
+        "description": "Service access and credentials"
+      },
+      "telemetry": {
+        "name": "Activity reports",
+        "description": "Member and installation activity"
+      },
+      "telemetry_usage": {
+        "name": "Usage reports",
+        "description": "Harness usage events and reports"
+      },
+      "landscape": {
+        "name": "Technology landscape",
+        "description": "Technology relationships and views"
+      },
+      "invitation": {
+        "name": "Invitations",
+        "description": "Create, list and revoke organization invitations (member.invite)"
+      }
+    },
+    "actions": {
+      "list": "List",
+      "read": "View",
+      "create": "Create",
+      "update": "Edit",
+      "edit": "Edit",
+      "delete": "Delete",
+      "invite": "Invite",
+      "manage": "Manage",
+      "link": "Link",
+      "unlink": "Unlink",
+      "export": "Export",
+      "write": "Record activity",
+      "ingest": "Submit usage",
+      "events": "View events",
+      "assign": "Assign",
+      "maintainer": "Manage maintainers",
+      "ownership_transfer": "Transfer ownership",
+      "publish": "Publish",
+      "verify": "Verify",
+      "lifecycle": "Change lifecycle",
+      "audit": "View history",
+      "explain": "Explain access",
+      "approve": "Approve",
+      "merge": "Merge",
+      "responsibility": "Manage responsibilities",
+      "scan_publish": "Publish scan",
+      "scan": "Publish scan",
+      "project_team_create": "Add teams",
+      "project_team_read": "View teams",
+      "project_team_list": "List teams",
+      "project_team_update": "Edit teams",
+      "project_team_delete": "Remove teams",
+      "project_technology_create": "Add technologies",
+      "project_technology_read": "View technologies",
+      "project_technology_list": "List technologies",
+      "project_technology_update": "Edit technologies",
+      "project_technology_delete": "Remove technologies",
+      "technology_team_create": "Add responsible teams",
+      "technology_team_read": "View responsible teams",
+      "technology_team_list": "List responsible teams",
+      "technology_team_update": "Edit responsible teams",
+      "technology_team_delete": "Remove responsible teams",
+      "technology_decision_create": "Add decisions",
+      "technology_decision_read": "View decisions",
+      "technology_decision_list": "List decisions",
+      "technology_decision_update": "Edit decisions",
+      "technology_decision_delete": "Remove decisions"
+    },
+    "scopes": {
+      "organization": "Organization",
+      "team": "Team",
+      "project": "Project",
+      "technology": "Technology",
+      "category": "Category",
+      "catalog_object": "Catalog object",
+      "member": "Employee"
+    },
+    "sections": {
+      "overview": "Main dashboard and entry point.",
+      "catalog": "Browse components and setups.",
+      "organization": "People, teams, projects and organizational structure.",
+      "landscape": "Technologies and their relationships.",
+      "administration": "Organization member directory.",
+      "invitations": "Pending and accepted member invitations.",
+      "employees": "Employee directory and profiles.",
+      "projects": "Projects, resources and memberships.",
+      "teams": "Team structure and memberships.",
+      "technologies": "Technology inventory and ownership.",
+      "technologyCategories": "Technology category administration.",
+      "reports": "Member, installation and usage reports.",
+      "categories": "Technology category dictionary.",
+      "mappings": "Technology relationship mappings.",
+      "accessMatrix": "Entities, actions and application section visibility.",
+      "roles": "Role definitions and permissions.",
+      "auditJournal": "Organization audit events.",
+      "employeeAccess": "Individual access and scoped assignments.",
+      "jobTitles": "Job title dictionary.",
+      "security": "Service principals and authentication policies.",
+      "dashboard": "Configurable overview and quick links."
+    },
+    "organizationRole": "Organization role",
+    "source": "Source",
+    "allAreas": "All areas",
+    "employeeAccess": "Employee access",
+    "name": "Name",
+    "joined": "Joined",
+    "viewAsList": "View as list",
+    "viewAsMatrix": "View as matrix",
+    "searchPermissions": "Search permissions…",
+    "duplicateRole": "Duplicate role"
   }
 }

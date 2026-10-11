@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/lib/i18n/navigation";
+import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
 import { NavigationTabs } from "@/components/molecules/navigation-tabs";
 import type { RuntimeUsageReport } from "@/lib/api/generated/types.gen";
 
@@ -86,28 +87,28 @@ export async function UsageReportCharts({
         )
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-175 text-xs" aria-label={t("recordedUsesByWeekdayHour")}>
-            <thead>
-              <tr>
-                <th scope="col">{t("hour")}</th>
+          <Table className="min-w-175 text-xs" aria-label={t("recordedUsesByWeekdayHour")}>
+            <THead>
+              <Tr className="border-b-0">
+                <Th className="h-auto px-0 font-normal">{t("hour")}</Th>
                 {WEEKDAYS.map((day) => (
-                  <th key={day.key} scope="col" className="text-muted-foreground px-1 font-normal">
+                  <Th key={day.key} className="h-auto px-1 font-normal">
                     {t(day.key)}
-                  </th>
+                  </Th>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
+              </Tr>
+            </THead>
+            <TBody>
               {Array.from({ length: 24 }, (_, hour) => (
-                <tr key={hour}>
-                  <th scope="row" className="text-muted-foreground pr-2 text-left font-normal">
+                <Tr key={hour} className="border-b-0">
+                  <Th scope="row" className="h-auto pr-2 pl-0 text-left font-normal">
                     {hour.toString().padStart(2, "0")}
-                  </th>
+                  </Th>
                   {[0, 1, 2, 3, 4, 5, 6].map((weekday) => {
                     const uses = hourlyUses.get(`${weekday}:${hour}`) ?? 0;
                     const dayInfo = WEEKDAYS[weekday] ?? WEEKDAYS[0];
                     return (
-                      <td key={weekday} className="p-0.5">
+                      <Td key={weekday} className="p-0.5">
                         <Link
                           href={detailHref({
                             detail_weekday: String(weekday),
@@ -125,13 +126,13 @@ export async function UsageReportCharts({
                             opacity: uses ? Math.max(0.2, uses / maxHourUses) : 0.06,
                           }}
                         />
-                      </td>
+                      </Td>
                     );
                   })}
-                </tr>
+                </Tr>
               ))}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         </div>
       )}
       <p className="text-muted-foreground mt-2 text-xs">

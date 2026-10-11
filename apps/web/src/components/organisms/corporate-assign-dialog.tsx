@@ -1,15 +1,16 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import {
-  corporateMutationAction,
   corporateCatalogVersionsAction,
   corporateSubjectSearchAction,
   type CorporateAssignContext,
   type CorporateAssignSubjectKind,
 } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Button } from "@/components/atoms/button";
 import {
   Dialog,
@@ -122,7 +123,7 @@ export function CorporateAssignDialog({
     let lastError = "";
     for (const kind of SUBJECT_KINDS) {
       for (const subjectId of selected[kind]) {
-        const result = await corporateMutationAction({
+        const result = await corporateMutation({
           organizationId: context.organizationId,
           csrfToken: context.csrfToken,
           path: `/v1/corporate/organizations/${context.organizationId}/catalog-assignments`,
@@ -172,7 +173,7 @@ export function CorporateAssignDialog({
         <div className="space-y-4">
           <div className="space-y-2 text-sm">
             <Label htmlFor="assign-version">{h.version}</Label>
-            <select
+            <Select
               id="assign-version"
               className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
               value={version}
@@ -187,7 +188,7 @@ export function CorporateAssignDialog({
                   {value}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
           {SUBJECT_KINDS.map((kind) => (
             <SearchableMultiSelect

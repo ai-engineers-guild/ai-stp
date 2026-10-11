@@ -79,6 +79,7 @@
         "team",
         "project",
         "technology",
+        "category",
         "catalog_object",
         "telemetry"
       ],

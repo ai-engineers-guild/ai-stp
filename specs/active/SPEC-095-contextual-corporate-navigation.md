@@ -76,7 +76,8 @@ means the desktop icon rail; closed means the narrow-screen dialog is dismissed.
   mounted. Corporate shared pages use existing `corporateHref` rewriting.
 - `REQ-9509`: Security owns the existing email-domain policy and service-principal
   controls. Invitations do not embed the domain-policy form. Employee access
-  has an index with links to the existing individual access page.
+  has a distinct access directory and employee detail Sheet, with links to the
+  existing individual access page (SPEC-083 REQ-8316).
 - `REQ-9510`: Human and Machine route inventories both include the new Security
   and Employee access index routes. Machine retains its independent document
   layout and does not render the Human sidebar.

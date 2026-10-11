@@ -226,6 +226,9 @@ last_verified: "2026-08-03"
 | [ADR-0226-saml-identity-provider.md](ADR-0226-saml-identity-provider.md) | A SAML 2.0 IdP is a sixth named sign-in provider feeding validated assertions into the shared identity pipeline; verification is pinned to configured certificates. | 2026-10-06 |
 | [ADR-0227-rust-cli-v2-migration-boundary.md](ADR-0227-rust-cli-v2-migration-boundary.md) | Develop the Rust CLI against explicit business and compatibility boundaries, with isolated previews and one verified default-runtime cutover. | 2026-10-10 |
 | [ADR-0228-setup-systems-are-ai-stp-components.md](ADR-0228-setup-systems-are-ai-stp-components.md) | One ai-stp product and Rust CLI, with separately released setup components behind the existing provider boundary. | 2026-10-10 |
+| [ADR-0229-corporate-repository-sources.md](ADR-0229-corporate-repository-sources.md) | Bind a corporate project repository without manufacturing a local CLI identity. | 2026-10-08 |
+| [ADR-0230-corporate-participation-and-people-visibility.md](ADR-0230-corporate-participation-and-people-visibility.md) | Participation roles on projects, a scoped teammates projection, an organization people-visibility policy, and category as a binding scope. | 2026-10-02 |
+| [ADR-0231-technology-finding-interpretation.md](ADR-0231-technology-finding-interpretation.md) | Keep owner finding decisions separate from immutable technology scan evidence. | 2026-10-08 |
 | [binding.md](binding.md) | Which accepted ADRs still constrain non-corporate work; default is binding. | 2026-09-20 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 

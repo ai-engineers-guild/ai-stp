@@ -1,143 +1,163 @@
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { NextIntlClientProvider } from "next-intl";
+import { afterEach, expect, it, vi } from "vitest";
 import type { ComponentProps } from "react";
-import type { TechnologyLandscapeView } from "@/lib/api/generated/types.gen";
-vi.mock("next-intl/server", () => ({
-  getTranslations: () => Promise.resolve((key: string) => key),
-}));
+import messages from "../../messages/en.json";
+import { TechnologyLandscapeResults } from "@/components/organisms/technology-landscape-results";
+import { landscape, categories, areas } from "@/mocks/technology-workspace-fixture";
+import type { CategoryView } from "@/lib/api/generated/types.gen";
+
 vi.mock("@/lib/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => <a {...props}>{children}</a>,
 }));
-import { TechnologyLandscapeResults } from "@/components/organisms/technology-landscape-results";
-const sample: TechnologyLandscapeView = {
-  organization_id: "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-  evaluated_at: "2026-09-12T00:00:00.000Z",
-  inactivity_months: 9,
-  filters: {
-    category_id: null,
-    query: null,
-    technology_id: null,
-    project_id: null,
-    team_id: null,
-    lifecycle: null,
-    adoption: null,
-    context: null,
-    review: null,
-    freshness: null,
-    include_history: false,
-    include_inactive: false,
-    offset: 0,
-    limit: 128,
-    project_offset: 0,
-    project_limit: 128,
-    view: "table",
-  },
-  items: [
-    {
-      technology: {
-        name: "Bun",
-        category_ids: ["category_01JQZK7B8N4M6P2R9T5V0X3Y7Z"],
-        aliases: ["Bun runtime"],
-        description: "",
-        icon_url: null,
-        official_urls: [],
-        schema_version: 1,
-        organization_id: "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-        technology_id: "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-        owner_account_id: null,
-        lifecycle: "active",
-        restore_lifecycle: "draft",
-        revision: 2,
-        redirect_id: null,
-        provenance: "manual",
-        available_actions: [],
-      },
-      project_count: 1,
-      proposed_project_count: 0,
-      projects: [
-        {
-          project_id: "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-          name: "Known project",
-          activity: "unknown",
-          usage: {
-            organization_id: "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-            relation_id: "relation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-            project_id: "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-            technology_id: "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-            state: "current",
-            revision: 1,
-            facts: [
-              {
-                context: "development",
-                version: null,
-                version_kind: "unknown",
-                evidence: [],
-                review: "confirmed",
-                freshness: "current",
-              },
-            ],
-          },
-        },
-      ],
-      decision: null,
-    },
-  ],
-  total: 1,
-};
+
 afterEach(cleanup);
-describe("one authorized landscape projection", () => {
-  it("repeats a multi-category row without inventing additive counts", async () => {
-    const row = sample.items[0];
-    if (!row) throw new Error("sample row is missing");
-    const landscape: TechnologyLandscapeView = {
-      ...sample,
-      filters: { ...sample.filters, view: "grouped" },
-      items: [
-        {
-          ...row,
-          technology: {
-            ...row.technology,
-            category_ids: [...row.technology.category_ids, "category_00000000000000000000000002"],
-          },
+
+function renderLandscape(
+  data: typeof landscape = landscape,
+  extraCategories: CategoryView[] = [],
+  filters: Record<string, string | string[]> = {},
+) {
+  return render(
+    <NextIntlClientProvider locale="en" messages={messages}>
+      <TechnologyLandscapeResults
+        landscape={data}
+        filters={filters}
+        categories={[...categories, ...extraCategories]}
+        areas={areas}
+      />
+    </NextIntlClientProvider>,
+  );
+}
+
+it("groups technologies under category rows inside one card per area", () => {
+  const row = landscape.items[0];
+  const second = {
+    ...categories[0],
+    category_id: "category_01JQZK7B8N4M6P2R9T5V0X3Y80",
+    name: "Web frameworks",
+  };
+  const data: typeof landscape = {
+    ...landscape,
+    items: [
+      {
+        ...row,
+        proposed_project_count: 1,
+        technology: {
+          ...row.technology,
+          category_ids: [...row.technology.category_ids, second.category_id],
         },
-      ],
-    };
-    render(await TechnologyLandscapeResults({ landscape, filters: { view: "grouped" } }));
-    expect(screen.getByText("groupedNote")).toBeVisible();
-    expect(screen.getAllByRole("table")).toHaveLength(2);
-    expect(screen.getAllByRole("link", { name: "Known project" })).toHaveLength(2);
-    expect(screen.getAllByText("1")).toHaveLength(2);
-  });
-  it("never derives adoption placement from an active technology lifecycle", async () => {
-    render(
-      await TechnologyLandscapeResults({
-        landscape: { ...sample, filters: { ...sample.filters, view: "radar" } },
-        filters: { view: "radar" },
-      }),
-    );
-    expect(screen.getByRole("heading", { name: "decisionUnavailable" })).toBeVisible();
-    expect(screen.queryByRole("heading", { name: "values.adopt" })).toBeNull();
-  });
-  it("keeps filters and the exact project ID in links and paginates drill-down independently", async () => {
-    const row = sample.items[0];
-    if (!row) throw new Error("sample row is missing");
-    const landscape: TechnologyLandscapeView = {
-      ...sample,
-      filters: { ...sample.filters, view: "relationships", project_limit: 1 },
-      items: [{ ...row, project_count: 2 }],
-    };
-    render(
-      await TechnologyLandscapeResults({
-        landscape,
-        filters: { view: "relationships", context: "development", project_limit: "1" },
-      }),
-    );
-    const project = screen.getByRole("link", { name: "Known project" });
-    expect(project.getAttribute("href")).toContain(row.projects[0]?.project_id);
-    expect(project.getAttribute("href")).toContain("context=development");
-    const next = screen.getByRole("link", { name: "next" }).getAttribute("href") ?? "";
-    expect(next).toContain("project_offset=1");
-    expect(next).toContain("technology_id=" + row.technology.technology_id);
-    expect(next).toContain("view=relationships");
-  });
+      },
+    ],
+  };
+  renderLandscape(data, [second]);
+  expect(screen.getByRole("heading", { name: "Server applications" })).toBeVisible();
+  expect(screen.getByRole("button", { name: /API frameworks/ })).toBeVisible();
+  expect(screen.getByRole("button", { name: /Web frameworks/ })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: /API frameworks/ }));
+  fireEvent.click(
+    screen.getAllByRole("button", { name: "FastAPI" }).at(0) ??
+      screen.getByRole("button", { name: "FastAPI" }),
+  );
+  expect(
+    within(screen.getByRole("dialog")).getByRole("link", { name: "Platform API" }),
+  ).toHaveAttribute("href", expect.stringContaining(row.projects[0].project_id));
+});
+
+it("limits categories to five and reveals the rest through the +N counter", () => {
+  const row = landscape.items[0];
+  const extra = Array.from({ length: 6 }, (_, index) => ({
+    ...categories[0],
+    category_id: `category_01JQZK7B8N4M6P2R9T5V0X4Y${index}`,
+    name: `Extra category ${index}`,
+  }));
+  const data: typeof landscape = {
+    ...landscape,
+    items: [
+      {
+        ...row,
+        technology: {
+          ...row.technology,
+          category_ids: [
+            ...row.technology.category_ids,
+            ...extra.map((category) => category.category_id),
+          ],
+        },
+      },
+    ],
+  };
+  renderLandscape(data, extra);
+  expect(screen.queryByRole("button", { name: /Extra category 5/ })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Show 2 more categories" }));
+  expect(screen.getByRole("button", { name: /Extra category 5/ })).toBeVisible();
+});
+
+it("merges categories without an area into a single unclassified card", () => {
+  const row = landscape.items[0];
+  const loose = Array.from({ length: 2 }, (_, index) => ({
+    ...categories[0],
+    category_id: `category_01JQZK7B8N4M6P2R9T5V0X5Y${index}`,
+    name: `Loose category ${index}`,
+    area_id: null,
+  }));
+  const data: typeof landscape = {
+    ...landscape,
+    items: [
+      {
+        ...row,
+        technology: {
+          ...row.technology,
+          category_ids: loose.map((category) => category.category_id),
+        },
+      },
+    ],
+  };
+  renderLandscape(data, loose);
+  expect(screen.getAllByRole("heading", { name: "Unclassified" })).toHaveLength(1);
+  expect(screen.getByRole("button", { name: /Loose category 0/ })).toBeVisible();
+  expect(screen.getByRole("button", { name: /Loose category 1/ })).toBeVisible();
+});
+
+it("expands and collapses every category through the area action menu", async () => {
+  const user = userEvent.setup();
+  renderLandscape();
+  await user.click(screen.getByRole("button", { name: "Area actions" }));
+  await user.click(await screen.findByRole("menuitem", { name: "Expand all" }));
+  expect(screen.getByRole("button", { name: "FastAPI" })).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Area actions" }));
+  expect(await screen.findByRole("menuitem", { name: "Open technology list" })).toHaveAttribute(
+    "href",
+    expect.stringContaining(`area_ids=${areas[0].area_id}`),
+  );
+  await user.click(screen.getByRole("menuitem", { name: "Collapse all" }));
+  expect(screen.queryByRole("button", { name: "FastAPI" })).toBeNull();
+});
+
+it("renders the sortable table view instead of area cards when view=table", async () => {
+  const user = userEvent.setup();
+  renderLandscape(landscape, [], { view: "table" });
+  expect(screen.queryByRole("heading", { name: "Server applications" })).toBeNull();
+  const table = screen.getByRole("table", { name: "Technology summary" });
+  const nameButtons = within(table).getAllByRole("button", { name: "FastAPI" });
+  expect(nameButtons.length).toBeGreaterThan(0);
+  const nameButton = nameButtons[0];
+  if (!nameButton) throw new Error("FastAPI button is missing");
+  await user.click(nameButton);
+  expect(screen.getByRole("dialog")).toBeVisible();
+});
+
+it("opens the standard technology action menu from a table row", async () => {
+  const user = userEvent.setup();
+  renderLandscape(landscape, [], { view: "table" });
+  const table = screen.getByRole("table", { name: "Technology summary" });
+  const [more] = within(table).getAllByRole("button", { name: "More actions" });
+  if (!more) throw new Error("More actions button is missing");
+  await user.click(more);
+  expect(await screen.findByRole("menuitem", { name: "Open FastAPI" })).toHaveAttribute(
+    "href",
+    "/corporate/technologies/technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+  );
+  await user.click(screen.getByRole("menuitem", { name: "Preview" }));
+  expect(screen.getByRole("dialog")).toBeVisible();
 });

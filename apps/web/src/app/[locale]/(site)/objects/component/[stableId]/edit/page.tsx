@@ -1,4 +1,4 @@
-import { ObjectPresentationEditorPage } from "@/components/organisms/object-presentation-editor-page";
+import { ObjectPresentationEditorPage } from "@/components/screens/object-presentation-editor-page";
 
 export default async function EditComponentPresentationPage({
   params,

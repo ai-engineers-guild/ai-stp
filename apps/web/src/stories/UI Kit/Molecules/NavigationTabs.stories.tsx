@@ -46,7 +46,7 @@ export const Primary: Story = {
         active: false,
       },
       { key: "dashboard", href: "/corporate/dashboard", label: "Dashboard", active: false },
-      { key: "admins", href: "/corporate/organization/admins", label: "For Admins", active: false },
+      { key: "admins", href: "/corporate/admin/members", label: "For Admins", active: false },
     ],
   },
 };

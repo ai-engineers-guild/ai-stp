@@ -18,7 +18,7 @@ from ai_stp_contracts.corporate_governance import (
 )
 from ai_stp_platform.corporate_authorization import (
     corporate_effective_permissions,
-    role_closure_permissions,
+    role_permissions,
 )
 from ai_stp_platform.organization_models import (
     CorporatePermissionGrant,
@@ -26,22 +26,29 @@ from ai_stp_platform.organization_models import (
 )
 
 router = APIRouter(tags=["corporate"])
-_SCOPES = ("organization", "team", "project", "technology", "catalog_object")
+_SCOPES = ("organization", "team", "project", "technology", "category", "catalog_object")
 
 # Scope kinds each resource's handlers actually evaluate against. Everything
 # else is organization scope — the matrix must not advertise a scope the API
-# never checks (ADR-0220).
-_MatrixScope = Literal["organization", "team", "project", "technology", "catalog_object", "member"]
-_EffectiveScope = Literal["organization", "team", "project", "technology", "catalog_object"]
+# never checks (ADR-0220). `member` gains team/project because member.list
+# is evaluated at those scopes for scoped rosters; `category` is a binding
+# scope that reaches classified technologies (ADR-0230).
+_MatrixScope = Literal[
+    "organization", "team", "project", "technology", "category", "catalog_object", "member"
+]
+_EffectiveScope = Literal[
+    "organization", "team", "project", "technology", "category", "catalog_object"
+]
 _PERMISSION_SCOPES: dict[str, tuple[_MatrixScope, ...]] = {
-    "member": ("organization", "member"),
+    "member": ("organization", "member", "team", "project"),
     "project": ("organization", "project"),
     "team": ("organization", "team"),
-    "technology": ("organization", "technology"),
-    "technology_decision": ("organization", "technology"),
+    "technology": ("organization", "technology", "category"),
+    "technology_decision": ("organization", "technology", "category"),
     "technology_team": ("organization", "technology", "team"),
     "project_team": ("organization", "project", "team"),
     "project_technology": ("organization", "project", "technology"),
+    "category": ("organization", "category"),
     "catalog_object": ("organization", "catalog_object"),
     "telemetry": ("organization", "member"),
 }
@@ -99,7 +106,7 @@ async def read_permission_matrix(
             )
         ).all()
     )
-    role_permissions = await role_closure_permissions(
+    role_grants = await role_permissions(
         db, organization_id=organization_id, roles={binding.role for binding in bindings}
     )
     scope_grants: dict[tuple[str, str], set[str]] = {}
@@ -129,7 +136,7 @@ async def read_permission_matrix(
         scope_kind = binding.scope_kind if binding.scope_kind in _SCOPES else "organization"
         scope_id = binding.scope_id
         effective = await _effective_at(scope_kind, scope_id)
-        for permission in sorted(effective & role_permissions.get(binding.role, frozenset())):
+        for permission in sorted(effective & role_grants.get(binding.role, frozenset())):
             _record(
                 scope_kind,
                 scope_id,

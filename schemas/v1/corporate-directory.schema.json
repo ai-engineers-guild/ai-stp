@@ -3,6 +3,14 @@
     "CorporateDirectoryFacets": {
       "additionalProperties": true,
       "properties": {
+        "areas": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CorporateDirectoryReference"
+          },
+          "title": "Areas",
+          "type": "array"
+        },
         "categories": {
           "default": [],
           "items": {
@@ -50,6 +58,7 @@
         }
       },
       "required": [
+        "areas",
         "categories",
         "job_titles",
         "leads",
@@ -63,6 +72,15 @@
     "CorporateDirectoryItem": {
       "additionalProperties": true,
       "properties": {
+        "areas": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CorporateDirectoryReference"
+          },
+          "maxItems": 32,
+          "title": "Areas",
+          "type": "array"
+        },
         "available_actions": {
           "default": [],
           "items": {
@@ -115,6 +133,7 @@
             "employee",
             "technology",
             "category",
+            "area",
             "job_title"
           ],
           "title": "Kind",
@@ -205,6 +224,7 @@
         }
       },
       "required": [
+        "areas",
         "available_actions",
         "categories",
         "description",
@@ -242,6 +262,7 @@
             "employee",
             "technology",
             "category",
+            "area",
             "job_title"
           ],
           "title": "Kind",

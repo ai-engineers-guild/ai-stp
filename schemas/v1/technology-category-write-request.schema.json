@@ -13,6 +13,19 @@
           "title": "Description",
           "type": "string"
         },
+        "icon": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
         "name": {
           "maxLength": 200,
           "minLength": 1,
@@ -31,6 +44,19 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
+    "area_id": {
+      "anyOf": [
+        {
+          "pattern": "^area_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Area Id"
+    },
     "authorization_revision": {
       "anyOf": [
         {

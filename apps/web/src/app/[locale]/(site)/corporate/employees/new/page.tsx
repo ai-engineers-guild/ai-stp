@@ -1,4 +1,4 @@
-import { CorporateCreatePage } from "@/components/organisms/corporate-create-page";
+import { CorporateCreatePage } from "@/components/screens/corporate-create-page";
 
 export default async function NewCorporateEmployeePage({
   params,

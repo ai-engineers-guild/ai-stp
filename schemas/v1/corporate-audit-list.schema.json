@@ -170,13 +170,19 @@
       "default": 1,
       "title": "Schema Version",
       "type": "integer"
+    },
+    "total": {
+      "minimum": 0,
+      "title": "Total",
+      "type": "integer"
     }
   },
   "required": [
     "items",
     "next_before_created_at",
     "next_before_id",
-    "schema_version"
+    "schema_version",
+    "total"
   ],
   "title": "CorporateAuditList",
   "type": "object"

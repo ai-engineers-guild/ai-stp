@@ -12,13 +12,13 @@ test("file picker, drop, preview validation, localized help and main navigation"
   test.setTimeout(180_000);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  const root = "/en/corporate/organization/admins";
+  const root = "/en/corporate/admin/members";
   await page.goto(`/en/login?returnTo=${encodeURIComponent(root)}`);
   await page.getByRole("button", { name: /Continue with GitHub/ }).click();
   await page.waitForURL(`**${root}`);
   const main = page.locator("#main-content");
   const table = main.getByRole("table");
-  const role = table.locator('a[href*="/admins/roles?role="]').first();
+  const role = table.locator('a[href*="/organization/roles?role="]').first();
   await expect(role).toHaveAttribute("href", /\/roles\?role=/);
   await expect(table.locator('a[href*="/corporate/teams/"]').first()).toBeVisible();
   const menuTrigger = table.getByRole("button", { name: /Actions for/ }).first();
@@ -28,7 +28,7 @@ test("file picker, drop, preview validation, localized help and main navigation"
   await page.mouse.wheel(0, 350);
   await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(before);
   await page.keyboard.press("Escape");
-  await main.getByRole("link", { name: "Invitations", exact: true }).click();
+  await page.goto("/en/corporate/admin/invitations");
   await main.getByRole("button", { name: "Invite member", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "File import help" }).click();
   const help = page.getByRole("dialog", { name: "File import help" });
@@ -85,7 +85,7 @@ test("file picker, drop, preview validation, localized help and main navigation"
   });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.keyboard.press("Escape");
-  await page.goto("/ru/corporate/organization/admins?tab=invitations");
+  await page.goto("/ru/corporate/admin/invitations");
   await main.getByRole("button", { name: "Пригласить участника", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Справка по импорту" }).click();
   await expect(page.getByRole("dialog", { name: "Справка по импорту" })).toContainText(
@@ -93,14 +93,14 @@ test("file picker, drop, preview validation, localized help and main navigation"
   );
   await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
-  await page.goto("/en/corporate/organization/admins/employees");
+  await page.goto("/en/corporate/admin/employee-access");
   if (info.project.name.includes("mobile"))
     await page.getByRole("button", { name: "Open menu", exact: true }).click();
   const nav = info.project.name.includes("mobile")
     ? page.getByRole("dialog", { name: "Primary navigation" })
     : page.locator('[data-ui="context-sidebar"]');
   await nav.getByRole("button", { name: "Main navigation", exact: true }).click();
-  await expect(page).toHaveURL(/\/admins\/employees$/);
+  await expect(page).toHaveURL(/\/employee-access$/);
   await expect(nav.getByRole("link", { name: "Overview", exact: true })).toBeVisible();
   await expect(nav.getByRole("link", { name: "Catalog", exact: true })).toBeVisible();
   expect(errors).toEqual([]);

@@ -1,8 +1,9 @@
 """Tenant-scoped technology HTTP surface; all mutations are revision guarded."""
 
-from typing import Annotated
+from datetime import date
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.deps import get_db, require_auth
@@ -11,6 +12,11 @@ from ai_stp_api.slices.technology import competences, detection, merge, service
 from ai_stp_contracts.context import OrganizationId, RemoteProjectId
 from ai_stp_contracts.corporate import AccountId
 from ai_stp_contracts.technology import (
+    AreaId,
+    AreaLifecycleRequest,
+    AreaList,
+    AreaView,
+    AreaWriteRequest,
     CategoryId,
     CategoryLifecycleRequest,
     CategoryList,
@@ -32,6 +38,8 @@ from ai_stp_contracts.technology import (
     TeamId,
     TechnologyDecisionRequest,
     TechnologyDecisionView,
+    TechnologyFindingReviewRequest,
+    TechnologyFindingReviewResult,
     TechnologyId,
     TechnologyLandscapePolicyRequest,
     TechnologyLandscapePolicyView,
@@ -47,7 +55,12 @@ from ai_stp_contracts.technology import (
     TechnologyMergeRequest,
     TechnologyMergeResult,
     TechnologyMutation,
+    TechnologyScanDetail,
+    TechnologyScanFindingList,
     TechnologyScanId,
+    TechnologyScanLaunchRequest,
+    TechnologyScanLaunchResult,
+    TechnologyScanList,
     TechnologyScanRequest,
     TechnologyScanResult,
     TechnologyScanView,
@@ -67,6 +80,23 @@ from ai_stp_contracts.technology import (
 router = APIRouter(prefix="/corporate/organizations/{organization_id}", tags=["technology"])
 Db = Annotated[AsyncSession, Depends(get_db)]
 Auth = Annotated[AuthContext, Depends(require_auth)]
+
+
+@router.put("/technology-findings/review", response_model=TechnologyFindingReviewResult)
+async def review_findings(
+    organization_id: OrganizationId,
+    payload: TechnologyFindingReviewRequest,
+    request: Request,
+    db: Db,
+    ctx: Auth,
+) -> TechnologyFindingReviewResult:
+    return await detection.review_findings(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        payload=payload,
+        request_id=getattr(request.state, "request_id", None),
+    )
 
 
 @router.get("/members/{account_id}/technologies", response_model=EmployeeTechnologyList)
@@ -265,12 +295,19 @@ async def publish_mapping(
 
 @router.get("/technology-unmapped-coordinates", response_model=TechnologyUnmappedView)
 async def read_unmapped(
-    organization_id: OrganizationId, request: Request, db: Db, ctx: Auth
+    organization_id: OrganizationId,
+    request: Request,
+    db: Db,
+    ctx: Auth,
+    project_id: RemoteProjectId | None = None,
+    scan_id: TechnologyScanId | None = None,
 ) -> TechnologyUnmappedView:
     return await detection.read_unmapped(
         db,
         ctx=ctx,
         organization_id=organization_id,
+        project_id=project_id,
+        scan_id=scan_id,
         request_id=getattr(request.state, "request_id", None),
     )
 
@@ -860,3 +897,228 @@ async def write_project_technology(
         payload=payload,
         request_id=getattr(request.state, "request_id", None),
     )
+
+
+@router.get("/technology-areas", response_model=AreaList)
+async def list_areas(
+    organization_id: OrganizationId, request: Request, db: Db, ctx: Auth
+) -> AreaList:
+    return await service.list_areas(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.post("/technology-areas", response_model=AreaView)
+async def create_area(
+    organization_id: OrganizationId,
+    payload: AreaWriteRequest,
+    request: Request,
+    db: Db,
+    ctx: Auth,
+) -> AreaView:
+    return await service.write_area(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        area_id=None,
+        payload=payload,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/technology-areas/{area_id}", response_model=AreaView)
+async def read_area(
+    organization_id: OrganizationId,
+    area_id: AreaId,
+    request: Request,
+    db: Db,
+    ctx: Auth,
+) -> AreaView:
+    return await service.read_area(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        area_id=area_id,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.put("/technology-areas/{area_id}", response_model=AreaView)
+async def write_area(
+    organization_id: OrganizationId,
+    area_id: AreaId,
+    payload: AreaWriteRequest,
+    request: Request,
+    db: Db,
+    ctx: Auth,
+) -> AreaView:
+    return await service.write_area(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        area_id=area_id,
+        payload=payload,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.post("/technology-areas/{area_id}/lifecycle", response_model=AreaView)
+async def change_area_lifecycle(
+    organization_id: OrganizationId,
+    area_id: AreaId,
+    payload: AreaLifecycleRequest,
+    request: Request,
+    db: Db,
+    ctx: Auth,
+) -> AreaView:
+    return await service.change_area_lifecycle(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        area_id=area_id,
+        payload=payload,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.delete("/technology-areas/{area_id}", response_model=AreaView)
+async def remove_area(
+    organization_id: OrganizationId,
+    area_id: AreaId,
+    payload: TechnologyMutation,
+    request: Request,
+    db: Db,
+    ctx: Auth,
+) -> AreaView:
+    return await service.change_area_lifecycle(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        area_id=area_id,
+        payload=AreaLifecycleRequest(**payload.model_dump(), target="archived"),
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/technology-scans", response_model=TechnologyScanList)
+async def list_scans(
+    organization_id: OrganizationId,
+    request: Request,
+    db: Db,
+    ctx: Auth,
+    project_id: RemoteProjectId | None = None,
+    created_from: date | None = None,
+    created_to: date | None = None,
+) -> TechnologyScanList:
+    return await detection.list_scans(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        project_id=project_id,
+        created_from=created_from,
+        created_to=created_to,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.post("/technology-scans", response_model=TechnologyScanLaunchResult)
+async def launch_scans(
+    organization_id: OrganizationId,
+    payload: TechnologyScanLaunchRequest,
+    request: Request,
+    db: Db,
+    ctx: Auth,
+) -> TechnologyScanLaunchResult:
+    return await detection.launch_scans(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        payload=payload,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/technology-scans/{scan_id}", response_model=TechnologyScanDetail)
+async def read_scan_detail(
+    organization_id: OrganizationId,
+    scan_id: TechnologyScanId,
+    request: Request,
+    db: Db,
+    ctx: Auth,
+) -> TechnologyScanDetail:
+    return await detection.read_scan_detail(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        scan_id=scan_id,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/technology-scans/{scan_id}/findings", response_model=TechnologyScanFindingList)
+async def read_scan_findings(
+    organization_id: OrganizationId,
+    scan_id: TechnologyScanId,
+    request: Request,
+    db: Db,
+    ctx: Auth,
+) -> TechnologyScanFindingList:
+    return await detection.read_scan_findings(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        scan_id=scan_id,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+async def _findings_export_response(
+    organization_id: str,
+    scan_id: str,
+    export_format: Literal["csv", "md"],
+    request: Request,
+    db: AsyncSession,
+    ctx: AuthContext,
+) -> Response:
+    body, media_type = await detection.export_scan_findings(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        scan_id=scan_id,
+        format=export_format,
+        request_id=getattr(request.state, "request_id", None),
+    )
+    return Response(
+        content=body,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="technology-findings-{scan_id}.{export_format}"'
+            )
+        },
+    )
+
+
+@router.get("/technology-scans/{scan_id}/findings.csv", response_model=None)
+async def export_scan_findings_csv(
+    organization_id: OrganizationId,
+    scan_id: TechnologyScanId,
+    request: Request,
+    db: Db,
+    ctx: Auth,
+) -> Response:
+    return await _findings_export_response(organization_id, scan_id, "csv", request, db, ctx)
+
+
+@router.get("/technology-scans/{scan_id}/findings.md", response_model=None)
+async def export_scan_findings_md(
+    organization_id: OrganizationId,
+    scan_id: TechnologyScanId,
+    request: Request,
+    db: Db,
+    ctx: Auth,
+) -> Response:
+    return await _findings_export_response(organization_id, scan_id, "md", request, db, ctx)

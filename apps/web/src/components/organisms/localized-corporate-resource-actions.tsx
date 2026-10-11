@@ -16,7 +16,6 @@ export async function LocalizedResourceActions(
         title: t("actions"),
         name: t("name"),
         role: t("organizationRole"),
-        parentRole: t("parentRole"),
         permissions: t("permissions"),
         state: t("state"),
         update: t("update"),

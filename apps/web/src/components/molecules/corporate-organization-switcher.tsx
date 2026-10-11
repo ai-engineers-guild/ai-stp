@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useTransition } from "react";
 
 import { selectCorporateOrganization } from "@/actions/corporate";
@@ -27,7 +28,7 @@ export function CorporateOrganizationSwitcher({
   return (
     <label className="flex min-w-0 items-center gap-2 text-sm">
       <span className="text-muted-foreground shrink-0">{label}</span>
-      <select
+      <Select
         name="organization"
         defaultValue={selectedId}
         disabled={busy}
@@ -44,7 +45,7 @@ export function CorporateOrganizationSwitcher({
             {item.name}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   );
 }

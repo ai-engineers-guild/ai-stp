@@ -12,6 +12,7 @@ const CORPORATE_QUERY_KEYS = new Set([
   "technology_ids",
   "technology_category_ids",
   "category_ids",
+  "area_ids",
   "job_title_ids",
   "owner_ids",
   "maintainer_ids",

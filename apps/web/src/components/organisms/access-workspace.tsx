@@ -1,10 +1,11 @@
 "use client";
 
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { Select } from "@/components/atoms/select";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/atoms/button";
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/atoms/menu";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { CatalogAuthorLink } from "@/components/molecules/catalog-author-link";
@@ -136,7 +137,7 @@ function InviteForm({
       <h2 className="text-lg font-medium tracking-tight">{labels.create}</h2>
       <div className="space-y-2">
         <Label htmlFor="recipient-kind">{labels.recipientKind}</Label>
-        <select
+        <Select
           id="recipient-kind"
           className="border-input bg-background h-9 w-full rounded-sm border px-2 text-sm"
           value={recipientKind}
@@ -150,7 +151,7 @@ function InviteForm({
           <option value="verified_email">{labels.email}</option>
           <option value="github_username">{labels.githubUsername}</option>
           <option value="user_id">{labels.userId}</option>
-        </select>
+        </Select>
       </div>
       <Field
         id="invite-recipient"
@@ -168,7 +169,7 @@ function InviteForm({
       {!initialObjectKind ? (
         <div className="space-y-2">
           <Label htmlFor="invite-kind">{labels.kind}</Label>
-          <select
+          <Select
             id="invite-kind"
             className="border-input bg-background h-9 w-full rounded-sm border px-2 text-sm"
             value={kind}
@@ -178,7 +179,7 @@ function InviteForm({
           >
             <option value="component">{labels.kindComponent}</option>
             <option value="setup">{labels.kindSetup}</option>
-          </select>
+          </Select>
         </div>
       ) : null}
       {!initialStableId ? (
@@ -242,52 +243,41 @@ function AccessUserRow({
           verifiedLabel={labels.user}
         />
       </div>
-      <DropdownMenu.Root modal={false}>
-        <DropdownMenu.Trigger asChild>
+      <Menu modal={false}>
+        <MenuTrigger asChild>
           <Button type="button" variant="ghost" size="icon" aria-label={labels.more}>
             <Icon name="more" size="sm" />
           </Button>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content
-            side="bottom"
-            align="end"
-            sideOffset={4}
-            collisionPadding={12}
-            className="border-border bg-popover text-popover-foreground z-[80] min-w-56 rounded-lg border p-1 shadow-md"
+        </MenuTrigger>
+        <MenuContent>
+          <MenuItem
+            disabled={pending}
+            onSelect={() => {
+              onRevoke(user.grantId);
+            }}
           >
-            <DropdownMenu.Item
-              className="hover:bg-muted focus:bg-muted flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm outline-none"
-              disabled={pending}
-              onSelect={() => {
-                onRevoke(user.grantId);
-              }}
-            >
-              <Icon name="close" size="sm" />
-              {labels.revoke}
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
-              className="hover:bg-muted focus:bg-muted flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm outline-none"
-              onSelect={() => {
-                void copyId();
-              }}
-            >
-              <Icon name="copy" size="sm" />
-              {labels.copyId}
-            </DropdownMenu.Item>
-            <DropdownMenu.Separator className="border-border my-1 border-t" />
-            <DropdownMenu.Item
-              className="hover:bg-muted focus:bg-muted flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm outline-none"
-              onSelect={() => {
-                setReportOpen(true);
-              }}
-            >
-              <Icon name="flag" size="sm" />
-              {labels.report}
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
+            <Icon name="close" size="sm" />
+            {labels.revoke}
+          </MenuItem>
+          <MenuItem
+            onSelect={() => {
+              void copyId();
+            }}
+          >
+            <Icon name="copy" size="sm" />
+            {labels.copyId}
+          </MenuItem>
+          <MenuSeparator />
+          <MenuItem
+            onSelect={() => {
+              setReportOpen(true);
+            }}
+          >
+            <Icon name="flag" size="sm" />
+            {labels.report}
+          </MenuItem>
+        </MenuContent>
+      </Menu>
       <ContactReportDialog
         kind="author"
         target={user.accountId}

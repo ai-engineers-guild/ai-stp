@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useTranslations } from "next-intl";
 
 import { KeyboardNavigation } from "@/components/molecules/keyboard-navigation";
@@ -72,7 +73,7 @@ export function MachineHeader({
         </span>
         <span className="ml-auto flex shrink-0 items-center gap-2">
           <label htmlFor="machine-locale">{machine("lang")}</label>
-          <select
+          <Select
             id="machine-locale"
             data-ui={UI.machine.locale}
             className="border-border bg-background h-9 border px-2"
@@ -86,7 +87,7 @@ export function MachineHeader({
                 {item}
               </option>
             ))}
-          </select>
+          </Select>
         </span>
         <span className="shrink-0">
           <ThemeToggle />

@@ -37,6 +37,7 @@ from ai_stp_contracts.technology import (
     TechnologyWriteRequest,
 )
 from ai_stp_contracts.technology_seed import SEED_CATEGORIES, SEED_TECHNOLOGIES
+from ai_stp_contracts.technology_taxonomy import TAXONOMY_CATEGORIES
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.models import Account, AuditEvent
 from ai_stp_platform.organization_models import (
@@ -123,7 +124,7 @@ async def test_seed_replay_preserves_owner_edits(db_session: AsyncSession) -> No
                 )
             ).all()
         )
-    ) == len(SEED_CATEGORIES)
+    ) == len(SEED_CATEGORIES) + len(TAXONOMY_CATEGORIES)
 
     category_id = metadata.category_ids[0]
     archived_category = await change_category_lifecycle(

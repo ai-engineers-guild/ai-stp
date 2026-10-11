@@ -15,7 +15,7 @@ type CatalogSearchFormProps = {
 
 /**
  * GET form for catalog filters. Strips empty named fields before submit so
- * empty <select> values never become harness_id= / support_tier= (API 400).
+ * empty <Select> values never become harness_id= / support_tier= (API 400).
  */
 export function CatalogSearchForm({
   children,

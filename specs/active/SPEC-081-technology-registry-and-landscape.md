@@ -1,6 +1,6 @@
 ---
 description: "SPEC-081: Governed technology metadata, usage facts, detection handoff, and authorized landscape projections."
-last_verified: "2026-09-26"
+last_verified: "2026-10-08"
 ---
 
 # SPEC-081: Technology registry and landscape
@@ -27,6 +27,8 @@ filtering without changing these registry and relation semantics.
 - `Technology` — a concrete software language, library, framework, runtime, API,
   standard, product, tool, or infrastructure service.
 - `Category` — a governed classification, never a technology or component kind.
+- `Technology area` — a governed grouping of categories, never a technology or
+  component kind.
 - `Usage fact` — version, context, evidence, review, and freshness metadata on a
   canonical project–technology relation.
 - `Subject reference` — what an object discusses or addresses; never proof of use.
@@ -52,6 +54,19 @@ filtering without changing these registry and relation semantics.
   `harness`, `setup`, `component`, `mcp`, `skill`, `hook`, `agent`, `plugin`, and
   `command` are not categories. Bun is one technology with multiple categories;
   npm CLI/registry and GitLab CI/CD/Runner are separate identities.
+  Migration `0118_technology_taxonomy_defaults` installs the frozen functional
+  taxonomy v2: 13 areas and 117 categories. Corporate bootstrap installs the same
+  defaults for new organizations. Each category belongs to one area; one technology
+  can have several functional categories. The complete 292-identity detector seed
+  has explicit functional classifications. Existing canonical aliases also link
+  older registry IDs to these classes without duplicating technology identities.
+  Installation is additive and idempotent: tenant names, descriptions, states,
+  category-area bindings, existing classifications, and IDs survive. Seed import
+  classifies only newly created technologies, so replay preserves later owner edits.
+  Defaults remain ordinary editable registry records, and custom extensions use the
+  same CRUD. Display translates unchanged defaults and prefers functional classes
+  over retained legacy seed classes; tenant-authored names display verbatim. Empty
+  areas remain visible without fabricating technology usage or scan results.
 - `REQ-8203`: Alias resolution normalizes Unicode NFKC, case, and whitespace;
   punctuation is not silently deleted. Explicit React.js and Postgres aliases
   resolve to React and PostgreSQL. Collisions return a stable conflict and
@@ -170,6 +185,45 @@ filtering without changing these registry and relation semantics.
   on linked provider projects through the same merge path as request-driven
   publication and emits the same unmapped coordinates; projects whose
   recorded provider head moved are skipped until discovery re-pins them.
+- `REQ-8219`: A technology area groups categories under one organization with a
+  stable `area` identifier, canonical name, description, `draft`/`active`/
+  `archived` state, revision, and provenance. Categories bind to one area; an
+  archived or unknown area refuses new bindings, an update that omits the field
+  preserves the binding, and an area with bound categories cannot be archived.
+  Areas reuse the category permissions and revision/idempotency machinery.
+- `REQ-8220`: The organization's scan journal unifies worker-queued and
+  published scans in one list with source (`gitlab`, `github`, `local`),
+  status, project, repository, and pending-review counts.
+  `POST /technology-scans` launches one independently authorized and enqueued
+  job per selected project; a rejected item never blocks the others and a
+  project without a linked GitHub/GitLab repository cannot be queued.
+  `GET /technology-scans/{scan_id}` expands one journal row into its findings
+  — resolved observations, recognized signatures and coordinates already under
+  review — under the same project-scoped read authority; queued and failed
+  jobs remain readable with empty findings, and dependencies nobody
+  recognizes wait in the unmapped-coordinate queue instead.
+  `GET /technology-scans/{scan_id}/findings` returns the same curated finding
+  set as a standalone resource carrying the scan's repository, branch, commit,
+  completeness and detector/mapping versions.
+  `GET /technology-scans/{scan_id}/findings.csv` and
+  `GET /technology-scans/{scan_id}/findings.md` render the identical curated
+  rows as a CSV spreadsheet (formula-defused cells, UTF-8 BOM) and a Markdown
+  document; the review page offers all three downloads. Reads and exports are
+  audited. Launch is one fingerprinted idempotent
+  effect: replay returns the stored items instead of new jobs.
+
+  The curated set a scan detail, its findings resource, its exports and the
+  review queue all share is not the raw detector output. Every finding carries
+  a `tier`: `technology` when something names it — a seed identity, a mapped
+  or candidate technology, or an owner's decision — and `dependency` when a
+  package or image the project declared is not recognized. A dependency is
+  listed and reviewable like any finding, and the unmapped queue still
+  collects it for registry growth, but it is not a technology. A package
+  whose every trace is a lock row with no same-directory declaration is
+  resolver output: it stays in the scan's raw `coordinates` inventory but
+  never becomes an observation, an unmapped-queue entry, or a review finding
+  — unless an owner already reviewed it. Unrecognized configuration and
+  executable signatures are likewise excluded unless someone decides.
 
 ## States and errors
 
@@ -281,7 +335,7 @@ reads remain available for retained archived/deleted project identities.
 
 ### Local detection, review and publication
 
-Detector version `2` recognizes Python dependency groups and inline setup.cfg
+Detector version `3` recognizes Python dependency groups and inline setup.cfg
 requirements, Cargo workspace/target dependencies and renamed packages, scoped
 pnpm coordinates across lockfile generations, Go require blocks and checksum
 versions, and Dockerfile/Compose variants. Cargo editions are not compiler
@@ -289,8 +343,17 @@ versions; Go exclude/replace directives are not dependency declarations; Docker
 build stages are not external images. Multiple checksum versions remain separate
 claims. Dependency URLs and local paths are not version strings.
 
+A lock file records the resolver's output for a declared manifest, so a lock
+row restates the declared dependency's context rather than claiming
+`production`: a dev-group package pinned by `uv.lock` stays a testing or
+development detection. A package declared both runtime and optional in the same
+manifest is one production dependency listed twice, not two findings.
+
 An unverified, changed, oversized, undecodable or malformed supported manifest
-makes detection incomplete while retaining findings from other inputs. Detection
+makes detection incomplete while retaining findings from other inputs. An
+archive member too large to read still indexes — digest-less, like a local
+oversized file — so presence signatures such as `uv.lock` → `uv` fire while the
+scan reports `unreadable manifest`. Detection
 also checks its time budget between files. These scans cannot mark prior findings
 absent. Publication retains the stored scan's detector version after a CLI upgrade.
 
@@ -396,7 +459,8 @@ explicit conflict resolution without silently retrying a different effect.
 
 Category deletion archives the same category identity under `category.delete`;
 it never deletes classifications or allows seed replay to recreate owner-removed
-entries. Categories have active/archived state, independent of technology lifecycle.
+entries. Categories have draft/active/archived state, independent of technology
+lifecycle, and may bind to one technology area via `area_id`.
 Known-ID reads retain archived metadata under current permissions. Dictionary
 management lists include retained entries with explicit state; new classifications
 require active categories. Existing classifications survive archival and metadata
@@ -462,6 +526,8 @@ downgrade requires a verified backup and is not an ordinary rollback.
 | `REQ-8216` | Publication fixtures refuse an unlinked project, a mismatched organization, and a missing fetched snapshot before demanding a session; a wired mock server receives the exact contract-shaped handoff. |
 | `REQ-8217` | Scope isolation tests show one coordinate under two scopes keeps two rows and a rescan clears exactly one; forge-language fixtures land unknown names in the queue; the organization endpoint groups coordinates across projects. |
 | `REQ-8218` | Command tests cover seed-versus-entries exclusivity, JSON/YAML validation, local and remote unmapped listing, and the intent's action and required-field questions; worker tests cover daily enqueue idempotency, stale-head skip, and merge-path equivalence. |
+| `REQ-8219` | Area lifecycle and category-binding tests cover draft/active/archived transitions, preserved bindings on partial updates, archived-area refusal, and blocked archival while categories are bound. |
+| `REQ-8220` | Journal/detail/launch tests cover mixed source and status rows, per-project rejection, queued-job visibility with empty findings, per-project filtering, and idempotent launch replay returning stored items. Findings-resource tests cover the curated JSON rows with metadata and evidence, identical CSV/Markdown renders, and export audits; curation tests cover the lock-only-transitive and unresolved-signature exclusions. |
 
 ## Bounded forge language enrichment
 
@@ -475,10 +541,99 @@ an observation to become an accepted project/landscape fact. A retained scan
 replay does not require another forge read. No source archive or code execution
 is involved.
 
-## Deferred: organization-wide backend scan
+## Organization-wide repository scans
 
-Interactive scanning of every linked organization project directly on the
-backend — replaying GitHub/GitLab sources without a local CLI — is a future
-milestone item, not part of this specification. Scans originate locally: one
-project, one bounded root, one explicit publication. Registry growth is
-review-driven, never scheduled background mutation.
+A user can select one or several corporate projects and launch their scanning
+in one operation. `POST /v1/corporate/organizations/{organization_id}/technology-scans`
+validates `technology.scan.publish` organization-wide, then authorizes each
+project independently, resolves its linked provider identity, and enqueues one
+tenant-scoped job per accepted project — `gitlab_technology_scan` or
+`github_technology_scan` by provider kind. Each item returns its own state
+(`queued` or `rejected` with a safe detail); one project's failure never
+blocks the rest. The effect is one fingerprinted receipt, so a replayed
+request returns the stored items instead of new jobs.
+
+The worker re-fetches the linked repository's archive at the recorded head —
+GitLab via the organization connection, GitHub via the queueing principal's
+`source` connector — and runs the same `ai_stp_sources` detector the CLI uses
+over the archive contents: manifests, lock files, Dockerfile/Compose, CI and
+runtime configuration. The archive is processed in memory; repository code is
+never executed and no temporary checkout survives the job. Detections resolve
+through the mapping snapshot pinned at enqueue and merge through
+`merge_scan_facts`, so worker, synchronous, and local publication share one
+writer, one unmapped-coordinate queue, and one disagreement policy. The
+persisted scan retains source, repository display name, branch, and commit
+provenance; a job whose recorded head has moved fails permanently until
+discovery re-pins it.
+
+`GET /v1/corporate/organizations/{organization_id}/technology-scans` returns
+the journal under `landscape.read` — queued, running, succeeded, and failed
+entries with project, repository, source, timestamps, found and pending counts,
+optionally filtered to one project. `GET` on `/technology-scans/{scan_id}`
+expands one entry under `landscape.read` plus independent project and
+canonical-pair read authority: each finding carries kind, coordinate, context,
+version, evidence, and its current state (`open`, `candidate`, `resolved`, `rejected`) so
+review inside a scan reuses the same unmapped-coordinate mechanism as the
+organization queue without rewriting the immutable scan record.
+
+## Deferred: scheduled scans
+
+Periodic or webhook-triggered scanning is a future milestone item, not part of
+this specification. Every scan starts from an explicit local publication or an
+explicit authorized launch. Registry growth is review-driven, never scheduled
+background mutation.
+
+## Shared finding review and reference workspace
+
+`PUT /v1/corporate/organizations/{organization_id}/technology-findings/review`
+accepts one to 512 unique scan/kind/coordinate/context decisions. Each decision
+carries its expected review revision, optional technology and category, a
+confirmed/rejected decision, and a comment of at most 500 characters. Confirmation
+requires a canonical technology or a category. Category-only confirmation reuses a normalized alias or creates a technology named after the coordinate, with ordinary create authorization. Names longer than 200 characters require explicit technology creation first. The selected category is retained on the finding review independently of the technology's other classifications. The operation checks organization authorization,
+project pair authority, technology authority, the retained scan's coordinate
+membership, and every revision before committing the atomic mutation. Replays
+return the original receipt. A rejection does not reclassify a technology.
+
+Owner reviews are tenant-scoped records separate from the append-only scan.
+Original coordinates, version kinds and evidence are retained in new CLI and
+worker handoffs. Legacy handoffs remain readable through their pinned mapping.
+The current interpretation combines the original coordinate with the most recently
+published immutable mapping snapshot and the owner's decision in the same scan
+scope. An exact scan decision takes precedence over an inherited decision.
+Confirmation publishes a new mapping snapshot for subsequent scans and refreshes
+current project usage; rejection excludes the selected finding. The original
+handoff and result remain unchanged. Incomplete scans cannot establish absence.
+
+The Landscape navigation exposes Technology map, Scans and Mapping. The map and
+six-column summary share organization/project/search/advanced filters and derive
+areas, categories, distinct project counts and versions from authorized API data.
+Technology chips and summary actions open versions, related projects and evidence.
+The journal shows repository provenance, duration, job state and found/pending
+counts. Global mapping and scan detail compose the same table, draft state,
+inline category cells, a separate derived area cell, evidence dialogs and creation dialogs. Findings are grouped by canonical technology (or original kind/coordinate), preserving all versions, contexts and evidence. A save fans out to the original review identities. Unknown, candidate and unclassified findings are highlighted and the review-only filter excludes classified and rejected rows. Creation requires only a name; category and description can be supplied later. The status and comment editor is omitted. Narrow viewports contain horizontal table scrolling. Fixtures appear only in Storybook and tests.
+Archived technologies and categories remain available for historical name lookup,
+but are excluded from new selections. A saved confirmation or rejection keeps its
+persisted status when a referenced registry record is archived.
+
+Acceptance evidence: `test_technology_finding_reviews.py` exercises idempotent
+review, current usage, retained original documents, rescan inheritance and
+rejection. `technology-workspace.test.tsx` exercises map drill-down, summary
+columns, inline category assignment, review filtering, grouping, source filtering and read-only
+states. Playwright acceptance inspects the deployed local Docker workspace.
+
+Scan journal and detail expose `scan_types` derived from retained finding kinds: dependencies, configurations, and languages. An empty or queued scan has no invented scan type. Confirming a selected category preserves the technology's other category bindings.
+
+Multi-project repository launches share a batch identity. After a scan changes the policy revision, queued siblings whose authority matched the immediately preceding revision are reauthorized at the current revision under the organization lock. Denied or already stale jobs remain rejected; unrelated batches are unchanged (`ADR-0231`).
+
+## Corporate repository selection
+
+Project editors can check and explicitly confirm a public GitHub repository URL or
+a repository on the configured organization GitLab. The project detail shows the
+saved provider, URL and default branch. Read-only viewers see the same source.
+Preview and confirmation require current project/authorization revisions, exact
+actor-bound digest, expiry and independent idempotency keys. Linking never queues
+a scan. CLI checkout synchronization remains device-bound (ADR-0229).
+
+The journal row body navigates to details by pointer or keyboard; its three-dot menu opens independent actions. Repository scan launch rejects any project with a queued, running or retry-scheduled scan under the organization lock, including requests with different idempotency keys. The journal disables selection of active projects, and a successful launch cannot be resubmitted from the same dialog.
+
+Journal and scan-detail found/pending counts cover technology-tier findings only, grouped by the same technology-or-coordinate display identity as the review table; the `dependencies` count covers the dependency tier separately, and immutable evidence and original review identities remain available in findings. The review page lists technologies above dependencies as two sections.

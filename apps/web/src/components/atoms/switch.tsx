@@ -12,19 +12,23 @@ export function Switch({
   name,
   defaultChecked,
   disabled,
+  onCheckedChange,
   "aria-label": ariaLabel,
 }: {
   id?: string;
   name: string;
   defaultChecked: boolean;
   disabled?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
   "aria-label"?: string;
 }) {
   const [on, setOn] = useState(defaultChecked);
   return (
     <>
       <input type="hidden" name={name} value={on ? "true" : "false"} />
-      <span className="relative inline-flex shrink-0">
+      {/* A label makes the whole pill a click target; the sr-only input alone
+          is clipped to 1px and unreachable by pointer. */}
+      <label className="relative inline-flex shrink-0 cursor-pointer has-[:disabled]:cursor-not-allowed">
         <input
           id={id}
           type="checkbox"
@@ -33,6 +37,7 @@ export function Switch({
           aria-label={ariaLabel}
           onChange={(event) => {
             setOn(event.target.checked);
+            onCheckedChange?.(event.target.checked);
           }}
           className="peer sr-only"
         />
@@ -49,7 +54,7 @@ export function Switch({
           aria-hidden="true"
           className="bg-background absolute top-0.5 left-0.5 h-5 w-5 rounded-full shadow-sm transition-transform duration-[var(--duration-fast)] peer-checked:translate-x-5"
         />
-      </span>
+      </label>
     </>
   );
 }

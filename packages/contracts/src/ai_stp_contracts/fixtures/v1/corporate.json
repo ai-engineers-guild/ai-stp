@@ -359,7 +359,8 @@
           "team_role": "staff",
           "operation": "assign",
           "authorization_revision": 1,
-          "idempotency_key": "corporate-assignment-0001"
+          "idempotency_key": "corporate-assignment-0001",
+          "project_role": "staff"
         }
       },
       "status": 200,
@@ -370,7 +371,8 @@
         "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "team_role": "staff",
         "operation": "assign",
-        "bindings": []
+        "bindings": [],
+        "project_role": "staff"
       }
     },
     {
@@ -388,6 +390,7 @@
       "body": {
         "schema_version": 1,
         "items": [],
+        "total": 0,
         "next_before_created_at": null,
         "next_before_id": null
       }
@@ -823,7 +826,7 @@
       "case_id": "createCorporateRole.corporate",
       "operation_id": "createCorporateRole",
       "kind": "positive",
-      "why": "A tenant-local custom role carries explicit inherited permissions.",
+      "why": "A tenant-local custom role carries an explicit permission list.",
       "request": {
         "path_params": {
           "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
@@ -831,7 +834,6 @@
         "body": {
           "schema_version": 1,
           "name": "reviewer",
-          "parent_role": "staff",
           "permissions": [
             "project.read"
           ],
@@ -843,7 +845,6 @@
       "body": {
         "schema_version": 1,
         "name": "reviewer",
-        "parent_role": "staff",
         "permissions": [
           "project.read"
         ],
@@ -867,7 +868,6 @@
           {
             "schema_version": 1,
             "name": "reviewer",
-            "parent_role": "staff",
             "permissions": [
               "project.read"
             ],
@@ -891,7 +891,6 @@
       "body": {
         "schema_version": 1,
         "name": "reviewer",
-        "parent_role": "staff",
         "permissions": [
           "project.read"
         ],
@@ -910,7 +909,6 @@
         },
         "body": {
           "schema_version": 1,
-          "parent_role": null,
           "permissions": [
             "project.read",
             "project.update"
@@ -924,7 +922,6 @@
       "body": {
         "schema_version": 1,
         "name": "reviewer",
-        "parent_role": null,
         "permissions": [
           "project.read",
           "project.update"
@@ -1817,7 +1814,8 @@
         "allowed_email_domains": [
           "example.com"
         ],
-        "authorization_revision": 2
+        "authorization_revision": 2,
+        "people_visibility": "teammates"
       }
     },
     {
@@ -1835,7 +1833,8 @@
             "example.com"
           ],
           "authorization_revision": 1,
-          "idempotency_key": "policy-write-0001"
+          "idempotency_key": "policy-write-0001",
+          "people_visibility": "teammates"
         }
       },
       "status": 200,
@@ -1845,7 +1844,8 @@
         "allowed_email_domains": [
           "example.com"
         ],
-        "authorization_revision": 2
+        "authorization_revision": 2,
+        "people_visibility": "teammates"
       }
     },
     {
@@ -1997,6 +1997,113 @@
         "issuer_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "state": "revoked",
         "revision": 2
+      }
+    },
+    {
+      "case_id": "planCorporateProjectRepository.corporate",
+      "operation_id": "planCorporateProjectRepository",
+      "kind": "positive",
+      "why": "A checked repository returns a digested plan the bind call must replay.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "repository_url": "https://github.com/example/platform-api",
+          "authorization_revision": 1,
+          "expected_revision": 1,
+          "idempotency_key": "fixture-plan-repository-0001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "repository_url": "https://github.com/example/platform-api",
+        "provider": "github",
+        "repository_id": "provider_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "namespace_id": "provider_namespace_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "name": "platform-api",
+        "default_branch": "main",
+        "observed_revision": "a7b1c9e2f4d6a8b0c2e4f6a8b0c2e4f6a8b0c2e4",
+        "expected_revision": 1,
+        "authorization_revision": 1,
+        "plan_key": "fixture-plan-repository-0001",
+        "plan_digest": "sha256:00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+        "expires_at": "2026-10-08T10:15:00.000Z"
+      }
+    },
+    {
+      "case_id": "bindCorporateProjectRepository.corporate",
+      "operation_id": "bindCorporateProjectRepository",
+      "kind": "positive",
+      "why": "Binding replays the plan digest and returns the project with its repository.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "plan_key": "fixture-plan-repository-0001",
+          "plan_digest": "sha256:00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-bind-repository-0001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "name": "core",
+        "state": "active",
+        "revision": 2,
+        "repositories": [
+          {
+            "provider_project_id": "provider_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "provider": "github",
+            "namespace": "example",
+            "repository_url": "https://github.com/example/platform-api",
+            "default_branch": "main",
+            "observed_revision": "a7b1c9e2f4d6a8b0c2e4f6a8b0c2e4f6a8b0c2e4",
+            "observed_at": "2026-10-08T10:15:00.000Z"
+          }
+        ],
+        "available_actions": []
+      }
+    },
+    {
+      "case_id": "readCorporateTeammates.corporate",
+      "operation_id": "readCorporateTeammates",
+      "kind": "positive",
+      "why": "A member sees the bounded teammate projection under the organization policy.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "people_visibility": "teammates",
+        "items": [
+          {
+            "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "display_name": "Ada Lovelace",
+            "contexts": [
+              {
+                "kind": "team",
+                "id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                "name": "Platform",
+                "role": "lead"
+              }
+            ],
+            "schema_version": 1
+          }
+        ]
       }
     }
   ]

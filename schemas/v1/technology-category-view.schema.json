@@ -3,6 +3,19 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
   "properties": {
+    "area_id": {
+      "anyOf": [
+        {
+          "pattern": "^area_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Area Id"
+    },
     "category_id": {
       "pattern": "^category_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
       "title": "Category Id",
@@ -13,6 +26,19 @@
       "maxLength": 2000,
       "title": "Description",
       "type": "string"
+    },
+    "icon": {
+      "anyOf": [
+        {
+          "maxLength": 2048,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Icon"
     },
     "name": {
       "maxLength": 200,
@@ -48,8 +74,10 @@
     }
   },
   "required": [
+    "area_id",
     "category_id",
     "description",
+    "icon",
     "name",
     "provenance",
     "revision"

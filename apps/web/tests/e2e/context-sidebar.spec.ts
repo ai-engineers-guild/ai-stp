@@ -46,7 +46,7 @@ test.describe("shared sidebar behavior", () => {
     await page.getByRole("button", { name: /Continue with GitHub/i }).click();
     await page.waitForURL("**/en/corporate/overview");
 
-    const response = await page.goto("/en/corporate/organization/admins/access");
+    const response = await page.goto("/en/corporate/admin/access-model");
     expect(response?.status()).toBe(200);
     expect(await response?.text()).toContain('data-ui="context-sidebar"');
 
@@ -55,7 +55,7 @@ test.describe("shared sidebar behavior", () => {
     await expect(sidebar.getByText("Back to Overview", { exact: true })).toHaveCount(0);
     await expect(sidebar.getByRole("button", { name: /People & Access/ })).toBeVisible();
 
-    const localizedResponse = await page.goto("/ru/corporate/organization/admins/access");
+    const localizedResponse = await page.goto("/ru/corporate/admin/access-model");
     expect(localizedResponse?.status()).toBe(200);
     expect(await localizedResponse?.text()).toContain('data-ui="context-sidebar"');
     const localizedSidebar = page.locator('[data-ui="context-sidebar"]');

@@ -96,7 +96,6 @@ async def test_scoped_team_lead_cannot_read_roster_member_competences(
         "roles",
         {
             "name": "scoped_technology_reader",
-            "parent_role": "lead",
             "permissions": ["technology.read", "technology.list"],
         },
     )

@@ -13,6 +13,7 @@ from ai_stp_sources.archive import MAX_GIT_ARCHIVE_BYTES, extract_component_file
 from ai_stp_sources.coordinates import COMMIT_RE, canonicalize_source
 from ai_stp_sources.errors import (
     FLOATING_FROZEN_SOURCE,
+    INVALID_SOURCE,
     UNAVAILABLE_SOURCE,
     UNSAFE_ARCHIVE,
     SourceError,
@@ -175,6 +176,33 @@ def reject_floating_commit(value: str) -> str:
     if COMMIT_RE.fullmatch(value) is None:
         raise SourceError(FLOATING_FROZEN_SOURCE, "frozen git provenance requires a full commit")
     return value
+
+
+async def download_repository_tarball(
+    full_name: str,
+    commit: str,
+    *,
+    fetch: FetchFn,
+    token: str | None = None,
+) -> bytes:
+    """Download one repository tarball at an exact commit.
+
+    Redirects stay inside the allowed GitHub hosts and the bearer token never
+    leaves ``api.github.com`` — ``_headers_for`` strips it for redirect hops.
+    """
+    reject_floating_commit(commit)
+    owner, separator, name = full_name.partition("/")
+    if not separator or not owner or not name or "/" in name:
+        raise SourceError(INVALID_SOURCE, "repository full name is malformed")
+    archive = await _get(
+        f"{API_ROOT}/repos/{quote(owner, safe='')}/{quote(name, safe='')}/tarball/"
+        f"{quote(commit, safe='')}",
+        fetch=fetch,
+        token=token,
+        max_bytes=MAX_GIT_ARCHIVE_BYTES,
+    )
+    _require_github_ok(archive, "GitHub archive is unavailable")
+    return archive.body
 
 
 async def resolve_git(

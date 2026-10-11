@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Select } from "@/components/atoms/select";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { CorporateDirectoryCard } from "@/components/organisms/corporate-directory-card";
@@ -17,12 +18,10 @@ import {
   type DirectoryResource,
   type CorporateCatalogFacet,
   type CorporateCatalogFacetConfig,
-} from "./corporate-directory-types";
+} from "@/lib/corporate-directory-types";
 import { usePathname, useRouter } from "@/lib/i18n/navigation";
-import { PageNav } from "@/components/organisms/catalog-page-nav";
+import { PagePager } from "@/components/molecules/page-pager";
 import type { CorporateDirectoryFacets } from "@/lib/api/generated/types.gen";
-
-export type { DirectoryItem, DirectoryResource } from "./corporate-directory-types";
 
 const EMPTY_CATALOG_FACETS: readonly CorporateCatalogFacetConfig[] = [];
 const EMPTY_CATALOG_SELECTION: Partial<Record<CorporateCatalogFacet, string[]>> = {};
@@ -236,6 +235,7 @@ function useDirectoryResultControls({
   const [catalogSelected, setCatalogSelected] = useState(initialCatalogSelected);
   const router = useRouter();
   const pathname = usePathname();
+  const pendingUrl = useRef<{ url: URL; navigate: boolean } | null>(null);
 
   useEffect(() => {
     function restore() {
@@ -255,21 +255,36 @@ function useDirectoryResultControls({
     };
   }, [catalogFacets, filters, initialCatalogSelected, resource]);
 
-  function persist(name: string, values: string[]) {
-    const url = new URL(window.location.href);
-    url.searchParams.delete("status");
-    url.searchParams.delete("state");
-    url.searchParams.delete(name);
-    values.forEach((value) => {
-      url.searchParams.append(name, value);
+  // Query mutations accumulate on one pending URL and flush once per task so a
+  // multi-facet apply (e.g. Reset all + Apply) cannot overwrite earlier edits.
+  function mutateParams(mutate: (params: URLSearchParams) => void, navigate: boolean) {
+    const pending = pendingUrl.current ?? { url: new URL(window.location.href), navigate: false };
+    pendingUrl.current = pending;
+    mutate(pending.url.searchParams);
+    pending.navigate = pending.navigate || navigate;
+    setReturnFilters(pending.url.searchParams.toString());
+    queueMicrotask(() => {
+      const flushed = pendingUrl.current;
+      pendingUrl.current = null;
+      if (!flushed) return;
+      if (flushed.navigate) router.push(`${pathname}${flushed.url.search}`);
+      else window.history.replaceState(window.history.state, "", flushed.url);
     });
-    if (serverPaginated && name !== "view") {
-      url.searchParams.set("page", "1");
-      router.push(`${pathname}${url.search}`);
-    } else {
-      window.history.replaceState(window.history.state, "", url);
-    }
-    setReturnFilters(url.searchParams.toString());
+  }
+
+  function persist(name: string, values: string[]) {
+    mutateParams(
+      (params) => {
+        params.delete("status");
+        params.delete("state");
+        params.delete(name);
+        values.forEach((value) => {
+          params.append(name, value);
+        });
+        if (serverPaginated && name !== "view") params.set("page", "1");
+      },
+      serverPaginated && name !== "view",
+    );
   }
 
   function changeQuery(value: string) {
@@ -298,23 +313,21 @@ function useDirectoryResultControls({
   }
 
   function changePageSize(value: number) {
-    const url = new URL(window.location.href);
-    url.searchParams.set("page_size", String(value));
-    url.searchParams.set("page", "1");
-    setReturnFilters(url.searchParams.toString());
-    if (serverPaginated) router.push(`${pathname}${url.search}`);
+    mutateParams((params) => {
+      params.set("page_size", String(value));
+      params.set("page", "1");
+    }, serverPaginated);
   }
 
   function applyCatalogFacets(values: Partial<Record<CorporateCatalogFacet, string[]>>) {
-    const url = new URL(window.location.href);
-    url.searchParams.set("page", "1");
-    for (const facet of catalogFacets) {
-      url.searchParams.delete(facet.key);
-      for (const value of values[facet.key] ?? []) url.searchParams.append(facet.key, value);
-    }
+    mutateParams((params) => {
+      params.set("page", "1");
+      for (const facet of catalogFacets) {
+        params.delete(facet.key);
+        for (const value of values[facet.key] ?? []) params.append(facet.key, value);
+      }
+    }, catalogFacets.length > 0);
     setCatalogSelected(values);
-    setReturnFilters(url.searchParams.toString());
-    router.push(`${pathname}${url.search ? url.search : ""}`);
   }
 
   return {
@@ -416,7 +429,7 @@ export function CorporateDirectoryResults({
         {serverPaginated ? (
           <label className="text-muted-foreground flex items-center gap-2 text-sm">
             <span>{t("pageSize")}</span>
-            <select
+            <Select
               value={pageSize}
               onChange={(event) => {
                 changePageSize(Number(event.target.value));
@@ -428,7 +441,7 @@ export function CorporateDirectoryResults({
                   {size}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         ) : null}
       </div>
@@ -448,9 +461,9 @@ export function CorporateDirectoryResults({
         emptyLabel={t(items.length ? "noMatches" : "empty")}
       />
       {serverPaginated && total && total > pageSize ? (
-        <PageNav
+        <PagePager
           label={paginationLabel}
-          pageNumber={pageNumber}
+          page={pageNumber}
           totalPages={Math.ceil(total / pageSize)}
           hrefFor={(page) => {
             const params = new URLSearchParams(filters);

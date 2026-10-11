@@ -22,22 +22,6 @@
     "idempotency_key": {
       "$ref": "#/$defs/IdempotencyKey"
     },
-    "parent_role": {
-      "anyOf": [
-        {
-          "description": "Tenant-local role name.",
-          "maxLength": 64,
-          "minLength": 1,
-          "pattern": "^[a-z][a-z0-9_-]*$",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Parent Role"
-    },
     "permissions": {
       "items": {
         "type": "string"

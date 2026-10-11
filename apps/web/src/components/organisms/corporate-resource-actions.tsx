@@ -1,14 +1,15 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon } from "@/theme";
 import type { CorporateRoleView } from "@/lib/api/generated/types.gen";
 
-import { corporateMutationAction } from "@/actions/corporate";
+import { corporateMutation } from "@/lib/api/corporate-mutation";
 import { Button } from "@/components/atoms/button";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/atoms/menu";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 
@@ -20,7 +21,6 @@ type Props = {
   resourceId: string;
   name: string;
   role?: string;
-  parentRole?: string | null;
   rolePermissions?: readonly string[];
   state: string;
   revision: number;
@@ -31,7 +31,6 @@ type Props = {
     title: string;
     name: string;
     role: string;
-    parentRole: string;
     permissions: string;
     state: string;
     update: string;
@@ -72,14 +71,14 @@ export function CorporateResourceDeleteMenuItem({
   const [busy, startTransition] = useTransition();
 
   return (
-    <DropdownMenu.Item
+    <MenuItem
       disabled={busy}
       className="focus:bg-muted text-destructive flex min-h-11 cursor-pointer items-center rounded-sm px-3 py-2 text-sm outline-none"
       onSelect={(event) => {
         event.preventDefault();
         if (!window.confirm(confirmLabel)) return;
         startTransition(async () => {
-          const result = await corporateMutationAction({
+          const result = await corporateMutation({
             csrfToken,
             organizationId,
             path: `/v1/corporate/organizations/${organizationId}/${resource}/${resourceId}`,
@@ -97,7 +96,7 @@ export function CorporateResourceDeleteMenuItem({
     >
       <Icon name="close" size="sm" />
       {busy ? "…" : label}
-    </DropdownMenu.Item>
+    </MenuItem>
   );
 }
 
@@ -111,7 +110,6 @@ export function CorporateResourceActions({
   resourceId,
   name,
   role,
-  parentRole,
   rolePermissions,
   state,
   revision,
@@ -127,7 +125,6 @@ export function CorporateResourceActions({
   const [busy, startTransition] = useTransition();
   const [nextName, setNextName] = useState(name);
   const [nextRole, setNextRole] = useState(role ?? "staff");
-  const [nextParentRole, setNextParentRole] = useState(parentRole ?? "");
   const [nextPermissions, setNextPermissions] = useState((rolePermissions ?? []).join(", "));
   const [nextState, setNextState] = useState(state);
   const [message, setMessage] = useState<string | null>(null);
@@ -152,7 +149,7 @@ export function CorporateResourceActions({
     setMessage(null);
     startTransition(async () => {
       try {
-        const result = await corporateMutationAction({
+        const result = await corporateMutation({
           csrfToken,
           organizationId,
           path: endpoint,
@@ -176,50 +173,43 @@ export function CorporateResourceActions({
   return (
     <section className="space-y-4">
       {!editing && (canUpdate || canDelete) && (
-        <DropdownMenu.Root modal={false}>
-          <DropdownMenu.Trigger asChild>
+        <Menu modal={false}>
+          <MenuTrigger asChild>
             <Button variant="outline" size="icon" aria-label={labels.title}>
               <Icon name="more" />
             </Button>
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content
-              align="end"
-              className="border-border bg-popover text-popover-foreground z-50 min-w-40 rounded-lg border p-1 shadow-md"
-            >
-              {canUpdate && (
-                <DropdownMenu.Item
-                  className="focus:bg-muted cursor-default rounded-sm px-3 py-2 outline-none"
-                  onSelect={() => {
-                    setNextParentRole(parentRole ?? "");
-                    setNextPermissions((rolePermissions ?? []).join(", "));
-                    setNextName(name);
-                    setNextRole(role ?? "staff");
-                    setNextState(state);
-                    setEditing(true);
-                  }}
-                >
-                  {t("edit")}
-                </DropdownMenu.Item>
-              )}
-              {canDelete && (
-                <DropdownMenu.Item
-                  className="focus:bg-muted text-destructive cursor-default rounded-sm px-3 py-2 outline-none"
-                  onSelect={() => {
-                    if (window.confirm(labels.confirmDelete))
-                      submit("DELETE", {
-                        schema_version: 1,
-                        expected_revision: revision,
-                        authorization_revision: authorizationRevision,
-                      });
-                  }}
-                >
-                  {labels.delete}
-                </DropdownMenu.Item>
-              )}
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
+          </MenuTrigger>
+          <MenuContent>
+            {canUpdate && (
+              <MenuItem
+                onSelect={() => {
+                  setNextPermissions((rolePermissions ?? []).join(", "));
+                  setNextName(name);
+                  setNextRole(role ?? "staff");
+                  setNextState(state);
+                  setEditing(true);
+                }}
+              >
+                {t("edit")}
+              </MenuItem>
+            )}
+            {canDelete && (
+              <MenuItem
+                className="text-destructive"
+                onSelect={() => {
+                  if (window.confirm(labels.confirmDelete))
+                    submit("DELETE", {
+                      schema_version: 1,
+                      expected_revision: revision,
+                      authorization_revision: authorizationRevision,
+                    });
+                }}
+              >
+                {labels.delete}
+              </MenuItem>
+            )}
+          </MenuContent>
+        </Menu>
       )}
       {canUpdate && editing ? (
         <form
@@ -232,7 +222,6 @@ export function CorporateResourceActions({
                 ? { role: nextRole, state: nextState }
                 : resource === "roles"
                   ? {
-                      parent_role: nextParentRole || null,
                       permissions: nextPermissions
                         .split(",")
                         .map((permission) => permission.trim())
@@ -247,7 +236,7 @@ export function CorporateResourceActions({
           {resource === "members" ? (
             <>
               <Label htmlFor="corporate-resource-role">{labels.role}</Label>
-              <select
+              <Select
                 id="corporate-resource-role"
                 required
                 value={nextRole}
@@ -261,18 +250,10 @@ export function CorporateResourceActions({
                     {item.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </>
           ) : resource === "roles" ? (
             <>
-              <Label htmlFor="corporate-resource-parent-role">{labels.parentRole}</Label>
-              <Input
-                id="corporate-resource-parent-role"
-                value={nextParentRole}
-                onChange={(event) => {
-                  setNextParentRole(event.target.value);
-                }}
-              />
               <Label htmlFor="corporate-resource-permissions">{labels.permissions}</Label>
               <Input
                 id="corporate-resource-permissions"
@@ -298,7 +279,7 @@ export function CorporateResourceActions({
           {resource !== "roles" ? (
             <>
               <Label htmlFor="corporate-resource-state">{labels.state}</Label>
-              <select
+              <Select
                 id="corporate-resource-state"
                 value={nextState}
                 onChange={(event) => {
@@ -310,7 +291,7 @@ export function CorporateResourceActions({
                 <option value={resource === "members" ? "suspended" : "archived"}>
                   {resource === "members" ? labels.suspended : labels.archived}
                 </option>
-              </select>
+              </Select>
             </>
           ) : null}
           <Button type="submit" disabled={busy}>

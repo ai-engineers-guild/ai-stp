@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/atoms/select";
 import { useState, useTransition } from "react";
 import { useRouter } from "@/lib/i18n/navigation";
 
@@ -147,7 +148,7 @@ export function StaffCaseActions({
 
       <section className="border-border space-y-3 rounded-lg border p-4">
         <h2 className="text-lg font-medium tracking-tight">{labels.triage}</h2>
-        <select
+        <Select
           className="border-input bg-background h-9 w-full rounded-sm border px-2 font-mono text-xs"
           value={state}
           onChange={(event) => {
@@ -158,7 +159,7 @@ export function StaffCaseActions({
           <option value="awaiting_author">{labels.stateAwaitingAuthor}</option>
           <option value="resolved">{labels.stateResolved}</option>
           <option value="dismissed">{labels.stateDismissed}</option>
-        </select>
+        </Select>
         <Button
           type="button"
           disabled={pending}
