@@ -281,6 +281,91 @@
       },
       "type": "array"
     },
+    "configuration_ownership": {
+      "oneOf": [
+        {
+          "items": {
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "else": {
+                  "properties": {
+                    "ownership_keys": {
+                      "minItems": 1
+                    },
+                    "parser_id": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "if": {
+                  "properties": {
+                    "ownership": {
+                      "const": "whole"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "ownership_keys": {
+                      "maxItems": 0
+                    },
+                    "parser_id": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            ],
+            "properties": {
+              "ownership": {
+                "enum": [
+                  "whole",
+                  "contribution"
+                ]
+              },
+              "ownership_keys": {
+                "items": {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "not": {
+                    "pattern": "[\\u0000-\\u001f\\u007f-\\u009f]"
+                  },
+                  "type": "string"
+                },
+                "maxItems": 2000,
+                "type": "array",
+                "uniqueItems": true
+              },
+              "parser_id": {
+                "enum": [
+                  null,
+                  "json/1",
+                  "toml/1"
+                ]
+              },
+              "path": {
+                "maxLength": 4096,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "ownership",
+              "parser_id",
+              "ownership_keys"
+            ],
+            "type": "object"
+          },
+          "maxItems": 8192,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "drift_state": {
       "enum": [
         "clean",

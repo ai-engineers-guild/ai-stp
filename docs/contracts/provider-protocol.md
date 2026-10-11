@@ -369,6 +369,27 @@ providers advertise the field. Omitted-mode plans retain the existing recovery
 semantics above. Writable native configuration remains unavailable until its
 provider implementation and interrupted execution are verified.
 
+### Recorded configuration ownership
+
+An optional `configuration_ownership` status member describes the provider's
+recorded file and top-level-key ownership. Omission means an older reader/writer
+boundary; `null` means unavailable evidence. Neither means an empty ownership
+set. An array contains at most 8,192 entries, sorted by unique relative `path`.
+Each closed entry has `path`, `ownership`, `parser_id` and `ownership_keys`.
+Whole-path entries use `ownership: "whole"`, a null parser and no keys.
+Contribution entries use `ownership: "contribution"`, `json/1` for `.json` or
+`.jsonc`, or `toml/1` for `.toml`, and sorted unique nonempty top-level keys.
+Paths and keys are bounded and control characters and path aliases are refused.
+
+The array is recorded ownership, including when `provider_state` reports local
+drift; it does not attest current contents or grant mutation authority. An absent
+provider record can report only an empty array, and an unreadable record cannot
+report an array. If clean flat provenance includes `written_paths`, its set must
+equal the array's paths. The Python and Rust status readers enforce these
+bindings using the same positive and negative vectors. The generated kit is
+0.2.17; it must ship in a released consumer before providers emit this member.
+This additive read contract does not enable native configuration application.
+
 ### Complete native capture
 
 Providers supporting complete preservation declare `capture_mode` in

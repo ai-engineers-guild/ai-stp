@@ -777,6 +777,7 @@
   "the provider returned no program plan artifact": "the provider returned no program plan artifact",
   "the provider status carries a malformed copy list": "the provider status carries a malformed copy list",
   "the provider status carries a malformed shadow list": "the provider status carries a malformed shadow list",
+  "the provider status carries inconsistent recorded configuration ownership": "the provider status carries inconsistent recorded configuration ownership",
   "the provider status carries malformed authorization evidence": "the provider status carries malformed authorization evidence",
   "the provider status does not match the released protocol-v3 schema": "the provider status does not match the released protocol-v3 schema",
   "the provider target must be an existing absolute directory, not a symlink": "the provider target must be an existing absolute directory, not a symlink",
