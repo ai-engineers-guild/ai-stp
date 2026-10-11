@@ -27,7 +27,8 @@ const csvCell = (value: string) => {
   return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 };
 
-const mdCell = (value: string) => value.replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ");
+const mdCell = (value: string) =>
+  value.replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ");
 
 const findingTechnology = (row: TechnologyScanFinding) =>
   row.technology_name ?? row.technology_id ?? row.candidate_technology_id ?? "";

@@ -191,3 +191,19 @@ def test_export_findings_markdown_carries_scan_metadata() -> None:
     assert "| package | technology | fastapi | FastAPI | production | >=0.100 |" in document
     # A pipe inside a coordinate cannot break the table shape.
     assert "cell \\| breaker" in document
+
+
+def test_export_findings_markdown_escapes_a_backslash_before_its_pipe() -> None:
+    document = export_findings_markdown(
+        scan_id="scan_01",
+        repository=None,
+        branch=None,
+        commit=None,
+        complete=True,
+        detector_version=None,
+        mapping_version="v1",
+        findings=[_finding("cell\\|end", evidence=[("declared", "x.txt")])],
+    )
+    # `cell\|end` must become `cell\\\|end`: the backslash escapes first, or
+    # its escape makes the pipe literal and the row still breaks at the pipe.
+    assert "cell\\\\\\|end" in document

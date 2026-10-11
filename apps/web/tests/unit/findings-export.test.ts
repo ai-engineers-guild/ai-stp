@@ -152,6 +152,16 @@ describe("exportScanFindings", () => {
     expect(content).toContain("a\\|b c");
   });
 
+  it("escapes a backslash before the pipe it precedes", () => {
+    const { content } = exportScanFindings(
+      { ...scan, findings: [finding({ coordinate: "a\\|b" })] },
+      "md",
+    );
+    // `a\|b` must render as `a\\\|b`: escape the backslash first, or the
+    // escaped backslash makes the following pipe literal and breaks the row.
+    expect(content).toContain("a\\\\\\|b");
+  });
+
   it("downloads through a blob URL with a BOM for spreadsheet readers", () => {
     let captured: Blob | undefined;
     const create = vi.fn((blob: Blob) => {

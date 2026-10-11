@@ -189,7 +189,7 @@ def export_findings_csv(findings: Iterable[TechnologyScanFinding]) -> str:
 
 
 def _md_cell(value: str) -> str:
-    return value.replace("|", "\\|").replace("\n", " ").replace("\r", " ")
+    return value.replace("\\", "\\\\").replace("|", "\\|").replace("\n", " ").replace("\r", " ")
 
 
 def export_findings_markdown(
