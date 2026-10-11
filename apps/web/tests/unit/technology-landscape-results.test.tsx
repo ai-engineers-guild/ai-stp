@@ -125,18 +125,16 @@ it("expands and collapses every category through view controls", async () => {
   const user = userEvent.setup();
   renderLandscape();
   await user.click(
-    screen.getAllByRole("button", { name: "Expand all" }).at(0) ??
-      screen.getByRole("button", { name: "Expand all" }),
+    screen.getAllByRole("button", { name: "Area actions" })[0] ??
+      screen.getByRole("button", { name: "Area actions" }),
   );
+  await user.click(await screen.findByRole("menuitem", { name: "Expand all" }));
   expect(screen.getByRole("button", { name: "FastAPI" })).toBeVisible();
-  expect(
-    screen.getAllByRole("link", { name: "Open technology list" }).at(0) ??
-      screen.getByRole("link", { name: "Open technology list" }),
-  ).toHaveAttribute("href", expect.stringContaining(`area_ids=${areas[0].area_id}`));
   await user.click(
-    screen.getAllByRole("button", { name: "Collapse all" }).at(0) ??
-      screen.getByRole("button", { name: "Collapse all" }),
+    screen.getAllByRole("button", { name: "Area actions" })[0] ??
+      screen.getByRole("button", { name: "Area actions" }),
   );
+  await user.click(await screen.findByRole("menuitem", { name: "Collapse all" }));
   expect(screen.queryByRole("button", { name: "FastAPI" })).toBeNull();
 });
 
@@ -174,7 +172,13 @@ it("opens the standard technology action menu from a table row", async () => {
 vi.mock("@/lib/entity-action-query", () => ({
   queryEntityActionMenu: vi.fn((subject: EntityActionSubject) =>
     Promise.resolve(
-      entityMenuResult(subject, publicActions, `/corporate/technologies/${subject.id}`),
+      entityMenuResult(
+        subject,
+        subject.kind === "area"
+          ? ["open", "expand_all", "collapse_all", "open_technologies"]
+          : publicActions,
+        `/corporate/technologies/${subject.id}`,
+      ),
     ),
   ),
 }));

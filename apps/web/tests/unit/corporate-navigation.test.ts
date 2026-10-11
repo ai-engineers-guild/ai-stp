@@ -161,7 +161,7 @@ describe("resolveCorporateNav", () => {
   it("filters organization children by capability sections", () => {
     const nav = resolveCorporateNav("/corporate/organization", [...MEMBER, ...REPORTER]);
     const ids = nav.items.map((item) => item.id);
-    expect(ids).toEqual(["organization", "reports", "employees"]);
+    expect(ids).toEqual(["organization", "employees"]);
     // member.list also satisfies the catalog section on the root rail.
     expect(resolveCorporateNav("/corporate", MEMBER).items.map((item) => item.id)).toContain(
       "catalog",
@@ -196,4 +196,50 @@ it.each([
   expect(rail.entries.some((entry) => entry.active)).toBe(false);
   expect(rail.back).toBeNull();
   expect(resolveCorporateRail(pathname, []).entries).toEqual([]);
+});
+
+it("keeps Reports separate and bounds Landscape to map, scans and mapping without duplicate destinations", () => {
+  const allowed = corporateNavPageIds([
+    "member.list",
+    "team.list",
+    "project.list",
+    "technology.list",
+    "category.list",
+    "landscape.read",
+    "landscape.manage",
+    "telemetry.read",
+    "role.read",
+  ]);
+  const rail = resolveCorporateRail("/corporate/reports", allowed, true);
+  expect(rail.entries.map((entry) => entry.id)).toEqual([
+    "overview",
+    "catalog",
+    "organization",
+    "landscape",
+    "reports",
+    "administration",
+  ]);
+  expect(rail.entries.find((entry) => entry.id === "reports")?.active).toBe(true);
+  expect(
+    rail.entries.find((entry) => entry.id === "organization")?.children?.map((entry) => entry.id),
+  ).toEqual(["employees", "projects", "teams", "technologies"]);
+  expect(
+    rail.entries.find((entry) => entry.id === "landscape")?.children?.map((entry) => entry.id),
+  ).toEqual(["landscape", "scans", "mappings"]);
+  const destinations = rail.entries
+    .flatMap((entry) => entry.children ?? [entry])
+    .map((entry) => entry.href);
+  expect(new Set(destinations).size).toBe(destinations.length);
+  expect(destinations.filter((href) => href === "/corporate/reports")).toHaveLength(1);
+  expect(destinations).not.toContain("/corporate/categories");
+  expect(
+    resolveCorporateRail("/corporate/technology-scans", allowed)
+      .entries.flatMap((entry) => entry.children ?? [entry])
+      .find((entry) => entry.active)?.id,
+  ).toBe("scans");
+  expect(
+    resolveCorporateRail("/corporate/technology-mappings", allowed)
+      .entries.flatMap((entry) => entry.children ?? [entry])
+      .find((entry) => entry.active)?.id,
+  ).toBe("mappings");
 });

@@ -28,6 +28,31 @@ describe("corporate directory filters", () => {
     owner_team: { id: "owner", name: "Owner" },
     technologies: [{ id: "tech", name: "Technology" }],
   };
+  it.each(["projects", "teams"] as const)(
+    "limits %s technology chips to five and keeps overflow reachable",
+    async (resource) => {
+      const user = userEvent.setup();
+      const technologies = Array.from({ length: 7 }, (_, index) => ({
+        id: `tech_${index}`,
+        name: `Technology ${index}`,
+        kind: "technology" as const,
+      }));
+      render(
+        <CorporateDirectoryResults
+          resource={resource}
+          items={[{ id: "entity", name: "Entity", technologies }]}
+        />,
+      );
+      for (let index = 0; index < 5; index++)
+        expect(screen.getByRole("link", { name: `Technology ${index}` })).toBeVisible();
+      expect(screen.queryByRole("link", { name: "Technology 5" })).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /^technologies:/ }));
+      expect(await screen.findByRole("menuitem", { name: "Technology 5" })).toHaveAttribute(
+        "href",
+        expect.stringContaining("tech_5"),
+      );
+    },
+  );
   it("includes owner teams, ORs values and ANDs facets", () => {
     expect(
       matchesDirectoryFilters(item, { teams: ["other", "owner"], technologies: ["tech"] }),
@@ -99,7 +124,7 @@ describe("corporate directory filters", () => {
     );
     expect(screen.getByRole("menuitem", { name: "editPresentation" })).toHaveAttribute(
       "href",
-      "/corporate/projects/project/edit",
+      "/corporate/projects/project/presentation/edit",
     );
   });
 

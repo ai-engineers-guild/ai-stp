@@ -62,7 +62,7 @@ afterEach(cleanup);
 
 describe("corporate entity owner labels", () => {
   it("links editable entities to a separate edit page", async () => {
-    vi.mocked(queryEntityActionMenu).mockImplementationOnce((subject) =>
+    vi.mocked(queryEntityActionMenu).mockImplementation((subject) =>
       Promise.resolve(
         entityMenuResult(
           subject,
@@ -86,7 +86,10 @@ describe("corporate entity owner labels", () => {
     await userEvent.click(screen.getByRole("button", { name: "access.more" }));
     expect(
       await screen.findByRole("menuitem", { name: "objects.editPresentation" }),
-    ).toHaveAttribute("href", "/corporate/teams/operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z/edit");
+    ).toHaveAttribute(
+      "href",
+      "/corporate/teams/operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z/presentation/edit",
+    );
     expect(screen.queryByRole("form")).toBeNull();
   });
 

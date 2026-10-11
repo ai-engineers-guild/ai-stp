@@ -11,9 +11,11 @@ import { Link } from "@/lib/i18n/navigation";
 export async function CorporateCreatePage({
   resource,
   locale,
+  embedded = false,
 }: {
   resource: "members" | "teams" | "projects";
   locale: string;
+  embedded?: boolean;
 }) {
   const routeResource = resource === "members" ? "employees" : resource;
   setRequestLocale(locale);
@@ -39,15 +41,17 @@ export async function CorporateCreatePage({
   const option = (id: string, name: string) => ({ value: id, label: name });
   return (
     <div className="min-w-0 space-y-6">
-      <header className="space-y-2">
-        <Link
-          href={`/corporate/${routeResource}`}
-          className="text-primary text-sm underline underline-offset-4"
-        >
-          {c("backToWorkspace")}
-        </Link>
-        <h1 className="text-4xl font-medium tracking-tight">{title}</h1>
-      </header>
+      {!embedded && (
+        <header className="space-y-2">
+          <Link
+            href={`/corporate/${routeResource}`}
+            className="text-primary text-sm underline underline-offset-4"
+          >
+            {c("backToWorkspace")}
+          </Link>
+          <h1 className="text-4xl font-medium tracking-tight">{title}</h1>
+        </header>
+      )}
       <CorporateCreateForm
         resource={resource}
         organizationId={data.context.organization.organization_id}

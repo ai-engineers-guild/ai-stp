@@ -174,3 +174,20 @@ reload permissions on opening, or expose a failed authorization read for retry.
 This organism composes the existing menu, link, icon, report and mutation controls;
 it introduces no primitive, tokens or dependency. Story: `UI Kit/Organisms/EntityActionItems`.
 Component evidence: `tests/component/entity-action-items.test.tsx`.
+
+## Corporate route dialogs
+
+Corporate create and organizational edit routes compose the existing create
+screen, member form, resource editor and repository binding organism. Intercepted
+Next.js routes preserve the originating directory. `RouteDialog` is needed because
+`FormDialog` owns a submit form and cannot wrap the existing editor forms or the
+repository plan/bind flow without nested forms. It composes the existing Dialog
+atom and closes through browser history. Its story and component test cover the
+accessible dialog and history close. Member/access route adapters reuse the existing
+forms; their stories and tests cover immediate opening and the selected employee.
+
+Card hosts preload menu data separately and batch their reads. Opening
+refreshes authorization; authorized page content remains visible while only the
+menu displays loading or retry. Radix menu content mounts only when opened to
+preserve focus and keyboard navigation. Each mounted host owns its prefetched
+projection; no permissions from a previous session are cached.

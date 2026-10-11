@@ -236,6 +236,19 @@
           ],
           "default": null,
           "title": "Usage Context"
+        },
+        "view": {
+          "anyOf": [
+            {
+              "const": "landscape",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "View"
         }
       },
       "required": [

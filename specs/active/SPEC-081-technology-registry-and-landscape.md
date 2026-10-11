@@ -637,3 +637,12 @@ a scan. CLI checkout synchronization remains device-bound (ADR-0229).
 The journal row body navigates to details by pointer or keyboard; its three-dot menu opens independent actions. Repository scan launch rejects any project with a queued, running or retry-scheduled scan under the organization lock, including requests with different idempotency keys. The journal disables selection of active projects, and a successful launch cannot be resubmitted from the same dialog.
 
 Journal and scan-detail found/pending counts cover technology-tier findings only, grouped by the same technology-or-coordinate display identity as the review table; the `dependencies` count covers the dependency tier separately, and immutable evidence and original review identities remain available in findings. The review page lists technologies above dependencies as two sections.
+
+## Recoverable scan journal deletion
+
+Deleting a completed scan requires `landscape.manage`, authorization revision,
+expected revision zero, and an idempotency key. Queued/running scans reject deletion.
+A tenant-scoped deletion marker hides the scan from journal, details, findings and
+exports while retaining immutable observations. Replaying the mutation returns the
+stored receipt. Category icon names use the lucide: prefix and lower-case kebab serialization; the web
+resolves these names against its existing theme registry.

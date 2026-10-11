@@ -230,6 +230,7 @@ last_verified: "2026-08-03"
 | [ADR-0230-corporate-participation-and-people-visibility.md](ADR-0230-corporate-participation-and-people-visibility.md) | Participation roles on projects, a scoped teammates projection, an organization people-visibility policy, and category as a binding scope. | 2026-10-02 |
 | [ADR-0231-technology-finding-interpretation.md](ADR-0231-technology-finding-interpretation.md) | Keep owner finding decisions separate from immutable technology scan evidence. | 2026-10-08 |
 | [ADR-0232-server-entity-actions.md](ADR-0232-server-entity-actions.md) | Project entity menus from the same authorization decisions used by mutations. | 2026-10-11 |
+| [ADR-0233-recoverable-scan-journal-deletion.md](ADR-0233-recoverable-scan-journal-deletion.md) | Hide scan journal entries without destroying immutable observations. | 2026-10-11 |
 | [binding.md](binding.md) | Which accepted ADRs still constrain non-corporate work; default is binding. | 2026-09-20 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 

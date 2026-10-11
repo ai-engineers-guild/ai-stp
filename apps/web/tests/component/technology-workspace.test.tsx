@@ -60,7 +60,14 @@ const props = {
 afterEach(cleanup);
 beforeEach(() => {
   vi.mocked(queryEntityActionMenu).mockImplementation((subject) =>
-    Promise.resolve(entityMenuResult(subject, ["open", "open_project"])),
+    Promise.resolve(
+      entityMenuResult(
+        subject,
+        subject.kind === "area"
+          ? ["open", "expand_all", "collapse_all", "open_technologies"]
+          : ["open"],
+      ),
+    ),
   );
   mutation.mockReset();
   mutation.mockResolvedValue({ ok: true, data: { updated: 1 } });
@@ -104,14 +111,16 @@ it("keeps cards compact and expands categories through view controls", async () 
   expect(screen.queryByRole("button", { name: "FastAPI" })).toBeNull();
   const user = userEvent.setup();
   await user.click(
-    screen.getAllByRole("button", { name: "Expand all" }).at(0) ??
-      screen.getByRole("button", { name: "Expand all" }),
+    screen.getAllByRole("button", { name: "Area actions" })[0] ??
+      screen.getByRole("button", { name: "Area actions" }),
   );
+  await user.click(await screen.findByRole("menuitem", { name: "Expand all" }));
   expect(screen.getByRole("button", { name: "FastAPI" })).toBeVisible();
   await user.click(
-    screen.getAllByRole("button", { name: "Collapse all" }).at(0) ??
-      screen.getByRole("button", { name: "Collapse all" }),
+    screen.getAllByRole("button", { name: "Area actions" })[0] ??
+      screen.getByRole("button", { name: "Area actions" }),
   );
+  await user.click(await screen.findByRole("menuitem", { name: "Collapse all" }));
   expect(screen.queryByRole("button", { name: "FastAPI" })).toBeNull();
 });
 it("translates unchanged taxonomy defaults, preserves owner names and keeps empty areas honest", () => {
@@ -316,7 +325,7 @@ it("uses the shared server menu for a landscape area", async () => {
     Promise.resolve(
       entityMenuResult(
         { ...subject, organization_id: authority.organizationId },
-        ["copy_id", "edit", "delete"],
+        ["open", "expand_all", "collapse_all", "open_technologies", "edit", "delete"],
         "/corporate/admin/technology-areas",
       ),
     ),
@@ -338,10 +347,17 @@ it("uses the shared server menu for a landscape area", async () => {
   );
   await screen.findByRole("menuitem", { name: "Delete" });
   expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
-    "Copy ID",
+    "Open details",
+    "Expand all",
+    "Collapse all",
+    "Open technology list",
     "Edit",
     "Delete",
   ]);
-  expect(queryEntityActionMenu).toHaveBeenCalledWith({ kind: "area", id: areas[0].area_id });
-  expect(screen.queryByRole("menuitem", { name: "Expand all" })).not.toBeInTheDocument();
+  expect(queryEntityActionMenu).toHaveBeenCalledWith({
+    kind: "area",
+    id: areas[0].area_id,
+    view: "landscape",
+  });
+  expect(screen.queryByRole("button", { name: "Expand all" })).not.toBeInTheDocument();
 });

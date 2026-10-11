@@ -15,13 +15,16 @@ import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/atoms/men
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 
-type Props = {
+export type CorporateResourceActionsProps = {
+  initiallyEditing?: boolean;
+  closeOnSave?: boolean;
   csrfToken: string;
   organizationId: string;
   authorizationRevision: number;
   resource: "members" | "projects" | "teams" | "roles" | "technologies";
   resourceId: string;
   name: string;
+  description?: string;
   role?: string;
   rolePermissions?: readonly string[];
   state: string;
@@ -63,7 +66,11 @@ export function CorporateResourceDeleteMenuItem({
   csrfToken: string;
   organizationId: string;
   authorizationRevision: number;
-  resource: Props["resource"] | "technology-categories" | "technology-areas";
+  resource:
+    | CorporateResourceActionsProps["resource"]
+    | "technology-categories"
+    | "technology-areas"
+    | "technology-scans";
   resourceId: string;
   revision: number;
   label: string;
@@ -121,17 +128,20 @@ export function CorporateResourceActions({
   resource,
   resourceId,
   name,
+  description,
   role,
   rolePermissions,
   state,
   revision,
   roles = [],
   labels,
-}: Props) {
+  initiallyEditing = false,
+  closeOnSave = false,
+}: CorporateResourceActionsProps) {
   const router = useRouter();
   const t = useTranslations("corporate");
   const common = useTranslations("common");
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(initiallyEditing);
   const [busy, startTransition] = useTransition();
   const [nextName, setNextName] = useState(name);
   const [nextRole, setNextRole] = useState(role ?? "staff");
@@ -172,6 +182,7 @@ export function CorporateResourceActions({
         setMessage(labels.saved);
         retry.current = null;
         setEditing(false);
+        if (closeOnSave) router.back();
         router.refresh();
       } catch {
         setMessage(common("apiUnavailable"));
@@ -241,7 +252,11 @@ export function CorporateResourceActions({
                         .map((permission) => permission.trim())
                         .filter(Boolean),
                     }
-                  : { name: nextName, state: nextState }),
+                  : {
+                      name: nextName,
+                      state: nextState,
+                      ...(resource === "teams" ? { description: description ?? "" } : {}),
+                    }),
               expected_revision: revision,
               authorization_revision: authorizationRevision,
             });
@@ -316,7 +331,8 @@ export function CorporateResourceActions({
             variant="outline"
             disabled={busy}
             onClick={() => {
-              setEditing(false);
+              if (closeOnSave) router.back();
+              else setEditing(false);
             }}
           >
             {t("cancel")}

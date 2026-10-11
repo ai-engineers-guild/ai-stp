@@ -434,10 +434,6 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           name: "Edit public presentation",
           exact: true,
         });
-        if (resource === "employees") {
-          await expect(edit).toHaveCount(0);
-          return;
-        }
         if (!canEdit) {
           await expect(edit).toHaveCount(0);
           await screenshot(page, info, `${resource}-detail-readonly`);
@@ -460,7 +456,7 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
         const draftMarker = `Corporate goal browser draft (${info.project.name}-${resource})`;
         const draft = `${original}\n\n**${draftMarker}**`;
         await description.fill(draft);
-        const form = main(page).locator('form[aria-label="Edit public presentation"]');
+        const form = page.locator('form[aria-label="Edit public presentation"]');
         await form.getByRole("button", { name: "Rendered", exact: true }).click();
         const renderedDraft = form.locator("strong").filter({ hasText: draftMarker });
         await expect(renderedDraft).toHaveCount(1);

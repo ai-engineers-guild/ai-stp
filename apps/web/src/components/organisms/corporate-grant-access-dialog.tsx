@@ -48,6 +48,7 @@ export function CorporateGrantAccessDialog({
   scopeOptions,
   definitions,
   capabilities,
+  initialMemberIds = [],
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -62,13 +63,14 @@ export function CorporateGrantAccessDialog({
   scopeOptions: readonly { value: string; label: string }[];
   definitions: readonly CorporatePermissionDefinition[];
   capabilities: readonly string[];
+  initialMemberIds?: readonly string[];
 }) {
   const a = useTranslations("accessUi");
   const c = useTranslations("corporate");
   const p = useTranslations("people");
   const router = useRouter();
   const [busy, startTransition] = useTransition();
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string[]>([...initialMemberIds]);
   const [kind, setKind] = useState<"role" | "permission">("role");
   const [scopeKind, setScopeKind] = useState("organization");
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);

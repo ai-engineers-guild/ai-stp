@@ -16,7 +16,7 @@ import { Textarea } from "@/components/atoms/textarea";
 import { EntityDetailMenu } from "@/components/organisms/entity-detail-menu";
 import { FormDialog } from "@/components/molecules/form-dialog";
 import {
-  CATEGORY_LUCIDE_PREFIX,
+  categoryIconValue,
   CategoryIconBadge,
   categoryLucideName,
 } from "@/components/molecules/category-icon-badge";
@@ -165,7 +165,7 @@ export function CorporateTechCategories({
   const selected = categories.find((item) => item.category_id === selectedId) ?? null;
   const selectedLinked = selected ? (linked.get(selected.category_id) ?? []) : [];
   const iconFor = (category: CategoryView) =>
-    category.icon ?? `${CATEGORY_LUCIDE_PREFIX}${defaultCategoryIcon(category.category_id)}`;
+    category.icon ?? categoryIconValue(defaultCategoryIcon(category.category_id));
 
   function openEditor(category: CategoryView | null) {
     setCreating(category === null);
@@ -180,7 +180,7 @@ export function CorporateTechCategories({
         : {
             name: "",
             description: "",
-            icon: `${CATEGORY_LUCIDE_PREFIX}${defaultCategoryIcon(`new-${Date.now()}`)}`,
+            icon: categoryIconValue(defaultCategoryIcon(`new-${Date.now()}`)),
           },
     );
   }
@@ -766,6 +766,7 @@ export function CorporateTechCategories({
         busyLabel={t("saving")}
         busy={busy}
         submitDisabled={!draft?.name.trim() || (creating ? !can("category.create") : !canUpdate)}
+        error={message}
         onSubmit={save}
       >
         {draft ? (
@@ -856,7 +857,7 @@ export function CorporateTechCategories({
               value={categoryLucideName(draft.icon)}
               label={t("chooseIcon")}
               onChange={(icon) => {
-                setDraft({ ...draft, icon: `${CATEGORY_LUCIDE_PREFIX}${icon}` });
+                setDraft({ ...draft, icon: categoryIconValue(icon) });
                 setIconPicker(false);
               }}
             />

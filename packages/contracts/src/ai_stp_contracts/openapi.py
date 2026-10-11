@@ -1112,6 +1112,18 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         path_params=(_ORGANIZATION_ID, _SCAN_ID),
     ),
     Operation(
+        method="delete",
+        path="/corporate/organizations/{organization_id}/technology-scans/{scan_id}",
+        operation_id="deleteTechnologyScan",
+        summary="Remove a completed scan from the journal, retaining immutable evidence.",
+        response=CorporateDeleteResult,
+        body=TechnologyMutation,
+        authenticated=True,
+        idempotent_mutation=True,
+        requires_precondition=True,
+        path_params=(_ORGANIZATION_ID, _SCAN_ID),
+    ),
+    Operation(
         method="get",
         path="/corporate/organizations/{organization_id}/technology-scans/{scan_id}/findings",
         operation_id="readTechnologyScanFindings",

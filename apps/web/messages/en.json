@@ -649,7 +649,6 @@
       "id": "ID",
       "projectRepository": "Project / Repository",
       "dateTime": "Date and time (UTC)",
-      "openScan": "Open scan {id}",
       "journalDescription": "Repository and project scan history. Results are used to detect and map technologies.",
       "mapTitle": "Technology map",
       "mapDescription": "Actual technologies and versions used in the organization, grouped by technology area and category.",
@@ -3603,6 +3602,14 @@
       "invitation": {
         "name": "Invitations",
         "description": "Create, list and revoke organization invitations (member.invite)"
+      },
+      "area": {
+        "name": "Technology areas",
+        "description": "Technology taxonomy areas"
+      },
+      "connector": {
+        "name": "Git connectors",
+        "description": "Repository provider connections"
       }
     },
     "actions": {

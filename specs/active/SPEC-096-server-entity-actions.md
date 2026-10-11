@@ -86,3 +86,18 @@ and revisions after a menu was displayed. No secrets enter action descriptors.
 Deploy API and web contract consumers together. No storage migration is needed.
 For rollback, restore both application images to the preceding release; existing
 grants, role bindings and catalog ownership records are unchanged.
+
+## Corporate directory interactions
+
+Corporate organizational creation and edit use intercepted modal routes. Employee
+presentation edit and access grants also preserve the originating page. Project
+and team presentation editing use distinct `/presentation/edit` pages. Repository
+binding is part of project edit and uses the same subject permission decision,
+including the active lead of the current owner team.
+
+Area menus contain details and permitted management actions; landscape-view
+subjects additionally receive ordered expand, collapse and technology-list actions.
+Area menus omit generic sharing and copy actions. Scan menus expose details and
+completed-scan deletion to principals with `landscape.manage`; project navigation
+is an explicit journal button. Reports occurs once in root navigation; Landscape
+contains the map, scans and mapping only.

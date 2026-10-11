@@ -7702,6 +7702,10 @@ export type EntityActionSubject = {
    * Usage Context
    */
   usage_context?: "production" | "development" | "testing" | "browser_support" | null;
+  /**
+   * View
+   */
+  view?: "landscape" | null;
 };
 
 export type EntityId = string;
@@ -29758,6 +29762,76 @@ export type LaunchTechnologyScansResponses = {
 
 export type LaunchTechnologyScansResponse =
   LaunchTechnologyScansResponses[keyof LaunchTechnologyScansResponses];
+
+export type DeleteTechnologyScanData = {
+  body: TechnologyMutation;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Immutable scan ID.
+     */
+    scan_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-scans/{scan_id}";
+};
+
+export type DeleteTechnologyScanErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type DeleteTechnologyScanError =
+  DeleteTechnologyScanErrors[keyof DeleteTechnologyScanErrors];
+
+export type DeleteTechnologyScanResponses = {
+  /**
+   * Remove a completed scan from the journal, retaining immutable evidence.
+   */
+  200: CorporateDeleteResult;
+};
+
+export type DeleteTechnologyScanResponse =
+  DeleteTechnologyScanResponses[keyof DeleteTechnologyScanResponses];
 
 export type ReadTechnologyScanDetailData = {
   body?: never;

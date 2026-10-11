@@ -9,7 +9,7 @@ const routes: Partial<Record<EntityActionSubject["kind"], string>> = {
   member: "employees",
   technology: "technologies",
   category: "categories",
-  area: "admin/technology-areas",
+  area: "areas",
   job_title: "admin/job-titles",
   role: "admin/roles",
 };
@@ -44,7 +44,16 @@ function fixtureMenu(subject: EntityActionSubject, authenticated: boolean): Enti
   }
   if (subject.kind === "grant") ids.splice(0, ids.length, "copy_id", "revoke");
   if (subject.kind === "invitation") ids.splice(0, ids.length, "copy_id", "revoke");
-  if (subject.kind === "scan") ids.splice(0, ids.length, "open", "open_project");
+  if (subject.kind === "scan")
+    ids.splice(0, ids.length, "open", ...(authenticated ? ["delete"] : []));
+  if (subject.kind === "area")
+    ids.splice(
+      0,
+      ids.length,
+      "open",
+      ...(subject.view === "landscape" ? ["expand_all", "collapse_all", "open_technologies"] : []),
+      ...(authenticated ? ["edit", "delete"] : []),
+    );
   if (subject.kind === "finding")
     ids.splice(
       0,
@@ -54,7 +63,7 @@ function fixtureMenu(subject: EntityActionSubject, authenticated: boolean): Enti
       "create_technology",
       "move_to_dependencies",
     );
-  if (!["scan", "finding", "invitation"].includes(subject.kind)) ids.push("report");
+  if (!["scan", "finding", "invitation", "area"].includes(subject.kind)) ids.push("report");
   const actions: EntityAction[] = ids.map((id) => ({
     id,
     group:
@@ -74,7 +83,7 @@ function fixtureMenu(subject: EntityActionSubject, authenticated: boolean): Enti
       ? `/catalog/${subject.kind === "component" ? "components" : "setups"}/${subject.id}`
       : subject.kind === "publisher"
         ? `/publishers/${subject.id}`
-        : `/corporate/${routes[subject.kind] ?? "admin"}${["team", "project", "member", "technology", "category"].includes(subject.kind) ? `/${subject.id}` : ""}`,
+        : `/corporate/${routes[subject.kind] ?? "admin"}${["team", "project", "member", "technology", "category", "area"].includes(subject.kind) ? `/${subject.id}` : ""}`,
     revision: 1,
     authorization_revision: 1,
     object_version: object ? "1.0" : null,

@@ -14,11 +14,32 @@ import { ContactReportDialog } from "@/components/organisms/contact-report-dialo
 import { toast } from "sonner";
 import { corporateMutation } from "@/lib/api/corporate-mutation";
 
+type MenuResult = { menu: EntityActionMenu; csrfToken: string };
+/** Prefetch while the card is visible; each host owns and discards its projection. */
+export function usePreloadedEntityMenu(subject: EntityActionSubject | null) {
+  const key = JSON.stringify(subject);
+  const [loaded, setLoaded] = useState<{ key: string; result: MenuResult } | null>(null);
+  useEffect(() => {
+    if (key === "null") return;
+    let current = true;
+    void queryEntityActionMenu(JSON.parse(key) as EntityActionSubject)
+      .then((result) => {
+        if (current) setLoaded({ key, result });
+      })
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [key]);
+  return loaded && loaded.key === key ? loaded.result : null;
+}
+
 /** The server selects actions and groups. Entries supply behavior, never authority or order. */
 export function EntityActionItems(props: {
   subject: EntityActionSubject;
   entries: Record<string, ReactNode>;
   onLoaded?: (menu: EntityActionMenu, csrfToken: string) => void;
+  initialResult?: MenuResult | null;
 }) {
   return <LoadedEntityActionItems key={JSON.stringify(props.subject)} {...props} />;
 }
@@ -27,14 +48,16 @@ function LoadedEntityActionItems({
   subject,
   entries,
   onLoaded,
+  initialResult,
 }: {
   subject: EntityActionSubject;
   entries: Record<string, ReactNode>;
   onLoaded?: (menu: EntityActionMenu, csrfToken: string) => void;
+  initialResult?: MenuResult | null;
 }) {
   const common = useTranslations("common");
   const hub = useTranslations("hub");
-  const [result, setResult] = useState<{ menu: EntityActionMenu; csrfToken: string } | null>(null);
+  const [result, setResult] = useState<MenuResult | null>(initialResult ?? null);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [reportOpen, setReportOpen] = useState(false);
@@ -44,12 +67,16 @@ function LoadedEntityActionItems({
     void queryEntityActionMenu(JSON.parse(key) as EntityActionSubject)
       .then(({ menu, csrfToken }) => {
         if (current) {
+          setFailed(false);
           setResult({ menu, csrfToken });
           onLoaded?.(menu, csrfToken);
         }
       })
       .catch(() => {
-        if (current) setFailed(true);
+        if (current) {
+          setResult(null);
+          setFailed(true);
+        }
       });
     return () => {
       current = false;
@@ -104,6 +131,21 @@ function LoadedEntityActionItems({
       />
     </>
   );
+}
+
+function editHref(menu: EntityActionMenu, id: string, catalogObject: boolean) {
+  const subject = menu.subject;
+  return catalogObject
+    ? `/objects/${subject.kind}/${subject.id}/edit`
+    : subject.kind === "category"
+      ? `/corporate/admin/tech-categories?entity=${subject.id}&action=edit`
+      : subject.kind === "area"
+        ? `/corporate/admin/technology-areas?entity=${subject.id}&action=edit`
+        : subject.kind === "job_title"
+          ? `/corporate/admin/job-titles?entity=${subject.id}&action=edit`
+          : subject.kind === "role"
+            ? `/corporate/admin/roles?entity=${encodeURIComponent(subject.id)}&action=edit`
+            : `${menu.href}/${id === "edit_presentation" && ["member", "team", "project"].includes(subject.kind) ? "presentation/edit" : "edit"}`;
 }
 
 function DefaultEntityAction({
@@ -185,17 +227,7 @@ function DefaultEntityAction({
       </MenuItem>
     );
   if ((id === "edit" || id === "edit_presentation") && menu.href) {
-    const href = catalogObject
-      ? `/objects/${subject.kind}/${subject.id}/edit`
-      : subject.kind === "category"
-        ? `/corporate/admin/tech-categories?entity=${subject.id}&action=edit`
-        : subject.kind === "area"
-          ? `/corporate/admin/technology-areas?entity=${subject.id}&action=edit`
-          : subject.kind === "job_title"
-            ? `/corporate/admin/job-titles?entity=${subject.id}&action=edit`
-            : subject.kind === "role"
-              ? `/corporate/admin/roles?entity=${encodeURIComponent(subject.id)}&action=edit`
-              : `${menu.href}/edit`;
+    const href = editHref(menu, id, catalogObject);
     return (
       <MenuItem asChild>
         <Link href={href}>
@@ -212,7 +244,7 @@ function DefaultEntityAction({
           href={
             catalogObject
               ? `/access?object_kind=${subject.kind}&stable_id=${encodeURIComponent(subject.id)}`
-              : `/corporate/admin/employee-access?employee=${encodeURIComponent(subject.id)}`
+              : `/corporate/employees/${encodeURIComponent(subject.id)}/access`
           }
         >
           <Icon name="access" size="sm" />
@@ -352,6 +384,7 @@ function CorporateMenuAction({
     role: "roles",
     category: "technology-categories",
     area: "technology-areas",
+    scan: "technology-scans",
   };
   const resource = resources[subject.kind];
   if (
@@ -375,6 +408,7 @@ function CorporateMenuAction({
             | "technologies"
             | "roles"
             | "technology-categories"
+            | "technology-scans"
             | "technology-areas"
         }
         resourceId={subject.id}

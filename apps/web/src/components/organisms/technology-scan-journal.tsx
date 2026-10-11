@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { Button } from "@/components/atoms/button";
 import { Badge } from "@/components/atoms/badge";
 import { Select } from "@/components/atoms/select";
 import { Table, TBody, Td, THead, Th, Tr } from "@/components/atoms/table";
@@ -152,6 +153,7 @@ export function TechnologyScanJournalTable({
   const w = useTranslations("technology.workspace"),
     s = useTranslations("technology.scans"),
     locale = useLocale();
+  const h = useTranslations("hub");
   const router = useRouter();
   const scanType = useTranslations("technology.workspace.scanTypes");
   const scanTypes = {
@@ -270,22 +272,24 @@ export function TechnologyScanJournalTable({
               <Td>{scan.status === "failed" ? "—" : scan.found}</Td>
               <Td>{scan.status === "failed" ? "—" : scan.pending}</Td>
               <Td>
-                <EntityDetailMenu
-                  moreLabel={w("actions")}
-                  subject={{ kind: "scan", id: scan.scan_id }}
-                  choices={[
-                    {
-                      actionId: "open",
-                      label: w("openScan", { id: scan.scan_id }),
-                      href: `/corporate/technology-scans/${scan.scan_id}`,
-                    },
-                    {
-                      actionId: "open_project",
-                      label: w("project"),
-                      href: `/corporate/projects/${scan.project_id}`,
-                    },
-                  ]}
-                />
+                <div className="flex items-center gap-2">
+                  <Button asChild variant="outline" size="icon" aria-label={w("project")}>
+                    <Link href={`/corporate/projects/${scan.project_id}`}>
+                      <Icon name="component" />
+                    </Link>
+                  </Button>
+                  <EntityDetailMenu
+                    moreLabel={w("actions")}
+                    subject={{ kind: "scan", id: scan.scan_id }}
+                    choices={[
+                      {
+                        actionId: "open",
+                        label: h("openDetails"),
+                        href: `/corporate/technology-scans/${scan.scan_id}`,
+                      },
+                    ]}
+                  />
+                </div>
               </Td>
             </Tr>
           ))}

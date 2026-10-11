@@ -48,6 +48,7 @@ import {
 import { useRouter } from "@/lib/i18n/navigation";
 
 export type CorporateEntityUpdate =
+  | { kind: "profile"; revision: number }
   | { kind: "project"; revision: number; state: "active" | "archived" }
   | {
       kind: "team";
@@ -65,6 +66,7 @@ export function CorporateRichEditor({
   csrfToken,
   cancelHref,
   entityUpdate,
+  closeThroughHistory = false,
 }: {
   initial: CorporatePresentation;
   organizationId: string;
@@ -73,6 +75,7 @@ export function CorporateRichEditor({
   csrfToken: string;
   cancelHref: string;
   entityUpdate: CorporateEntityUpdate;
+  closeThroughHistory?: boolean;
 }) {
   const account = useTranslations("account");
   const common = useTranslations("common");
@@ -191,7 +194,8 @@ export function CorporateRichEditor({
   }
 
   async function updateEntity(key: string) {
-    if (name.trim() === initial.name) return { ok: true } as const;
+    if (entityUpdate.kind === "profile" || name.trim() === initial.name)
+      return { ok: true } as const;
     const base = {
       schema_version: 1 as const,
       expected_revision: entityUpdate.revision,
@@ -316,7 +320,8 @@ export function CorporateRichEditor({
           return;
         }
         saveReceipt.current = null;
-        router.push(cancelHref);
+        if (closeThroughHistory) router.back();
+        else router.push(cancelHref);
         router.refresh();
       } catch {
         setError(account("profileSaveFailed"));
@@ -349,6 +354,7 @@ export function CorporateRichEditor({
                 <Input
                   id="entity-name"
                   value={name}
+                  readOnly={entityUpdate.kind !== "technology"}
                   required
                   maxLength={config.limits.displayName}
                   className={
@@ -452,7 +458,8 @@ export function CorporateRichEditor({
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    router.push(cancelHref);
+                    if (closeThroughHistory) router.back();
+                    else router.push(cancelHref);
                   }}
                 >
                   {common("cancel")}

@@ -187,6 +187,9 @@ import type {
   DeleteStaffContentData,
   DeleteStaffContentErrors,
   DeleteStaffContentResponses,
+  DeleteTechnologyScanData,
+  DeleteTechnologyScanErrors,
+  DeleteTechnologyScanResponses,
   DisconnectGithubData,
   DisconnectGithubErrors,
   DisconnectGithubResponses,
@@ -4469,6 +4472,26 @@ export const launchTechnologyScans = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/technology-scans",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Remove a completed scan from the journal, retaining immutable evidence.
+ */
+export const deleteTechnologyScan = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteTechnologyScanData, ThrowOnError>,
+): RequestResult<DeleteTechnologyScanResponses, DeleteTechnologyScanErrors, ThrowOnError> =>
+  (options.client ?? client).delete<
+    DeleteTechnologyScanResponses,
+    DeleteTechnologyScanErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technology-scans/{scan_id}",
     ...options,
     headers: {
       "Content-Type": "application/json",

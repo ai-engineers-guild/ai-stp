@@ -14,14 +14,23 @@ beforeEach(() => vi.resetAllMocks());
 it("opens a linked operation only after the server returns that action", async () => {
   const open = vi.fn();
   vi.mocked(queryEntityActionMenu).mockResolvedValue(entityMenuResult(subject, []));
-  const hook = renderHook(({ action }) => useRequestedEntityAction(subject, action, open), {
-    initialProps: { action: "restore" },
+  const hook = renderHook(
+    ({ action }) => {
+      useRequestedEntityAction(subject, action, open);
+    },
+    {
+      initialProps: { action: "restore" },
+    },
+  );
+  await waitFor(() => {
+    expect(queryEntityActionMenu).toHaveBeenCalledOnce();
   });
-  await waitFor(() => expect(queryEntityActionMenu).toHaveBeenCalledOnce());
   expect(open).not.toHaveBeenCalled();
   vi.mocked(queryEntityActionMenu).mockResolvedValue(entityMenuResult(subject, ["edit"]));
   hook.rerender({ action: "edit" });
-  await waitFor(() => expect(open).toHaveBeenCalledOnce());
+  await waitFor(() => {
+    expect(open).toHaveBeenCalledOnce();
+  });
 });
 
 it("does not execute an old entity response after the subject changes", async () => {
@@ -35,11 +44,18 @@ it("does not execute an old entity response after the subject changes", async ()
         }),
     )
     .mockResolvedValueOnce(entityMenuResult({ ...subject, id: "title_2" }, []));
-  const hook = renderHook(({ entity }) => useRequestedEntityAction(entity, "edit", open), {
-    initialProps: { entity: subject },
-  });
+  const hook = renderHook(
+    ({ entity }) => {
+      useRequestedEntityAction(entity, "edit", open);
+    },
+    {
+      initialProps: { entity: subject },
+    },
+  );
   hook.rerender({ entity: { ...subject, id: "title_2" } });
   resolveOld?.(entityMenuResult(subject, ["edit"]));
-  await waitFor(() => expect(queryEntityActionMenu).toHaveBeenCalledTimes(2));
+  await waitFor(() => {
+    expect(queryEntityActionMenu).toHaveBeenCalledTimes(2);
+  });
   expect(open).not.toHaveBeenCalled();
 });

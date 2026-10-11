@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
-import { Menu, MenuTrigger, MenuContent } from "@/components/atoms/menu";
+import { MenuItem, Menu, MenuTrigger, MenuContent } from "@/components/atoms/menu";
 import { EntityActionItems } from "@/components/organisms/entity-action-items";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/atoms/dialog";
 import { Link } from "@/lib/i18n/navigation";
@@ -99,26 +99,24 @@ function LandscapeAreaCard({
               </Button>
             </MenuTrigger>
             <MenuContent>
-              <EntityActionItems subject={{ kind: "area", id: group.areaId }} entries={{}} />
+              <EntityActionItems
+                subject={{ kind: "area", id: group.areaId, view: "landscape" }}
+                entries={{
+                  expand_all: <MenuItem onSelect={expandAll}>{w("expandAll")}</MenuItem>,
+                  collapse_all: <MenuItem onSelect={collapseAll}>{w("collapseAll")}</MenuItem>,
+                  open_technologies: (
+                    <MenuItem asChild>
+                      <Link href={`/corporate/technologies?area_ids=${group.areaId}`}>
+                        {w("openTechnologies")}
+                      </Link>
+                    </MenuItem>
+                  ),
+                }}
+              />
             </MenuContent>
           </Menu>
         ) : null}
       </header>
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="ghost" onClick={expandAll}>
-          {w("expandAll")}
-        </Button>
-        <Button size="sm" variant="ghost" onClick={collapseAll}>
-          {w("collapseAll")}
-        </Button>
-        {group.areaId ? (
-          <Button size="sm" variant="ghost" asChild>
-            <Link href={`/corporate/technologies?area_ids=${group.areaId}`}>
-              {w("openTechnologies")}
-            </Link>
-          </Button>
-        ) : null}
-      </div>
       {!group.categories.length && (
         <p className="text-muted-foreground text-xs">{w("emptyArea")}</p>
       )}

@@ -9,9 +9,15 @@ import {
 /** Prefix the contract's TechnologyCategoryMetadata.icon uses for registry glyphs. */
 export const CATEGORY_LUCIDE_PREFIX = "lucide:";
 
+export function categoryIconValue(name: CategoryIconName): string {
+  return `${CATEGORY_LUCIDE_PREFIX}${name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`;
+}
+
 export function categoryLucideName(icon: string | null | undefined): CategoryIconName | null {
   const name = icon?.startsWith(CATEGORY_LUCIDE_PREFIX)
-    ? icon.slice(CATEGORY_LUCIDE_PREFIX.length)
+    ? icon
+        .slice(CATEGORY_LUCIDE_PREFIX.length)
+        .replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase())
     : null;
   return name && (CATEGORY_ICON_NAMES as readonly string[]).includes(name)
     ? (name as CategoryIconName)

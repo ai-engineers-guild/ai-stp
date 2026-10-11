@@ -136,6 +136,32 @@ async def subject_permission_allowed(
             scope_kind="organization",
             scope_id=organization_id,
         )
+    if (
+        not allowed
+        and permission in {"team.update", "project.update"}
+        and resource in {"team", "project"}
+    ):
+        if not await corporate_principal_active(
+            db, organization_id=organization_id, principal_type="user", principal_id=account_id
+        ):
+            return False
+        led = _led_teams(organization_id, account_id)
+        if resource == "team":
+            allowed = (
+                await db.scalar(led.where(CorporateTeamMember.team_id == subject_id))
+            ) is not None
+        else:
+            allowed = (
+                await db.scalar(
+                    select(ProjectTeamRelation.team_id).where(
+                        ProjectTeamRelation.organization_id == organization_id,
+                        ProjectTeamRelation.project_id == subject_id,
+                        ProjectTeamRelation.team_id.in_(led),
+                        ProjectTeamRelation.role == "owner",
+                        ProjectTeamRelation.state == "current",
+                    )
+                )
+            ) is not None
     return allowed or (
         resource == "technology"
         and permission == "technology.update"

@@ -4,7 +4,10 @@ import { createContext, useContext, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 
-import { EntityActionItems } from "@/components/organisms/entity-action-items";
+import {
+  EntityActionItems,
+  usePreloadedEntityMenu,
+} from "@/components/organisms/entity-action-items";
 import { Button } from "@/components/atoms/button";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/atoms/menu";
 import { ContactReportDialog } from "@/components/organisms/contact-report-dialog";
@@ -154,6 +157,7 @@ export function ObjectOverflowMenu({
   ownerEdit,
   visibilityEdit,
 }: ObjectActionProps) {
+  const preloaded = usePreloadedEntityMenu({ kind: objectKind, id: stableId });
   const behavior = useObjectMenuExecution(stableId, ownerEdit, visibilityEdit);
   const { execution, setExecution, setReportOpen, setVisibilityOpen, openOwner, openAssignment } =
     behavior;
@@ -190,6 +194,7 @@ export function ObjectOverflowMenu({
         </MenuTrigger>
         <MenuContent>
           <EntityActionItems
+            initialResult={preloaded}
             subject={{ kind: objectKind, id: stableId }}
             onLoaded={(menu, csrfToken) => {
               setExecution({ menu, csrfToken });

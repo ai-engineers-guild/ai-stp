@@ -3,7 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextIntlClientProvider } from "next-intl";
 import messages from "../../messages/en.json";
-import { EntityActionItems } from "@/components/organisms/entity-action-items";
+import {
+  EntityActionItems,
+  usePreloadedEntityMenu,
+} from "@/components/organisms/entity-action-items";
 import { Button } from "@/components/atoms/button";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/atoms/menu";
 import { queryEntityActionMenu } from "@/lib/entity-action-query";
@@ -22,7 +25,14 @@ const subject: EntityActionSubject = {
   id: "team_1",
   organization_id: "organization_1",
 };
-function Example({ entity = subject }: { entity?: EntityActionSubject }) {
+function Example({
+  entity = subject,
+  preload = false,
+}: {
+  entity?: EntityActionSubject;
+  preload?: boolean;
+}) {
+  const initialResult = usePreloadedEntityMenu(preload ? entity : null);
   return (
     <NextIntlClientProvider locale="en" messages={messages}>
       <Menu>
@@ -31,6 +41,7 @@ function Example({ entity = subject }: { entity?: EntityActionSubject }) {
         </MenuTrigger>
         <MenuContent>
           <EntityActionItems
+            initialResult={initialResult}
             subject={entity}
             entries={{
               edit: <MenuItem>Edit</MenuItem>,
@@ -97,4 +108,21 @@ describe("server entity actions", () => {
       expect(queryEntityActionMenu).toHaveBeenCalledTimes(2);
     });
   });
+});
+
+it("preloads without exposing hidden actions, then revalidates when opened", async () => {
+  vi.mocked(queryEntityActionMenu)
+    .mockResolvedValueOnce(result(["edit"]))
+    .mockResolvedValueOnce(result(["open"]));
+  const user = userEvent.setup();
+  render(<Example preload />);
+  await waitFor(() => {
+    expect(queryEntityActionMenu).toHaveBeenCalledTimes(1);
+  });
+  expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  expect(screen.queryByRole("menuitem")).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Actions" }));
+  await screen.findByRole("menuitem", { name: "Open" });
+  expect(screen.queryByRole("menuitem", { name: "Edit" })).not.toBeInTheDocument();
+  expect(queryEntityActionMenu).toHaveBeenCalledTimes(2);
 });

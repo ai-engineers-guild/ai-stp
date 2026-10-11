@@ -19,6 +19,7 @@ function listPageFiles(dir: string): string[] {
   const out: string[] = [];
   for (const name of readdirSync(dir)) {
     const full = path.join(dir, name);
+    if (name.startsWith("@")) continue;
     if (statSync(full).isDirectory()) {
       out.push(...listPageFiles(full));
       continue;

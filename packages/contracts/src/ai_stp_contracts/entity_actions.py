@@ -31,6 +31,7 @@ class EntityActionSubject(ContractModel):
     kind: EntityKind
     id: Annotated[str, Field(min_length=1, max_length=128)]
     organization_id: Annotated[str, Field(min_length=1, max_length=64)] | None = None
+    view: Literal["landscape"] | None = None
     finding_kind: Literal["package", "image", "executable", "configuration", "alias"] | None = None
     coordinate: Annotated[str, Field(min_length=1, max_length=512)] | None = None
     usage_context: Literal["production", "development", "testing", "browser_support"] | None = None

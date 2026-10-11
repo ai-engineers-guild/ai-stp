@@ -1,5 +1,6 @@
 "use client";
 
+import { CompactChipList } from "@/components/molecules/compact-chip-list";
 import { Badge } from "@/components/atoms/badge";
 import { EntityDetailMenu } from "@/components/organisms/entity-detail-menu";
 import { ObjectCard } from "@/components/organisms/object-card";
@@ -142,9 +143,15 @@ function RelationColumn({
         <span>{label}</span>
       </div>
       <div className="flex min-w-0 flex-wrap gap-2">
-        {references.map((reference) => (
-          <ReferenceChip key={reference.id} reference={reference} returnFilters={returnFilters} />
-        ))}
+        <CompactChipList
+          values={references.map((reference) => reference.name)}
+          label={label}
+          limit={5}
+          hrefForValue={(name) => {
+            const reference = references.find((reference) => reference.name === name);
+            return reference ? relationHref(reference, returnFilters) : "#";
+          }}
+        />
       </div>
     </div>
   );
@@ -322,13 +329,15 @@ export function CorporateDirectoryCard({
             ) : null}
             {references.length ? (
               <div className="mt-4 flex min-w-0 flex-wrap gap-2">
-                {references.map((reference) => (
-                  <ReferenceChip
-                    key={reference.id}
-                    reference={reference}
-                    returnFilters={returnFilters}
-                  />
-                ))}
+                <CompactChipList
+                  values={references.map((reference) => reference.name)}
+                  label={resource === "members" ? labels.teams : labels.technologies}
+                  limit={5}
+                  hrefForValue={(name) => {
+                    const reference = references.find((item) => item.name === name);
+                    return reference ? relationHref(reference, returnFilters) : undefined;
+                  }}
+                />
               </div>
             ) : null}
             {resource === "components" && item.description ? (

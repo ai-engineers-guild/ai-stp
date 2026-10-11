@@ -4,7 +4,10 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { EntityActionItems } from "@/components/organisms/entity-action-items";
+import {
+  EntityActionItems,
+  usePreloadedEntityMenu,
+} from "@/components/organisms/entity-action-items";
 import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
 import { entityActionSubject } from "@/lib/entity-action-subject";
 import { Button } from "@/components/atoms/button";
@@ -79,6 +82,7 @@ export function EntityDetailMenu({
   }[];
 }) {
   const actionSubject = subject ?? entityActionSubject(reportTarget);
+  const preloaded = usePreloadedEntityMenu(actionSubject ?? null);
   const [reportOpen, setReportOpen] = useState(false);
 
   async function copy(value: string) {
@@ -116,6 +120,7 @@ export function EntityDetailMenu({
         <MenuContent sideOffset={6}>
           {actionSubject ? (
             <EntityActionItems
+              initialResult={preloaded}
               subject={actionSubject}
               entries={{
                 ...Object.fromEntries(

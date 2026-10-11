@@ -8,6 +8,7 @@ from ai_stp_api.errors import ApiError
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.corporate.service import bootstrap, create_project
 from ai_stp_api.slices.technology.detection import (
+    delete_scan,
     export_scan_findings,
     launch_scans,
     list_mappings,
@@ -41,6 +42,7 @@ from ai_stp_contracts.technology import (
     ProjectTechnologyWriteRequest,
     TechnologyLifecycleRequest,
     TechnologyMappingRequest,
+    TechnologyMutation,
     TechnologyScanLaunchRequest,
     TechnologyScanRequest,
     TechnologySeedRequest,
@@ -1141,6 +1143,71 @@ async def test_scan_journal_launch_and_detail(
     assert (
         await list_scans(db_session, ctx=ctx, organization_id=org, request_id="after-duplicate")
     ).total == 3
+
+    # Removing a journal row cannot destroy the immutable evidence used by derivation.
+    from ai_stp_api.slices.entity_actions.service import read_menu
+    from ai_stp_contracts.entity_actions import EntityActionSubject
+
+    menu = await read_menu(
+        db_session,
+        ctx=ctx,
+        subject=EntityActionSubject(kind="scan", id=published.scan_id, organization_id=org),
+    )
+    assert [action.id for action in menu.actions] == ["open", "delete"]
+    queued_menu = await read_menu(
+        db_session,
+        ctx=ctx,
+        subject=EntityActionSubject(kind="scan", id=queued.scan_id, organization_id=org),
+    )
+    assert [action.id for action in queued_menu.actions] == ["open"]
+    organization = await db_session.get(Organization, org)
+    assert organization is not None
+    deletion = TechnologyMutation(
+        authorization_revision=organization.policy_revision,
+        expected_revision=0,
+        idempotency_key="journal-delete-0001",
+    )
+    with pytest.raises(ApiError, match="active scan"):
+        await delete_scan(
+            db_session,
+            ctx=ctx,
+            organization_id=org,
+            scan_id=queued.scan_id,
+            payload=deletion,
+            request_id="delete-active",
+        )
+    removed = await delete_scan(
+        db_session,
+        ctx=ctx,
+        organization_id=org,
+        scan_id=published.scan_id,
+        payload=deletion,
+        request_id="delete-completed",
+    )
+    assert removed.resource_id == published.scan_id
+    assert (
+        await delete_scan(
+            db_session,
+            ctx=ctx,
+            organization_id=org,
+            scan_id=published.scan_id,
+            payload=deletion,
+            request_id="delete-replay",
+        )
+        == removed
+    )
+    assert await db_session.get(TechnologyScan, (org, published.scan_id)) is not None
+    journal = await list_scans(db_session, ctx=ctx, organization_id=org, request_id="after-delete")
+    assert published.scan_id not in [entry.scan_id for entry in journal.items]
+    assert queued.scan_id in [entry.scan_id for entry in journal.items]
+    with pytest.raises(ApiError, match="removed from the journal"):
+        await read_scan_detail(
+            db_session,
+            ctx=ctx,
+            organization_id=org,
+            scan_id=published.scan_id,
+            request_id="hidden-detail",
+        )
 
 
 async def test_technology_area_lifecycle_and_category_binding(

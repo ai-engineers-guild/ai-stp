@@ -44,7 +44,7 @@ RESOURCE_ROUTES = {
     "member": "employees",
     "technology": "technologies",
     "category": "categories",
-    "area": "admin/technology-areas",
+    "area": "areas",
     "job_title": "admin/job-titles",
     "role": "admin/roles",
 }
@@ -89,20 +89,34 @@ async def read_menu(
 
         if not subject.organization_id:
             raise ApiError(ErrorCategory.NOT_FOUND, "scan not found")
-        await read_scan_detail(
+        detail = await read_scan_detail(
             db,
             ctx=ctx,
             organization_id=subject.organization_id,
             scan_id=subject.id,
             request_id=None,
         )
+        from ai_stp_api.slices.corporate.service import organization_and_membership
+
+        organization, _ = await organization_and_membership(
+            db, ctx=ctx, organization_id=subject.organization_id
+        )
+        actions = [EntityAction(id="open", group="navigation")]
+        if detail.status not in {"queued", "running"} and await subject_permission_allowed(
+            db,
+            account_id=ctx.account_id,
+            organization_id=organization.id,
+            subject_kind="organization",
+            subject_id=organization.id,
+            permission="landscape.manage",
+        ):
+            actions.append(EntityAction(id="delete", group="danger"))
         return EntityActionMenu(
             subject=subject,
             href=f"/corporate/technology-scans/{subject.id}",
-            actions=[
-                EntityAction(id="open", group="navigation"),
-                EntityAction(id="open_project", group="navigation"),
-            ],
+            revision=0,
+            authorization_revision=organization.policy_revision,
+            actions=actions,
         )
     if subject.kind == "finding":
         return await _finding_menu(db, ctx=ctx, subject=subject)
@@ -138,7 +152,16 @@ async def read_menu(
 
     if not await allowed(f"{subject.kind}.read"):
         raise ApiError(ErrorCategory.PERMISSION, "entity access denied")
-    actions = list(COMMON_ACTIONS)
+    actions = (
+        [EntityAction(id="open", group="navigation")]
+        if subject.kind == "area"
+        else list(COMMON_ACTIONS)
+    )
+    if subject.kind == "area" and subject.view == "landscape":
+        actions.extend(
+            EntityAction(id=action, group="navigation")
+            for action in ("expand_all", "collapse_all", "open_technologies")
+        )
     update = f"{subject.kind}.update"
     if await allowed(update):
         actions.append(EntityAction(id="edit", group="management"))
@@ -248,10 +271,11 @@ async def read_menu(
         actions.append(
             EntityAction(id=action, group="management" if action == "restore" else "danger")
         )
-    actions.append(REPORT)
+    if subject.kind != "area":
+        actions.append(REPORT)
     route = RESOURCE_ROUTES[subject.kind]
     href = f"/corporate/{route}"
-    if subject.kind in {"team", "project", "member", "technology", "category"}:
+    if subject.kind in {"team", "project", "member", "technology", "category", "area"}:
         href += f"/{subject.id}"
     return EntityActionMenu(
         subject=subject,

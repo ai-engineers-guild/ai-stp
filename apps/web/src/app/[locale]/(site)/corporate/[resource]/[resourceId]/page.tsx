@@ -294,14 +294,6 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
     ? presentation.description
     : team?.description || detail.description;
   const csrfToken = (await readCsrfToken()) ?? "";
-  const actionSet =
-    resource === "teams"
-      ? (team?.available_actions ?? [])
-      : resource === "members"
-        ? (member?.available_actions ?? workspace.context.capabilities)
-        : resource === "projects"
-          ? (project?.available_actions ?? workspace.context.capabilities)
-          : workspace.context.capabilities;
   return (
     <article className="mx-auto max-w-7xl space-y-8">
       <HistoryBackButton label={backLabel} fallback={parentHref} />
@@ -313,7 +305,7 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
               organizationId={workspace.organization.organization_id}
               authorizationRevision={workspace.context.organization.authorization_revision}
               csrfToken={csrfToken}
-              canManage={actionSet.includes("project.update")}
+              canManage={false}
             />
           ) : undefined
         }

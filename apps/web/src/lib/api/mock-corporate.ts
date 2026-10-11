@@ -744,6 +744,8 @@ const technologyTeams = new Map<string, string[]>([
 ]);
 // This fixture projection is not evidence of production RBAC enforcement.
 const capabilities = [
+  "landscape.read",
+  "landscape.manage",
   "team.list",
   "team.create",
   "team.read",
