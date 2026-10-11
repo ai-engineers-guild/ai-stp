@@ -317,10 +317,18 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
         const name = await cards.first().getByRole("heading").innerText();
         const href = await cards.first().locator("h3 a").getAttribute("href");
         expect(Boolean(href)).toBe(true);
-        const directorySearch = page.locator("#directory-search, #employee-search").first();
+        await main(page).getByRole("button", { name: "Open search", exact: true }).click();
+        const directorySearch = main(page).getByRole("textbox", {
+          name: "Search by name",
+          exact: true,
+        });
         await directorySearch.fill("__corporate_e2e_no_matching_card__");
+        await expect(page).toHaveURL(
+          (url) => url.searchParams.get("query") === "__corporate_e2e_no_matching_card__",
+        );
         await expect(cards).toHaveCount(0);
         await directorySearch.fill(name);
+        await expect(page).toHaveURL((url) => url.searchParams.get("query") === name);
         await expect(cards.first()).toBeVisible();
         const list = main(page).getByRole("button", { name: "List", exact: true });
         await list.click();
