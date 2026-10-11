@@ -28,7 +28,10 @@ const csvCell = (value: string) => {
 };
 
 const mdCell = (value: string) =>
-  value.replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ");
+  value
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
+    .replace(/[\r\n]+/g, " ");
 
 const findingTechnology = (row: TechnologyScanFinding) =>
   row.technology_name ?? row.technology_id ?? row.candidate_technology_id ?? "";
