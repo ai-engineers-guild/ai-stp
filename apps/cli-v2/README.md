@@ -14,8 +14,18 @@ platforms, not a claim about every older OS. Linux uses the system GNU C runtime
 Windows uses the Microsoft C runtime. macOS and Windows binaries are not
 notarized or signed with an OS application certificate.
 
-Each archive contains `ai-stp-v2` (`.exe` on Windows), `LICENSE`, and
-`release.json` with the exact source commit, target and payload hashes.
+Each archive contains `ai-stp-v2` (`.exe` on Windows), `LICENSE`,
+`ai-stp-cli-v2.cdx.json` and `release.json` schema 2 with the exact source commit,
+target and payload hashes. The CycloneDX 1.6 SBOM binds the executable hash,
+Cargo.lock hash and reachable normal/build dependency graph for that target.
+Registry source checksums and declared licenses come from the locked Cargo
+graph; dev-only dependencies and local build paths are omitted. This is a Cargo
+dependency inventory, not a linker trace: it does not enumerate OS libraries,
+compiler internals or every separately bundled C source. Its composition is
+explicitly incomplete. The workflow compares two packages of the same executable
+byte for byte; it does not claim reproducible compilation across machines.
+The verifier refuses missing or changed SBOM bytes before extracting or running
+the executable. Preview.1 retains its original three-file schema-1 archives.
 SHA-256 files and GitHub/Sigstore build attestations accompany the archives.
 Verify the archive's attestation for this repository and the
 `.github/workflows/cli-v2-release.yml` signer before extracting it, then run

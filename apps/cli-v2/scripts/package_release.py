@@ -18,6 +18,8 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
+import release_sbom
+
 ROOT = Path(__file__).resolve().parents[3]
 CRATE = ROOT / "apps" / "cli-v2"
 TARGETS = {
@@ -98,6 +100,14 @@ def build(args: argparse.Namespace) -> None:
     refuse(package["version"] == args.version, "Cargo version differs from the requested version")
     revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     refuse(revision == args.revision, "checkout differs from the requested source revision")
+    refuse(
+        not subprocess.check_output(
+            ["git", "status", "--porcelain", "--untracked-files=no"],
+            cwd=ROOT,
+            text=True,
+        ).strip(),
+        "release packaging requires a clean tracked checkout",
+    )
     compiler = subprocess.check_output(["rustc", "-vV"], cwd=CRATE, text=True)
     refuse(f"host: {args.target}\n" in compiler, "compiler host differs from the archive target")
     binary = TARGETS[args.target]
@@ -105,8 +115,15 @@ def build(args: argparse.Namespace) -> None:
     probe(args.binary, args.version)
     executable = args.binary.read_bytes()
     license_bytes = (ROOT / "LICENSE").read_bytes()
+    sbom = release_sbom.build(
+        CRATE,
+        version=args.version,
+        revision=revision,
+        target=args.target,
+        binary_digest=sha256(executable),
+    )
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "package": "ai-stp-cli-v2",
         "version": args.version,
         "release_channel": "preview",
@@ -115,10 +132,13 @@ def build(args: argparse.Namespace) -> None:
         "binary": binary,
         "binary_sha256": sha256(executable),
         "license_sha256": sha256(license_bytes),
+        "sbom": release_sbom.NAME,
+        "sbom_sha256": sha256(sbom),
     }
     files = {
         binary: executable,
         "LICENSE": license_bytes,
+        release_sbom.NAME: sbom,
         "release.json": (json.dumps(manifest, sort_keys=True, indent=2) + "\n").encode(),
     }
     windows = args.target.endswith("windows-msvc")
@@ -134,13 +154,18 @@ def build(args: argparse.Namespace) -> None:
 
 def read_archive(path: Path, binary: str) -> dict[str, bytes]:
     refuse(path.stat().st_size <= MAX_ARCHIVE, "archive exceeds the release size bound")
-    limits = {binary: MAX_ARCHIVE, "LICENSE": 64 * 1024, "release.json": 4096}
+    limits = {
+        binary: MAX_ARCHIVE,
+        "LICENSE": 64 * 1024,
+        "release.json": 4096,
+        release_sbom.NAME: release_sbom.LIMIT,
+    }
     expected = set(limits)
     files: dict[str, bytes] = {}
     if path.suffix == ".zip":
         with zipfile.ZipFile(path) as archive:
             entries = archive.infolist()
-            refuse(len(entries) == 3, "archive must contain exactly three regular files")
+            refuse(len(entries) == len(expected), "archive must contain exactly four regular files")
             for entry in entries:
                 mode = entry.external_attr >> 16
                 refuse(
@@ -175,7 +200,7 @@ def verify(args: argparse.Namespace) -> None:
     files = read_archive(args.archive, binary)
     manifest: dict[str, Any] = json.loads(files["release.json"])
     expected = {
-        "schema_version": 1,
+        "schema_version": 2,
         "package": "ai-stp-cli-v2",
         "version": args.version,
         "release_channel": "preview",
@@ -184,9 +209,24 @@ def verify(args: argparse.Namespace) -> None:
         "binary": binary,
         "binary_sha256": sha256(files[binary]),
         "license_sha256": sha256(files["LICENSE"]),
+        "sbom": release_sbom.NAME,
+        "sbom_sha256": sha256(files[release_sbom.NAME]),
     }
     refuse(manifest == expected, "archive manifest or payload identity differs")
-    # Never use extractall: only the three validated, literal members are written.
+    sbom = json.loads(files[release_sbom.NAME])
+    application = sbom["metadata"]["component"]
+    properties = {entry["name"]: entry["value"] for entry in sbom["metadata"]["properties"]}
+    refuse(
+        sbom["bomFormat"] == "CycloneDX"
+        and sbom["specVersion"] == "1.6"
+        and application["name"] == "ai-stp-cli-v2"
+        and application["version"] == args.version
+        and application["hashes"] == [{"alg": "SHA-256", "content": sha256(files[binary])}]
+        and properties["ai-stp:source-commit"] == args.revision
+        and properties["ai-stp:target"] == args.target,
+        "SBOM differs from the archive identity",
+    )
+    # Never use extractall: only the four validated, literal members are written.
     args.install_directory.mkdir(parents=True, exist_ok=False)
     for name, data in files.items():
         path = args.install_directory / name

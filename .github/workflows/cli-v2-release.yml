@@ -4,7 +4,11 @@ on:
   pull_request:
     paths:
       - .github/workflows/cli-v2-release.yml
+      - apps/cli-v2/Cargo.toml
+      - apps/cli-v2/Cargo.lock
       - apps/cli-v2/scripts/package_release.py
+      - apps/cli-v2/scripts/release_sbom.py
+      - tests/unit/test_cli_v2_release.py
   workflow_dispatch:
     inputs:
       version:
@@ -104,7 +108,12 @@ jobs:
             --binary "apps/cli-v2/target/release/${RELEASE_BINARY}" \
             --target "${RELEASE_TARGET}" --version "${RELEASE_VERSION}" \
             --revision "${GITHUB_SHA}" --output release
+          python apps/cli-v2/scripts/package_release.py build \
+            --binary "apps/cli-v2/target/release/${RELEASE_BINARY}" \
+            --target "${RELEASE_TARGET}" --version "${RELEASE_VERSION}" \
+            --revision "${GITHUB_SHA}" --output release-repeat
           stem="ai-stp-cli-v2-${RELEASE_VERSION}-${RELEASE_TARGET}"
+          cmp "release/${stem}.${RELEASE_EXTENSION}" "release-repeat/${stem}.${RELEASE_EXTENSION}"
           python apps/cli-v2/scripts/package_release.py verify \
             --archive "release/${stem}.${RELEASE_EXTENSION}" \
             --target "${RELEASE_TARGET}" --version "${RELEASE_VERSION}" \
