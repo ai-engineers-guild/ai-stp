@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.12"
 
 [manifest]
@@ -227,7 +227,7 @@ requires-dist = [
 
 [[package]]
 name = "ai-stp-cli"
-version = "0.0.45"
+version = "0.0.46"
 source = { editable = "apps/cli" }
 dependencies = [
     { name = "click" },
