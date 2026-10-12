@@ -1,6 +1,8 @@
 //! Real HTTP and private files, including a lost single-use exchange response.
 
 use super::*;
+#[path = "access_tests.rs"]
+mod access_tests;
 #[path = "attachment_tests.rs"]
 mod attachment_tests;
 use base64::engine::general_purpose::STANDARD;

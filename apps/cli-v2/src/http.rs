@@ -1,4 +1,4 @@
-//! Anonymous bounded HTTP. Credentials, redirects and ambient proxies are absent.
+//! Bounded same-origin reads. Authentication is explicit; redirects and ambient proxies are absent.
 
 pub(crate) mod retry;
 
@@ -10,6 +10,7 @@ use crate::{
 use serde_json::Value;
 use std::{cell::RefCell, net::IpAddr, path::Path, time::Duration};
 use url::Url;
+use zeroize::Zeroizing;
 
 pub const MAX_BODY: u64 = 8 * 1024 * 1024;
 pub struct Endpoint {
@@ -113,14 +114,35 @@ impl Endpoint {
         limit: u64,
         remaining: Duration,
     ) -> Result<Vec<u8>> {
+        self.request(url, accept, limit, remaining, None)
+    }
+
+    pub(crate) fn read_authenticated(
+        &self,
+        url: &Url,
+        accept: &str,
+        limit: u64,
+        remaining: Duration,
+        token: &str,
+    ) -> Result<Vec<u8>> {
+        self.request(url, accept, limit, remaining, Some(token))
+    }
+
+    fn request(
+        &self,
+        url: &Url,
+        accept: &str,
+        limit: u64,
+        remaining: Duration,
+        token: Option<&str>,
+    ) -> Result<Vec<u8>> {
         if remaining.is_zero() || url.origin() != self.base.origin() {
             return Err(Failure::precondition(
                 "catalog request exceeds its origin or time boundary",
             ));
         }
-        let mut response = self
-            .agent
-            .borrow()
+        let agent = self.agent.borrow();
+        let mut request = agent
             .get(url.as_str())
             .header("Accept", accept)
             .header("Accept-Encoding", "identity")
@@ -128,12 +150,18 @@ impl Endpoint {
             .header(
                 "User-Agent",
                 concat!("ai-stp-cli-v2/", env!("CARGO_PKG_VERSION")),
-            )
+            );
+        let authorization = token.map(|value| Zeroizing::new(format!("Bearer {value}")));
+        if let Some(authorization) = &authorization {
+            request = request.header("Authorization", authorization.as_str());
+        }
+        let mut response = request
             .config()
             .timeout_global(Some(remaining.min(Duration::from_secs(30))))
             .build()
             .call()
             .map_err(transport)?;
+        drop(agent);
         discard_closed_pool(&self.agent, response.version());
         match response.status().as_u16() {
             200 => {}
