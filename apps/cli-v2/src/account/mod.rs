@@ -37,14 +37,19 @@ fn identity_at(root: &Path) -> Result<identity::Identity> {
 
 fn bind(plan: &Plan) -> Result<identity::Identity> {
     let identity = identity_at(&plan.root)?;
-    if identity::root(&plan.root)? != (plan.root.clone(), plan.root_identity.clone())
+    check_binding(&identity, plan)?;
+    Ok(identity)
+}
+
+fn check_binding(identity: &identity::Identity, plan: &Plan) -> Result<()> {
+    if identity.root_binding() != (plan.root.as_path(), &plan.root_identity)
         || identity.context() != plan.identity
         || identity.storage() != plan.credential_store
         || identity.report()["public_key"] != plan.public_key
     {
         return Err(invalid());
     }
-    Ok(identity)
+    Ok(())
 }
 
 fn check_state(state: &State, plan: &Plan) -> Result<()> {
@@ -67,8 +72,9 @@ pub fn plan(
     at: &str,
 ) -> Result<Plan> {
     let identity = identity_at(root)?;
-    let (root, root_identity) = identity::root(root)?;
-    let journal = Journal::open(&root, &identity, false)?;
+    let (root, root_identity) = identity.root_binding();
+    let (root, root_identity) = (root.to_owned(), root_identity.clone());
+    let journal = Journal::open(&identity, false)?;
     if journal
         .as_ref()
         .map(Journal::pending)
@@ -170,18 +176,18 @@ pub fn status(root: &Path, at: &str) -> Result<Value> {
         return Err(invalid());
     }
     let identity = identity_at(root)?;
-    let Some(journal) = Journal::open(root, &identity, false)? else {
+    let Some(journal) = Journal::open(&identity, false)? else {
         return Ok(
             json!({"schema_version":1,"session":{"state":"absent"},"owner_attached":false,"online_verified":false}),
         );
     };
     let state = journal.state()?;
     if let Some(state) = &state {
-        bind(&state.plan)?;
+        check_binding(&identity, &state.plan)?;
     }
     let pending = journal.pending()?;
     if let Some(pending) = &pending {
-        bind(&pending.plan)?;
+        check_binding(&identity, &pending.plan)?;
     }
     let mut result=state.map_or_else(||json!({"schema_version":1,"session":{"state":"absent"},"owner_attached":false,"online_verified":false}),|s|s.public(at));
     result["pending_operation"] = match pending {
@@ -197,7 +203,7 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
         return Err(invalid());
     }
     let identity = bind(plan)?;
-    let existing = Journal::open(&plan.root, &identity, false)?;
+    let existing = Journal::open(&identity, false)?;
     if existing.is_none() && (at < plan.created_at.as_str() || at > plan.expires_at.as_str()) {
         return Err(Failure::precondition(
             "the account plan expired before admission",
@@ -205,7 +211,7 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
     }
     let journal = match existing {
         Some(v) => v,
-        None => Journal::open(&plan.root, &identity, true)?.ok_or_else(invalid)?,
+        None => Journal::open(&identity, true)?.ok_or_else(invalid)?,
     };
     if let Some(receipt) = journal.receipt(plan)? {
         if journal.pending()?.is_some_and(|p| p.plan == *plan) {

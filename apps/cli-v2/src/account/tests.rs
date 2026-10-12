@@ -67,6 +67,46 @@ fn generated() -> String {
 }
 
 #[test]
+fn account_journal_stays_with_the_authenticated_physical_parent()
+-> std::result::Result<(), Box<dyn Error>> {
+    let sandbox = tempfile::tempdir()?;
+    let root = sandbox.path().join("state");
+    let displaced = sandbox.path().join("displaced");
+    fs::create_dir(&root)?;
+    let at = format!("{:.3}", jiff::Timestamp::now());
+    let initialization = identity::plan(&root, identity::Storage::File, &at)?;
+    let device = identity::apply(&initialization, &initialization.digest()?, &at)?;
+    let loaded = identity_at(&root)?;
+    let intent = plan(&root, Action::Start, None, None, &at)?;
+
+    // Replace the path after identity validation but before journal admission.
+    fs::rename(&root, &displaced)?;
+    fs::create_dir(&root)?;
+    for identity in [&device, &loaded] {
+        let journal = Journal::open(identity, true)?.ok_or("journal absent")?;
+        journal.admit(&Pending {
+            plan: intent.clone(),
+            requested_at: at.clone(),
+        })?;
+        assert!(!root.join("ai-stp-v2-account").exists());
+        assert!(displaced.join("ai-stp-v2-account/pending.json").is_file());
+        assert_eq!(
+            journal.pending()?.ok_or("intent absent")?.plan.digest()?,
+            intent.digest()?
+        );
+    }
+
+    // Returning the same inode restores access; copying it would not.
+    fs::remove_dir(&root)?;
+    fs::rename(&displaced, &root)?;
+    assert_eq!(
+        status(&root, &at)?["pending_operation"]["plan_digest"],
+        intent.digest()?
+    );
+    Ok(())
+}
+
+#[test]
 fn server_device_revocation_clears_credentials_and_has_a_distinct_receipt()
 -> std::result::Result<(), Box<dyn Error>> {
     let root = tempfile::tempdir()?;

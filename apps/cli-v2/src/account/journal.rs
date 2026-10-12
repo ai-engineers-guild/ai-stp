@@ -1,7 +1,6 @@
 //! One account lock owns intent admission, credential replacement and replay receipts.
 
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 use zeroize::Zeroizing;
 
 use super::model::{Plan, Receipt, State};
@@ -29,12 +28,14 @@ pub(super) struct Journal {
 }
 
 impl Journal {
-    pub fn open(root: &Path, id: &identity::Identity, create: bool) -> Result<Option<Self>> {
+    pub fn open(id: &identity::Identity, create: bool) -> Result<Option<Self>> {
         Ok(
-            OwnedDirectory::open(root, NAME, OWNER, create)?.map(|directory| Self {
-                directory,
-                storage: id.storage(),
-                name: format!("account-{}", id.context().device_id),
+            OwnedDirectory::open_at(id.root_directory(), NAME, OWNER, create)?.map(|directory| {
+                Self {
+                    directory,
+                    storage: id.storage(),
+                    name: format!("account-{}", id.context().device_id),
+                }
             }),
         )
     }

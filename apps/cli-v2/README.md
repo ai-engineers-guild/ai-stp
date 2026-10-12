@@ -132,6 +132,9 @@ cloud account, verification, or authorization.
 
 Identity state lives under `ai-stp-v2-identity` below the explicit state parent.
 Its physical parent, owner/device IDs and storage choice are bound to the plan.
+The loaded identity retains that opened parent; account journal admission uses
+the same directory handle. Renaming or replacing the path cannot redirect
+credentials or receipts into a substitute parent.
 The small public intent remains the initialization receipt. Missing keys with an
 existing public record, substituted keys, revoked devices, conflicting receipts,
 or orphaned state are refused; initialization never replaces them. A local
