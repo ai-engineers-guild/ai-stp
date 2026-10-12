@@ -95,6 +95,38 @@ fn attachment_is_atomic_exact_and_fences_stale_authority() -> std::result::Resul
         store.transaction(|t| versions::record(t, &version, &original.device_id, None, &at))?;
     let version_number = version["version"].as_str().ok_or("version")?.to_owned();
     drop(store);
+    let project_root = root.path().join("project");
+    fs::create_dir(&project_root)?;
+    fs::write(project_root.join("main.rs"), "fn main() {}\n")?;
+    let project_plan = runtime::plan(root.path(), |s, owner, _| {
+        crate::projects::passports::plan(s, &project_root, owner, &at)
+    })?;
+    let project_operation: crate::projects::passports::Plan =
+        serde_json::from_value(project_plan["plan"]["operation"].clone())?;
+    let mut store = stale_writer.open(false)?;
+    let project = crate::projects::passports::apply(
+        &mut store,
+        &project_operation,
+        &project_operation.digest()?,
+        &original,
+        &at,
+    )?;
+    drafts.push(project_operation.passport.clone());
+    drop(store);
+    let technology_plan = runtime::plan(root.path(), |s, owner, _| {
+        crate::projects::technology::retained::plan(s, &project_root, owner, &at)
+    })?;
+    let technology_operation: crate::projects::technology::retained::Plan =
+        serde_json::from_value(technology_plan["plan"]["operation"].clone())?;
+    let mut store = stale_writer.open(false)?;
+    let technology = crate::projects::technology::retained::apply(
+        &mut store,
+        &technology_operation,
+        &technology_operation.digest()?,
+        &original,
+        &at,
+    )?;
+    drop(store);
     let plan_edit = |name: &str| {
         runtime::plan(root.path(), |store, owner, _| {
             passports::plan(
@@ -158,7 +190,7 @@ fn attachment_is_atomic_exact_and_fences_stale_authority() -> std::result::Resul
             .ok_or("selection")?
             .heads
             .len(),
-        5
+        6
     );
     let mut forged = attachment.clone();
     forged.attachment.as_mut().ok_or("selection")?.heads.clear();
@@ -299,6 +331,16 @@ fn attachment_is_atomic_exact_and_fences_stale_authority() -> std::result::Resul
         .is_err()
     );
     assert!(plan(root.path(), Action::Attach, None, None, &at).is_err());
+    for (name, prepared, expected) in [
+        ("project-replay", project_plan, project),
+        ("technology-replay", technology_plan, technology),
+    ] {
+        let path = save_plan(root.path(), name, &prepared)?;
+        assert_eq!(
+            runtime::apply(&path, prepared["plan_digest"].as_str().ok_or("digest")?)?,
+            expected
+        );
+    }
     assert_eq!(
         digest::canonical("ai-stp:passport:v1", &version)?,
         attachment

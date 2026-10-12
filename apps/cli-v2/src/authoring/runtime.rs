@@ -140,18 +140,16 @@ fn execute<T: DeserializeOwned>(plan: Plan, apply: Apply<T>) -> Result<Value> {
         // Historical replay is query-only and must identify the exact completed
         // effect. An unexecuted old plan cannot recover former owner authority.
         if planned != identity.original() {
-            return Err(invalid());
+            return Err(Failure::precondition(
+                "the local identity differs from the planned author",
+            ));
         }
         let mut store = identity.planning()?;
-        if crate::store::journal::state(
+        if !crate::store::journal::finished(
             &store.connection,
             operation_id,
             plan.operation["action"].as_str().ok_or_else(invalid)?,
-            &digest,
-        )?
-        .as_deref()
-            != Some("verified")
-        {
+        )? {
             return Err(Failure::precondition(
                 "the local identity differs from the unexecuted planned author",
             ));
