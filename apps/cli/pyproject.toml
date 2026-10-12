@@ -43,6 +43,9 @@ dependencies = [
     # Owner: `ADR-0129`. Removal path: it goes when that layout rule does.
     "tomlkit>=0.13",
     "packaging>=24",
+    # The bundled source writer owns Pi ignore-rule matching (#752).
+    # Remove with that native visibility reader.
+    "pathspec>=1.1.1,<2",
     # Owner: ADR-0171. Managed verifier environments; remove with that bootstrap.
     "uv==0.12.23",
 ]

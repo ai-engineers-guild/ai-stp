@@ -109,6 +109,7 @@ FIRST_PARTY_SOURCES: Final[tuple[Path, ...]] = (
 #: wheel (`ADR-0146`) and are not PyPI requirements.
 #: `uv` provisions the isolated provenance verifier (`ADR-0171`); it runs as a
 #: Python module in a child process instead of importing into the CLI process.
+#: `pathspec` reads Pi's captured ignore rules in the bundled source writer (#752).
 #: A name reaching this set without a reason is the thing to argue about.
 ALLOWED_DEPENDENCIES: Final[frozenset[str]] = frozenset(
     {
@@ -118,6 +119,7 @@ ALLOWED_DEPENDENCIES: Final[frozenset[str]] = frozenset(
         "keyring",
         "markdown-it-py",
         "packaging",
+        "pathspec",
         "pynacl",
         "pydantic",
         "pyyaml",

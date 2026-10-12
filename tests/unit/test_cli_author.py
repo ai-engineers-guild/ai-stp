@@ -360,7 +360,11 @@ def test_authored_setup_compiles_immediately_without_a_change_task(
     tree = tmp_path / "native-component"
     tree.mkdir()
     filename = "SKILL.md" if kind == "skill" else "settings.json"
-    payload = b"# Native skill\n" if kind == "skill" else b'{"toolPermission":"accept-edits"}\n'
+    payload = (
+        b"---\nname: native-skill\ndescription: A native skill.\n---\n# Native skill\n"
+        if kind == "skill"
+        else b'{"toolPermission":"accept-edits"}\n'
+    )
     (tree / filename).write_bytes(payload)
     authored = author_service.persist(
         directory=tree,
@@ -569,7 +573,10 @@ def test_author_modules_do_not_spawn_nested_cli() -> None:
 def _skill_tree(tmp_path: Path) -> Path:
     tree = tmp_path / "demo-skill"
     tree.mkdir()
-    (tree / "SKILL.md").write_text("# Demo\n\nA local skill.\n", encoding="utf-8")
+    (tree / "SKILL.md").write_text(
+        "---\nname: demo\ndescription: A local skill.\n---\n# Demo\n\nA local skill.\n",
+        encoding="utf-8",
+    )
     return tree
 
 

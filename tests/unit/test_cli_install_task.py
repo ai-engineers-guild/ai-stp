@@ -118,7 +118,10 @@ def test_install_an_owned_authored_pin_without_public_catalog_acquisition(
 ) -> None:
     tree = tmp_path / "local-skill"
     tree.mkdir()
-    (tree / "SKILL.md").write_text("# Local skill\n", encoding="utf-8")
+    (tree / "SKILL.md").write_text(
+        "---\nname: local-skill\ndescription: A local skill.\n---\n# Local skill\n",
+        encoding="utf-8",
+    )
     authored = author_service.persist(
         directory=tree,
         harness_id="antigravity",
@@ -168,7 +171,10 @@ def test_local_pin_shortcut_requires_current_ownership_and_exact_version(
 ) -> None:
     tree = tmp_path / "local-skill"
     tree.mkdir()
-    (tree / "SKILL.md").write_text("# Local skill\n", encoding="utf-8")
+    (tree / "SKILL.md").write_text(
+        "---\nname: local-skill\ndescription: A local skill.\n---\n# Local skill\n",
+        encoding="utf-8",
+    )
     current, _warning = identity.load_or_create()
     publisher = new_id("account") if case == "foreign-owner" else passports.owner().account_id
     with closing(open_registry(configured_path(), create=True)) as connection:
@@ -202,7 +208,10 @@ def test_account_synced_pin_retains_immutable_pre_login_owner(
 ) -> None:
     tree = tmp_path / "local-skill"
     tree.mkdir()
-    (tree / "SKILL.md").write_text("# Local skill\n", encoding="utf-8")
+    (tree / "SKILL.md").write_text(
+        "---\nname: local-skill\ndescription: A local skill.\n---\n# Local skill\n",
+        encoding="utf-8",
+    )
     authored = author_service.persist(
         directory=tree,
         harness_id="antigravity",
@@ -263,7 +272,10 @@ def test_owned_private_pin_missing_artifact_uses_authenticated_acquisition(
 ) -> None:
     tree = tmp_path / "local-skill"
     tree.mkdir()
-    (tree / "SKILL.md").write_text("# Local skill\n", encoding="utf-8")
+    (tree / "SKILL.md").write_text(
+        "---\nname: local-skill\ndescription: A local skill.\n---\n# Local skill\n",
+        encoding="utf-8",
+    )
     authored = author_service.persist(
         directory=tree,
         harness_id="antigravity",
