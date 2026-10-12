@@ -1,4 +1,4 @@
-//! Exact public acquisition. Network observation precedes one atomic local write.
+//! Exact catalog acquisition. Network observation precedes one atomic local write.
 
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -12,6 +12,7 @@ use serde_json::{Value, json};
 
 use super::{Kind, validate};
 use crate::{
+    account::access::{Access, Binding},
     authoring::{Identity, expiry, native_identity, setups},
     canonical, digest,
     error::{ErrorKind, Failure, Result},
@@ -40,6 +41,8 @@ pub struct Observation {
     lifecycle: String,
     trust: Value,
     published_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    distribution_visibility: Option<String>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -54,6 +57,8 @@ pub struct Plan {
     pub endpoint: String,
     pub setup: Observation,
     pub components: BTreeMap<String, Observation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access: Option<Binding>,
 }
 
 impl Plan {
@@ -76,17 +81,18 @@ fn text<'a>(value: &'a Value, field: &str) -> Result<&'a str> {
     value[field].as_str().ok_or_else(invalid)
 }
 
-struct Capture {
+struct Capture<'a> {
     endpoint: Endpoint,
     started: Instant,
     metadata_bytes: usize,
     bytes: usize,
     verified_bytes: usize,
     payloads: BTreeMap<String, Vec<u8>>,
+    access: Option<&'a Access>,
 }
 
-impl Capture {
-    fn new(endpoint: Endpoint) -> Self {
+impl<'a> Capture<'a> {
+    fn new(endpoint: Endpoint, access: Option<&'a Access>) -> Self {
         Self {
             endpoint,
             started: Instant::now(),
@@ -94,6 +100,7 @@ impl Capture {
             bytes: 0,
             verified_bytes: 0,
             payloads: BTreeMap::new(),
+            access,
         }
     }
 
@@ -111,15 +118,38 @@ impl Capture {
         let url = self
             .endpoint
             .route(&[kind.route(), id, "versions", version], &[])?;
-        let bytes = self.endpoint.read(
-            &url,
-            "application/json",
-            MAX_BODY.min((MAX_METADATA - self.metadata_bytes) as u64),
-            self.remaining()?,
-        )?;
+        let limit = MAX_BODY.min((MAX_METADATA - self.metadata_bytes) as u64);
+        let public = self
+            .endpoint
+            .read(&url, "application/json", limit, self.remaining()?);
+        let (bytes, private) = match public {
+            Ok(bytes) => (bytes, false),
+            Err(failure)
+                if matches!(failure.kind, ErrorKind::NotFound) && self.access.is_some() =>
+            {
+                let url = self
+                    .endpoint
+                    .route(&[kind.route(), id, "versions", version, "private"], &[])?;
+                (
+                    self.access.ok_or_else(invalid)?.read(
+                        &self.endpoint,
+                        &url,
+                        "application/json",
+                        limit,
+                        self.remaining()?,
+                    )?,
+                    true,
+                )
+            }
+            Err(failure) => return Err(failure),
+        };
         self.metadata_bytes += bytes.len();
         let response = wire::parse(&bytes)?;
-        validate(kind, id, Some(version), &response)?;
+        if private {
+            super::private::validate(kind, id, version, &response)?;
+        } else {
+            validate(kind, id, Some(version), &response)?;
+        }
         passport::validate(&response["passport"])?;
         if !matches!(
             response["lifecycle"].as_str(),
@@ -135,10 +165,11 @@ impl Capture {
             lifecycle: text(&response, "lifecycle")?.into(),
             trust: response["trust"].clone(),
             published_at: text(&response, "published_at")?.into(),
+            distribution_visibility: private.then(|| "private".into()),
         })
     }
 
-    fn artifact(&mut self, document: &Value, reference: &Value) -> Result<()> {
+    fn artifact(&mut self, document: &Value, reference: &Value, private: bool) -> Result<()> {
         let address = text(reference, "digest")?;
         let size = reference["size_bytes"]
             .as_u64()
@@ -170,9 +201,18 @@ impl Capture {
             ],
             &query,
         )?;
-        let bytes =
+        let bytes = if private {
+            self.access.ok_or_else(invalid)?.read(
+                &self.endpoint,
+                &url,
+                "application/octet-stream",
+                size,
+                self.remaining()?,
+            )?
+        } else {
             self.endpoint
-                .read(&url, "application/octet-stream", size, self.remaining()?)?;
+                .read(&url, "application/octet-stream", size, self.remaining()?)?
+        };
         if bytes.len() as u64 != size || digest::bytes("ai-stp:artifact:v1", &bytes)? != address {
             return Err(invalid());
         }
@@ -199,15 +239,16 @@ impl Capture {
     fn content(
         &mut self,
         document: &Value,
+        private: bool,
     ) -> Result<BTreeMap<String, setups::definition::Embedded>> {
-        self.artifact(document, &document["artifact"])?;
+        self.artifact(document, &document["artifact"], private)?;
         if document["kind"] == "component" {
             for adaptation in document["adaptations"].as_array().ok_or_else(invalid)? {
                 for scope in adaptation["scope_adaptations"]
                     .as_array()
                     .ok_or_else(invalid)?
                 {
-                    self.artifact(document, &scope["projection_artifact"])?;
+                    self.artifact(document, &scope["projection_artifact"], private)?;
                     let bytes = self
                         .payloads
                         .get(text(&scope["projection_artifact"], "digest")?)
@@ -256,14 +297,15 @@ fn reference(value: &Value) -> Result<(String, String, String)> {
     Ok((id.into(), version.into(), address.into()))
 }
 
-fn capture(
+fn capture<'a>(
     endpoint: Endpoint,
     id: &str,
     version: &str,
-) -> Result<(Observation, BTreeMap<String, Observation>, Capture)> {
-    let mut capture = Capture::new(endpoint);
+    access: Option<&'a Access>,
+) -> Result<(Observation, BTreeMap<String, Observation>, Capture<'a>)> {
+    let mut capture = Capture::new(endpoint, access);
     let setup = capture.observation(Kind::Setup, id, version)?;
-    let records = capture.content(&setup.passport)?;
+    let records = capture.content(&setup.passport, setup.distribution_visibility.is_some())?;
     let mut embedded = BTreeMap::new();
     for (id, record) in records {
         capture.metadata_bytes = capture
@@ -286,6 +328,7 @@ fn capture(
             lifecycle: "active".into(),
             trust: json!({"trust_lane":"experimental","author_verified":false,"component_verified":false}),
             published_at: setup.published_at.clone(),
+            distribution_visibility: setup.distribution_visibility.clone(),
         });
     }
     let mut pending = VecDeque::from(
@@ -314,7 +357,10 @@ fn capture(
             embedded
         } else {
             let observed = capture.observation(Kind::Component, &id, &version)?;
-            capture.content(&observed.passport)?;
+            capture.content(
+                &observed.passport,
+                observed.distribution_visibility.is_some(),
+            )?;
             observed
         };
         if observed.passport["stable_id"] != id
@@ -368,11 +414,36 @@ pub fn plan(
     identity: Identity,
     at: &str,
 ) -> Result<Plan> {
+    plan_with_access(config, id, version, identity, at, None)
+}
+
+pub(crate) fn plan_with_access(
+    config: Option<&Path>,
+    id: &str,
+    version: &str,
+    identity: Identity,
+    at: &str,
+    access: Option<&Access>,
+) -> Result<Plan> {
     identity.validate()?;
+    if let Some(access) = access {
+        access.revalidate()?;
+        if access.binding().device_id != identity.device_id {
+            return Err(invalid());
+        }
+    }
     let expires_at = expiry(at)?;
     let endpoint = Endpoint::configured(config)?;
+    if access.is_some_and(|access| {
+        endpoint.base.origin().ascii_serialization() != access.binding().origin
+    }) {
+        return Err(invalid());
+    }
     let url = endpoint.base.to_string();
-    let (setup, components, _) = capture(endpoint, id, version)?;
+    let (setup, components, _) = capture(endpoint, id, version, access)?;
+    if let Some(access) = access {
+        access.revalidate()?;
+    }
     let plan = Plan {
         schema_version: 1,
         action: "catalog.setup.acquire".into(),
@@ -383,6 +454,7 @@ pub fn plan(
         endpoint: url,
         setup,
         components,
+        access: access.map(|access| access.binding().clone()),
     };
     plan.digest()?;
     Ok(plan)
@@ -405,7 +477,10 @@ fn verify_local(connection: &Connection, plan: &Plan) -> Result<Value> {
             "SELECT passport_digest,trust_lane,author_verified,component_verified,acquired_at FROM acquired_trust WHERE stable_id=? AND version=?",
             [text(document,"stable_id")?,text(document,"version")?],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?))).map_err(database)?;
         if address != observation.passport_digest
-            || !matches!(lane.as_str(), "authoritative" | "experimental")
+            || !matches!(
+                lane.as_str(),
+                "authoritative" | "experimental" | "local_owner_or_pinned"
+            )
             || !matches!(author, 0 | 1)
             || !matches!(component, 0 | 1)
             || (lane == "authoritative" && (author != 1 || component != 1))
@@ -454,6 +529,17 @@ pub fn apply(
     identity: &Identity,
     at: &str,
 ) -> Result<Value> {
+    apply_with_access(store, plan, expected, identity, at, None)
+}
+
+pub(crate) fn apply_with_access(
+    store: &mut Store,
+    plan: &Plan,
+    expected: &str,
+    identity: &Identity,
+    at: &str,
+    access: Option<&Access>,
+) -> Result<Value> {
     identity.validate()?;
     if plan.schema_version != 1
         || plan.action != "catalog.setup.acquire"
@@ -477,6 +563,7 @@ pub fn apply(
             Err(invalid())
         };
     }
+    super::private::require_binding(&plan.access, access)?;
     if at < plan.created_at.as_str() || at > plan.expires_at.as_str() {
         return Err(Failure::precondition(
             "the acquisition plan is outside its validity interval",
@@ -486,6 +573,7 @@ pub fn apply(
         Endpoint::new(&plan.endpoint)?,
         text(&plan.setup.passport, "stable_id")?,
         text(&plan.setup.passport, "version")?,
+        access,
     )?;
     if setup != plan.setup || components != plan.components {
         return Err(Failure::new(
@@ -493,6 +581,7 @@ pub fn apply(
             "catalog passports, access or trust changed after planning",
         ));
     }
+    super::private::require_binding(&plan.access, access)?;
     let started = at.parse::<jiff::Timestamp>().map_err(|_| invalid())?;
     let expires = plan
         .expires_at
