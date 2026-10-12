@@ -2461,6 +2461,7 @@ breakaway and never infers termination from PID disappearance alone.
 | `authoring/scaffold/` | Minimal exact component sources and consumable setup requests |
 | `files/tree.rs` | Shared recoverable directory publication with no-replace rename |
 | `identity/` | Explicit offline identity initialization, private key storage and public signing identity |
+| `account/` | Isolated device authorization, durable intent/credential receipts, signed refresh and offline-safe logout |
 | `sources.rs` | Pure source-address parsing and explicit GitHub commit pinning without provenance claims |
 | `sources/local.rs`, `sources/snapshot.rs` | Bounded local observations and shared interoperable source encoding |
 | `sources/github/` | Exact public repository observations, fixed-authority HTTP and bounded in-memory ZIP selection |
