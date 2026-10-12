@@ -5,7 +5,7 @@ last_verified: "2026-08-27"
 
 # ADR-0122: `harness` is the program-lifecycle noun
 
-Status: accepted.
+Status: superseded by ADR-0232.
 
 ## Context
 

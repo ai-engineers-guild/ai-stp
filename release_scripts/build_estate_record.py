@@ -19,6 +19,7 @@ from typing import Final
 
 from ai_stp_contracts.estate_release import (
     NOT_VERIFIED_LEGS,
+    REQUIRED_PROVIDERS,
     SCHEMA_ID,
     EstateConsumer,
     EstateDistribution,
@@ -189,14 +190,17 @@ def main(argv: list[str] | None = None) -> int:
     if len(commit) != 40 or any(character not in "0123456789abcdef" for character in commit):
         raise SystemExit("commit must be a 40-character lowercase SHA")
     providers = parse_providers(options.provider)
-    expected = set(policy_provider_repositories())
+    # The historical estate contract names release identities. Additional trust
+    # rules for a repository transfer do not add providers to that release.
+    expected = set(REQUIRED_PROVIDERS)
+    if not expected.issubset(policy_provider_repositories()):
+        raise SystemExit("estate providers are not all pinned by provider-policy.toml")
     named = {item.repository for item in providers}
     if named and named != expected:
         missing = ", ".join(sorted(expected - named)) or "none"
         extra = ", ".join(sorted(named - expected)) or "none"
         raise SystemExit(
-            "provider set must match provider-policy.toml build_attestations: "
-            f"missing {missing}; extra {extra}"
+            f"provider set must match the estate release contract: missing {missing}; extra {extra}"
         )
     created_at = options.created_at or datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.000Z")
     record = build_record(

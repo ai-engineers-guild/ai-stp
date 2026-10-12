@@ -1,289 +1,171 @@
-//! Bounded software-prefix observations; local records never establish trust.
-
-use std::{
-    io::Read,
-    path::{Component, Path, PathBuf},
-};
-
-use cap_fs_ext::{DirExt, MetadataExt};
-use cap_std::fs::{Dir, Metadata};
-use serde_json::{Value, json};
+//! Observe a user-owned harness through its declared version query.
 
 use crate::{
-    digest,
-    error::{ErrorKind, Failure, Result},
-    files,
+    canonical, digest,
+    error::{Failure, Result},
+    files, harnesses, process,
+};
+use serde_json::{Value, json};
+use std::{
+    ffi::OsString,
+    fs,
+    path::{Path, PathBuf},
+    time::Duration,
 };
 
-fn invalid() -> Failure {
-    Failure::precondition(
-        "the program prefix is invalid, aliased, changed or exceeds observation bounds",
-    )
+fn path_value(path: &Path) -> Result<Value> {
+    files::serialize_path(path, serde_json::value::Serializer)
+        .map_err(|_| Failure::input("the harness path is not representable"))
 }
 
-fn optional<T>(result: std::io::Result<T>) -> Result<Option<T>> {
-    match result {
-        Ok(value) => Ok(Some(value)),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(error) => Err(Failure::new(
-            ErrorKind::Unavailable,
-            "the program prefix could not be inspected",
-        )
-        .with_details([("os_error".into(), error.raw_os_error().into())])),
+fn executable(path: &Path) -> bool {
+    let Ok(metadata) = path.metadata() else {
+        return false;
+    };
+    if !metadata.is_file() {
+        return false;
     }
-}
-
-fn label(value: &str) -> bool {
-    !value.is_empty()
-        && value.len() <= 128
-        && !value.starts_with('.')
-        && !value.ends_with('.')
-        && value
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-' | b'+'))
-}
-
-fn same(left: &Metadata, right: &Metadata) -> bool {
-    left.dev() == right.dev() && left.ino() == right.ino()
-}
-
-fn reparse(metadata: &Metadata) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        metadata.permissions().mode() & 0o111 != 0
+    }
     #[cfg(windows)]
     {
-        use cap_std::fs::MetadataExt;
-        metadata.file_attributes() & 0x400 != 0
-    }
-    #[cfg(not(windows))]
-    {
-        let _ = metadata;
-        false
+        path.extension()
+            .and_then(|value| value.to_str())
+            .is_some_and(|value| value.eq_ignore_ascii_case("exe"))
     }
 }
 
-fn directory(parent: &Dir, name: &Path) -> Result<Option<Dir>> {
-    let Some(before) = optional(parent.symlink_metadata(name))? else {
-        return Ok(None);
+fn resolve(name: &str) -> Option<PathBuf> {
+    let search = std::env::var_os("PATH")?;
+    std::env::split_paths(&search)
+        .filter(|path| path.is_absolute())
+        .find_map(|directory| {
+            let path = directory.join(name);
+            #[cfg(windows)]
+            {
+                ["exe", "cmd", "bat"]
+                    .iter()
+                    .map(|extension| path.with_extension(extension))
+                    .find(|path| path.is_file())
+            }
+            #[cfg(unix)]
+            {
+                executable(&path).then_some(path)
+            }
+        })
+}
+
+fn identity(path: &Path) -> Result<Value> {
+    let resolved = path
+        .canonicalize()
+        .map_err(|_| Failure::precondition("the harness executable changed during observation"))?;
+    let metadata = fs::metadata(&resolved)
+        .map_err(|_| Failure::precondition("the harness executable is inaccessible"))?;
+    let modified = metadata
+        .modified()
+        .ok()
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|time| time.as_nanos().to_string());
+    let value =
+        json!({"resolved_path":path_value(&resolved)?,"size":metadata.len(),"modified":modified});
+    #[cfg(unix)]
+    let value = {
+        use std::os::unix::fs::MetadataExt;
+        let mut value = value;
+        value["device"] = metadata.dev().to_string().into();
+        value["inode"] = metadata.ino().to_string().into();
+        value["mode"] = metadata.mode().into();
+        value
     };
-    if !before.is_dir() || before.is_symlink() || reparse(&before) {
-        return Err(invalid());
-    }
-    let opened = parent.open_dir_nofollow(name).map_err(|_| invalid())?;
-    let after = opened.dir_metadata().map_err(|_| invalid())?;
-    if !same(&before, &after) || reparse(&after) {
-        return Err(invalid());
-    }
-    Ok(Some(opened))
+    Ok(value)
 }
 
-fn link_path(parent: &Path, path: &Path, prefix: &Path) -> Result<PathBuf> {
-    if path.as_os_str().len() > 4096 || path.to_str().is_none() {
-        return Err(invalid());
+/// No installation receipt, provider, state directory or desired version is required.
+/// The local program's version answer is an observation, not publisher verification.
+pub fn observe(harness: &str, explicit: Option<&Path>) -> Result<Value> {
+    let definition = harnesses::definition(harness)?;
+    let name = definition
+        .executable
+        .as_deref()
+        .ok_or_else(|| Failure::input("this harness has no declared executable"))?;
+    if explicit.is_some_and(|path| !path.is_absolute()) {
+        return Err(Failure::input(
+            "the harness executable must be an absolute path",
+        ));
     }
-    let (mut result, path, mut descended) = if path.is_absolute() {
-        (
-            PathBuf::new(),
-            path.strip_prefix(prefix).map_err(|_| invalid())?,
-            true,
-        )
-    } else {
-        (parent.to_owned(), path, false)
-    };
-    for part in path.components() {
-        match part {
-            Component::Normal(name) => {
-                result.push(name);
-                descended = true;
-            }
-            Component::CurDir => (),
-            // Only ascend from directories already opened without following links.
-            // Collapsing a later `name/..` could conceal an aliased or missing name.
-            Component::ParentDir if !descended && result.pop() => (),
-            _ => return Err(invalid()),
+    let path = explicit.map(Path::to_path_buf).or_else(|| resolve(name));
+    let mut report = json!({"harness_id":harness,"state":"missing","version":null,"executable":null,
+        "management":"user","installation_performed":false,"program_observed":false});
+    if let Some(path) = path {
+        report["executable"] = path_value(&path)?;
+        if path.is_file() {
+            report["state"] = "unknown_version".into();
         }
-    }
-    if result.as_os_str().is_empty() || result.components().count() > 32 {
-        return Err(invalid());
-    }
-    Ok(result)
-}
-
-/// Follow only a final entry-point link, resolving its spelling inside the held
-/// prefix. Intermediate directories never follow links or reparse aliases.
-fn entry(root: &Dir, prefix: &Path, relative: &Path) -> Result<Value> {
-    let mut path = relative.to_owned();
-    let mut linked = false;
-    for _ in 0..16 {
-        let path_parent = path.parent().ok_or_else(invalid)?;
-        let mut parent = root.try_clone().map_err(|_| invalid())?;
-        for component in path_parent.components() {
-            let Component::Normal(name) = component else {
-                return Err(invalid());
-            };
-            let Some(next) = directory(&parent, Path::new(name))? else {
-                return Ok(json!({"state":if linked {"dangling"} else {"missing"}}));
-            };
-            parent = next;
-        }
-        let name = path.file_name().ok_or_else(invalid)?;
-        let Some(metadata) = optional(parent.symlink_metadata(name))? else {
-            return Ok(json!({"state":if linked {"dangling"} else {"missing"}}));
-        };
-        if metadata.is_symlink() {
-            let to = parent.read_link_contents(name).map_err(|_| invalid())?;
-            path = link_path(path_parent, &to, prefix)?;
-            linked = true;
-        } else if metadata.is_file() && !reparse(&metadata) {
-            // Reopen the same leaf without following a raced link or FIFO.
-            let file = files::open_regular(&parent, Path::new(name)).map_err(|_| invalid())?;
-            let after = file.metadata().map_err(|_| invalid())?;
-            if !same(&metadata, &after) || reparse(&after) {
-                return Err(invalid());
-            }
-            return Ok(
-                json!({"state":"regular","kind":if linked {"link"} else {"file"},
-                "resolved_relative":path,"size_bytes":metadata.len()}),
-            );
-        } else {
-            return Err(invalid());
-        }
-    }
-    Err(invalid())
-}
-
-fn observe(root: &Dir, prefix: &Path, entry_point: &str, command: &str) -> Result<Value> {
-    let mut versions = Vec::new();
-    let mut unfinished = Vec::new();
-    for (index, item) in root.entries().map_err(|_| invalid())?.enumerate() {
-        if index >= 1024 {
-            return Err(invalid());
-        }
-        let item = item.map_err(|_| invalid())?;
-        let name = item.file_name().into_string().map_err(|_| invalid())?;
-        let metadata = root.symlink_metadata(&name).map_err(|_| invalid())?;
-        let kind = metadata.file_type();
-        if let Some(version) = name
-            .strip_prefix(".incoming-")
-            .or_else(|| name.strip_prefix(".replaced-"))
-        {
-            if !label(version) || !kind.is_dir() || reparse(&metadata) {
-                return Err(invalid());
-            }
-            unfinished.push(name);
-        } else if name != "bin" && !name.starts_with('.') && kind.is_dir() {
-            if !label(&name) || reparse(&metadata) {
-                return Err(invalid());
-            }
-            versions.push(name);
-        } else if kind.is_symlink() && !name.starts_with('.') {
-            return Err(invalid());
-        }
-    }
-    versions.sort();
-    let mut recorded: Option<String> = None;
-    let mut marker_digest: Option<String> = None;
-    if let Some(bin) = directory(root, Path::new("bin"))? {
-        let marker = format!(".{command}.version");
-        if let Some(file) = optional(files::open_regular(&bin, Path::new(&marker)))? {
-            if reparse(&file.metadata().map_err(|_| invalid())?) {
-                return Err(invalid());
-            }
-            let mut bytes = Vec::new();
-            file.take(1025)
-                .read_to_end(&mut bytes)
-                .map_err(|_| invalid())?;
-            let text = std::str::from_utf8(&bytes).map_err(|_| invalid())?.trim();
-            if bytes.len() > 1024 || !label(text) {
-                return Err(invalid());
-            }
-            recorded = Some(text.to_owned());
-            marker_digest = Some(digest::sha256(&bytes));
-        }
-        for name in [
-            format!("{marker}.incoming"),
-            format!(".{command}.manifest.json.incoming"),
-        ] {
-            if let Some(metadata) = optional(bin.symlink_metadata(&name))? {
-                if !metadata.is_file() || reparse(&metadata) {
-                    return Err(invalid());
+        if executable(&path) {
+            let before = identity(&path)?;
+            // Credentials and harness configuration overrides are not inherited.
+            // Update suppression is scoped to this short query, never persisted.
+            let mut environment: Vec<(OsString, OsString)> =
+                ["PATH", "SYSTEMROOT", "SystemRoot", "TEMP", "TMP"]
+                    .iter()
+                    .filter_map(|key| std::env::var_os(key).map(|value| ((*key).into(), value)))
+                    .collect();
+            environment.extend([
+                ("DISABLE_AUTOUPDATER".into(), "1".into()),
+                (
+                    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC".into(),
+                    "1".into(),
+                ),
+                ("OPENCODE_DISABLE_AUTOUPDATE".into(), "true".into()),
+                ("LANG".into(), "C.UTF-8".into()),
+            ]);
+            let arguments: Vec<OsString> = definition
+                .version_arguments
+                .iter()
+                .map(Into::into)
+                .collect();
+            let directory = std::env::temp_dir();
+            if let Ok(output) = process::run(process::Request {
+                executable: &path,
+                arguments: &arguments,
+                directory: &directory,
+                environment: &environment,
+                timeout: Duration::from_secs(5),
+                output_limit: 4096,
+            }) && output.status.success()
+            {
+                let bytes = if output.stdout.is_empty() {
+                    &output.stderr
+                } else {
+                    &output.stdout
+                };
+                if let Ok(answer) = std::str::from_utf8(bytes) {
+                    let first = answer.lines().next().unwrap_or("").trim();
+                    let pattern = regex::Regex::new(r"(?:^|[^0-9A-Za-z.+_-])[vV]?([0-9]+(?:\.[0-9]+)+(?:[.+-][0-9A-Za-z][0-9A-Za-z.-]*)?)(?:$|[^0-9A-Za-z.+_-])")
+                        .map_err(|_| Failure::input("the version expression is invalid"))?;
+                    if first.len() <= 256
+                        && !first.chars().any(char::is_control)
+                        && let Some(version) =
+                            pattern.captures(first).and_then(|capture| capture.get(1))
+                        && version.as_str().len() <= 64
+                    {
+                        report["version"] = version.as_str().into();
+                        report["state"] = "observed".into();
+                        report["program_observed"] = true.into();
+                    }
                 }
-                unfinished.push(format!("bin/{name}"));
             }
+            if before != identity(&path)? {
+                return Err(Failure::precondition(
+                    "the harness executable changed during observation; retry",
+                ));
+            }
+            report["identity"] = before;
         }
     }
-    unfinished.sort();
-    let entry = entry(root, prefix, Path::new(entry_point))?;
-    let linked = (entry["kind"] == "link")
-        .then(|| entry["resolved_relative"].as_str())
-        .flatten()
-        .and_then(|path| Path::new(path).components().next())
-        .and_then(|part| part.as_os_str().to_str().map(str::to_owned))
-        .filter(|name| versions.contains(name));
-    Ok(
-        json!({"versions":versions,"unfinished":unfinished,"entry_point":entry,
-        "recorded_version":recorded,"marker_digest":marker_digest,
-        "recorded_version_present":recorded.as_ref().map(|value| versions.contains(value)),
-        "link_version":linked,"marker_matches_link":recorded.as_ref().zip(linked.as_ref()).map(|(a,b)|a==b)}),
-    )
-}
-
-/// Report an explicit prefix layout without executing or trusting its contents.
-pub fn inspect(prefix: &Path, entry_point: &str) -> Result<Value> {
-    let command = entry_point.strip_prefix("bin/").ok_or_else(invalid)?;
-    if !label(command)
-        || command.contains('/')
-        || !prefix.is_absolute()
-        || prefix.to_str().is_none()
-    {
-        return Err(invalid());
-    }
-    let lower = command.to_ascii_lowercase();
-    let command = if [".cmd", ".exe", ".bat"]
-        .iter()
-        .any(|suffix| lower.ends_with(suffix))
-    {
-        &command[..command.len() - 4]
-    } else {
-        command
-    };
-    if !label(command) || prefix.as_os_str().len() > 4096 {
-        return Err(invalid());
-    }
-    let parent_path = PathBuf::from(files::location(prefix.parent().ok_or_else(invalid)?)?);
-    let name = prefix.file_name().ok_or_else(invalid)?;
-    let prefix = parent_path.join(name);
-    let parent =
-        Dir::open_ambient_dir(&parent_path, cap_std::ambient_authority()).map_err(|_| invalid())?;
-    let before = parent.dir_metadata().map_err(|_| invalid())?;
-    let opened = directory(&parent, Path::new(name))?;
-    let (state, observation) = if let Some(root) = opened {
-        let first = observe(&root, &prefix, entry_point, command)?;
-        if first != observe(&root, &prefix, entry_point, command)?
-            || !same(
-                &root.dir_metadata().map_err(|_| invalid())?,
-                &directory(&parent, Path::new(name))?
-                    .ok_or_else(invalid)?
-                    .dir_metadata()
-                    .map_err(|_| invalid())?,
-            )
-        {
-            return Err(invalid());
-        }
-        ("present", first)
-    } else {
-        if optional(parent.symlink_metadata(name))?.is_some() {
-            return Err(invalid());
-        }
-        ("missing", Value::Null)
-    };
-    let after = Dir::open_ambient_dir(&parent_path, cap_std::ambient_authority())
-        .and_then(|dir| dir.dir_metadata())
-        .map_err(|_| invalid())?;
-    if !same(&before, &after) {
-        return Err(invalid());
-    }
-    Ok(
-        json!({"schema_version":1,"prefix":prefix,"prefix_state":state,"entry_point":entry_point,
-        "observation":observation,"observed_at":jiff::Timestamp::now().to_string(),
-        "installation_verified":false,"execution_authorized":false}),
-    )
+    report["observation_digest"] = digest::sha256(&canonical::bytes(&report)?).into();
+    Ok(report)
 }

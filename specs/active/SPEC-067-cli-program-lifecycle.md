@@ -14,8 +14,8 @@ harness homes.
 ## Scope
 
 Included: composition conversion of `cli`, and `component program install`,
-`invoke`, `status`, and `remove`. Excluded: harness program install under
-`--prefix`, provider software lifecycle, and seven copies in harness homes.
+`invoke`, `status`, and `remove`. Excluded: user-managed harness executables (ADR-0232) and seven copies in
+harness homes.
 
 ## Terms
 

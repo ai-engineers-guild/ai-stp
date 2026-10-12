@@ -1,9 +1,7 @@
 """Drive the configuration lifecycle of every harness, by the consumer path.
 
-`software-evidence` proves the **program** lifecycle — `harness
-install/status/update/remove` against a released provider, on six native legs.
-It says nothing about the other subject this product exists for: taking a
-machine's own configuration into management and putting it back.
+This slice proves the configuration lifecycle through the consumer CLI. Harness
+executables and their updates remain user-managed (ADR-0232).
 
 That arc is the vision's sentence, and until now it was measured by hand on one
 leg:

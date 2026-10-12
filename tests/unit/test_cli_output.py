@@ -166,16 +166,16 @@ def test_continuations_are_emitted_on_the_wire_and_derive_argv() -> None:
         continuations=[
             Continuation(
                 kind="advance",
-                path=["harness", "remove"],
-                arguments={"harness": "codex", "prefix": "/p", "target": "/t", "confirm": ""},
+                path=["component", "program", "remove"],
+                arguments={"id": "component_example", "confirm": ""},
             )
         ],
     )
     render_failure(failure, machine=True, request_id=REQUEST_ID, stream=stream)
     envelope = json.loads(stream.getvalue())
-    assert envelope["continuations"][0]["path"] == ["harness", "remove"]
+    assert envelope["continuations"][0]["path"] == ["component", "program", "remove"]
     assert envelope["next_actions"] == [
-        "harness remove --harness codex --prefix /p --target /t --confirm --json"
+        "component program remove --id component_example --confirm --json"
     ]
 
 

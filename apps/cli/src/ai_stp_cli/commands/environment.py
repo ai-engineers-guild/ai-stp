@@ -12,12 +12,13 @@ from typing import cast
 from pydantic import ValidationError
 
 from ai_stp_cli.answer import Answer
-from ai_stp_cli.commands import harness, toolchain
+from ai_stp_cli.commands import toolchain
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import cache, cli_program, installation, project_passport, revisions, versions
+from ai_stp_cli.local import cache, cli_program, harnesses, project_passport, revisions, versions
 from ai_stp_cli.local.database import configured_path, open_readonly
 from ai_stp_cli.toolchain import install as tool_install
 from ai_stp_contracts.cli.install import EnvironmentInspection, EnvironmentRequirement
+from ai_stp_contracts.cli.toolchain import HarnessSurvey
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_passports import ComponentVersionPassport, SetupVersionPassport
 
@@ -46,19 +47,6 @@ def _document(
     ):
         raise CliFailure("AI_STP_CONFLICT", "an environment dependency has changed identity")
     return document
-
-
-def _prefixes(parameters: Mapping[str, object], harnesses: set[str]) -> dict[str, Path]:
-    result: dict[str, Path] = {}
-    for item in _strings(parameters.get("harness-prefix")):
-        name, separator, value = item.partition("=")
-        path = Path(value).expanduser()
-        if not separator or name not in harnesses or name in result or not path.is_absolute():
-            raise CliFailure(
-                "AI_STP_VALIDATION_ERROR", "name each harness prefix once as harness=absolute-path"
-            )
-        result[name] = path
-    return result
 
 
 def inspect(parameters: Mapping[str, object]) -> Answer[EnvironmentInspection]:
@@ -103,10 +91,10 @@ def inspect(parameters: Mapping[str, object]) -> Answer[EnvironmentInspection]:
             raise CliFailure(
                 "AI_STP_CONFLICT", "an environment dependency passport is invalid"
             ) from error
-        prefixes = _prefixes(parameters, {setup.harness_id for setup in setups})
+        detected = toolchain.harnesses({}).payload
         requirements: list[EnvironmentRequirement] = []
         for setup in setups:
-            requirements.append(_harness_requirement(connection, setup, prefixes, target))
+            requirements.append(_harness_requirement(setup, detected))
         passports: list[SetupVersionPassport | ComponentVersionPassport] = [
             *setups,
             *components.values(),
@@ -155,73 +143,32 @@ def inspect(parameters: Mapping[str, object]) -> Answer[EnvironmentInspection]:
             setups=list(references),
             prerequisites_satisfied=all(row.state == "satisfied" for row in requirements),
             requirements=requirements,
-            detected_harnesses=toolchain.harnesses({}).payload,
+            detected_harnesses=detected,
         )
     )
 
 
 def _harness_requirement(
-    connection: sqlite3.Connection,
-    setup: SetupVersionPassport,
-    prefixes: dict[str, Path],
-    target: Path,
+    setup: SetupVersionPassport, detected: HarnessSurvey
 ) -> EnvironmentRequirement:
-    source = f"{setup.stable_id}@{setup.version}"
-    prefix = prefixes.get(setup.harness_id)
-    if prefix is None:
-        return EnvironmentRequirement(
-            kind="harness_program",
-            identity=setup.harness_id,
-            sources=[source],
-            state="not_observed",
-            reason="an explicit managed harness prefix is required for program observation",
-        )
-    observed = harness.status({"harness": setup.harness_id, "prefix": str(prefix)}).payload
-    present = observed.state == "present"
-    if present and (
-        installation.plan(connection, observed.operation_id).program_harness_id != setup.harness_id
-    ):
-        return EnvironmentRequirement(
-            kind="harness_program",
-            identity=setup.harness_id,
-            sources=[source],
-            state="blocked",
-            reason="the program receipt does not bind this harness identity",
-        )
-    compatible = (
-        not setup.supported_harness_versions or observed.version in setup.supported_harness_versions
-    )
+    found = next((item for item in detected.harnesses if item.harness_id == setup.harness_id), None)
+    installed = found.installations[0] if found and found.installations else None
+    version = harnesses.normalized_version(installed.version) if installed else ""
+    compatible = not setup.supported_harness_versions or version in setup.supported_harness_versions
     return EnvironmentRequirement(
         kind="harness_program",
         identity=setup.harness_id,
-        version=observed.version,
-        sources=[source],
-        state=("satisfied" if compatible else "blocked")
-        if present
-        else (
-            "action_required"
-            if observed.state in {"never_installed", "removed", "lost"}
-            else "blocked"
-        ),
-        reason=observed.reason
-        if not present or compatible
-        else "the observed harness version is outside the setup's exact supported versions",
-        actions=[]
-        if present or observed.state in {"foreign", "interrupted"}
-        else [
-            [
-                "ai-stp",
-                "harness",
-                "install",
-                "--harness",
-                setup.harness_id,
-                "--prefix",
-                str(prefix),
-                "--target",
-                str(target),
-                "--json",
-            ]
-        ],
+        version=version,
+        sources=[f"{setup.stable_id}@{setup.version}"],
+        state=("satisfied" if compatible else "blocked") if version else "not_observed",
+        reason=(
+            "the user-installed harness version is compatible"
+            if compatible
+            else "the user-installed harness version is outside the setup compatibility declaration"
+        )
+        if version
+        else "the harness version is unavailable; the user manages the harness executable",
+        actions=[],
     )
 
 

@@ -210,8 +210,8 @@ def test_self_update_playbook_does_not_type_update_plan() -> None:
 def test_provider_playbook_does_not_type_provider_update_plan() -> None:
     text = (PACKAGE / "references" / "provider.md").read_text(encoding="utf-8")
     assert "do not type `ai-stp provider update plan`" in text.lower()
-    assert "do not type `ai-stp harness install`" in text.lower()
-    assert "`ai-stp harness update`" in text
+    assert "Harness executables and their updates belong to the user and vendor." in text
+    assert "ai-stp harness" not in text
 
 
 def test_bootstrap_does_not_send_install_through_adopt() -> None:

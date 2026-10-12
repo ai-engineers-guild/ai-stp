@@ -24,7 +24,7 @@ struct ProposalRequest {
     scope: Scope,
     provider_version: String,
     #[serde(default)]
-    program_prefix: Option<program::Prefix>,
+    harness_executable: Option<program::Executable>,
 }
 
 enum Source {
@@ -74,7 +74,7 @@ impl Source {
                         harness_id: held.harness_id.clone(),
                         scope: request.scope,
                         provider_version: request.provider_version.clone(),
-                        program_prefix: request.program_prefix.clone(),
+                        harness_executable: request.harness_executable.clone(),
                     },
                     roots: held
                         .members

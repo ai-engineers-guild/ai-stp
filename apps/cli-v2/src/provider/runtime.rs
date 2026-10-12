@@ -1,4 +1,4 @@
-//! Authenticated component observation and confined, journaled program installation.
+//! Authenticated component observation and confined, journaled configuration changes.
 
 #[cfg(target_os = "linux")]
 mod configuration;
@@ -7,17 +7,11 @@ pub mod entry;
 #[cfg(target_os = "linux")]
 mod execution;
 #[cfg(target_os = "linux")]
-mod install;
-#[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "linux")]
 mod planning;
 #[cfg(target_os = "linux")]
-mod prefix;
-#[cfg(target_os = "linux")]
 pub mod probe;
-#[cfg(target_os = "linux")]
-mod software;
 #[cfg(target_os = "linux")]
 pub(crate) mod target;
 
@@ -41,91 +35,6 @@ fn unavailable() -> Failure {
         ErrorKind::Unavailable,
         "native provider network isolation is unavailable on this host",
     )
-}
-
-/// Read-only installed-program observation does not initialize the provider launcher.
-pub fn program_status(parent: &Path, harness: &str, prefix: &Path) -> Result<Value> {
-    let mut store = crate::store::Store::planning(parent)?;
-    store.transaction(|connection| program_observe_in(connection, parent, harness, prefix))
-}
-
-pub(crate) fn program_observe_in(
-    connection: &rusqlite::Connection,
-    parent: &Path,
-    harness: &str,
-    prefix: &Path,
-) -> Result<Value> {
-    #[cfg(target_os = "linux")]
-    {
-        install::observation::observe(connection, parent, harness, prefix)
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        let _ = (connection, parent, harness, prefix);
-        Err(Failure::new(
-            ErrorKind::Unavailable,
-            "native installed-program observation is unavailable on this host",
-        ))
-    }
-}
-
-/// A terminal installation receipt is returned before constructing a runtime.
-pub fn program_install_apply(parent: &Path, bytes: &[u8], digest: &str) -> Result<Value> {
-    #[cfg(target_os = "linux")]
-    {
-        install::apply(parent, bytes, digest)
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        let _ = (parent, bytes, digest);
-        Err(unavailable())
-    }
-}
-
-pub fn program_install_cancel(parent: &Path, bytes: &[u8], digest: &str) -> Result<Value> {
-    #[cfg(target_os = "linux")]
-    {
-        install::cancellation::cancel(parent, bytes, digest)
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        let _ = (parent, bytes, digest);
-        Err(unavailable())
-    }
-}
-
-pub fn program_change_apply(
-    parent: &Path,
-    bytes: &[u8],
-    digest: &str,
-    action: &str,
-) -> Result<Value> {
-    #[cfg(target_os = "linux")]
-    {
-        install::change::apply(parent, bytes, digest, action)
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        let _ = (parent, bytes, digest, action);
-        Err(unavailable())
-    }
-}
-
-pub fn program_change_cancel(
-    parent: &Path,
-    bytes: &[u8],
-    digest: &str,
-    action: &str,
-) -> Result<Value> {
-    #[cfg(target_os = "linux")]
-    {
-        install::change::cancellation::cancel(parent, bytes, digest, action)
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        let _ = (parent, bytes, digest, action);
-        Err(unavailable())
-    }
 }
 
 pub fn platform() -> Result<&'static str> {
@@ -202,23 +111,6 @@ impl Runtime {
         }
     }
 
-    pub fn program_change_plan(
-        &self,
-        context: &TargetRequest<'_>,
-        prefix: &Path,
-        version: Option<&str>,
-        action: &str,
-    ) -> Result<Value> {
-        #[cfg(target_os = "linux")]
-        {
-            install::change::plan(self, context, prefix, version, action)
-        }
-        #[cfg(not(target_os = "linux"))]
-        {
-            let _ = (context, prefix, version, action);
-            Err(unavailable())
-        }
-    }
     pub fn observe() -> Result<Self> {
         #[cfg(target_os = "linux")]
         {
@@ -349,60 +241,6 @@ impl Runtime {
         #[cfg(not(target_os = "linux"))]
         {
             let _ = (context, request, bundle);
-            Err(unavailable())
-        }
-    }
-
-    /// Acquire exact authenticated plan artifacts into isolated private state.
-    pub fn software_acquire(
-        &self,
-        context: &TargetRequest<'_>,
-        prefix: &Path,
-        request: &super::software::Request,
-    ) -> Result<Value> {
-        #[cfg(target_os = "linux")]
-        {
-            software::acquire(self, context, prefix, request)
-        }
-        #[cfg(not(target_os = "linux"))]
-        {
-            let _ = (context, prefix, request);
-            Err(unavailable())
-        }
-    }
-
-    /// Observe exact software downloads/effects without acquiring or installing them.
-    pub fn software_plan(
-        &self,
-        context: &TargetRequest<'_>,
-        prefix: &Path,
-        request: &super::software::Request,
-    ) -> Result<Value> {
-        #[cfg(target_os = "linux")]
-        {
-            software::observe(self, context, prefix, request)
-        }
-        #[cfg(not(target_os = "linux"))]
-        {
-            let _ = (context, prefix, request);
-            Err(unavailable())
-        }
-    }
-
-    /// Plan a fresh program root without exposing its real parent or publishing it.
-    pub fn program_install_plan(
-        &self,
-        context: &TargetRequest<'_>,
-        prefix: &Path,
-        software_version: Option<&str>,
-    ) -> Result<Value> {
-        #[cfg(target_os = "linux")]
-        {
-            software::install_plan(self, context, prefix, software_version)
-        }
-        #[cfg(not(target_os = "linux"))]
-        {
-            let _ = (context, prefix, software_version);
             Err(unavailable())
         }
     }

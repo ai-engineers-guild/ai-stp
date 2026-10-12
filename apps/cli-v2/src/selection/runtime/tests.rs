@@ -46,14 +46,14 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
     std::fs::write(
         &request_path,
         serde_json::to_vec(&json!({
-            "harness_id":"codex","scope":"global","members":[],"program_prefix":unicode_prefix
+            "harness_id":"codex","scope":"global","members":[],"harness_executable":unicode_prefix
         }))?,
     )?;
     let selector = Request::parse(&request_path, true)?.selector();
     let encoded = canonical::bytes(&serde_json::to_value(&selector)?)?;
     let retained: Selector = serde_json::from_value(canonical::parse(&encoded)?)?;
     assert_eq!(
-        retained.program_prefix.as_ref().ok_or_else(invalid)?.0,
+        retained.harness_executable.as_ref().ok_or_else(invalid)?.0,
         unicode_prefix
     );
     assert!(program::matches(&None, &Some("sha256:changed".into())).is_err());
@@ -62,11 +62,10 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
         account_id: "account_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
         device_id: "device_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
     };
-    assert!(
-        store
-            .transaction(|t| retained.observe(t, directory.path(), &identity))
-            .is_err()
-    );
+    let (unobserved, observation) =
+        store.transaction(|t| retained.observe(t, directory.path(), &identity))?;
+    assert!(unobserved.harness_version.is_empty());
+    assert!(observation.is_some());
     let declarations: Vec<Value> = serde_json::from_str(include_str!(
         "../../../tests/fixtures/provider-declarations.json"
     ))?;
@@ -111,7 +110,7 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
         provider_version: "0.0.88".into(),
         members: vec![],
         for_redistribution: false,
-        program_prefix: None,
+        harness_executable: None,
     }
     .selector()
     .target(&identity)?;

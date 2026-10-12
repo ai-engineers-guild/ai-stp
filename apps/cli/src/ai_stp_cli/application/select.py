@@ -367,7 +367,7 @@ def _target(
         harness_id=harness,
         os=operating_system,
         arch=architecture,
-        harness_version=_version_of(harnesses.detect(detector)),
+        harness_version=harnesses.installed_version(harnesses.detect(detector)),
         capabilities=eligibility.observed_capabilities(
             languages=sorted({item.language for item in index.entries if item.language}),
             surfaces=[Path(item.path).name for item in index.entries],
@@ -395,20 +395,6 @@ def _operating_system() -> str:
 def _architecture() -> str:
     machine = platform.machine().lower()
     return {"amd64": "x86_64", "aarch64": "arm64"}.get(machine, machine)
-
-
-def _version_of(found: harnesses.Found) -> str:
-    """The version of the installation this machine would actually use.
-
-    The first on `PATH`, because that is the one a harness command resolves to.
-    The survey spells an unreadable version `unknown`, and that word is turned
-    back into nothing here: passed through, it would travel as though it were a
-    version and be reported as one in the answer.
-    """
-    for installation in found.installations:
-        if installation.version and installation.version != "unknown":
-            return installation.version
-    return ""
 
 
 def _candidates(
@@ -2631,7 +2617,10 @@ def provider_trust(parameters: Mapping[str, object]) -> Answer[ProviderTrust]:
                 environment=rule.environment,
                 verified_publisher=rule.verified_publisher,
             )
-            for _, rule in sorted(policy.index_publishers.items())
+            for _, rules in sorted(policy.index_publishers.items())
+            for rule in sorted(
+                rules, key=lambda rule: (rule.repository, rule.workflow, rule.environment)
+            )
         ],
     )
 

@@ -87,6 +87,5 @@ Rejected:
 | `tests/golden/provider-kit/identity-ledger.json` | No released kit version re-published with moved bytes |
 | `tests/contract/test_provider_*`, `tests/unit/test_cli_provider_*` (~29 files) | Protocol, conformance, attestation binding, launchers, status envelope |
 | `just evidence-providers <tag>` | Released provider bytes answer the contract, per harness |
-| `just evidence-software <tag>` | Released providers survive the consumer install/status/update/remove path |
 | `just evidence-provider-scopes <setup_systems_root>` | Every provider profile survives a mutating lifecycle on disposable targets |
 | `docs/operations/provider-integration-state.md` | The dated public record: active tag, vendored kit digest, measured evidence |

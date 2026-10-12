@@ -16,7 +16,6 @@ use std::path::PathBuf;
 pub(super) enum Handler {
     Impact,
     Radius,
-    Program,
     Eligibility,
     Matrix,
     Composition,
@@ -30,7 +29,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             STATE_DIR,
             Parameter {
                 name: "request",
-                summary: "Closed JSON up to 256 KiB: the exact eligibility request, or proposal_id, scope, optional program_prefix and exact provider_version. Proposal harness and members come from the retained record.",
+                summary: "Closed JSON up to 256 KiB: the exact eligibility request, or proposal_id, scope, optional harness_executable and exact provider_version. Proposal harness and members come from the retained record.",
                 kind: ParameterType::Path,
                 required: true,
             },
@@ -44,7 +43,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             STATE_DIR,
             Parameter {
                 name: "request",
-                summary: "Closed JSON up to 16 KiB: targets (one to seven distinct harness_id/scope selectors with optional program_prefix and exact provider_version), optional after, limit (1–50, default 10) and for_redistribution. No claimed authority fields.",
+                summary: "Closed JSON up to 16 KiB: targets (one to seven distinct harness_id/scope selectors with optional harness_executable and exact provider_version), optional after, limit (1–50, default 10) and for_redistribution. No claimed authority fields.",
                 kind: ParameterType::Path,
                 required: true,
             },
@@ -58,31 +57,12 @@ pub(super) const COMMANDS: &[Declaration] = &[
             STATE_DIR,
             Parameter {
                 name: "request",
-                summary: "Closed JSON up to 256 KiB: harness_id, scope, optional program_prefix and exact provider_version, exact members and optional for_redistribution.",
+                summary: "Closed JSON up to 256 KiB: harness_id, scope, optional harness_executable and exact provider_version, exact members and optional for_redistribution.",
                 kind: ParameterType::Path,
                 required: true,
             },
         ],
         handler: super::Handler::Report(Handler::Eligibility),
-    },
-    Declaration {
-        path: &["program", "inspect"],
-        summary: "Observe an explicit software prefix and unfinished stages without executing or trusting local records.",
-        parameters: &[
-            Parameter {
-                name: "prefix",
-                summary: "Absolute software prefix; its parent must exist. No state is created.",
-                kind: ParameterType::Path,
-                required: true,
-            },
-            Parameter {
-                name: "entry-point",
-                summary: "Exact relative bin/command name, including any platform suffix.",
-                kind: ParameterType::String,
-                required: true,
-            },
-        ],
-        handler: super::Handler::Report(Handler::Program),
     },
     Declaration {
         path: &["select", "impact"],
@@ -196,11 +176,6 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                 .ok_or_else(|| Failure::input("the explicit state parent is required"))?,
             args.get_one::<PathBuf>("request")
                 .ok_or_else(|| Failure::input("the explicit selection request is required"))?,
-        ),
-        Handler::Program => crate::program::inspect(
-            args.get_one::<PathBuf>("prefix")
-                .ok_or_else(|| Failure::input("the explicit program prefix is required"))?,
-            text(args, "entry-point")?,
         ),
         Handler::Impact => {
             let baseline = match (

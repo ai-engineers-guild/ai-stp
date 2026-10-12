@@ -127,18 +127,15 @@ def test_an_empty_string_on_a_declared_flag_is_the_flag_sentinel() -> None:
     while a string parameter keeps `""` as data (the test above)."""
     item = Continuation(
         kind="advance",
-        path=["harness", "remove"],
-        arguments={"harness": "codex", "prefix": "/p", "target": "/t", "confirm": ""},
+        path=["component", "program", "remove"],
+        arguments={"id": "component_example", "confirm": ""},
     )
     assert bind_continuation(item).argv == [
-        "harness",
+        "component",
+        "program",
         "remove",
-        "--harness",
-        "codex",
-        "--prefix",
-        "/p",
-        "--target",
-        "/t",
+        "--id",
+        "component_example",
         "--confirm",
         "--json",
     ]

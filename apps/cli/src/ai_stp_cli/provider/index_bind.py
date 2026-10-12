@@ -104,8 +104,8 @@ def fetch(
         )
     policy = release.pinned_policy()
     project = project_for_harness(harness)
-    rule = policy.index_publishers.get(project)
-    if rule is None:
+    rules = policy.index_publishers.get(project, ())
+    if not rules:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
             "the named harness has no pinned index publisher",
@@ -127,7 +127,7 @@ def fetch(
     )
     document = _load_provenance(client, project, version, held.filename, provenance)
     write_private(destination.parent / f"{destination.name}.provenance.json", json.dumps(document))
-    evidence = index_attestation.verify(destination, document, rule, verifier=verifier)
+    evidence = index_attestation.verify_pinned(destination, document, rules, verifier=verifier)
     if not evidence.identity.source_commit:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
@@ -153,7 +153,7 @@ def fetch(
             "the provider-info harness does not match the requested harness",
             details={"reported": capabilities.harness_id, "requested": harness},
         )
-    github_repository = attested_bind.HARNESS_REPOSITORIES[harness]
+    github_repository = f"github.com/{evidence.identity.repository}"
     manifest = release.ReleaseManifest(
         provider_id=capabilities.provider_id,
         provider_version=capabilities.provider_version,
@@ -169,7 +169,7 @@ def fetch(
         supported_arch=frozenset(capabilities.supported_arch),
         sequence=sequence,
         policy_id=policy.policy_id,
-        publisher="NDDev-OpenNetwork",
+        publisher=evidence.identity.repository.split("/", 1)[0],
         signing_key=attested_bind.ATTESTED_SIGNING_KEY,
         signature_subject=policy.signature_subject,
         signature="",

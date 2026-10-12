@@ -36,16 +36,16 @@ remain implemented; the following rows describe their Rust replacement.
 | C0 — scope and decisions | Complete command-to-business ledger, current behavior versus intended changes, architecture boundary and ordered migration plan | Verify every descriptor/handler/classification against the baseline revision; documentation gate, existing status contracts and final diff review | Recorded by [#717](https://github.com/ai-engineers-guild/ai-stp/issues/717); exact-SHA integration results belong to the issue/PR |
 | C1 — native boundary proof | One Rust package with offline metadata, explicit schema-53 snapshot inspection, strict canonical data and native PEP 740 verification | Existing vectors and envelope/help consumers; all 51 tables from a real live-WAL backup; exact digest and newer-schema refusals; real PyPI artifact and eight negative mutations; three-OS CI and release-build measurements | Implemented; final integration and dated evidence tracked by [#718](https://github.com/ai-engineers-guild/ai-stp/issues/718) |
 | C2 — useful read path | Explicit configuration and verified local passport/version reads, bounded project discovery/indexing, public catalog reads/cache and exact declared environment prerequisites | Shared consumer/canonical/Markdown vectors, real schema-53 snapshots/files/TCP, historical wire identity, refusal and cache bounds; actual API readback, three-OS CI and comparable release-build measurements | Verified and deployed; integration, measurements and dated evidence in [#734](https://github.com/ai-engineers-guild/ai-stp/issues/734) |
-| C3 — authoring and selection | Rust adoption/scaffolding, immutable revisions/import/export, graph validation, mechanical eligibility and deterministic bundle compilation | Author → exact-version selection → bundle journey; canonical/descriptor/schema parity; refusal of invalid graphs, escaping paths, secrets and stale evidence | In progress in [#736](https://github.com/ai-engineers-guild/ai-stp/issues/736). Implemented: isolated identity; bounded source discovery/acquisition and project evidence; owned authoring, immutable versions and setup graphs; conservative native adaptation/materialization; local impact reports; durable selection; mechanical graph assessment; deterministic bundles and planned publication with observed contribution hosts. The [CLI contract](../../apps/cli-v2/README.md) owns supported formats, loader identities and acceptance limits. Remaining: reconcile business outcomes against C0, qualify other harness/kind producers and transformations, and complete task orchestration. Explicit Linux managed-program observations now supply current harness-version eligibility and bind proposal, confirmation and bundle plans; acceptance is tracked in [#882](https://github.com/ai-engineers-guild/ai-stp/issues/882). Explicit project installation attribution is implemented and accepted through the native Claude Code author-to-install service journey. Exact private setup acquisition is implemented in C5; grant-backed selection and the remaining connected flows still depend on C5 |
-| C4 — provider execution and recovery | Observed environment inspection, Rust trusted provider/software lifecycle, single- and multi-root installation, explicit recovery/switching and durable task flows for completed services | First one real provider on temporary targets, then all seven declared profiles; bounded process execution, interrupted apply, idempotent retry, rollback and active-environment handoff. Advertise only completed task intents | Native authenticated component acquisition, exact public observation/planning, software acquisition and Linux program install/update/removal are implemented. Single-root configuration plan/apply now binds package/passport identity, physical state, exact effects and public ownership; the component is its only writer. Independent file/mode/status verification, durable desired-only recovery and historical replay passed against all seven 0.0.91 components. Actual owner death during partial writes and recovery without the source ZIP passed; retained contribution fields, large integers and modes are preserved. The managed default is 0.0.93. Evidence and exact source/artifact identities belong to [#764](https://github.com/ai-engineers-guild/ai-stp/issues/764). Exact configuration cancellation requires the original authenticated component 0.0.92 or newer and independent unchanged-state readback; 43 real Codex/Cursor calls passed against released 0.0.92 bytes. Exact in-place update/removal cancellation requires the original component 0.0.93 or newer; authenticated native Codex/Grok journeys cover real cross-process writer contention, expiry, missing vendor archives, unchanged prefix/target observations, delayed apply and offline terminal history. Remaining: multi-root recovery, staged active-agent handoff, other-OS provider isolation and completed task flows. Windows process lifetime alone is not provider isolation |
+| C3 — authoring and selection | Rust adoption/scaffolding, immutable revisions/import/export, graph validation, mechanical eligibility and deterministic bundle compilation | Author → exact-version selection → bundle journey; canonical/descriptor/schema parity; refusal of invalid graphs, escaping paths, secrets and stale evidence | In progress in [#736](https://github.com/ai-engineers-guild/ai-stp/issues/736). Implemented: isolated identity; bounded source discovery/acquisition and project evidence; owned authoring, immutable versions and setup graphs; conservative native adaptation/materialization; local impact reports; durable selection; mechanical graph assessment; deterministic bundles and planned publication with observed contribution hosts. The [CLI contract](../../apps/cli-v2/README.md) owns supported formats, loader identities and acceptance limits. Remaining: reconcile business outcomes against C0, qualify other harness/kind producers and transformations, and complete task orchestration. User-installed harness observations supply version eligibility and bind proposal, confirmation and bundle plans (ADR-0232, [#886](https://github.com/ai-engineers-guild/ai-stp/issues/886)). Explicit project installation attribution is implemented and accepted through the native Claude Code author-to-install service journey. Exact private setup acquisition is implemented in C5; grant-backed selection and the remaining connected flows still depend on C5 |
+| C4 — provider execution and recovery | Observed environment inspection, Rust trusted configuration-component lifecycle, single- and multi-root installation, explicit recovery/switching and durable task flows for completed services | First one real provider on temporary targets, then all seven declared profiles; bounded process execution, interrupted apply, idempotent retry, rollback and active-environment handoff. Advertise only completed task intents | Native authenticated component acquisition and exact configuration observation/planning are implemented. Harness executable lifecycle is excluded by ADR-0232. Single-root configuration plan/apply now binds package/passport identity, physical state, exact effects and public ownership; the component is its only writer. Independent file/mode/status verification, durable desired-only recovery and historical replay passed against all seven 0.0.91 components. Actual owner death during partial writes and recovery without the source ZIP passed; retained contribution fields, large integers and modes are preserved. The managed default is 0.0.93. Evidence and exact source/artifact identities belong to [#764](https://github.com/ai-engineers-guild/ai-stp/issues/764). Exact configuration cancellation requires the original authenticated component 0.0.92 or newer and independent unchanged-state readback; 43 real Codex/Cursor calls passed against released 0.0.92 bytes. Remaining: multi-root recovery, staged active-agent handoff, other-OS provider isolation and completed task flows. Windows process lifetime alone is not provider isolation |
 | C5 — connected capabilities | Rust account/device/grants, private sync and conflict handling, publication/readback, technology mappings, assurance/reporting and existing governed-operation adapters | Real CLI↔API journeys, revocation/retry/restart, explicit visibility decisions, exact provenance and terminal readback; bounded heartbeat/usage delivery with current consent policy | Isolated Ed25519 identity and explicit secret storage are implemented. Native account plan/apply/status, bounded device authorization, signed refresh and offline-safe logout are implemented in [#859](https://github.com/ai-engineers-guild/ai-stp/issues/859); the real-TCP/private-file recovery proof passed. Explicit local-owner attachment is implemented through an exact account/head/version plan, fresh same-device authentication and one SQLite transaction; older preview writers are fenced while immutable versions and historical receipts remain readable. Explicit private version reads and mixed public/private graph acquisition are implemented in [#876](https://github.com/ai-engineers-guild/ai-stp/issues/876), with account/origin-scoped cache, exact session binding, fresh same-device authorization and atomic local import. Actual GitHub approval, revoked-key recovery, grant-backed selection, private sync/conflicts and publication/readback remain pending. Authentication alone does not transfer local objects or production ownership |
 | C6 — native distribution and consumers | Owner-aware native install/update/recovery, attested artifacts/SBOM and a packaged Rust desktop sidecar | Exact-artifact Linux x86_64, Windows x86_64 and macOS arm64 execution; filtered desktop child environment, correct sidecar selection, installer coexistence, interruption/rollback and current-state recovery | Standalone optimized preview archives are published for all three platforms with exact-tag provenance and verified public download bytes; release evidence is tracked by [#57](https://github.com/ai-engineers-guild/ai-stp/issues/57). Published schema-2 preview archives bind a deterministic target-filtered Cargo dependency SBOM to the executable and source; the release workflow compares repeated packaging. This inventory explicitly excludes OS/compiler internals. Automated installation/update/recovery and the Rust desktop sidecar remain pending |
 | C7 — controlled cutover and retirement | Transfer production writer ownership, switch the default executable, retire superseded Python CLI code/tests and reconcile all docs/memories | Every ledger row has a verified disposition; no unsupported pending task/state; tested quiescence/current-state recovery/ownership transfer; rollback after v2 mutations uses current compatible state or proved conversion; local/GitHub/deployed identities agree | Planned |
 
 C2 separates declared requirements from executable environment observations:
 `environment requirements` reads exact snapshot identities and variable names;
-production `environment inspect` also invokes harness status and toolchain
-preparation, so its observed-program completion is explicitly owned by C4.
+production `environment inspect` also observes user-installed harness versions and toolchain
+requirements, so its observed-program completion is explicitly owned by C4.
 C2 is a preview read path, not disposition of every production inspection leaf.
 Project link/unlink commands require server-authored plans and authenticated
 responses in the current implementation; C5 owns those connected mutations.
@@ -56,9 +56,8 @@ than inventing a remote collection protocol. C3 owns local project
 registration and durable project-to-setup selection; C4 supplies real device
 and provider observations to its eligibility engine before command exposure.
 Native device refresh records only runtime platform and CLI version with exact
-head revalidation and unchanged-observation retention. Explicit native managed
-prefixes now supply fresh Linux program evidence to selection; device-wide
-harness discovery and unsupported operating systems remain unobserved. An offline
+head revalidation and unchanged-observation retention. Native version queries now supply user-installed harness evidence to selection;
+unknown versions remain explicit and cannot satisfy version constraints. An offline
 device key or platform passport does not establish an installed harness or executable authority.
 Project indexing intentionally refuses all symlinks, including internal aliases,
 and catalog cache access requires an explicit isolated directory. Historical
@@ -77,14 +76,14 @@ writes remain mandatory.
 The coordinated component release 0.0.93 passed source/render gates, all seven
 public repositories' platform checks, immutable publication and isolated
 released-consumer readback. New native plans default to that exact component;
-older plans retain their original release. Actual native acceptance covers
+older configuration plans retain their original release. Historical native acceptance covered
 configuration cancellation on Codex/Cursor and program cancellation on
 Codex/Grok, including the native/component admission gap and offline history.
 The optimized preview also authenticates every managed default and completes
 an explicit Claude Code project author/selection/bundle/install/remove journey.
 Issues #764 and #860 own exact source, artifact and operational evidence. Base forward
 configuration execution requires 0.0.91; exact configuration cancellation needs
-0.0.92, and program update/removal cancellation needs 0.0.93. Python 0.0.46 remains
+0.0.92. Program mutation commands and their evidence runner are retired by ADR-0232. Python 0.0.46 remains
 the production writer. Neither an artifact release nor an isolated journey
 transfers production ownership.
 
@@ -104,17 +103,12 @@ not rewritten and both acquired verification flags remain false.
    Rust verification and immutable published definitions. Verify the connected
    author-to-install journey as its remaining services become available;
    command counts and isolated installation proofs are not acceptance.
-2. Complete installed-harness/task integration around the single-root configuration
-   service. Explicit managed-prefix observation and version eligibility are implemented
-   in [#882](https://github.com/ai-engineers-guild/ai-stp/issues/882), with current files,
-   launcher and original receipt bindings rechecked on plan application. Broader
-   device inventory and task orchestration remain. Registered-project installation attribution is
-   implemented and accepted through the actual optimized Rust author/selection/bundle/component journey on a disposable Claude Code project. Both exact
-   configuration cancellation and in-place program cancellation are implemented
-   and accepted against released components. They preserve original component
-   identity, independently verify unchanged content and retire native state only
-   after a durable component receipt. Complete the author-to-install task journey;
-   a confirmed selection alone is not an installed configuration.
+2. Complete task integration around the single-root configuration service.
+   Harness version observation is read-only under ADR-0232; harness executable
+   installation/update/removal is outside scope. Registered-project attribution
+   and exact configuration cancellation are implemented. Complete the
+   author-to-install task journey; a confirmed selection alone is not an
+   installed configuration.
 3. Complete multi-root recovery, staged active-agent replacement, durable handoff
    and restart, and provider isolation on the other supported operating systems.
    Preserve component-only content writes, physical bindings and the explicit
@@ -277,8 +271,8 @@ and the issues it links) and setup-systems #316.
 
 ## Decision-making vision
 
-- Seven setup systems own native harness writes and real software
-  install/update/remove; `ai-stp` invokes the same lifecycle mechanically.
+- Seven setup components own native configuration writes; ai-stp orchestrates
+  exact configuration plans. Harness executables remain user-managed.
 - Existing configuration becomes managed only through explicit adoption with an
   exact plan, never through silent ownership.
 - The current component vocabulary is the closed `component_type` list in

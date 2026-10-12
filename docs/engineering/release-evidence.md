@@ -60,7 +60,6 @@ release network or on a deployed environment being reachable.
 |---|---|
 | `just evidence-live` | the deployed catalogue, anonymously, with no credential |
 | `just evidence-providers <tag>` | does the projection table still agree with the providers **as released** |
-| `just evidence-software <tag>` | can a consumer drive a released provider through `harness install/status/update/remove`; pass `acquire=1` to omit provider paths and prove transparent attested acquisition plus reuse |
 | `just evidence-config <tag>` | can a native surface be captured, installed into a target, observed and removed again — one row per harness; `from_import=1` captures the whole root through `setup import` instead of `component adopt`, and both paths must end in the same observed target; `scope=project` seeds the indexed workspace instead of the harness home and installs with `--scope project`, and `scope=user_root` seeds the shared `~/.agents/skills` and installs with `--scope user_root`, each for the harnesses whose released provider declares a rule at that scope |
 | `just evidence-contribution <tag>` | `#54`'s acceptance: one MCP component in each of its three native forms, and the refusal that is also an answer; each installed form is then removed again, and the owned-file form must leave the host file behind with the person's own key — the target's `config.toml` is seeded with that key before the install, so the removal has something to keep |
 | `just evidence-citations` | is every source link the harness catalogue cites still alive |
@@ -86,18 +85,14 @@ fresh status read. Grant invitations require an explicitly named recipient.
 A requested publication that remains unverified returns a nonzero result;
 undriven grant and report scenarios remain explicit without failing read-only evidence.
 
-`software-evidence` and `config-evidence` are the two workflows that run their
-slice on the three required native legs (`ubuntu-24.04`, `macos-15`,
+`config-evidence` runs its configuration slice on the three required native legs (`ubuntu-24.04`, `macos-15`,
 `windows-2025`). Linux arm64, macOS x86_64 and Windows arm64 are not_verified
-and do not delay this beta (ADR-0172). They are
-`workflow_dispatch` only and take the exact provider tag as input. Their
+and do not delay this beta (ADR-0172). It is
+`workflow_dispatch` only and takes the exact provider tag as input. Its
 package-only environment installs the CLI with `--no-editable` in both `uv sync`
 and `uv run`: only the wheel bundles the first-party modules (`ADR-0146`),
 and an editable CLI without sibling workspace projects cannot start.
-`software-evidence` takes `transparent_acquisition` to make `harness install`
-acquire and remember the attested release while every later lifecycle command
-omits `--provider` and `--provider-manifest`; the report verifies that the
-managed release retained the requested exact tag. `config-evidence` also takes
+The workflow also takes
 `from_import` to drive the import capture path.
 
 ## Desktop

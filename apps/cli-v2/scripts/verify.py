@@ -80,12 +80,11 @@ def prove(binary: Path, root: Path) -> None:
     home.mkdir()
     help_data = run(binary, home, ["help", "--agent"])["data"]
     MachineHelp.model_validate(help_data)
-    # Agents must never treat a provider-backed writer as a read-only command.
-    for row in help_data["commands"]:
-        if row["path"][0] == "program" and row["path"][-1] in {"plan", "apply", "cancel"}:
-            applying = row["path"][-1] != "plan"
-            assert row["mutability"] == ("apply" if applying else "plan")
-            assert row["confirmation"] == ("plan_digest" if applying else "none")
+    # Harness executables belong to the user; configuration remains the writer.
+    assert [row["path"] for row in help_data["commands"] if row["path"][0] == "program"] == [
+        ["program", "status"]
+    ]
+    assert not any(row["path"][:2] == ["provider", "software"] for row in help_data["commands"])
     registry: JsonValue = {
         "commands": help_data["commands"],
         "global_options": help_data["global_options"],

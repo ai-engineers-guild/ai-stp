@@ -190,7 +190,7 @@ This is not qualification of the current release:
   control (random bytes) returns 404, so the check distinguishes them;
 - `uv tool install --no-cache ai-stp-cli` without a pin in a clean `HOME` returns
   `0.0.5`;
-- on the same installation: `harness install|update|remove`, `select propose
+- on the same installation: `toolchain harnesses`, `select propose
   --empty`, `scoped_projection_profiles` in the closed set, `provider trust`—schema
   2 with seven `build_attestations`—and anonymous `registry search --kind setup`—18.
 

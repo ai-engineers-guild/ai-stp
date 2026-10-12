@@ -5,7 +5,7 @@ last_verified: "2026-10-12"
 
 # ADR-0228: Setup systems are ai-stp components
 
-Status: accepted; multi-root coordination, active-target handoff and production cutover remain pending.
+Status: accepted; harness-program lifecycle superseded by ADR-0232; multi-root coordination, active-target handoff and production cutover remain pending.
 
 ## Context
 

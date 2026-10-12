@@ -1776,7 +1776,7 @@ def _observed_harness_version(harness_id: str) -> str:
     if detector is None:
         return ""
     found = harnesses.detect(detector)
-    return found.installations[0].version if found.installations else ""
+    return harnesses.installed_version(found)
 
 
 def _verify(
@@ -2225,22 +2225,11 @@ def _v3_operation(action: str) -> protocol_v3.Operation:
         "rollback": protocol_v3.Operation.RESTORE,
     }
     if action in installation.PROGRAM_ACTIONS:
-        # An address, not a break. The journal accepts these because its state
-        # machine is the same for either subject; `install` does not perform
-        # them because its subject is a setup, and an agent that asked here
-        # needs to be told where they are rather than that something failed.
+        # Retain historical journals without giving retired plans new effects.
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            "that action installs a program, which harness does, not install",
+            "harness executables are user-managed; ai-stp cannot resume this retired operation",
             details={"action": action},
-            # `harness resume` rather than `harness <action>`. An operation
-            # that stopped after the provider was called must be settled by
-            # looking, and pointing an agent at the verb would have it apply the
-            # whole thing a second time — which is what `operation.md` forbids.
-            next_actions=[
-                "harness resume --operation <id> --json",
-                f"harness {action.removeprefix('software_')} --json",
-            ],
         )
     try:
         return mapping[action]

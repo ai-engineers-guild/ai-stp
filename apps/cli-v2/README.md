@@ -2,10 +2,10 @@
 
 Native preview of the ai-stp CLI. One Cargo package contains a headless library
 and the `ai-stp-v2` executable. The supported production executable is still
-`ai-stp`; the preview uses explicit isolated state. On Linux it can install a
-harness program into a new directory, update it and remove an exact version
-through an authenticated setup component. It also plans, applies and recovers
-configuration installation, replacement and removal on an inactive single root.
+`ai-stp`; the preview uses explicit isolated state. It observes user-installed
+harness versions without managing their executables. On Linux it plans, applies
+and recovers configuration installation, replacement and removal on an inactive
+single root through authenticated setup components.
 
 ## Preview distribution
 
@@ -77,7 +77,7 @@ The pin is a choice, not authentication or installation eligibility.
 
 The existing `provider` command group is the expert interface inside this CLI.
 No separate setup-system command is required for implemented read, preparation,
-program installation/update/removal or single-root configuration journeys.
+single-root configuration journeys. Harness executables remain user-managed.
 Multi-root coordination, active-agent handoff, other-OS isolation, native
 self-update and the production switch remain C4/C6/C7 work.
 
@@ -519,7 +519,7 @@ refusal may leave that empty registry, but commits no domain records or artifact
 Existing WAL housekeeping remains SQLite's responsibility. Local passport and
 version inspection use one read transaction and never open credentials. Provider
 declaration files describe packaging only; component execution and installation
-use the authenticated runtime and the explicit program operation contract.
+use the authenticated runtime and the explicit configuration operation contract.
 
 Discovery also reads project-root `nori.json` and project/home
 `.agents/.skill-lock.json` version 3. The bounded ports follow the pinned
@@ -589,8 +589,11 @@ trust to the compiled shared provider policy. Harness IDs remain canonical:
 `claude-code` maps to `claude-setup-system`, and `grok-build` to
 `grok-setup-system`. Version input is canonical `X.Y.Z` with a `u32` major and
 minor/patch below 1,000, avoiding collisions in the policy's release sequence.
-The policy's minimum sequence, protocol 3, repository and unique verified index
+The policy's minimum sequence, protocol 3, repository and a verified index
 publisher must permit the request; downloaded metadata cannot widen policy.
+A repository transfer can pin several distinct publisher triples for one project.
+Signatures must match one exact triple, and reports retain that verified identity;
+historical signed identities are not rewritten.
 
 `fetch` reuses the exact PyPI source adapter with one 30-second deadline for
 release metadata, wheel and provenance. It checks the registry's size/SHA-256,
@@ -805,8 +808,7 @@ is recovered by repeating the same cancellation request; the component's durable
 receipt prevents a delayed apply from resurrecting it. Existing terminal results
 are returned unchanged by both apply and cancel, even after a later operation or
 target removal. Thus cancelling an already verified operation reports its original
-verified result and does not undo it. In-place program update/removal cancellation
-remains a separate boundary.
+verified result and does not undo it.
 
 Current-project and configured harness roots refuse direct application: their
 activation requires staged replacement and durable agent handoff. Multi-root
@@ -814,273 +816,23 @@ coordination, active-target handoff and writable isolation outside Linux remain
 separate C4 work. This bounded configuration surface does not advertise a
 completed task intent or production writer cutover.
 
-`provider software plan` uses the same explicit provider, target and scope plus
-an absolute `--prefix` and a closed request of at most 8 KiB. The prefix may be an
-existing plain directory or an absent leaf with an existing plain parent.
-Planning never creates the prefix on the host. Fields are
-`operation` (`software_install`, `software_update` or `software_remove`),
-`operation_id`, `expires_at` with the same short UTC expiry, and optional
-`software_version`. An explicit version must match exactly; omission selects the
-pin compiled into the authenticated exact provider build. It never selects a
-floating registry version.
+`program status --harness <id> [--executable <absolute-path>]` observes the
+user-installed harness. Omission resolves the catalog's primary command in
+absolute PATH entries, in order. Only the catalog's version arguments are run,
+without a shell or inherited stdin, for at most five seconds and 4 KiB per stream.
+Credentials and configuration overrides are not inherited. Query-only environment
+flags suppress Claude/OpenCode background updates without changing user settings.
+This is not a sandbox or a publisher verification of the user's executable.
+Windows observation accepts native `.exe` entry points; detected script wrappers stay
+`unknown_version` rather than invoking a shell.
 
-Target, prefix and trust state must be disjoint by held directory ancestry.
-Existing product directories are read-only mounts, with device/inode and
-mount-mode checks before any provider instruction runs. For an absent prefix,
-the host parent is held and revalidated but never exposed to the component.
-A fresh read-only namespace mount represents that parent; the entry process
-checks that the prefix remains absent before invoking the component. An aliased
-or replaced parent, a newly present leaf, a missing parent or an overlap refuses.
-Sibling target and state directories remain valid. Execution preserves the
-caller's mount namespace, including private temporary directories, while the
-systemd service owns every provider process before invocation. Held directory
-identities and mount modes remain verified; no alternate writable path or
-launcher is selected.
-The provider plan is observed twice and both closed responses must agree; target
-status before/after, directory identities and trust/request expiry are checked.
-The report binds the exact provider/version/build/release, target digest,
-scope/profile, program prefix, software version, ordered artifacts, effects and
-RFC 8785 plan digest. Downloads have exactly platform, HTTPS URL without user
-credentials/query/fragment/custom port, SHA-256, positive byte length and a
-single `bin/name` entry point. At most sixteen distinct records, 1 GiB each and
-2 GiB total are accepted. Removal carries no downloads. Undeclared operations,
-unknown fields, backup capture, changed echoes and unsafe artifact metadata refuse.
-
-The software plan artifact may additionally carry `expected_software_digest`,
-the authenticated provider's prefix observation. When present, it must be
-`sha256:` followed by exactly 64 lowercase hexadecimal digits and is retained
-in the complete RFC 8785 plan digest. Null and malformed values refuse. This
-field is not accepted in the caller's request, configuration plans or the
-response envelope. Older provider plans may omit it; no value is synthesized.
-The two provider observations must agree on its presence and value. Reading
-the field does not independently verify the prefix or authorize execution.
-
-This observes provider effects about the prefix layout; it does not hash or
-attest installed payloads and is not a snapshot or apply precondition. The report
-sets `installed_software_verified`, `software_downloaded`,
-`installation_performed` and `execution_authorized` to false. Only isolated trust
-state can change. Software apply, receipt/recovery and installed-byte
-verification remain separate work; published provider software operations do not
-capture configuration backups.
-
-`provider software acquire` takes the same coordinates and request, observes the
-same authenticated plan, then acquires its ordered artifacts into the private
-`software-artifacts` directory below the explicit state parent. It is currently
-available with the proved Linux provider runtime. The target and program prefix
-remain read-only and physically disjoint from this state. Removal requests
-refuse because they have no downloads. The returned plan stays bound to the
-observed provider and effects; acquiring bytes grants no installation authority.
-The original target, prefix (or absent prefix's parent) and state handles remain
-held across planning and acquisition; the final checks never adopt reopened
-replacement directories.
-
-Transfers use anonymous HTTPS, no proxy, identity encoding, at most two checked
-redirects and one ten-minute artifact budget. Allowed authorities follow the
-compiled harness delivery: npm for Codex, Claude Code and OpenCode;
-`downloads.cursor.com` for Cursor; `x.ai` for Grok; `storage.googleapis.com` for
-Antigravity; GitHub and its release-asset redirect host for Pi. Only the latter
-redirect may carry a signed query, which is never included in reports or errors.
-The existing 1 GiB/file and 2 GiB/plan bounds remain in force. Files are streamed
-through fixed buffers; HTTP framing, exact byte count and SHA-256 must agree.
-The HTTP reader has no implicit size limit, so the downloader enforces its own
-stream bound ([ureq body API](https://docs.rs/ureq/3.4.2/ureq/struct.Body.html)).
-
-Cache names are the exact SHA-256, never a response filename. Every cache hit
-is read and verified again. One retained partial per digest permits retry:
-the full response is streamed again, each retained byte is compared before the
-missing suffix is appended, and the finished disk file is independently hashed
-before a same-directory rename publishes it. Changed partials, malformed files,
-links and mismatched cached bytes refuse and are preserved. A response failure
-cannot publish a usable artifact. Successful completion flushes the file and,
-on Unix, the directory; no Windows directory power-loss guarantee is inferred.
-The report lists ordered digest, size, entry point, relative cache key and cache
-hit status. `software_acquired` confirms available verified bytes;
-`software_downloaded` is true only when a cache miss fetched a response.
-It keeps installation and installed-software verification false;
-future execution must reacquire trust and revalidate the held artifact bytes.
-
-`program install plan --state-dir --harness --target --scope --prefix`
-plans a fresh program installation. `--version` selects the setup component
-release; omission uses the managed release. `--software-version` selects an
-exact program version; omission uses that component's compiled pin. This command
-currently uses the proved Linux runtime. The final prefix must be absent under
-an existing plain parent and physically disjoint from target and state.
-Planning requires component 0.0.89 or newer and rejects older explicit versions
-before publisher refresh or acquisition. Read-only `provider software plan`
-retains its independent observation contract.
-
-The native plan binds two distinct preconditions: absence of the host
-destination and an empty private directory for the component. The component
-sees that empty directory in a read-only namespace at the final prefix's path;
-the real parent is never mounted. Two authenticated component observations must
-agree. No host staging directory, durable operation or installation is created.
-Only isolated publisher trust state can change.
-
-The returned `plan` binds the generated operation ID, a fifteen-minute expiry,
-canonical paths, physical target/state/parent identities, exact component
-archive/executable/info digests and the complete component plan. Its
-`plan_digest` uses RFC 8785 bytes with the
-`ai-stp:installation-operation:v1` domain; paths and component strings retain
-their exact Unicode spelling. Plans are bounded to 64 KiB. `observation` retains
-the authenticated measurements and distinguishes `host_state: missing` from
-`provider_view: empty_private_stage`. `installation_performed` and
-`execution_authorized` stay false.
-
-`program install apply --state-dir --plan --plan-digest` consumes that original
-plan and digest on Linux. It requires component 0.0.89 or newer, whose software
-kernel retains exact caller admission and terminal history. This version floor
-does not authenticate an artifact or change the managed pin. Every execution
-reauthenticates the recorded component and compares its archive, executable and
-declaration digests; an unpublished build or an old plan never receives an
-implicit upgrade. The original target, parent, state and component plan are
-revalidated before admission. One vendor artifact is supported; multipart plans
-refuse until an independent verifier exists.
-
-Downloads finish before the first durable operation admission. The existing
-schema-53 `operation` and `operation_event` tables retain the complete original
-plan and transition evidence in short transactions. A private operation lock
-serializes retries without retaining the registry lock during network or
-component work. Phases are `prepared`, `staged`, `publishing` and terminal
-`verified`; the stored phase is separate from the original plan's deadline.
-Expiry still controls the component's first admission. A previously admitted
-component operation may resume its exact original plan after expiry.
-
-The component receives a writable private stage at the planned final path, a
-read-only target, plan and vendor archive, a synthetic read-only parent and
-measured network denial. Its entry process verifies physical mount identities
-and modes before execution and sets a deterministic `0022` payload umask.
-The real host parent is never mounted. Component execution is bounded to five
-minutes; timeout preserves transaction state for retry or explicit cancellation.
-The vendor archive is hashed through the same held descriptor mounted read-only
-for the component; replacing its cache path cannot select a second file.
-
-Before publication the CLI independently compares every vendor payload file,
-length, digest and executable mode, directory membership, exact version marker,
-launch manifest and absolute final-path entry link. It reads bounded raw or
-gzip-tar artifacts without extracting them itself. Symlinks/hardlinks in the
-version payload, surplus files/directories, altered metadata and escaping launch
-links refuse. Inventory limits are 65,536 entries, 8 GiB, depth 64 and 8,192-byte
-relative paths; its checksum is plain SHA-256 over RFC 8785 inventory bytes.
-The result separates regular `files` from `archive_entries`: the component's
-legacy `files` counter includes explicit directory entries and is compared with
-that archive count, not with inferred parent directories or regular files alone.
-This proves installed content, not vendor execution or runtime dependencies.
-
-The durable publication record precedes an atomic no-replace directory move.
-Recovery recognizes the same physical root after that move, flushes directory
-changes and removes the private parent before committing completion. A foreign
-destination is preserved. Terminal receipts are historical outcomes and return
-before component/network/target lookup, including after later removal; they do
-not recreate files or attest the current installation. Stored phases, physical
-identities and closed result fields are validated against the original plan
-before returning history or resuming effects; altered or surplus fields refuse.
-
-`program install cancel --state-dir --plan --plan-digest` cancels an unstarted
-or unpublished operation. It records `cancelling` before discarding only its
-bound generated stage, then commits terminal `cancelled`. Repeating cancel or
-apply resumes interrupted cancellation. A moved/published root cannot be
-cancelled; its original apply must finish publication. Cancellation never removes
-the final program directory.
-
-`program update plan` and `program remove plan` use the same explicit state,
-harness, target, scope and component version options. They require an existing
-physical prefix. Update accepts an exact `--software-version` or resolves the
-component's compiled pin. Removal requires `--software-version`; the active
-version is never inferred as deletion authority. Their matching `apply` command
-accepts only the original plan and its digest. Passing a plan to another verb,
-including installation cancellation, refuses.
-
-These plans bind the existing prefix identity and two independent inventories:
-the command's launch entries and all entries outside the selected version,
-its three launch entries and component bookkeeping. Regular file bytes and
-modes, directory modes and literal symlink targets are retained in the latter
-checksum; hardlinked files and unsupported filesystem objects refuse. Inspection
-is bounded to 65,536 entries, 8 GiB, depth 64 and five minutes. The component
-receives only that held prefix as a writable mount; the target remains read-only.
-Removal downloads no vendor artifact. Update uses the same held, authenticated
-artifact and exact payload verifier as fresh installation.
-
-The native journal records `applying` before invocation and `verified` only
-after independent readback. Update verifies the entire selected vendor payload,
-marker, manifest and final entry link. Removal verifies the selected version is
-absent: removing the active version removes its launch entries; removing an
-inactive version preserves them. Both verify the unrelated inventory and target
-are unchanged. They do not create configuration backups. A pending retry lets
-the component validate its own extraction/quarantine state before final native
-readback, rather than treating those temporary entries as unrelated files.
-
-A per-prefix process lock serializes invocation and verification within one
-native state. It releases after interruption; the component's durable writer
-admission remains authoritative across clients. The original apply resumes an
-admitted operation after expiry. A request never admitted by the component must
-still be unexpired; an expired request requires a new plan. Native intent alone
-does not extend component admission.
-Unrelated changes or a replaced directory refuse; they are not overwritten to
-make recovery pass. Terminal receipts replay without network or current-prefix
-access and remain historical evidence, not current installation verification.
-An external writer using another state can change the prefix after component
-completion; if that precedes native readback, the native operation refuses
-instead of claiming an independently verified result.
-
-`program update cancel` and `program remove cancel` consume only the original
-plan and digest. They require that plan's authenticated component to support
-exact software cancellation (0.0.93 or newer); old plans are never rebound to a
-new release. An unadmitted request is durably cancelled in the component; an
-admitted request can cancel only before any program effect, with unchanged
-initial contents and no kernel journal. Cancellation never resumes extraction or
-removal, downloads no vendor archive and remains available after plan expiry.
-The CLI checks the entire prefix's bytes, modes, link values and physical entry
-identities before and after invocation, excluding only shared component metadata,
-and independently compares public target status. Only then does its journal
-commit `cancelled`. A lost response retains the original retry path. The
-component refuses late apply permanently; native apply/cancel replay the original
-terminal receipt offline even after later prefix removal. An already verified
-native request returns its verified receipt, never a claim of cancellation.
-
-Machine help marks all program plans as `plan` and apply/cancel as `apply` with
-`plan_digest` confirmation. Active-agent handoff, multi-root coordination,
-other-OS isolation and production cutover remain separate.
-
-`program status --state-dir --harness --prefix` observes an explicitly managed
-program on Linux without network, vendor execution, an archive or an executable
-from `PATH`. It validates native installation/update/removal receipts in one
-read-only transaction and uses operation-event order. A pending request at the
-prefix reports `recovery_required`; absent and unproven installations report
-`missing` and `unmanaged`. A verified observation requires the recorded physical
-prefix/parent/state identities, complete current file inventory and modes, and
-the exact launcher, version marker and executable manifest. Drift refuses.
-Removal retires that version's older receipts; cancelled requests grant no
-installation evidence. The provider's private metadata is not an authority source.
-
-The reader bounds prefix history to 1,024 records and 16 MiB, each record to
-2 MiB, and inventory work to the installation verifier's limits. It checks the
-inventory twice under a shared time budget and revalidates held directories.
-`observation_digest` uses the existing `ai-stp:installation-inventory:v1` domain
-with `kind: managed_program` and binds the receipt and verified program identity;
-`observed_at` is separate. This is current local evidence, not a new publisher
-attestation or a transaction with arbitrary external filesystem writers.
-Other operating systems explicitly refuse this capability.
-
-`program inspect --prefix --entry-point` reads the public providers' software
-layout at an explicit absolute prefix with an existing parent. The entry point
-is an exact `bin/command` name, including `.cmd`, `.exe` or `.bat` where needed.
-The parent is resolved once; the final prefix and traversed directories refuse
-aliases. A missing prefix is reported without creating it. Read failures refuse
-instead of becoming an empty installation. Directory version labels, the exact
-version-marker digest, marker/directory agreement, resolved entry-point kind and
-unfinished `.incoming-`/`.replaced-` directories or marker/manifest stages are
-separate observations. A copied or hardlinked entry has no inferred version.
-
-The reader bounds the prefix to 1,024 entries, labels to 128 bytes, the marker
-to 1 KiB and link resolution to sixteen leaf observations and 32 directory
-components. Final entry links may point inside the prefix; intermediate aliases,
-escaping paths, link loops, non-Unicode targets and ambiguous `name/..` spellings
-refuse. Missing and dangling entries remain distinct. Two reads must agree and
-the held prefix/parent identities are rechecked. This is a layout observation,
-not an atomic tree snapshot or an execution precondition. Payloads are neither
-hashed nor executed, and local records cannot establish publisher trust:
-`installation_verified` and `execution_authorized` remain false. No identity,
-network, SQLite state, provider process or installation is opened or created.
+The report distinguishes `missing`, `unknown_version` and `observed`. It includes
+the normalized reported version, executable path and an observation digest binding
+resolved identity and metadata. A concurrent executable replacement refuses and
+can be retried. No provider, state directory or managed installation receipt is
+required. ai-stp never installs, updates, downgrades or removes the harness, and
+never modifies its update policy (ADR-0232). Existing managed-prefix files and
+journals are retained without creating new effects from their old plans.
 
 `provider::wheel::inspect` reads one bounded native-provider wheel in memory.
 It validates every regular member against one complete CSV `RECORD`: unique
@@ -1823,7 +1575,7 @@ retained session to identify its account's cached bytes, and reports
 cache account. A live authorization/not-found/integrity refusal cannot be replaced
 by cached success. No token or refresh credential enters a plan, cache or result.
 
-Catalog, public source, software download and trust-metadata refusals preserve a
+Catalog, public source and trust-metadata refusals preserve a
 valid `Retry-After` as `error.details.retry_after_seconds`, without shortening it
 to the request timeout or an hourly cap. Decimal seconds and the three HTTP-date
 forms are accepted; future dates round up to whole seconds, and past dates mean
@@ -1956,20 +1708,18 @@ Their dependent constraints remain refusals; no trust mark is inferred from an
 acquisition receipt. An unobserved harness version refuses exact version
 requirements but does not prevent composition without such a requirement.
 The report names its unobserved inputs and never authorizes installation.
-An optional `program_prefix` in selection, matrix and composition requests
-requires a fresh verified `program status` observation from this state. The
-runtime derives `harness_version` and reports `program_observation_digest`;
-an absent, unmanaged, drifted or recovering explicit prefix refuses. Omission
-keeps the version unobserved. Matrix pages observe each target program once.
-Input paths may be absolute UTF-8 strings; retained plans encode their exact
-bytes alongside the normalized display value, preserving Unicode path spelling.
+Selection, matrix and composition requests observe the user-installed harness.
+An optional `harness_executable` selects an absolute executable; omission resolves
+the catalog command on PATH. The runtime derives `harness_version` and binds
+`program_observation_digest`. Unknown versions cannot satisfy version constraints.
+Matrix pages observe each target once. Retained paths encode exact UTF-8 bytes
+beside their normalized display value.
 
-Proposal plans bind this observation. Confirmation and bundle plans accept
-`--program-prefix` and bind their own current observation. Apply observes again
-inside the registry transaction and refuses a changed digest before the effect.
-Completed selection receipts still replay offline. Plans without a program
-prefix keep their previous encoding and behavior. Program observation adds no
-grants, permissions or public trust.
+Proposal, confirmation and bundle plans bind this observation; confirmation and
+bundle commands accept `--harness-executable`. Apply observes again and refuses
+changes before new effects. Completed selection receipts still replay. Previous
+plans with `program_prefix` must be recreated; their history is not deleted.
+Observation adds no grants, permissions or public trust.
 Only isolated provider trust state may change; no proposal, passport, registry
 record, target, backup or installation journal is created.
 
@@ -2543,6 +2293,7 @@ breakaway and never infers termination from PID disappearance alone.
 | `http.rs`, `catalog/` | Bounded public/private reads, scoped caches and atomic exact graph acquisition |
 | `projects/` | Bounded project discovery and content-free file evidence |
 | `environment.rs` | Exact setup prerequisites, project binding and variable-name presence |
+| `program.rs` | Bounded user-installed harness version observation without executable management |
 | `selection/` | Verified exact graphs, deterministic ordering and graph-wide mechanical eligibility |
 | `selection/sessions/` | Exact context evaluation, durable proposals and atomic confirmation history |
 | `selection/impact.rs`, `selection/impact/` | Exact context/capability reports, current installation attribution and decimal price snapshots |
@@ -2550,7 +2301,6 @@ breakaway and never infers termination from PID disappearance alone.
 | `passport/developer.rs` | Closed private preferences, exact singleton plans and atomic revision receipts |
 | `passport/device.rs` | Runtime platform observations, exact private device heads and idempotent refresh |
 | `provider.rs`, `provider/`, `bundle/` | Exact declarations, authenticated trust/artifact acquisition and deterministic v2 packages |
-| `provider/runtime/install/`, `provider/runtime/execution.rs` | Original-plan admission, isolated program staging, independent payload verification, atomic activation and cancellation |
 | `store/`, `files/owned.rs` | Explicit owned state, atomic revision writes and shared private-file primitives |
 | `archive.rs`, `artifacts.rs`, `projection/artifact.rs` | Shared canonical ZIP transport and closed component/scope archives |
 | `authoring/source.rs` | Complete bounded source capture |
@@ -2597,7 +2347,7 @@ Rekor inclusion/checkpoint, signed entry timestamp and artifact binding. The
 service then enforces the signed source repository, workflow and deployment
 environment. It does not treat the unsigned publisher description as evidence.
 `provider inspect` uses authenticated trust refresh and artifact acquisition;
-`program install` binds its isolated execution to the same authenticated artifacts.
+`configuration apply` binds its isolated execution to the same authenticated artifacts.
 The example's embedded production trust root is for this fixed evidence run;
 online provider acquisition must use authenticated `provider::trust::refresh`.
 

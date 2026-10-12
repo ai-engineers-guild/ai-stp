@@ -10,7 +10,7 @@ pub(super) const POLICY: &str =
 pub(super) struct Request {
     pub project: String,
     pub filename: String,
-    pub publisher: Publisher,
+    pub publishers: Vec<Publisher>,
     pub sequence: u64,
     pub policy_id: String,
 }
@@ -50,40 +50,47 @@ pub(super) fn request(harness: &str, version: &str, platform: &str) -> Result<Re
         .get("index_publishers")
         .and_then(toml_edit::Item::as_array_of_tables)
         .ok_or_else(refused)?;
-    let mut found = rules.iter().filter(|rule| {
+    let found = rules.iter().filter(|rule| {
         rule.get("pypi_project").and_then(toml_edit::Item::as_str) == Some(&project)
     });
-    let rule = found.next().ok_or_else(refused)?;
-    if found.next().is_some()
-        || rule
+    let mut publishers = Vec::new();
+    for rule in found {
+        if rule
             .get("verified_publisher")
             .and_then(toml_edit::Item::as_bool)
             != Some(true)
-    {
-        return Err(refused());
+        {
+            return Err(refused());
+        }
+        let field = |name| {
+            rule.get(name)
+                .and_then(toml_edit::Item::as_str)
+                .filter(|s| !s.is_empty())
+                .map(str::to_owned)
+                .ok_or_else(refused)
+        };
+        let publisher = Publisher {
+            repository: field("repository")?,
+            workflow: field("workflow")?,
+            environment: field("environment")?,
+        };
+        let repository = format!("github.com/{}", publisher.repository);
+        if publishers.contains(&publisher)
+            || !policy
+                .get("build_attestations")
+                .and_then(toml_edit::Item::as_array_of_tables)
+                .is_some_and(|rules| {
+                    rules.iter().any(|rule| {
+                        rule.get("repository").and_then(toml_edit::Item::as_str)
+                            == Some(&repository)
+                    })
+                })
+        {
+            return Err(refused());
+        }
+        publishers.push(publisher);
     }
-    let field = |name| {
-        rule.get(name)
-            .and_then(toml_edit::Item::as_str)
-            .filter(|s| !s.is_empty())
-            .map(str::to_owned)
-            .ok_or_else(refused)
-    };
-    let publisher = Publisher {
-        repository: field("repository")?,
-        workflow: field("workflow")?,
-        environment: field("environment")?,
-    };
-    let repository = format!("github.com/{}", publisher.repository);
-    if !policy
-        .get("build_attestations")
-        .and_then(toml_edit::Item::as_array_of_tables)
-        .is_some_and(|rules| {
-            rules.iter().any(|rule| {
-                rule.get("repository").and_then(toml_edit::Item::as_str) == Some(&repository)
-            })
-        })
-    {
+    if publishers.is_empty() {
         return Err(refused());
     }
     let filename = format!("{}-{version}-py3-none-{tag}.whl", project.replace('-', "_"));
@@ -96,7 +103,7 @@ pub(super) fn request(harness: &str, version: &str, platform: &str) -> Result<Re
     Ok(Request {
         project,
         filename,
-        publisher,
+        publishers,
         sequence,
         policy_id: id,
     })
@@ -122,7 +129,13 @@ mod tests {
                 crate::provider::managed::version(None)?,
                 "linux/x86_64",
             )?;
-            assert!(managed.publisher.repository.ends_with(&managed.project));
+            assert_eq!(managed.publishers.len(), 2);
+            assert!(
+                managed
+                    .publishers
+                    .iter()
+                    .all(|p| p.repository.ends_with(&managed.project))
+            );
         }
         assert_eq!(
             request("claude-code", "0.0.89", "linux/x86_64")?.sequence,
