@@ -53,16 +53,16 @@ def _git_tree(entries: dict[str, tuple[int, bytes]]) -> str:
     return digest(root).hex()
 
 
-#: One public repository per harness. Release coordinates belong to the build
-#: receipt, so the contract does not duplicate a particular captured release.
+#: The captured repository identities of the published corpus. They remain
+#: immutable when the public repositories move to a different organization.
 REPOSITORIES = {
-    "antigravity": "https://github.com/NDDev-Technocracy-Sandbox/antigravity-setup-system",
-    "claude-code": "https://github.com/NDDev-Technocracy-Sandbox/claude-setup-system",
-    "codex": "https://github.com/NDDev-Technocracy-Sandbox/codex-setup-system",
-    "cursor": "https://github.com/NDDev-Technocracy-Sandbox/cursor-setup-system",
-    "grok-build": "https://github.com/NDDev-Technocracy-Sandbox/grok-setup-system",
-    "opencode": "https://github.com/NDDev-Technocracy-Sandbox/opencode-setup-system",
-    "pi": "https://github.com/NDDev-Technocracy-Sandbox/pi-setup-system",
+    "antigravity": "https://github.com/NDDev-OpenNetwork/antigravity-setup-system",
+    "claude-code": "https://github.com/NDDev-OpenNetwork/claude-setup-system",
+    "codex": "https://github.com/NDDev-OpenNetwork/codex-setup-system",
+    "cursor": "https://github.com/NDDev-OpenNetwork/cursor-setup-system",
+    "grok-build": "https://github.com/NDDev-OpenNetwork/grok-setup-system",
+    "opencode": "https://github.com/NDDev-OpenNetwork/opencode-setup-system",
+    "pi": "https://github.com/NDDev-OpenNetwork/pi-setup-system",
 }
 
 
@@ -71,15 +71,13 @@ def _component_harness(passport: ComponentVersionPassport) -> str:
     return passport.adaptations[0].harness_id
 
 
-def test_every_first_party_object_names_the_live_repository_of_its_harness() -> None:
-    """The corpus this replaced cited an estate transferred and archived.
+def test_every_first_party_object_preserves_its_release_repository() -> None:
+    """A repository transfer must not rewrite an existing version's passport.
 
-    120 of its 126 objects named repositories that had moved to a personal
-    account on 2026-08-25. Nothing was broken by it — the bytes are embedded and
-    the recorded tree still identifies them — but a redirect is not a
-    correction, and `source` sits inside a content-addressed passport, so it was
-    never editable. These are different objects with new identifiers, built from
-    the seven live setup-systems.
+    These are release-time source identities. Current fetch locations live in
+    the builder; captured release receipts remain immutable. Changing a source
+    or evidence URL inside a sealed passport requires a new version, even with
+    identical bytes.
     """
     corpus = versions()
     components = [item for item in corpus if item.kind == "component"]

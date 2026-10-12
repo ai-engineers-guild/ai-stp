@@ -56,6 +56,13 @@ fn user_managed_harnesses_have_no_mutation_commands() -> Result<(), Box<dyn Erro
             observed["observation_digest"],
             program::observe("codex", Some(&directory.path().join("alias")))?["observation_digest"]
         );
+        fs::write(&path, b"#!/bin/sh\nprintf 'codex-cli v2.1.3\\n'\n")?;
+        assert_eq!(program::observe("codex", Some(&path))?["version"], "2.1.3");
+        fs::write(&path, b"#!/bin/sh\nprintf 'invalid2.1.3\\n'\n")?;
+        assert_eq!(
+            program::observe("codex", Some(&path))?["state"],
+            "unknown_version"
+        );
         fs::write(&path, b"#!/bin/sh\nprintf 'unrecognized\\n'\n")?;
         assert_eq!(
             program::observe("codex", Some(&path))?["state"],
