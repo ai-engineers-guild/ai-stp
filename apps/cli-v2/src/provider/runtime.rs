@@ -43,6 +43,32 @@ fn unavailable() -> Failure {
     )
 }
 
+/// Read-only installed-program observation does not initialize the provider launcher.
+pub fn program_status(parent: &Path, harness: &str, prefix: &Path) -> Result<Value> {
+    let mut store = crate::store::Store::planning(parent)?;
+    store.transaction(|connection| program_observe_in(connection, parent, harness, prefix))
+}
+
+pub(crate) fn program_observe_in(
+    connection: &rusqlite::Connection,
+    parent: &Path,
+    harness: &str,
+    prefix: &Path,
+) -> Result<Value> {
+    #[cfg(target_os = "linux")]
+    {
+        install::observation::observe(connection, parent, harness, prefix)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (connection, parent, harness, prefix);
+        Err(Failure::new(
+            ErrorKind::Unavailable,
+            "native installed-program observation is unavailable on this host",
+        ))
+    }
+}
+
 /// A terminal installation receipt is returned before constructing a runtime.
 pub fn program_install_apply(parent: &Path, bytes: &[u8], digest: &str) -> Result<Value> {
     #[cfg(target_os = "linux")]

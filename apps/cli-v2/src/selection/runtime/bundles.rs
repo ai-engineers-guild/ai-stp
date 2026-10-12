@@ -8,7 +8,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::{Owner, Selector, inputs, owner, with_provider};
+use super::{Owner, Selector, inputs, owner, program, with_provider};
 use crate::{
     authoring::{Identity, setups::Source},
     bundle::{self, hosts},
@@ -35,6 +35,8 @@ struct Plan {
     state_parent: PathBuf,
     source: Source,
     selector: Selector,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    program_observation_digest: Option<String>,
     host: Option<hosts::Binding>,
     #[serde(
         serialize_with = "files::serialize_location",
@@ -98,7 +100,7 @@ fn with_bundle(
     selector: &Selector,
     identity: &Owner,
     host: &hosts::Root,
-    finish: impl FnOnce(bundle::Bundle, Value) -> Result<Value>,
+    finish: impl FnOnce(bundle::Bundle, Value, Option<String>) -> Result<Value>,
 ) -> Result<Value> {
     if setup(identity, source)?["harness_id"] != selector.harness_id {
         return Err(invalid());
@@ -107,7 +109,7 @@ fn with_bundle(
     with_provider(parent, selector, identity, |provider, artifact, report| {
         let mut store = identity.planning()?;
         store.transaction(|t| {
-            let target = selector.target(identity)?;
+            let (target, program) = selector.observe(t, parent, identity)?;
             let observed = inputs(t, std::slice::from_ref(&reference), target)?;
             let paths = hosts::paths(t, &reference, &selector.harness_id, selector.scope)?;
             let before = host.read(&paths)?;
@@ -123,7 +125,7 @@ fn with_bundle(
                 return Err(invalid());
             }
             artifact.executable()?;
-            finish(bundle, report)
+            finish(bundle, report, program)
         })
     })
 }
@@ -135,6 +137,7 @@ pub fn plan(
     provider_version: &str,
     target: Option<&Path>,
     output: &Path,
+    program_prefix: Option<&Path>,
 ) -> Result<Value> {
     let state_parent = PathBuf::from(files::location(parent)?);
     let identity = owner(&state_parent)?;
@@ -143,6 +146,7 @@ pub fn plan(
         harness_id: field(&document, "harness_id")?.into(),
         scope,
         provider_version: provider_version.into(),
+        program_prefix: program_prefix.map(|p| program::Prefix(p.into())),
     };
     selector.validate()?;
     let (output, parent_identity) = tree::destination(output)?;
@@ -163,7 +167,7 @@ pub fn plan(
         &selector,
         &identity,
         &host,
-        |bundle, provider| {
+        |bundle, provider, program| {
             if host.binding()? != binding {
                 return Err(invalid());
             }
@@ -175,6 +179,7 @@ pub fn plan(
                 state_parent: state_parent.clone(),
                 source: source.clone(),
                 selector: selector.clone(),
+                program_observation_digest: program,
                 host: binding.clone(),
                 output: output.clone(),
                 parent_identity,
@@ -224,7 +229,8 @@ pub fn apply(path: &Path, expected: &str) -> Result<Value> {
         &plan.selector,
         &identity,
         &host,
-        |bundle, _| {
+        |bundle, _, program| {
+            program::matches(&program, &plan.program_observation_digest)?;
             if bundle.artifact_digest != plan.artifact_digest
                 || bundle.archive.len() as u64 != plan.artifact_bytes
                 || bundle.manifest["input_digest"] != plan.input_digest

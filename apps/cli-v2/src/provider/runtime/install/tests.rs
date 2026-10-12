@@ -43,6 +43,11 @@ fn original_installation_survives_publication_retries_and_never_recreates_remove
     assert!(Plan::parse(&bytes, &hash).is_err());
     assert!(Journal::history(&state, &plan, &digest)?.is_none());
     assert_eq!(fs::read_dir(&state)?.count(), 0);
+    assert_eq!(
+        crate::provider::runtime::program_status(&state, "codex", &prefix)?["state"],
+        "missing"
+    );
+    assert_eq!(fs::read_dir(&state)?.count(), 0);
     let mut unsupported = document.clone();
     unsupported["provider_version"] = "0.0.88".into();
     unsupported["provider_plan"]["plan"]["provider_version"] = "0.0.88".into();
@@ -60,6 +65,10 @@ fn original_installation_survives_publication_retries_and_never_recreates_remove
         result: None,
     };
     journal.write(None, &record)?;
+    assert_eq!(
+        crate::provider::runtime::program_status(&state, "codex", &prefix)?["state"],
+        "recovery_required"
+    );
     let mut stage = Stage::open(&plan, &mut record)?;
     let stage_path = stage.root.path().to_path_buf();
     let expected_root = identity(&stage.root)?;
@@ -206,11 +215,16 @@ fn original_installation_survives_publication_retries_and_never_recreates_remove
     journal.write(Some(Phase::Publishing), &record)?;
     drop(stage);
     drop(journal);
+    observe_installed_program(&state, &prefix, &source)?;
     fs::remove_dir_all(&prefix)?;
     fs::remove_dir(&target)?;
     fs::remove_file(&source)?;
     assert_eq!(apply(&state, &bytes, &digest)?, result);
     assert!(!prefix.exists());
+    assert_eq!(
+        crate::provider::runtime::program_status(&state, "codex", &prefix)?["state"],
+        "missing"
+    );
     for (field, changed) in [
         (
             "operation_id",
@@ -272,6 +286,65 @@ fn original_installation_survives_publication_retries_and_never_recreates_remove
         )?,
         4
     );
+    Ok(())
+}
+
+fn observe_installed_program(
+    state: &Path,
+    prefix: &Path,
+    source: &Path,
+) -> std::result::Result<(), Box<dyn Error>> {
+    let observe = || crate::provider::runtime::program_status(state, "codex", prefix);
+    let observed = observe()?;
+    assert_eq!(observed["state"], "verified");
+    assert_eq!(observed["observation"]["software_version"], "2.0");
+    let digest = &observed["observation_digest"];
+    assert_eq!(observe()?["observation_digest"], *digest);
+    let operation = observed["observation"]["operation_id"]
+        .as_str()
+        .ok_or_else(invalid)?;
+    for event_state in ["corrupt", "verified"] {
+        let mut store = crate::store::Store::open(state, false)?;
+        store.transaction(|t| {
+            t.execute("UPDATE operation_event SET state_after=? WHERE operation_id=? AND sequence=(SELECT max(sequence) FROM operation_event WHERE operation_id=?)",
+                rusqlite::params![event_state, operation, operation]).map_err(crate::store::database)?;
+            Ok(())
+        })?;
+        drop(store);
+        assert_eq!(observe().is_ok(), event_state == "verified");
+    }
+    assert_eq!(
+        crate::provider::runtime::program_status(state, "claude-code", prefix)?["state"],
+        "unmanaged"
+    );
+    let installed = prefix.join("2.0/program");
+    fs::write(&installed, b"drifted")?;
+    assert!(observe().is_err());
+    fs::copy(source, &installed)?;
+    fs::set_permissions(&installed, fs::Permissions::from_mode(0o644))?;
+    assert!(observe().is_err());
+    fs::set_permissions(&installed, fs::Permissions::from_mode(0o755))?;
+    let entry = prefix.join("bin/program");
+    fs::remove_file(&entry)?;
+    symlink(source, &entry)?;
+    assert!(observe().is_err());
+    fs::remove_file(&entry)?;
+    symlink(&installed, &entry)?;
+    let held = prefix.with_extension("held");
+    fs::rename(prefix, &held)?;
+    fs::create_dir(prefix)?;
+    fs::create_dir(prefix.join("bin"))?;
+    fs::copy(
+        held.join("bin/.program.version"),
+        prefix.join("bin/.program.version"),
+    )?;
+    assert!(observe().is_err());
+    fs::remove_dir_all(prefix)?;
+    fs::rename(&held, prefix)?;
+    fs::remove_file(source)?;
+    assert_eq!(observe()?["observation_digest"], *digest);
+    // The archive is unnecessary for observation or terminal replay.
+    fs::write(source, b"vendor executable bytes")?;
     Ok(())
 }
 

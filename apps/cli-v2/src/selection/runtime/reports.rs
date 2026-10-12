@@ -6,7 +6,7 @@ use rusqlite::Connection;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::{MAX_REQUEST, Request, Selector, inputs, invalid, owner, with_provider};
+use super::{MAX_REQUEST, Request, Selector, inputs, invalid, owner, program, with_provider};
 use crate::{
     authoring::Identity,
     bundle, canonical,
@@ -23,6 +23,8 @@ struct ProposalRequest {
     proposal_id: String,
     scope: Scope,
     provider_version: String,
+    #[serde(default)]
+    program_prefix: Option<program::Prefix>,
 }
 
 enum Source {
@@ -39,7 +41,7 @@ struct Selected {
 
 impl Source {
     fn parse(path: &Path) -> Result<Self> {
-        let mut value = canonical::parse(&files::read(path, MAX_REQUEST)?)?;
+        let mut value = crate::wire::parse(&files::read(path, MAX_REQUEST)?)?;
         if value.get("proposal_id").is_some() {
             crate::provider::managed::resolve_request(&mut value);
             let request: ProposalRequest = serde_json::from_value(value).map_err(|_| invalid())?;
@@ -72,6 +74,7 @@ impl Source {
                         harness_id: held.harness_id.clone(),
                         scope: request.scope,
                         provider_version: request.provider_version.clone(),
+                        program_prefix: request.program_prefix.clone(),
                     },
                     roots: held
                         .members
@@ -93,11 +96,12 @@ impl Source {
 
 fn inspect(
     connection: &Connection,
+    parent: &Path,
     selected: Selected,
     identity: &Identity,
     provider: Option<&Info>,
 ) -> Result<Value> {
-    let mut target = selected.selector.target(identity)?;
+    let (mut target, program) = selected.selector.observe(connection, parent, identity)?;
     target.for_redistribution = selected.redistribution;
     let observed = inputs(connection, &selected.roots, target)?;
     let mut result = bundle::reports::inspect_snapshot(
@@ -107,18 +111,15 @@ fn inspect(
         &observed.evidence,
         provider,
     )?;
+    let mut not_observed = program::unobserved(observed.target.harness_version.is_empty());
+    not_observed.push("contribution_hosts");
     result["target"] = serde_json::to_value(observed.target).map_err(|_| invalid())?;
+    result["program_observation_digest"] = json!(program);
     result["verified_artifact_bytes"] = observed.bytes.into();
     result["proposal"] = selected.proposal;
     result["provider"] = Value::Null;
     result["provider_observed"] = false.into();
-    result["not_observed"] = json!([
-        "harness_version",
-        "project_capabilities",
-        "cloud_trust",
-        "cloud_grants",
-        "contribution_hosts"
-    ]);
+    result["not_observed"] = json!(not_observed);
     result["permission_policy"] = "none_granted".into();
     bounded(result)
 }
@@ -139,7 +140,7 @@ pub fn read(parent: &Path, path: &Path) -> Result<Value> {
         let selector = selected.selector.clone();
         let graph = graph::exact(t, &selected.roots)?;
         let offline = if selected.roots.is_empty() || graph["resolved"] != true {
-            Some(inspect(t, selected, &identity, None)?)
+            Some(inspect(t, parent, selected, &identity, None)?)
         } else {
             None
         };
@@ -162,7 +163,7 @@ pub fn read(parent: &Path, path: &Path) -> Result<Value> {
                         "the proposal harness changed during provider observation",
                     ));
                 }
-                let mut result = inspect(t, selected, &identity, Some(provider))?;
+                let mut result = inspect(t, parent, selected, &identity, Some(provider))?;
                 artifact.executable()?;
                 result["provider"] = report;
                 result["provider_observed"] = true.into();
