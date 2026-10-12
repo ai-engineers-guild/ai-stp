@@ -30,8 +30,11 @@ pub(super) enum Handler {
     ProgramRemovePlan,
     ProgramUpdateApply,
     ProgramRemoveApply,
+    ProgramUpdateCancel,
+    ProgramRemoveCancel,
     ConfigurationPlan,
     ConfigurationApply,
+    ConfigurationCancel,
 }
 
 impl Handler {
@@ -39,8 +42,11 @@ impl Handler {
         match self {
             Self::ProgramInstallApply
             | Self::ConfigurationApply
+            | Self::ConfigurationCancel
             | Self::ProgramInstallCancel
             | Self::ProgramUpdateApply
+            | Self::ProgramUpdateCancel
+            | Self::ProgramRemoveCancel
             | Self::ProgramRemoveApply => "apply",
             Self::Plan
             | Self::ConfigurationPlan
@@ -168,6 +174,18 @@ pub(super) const COMMANDS: &[Declaration] = &[
         handler: super::Handler::Provider(Handler::ProgramRemovePlan),
     },
     Declaration {
+        path: &["program", "update", "cancel"],
+        summary: "Cancel an exact update before component effects; return its original terminal receipt on retry.",
+        parameters: INSTALL_PARAMETERS,
+        handler: super::Handler::Provider(Handler::ProgramUpdateCancel),
+    },
+    Declaration {
+        path: &["program", "remove", "cancel"],
+        summary: "Cancel an exact removal before component effects; preserve the program and original terminal history.",
+        parameters: INSTALL_PARAMETERS,
+        handler: super::Handler::Provider(Handler::ProgramRemoveCancel),
+    },
+    Declaration {
         path: &["program", "update", "apply"],
         summary: "Apply or resume the original existing-program update through its authenticated component; verify payload and preserved content.",
         parameters: INSTALL_PARAMETERS,
@@ -246,6 +264,26 @@ pub(super) const COMMANDS: &[Declaration] = &[
         handler: super::Handler::Provider(Handler::Status),
     },
     Declaration {
+        path: &["configuration", "cancel"],
+        summary: "Cancel an exact configuration operation before component publication; existing terminal results remain unchanged.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "plan",
+                summary: "Original configuration plan JSON, at most 32 MiB; its original component must support exact cancellation.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Exact digest returned by configuration plan.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Provider(Handler::ConfigurationCancel),
+    },
+    Declaration {
         path: &["configuration", "apply"],
         summary: "Apply or resume one exact forward configuration plan through its authenticated component and verify target bytes independently.",
         parameters: &[
@@ -280,6 +318,12 @@ pub(super) const COMMANDS: &[Declaration] = &[
             VERSION,
             TARGET,
             SCOPE,
+            Parameter {
+                name: "project-id",
+                summary: "Bind this project-scope operation to its registered project and exact selected setup.",
+                kind: ParameterType::String,
+                required: false,
+            },
             Parameter {
                 name: "operation",
                 summary: "Configuration operation; removal withdraws recorded ownership without a bundle.",
@@ -326,8 +370,11 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         handler,
         Handler::ProgramInstallApply
             | Handler::ConfigurationApply
+            | Handler::ConfigurationCancel
             | Handler::ProgramInstallCancel
             | Handler::ProgramUpdateApply
+            | Handler::ProgramUpdateCancel
+            | Handler::ProgramRemoveCancel
             | Handler::ProgramRemoveApply
     ) {
         let parent = args
@@ -339,6 +386,13 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         let digest = args
             .get_one::<String>("plan-digest")
             .ok_or_else(|| Failure::input("the exact installation plan digest is required"))?;
+        if matches!(handler, Handler::ConfigurationCancel) {
+            return runtime::configuration_cancel(
+                parent,
+                &files::read(path, runtime::CONFIGURATION_PLAN_BYTES as u64)?,
+                digest,
+            );
+        }
         if matches!(handler, Handler::ConfigurationApply) {
             return runtime::configuration_apply(
                 parent,
@@ -348,6 +402,21 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             );
         }
         let bytes = files::read(path, 64 * 1024)?;
+        if matches!(
+            handler,
+            Handler::ProgramUpdateCancel | Handler::ProgramRemoveCancel
+        ) {
+            return runtime::program_change_cancel(
+                parent,
+                &bytes,
+                digest,
+                if matches!(handler, Handler::ProgramUpdateCancel) {
+                    "program.update"
+                } else {
+                    "program.remove"
+                },
+            );
+        }
         return if matches!(
             handler,
             Handler::ProgramUpdateApply | Handler::ProgramRemoveApply
@@ -373,8 +442,11 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         Handler::Network => Ok(runtime.report()),
         Handler::ProgramInstallApply
         | Handler::ConfigurationApply
+        | Handler::ConfigurationCancel
         | Handler::ProgramInstallCancel
         | Handler::ProgramUpdateApply
+        | Handler::ProgramUpdateCancel
+        | Handler::ProgramRemoveCancel
         | Handler::ProgramRemoveApply => Err(Failure::input("the installation command is invalid")),
         Handler::Inspect
         | Handler::ConfigurationPlan
@@ -432,7 +504,12 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                             .get_one::<PathBuf>("bundle")
                             .map(|path| files::read(path, plan::MAX_BUNDLE_BYTES as u64))
                             .transpose()?;
-                        runtime.configuration_plan(&context, operation, bundle.as_deref())
+                        runtime.configuration_plan(
+                            &context,
+                            operation,
+                            bundle.as_deref(),
+                            args.get_one::<String>("project-id").map(String::as_str),
+                        )
                     } else if matches!(
                         handler,
                         Handler::ProgramInstallPlan
@@ -509,9 +586,12 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                 }
                 Handler::Network
                 | Handler::ConfigurationApply
+                | Handler::ConfigurationCancel
                 | Handler::ProgramInstallApply
                 | Handler::ProgramInstallCancel
                 | Handler::ProgramUpdateApply
+                | Handler::ProgramUpdateCancel
+                | Handler::ProgramRemoveCancel
                 | Handler::ProgramRemoveApply => {
                     Err(Failure::input("the provider command is invalid"))
                 }

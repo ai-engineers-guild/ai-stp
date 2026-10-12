@@ -1,6 +1,6 @@
 ---
 description: "SPEC-008: Providers, installation and recovery."
-last_verified: "2026-10-11"
+last_verified: "2026-10-12"
 ---
 
 # SPEC-008: Providers, installation and recovery
@@ -19,10 +19,12 @@ The closed authoring loop of setup systems is a check and coordination loop: it 
 
 The isolated Rust compiler retains each assembled configuration contribution's
 parser, owned top-level key and exact host digest (or observed absence) in its
-bundle file record. Its read-only provider planning adapter requires explicit
-forward recovery for those packages. Preserved host fields are not ownership
-claims. The released 0.0.89 components cannot execute this path; coordinated
-reader release and native writable acceptance remain pending under ADR-0227.
+bundle file record. Native configuration execution uses explicit forward recovery
+and requires the corrected component lifecycle, including surviving host modes.
+Preserved host fields are not ownership claims. The isolated Rust service's exact
+plan, explicit project attribution, independent readback, recovery and cancellation boundaries are owned by its
+[code-adjacent contract](../../apps/cli-v2/README.md). This does not transfer
+production writer ownership under ADR-0227.
 
 The Python and Rust status readers accept optional recorded
 `configuration_ownership` through kit 0.2.17. They distinguish unavailable
@@ -30,7 +32,7 @@ ownership from an empty record and reject ambiguous paths/keys, parser mismatche
 and disagreement with clean `written_paths`. The field describes recorded
 ownership even under local drift; it is not current-content verification or
 permission to install. Shared positive/negative vectors exercise both readers.
-The reader must be released before a component emits this member.
+Reader-first publication remains required when extending this closed boundary.
 
 ## Terms
 
@@ -46,9 +48,11 @@ The reader must be released before a component emits this member.
 - `REQ-802`: All seven closed set providers implement a common versioned protocol core and machine-readable `provider-info`; product-specific software lifecycle and launch are declared capabilities, not fictitious required commands. Each announcement is read from its exact released provider; all seven current providers declare the program lifecycle. Launch is announced only when the product can be pointed at `--target` for every owned surface. Antigravity announces `launch` bound to the documented `~/.gemini` home with an empty `config_home_env`; an alternate root is refused by name. Do not invent `ANTIGRAVITY_*`.
 - `REQ-803`: The provider has sole ownership of native projection, locks, staging directory, target change, backup, state and restore; he owns the program and launches only with an explicitly declared capability.
 - `REQ-804`: Package checking disallows absolute and parent paths, directory escaping, symbolic and hard links, special devices, normalized path repeat, and exceeding limits.
-- `REQ-805`: The plan has no side effects and is bound to the current target hash, provider and environment versions, and expiration date. Python and Rust readers accept an explicit `recovery_mode=forward` only for a bundle install/replace when the provider declares that request field. The exact artifact must echo the requested mode and must not bind backup, native capture or restore state. Unsupported, changed and unsolicited modes refuse. Released components 0.0.89 do not implement this mode; reader admission does not authorize configuration execution or change the existing recovery behavior.
+- `REQ-805`: The plan has no side effects and is bound to the current target hash, provider and environment versions, and expiration date. The Python reader accepts an explicit `recovery_mode=forward` only for a bundle install/replace when the provider declares that request field. The exact artifact must echo the requested mode and must not bind backup, native capture or restore state. Unsupported, changed and unsolicited modes refuse. The isolated native service additionally implements bundle-free forward removal; its code-adjacent contract owns writable recovery and exact cancellation. Reader admission alone does not authorize execution.
 - `REQ-806`: The application requires an exact hash of the plan, a lock, and re-validation of the target after acquiring the lock.
-- `REQ-807`: A backup is created before the first change. Preserved native setup
+- `REQ-807`: The compatibility configuration lifecycle creates a recovery backup
+  before the first change. Explicit forward configuration instead retains desired
+  bytes and fingerprints without creating a configuration backup. Preserved native setup
   capture and exact return follow SPEC-068; narrower mutation recovery retains
   unrelated unmanaged state.
 - `REQ-808`: The new target directory remains inactive until verified, ready to run, and status checked.

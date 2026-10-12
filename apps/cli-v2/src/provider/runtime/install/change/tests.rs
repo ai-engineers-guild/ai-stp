@@ -28,6 +28,13 @@ fn removal_preserves_other_versions_and_replays_only_the_original_terminal_recei
     symlink(prefix.join("2.0/tool"), prefix.join("bin/tool"))?;
     let held = Target::open(&prefix)?;
     let directory = held.directory()?;
+    let unchanged = verify::unchanged(&directory)?;
+    fs::rename(prefix.join("user-file"), prefix.join("held-user-file"))?;
+    fs::write(prefix.join("user-file"), b"keep")?;
+    assert_ne!(verify::unchanged(&directory)?, unchanged);
+    fs::remove_file(prefix.join("user-file"))?;
+    fs::rename(prefix.join("held-user-file"), prefix.join("user-file"))?;
+    assert_eq!(verify::unchanged(&directory)?, unchanged);
     let preserved = verify::preserved(&directory, "1.0", "bin/tool")?;
     let launch = verify::launch(&directory, "bin/tool")?;
     assert!(!verify::active(&directory, "1.0", "bin/tool")?);
@@ -66,6 +73,7 @@ fn removal_preserves_other_versions_and_replays_only_the_original_terminal_recei
     assert!(super::super::apply(&state, &bytes, &digest).is_err());
     assert!(super::super::cancellation::cancel(&state, &bytes, &digest).is_err());
     assert!(apply(&state, &bytes, &digest, "program.update").is_err());
+    assert!(cancellation::cancel(&state, &bytes, &digest, "program.remove").is_err());
     assert_eq!(fs::read_dir(&state)?.count(), 0);
 
     let journal = Journal::open(&state, &plan, &digest)?;
@@ -124,9 +132,65 @@ fn removal_preserves_other_versions_and_replays_only_the_original_terminal_recei
     fs::remove_dir(&target)?;
     assert_eq!(apply(&state, &bytes, &digest, "program.remove")?, result);
     assert!(!prefix.exists() && !target.exists());
+    cancellation_history(&state, &document)?;
     let mut changed = document;
     changed["prefix"]["existing"]["selected_is_active"] = true.into();
     let (changed, changed_digest) = encode(&changed)?;
     assert!(apply(&state, &changed, &changed_digest, "program.remove").is_err());
+    Ok(())
+}
+
+fn cancellation_history(state: &Path, document: &Value) -> std::result::Result<(), Box<dyn Error>> {
+    // Local terminal fixtures exercise history validation, not component admission.
+    for previous in [None, Some(Phase::Applying)] {
+        let mut value = document.clone();
+        value["operation_id"] = format!("operation_{}", ulid::Ulid::generate()).into();
+        value["provider_version"] = "0.0.93".into();
+        value["provider_plan"]["plan"]["operation_id"] = value["operation_id"].clone();
+        value["provider_plan"]["plan"]["provider_version"] = "0.0.93".into();
+        value["provider_plan"]["plan"]["expected_software_digest"] =
+            digest::sha256(b"fixture prefix").into();
+        let (bytes, digest) = encode(&value)?;
+        let plan = Plan::parse(&bytes, &digest)?;
+        let provider = json!({"state":"cancelled", "operation":"software_remove",
+            "operation_id":plan.operation_id,"command":"tool","version":"1.0",
+            "software_changed":false,"expected_software_digest":value["provider_plan"]["plan"]["expected_software_digest"],
+            "plan_digest":value["provider_plan"]["plan_digest"]});
+        let result =
+            cancellation::outcome(&plan, &digest, &provider, &digest::sha256(b"unchanged"));
+        cancellation::validate_outcome(&result, &plan, &digest)?;
+        for (field, wrong) in [
+            ("mutation_performed", json!(true)),
+            ("unchanged_observation_digest", json!("bad")),
+            ("unexpected", json!(1)),
+        ] {
+            let mut changed = result.clone();
+            changed[field] = wrong;
+            assert!(cancellation::validate_outcome(&changed, &plan, &digest).is_err());
+        }
+        let journal = Journal::open(state, &plan, &digest)?;
+        let mut record = Record {
+            schema_version: 1,
+            plan_digest: digest.clone(),
+            plan: value,
+            phase: Phase::Applying,
+            stage_parent: None,
+            stage_root: None,
+            result: None,
+        };
+        if previous.is_some() {
+            journal.write(None, &record)?;
+        }
+        record.phase = Phase::Cancelled;
+        record.result = Some(result.clone());
+        journal.write(previous, &record)?;
+        drop(journal);
+        assert_eq!(
+            cancellation::cancel(state, &bytes, &digest, "program.remove")?,
+            result
+        );
+        assert_eq!(apply(state, &bytes, &digest, "program.remove")?, result);
+        assert!(cancellation::cancel(state, &bytes, &digest, "program.update").is_err());
+    }
     Ok(())
 }

@@ -1,6 +1,7 @@
 //! Validated provider declarations; parsing does not attest a provider executable.
 
 pub mod artifact;
+pub(crate) mod configuration;
 pub mod managed;
 pub mod plan;
 pub mod runtime;

@@ -29,7 +29,7 @@ pub(in crate::provider::runtime) fn apply(
     let plan = Plan::parse(bytes, digest)?;
     let prior = Journal::history(parent, &plan, digest)?;
     if let Some(prior) = &prior
-        && prior.state == "verified"
+        && prior.state != "applying"
     {
         // Cleanup may have been interrupted after the terminal SQLite commit.
         // This path never opens the target, provider, bundle source or network.
@@ -50,7 +50,7 @@ pub(in crate::provider::runtime) fn apply(
     let journal = Journal::open(parent, &plan, digest)?;
     let prior = journal.read(&plan, digest)?;
     if let Some(prior) = &prior
-        && prior.state == "verified"
+        && prior.state != "applying"
     {
         journal.cleanup()?;
         return prior.result.clone().ok_or_else(invalid);
@@ -114,7 +114,7 @@ pub(in crate::provider::runtime) fn apply(
             path: target.path(),
             scope: plan.target_scope,
         };
-        let (current, _) = prepare(
+        let (mut current, _) = prepare(
             &runtime,
             &context,
             &request,
@@ -122,6 +122,11 @@ pub(in crate::provider::runtime) fn apply(
             &bundle_bytes,
             bundle.as_ref(),
         )?;
+        current.project = plan
+            .project
+            .as_ref()
+            .map(|binding| super::project::observe(&current, &binding.project_id))
+            .transpose()?;
         if current.value()? != plan.value()? {
             return Err(invalid());
         }
@@ -134,6 +139,7 @@ pub(in crate::provider::runtime) fn apply(
         &Configuration {
             plan: &plan.provider_plan,
             request: &request,
+            cancel: false,
         },
         &bundle_bytes,
     )?;

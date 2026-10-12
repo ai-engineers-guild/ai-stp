@@ -1,5 +1,6 @@
 //! Updates and removals retain the component's original operation and prefix.
 
+pub(in crate::provider::runtime) mod cancellation;
 mod verify;
 
 #[cfg(test)]
@@ -179,7 +180,7 @@ pub(in crate::provider::runtime) fn apply(
     }
     let prior = Journal::history(parent, &plan, digest)?;
     if let Some(prior) = &prior
-        && prior.phase == Phase::Complete
+        && prior.phase.terminal()
     {
         return prior.result.clone().ok_or_else(invalid);
     }
@@ -191,7 +192,7 @@ pub(in crate::provider::runtime) fn apply(
     let journal = Journal::open(parent, &plan, digest)?;
     let prior = journal.read()?;
     if let Some(prior) = &prior
-        && prior.phase == Phase::Complete
+        && prior.phase.terminal()
     {
         return prior.result.clone().ok_or_else(invalid);
     }
@@ -299,6 +300,7 @@ pub(in crate::provider::runtime) fn apply(
             prefix: prefix.path(),
             plan: &plan.provider_plan,
             archive: archive.as_ref().map(|a| &a.file),
+            cancel: false,
         },
     )?;
     let provider_result = applied(&response, &plan)?;

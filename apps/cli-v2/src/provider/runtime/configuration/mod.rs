@@ -2,11 +2,13 @@
 
 pub(super) mod apply;
 mod bundle;
+pub(super) mod cancel;
 mod effects;
 mod instructions;
 mod journal;
-mod outcome;
-mod plan;
+mod project;
+#[cfg(test)]
+mod project_tests;
 #[cfg(test)]
 mod tests;
 
@@ -14,6 +16,7 @@ use jiff::Timestamp;
 use serde_json::{Value, json};
 
 use super::{Runtime, TargetRequest, target::Target};
+use crate::provider::configuration::{invalid, outcome, plan};
 use crate::{
     error::{Failure, Result},
     projection::Scope,
@@ -21,12 +24,6 @@ use crate::{
 };
 use bundle::Bundle;
 use plan::{Identity, Plan};
-
-fn invalid() -> Failure {
-    Failure::precondition(
-        "the configuration operation, recorded ownership or exact target bytes changed",
-    )
-}
 
 fn identity(target: &Target) -> Result<Identity> {
     let (device, inode) = target.identity()?;
@@ -47,6 +44,7 @@ pub(super) fn plan(
     context: &TargetRequest<'_>,
     operation: &str,
     bytes: Option<&[u8]>,
+    project: Option<&str>,
 ) -> Result<Value> {
     require_component(context.version)?;
     if !matches!(
@@ -65,7 +63,7 @@ pub(super) fn plan(
         "operation":operation,"operation_id":format!("operation_{}",ulid::Ulid::generate()),
         "expires_at":format!("{expires:.3}"),"recovery_mode":"forward","bundle":bundle.as_ref().map(|bundle| &bundle.binding),
     })).map_err(|_| invalid())?, now)?;
-    let (plan, report) = prepare(
+    let (mut plan, report) = prepare(
         runtime,
         context,
         &request,
@@ -73,6 +71,7 @@ pub(super) fn plan(
         bytes.unwrap_or_default(),
         bundle.as_ref(),
     )?;
+    plan.project = project.map(|id| project::observe(&plan, id)).transpose()?;
     let value = plan.value()?;
     let digest = plan::fingerprint(&value)?;
     Plan::parse(&serde_json::to_vec(&value).map_err(|_| invalid())?, &digest)?;
@@ -147,6 +146,7 @@ fn prepare(
         setup: bundle.map_or(Value::Null, |bundle| bundle.setup.clone()),
         ownership: bundle.map_or_else(|| Ok(json!([])), Bundle::ownership)?,
         effects,
+        project: None,
     };
     target.revalidate()?;
     state.revalidate()?;
