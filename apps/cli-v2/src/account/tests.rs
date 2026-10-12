@@ -114,7 +114,8 @@ fn account_journal_stays_with_the_authenticated_physical_parent()
 fn server_device_revocation_clears_credentials_and_has_a_distinct_receipt()
 -> std::result::Result<(), Box<dyn Error>> {
     let root = tempfile::tempdir()?;
-    let at = format!("{:.3}", jiff::Timestamp::now());
+    // Keep the fixture's logical clock independent of runner scheduling.
+    let at = after(&format!("{:.3}", jiff::Timestamp::now()), 3600)?;
     let initialization = identity::plan(root.path(), identity::Storage::File, &at)?;
     let device = identity::apply(&initialization, &initialization.digest()?, &at)?;
     let listener = TcpListener::bind("127.0.0.1:0")?;
