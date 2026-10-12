@@ -4,7 +4,8 @@ Native preview of the ai-stp CLI. One Cargo package contains a headless library
 and the `ai-stp-v2` executable. The supported production executable is still
 `ai-stp`; the preview uses explicit isolated state. On Linux it can install a
 harness program into a new directory, update it and remove an exact version
-through an authenticated setup component.
+through an authenticated setup component. It also plans, applies and recovers
+configuration installation, replacement and removal on an inactive single root.
 
 ## Preview distribution
 
@@ -75,10 +76,10 @@ an operation. Acquisition still verifies the complete publisher policy and bytes
 The pin is a choice, not authentication or installation eligibility.
 
 The existing `provider` command group is the expert interface inside this CLI.
-No separate setup-system command is required for implemented read, preparation
-or program installation, update and removal journeys. Configuration installation,
-other-OS isolation, native self-update and the
-production switch remain C4/C6/C7 work.
+No separate setup-system command is required for implemented read, preparation,
+program installation/update/removal or single-root configuration journeys.
+Multi-root coordination, active-agent handoff, other-OS isolation, native
+self-update and the production switch remain C4/C6/C7 work.
 
 ## Contract
 
@@ -549,8 +550,14 @@ existing provider contract. Trust expiry is rechecked after execution. The repor
 binds artifact, launcher and exact response digests and records no installation
 or harness write. Serialized reports cannot construct the runtime capability.
 Only isolated TUF state is retained. macOS and Windows currently return an
-unavailable error; writable installation remains separate C4 work. See the
+unavailable error; writable provider isolation on those platforms remains C4
+work. See the
 [Bubblewrap options](https://github.com/containers/bubblewrap/blob/v0.9.0/bwrap.xml).
+
+Status and plan-operation output streams and their native readers allow at most
+16 MiB. This accommodates repeated paths in the public ownership/state report
+of a supported 2,000-file bundle, including its terminal readback. Other provider
+commands keep the 1 MiB limit.
 
 `provider status` adds one explicit existing target and provider scope to that
 authenticated observation. Every path component is opened without following
@@ -595,15 +602,20 @@ versions supply its locked closure; no async runtime is enabled. The command's
 deadline/output bounds also cover this path. CLI maintainers own updates and
 advisory checks; removing target handle transfer removes this dependency.
 
-`provider plan` takes the same explicit target/provider coordinates plus a bundle
-file and a closed request JSON of at most 8 KiB. The required request fields are
-`operation` (`install` or `replace`), `operation_id` (an `operation_` ULID),
+`provider plan` takes the same explicit target/provider coordinates and a closed
+request JSON of at most 8 KiB. The required request fields are
+`operation` (`install`, `replace` or `remove`), `operation_id` (an `operation_` ULID),
 `expires_at` (UTC with milliseconds, strictly future and at most fifteen minutes
 away), and `bundle`. That binding contains exactly `bundle_format`
 (`ai-stp-bundle/2`), `bundle_digest`, `artifact_digest` and numeric `bundle_size`.
 The literal archive is bounded to 64 MiB and must match the requested size and
 SHA-256 before trust refresh. It stays in memory and a sealed read-only sandbox
 mount; the provider never receives a host bundle pathname.
+
+Removal requires `bundle: null`, no `--bundle` argument and
+`recovery_mode: "forward"`. It does not call `validate-bundle`; the corresponding
+validation and validation digest in the report are null. The exact plan binds
+withdrawal of recorded ownership without acquiring a replacement setup.
 
 Planning acquires authenticated provider-info, reads status, invokes
 `validate-bundle`, invokes `plan-operation`, and reads status again. Both target
@@ -624,9 +636,10 @@ backup and restore identities, with no native capture. A mode introduced by the
 provider without a request is also refused. Components before 0.0.90 do not
 implement this capability. The component's forward transaction retains desired
 bytes and the original operation; its release qualification belongs to
-[#764](https://github.com/ai-engineers-guild/ai-stp/issues/764). The native CLI
-still exposes only configuration observation and planning. It does not expose
-configuration apply or claim a complete consumer recovery journey.
+[#764](https://github.com/ai-engineers-guild/ai-stp/issues/764). This low-level
+observation command does not authorize configuration application.
+Forward removal requires a component implementing that operation; 0.0.90
+supports only forward installation/replacement and refuses removal in this mode.
 
 The external plan digest uses [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785)
 over the original wire strings in domain `ai-stp:provider-plan:v3`. It preserves
@@ -638,6 +651,56 @@ backup or installation is stored. The provider's declared future backup effects
 remain visible; this preview does not consent to them. Installation still needs
 engine-owned eligibility, relevant input observations beyond the owned-byte
 digest, durable intent, revalidation and verified execution/recovery.
+
+`configuration plan` creates a native intent for `install`, `replace` or
+`remove`, with the same explicit harness, provider version, target and scope.
+Install/replace require `--bundle`; removal forbids it. These operations require
+component 0.0.91 or newer, including its corrected preservation of surviving
+host modes. Before provider invocation, the package's document descriptors and
+setup reference must match the enclosed version passport, its harness and
+canonical digest. The plan binds authenticated archive/executable/declaration digests,
+the physical target and state directories, exact public ownership and provider
+plan, and the before/after file digests, sizes and modes. Existing parent and
+file identities are bound as well: identical bytes at a substituted physical
+location do not satisfy the original precondition. The native intent uses the
+existing `ai-stp:installation-operation:v1` domain with an explicit
+`configuration.*` action and a closed configuration-specific shape.
+
+Configuration paths have at most 32 segments. Together with the bundle's file
+and path-size bounds, this keeps future ownership and physical-parent reports
+bounded after first installation. Native configuration intents allow up to
+32 MiB, including the before-state and provider plan; terminal journal records
+reserve a further 8 MiB for receipt metadata.
+
+`configuration apply --state-dir <state> --plan <intent.json> --plan-digest <digest>`
+authenticates the original component, rechecks an unadmitted intent against the
+current target, then records admission before invocation. First installation or
+replacement also supplies the original `--bundle`; retries use retained bytes.
+Only the held configuration directory is writable in the component sandbox;
+the bundle and full provider plan are sealed read-only inputs. Shared hosts are
+verified independently through the public ownership response and expected
+JSON/JSONC/TOML transformations. Marked instruction attachments survive setup
+withdrawal. Native verification reads only the affected paths, at most 64 MiB,
+and never reads a component's private ledger or copies previous configuration.
+
+The native operation lock serializes one physical target within the explicit
+state, while the component owns cross-caller admission and file recovery.
+Pending application retains desired bundle bytes in private operation state;
+completion removes them and records an immutable receipt in SQLite. Terminal
+replay needs no live target, provider, bundle source or network, and cleanup
+interrupted after the receipt commit resumes independently. An admitted
+component request keeps its original expiry and identity during recovery;
+native admission alone does not bypass the component's first-admission expiry.
+Cancellation of a native intent that the component never admitted is not yet
+implemented. In particular, a null public journal does not prove absence of a
+forward admission: the component can commit admission before publishing that
+guard. Such an ambiguous operation is retained rather than declared cancelled.
+
+Current-project and configured harness roots refuse direct application: their
+activation requires staged replacement and durable agent handoff. Multi-root
+coordination, active-target handoff and writable isolation outside Linux remain
+separate C4 work. This bounded configuration surface does not advertise a
+completed task intent or production writer cutover.
 
 `provider software plan` uses the same explicit provider, target and scope plus
 an absolute `--prefix` and a closed request of at most 8 KiB. The prefix may be an
@@ -847,7 +910,7 @@ completion; if that precedes native readback, the native operation refuses
 instead of claiming an independently verified result.
 
 Machine help marks all program plans as `plan` and apply/cancel as `apply` with
-`plan_digest` confirmation. Configuration replacement, active-agent handoff,
+`plan_digest` confirmation. Active-agent handoff, multi-root coordination,
 other-OS isolation and production cutover remain separate.
 
 `program inspect --prefix --entry-point` reads the public providers' software

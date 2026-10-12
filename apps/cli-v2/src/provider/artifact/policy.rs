@@ -122,9 +122,12 @@ mod tests {
                 crate::provider::managed::version(None)?,
                 "linux/x86_64",
             )?;
-            assert_eq!(managed.sequence, 89);
             assert!(managed.publisher.repository.ends_with(&managed.project));
         }
+        assert_eq!(
+            request("claude-code", "0.0.89", "linux/x86_64")?.sequence,
+            89
+        );
         assert_eq!(crate::provider::managed::version(Some("1.2.3"))?, "1.2.3");
         let last = request("claude-code", "1.999.999", "linux/x86_64")?;
         let next = request("claude-code", "2.0.0", "linux/x86_64")?;
