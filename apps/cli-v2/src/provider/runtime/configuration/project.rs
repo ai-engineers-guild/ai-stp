@@ -2,21 +2,21 @@
 
 use super::{invalid, plan::Plan};
 use crate::{
+    authoring::runtime::owner,
     digest,
     error::Result,
-    identity,
     objects::Objects,
     projects,
     provider::configuration::project::{Binding, Selection},
-    store::{Store, database},
+    store::database,
 };
 use rusqlite::{Connection, OptionalExtension, params};
 use std::path::Path;
 
 pub(crate) fn observe(plan: &Plan, project: &str) -> Result<Binding> {
     let parent = Path::new(&plan.state_parent);
-    let owner = identity::current(parent)?.ok_or_else(invalid)?.context();
-    let mut store = Store::planning(parent)?;
+    let owner = owner(parent)?;
+    let mut store = owner.planning()?;
     store.transaction(|connection| {
         let registered = projects::passports::registered(connection, Path::new(&plan.target_path), &owner)?;
         if registered.project["stable_id"] != project || registered.identity != plan.target_identity {
@@ -33,7 +33,7 @@ pub(crate) fn observe(plan: &Plan, project: &str) -> Result<Binding> {
                 return Err(invalid());
             }
         }
-        let binding = Binding {project_id:project.into(),identity:owner,
+        let binding = Binding {project_id:project.into(),identity:owner.clone(),
             passport_digest:digest::canonical("ai-stp:passport:v1", &registered.project)?,selection};
         binding.validate(plan)?;
         Ok(binding)

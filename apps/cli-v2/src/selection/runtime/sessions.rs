@@ -6,9 +6,8 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::{Request, Selector, inputs, invalid, owner, with_provider};
+use super::{Owner, Request, Selector, inputs, invalid, owner, with_provider};
 use crate::{
-    authoring::Identity,
     canonical, digest,
     error::{Failure, Result},
     files,
@@ -114,7 +113,7 @@ pub fn propose(parent: &Path, project: &str, path: &Path, empty: bool) -> Result
         .iter()
         .map(value)
         .collect::<Result<Vec<_>>>()?;
-    let mut store = Store::planning(parent)?;
+    let mut store = identity.planning()?;
     preflight(&mut store, &roots)?;
     drop(store);
     let selector = request.selector();
@@ -123,7 +122,7 @@ pub fn propose(parent: &Path, project: &str, path: &Path, empty: bool) -> Result
         &selector,
         &identity,
         |provider, artifact, report| {
-            let mut store = Store::planning(parent)?;
+            let mut store = identity.planning()?;
             let operation = store.transaction(|t| {
                 let observed = inputs(t, &roots, target)?;
                 let runtime = sessions::Runtime {
@@ -147,7 +146,7 @@ pub fn propose(parent: &Path, project: &str, path: &Path, empty: bool) -> Result
 /// exact snapshot again during apply; terminal replay does not need a provider.
 pub fn decision(parent: &Path, id: &str, target: Option<(Scope, &str)>) -> Result<Value> {
     let identity = owner(parent)?;
-    let mut store = Store::planning(parent)?;
+    let mut store = identity.planning()?;
     let proposal = sessions::read(&mut store, id)?;
     let selector = target.map(|(scope, version)| Selector {
         harness_id: proposal.harness_id,
@@ -196,7 +195,7 @@ pub fn apply(path: &Path, expected: &str) -> Result<Value> {
                 serde_json::from_value(plan.operation).map_err(|_| invalid())?;
             let digest = operation.digest()?;
             operation.validate(&digest, &identity, &moment(), "selection.cancel")?;
-            let mut store = Store::open(&plan.state_parent, false)?;
+            let mut store = identity.open(false)?;
             value(&sessions::cancel(
                 &mut store,
                 &operation,
@@ -209,12 +208,12 @@ pub fn apply(path: &Path, expected: &str) -> Result<Value> {
     }
 }
 
-fn apply_proposal(plan: &Plan, identity: &Identity) -> Result<Value> {
+fn apply_proposal(plan: &Plan, identity: &Owner) -> Result<Value> {
     let operation: sessions::Plan =
         serde_json::from_value(plan.operation.clone()).map_err(|_| invalid())?;
     let selector = plan.selector(&operation.context.harness_id)?;
     let digest = operation.digest()?;
-    let mut store = Store::planning(&plan.state_parent)?;
+    let mut store = identity.planning()?;
     if let Some(held) =
         store.transaction(|t| sessions::proposed(t, &operation, &digest, identity, &moment()))?
     {
@@ -228,7 +227,7 @@ fn apply_proposal(plan: &Plan, identity: &Identity) -> Result<Value> {
         selector,
         identity,
         |provider, artifact, _| {
-            let mut store = Store::open(&plan.state_parent, false)?;
+            let mut store = identity.open(false)?;
             store.transaction(|t| {
                 // Another invocation may have completed while provider I/O ran.
                 if let Some(held) = sessions::proposed(t, &operation, &digest, identity, &moment())?
@@ -251,11 +250,11 @@ fn apply_proposal(plan: &Plan, identity: &Identity) -> Result<Value> {
     )
 }
 
-fn apply_confirmation(plan: &Plan, identity: &Identity) -> Result<Value> {
+fn apply_confirmation(plan: &Plan, identity: &Owner) -> Result<Value> {
     let operation: sessions::Decision =
         serde_json::from_value(plan.operation.clone()).map_err(|_| invalid())?;
     let digest = operation.digest()?;
-    let mut store = Store::planning(&plan.state_parent)?;
+    let mut store = identity.planning()?;
     let proposal = sessions::read(&mut store, &operation.proposal_id)?;
     let selector = plan.selector(&proposal.harness_id)?;
     if let Some(held) =
@@ -271,7 +270,7 @@ fn apply_confirmation(plan: &Plan, identity: &Identity) -> Result<Value> {
         selector,
         identity,
         |provider, artifact, _| {
-            let mut store = Store::open(&plan.state_parent, false)?;
+            let mut store = identity.open(false)?;
             store.transaction(|t| {
                 if let Some(held) =
                     sessions::confirmed(t, &operation, &digest, identity, &moment())?

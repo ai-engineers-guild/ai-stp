@@ -1,5 +1,6 @@
 //! Headless native services. The executable only renders their result.
 
+pub mod account;
 mod archive;
 pub mod artifacts;
 pub mod authoring;
@@ -39,6 +40,7 @@ pub struct Invocation {
     pub result: Result<Value>,
     pub machine: bool,
     pub text: Option<String>,
+    pub warnings: Vec<String>,
 }
 
 impl Invocation {
@@ -56,7 +58,7 @@ impl Invocation {
         match &self.result {
             Ok(data) => {
                 envelope["data"] = data.clone();
-                envelope["warnings"] = json!([]);
+                envelope["warnings"] = json!(self.warnings);
             }
             Err(failure) => {
                 envelope["error"] = json!({"code": failure.kind.code(), "message": failure.message, "retryable": matches!(failure.kind, error::ErrorKind::Unavailable), "details": failure.details})
@@ -78,16 +80,20 @@ pub fn invoke(arguments: impl IntoIterator<Item = OsString>) -> Invocation {
         Ok(matches) => {
             let text = (matches.subcommand().is_none() && !machine)
                 .then(|| parser.render_help().to_string());
+            let result = registry::dispatch(&matches);
+            let warnings = registry::warnings(&matches, &result);
             Invocation {
-                result: registry::dispatch(&matches),
+                result,
                 machine,
                 text,
+                warnings,
             }
         }
         Err(error) if error.kind() == clap::error::ErrorKind::DisplayHelp => Invocation {
             result: registry::help("", ""),
             machine,
             text: Some(error.to_string()),
+            warnings: Vec::new(),
         },
         Err(_) => Invocation {
             result: Err(Failure::input(
@@ -95,6 +101,7 @@ pub fn invoke(arguments: impl IntoIterator<Item = OsString>) -> Invocation {
             )),
             machine,
             text: None,
+            warnings: Vec::new(),
         },
     }
 }

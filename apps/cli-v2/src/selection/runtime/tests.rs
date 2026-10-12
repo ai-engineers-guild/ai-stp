@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::Store;
 use crate::{
     artifacts::{self, Member},
     authoring::releases,

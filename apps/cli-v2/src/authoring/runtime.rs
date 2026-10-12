@@ -46,10 +46,38 @@ fn invalid() -> Failure {
     Failure::input("the local operation plan is invalid")
 }
 
-fn owner(parent: &Path) -> Result<Identity> {
-    Ok(identity::current(parent)?.ok_or_else(|| Failure::precondition(
+/// An author and the physical root from which that authority was loaded.
+/// Every associated registry connection keeps the same root capability.
+pub(crate) struct Owner {
+    device: identity::Identity,
+    context: Identity,
+}
+
+impl std::ops::Deref for Owner {
+    type Target = Identity;
+    fn deref(&self) -> &Identity {
+        &self.context
+    }
+}
+
+impl Owner {
+    pub(crate) fn planning(&self) -> Result<Store> {
+        Store::planning_at(self.device.root_directory())
+    }
+
+    pub(crate) fn open(&self, create: bool) -> Result<Store> {
+        Store::open_at(self.device.root_directory(), create)
+    }
+}
+
+pub(crate) fn owner(parent: &Path) -> Result<Owner> {
+    let device = identity::current(parent)?.ok_or_else(|| Failure::precondition(
         "initialize the isolated native identity before planning or applying authoring operations"
-    ))?.context())
+    ))?;
+    Ok(Owner {
+        context: device.context(),
+        device,
+    })
 }
 
 fn moment() -> String {
@@ -62,9 +90,9 @@ pub fn plan<T: Serialize>(
 ) -> Result<Value> {
     let state_parent = PathBuf::from(files::location(parent)?);
     let identity = owner(&state_parent)?;
-    let mut store = Store::planning(&state_parent)?;
-    let operation =
-        serde_json::to_value(build(&mut store, identity, &moment())?).map_err(|_| invalid())?;
+    let mut store = identity.planning()?;
+    let operation = serde_json::to_value(build(&mut store, identity.clone(), &moment())?)
+        .map_err(|_| invalid())?;
     let plan = Plan {
         schema_version: 1,
         state_parent,
@@ -79,7 +107,7 @@ fn execute<T: DeserializeOwned>(plan: Plan, apply: Apply<T>) -> Result<Value> {
     // Decode the closed domain plan before opening a writable database.
     let operation: T = serde_json::from_value(plan.operation.clone()).map_err(|_| invalid())?;
     let identity = owner(&plan.state_parent)?;
-    if plan.operation["identity"] != serde_json::to_value(&identity).map_err(|_| invalid())? {
+    if plan.operation["identity"] != serde_json::to_value(&*identity).map_err(|_| invalid())? {
         return Err(Failure::precondition(
             "the local identity differs from the planned author",
         ));
@@ -96,7 +124,7 @@ fn execute<T: DeserializeOwned>(plan: Plan, apply: Apply<T>) -> Result<Value> {
         return Err(invalid());
     }
     let at = moment();
-    let mut store = match Store::open(&plan.state_parent, false) {
+    let mut store = match identity.open(false) {
         Ok(store) => store,
         Err(error) if matches!(error.kind, ErrorKind::NotFound) => {
             if at.as_str() < created || at.as_str() > expires {
@@ -104,7 +132,7 @@ fn execute<T: DeserializeOwned>(plan: Plan, apply: Apply<T>) -> Result<Value> {
                     "an expired plan cannot initialize a registry",
                 ));
             }
-            Store::open(&plan.state_parent, true)?
+            identity.open(true)?
         }
         Err(error) => return Err(error),
     };
@@ -174,4 +202,53 @@ pub fn versions(parent: &Path, id: &str) -> Result<Value> {
         }
         .versions(id)
     })
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use crate::store::revisions::{self, Write};
+
+    #[test]
+    fn an_author_keeps_the_same_registry_parent_across_path_replacement()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let sandbox = tempfile::tempdir()?;
+        let root = sandbox.path().join("state");
+        let displaced = sandbox.path().join("displaced");
+        std::fs::create_dir(&root)?;
+        let at = moment();
+        let initialization = identity::plan(&root, identity::Storage::File, &at)?;
+        identity::apply(&initialization, &initialization.digest()?, &at)?;
+        let author = owner(&root)?;
+        drop(author.planning()?);
+        assert!(!root.join("ai-stp-v2-state").exists());
+
+        std::fs::rename(&root, &displaced)?;
+        std::fs::create_dir(&root)?;
+        let id = format!("project_{}", ulid::Ulid::generate());
+        let mut store = author.open(true)?;
+        let recorded = store.transaction(|t| revisions::commit(t,
+            &json!({"kind":"project","stable_id":id,"owner_id":author.account_id,"created_at":at}),
+            &author.device_id, None, Write::Advance { expected_heads: &[] }))?;
+        drop(store);
+        assert!(std::fs::read_dir(&root)?.next().is_none());
+        assert!(displaced.join("ai-stp-v2-state/registry.sqlite3").is_file());
+
+        for planning in [false, true] {
+            let mut store = if planning {
+                author.planning()?
+            } else {
+                author.open(false)?
+            };
+            let document = store.transaction(|t| Objects { connection: t }.head("project", &id))?;
+            assert_eq!(document, recorded);
+        }
+        std::fs::remove_dir(&root)?;
+        std::fs::rename(&displaced, &root)?;
+        assert_eq!(
+            inspect(&root, "project", &id, None)?["revision_id"],
+            recorded["revision_id"]
+        );
+        Ok(())
+    }
 }
