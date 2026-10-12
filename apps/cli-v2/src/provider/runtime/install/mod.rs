@@ -3,6 +3,7 @@
 pub(super) mod cancellation;
 pub(super) mod change;
 mod journal;
+pub(super) mod observation;
 mod outcome;
 mod plan;
 mod stage;

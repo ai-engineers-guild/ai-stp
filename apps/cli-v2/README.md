@@ -1041,6 +1041,26 @@ Machine help marks all program plans as `plan` and apply/cancel as `apply` with
 `plan_digest` confirmation. Active-agent handoff, multi-root coordination,
 other-OS isolation and production cutover remain separate.
 
+`program status --state-dir --harness --prefix` observes an explicitly managed
+program on Linux without network, vendor execution, an archive or an executable
+from `PATH`. It validates native installation/update/removal receipts in one
+read-only transaction and uses operation-event order. A pending request at the
+prefix reports `recovery_required`; absent and unproven installations report
+`missing` and `unmanaged`. A verified observation requires the recorded physical
+prefix/parent/state identities, complete current file inventory and modes, and
+the exact launcher, version marker and executable manifest. Drift refuses.
+Removal retires that version's older receipts; cancelled requests grant no
+installation evidence. The provider's private metadata is not an authority source.
+
+The reader bounds prefix history to 1,024 records and 16 MiB, each record to
+2 MiB, and inventory work to the installation verifier's limits. It checks the
+inventory twice under a shared time budget and revalidates held directories.
+`observation_digest` uses the existing `ai-stp:installation-inventory:v1` domain
+with `kind: managed_program` and binds the receipt and verified program identity;
+`observed_at` is separate. This is current local evidence, not a new publisher
+attestation or a transaction with arbitrary external filesystem writers.
+Other operating systems explicitly refuse this capability.
+
 `program inspect --prefix --entry-point` reads the public providers' software
 layout at an explicit absolute prefix with an existing parent. The entry point
 is an exact `bin/command` name, including `.cmd`, `.exe` or `.bat` where needed.
@@ -1936,6 +1956,20 @@ Their dependent constraints remain refusals; no trust mark is inferred from an
 acquisition receipt. An unobserved harness version refuses exact version
 requirements but does not prevent composition without such a requirement.
 The report names its unobserved inputs and never authorizes installation.
+An optional `program_prefix` in selection, matrix and composition requests
+requires a fresh verified `program status` observation from this state. The
+runtime derives `harness_version` and reports `program_observation_digest`;
+an absent, unmanaged, drifted or recovering explicit prefix refuses. Omission
+keeps the version unobserved. Matrix pages observe each target program once.
+Input paths may be absolute UTF-8 strings; retained plans encode their exact
+bytes alongside the normalized display value, preserving Unicode path spelling.
+
+Proposal plans bind this observation. Confirmation and bundle plans accept
+`--program-prefix` and bind their own current observation. Apply observes again
+inside the registry transaction and refuses a changed digest before the effect.
+Completed selection receipts still replay offline. Plans without a program
+prefix keep their previous encoding and behavior. Program observation adds no
+grants, permissions or public trust.
 Only isolated provider trust state may change; no proposal, passport, registry
 record, target, backup or installation journal is created.
 

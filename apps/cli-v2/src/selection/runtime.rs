@@ -5,6 +5,7 @@ mod tests;
 
 pub mod bundles;
 pub mod matrix;
+mod program;
 pub mod reports;
 pub mod sessions;
 
@@ -24,7 +25,6 @@ use crate::{
         runtime::{Owner, owner},
         setups,
     },
-    canonical,
     error::{Failure, Result},
     files, harnesses,
     objects::Objects,
@@ -46,6 +46,8 @@ struct Request {
     members: Vec<setups::Member>,
     #[serde(default)]
     for_redistribution: bool,
+    #[serde(default)]
+    program_prefix: Option<program::Prefix>,
 }
 
 fn invalid() -> Failure {
@@ -54,7 +56,7 @@ fn invalid() -> Failure {
 
 impl Request {
     fn parse(path: &Path, empty: bool) -> Result<Self> {
-        Self::from_value(canonical::parse(&files::read(path, MAX_REQUEST)?)?, empty)
+        Self::from_value(crate::wire::parse(&files::read(path, MAX_REQUEST)?)?, empty)
     }
 
     fn from_value(mut value: Value, empty: bool) -> Result<Self> {
@@ -87,13 +89,8 @@ impl Request {
             harness_id: self.harness_id.clone(),
             scope: self.scope,
             provider_version: self.provider_version.clone(),
+            program_prefix: self.program_prefix.clone(),
         }
-    }
-
-    fn target(&self, identity: &Identity) -> Result<Target> {
-        let mut target = self.selector().target(identity)?;
-        target.for_redistribution = self.for_redistribution;
-        Ok(target)
     }
 }
 
@@ -103,6 +100,8 @@ struct Selector {
     harness_id: String,
     scope: Scope,
     provider_version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    program_prefix: Option<program::Prefix>,
 }
 
 impl Selector {
@@ -112,6 +111,15 @@ impl Selector {
             return Err(invalid());
         }
         crate::provider::managed::sequence(&self.provider_version)?;
+        if let Some(prefix) = &self.program_prefix
+            && (!prefix.0.is_absolute()
+                || !prefix
+                    .0
+                    .to_str()
+                    .is_some_and(|path| path.len() <= 4096 && !path.contains('\0')))
+        {
+            return Err(invalid());
+        }
         Ok(())
     }
 
@@ -155,9 +163,10 @@ fn retain(total: &mut u64, reference: &Value) -> Result<()> {
 }
 
 fn report(target: Target, assessment: Value, bytes: u64) -> Value {
+    let not_observed = program::unobserved(target.harness_version.is_empty());
     json!({"target":target,"assessment":assessment,"verified_artifact_bytes":bytes,
         "provider":null,"provider_observed":false,
-        "not_observed":["harness_version","project_capabilities","cloud_trust","cloud_grants"],
+        "not_observed":not_observed,
         "permission_policy":"none_granted","installation_authorized":false,"harness_written":false})
 }
 
@@ -299,7 +308,6 @@ fn with_provider<T>(
 pub fn assess(parent: &Path, path: &Path) -> Result<Value> {
     let request = Request::parse(path, false)?;
     let identity = owner(parent)?;
-    let target = request.target(&identity)?;
     let roots = serde_json::to_value(&request.members)
         .map_err(|_| invalid())?
         .as_array()
@@ -310,12 +318,18 @@ pub fn assess(parent: &Path, path: &Path) -> Result<Value> {
     let graph = store.transaction(|t| graph::exact(t, &roots))?;
     drop(store);
     if graph["resolved"] != true {
-        return Ok(report(
+        let mut store = identity.planning()?;
+        let (mut target, program) =
+            store.transaction(|t| request.selector().observe(t, parent, &identity))?;
+        target.for_redistribution = request.for_redistribution;
+        let mut result = report(
             target,
             json!({"schema_version":1,"graph":graph,
             "assessments":[],"admissible":false,"auto_selectable":false}),
             0,
-        ));
+        );
+        result["program_observation_digest"] = json!(program);
+        return Ok(result);
     }
     with_provider(
         parent,
@@ -324,7 +338,13 @@ pub fn assess(parent: &Path, path: &Path) -> Result<Value> {
         |provider, artifact, report| {
             // Re-read the graph after external I/O; preflight is never a permit.
             let mut store = identity.planning()?;
-            let mut result = store.transaction(|t| assess_snapshot(t, &roots, target, provider))?;
+            let mut result = store.transaction(|t| {
+                let (mut target, program) = request.selector().observe(t, parent, &identity)?;
+                target.for_redistribution = request.for_redistribution;
+                let mut result = assess_snapshot(t, &roots, target, provider)?;
+                result["program_observation_digest"] = json!(program);
+                Ok(result)
+            })?;
             artifact.executable()?;
             result["provider"] = report;
             result["provider_observed"] = true.into();

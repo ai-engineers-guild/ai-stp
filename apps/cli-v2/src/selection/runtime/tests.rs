@@ -1,4 +1,5 @@
 use super::*;
+use crate::canonical;
 use crate::store::Store;
 use crate::{
     artifacts::{self, Member},
@@ -40,11 +41,32 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
         serde_json::from_value::<Selector>(json!({"harness_id":"codex","scope":"global"})).is_err()
     );
     let directory = tempfile::tempdir()?;
+    let unicode_prefix = directory.path().join("program-e\u{301}");
+    let request_path = directory.path().join("selection.json");
+    std::fs::write(
+        &request_path,
+        serde_json::to_vec(&json!({
+            "harness_id":"codex","scope":"global","members":[],"program_prefix":unicode_prefix
+        }))?,
+    )?;
+    let selector = Request::parse(&request_path, true)?.selector();
+    let encoded = canonical::bytes(&serde_json::to_value(&selector)?)?;
+    let retained: Selector = serde_json::from_value(canonical::parse(&encoded)?)?;
+    assert_eq!(
+        retained.program_prefix.as_ref().ok_or_else(invalid)?.0,
+        unicode_prefix
+    );
+    assert!(program::matches(&None, &Some("sha256:changed".into())).is_err());
     let mut store = Store::open(directory.path(), true)?;
     let identity = Identity {
         account_id: "account_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
         device_id: "device_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
     };
+    assert!(
+        store
+            .transaction(|t| retained.observe(t, directory.path(), &identity))
+            .is_err()
+    );
     let declarations: Vec<Value> = serde_json::from_str(include_str!(
         "../../../tests/fixtures/provider-declarations.json"
     ))?;
@@ -89,7 +111,9 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
         provider_version: "0.0.88".into(),
         members: vec![],
         for_redistribution: false,
+        program_prefix: None,
     }
+    .selector()
     .target(&identity)?;
     let reference = |document: &Value| -> Result<Value> {
         Ok(
@@ -189,8 +213,9 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
             Ok((Info::parse(&canonical::bytes(value)?)?, Value::Null))
         })
         .collect::<Result<Vec<_>>>()?;
-    let report =
-        store.transaction(|t| matrix::assess_snapshot(t, &request, &identity, &providers))?;
+    let report = store.transaction(|t| {
+        matrix::assess_snapshot(t, directory.path(), &request, &identity, &providers)
+    })?;
     assert_eq!(
         report["targets"][0]["selector"]["harness_id"],
         "claude-code"
@@ -227,8 +252,9 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
     loop {
         std::fs::write(&matrix_path, serde_json::to_vec(&matrix_request)?)?;
         let request = matrix::Request::parse(&matrix_path)?;
-        let report =
-            store.transaction(|t| matrix::assess_snapshot(t, &request, &identity, &providers))?;
+        let report = store.transaction(|t| {
+            matrix::assess_snapshot(t, directory.path(), &request, &identity, &providers)
+        })?;
         found.push(report["candidates"][0]["stable_id"].clone());
         if report["next_after"].is_null() {
             break;

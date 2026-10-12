@@ -61,6 +61,19 @@ pub(super) struct Record {
 }
 
 impl Record {
+    pub(super) fn parse(operation_id: &str, kind: &str, state: &str, detail: &str) -> Result<Self> {
+        if detail.len() > 2 * 1024 * 1024 {
+            return Err(invalid());
+        }
+        let record: Self = serde_json::from_value(crate::wire::parse(detail.as_bytes())?)
+            .map_err(|_| conflict())?;
+        if record.plan["action"] != kind || record.phase.state() != state {
+            return Err(conflict());
+        }
+        record.validate(operation_id, &record.plan_digest)?;
+        Ok(record)
+    }
+
     fn validate(&self, operation_id: &str, digest: &str) -> Result<()> {
         let bytes = serde_json::to_vec(&self.plan).map_err(|_| invalid())?;
         let plan = Plan::parse(&bytes, digest)?;
@@ -277,19 +290,10 @@ fn read_store(store: &Store, operation_id: &str, digest: &str) -> Result<Option<
         .optional()
         .map_err(database)?;
     row.map(|(kind, state, detail)| {
-        if detail.len() > 2 * 1024 * 1024 {
-            return Err(invalid());
-        }
-        let record: Record = serde_json::from_value(crate::wire::parse(detail.as_bytes())?)
-            .map_err(|_| conflict())?;
-        if record.plan["action"] != kind
-            || record.schema_version != 1
-            || record.plan_digest != digest
-            || record.phase.state() != state
-        {
+        let record = Record::parse(operation_id, &kind, &state, &detail)?;
+        if record.plan_digest != digest {
             return Err(conflict());
         }
-        record.validate(operation_id, digest)?;
         Ok(record)
     })
     .transpose()

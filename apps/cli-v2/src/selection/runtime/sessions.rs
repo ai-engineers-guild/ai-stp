@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::{Owner, Request, Selector, inputs, invalid, owner, with_provider};
+use super::{Owner, Request, Selector, inputs, invalid, owner, program, with_provider};
 use crate::{
     canonical, digest,
     error::{Failure, Result},
@@ -29,6 +29,8 @@ struct Plan {
     )]
     state_parent: PathBuf,
     selector: Option<Selector>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    program_observation_digest: Option<String>,
     operation: Value,
 }
 
@@ -64,11 +66,13 @@ fn planned(
     selector: Option<Selector>,
     operation: &impl Serialize,
     provider: Value,
+    program_observation_digest: Option<String>,
 ) -> Result<Value> {
     let plan = Plan {
         schema_version: 1,
         state_parent: PathBuf::from(files::location(parent)?),
         selector,
+        program_observation_digest,
         operation: value(operation)?,
     };
     Ok(json!({"plan_digest":plan.digest()?,"plan":plan,"provider":provider}))
@@ -107,7 +111,6 @@ pub fn propose(parent: &Path, project: &str, path: &Path, empty: bool) -> Result
         return Err(invalid());
     }
     let identity = owner(parent)?;
-    let target = request.target(&identity)?;
     let roots = request
         .members
         .iter()
@@ -123,7 +126,8 @@ pub fn propose(parent: &Path, project: &str, path: &Path, empty: bool) -> Result
         &identity,
         |provider, artifact, report| {
             let mut store = identity.planning()?;
-            let operation = store.transaction(|t| {
+            let (operation, program) = store.transaction(|t| {
+                let (target, program) = selector.observe(t, parent, &identity)?;
                 let observed = inputs(t, &roots, target)?;
                 let runtime = sessions::Runtime {
                     identity: &identity,
@@ -135,29 +139,43 @@ pub fn propose(parent: &Path, project: &str, path: &Path, empty: bool) -> Result
                 let plan =
                     sessions::plan_in(t, project, &request.members, empty, &runtime, &moment())?;
                 artifact.executable()?;
-                Ok(plan)
+                Ok((plan, program))
             })?;
-            planned(parent, Some(selector.clone()), &operation, report)
+            planned(parent, Some(selector.clone()), &operation, report, program)
         },
     )
 }
 
 /// Planning a decision records intent. A new confirmation must establish the
 /// exact snapshot again during apply; terminal replay does not need a provider.
-pub fn decision(parent: &Path, id: &str, target: Option<(Scope, &str)>) -> Result<Value> {
+pub fn decision(
+    parent: &Path,
+    id: &str,
+    target: Option<(Scope, &str, Option<&Path>)>,
+) -> Result<Value> {
     let identity = owner(parent)?;
     let mut store = identity.planning()?;
     let proposal = sessions::read(&mut store, id)?;
-    let selector = target.map(|(scope, version)| Selector {
+    let selector = target.map(|(scope, version, prefix)| Selector {
         harness_id: proposal.harness_id,
         scope,
         provider_version: version.into(),
+        program_prefix: prefix.map(|p| program::Prefix(p.into())),
     });
     if let Some(selector) = &selector {
         selector.validate()?;
     }
     let plan = sessions::decision(&mut store, id, selector.is_none(), &identity, &moment())?;
-    planned(parent, selector, &plan, Value::Null)
+    let program = if let Some(selector) = &selector {
+        store.transaction(|t| {
+            selector
+                .observe(t, parent, &identity)
+                .map(|(_, digest)| digest)
+        })?
+    } else {
+        None
+    };
+    planned(parent, selector, &plan, Value::Null, program)
 }
 
 pub fn read(parent: &Path, id: &str) -> Result<Value> {
@@ -236,7 +254,7 @@ pub fn apply(path: &Path, expected: &str) -> Result<Value> {
         "selection.propose" => apply_proposal(&plan, &identity),
         "selection.confirm" => apply_confirmation(&plan, &identity),
         "selection.cancel" => {
-            if plan.selector.is_some() {
+            if plan.selector.is_some() || plan.program_observation_digest.is_some() {
                 return Err(invalid());
             }
             let operation: sessions::Decision =
@@ -282,7 +300,9 @@ fn apply_proposal(plan: &Plan, identity: &Owner) -> Result<Value> {
                 {
                     return value(&held);
                 }
-                let observed = inputs(t, &roots, selector.target(identity)?)?;
+                let (target, program) = selector.observe(t, &plan.state_parent, identity)?;
+                program::matches(&program, &plan.program_observation_digest)?;
+                let observed = inputs(t, &roots, target)?;
                 let runtime = sessions::Runtime {
                     identity,
                     target: &observed.target,
@@ -325,7 +345,9 @@ fn apply_confirmation(plan: &Plan, identity: &Owner) -> Result<Value> {
                 {
                     return value(&held);
                 }
-                let observed = inputs(t, &roots, selector.target(identity)?)?;
+                let (target, program) = selector.observe(t, &plan.state_parent, identity)?;
+                program::matches(&program, &plan.program_observation_digest)?;
+                let observed = inputs(t, &roots, target)?;
                 let runtime = sessions::Runtime {
                     identity,
                     target: &observed.target,
