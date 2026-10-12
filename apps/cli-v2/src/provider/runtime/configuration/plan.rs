@@ -18,7 +18,7 @@ use crate::{
     wire,
 };
 
-pub(super) const LIMIT: usize = 8 * 1024 * 1024;
+pub(super) const LIMIT: usize = crate::provider::runtime::CONFIGURATION_PLAN_BYTES;
 pub(super) type Identity = [String; 2];
 
 #[derive(Deserialize, Serialize)]

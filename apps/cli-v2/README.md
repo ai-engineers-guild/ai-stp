@@ -552,6 +552,11 @@ Only isolated TUF state is retained. macOS and Windows currently return an
 unavailable error; writable installation remains separate C4 work. See the
 [Bubblewrap options](https://github.com/containers/bubblewrap/blob/v0.9.0/bwrap.xml).
 
+Status and plan-operation output streams and their native readers allow at most
+16 MiB. This accommodates repeated paths in the public ownership/state report
+of a supported 2,000-file bundle, including its terminal readback. Other provider
+commands keep the 1 MiB limit.
+
 `provider status` adds one explicit existing target and provider scope to that
 authenticated observation. Every path component is opened without following
 symlinks; root/runtime mount locations and non-Unicode paths refuse. The held
@@ -658,6 +663,12 @@ file identities are bound as well: identical bytes at a substituted physical
 location do not satisfy the original precondition. The native intent uses the
 existing `ai-stp:installation-operation:v1` domain with an explicit
 `configuration.*` action and a closed configuration-specific shape.
+
+Configuration paths have at most 32 segments. Together with the bundle's file
+and path-size bounds, this keeps future ownership and physical-parent reports
+bounded after first installation. Native configuration intents allow up to
+32 MiB, including the before-state and provider plan; terminal journal records
+reserve a further 8 MiB for receipt metadata.
 
 `configuration apply --state-dir <state> --plan <intent.json> --plan-digest <digest>`
 authenticates the original component, rechecks an unadmitted intent against the

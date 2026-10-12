@@ -29,6 +29,7 @@ use crate::{
 };
 use serde_json::Value;
 use std::path::Path;
+pub(crate) const CONFIGURATION_PLAN_BYTES: usize = 32 * 1024 * 1024;
 #[cfg(target_os = "linux")]
 use {
     crate::{digest, wire},

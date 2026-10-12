@@ -151,7 +151,7 @@ impl Target {
     }
 
     pub(super) fn response(&self, bytes: &[u8], provider: &Info) -> Result<Value> {
-        if bytes.len() > 1024 * 1024 {
+        if bytes.len() > crate::provider::plan::MAX_RESPONSE_BYTES {
             return Err(invalid());
         }
         let document = wire::parse(bytes)?;

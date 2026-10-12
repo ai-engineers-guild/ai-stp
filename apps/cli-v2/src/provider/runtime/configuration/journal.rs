@@ -16,6 +16,7 @@ use crate::{
 };
 
 const OWNER: &[u8] = b"ai-stp-cli-v2:configuration-operations/v1\n";
+const RECORD_LIMIT: usize = super::plan::LIMIT + 8 * 1024 * 1024;
 
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -54,7 +55,7 @@ fn read(connection: &Connection, plan: &Plan, digest: &str) -> Result<Option<Rec
     let Some((kind, state, detail)) = row else {
         return Ok(None);
     };
-    if detail.len() > 10 * 1024 * 1024 {
+    if detail.len() > RECORD_LIMIT {
         return Err(invalid());
     }
     let record: Record =
@@ -192,7 +193,7 @@ impl Journal {
             result: result.cloned(),
         })
         .map_err(|_| invalid())?;
-        if detail.len() > 10 * 1024 * 1024 {
+        if detail.len() > RECORD_LIMIT {
             return Err(invalid());
         }
         let mut store = self.store(true)?;

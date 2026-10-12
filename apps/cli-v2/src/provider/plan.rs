@@ -17,6 +17,9 @@ use crate::{
 };
 
 pub const MAX_BUNDLE_BYTES: usize = 64 * 1024 * 1024;
+// A 2,000-file configuration repeats paths in public ownership and state.
+// Its terminal status must remain readable after a valid installation.
+pub(crate) const MAX_RESPONSE_BYTES: usize = 16 * 1024 * 1024;
 
 fn invalid() -> Failure {
     Failure::precondition("the provider plan does not match its exact request and observations")
@@ -258,7 +261,7 @@ impl Request {
 }
 
 pub(super) fn response(bytes: &[u8]) -> Result<Value> {
-    if bytes.len() > 1024 * 1024 {
+    if bytes.len() > MAX_RESPONSE_BYTES {
         return Err(invalid());
     }
     let response = wire::parse(bytes)?;

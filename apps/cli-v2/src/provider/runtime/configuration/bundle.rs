@@ -54,7 +54,7 @@ impl Bundle {
         for file in manifest["files"].as_array().ok_or_else(invalid)? {
             let path = file["path"].as_str().ok_or_else(invalid)?;
             let entry = members.get(path).ok_or_else(invalid)?;
-            if !archive::safe_path(path)
+            if !super::effects::valid_path(path)
                 || entry.kind != archive::Kind::File
                 || file["digest"] != digest::sha256(&entry.bytes)
                 || file["byte_length"] != entry.bytes.len()

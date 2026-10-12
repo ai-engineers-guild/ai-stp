@@ -1,4 +1,4 @@
-//! Component observation and exact program installation command adapters.
+//! Component observation and exact program/configuration command adapters.
 
 use super::{Declaration, Parameter, ParameterType, STATE_DIR};
 use crate::{
@@ -252,7 +252,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             STATE_DIR,
             Parameter {
                 name: "plan",
-                summary: "Original configuration plan JSON, at most 8 MiB.",
+                summary: "Original configuration plan JSON, at most 32 MiB.",
                 kind: ParameterType::Path,
                 required: true,
             },
@@ -342,7 +342,7 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         if matches!(handler, Handler::ConfigurationApply) {
             return runtime::configuration_apply(
                 parent,
-                &files::read(path, 8 * 1024 * 1024)?,
+                &files::read(path, runtime::CONFIGURATION_PLAN_BYTES as u64)?,
                 digest,
                 args.get_one::<PathBuf>("bundle").map(PathBuf::as_path),
             );

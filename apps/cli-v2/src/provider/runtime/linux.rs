@@ -606,6 +606,12 @@ impl Launcher {
         self.revalidate()?;
         let environment = environment();
         let mut request = request(&self.executable, &arguments, &environment);
+        if command
+            .first()
+            .is_some_and(|command| command == "status" || command == "plan-operation")
+        {
+            request.output_limit = plan::MAX_RESPONSE_BYTES;
+        }
         if execution.is_some() {
             request.timeout = Duration::from_secs(300);
         }
@@ -741,6 +747,7 @@ mod tests {
         let document = json!({"protocol_version":3,"provider_id":"codex-setup-system","harness_id":"codex","canonical_target":path,
             "state":"missing","target_digest":empty,"target_identity_digest":empty,"provider_state":{"present":false},"journal":null,"backups":[],"shadowed_by":[],"cleanup_state":"none"});
         target.response(&serde_json::to_vec(&document)?, &info)?;
+        large_configuration_status(&target, &info)?;
         for (key, value) in [
             ("canonical_target", json!(temporary.path())),
             ("provider_id", json!("another-provider")),
@@ -775,6 +782,34 @@ mod tests {
         assert_eq!(held.metadata()?.ino(), before.ino());
         assert_ne!(fs::metadata(&path)?.ino(), before.ino());
 
+        Ok(())
+    }
+
+    fn large_configuration_status(
+        target: &Target,
+        provider: &Info,
+    ) -> std::result::Result<(), Box<dyn Error>> {
+        let vectors: Value = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/provider-status-ownership.json"
+        ))?;
+        let mut document = vectors["base"].clone();
+        document["canonical_target"] = json!(target.path());
+        let segment = "a".repeat(220);
+        let paths: Vec<_> = (0..2000)
+            .map(|index| format!("skills/{segment}/{segment}/{segment}/{segment}/{index:04}.md"))
+            .collect();
+        document["written_paths"] = json!(paths);
+        document["configuration_ownership"] = paths.iter().map(|path| {
+            json!({"path":path,"ownership":"whole","parser_id":null,"ownership_keys":[]})
+        }).collect();
+        let bytes = serde_json::to_vec(&document)?;
+        assert!(bytes.len() > 1024 * 1024);
+        target.response(&bytes, provider)?;
+        assert!(
+            target
+                .response(&vec![b' '; plan::MAX_RESPONSE_BYTES + 1], provider)
+                .is_err()
+        );
         Ok(())
     }
 }

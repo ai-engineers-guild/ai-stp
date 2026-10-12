@@ -28,7 +28,7 @@ impl Execution<'_> {
             Self::Configuration(configuration) => mount_plan(
                 configuration.plan,
                 "/run/configuration-plan",
-                8 * 1024 * 1024,
+                crate::provider::plan::MAX_RESPONSE_BYTES,
                 arguments,
                 handles,
             ),

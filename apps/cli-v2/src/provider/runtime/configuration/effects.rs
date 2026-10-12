@@ -13,6 +13,10 @@ use crate::{
     provider::runtime::target::{Target, content::Content},
 };
 
+pub(super) fn valid_path(path: &str) -> bool {
+    crate::archive::safe_path(path) && path.split('/').count() <= 32
+}
+
 #[derive(Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Fingerprint {
@@ -78,6 +82,9 @@ pub(super) fn expected(
     let mut result = Vec::new();
     let (mut read_bytes, mut desired_bytes) = (0usize, 0usize);
     for path in paths {
+        if !valid_path(path) {
+            return Err(invalid());
+        }
         let observed = target.observe(path)?;
         let current = observed.content;
         read_bytes += current.as_ref().map_or(0, |content| content.bytes.len());
@@ -193,7 +200,7 @@ pub(super) fn validate(effects: &[Effect]) -> Result<()> {
         return Err(invalid());
     }
     for effect in effects {
-        if !crate::archive::safe_path(&effect.path)
+        if !valid_path(&effect.path)
             || effect.parents.is_empty()
             || effect.parents.len() > effect.path.split('/').count()
             || effect.before.is_some() != effect.before_identity.is_some()
