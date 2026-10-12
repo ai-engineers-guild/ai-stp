@@ -43,7 +43,11 @@ fn accept(listener: &TcpListener) -> std::io::Result<TcpStream> {
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
         match listener.accept() {
-            Ok((socket, _)) => return Ok(socket),
+            Ok((socket, _)) => {
+                // Accepted sockets inherit nonblocking mode on BSD platforms.
+                socket.set_nonblocking(false)?;
+                return Ok(socket);
+            }
             Err(e) if e.kind() == std::io::ErrorKind::WouldBlock && Instant::now() < deadline => {
                 thread::sleep(Duration::from_millis(5))
             }
