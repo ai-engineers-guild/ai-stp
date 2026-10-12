@@ -144,7 +144,7 @@ pub fn observe(harness: &str, explicit: Option<&Path>) -> Result<Value> {
                 };
                 if let Ok(answer) = std::str::from_utf8(bytes) {
                     let first = answer.lines().next().unwrap_or("").trim();
-                    let pattern = regex::Regex::new(r"(?:^|[^0-9A-Za-z])([0-9]+(?:\.[0-9]+)+(?:[.+-][0-9A-Za-z][0-9A-Za-z.-]*)?)(?:$|[^0-9A-Za-z.+_-])")
+                    let pattern = regex::Regex::new(r"(?:^|[^0-9A-Za-z.+_-])[vV]?([0-9]+(?:\.[0-9]+)+(?:[.+-][0-9A-Za-z][0-9A-Za-z.-]*)?)(?:$|[^0-9A-Za-z.+_-])")
                         .map_err(|_| Failure::input("the version expression is invalid"))?;
                     if first.len() <= 256
                         && !first.chars().any(char::is_control)
