@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "@/components/atoms/select";
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -73,7 +74,9 @@ export function EditMemberDialog({
         const name = fieldValue(data, "displayName");
         const role = fieldValue(data, "role") || member.role;
         const state = fieldValue(data, "state") || member.state;
-        const jobTitleId = fieldValue(data, "jobTitle") || null;
+        const jobTitleId = canMemberUpdate
+          ? fieldValue(data, "jobTitle") || null
+          : member.job_title_id;
         const teamIds = data.getAll("teams").map(String);
         const leadIds = new Set(data.getAll("teamLeads").map(String));
         startTransition(async () => {
@@ -188,7 +191,7 @@ function EditMemberFields({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="member-role">{t("role")}</Label>
-          <select
+          <Select
             id="member-role"
             name="role"
             defaultValue={member.role}
@@ -200,11 +203,11 @@ function EditMemberFields({
                 {name}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="member-state">{t("status")}</Label>
-          <select
+          <Select
             id="member-state"
             name="state"
             defaultValue={member.state}
@@ -216,12 +219,12 @@ function EditMemberFields({
                 {t(state)}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="member-job-title">{t("jobTitle")}</Label>
-        <select
+        <Select
           id="member-job-title"
           name="jobTitle"
           defaultValue={member.job_title_id ?? ""}
@@ -234,7 +237,7 @@ function EditMemberFields({
               {title.name}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       {canAssign ? (
         <>
@@ -340,7 +343,7 @@ export function BulkMembersDialog({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="bulk-role">{t("role")}</Label>
-          <select
+          <Select
             id="bulk-role"
             name="role"
             defaultValue=""
@@ -353,11 +356,11 @@ export function BulkMembersDialog({
                 {role.name}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="bulk-job-title">{t("jobTitle")}</Label>
-          <select
+          <Select
             id="bulk-job-title"
             name="jobTitle"
             defaultValue=""
@@ -371,13 +374,13 @@ export function BulkMembersDialog({
                 {title.name}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
       {canAssign ? (
         <div className="space-y-1.5">
           <Label htmlFor="bulk-team">{t("addToTeam")}</Label>
-          <select
+          <Select
             id="bulk-team"
             name="team"
             value={teamId}
@@ -392,7 +395,7 @@ export function BulkMembersDialog({
                 {team.name}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
       ) : null}
     </FormDialog>

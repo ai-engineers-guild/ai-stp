@@ -145,6 +145,20 @@
     "EntityActionSubject": {
       "additionalProperties": false,
       "properties": {
+        "assignment_id": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Assignment Id"
+        },
         "coordinate": {
           "anyOf": [
             {
@@ -240,7 +254,10 @@
         "view": {
           "anyOf": [
             {
-              "const": "landscape",
+              "enum": [
+                "landscape",
+                "detail"
+              ],
               "type": "string"
             },
             {

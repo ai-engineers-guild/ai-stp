@@ -13,6 +13,7 @@ import {
   type FieldErrors,
 } from "@/lib/api/field-errors";
 import { privateApiRequest } from "@/lib/api/http";
+import type { CorporateContext } from "@/lib/api/generated/types.gen";
 import {
   corporatePresentationPath,
   entityProfileViewSchema,
@@ -61,10 +62,17 @@ export async function updateCorporatePresentationAction(input: {
   const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!sessionToken) return { ok: false, message: common("notSignedIn"), fieldErrors: {} };
   try {
+    const context = await privateApiRequest<CorporateContext>(
+      `/v1/corporate/organizations/${input.organizationId}/context`,
+      { sessionToken },
+    );
     const data = entityProfileViewSchema.parse(
       await privateApiRequest<unknown>(path, {
         method: "PUT",
-        body: parsed.data,
+        body: {
+          ...parsed.data,
+          authorization_revision: context.organization.authorization_revision,
+        },
         sessionToken,
       }),
     );

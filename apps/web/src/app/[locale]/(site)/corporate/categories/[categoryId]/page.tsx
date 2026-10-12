@@ -1,7 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Badge } from "@/components/atoms/badge";
 import { CategoryIconBadge } from "@/components/molecules/category-icon-badge";
-import { TechnologyRegistryCreate } from "@/components/organisms/technology-registry-create";
+import { EntityDetailMenu } from "@/components/organisms/entity-detail-menu";
 import { CategoryLifecycleControls } from "@/components/organisms/corporate-governance-controls";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { StatePanel } from "@/components/molecules/state-panel";
@@ -53,9 +53,17 @@ export default async function CategoryDetailPage({
     csrfToken: (await readCsrfToken()) ?? "",
   };
   return (
-    <article className="space-y-6">
+    <article className="mx-auto w-full max-w-screen-2xl space-y-6">
       <HistoryBackButton label={h("backToCategories")} fallback="/corporate/categories" />
       <header className="space-y-2">
+        <EntityDetailMenu
+          moreLabel={h("moreActions")}
+          subject={{
+            kind: "category",
+            id: categoryId,
+            organization_id: context.organization.organization_id,
+          }}
+        />
         <h1 className="flex flex-wrap items-center gap-3 text-3xl font-medium">
           <CategoryIconBadge
             icon={detail.category.icon}
@@ -71,19 +79,6 @@ export default async function CategoryDetailPage({
         </h1>
         <p className="text-muted-foreground max-w-prose">{detail.category.description}</p>
       </header>
-      {detail.permissions.capabilities.includes("category.update") && (
-        <details>
-          <summary className="min-h-11 cursor-pointer py-3 text-sm underline underline-offset-4">
-            {t("editCategory")}
-          </summary>
-          <TechnologyRegistryCreate
-            kind="category"
-            initialCategory={detail.category}
-            categories={null}
-            {...mutation}
-          />
-        </details>
-      )}
       {detail.technologies && (
         <section className="space-y-3">
           <h2 className="text-xl font-medium">{h("technologies")}</h2>

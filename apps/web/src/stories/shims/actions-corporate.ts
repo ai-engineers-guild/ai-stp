@@ -46,3 +46,9 @@ export async function corporateSubjectSearchAction(_input: unknown): Promise<nev
 export async function corporateAuditExportAction(_input: unknown): Promise<never> {
   throw new Error("audit export unavailable in Storybook");
 }
+
+export async function corporateAssignmentRevisionAction(
+  _input: unknown,
+): Promise<{ ok: true; revision: number }> {
+  return { ok: true, revision: 0 };
+}

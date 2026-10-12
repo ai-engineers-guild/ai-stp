@@ -138,7 +138,7 @@ test.describe("People & Access administration", () => {
     await search.clear();
     await expect(main(page).getByRole("row")).toHaveCount(11);
     await page.goto("/en/corporate/admin/invitations");
-    await expect(page).toHaveURL(/admins\/invitations/, { timeout: urlTimeout });
+    await expect(page).toHaveURL(/corporate\/admin\/invitations/, { timeout: urlTimeout });
     await expect(main(page).getByRole("heading", { level: 1, name: "Invitations" })).toBeVisible();
     await main(page).getByRole("button", { name: "Invite member", exact: true }).click();
     await expect(page.getByRole("dialog").locator("#invite-email")).toBeVisible();

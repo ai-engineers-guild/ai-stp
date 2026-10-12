@@ -2,8 +2,15 @@
 
 import { Fragment, useEffect, useState, useTransition, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { entityMenuContext, entityActionEditHref } from "@/lib/entity-action-subject";
 import { queryEntityActionMenu } from "@/lib/entity-action-query";
-import { MenuItem, MenuSeparator } from "@/components/atoms/menu";
+import {
+  MenuItem,
+  MenuSeparator,
+  MenuSub,
+  MenuSubTrigger,
+  MenuSubContent,
+} from "@/components/atoms/menu";
 import { CorporateResourceDeleteMenuItem } from "@/components/organisms/corporate-resource-actions";
 import type { EntityActionMenu, EntityActionSubject } from "@/lib/api/generated/types.gen";
 import { registryShow } from "@/lib/cli-copy";
@@ -12,12 +19,14 @@ import { Icon } from "@/theme";
 import { deleteObjectAction } from "@/actions/object-presentation";
 import { ContactReportDialog } from "@/components/organisms/contact-report-dialog";
 import { toast } from "sonner";
+import { CorporateGrantMenuAction } from "@/components/organisms/corporate-member-route-dialog";
+import { TechnologyOwnerMenuAction } from "@/components/organisms/corporate-catalog-owner-editor";
 import { corporateMutation } from "@/lib/api/corporate-mutation";
 
 type MenuResult = { menu: EntityActionMenu; csrfToken: string };
 /** Prefetch while the card is visible; each host owns and discards its projection. */
 export function usePreloadedEntityMenu(subject: EntityActionSubject | null) {
-  const key = JSON.stringify(subject);
+  const key = JSON.stringify(subject ? entityMenuContext(subject) : null);
   const [loaded, setLoaded] = useState<{ key: string; result: MenuResult } | null>(null);
   useEffect(() => {
     if (key === "null") return;
@@ -41,7 +50,8 @@ export function EntityActionItems(props: {
   onLoaded?: (menu: EntityActionMenu, csrfToken: string) => void;
   initialResult?: MenuResult | null;
 }) {
-  return <LoadedEntityActionItems key={JSON.stringify(props.subject)} {...props} />;
+  const subject = entityMenuContext(props.subject);
+  return <LoadedEntityActionItems key={JSON.stringify(subject)} {...props} subject={subject} />;
 }
 
 function LoadedEntityActionItems({
@@ -57,6 +67,7 @@ function LoadedEntityActionItems({
 }) {
   const common = useTranslations("common");
   const hub = useTranslations("hub");
+  const catalog = useTranslations("catalog");
   const [result, setResult] = useState<MenuResult | null>(initialResult ?? null);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -101,26 +112,58 @@ function LoadedEntityActionItems({
   const { menu, csrfToken } = result;
   return (
     <>
-      {menu.actions.map((action, index) => {
-        const entry = entries[action.id] ?? (
-          <DefaultEntityAction
-            id={action.id}
-            menu={menu}
-            csrfToken={csrfToken}
-            onReport={() => {
-              setReportOpen(true);
-            }}
-          />
-        );
-        return (
-          <Fragment key={action.id}>
-            {index > 0 && menu.actions[index - 1]?.group !== action.group ? (
-              <MenuSeparator />
-            ) : null}
-            {entry}
-          </Fragment>
-        );
-      })}
+      {menu.actions
+        .filter(
+          (action, index, actions) =>
+            action.group !== "sharing" ||
+            index === actions.findIndex((item) => item.group === "sharing"),
+        )
+        .map((action, index, visible) => {
+          if (action.group === "sharing")
+            return (
+              <MenuSub key="sharing">
+                {index > 0 ? <MenuSeparator /> : null}
+                <MenuSubTrigger>
+                  <Icon name="copy" size="sm" />
+                  {catalog("copyAndShare")}
+                </MenuSubTrigger>
+                <MenuSubContent>
+                  {menu.actions
+                    .filter((item) => item.group === "sharing")
+                    .map((item) => (
+                      <Fragment key={item.id}>
+                        {entries[item.id] ?? (
+                          <DefaultEntityAction
+                            id={item.id}
+                            menu={menu}
+                            csrfToken={csrfToken}
+                            onReport={() => {
+                              setReportOpen(true);
+                            }}
+                          />
+                        )}
+                      </Fragment>
+                    ))}
+                </MenuSubContent>
+              </MenuSub>
+            );
+          const entry = entries[action.id] ?? (
+            <DefaultEntityAction
+              id={action.id}
+              menu={menu}
+              csrfToken={csrfToken}
+              onReport={() => {
+                setReportOpen(true);
+              }}
+            />
+          );
+          return (
+            <Fragment key={action.id}>
+              {index > 0 && visible[index - 1]?.group !== action.group ? <MenuSeparator /> : null}
+              {entry}
+            </Fragment>
+          );
+        })}
       <ContactReportDialog
         kind="entity"
         target={`corporate:${subject.kind}:${subject.id}`}
@@ -131,21 +174,6 @@ function LoadedEntityActionItems({
       />
     </>
   );
-}
-
-function editHref(menu: EntityActionMenu, id: string, catalogObject: boolean) {
-  const subject = menu.subject;
-  return catalogObject
-    ? `/objects/${subject.kind}/${subject.id}/edit`
-    : subject.kind === "category"
-      ? `/corporate/admin/tech-categories?entity=${subject.id}&action=edit`
-      : subject.kind === "area"
-        ? `/corporate/admin/technology-areas?entity=${subject.id}&action=edit`
-        : subject.kind === "job_title"
-          ? `/corporate/admin/job-titles?entity=${subject.id}&action=edit`
-          : subject.kind === "role"
-            ? `/corporate/admin/roles?entity=${encodeURIComponent(subject.id)}&action=edit`
-            : `${menu.href}/${id === "edit_presentation" && ["member", "team", "project"].includes(subject.kind) ? "presentation/edit" : "edit"}`;
 }
 
 function DefaultEntityAction({
@@ -227,7 +255,7 @@ function DefaultEntityAction({
       </MenuItem>
     );
   if ((id === "edit" || id === "edit_presentation") && menu.href) {
-    const href = editHref(menu, id, catalogObject);
+    const href = entityActionEditHref(menu, id, catalogObject);
     return (
       <MenuItem asChild>
         <Link href={href}>
@@ -237,6 +265,10 @@ function DefaultEntityAction({
       </MenuItem>
     );
   }
+  if (id === "manage_access" && subject.organization_id)
+    return <CorporateGrantMenuAction subject={subject} />;
+  if (id === "change_owner" && subject.kind === "technology")
+    return <TechnologyOwnerMenuAction subject={subject} />;
   if (id === "manage_access")
     return (
       <MenuItem asChild>

@@ -93,7 +93,11 @@ const roles = [
   "platform_engineer",
   "data_engineer",
 ];
-const members: CorporateMember[] = employeeNodes.map((item, index) => ({
+const memberStore = globalThis as typeof globalThis & {
+  __aiStpCorporateTestMembers?: CorporateMember[];
+  __aiStpCorporateTestMemberIndex?: Map<string, CorporateMember>;
+};
+const members = (memberStore.__aiStpCorporateTestMembers ??= employeeNodes.map((item, index) => ({
   schema_version: 1,
   account_id: item.id,
   display_name: item.name,
@@ -106,7 +110,7 @@ const members: CorporateMember[] = employeeNodes.map((item, index) => ({
   last_activity_at: new Date(Date.now() - (index + 1) * 3_600_000).toISOString(),
   revision: 1,
   available_actions: [],
-}));
+})));
 const memberDescriptions = [
   "Corporate team lead for the shared Core platform.",
   "Project lead coordinating product delivery and growth experiments.",
@@ -129,7 +133,9 @@ members.forEach((item, index) =>
     memberDescriptions[index] ?? "Corporate engineering team member.",
   ),
 );
-const memberById = new Map(members.map((item) => [item.account_id, item]));
+const memberById = (memberStore.__aiStpCorporateTestMemberIndex ??= new Map(
+  members.map((item) => [item.account_id, item]),
+));
 // Standalone bundles this module into two module realms (page render and
 // /api routes). Mutable mock state must live on globalThis or a mutation in
 // one realm stays invisible to a read in the other.
@@ -782,7 +788,11 @@ const capabilities = [
   "audit.list",
   "audit.export",
   "job_title.list",
+  "job_title.read",
+  "job_title.create",
+  "job_title.update",
   "technology.list",
+  "technology.create",
   "technology.read",
   "technology.update",
   "project_team.list",
@@ -820,7 +830,13 @@ type CorporateResource = {
   kind: "team" | "project" | "employee" | "technology";
   detail: CorporateTeamView | CorporateProjectView | CorporateMember | TechnologyView;
 };
-const resources: Record<"teams" | "projects" | "members" | "technologies", CorporateResource[]> = {
+const resourceStore = globalThis as typeof globalThis & {
+  __aiStpCorporateTestResources?: Record<
+    "teams" | "projects" | "members" | "technologies",
+    CorporateResource[]
+  >;
+};
+const resources = (resourceStore.__aiStpCorporateTestResources ??= {
   teams: teamViews.map((detail) => ({
     id: detail.team_id,
     name: detail.name,
@@ -845,7 +861,7 @@ const resources: Record<"teams" | "projects" | "members" | "technologies", Corpo
     kind: "technology",
     detail,
   })),
-};
+});
 const resourceEntries = () =>
   Object.entries(resources) as [keyof typeof resources, CorporateResource[]][];
 const resourceFor = (kind: CorporateResource["kind"], id: string) =>
@@ -1929,6 +1945,19 @@ export function corporateHandlers(
       detail: created,
     });
     return ok(created);
+  }
+  const memberProfileMatch = suffix.match(/^members\/([^/]+)\/profile$/);
+  if (memberProfileMatch && method === "PATCH") {
+    const accountId = decodeURIComponent(memberProfileMatch[1] ?? "");
+    const target = memberById.get(accountId);
+    if (!target) return error(404, "AI_STP_NOT_FOUND");
+    const name = textField("display_name").trim();
+    if (!name) return error(422, "AI_STP_VALIDATION_ERROR");
+    target.display_name = name;
+    target.revision += 1;
+    const record = resources.members.find((item) => item.id === accountId);
+    if (record) record.name = name;
+    return ok(target);
   }
   const memberMutationMatch = suffix.match(/^members\/([^/]+)$/);
   if (memberMutationMatch && method === "PATCH") {

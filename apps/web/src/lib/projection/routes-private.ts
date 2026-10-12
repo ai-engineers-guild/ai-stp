@@ -335,6 +335,9 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
     "corporate/:resource/:resourceId/presentation/edit",
     "corporate/employees/:resourceId/access",
     "corporate/areas/:areaId",
+    "corporate/areas/:areaId/edit",
+    "corporate/categories/:categoryId/edit",
+    "corporate/technologies/:technologyId/presentation/edit",
   ].map((pattern) => ({
     pattern,
     resolve: async ({ segments }: { segments: string[] }) => {

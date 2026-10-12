@@ -8,7 +8,8 @@ import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { AreaField, TechnologyFields } from "@/components/organisms/technology-registry-fields";
-import { useRouter } from "@/lib/i18n/navigation";
+import { returnFromEditor } from "@/lib/navigation-history";
+import { useRouter } from "next/navigation";
 import type {
   AreaView,
   AreaWriteRequest,
@@ -197,6 +198,7 @@ export function TechnologyRegistryCreate({
   initialArea,
   onCreated,
   essential = false,
+  closeOnSave = false,
 }: {
   kind: RegistryKind;
   organizationId: string;
@@ -210,6 +212,7 @@ export function TechnologyRegistryCreate({
   onCreated?: (record: TechnologyView | CategoryView | AreaView) => void;
   /** Essential mode edits name, description and categories only; media and aliases are preserved. */
   essential?: boolean;
+  closeOnSave?: boolean;
 }) {
   const t = useTranslations("technology");
   const router = useRouter();
@@ -252,6 +255,11 @@ export function TechnologyRegistryCreate({
       if (!record) form.reset();
       onCreated?.(result.data as TechnologyView | CategoryView | AreaView);
       setMessage(t("saved"));
+      if (closeOnSave)
+        returnFromEditor(
+          router,
+          `/corporate/${kind === "technology" ? "technologies" : kind === "area" ? "areas" : "categories"}${recordId ? `/${recordId}` : ""}`,
+        );
       router.refresh();
     });
   }

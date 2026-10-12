@@ -2,7 +2,11 @@
 
 import { apiRequest } from "@/lib/api/http";
 import { readCorporateOrganization } from "@/lib/api/corporate";
-import type { EntityActionMenus, EntityActionSubject } from "@/lib/api/generated/types.gen";
+import type {
+  EntityActionMenus,
+  EntityActionSubject,
+  CorporatePermissionMatrix,
+} from "@/lib/api/generated/types.gen";
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 
@@ -64,5 +68,88 @@ export async function loadCatalogOwnerEditor(subject: EntityActionSubject, versi
     authorizationRevision: data.authorizationRevision,
     csrfToken: (await readCsrfToken()) ?? "",
     members: data.members,
+  };
+}
+
+export async function loadTechnologyOwnerEditor(subject: EntityActionSubject) {
+  const token = await sessionCookieValue();
+  if (!token || subject.kind !== "technology" || !subject.organization_id)
+    throw new Error("invalid ownership context");
+  const { menus } = await loadEntityActionMenus([subject]);
+  if (!menus.items[0]?.actions.some((action) => action.id === "change_owner"))
+    throw new Error("ownership unavailable");
+  const { readCorporatePresentation } = await import("@/lib/api/corporate-detail");
+  const { readCorporateWorkspace } = await import("@/lib/api/corporate");
+  const [workspace, presentation] = await Promise.all([
+    readCorporateWorkspace(token, false),
+    readCorporatePresentation(
+      token,
+      subject.organization_id,
+      "technologies",
+      subject.id,
+      menus.items[0].authorization_revision ?? 0,
+    ),
+  ]);
+  if (
+    !workspace ||
+    !presentation ||
+    workspace.organization.organization_id !== subject.organization_id
+  )
+    throw new Error("ownership unavailable");
+  return {
+    presentation,
+    members: workspace.members?.items ?? [],
+    csrfToken: (await readCsrfToken()) ?? "",
+  };
+}
+
+export async function loadCorporateGrantDialog(subject: EntityActionSubject) {
+  const token = await sessionCookieValue();
+  if (!token || !subject.organization_id) throw new Error("invalid grant context");
+  const { menus } = await loadEntityActionMenus([subject]);
+  if (!menus.items[0]?.actions.some((action) => action.id === "manage_access"))
+    throw new Error("grant unavailable");
+  const {
+    readCorporateWorkspace,
+    readCorporateMemberAccess,
+    readCorporateCatalogScopeOptions,
+    readCorporateCategoryScopeOptions,
+    readCorporateScopeTechnologies,
+  } = await import("@/lib/api/corporate");
+  const workspace = await readCorporateWorkspace(token, false);
+  if (!workspace || workspace.organization.organization_id !== subject.organization_id)
+    throw new Error("grant unavailable");
+  const org = subject.organization_id;
+  const caps = workspace.context.capabilities;
+  const [access, matrix, technologies, catalog, categories] = await Promise.all([
+    subject.kind === "member" ? readCorporateMemberAccess(token, subject.id) : null,
+    caps.includes("role.read")
+      ? apiRequest<CorporatePermissionMatrix>(
+          `/v1/corporate/organizations/${org}/permissions/matrix`,
+          { sessionToken: token },
+        )
+      : null,
+    readCorporateScopeTechnologies(token, org, caps),
+    readCorporateCatalogScopeOptions(token, org, caps),
+    readCorporateCategoryScopeOptions(token, org, caps),
+  ]);
+  return {
+    csrfToken: (await readCsrfToken()) ?? "",
+    organizationId: org,
+    authorizationRevision: workspace.context.organization.authorization_revision,
+    members: workspace.members?.items ?? (access ? [access.member] : []),
+    initialMemberIds: subject.kind === "member" ? [subject.id] : [],
+    initialScope: subject.kind === "member" ? undefined : `catalog_object:${subject.id}`,
+    roles: workspace.roles?.items ?? [],
+    grantableRoleNames: access?.delegation?.grantable_roles.map((role) => role.name) ?? null,
+    teams: workspace.context.teams,
+    projects: workspace.context.projects,
+    capabilities: caps,
+    definitions: matrix?.definitions ?? [],
+    scopeOptions: [
+      ...technologies.map((item) => ({ value: `technology:${item.id}`, label: item.name })),
+      ...catalog,
+      ...categories,
+    ],
   };
 }

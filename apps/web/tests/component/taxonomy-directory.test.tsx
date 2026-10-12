@@ -95,4 +95,7 @@ vi.mock("@/lib/entity-action-query", () => ({
   ),
 }));
 
-vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams() }));
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ refresh: vi.fn(), back: vi.fn(), replace: vi.fn() }),
+}));

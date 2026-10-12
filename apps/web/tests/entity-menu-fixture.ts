@@ -19,19 +19,21 @@ export function entityMenuResult(subject: EntityActionSubject, ids: string[], hr
     object_name: null,
     visibility: null,
     device_id: null,
-    actions: ids.map((id) => ({
-      id,
-      group:
-        id === "open"
-          ? "navigation"
-          : id === "report"
-            ? "support"
-            : id === "delete"
-              ? "danger"
-              : id.startsWith("copy") || id === "share"
-                ? "sharing"
-                : "management",
-    })),
+    actions: ids
+      .filter((id) => subject.view !== "detail" || id !== "open")
+      .map((id) => ({
+        id,
+        group:
+          id === "open"
+            ? "navigation"
+            : id === "report"
+              ? "support"
+              : id === "delete"
+                ? "danger"
+                : id.startsWith("copy") || id === "share"
+                  ? "sharing"
+                  : "management",
+      })),
   };
   return { menu, csrfToken: "csrf" };
 }

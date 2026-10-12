@@ -1,6 +1,6 @@
 ---
 description: "SPEC-084: Persistent tenant presentation and independent technology ownership."
-last_verified: "2026-09-18"
+last_verified: "2026-10-12"
 ---
 
 # SPEC-084: Corporate entity profiles
@@ -99,8 +99,8 @@ and the request correlation ID, not source bytes or credentials.
 Every read and mutation is scoped to the explicit organization and first verifies
 active membership and the current tenant policy. Administrators and active team
 leads may edit tenant presentation; a technology owner may edit only that
-technology's presentation and cannot assign ownership. Ownership assignment is
-restricted to administrators and active team leads and never creates a role
+technology's presentation and cannot assign ownership. Technology ownership
+assignment requires organization management authority and never creates a role
 binding, grant, registry decision, or provider credential.
 
 Employee presentation is stored on the organization membership and never changes
@@ -135,6 +135,15 @@ by SPEC-082/ADR-0189.
 | `REQ-8405` | `tests/unit/test_corporate_entity_profiles.py::test_foreign_assets_rejected_before_mutation` rejects cross-account avatar/media references; `::test_gallery_upload_reuses_owned_avatar_delivery` verifies the incumbent namespace and delivery path; `tests/unit/platform/test_avatar_store.py::test_asset_writes_reject_unowned_or_foreign_namespaces` verifies storage ownership boundaries. |
 
 ## Validation and rollback
+
+Descriptions accept up to 20,000 characters of safe Markdown, including GFM
+tables, emoji and attribute-free `<br>` line breaks. Other HTML and unsafe link
+schemes remain rejected. Rendering supports those line breaks without enabling
+arbitrary HTML. Presentation saves preserve retained avatar assets and use the
+current authorization revision without replacing the expected profile revision.
+Authorization refreshes do not change an idempotent effect fingerprint; retries
+still reauthorize before returning the original receipt. The unit profile,
+Markdown-render, presentation-save and rich-editor suites exercise these paths.
 
 The acceptance oracles above cover typed identities, unsafe content, edit
 authority, membership denial, optimistic revisions, idempotent route declarations,

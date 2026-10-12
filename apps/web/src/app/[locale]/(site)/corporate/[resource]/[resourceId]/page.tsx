@@ -23,7 +23,7 @@ import { readCorporateResource, readCorporateCatalogAssignments } from "@/lib/ap
 import { readProjectTechnologyDetail } from "@/lib/api/technology";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
-import { mapPool, readAssignedObjectSummary } from "@/lib/catalog-load";
+import { loadPublisherProfiles, mapPool, readAssignedObjectSummary } from "@/lib/catalog-load";
 import { safeCorporateQuery } from "@/lib/corporate-routes";
 
 type PageProps = {
@@ -294,8 +294,13 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
     ? presentation.description
     : team?.description || detail.description;
   const csrfToken = (await readCsrfToken()) ?? "";
+  const assignmentAuthors = await loadPublisherProfiles(
+    Object.values(assignmentCards).flatMap((card) =>
+      card.catalog_item?.publisher_id ? [card.catalog_item.publisher_id] : [],
+    ),
+  );
   return (
-    <article className="mx-auto max-w-7xl space-y-8">
+    <article className="mx-auto w-full max-w-screen-2xl space-y-8">
       <HistoryBackButton label={backLabel} fallback={parentHref} />
       <CorporateEntityDetail
         rail={
@@ -360,6 +365,7 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
         ) : null}
         {assignments && subjectKind && (
           <CorporateCatalogAssignments
+            authors={assignmentAuthors}
             items={assignments.items}
             cards={assignmentCards}
             organizationId={workspace.organization.organization_id}
@@ -370,7 +376,9 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
             canManage={
               resource === "teams"
                 ? Boolean(team?.available_actions.includes("assignment.manage"))
-                : workspace.context.capabilities.includes("catalog_object.assign")
+                : resource === "members"
+                  ? workspace.context.capabilities.includes("member.manage")
+                  : Boolean(projectDetail?.permissions.capabilities.includes("project.update"))
             }
           />
         )}

@@ -50,7 +50,7 @@ describe("component detail interactions", () => {
   });
 
   it("keeps like primary and moves copy/share/report into the overflow", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     const clipboardSpy = vi.spyOn(navigator.clipboard, "writeText");
     render(
       <div className="relative">
@@ -79,16 +79,18 @@ describe("component detail interactions", () => {
     await user.click(screen.getByRole("button", { name: "More actions" }));
     const menu = await screen.findByRole("menu");
     expect(getComputedStyle(document.body).overflow).not.toBe("hidden");
-    await within(menu).findByRole("menuitem", { name: "Copy ID" });
+    await within(menu).findByRole("menuitem", { name: "Copy and share" });
+    expect(within(menu).queryByRole("menuitem", { name: "Open details" })).not.toBeInTheDocument();
+    await user.click(within(menu).getByRole("menuitem", { name: "Copy and share" }));
     const items = within(menu).getAllByRole("menuitem");
-    expect(items[0]).toHaveAccessibleName("Open details");
-    expect(within(menu).getByRole("menuitem", { name: /Copy ID/ })).toBeVisible();
-    expect(within(menu).getByRole("menuitem", { name: /Copy URL/ })).toBeVisible();
-    expect(within(menu).getByRole("menuitem", { name: /Copy CLI command/ })).toBeVisible();
+    expect(items[0]).toHaveAccessibleName("Copy and share");
+    expect(screen.getByRole("menuitem", { name: /Copy ID/ })).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: /Copy URL/ })).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: /Copy CLI command/ })).toBeVisible();
     expect(within(menu).getByRole("menuitem", { name: /Edit public presentation/ })).toBeVisible();
     expect(within(menu).getByRole("menuitem", { name: /Report component/ })).toBeVisible();
 
-    await user.click(within(menu).getByRole("menuitem", { name: /Copy ID/ }));
+    await user.click(screen.getByRole("menuitem", { name: /Copy ID/ }));
     expect(clipboardSpy).toHaveBeenCalledWith("component_example");
 
     const like = screen.getByRole("button", { name: "Like · 7" });
@@ -100,7 +102,7 @@ describe("component detail interactions", () => {
   });
 
   it("copies the canonical version URL from overflow when native share is unavailable", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     const clipboardSpy = vi.spyOn(navigator.clipboard, "writeText");
     render(
       <div className="relative">
@@ -116,6 +118,7 @@ describe("component detail interactions", () => {
       </div>,
     );
     await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Copy and share" }));
     await user.click(await screen.findByRole("menuitem", { name: /Copy URL/ }));
     expect(clipboardSpy).toHaveBeenCalledWith(
       "http://localhost:3000/en/catalog/components/component_example/versions/1.0",
@@ -123,7 +126,7 @@ describe("component detail interactions", () => {
   });
 
   it("opens the overflow report action", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     render(
       <div className="relative">
         <NextIntlClientProvider locale="en" messages={messages}>
@@ -144,7 +147,7 @@ describe("component detail interactions", () => {
   });
 
   it("shares the canonical version URL with the native API", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     const share = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "share", { configurable: true, value: share });
     render(
@@ -161,6 +164,7 @@ describe("component detail interactions", () => {
       </div>,
     );
     await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Copy and share" }));
     await user.click(await screen.findByRole("menuitem", { name: /Share/ }));
     expect(share).toHaveBeenCalledWith({
       url: "http://localhost:3000/en/catalog/components/component_example/versions/1.0",
@@ -244,7 +248,7 @@ describe("component detail interactions", () => {
   });
 
   it("opens media in an accessible dialog without a bottom close control", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     render(
       <ComponentMediaGallery
         items={[
@@ -281,7 +285,7 @@ describe("component detail interactions", () => {
   });
 
   it("navigates multiple slides with arrows and keyboard", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     render(
       <ComponentMediaGallery
         items={[
@@ -341,7 +345,7 @@ describe("component detail interactions", () => {
   });
 
   it("autoplays an active lightbox video and pauses it on close", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     const play = vi.fn().mockResolvedValue(undefined);
     const pause = vi.fn();
     Object.defineProperty(window.HTMLMediaElement.prototype, "play", {
@@ -396,7 +400,7 @@ describe("component detail interactions", () => {
   });
 
   it("keeps overflow actions inside a 360px viewport", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     render(
       <div className="relative">
         <NextIntlClientProvider locale="en" messages={messages}>
@@ -417,7 +421,8 @@ describe("component detail interactions", () => {
     await user.click(more);
     const menu = await screen.findByRole("menu");
     expect(menu.className).toContain("max-w-[min(20rem,calc(100vw-1.5rem))]");
-    expect(await within(menu).findByRole("menuitem", { name: /Copy ID/ })).toHaveClass("min-h-11");
+    await user.click(await screen.findByRole("menuitem", { name: "Copy and share" }));
+    expect(await screen.findByRole("menuitem", { name: /Copy ID/ })).toHaveClass("min-h-11");
   });
 
   it("shows a deterministic fallback when media cannot load", () => {

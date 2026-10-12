@@ -80,7 +80,7 @@ export async function CorporateEntityEditPage({
     archived: c("archived"),
   };
   return (
-    <RouteDialog title={c("edit")}>
+    <RouteDialog title={c("edit")} fallback={`/corporate/${resource}/${resourceId}`}>
       <CorporateResourceActions
         initiallyEditing
         closeOnSave

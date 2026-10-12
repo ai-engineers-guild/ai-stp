@@ -7664,6 +7664,10 @@ export type EntityActionQuery = {
  */
 export type EntityActionSubject = {
   /**
+   * Assignment Id
+   */
+  assignment_id?: string | null;
+  /**
    * Coordinate
    */
   coordinate?: string | null;
@@ -7705,7 +7709,7 @@ export type EntityActionSubject = {
   /**
    * View
    */
-  view?: "landscape" | null;
+  view?: "landscape" | "detail" | null;
 };
 
 export type EntityId = string;

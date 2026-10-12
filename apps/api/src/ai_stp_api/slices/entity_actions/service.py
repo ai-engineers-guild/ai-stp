@@ -11,6 +11,7 @@ from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.corporate.subject_access import subject_permission_allowed
 from ai_stp_contracts.entity_actions import EntityAction, EntityActionMenu, EntityActionSubject
 from ai_stp_platform.organization_models import (
+    CorporateCatalogAssignment,
     CorporateInvitation,
     CorporateJobTitle,
     CorporateProject,
@@ -65,6 +66,17 @@ async def read_menu(
     *,
     ctx: AuthContext | None,
     subject: EntityActionSubject,
+) -> EntityActionMenu:
+    menu = await _read_menu(db, ctx=ctx, subject=subject)
+    if subject.view == "detail":
+        menu = menu.model_copy(
+            update={"actions": [action for action in menu.actions if action.id != "open"]}
+        )
+    return menu
+
+
+async def _read_menu(
+    db: AsyncSession, *, ctx: AuthContext | None, subject: EntityActionSubject
 ) -> EntityActionMenu:
     if subject.kind in {"component", "setup"}:
         return await _catalog_menu(db, ctx=ctx, subject=subject)
@@ -165,6 +177,8 @@ async def read_menu(
     update = f"{subject.kind}.update"
     if await allowed(update):
         actions.append(EntityAction(id="edit", group="management"))
+    if subject.kind == "technology" and await allowed("entity_profile.owner"):
+        actions.append(EntityAction(id="change_owner", group="management"))
     if subject.kind in {"team", "project", "member", "technology"} and await allowed(
         "entity_profile.update"
     ):
@@ -179,7 +193,14 @@ async def read_menu(
         actions.append(EntityAction(id="assign_members", group="management"))
     if (
         subject.kind == "member"
-        and await allowed("member.update")
+        and await subject_permission_allowed(
+            db,
+            account_id=ctx.account_id,
+            organization_id=organization.id,
+            subject_kind="organization",
+            subject_id=organization.id,
+            permission="binding.create",
+        )
         and await subject_permission_allowed(
             db,
             account_id=ctx.account_id,
@@ -370,19 +391,17 @@ async def _catalog_menu(
             device_id = ctx.device_id
     change_owner = False
     assign = False
+    manage_access = "manage_access" in capabilities
     if ctx and subject.organization_id:
         from ai_stp_api.slices.corporate.subject_access import can_edit_subject_profile
 
-        change_owner = (
-            latest.organization_id == subject.organization_id
-            and await can_edit_subject_profile(
-                db,
-                account_id=ctx.account_id,
-                organization_id=subject.organization_id,
-                subject_kind="catalog_object",
-                subject_id=subject.id,
-                owner_assignment=True,
-            )
+        change_owner = await can_edit_subject_profile(
+            db,
+            account_id=ctx.account_id,
+            organization_id=subject.organization_id,
+            subject_kind="catalog_object",
+            subject_id=subject.id,
+            owner_assignment=True,
         )
         from ai_stp_platform.corporate_authorization import bulk_effective_permissions
 
@@ -406,7 +425,7 @@ async def _catalog_menu(
                 Technology,
                 Technology.id,
                 "technology.update",
-                Technology.lifecycle.in_(("active", "deprecated")),
+                Technology.lifecycle.in_(("draft", "active", "deprecated")),
             ),
         ):
             ids = list(
@@ -447,12 +466,25 @@ async def _catalog_menu(
             subject_id=subject.organization_id,
             permission="member.manage",
         )
+        manage_access = all(
+            [
+                await subject_permission_allowed(
+                    db,
+                    account_id=ctx.account_id,
+                    organization_id=subject.organization_id,
+                    subject_kind="organization",
+                    subject_id=subject.organization_id,
+                    permission=permission,
+                )
+                for permission in ("binding.create", "member.read", "member.list")
+            ]
+        )
     actions = list(COMMON_ACTIONS)
     actions.insert(3, EntityAction(id="copy_cli", group="sharing"))
     if ctx is not None:
         actions.append(EntityAction(id="like", group="management"))
     for capability in ("edit_presentation", "manage_access", "delete"):
-        if capability in capabilities:
+        if manage_access if capability == "manage_access" else capability in capabilities:
             actions.append(
                 EntityAction(
                     id=capability, group="danger" if capability == "delete" else "management"
@@ -467,6 +499,48 @@ async def _catalog_menu(
             actions.insert(
                 -1 if actions[-1].group == "danger" else len(actions),
                 EntityAction(id=action_id, group="management"),
+            )
+    if subject.assignment_id:
+        row = await db.get(CorporateCatalogAssignment, subject.assignment_id)
+        if (
+            ctx is None
+            or not subject.organization_id
+            or row is None
+            or row.organization_id != subject.organization_id
+            or row.object_kind != subject.kind
+            or row.stable_id != subject.id
+        ):
+            raise ApiError(ErrorCategory.NOT_FOUND, "assignment not found")
+        target_kind, target_id = next(
+            (
+                (kind, identity)
+                for kind, identity in (
+                    ("team", row.team_id),
+                    ("project", row.project_id),
+                    ("technology", row.technology_id),
+                    ("employee", row.account_id),
+                )
+                if identity is not None
+            ),
+            ("organization", row.organization_id),
+        )
+        permission = {"employee": "member.manage", "organization": "organization.manage"}.get(
+            target_kind, f"{target_kind}.update"
+        )
+        if row.state == "current" and await subject_permission_allowed(
+            db,
+            account_id=ctx.account_id,
+            organization_id=subject.organization_id,
+            subject_kind="organization" if target_kind == "employee" else target_kind,
+            subject_id=subject.organization_id if target_kind == "employee" else target_id,
+            permission=permission,
+        ):
+            actions.insert(
+                next(
+                    (i for i, action in enumerate(actions) if action.group == "danger"),
+                    len(actions),
+                ),
+                EntityAction(id="unlink", group="management"),
             )
     actions.append(REPORT)
     return EntityActionMenu(

@@ -81,6 +81,8 @@ export type ObjectActionProps = {
   objectName?: string;
   ownerEdit?: CorporateCatalogOwnerEdit;
   visibilityEdit?: ObjectVisibilityEdit;
+  assignmentId?: string;
+  onUnlink?: () => void;
   objectDelete?: { csrfToken: string; locale: string; catalogHref: string };
 };
 
@@ -156,8 +158,15 @@ export function ObjectOverflowMenu({
   objectName,
   ownerEdit,
   visibilityEdit,
+  assignmentId,
+  onUnlink,
 }: ObjectActionProps) {
-  const preloaded = usePreloadedEntityMenu({ kind: objectKind, id: stableId });
+  const subject = {
+    kind: objectKind,
+    id: stableId,
+    ...(assignmentId ? { assignment_id: assignmentId } : {}),
+  };
+  const preloaded = usePreloadedEntityMenu(subject);
   const behavior = useObjectMenuExecution(stableId, ownerEdit, visibilityEdit);
   const { execution, setExecution, setReportOpen, setVisibilityOpen, openOwner, openAssignment } =
     behavior;
@@ -171,7 +180,6 @@ export function ObjectOverflowMenu({
   const hub = useTranslations("hub");
   const objects = useTranslations("objects");
   const likeMenu = labels.likeMenu ?? labels.like;
-  const unlikeMenu = labels.unlikeMenu ?? "Unlike";
 
   async function copy(value: string) {
     await navigator.clipboard.writeText(value);
@@ -195,11 +203,17 @@ export function ObjectOverflowMenu({
         <MenuContent>
           <EntityActionItems
             initialResult={preloaded}
-            subject={{ kind: objectKind, id: stableId }}
+            subject={subject}
             onLoaded={(menu, csrfToken) => {
               setExecution({ menu, csrfToken });
             }}
             entries={{
+              unlink: onUnlink ? (
+                <MenuItem onSelect={onUnlink}>
+                  <Icon name="close" size="sm" />
+                  {hub("unlink")}
+                </MenuItem>
+              ) : null,
               copy_url: (
                 <MenuItem
                   onSelect={() => {
@@ -224,7 +238,7 @@ export function ObjectOverflowMenu({
                   }}
                 >
                   <Icon name="edit" size="sm" />
-                  {hub("edit")}
+                  {hub("assignOwner")}
                 </MenuItem>
               ),
               visibility: (
@@ -267,7 +281,7 @@ export function ObjectOverflowMenu({
                   }}
                 >
                   <Icon name="heart" size="sm" fill={like.liked ? "currentColor" : "none"} />
-                  {like.liked ? unlikeMenu : likeMenu}
+                  {like.liked ? (labels.unlikeMenu ?? "Unlike") : likeMenu}
                 </MenuItem>
               ),
               report: (

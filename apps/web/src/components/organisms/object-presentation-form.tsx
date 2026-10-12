@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { returnFromEditor } from "@/lib/navigation-history";
 
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
@@ -85,6 +87,7 @@ export function ObjectPresentationForm({
   initialDisplayName,
   labels,
   beforeMedia,
+  returnAfterSave = false,
 }: {
   objectKind?: "component" | "setup" | undefined;
   locale: string;
@@ -95,8 +98,17 @@ export function ObjectPresentationForm({
   initialDisplayName?: string;
   labels: Labels;
   beforeMedia?: ReactNode;
+  returnAfterSave?: boolean;
 }) {
+  const router = useRouter();
   const form = useObjectPresentationForm({
+    onSaved: () => {
+      if (returnAfterSave)
+        returnFromEditor(
+          router,
+          `/catalog/${objectKind === "component" ? "components" : "setups"}/${stableId}`,
+        );
+    },
     objectKind,
     locale,
     stableId,

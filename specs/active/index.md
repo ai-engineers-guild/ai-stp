@@ -91,8 +91,8 @@ last_verified: "2026-08-03"
 | [SPEC-080-cli-agent-task-contract.md](SPEC-080-cli-agent-task-contract.md) | SPEC-080: Headless CLI application services, capability inventory, and the agent task contract. | 2026-09-24 |
 | [SPEC-081-technology-registry-and-landscape.md](SPEC-081-technology-registry-and-landscape.md) | SPEC-081: Governed technology metadata, usage facts, detection handoff, and authorized landscape projections. | 2026-10-08 |
 | [SPEC-082-canonical-corporate-relations.md](SPEC-082-canonical-corporate-relations.md) | SPEC-082: Single canonical team/project/technology relationships, responsibility, and current assignment scopes. | 2026-09-12 |
-| [SPEC-083-corporate-hub-workspace.md](SPEC-083-corporate-hub-workspace.md) | SPEC-083: Corporate Hub directories, relationship editing, and catalog assignments. | 2026-10-05 |
-| [SPEC-084-corporate-entity-profiles.md](SPEC-084-corporate-entity-profiles.md) | SPEC-084: Persistent tenant presentation and independent technology ownership. | 2026-09-18 |
+| [SPEC-083-corporate-hub-workspace.md](SPEC-083-corporate-hub-workspace.md) | SPEC-083: Corporate Hub directories, relationship editing, and catalog assignments. | 2026-10-12 |
+| [SPEC-084-corporate-entity-profiles.md](SPEC-084-corporate-entity-profiles.md) | SPEC-084: Persistent tenant presentation and independent technology ownership. | 2026-10-12 |
 | [SPEC-085-milestone-5-corporate-governance-and-catalog.md](SPEC-085-milestone-5-corporate-governance-and-catalog.md) | SPEC-085: Corporate governance lifecycle, team profile, and catalog context. | 2026-09-19 |
 | [SPEC-086-corporate-workspace-consolidation.md](SPEC-086-corporate-workspace-consolidation.md) | SPEC-086: Corporate workspace identity, directory, catalog, and detail consolidation. | 2026-09-18 |
 | [SPEC-087-cli-heartbeat-and-installation-health.md](SPEC-087-cli-heartbeat-and-installation-health.md) | SPEC-087: Authenticated CLI installation heartbeats and read-time installation health for corporate tenants. | 2026-09-25 |
@@ -104,6 +104,6 @@ last_verified: "2026-08-03"
 | [SPEC-093-corporate-installation-operation-facts.md](SPEC-093-corporate-installation-operation-facts.md) | SPEC-093: Authenticated, durable facts for corporate installation operations. | 2026-09-26 |
 | [SPEC-094-corporate-installation-inventory.md](SPEC-094-corporate-installation-inventory.md) | SPEC-094: Opt-in, bounded corporate installation inventory snapshots. | 2026-09-26 |
 | [SPEC-095-contextual-corporate-navigation.md](SPEC-095-contextual-corporate-navigation.md) | SPEC-095: Shared contextual Human sidebar for SaaS and Corporate. | 2026-10-01 |
-| [SPEC-096-server-entity-actions.md](SPEC-096-server-entity-actions.md) | Live, ordered entity action projections shared by catalog and corporate interfaces. | 2026-10-11 |
+| [SPEC-096-server-entity-actions.md](SPEC-096-server-entity-actions.md) | Live, ordered entity action projections shared by catalog and corporate interfaces. | 2026-10-12 |
 
 <!-- END CONTENTS -->

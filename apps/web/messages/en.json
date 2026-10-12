@@ -163,7 +163,8 @@
     "technologyAreas": "Technology areas",
     "technologyMap": "Technology map",
     "areas": "Areas",
-    "telemetry": "Telemetry"
+    "telemetry": "Telemetry",
+    "assignOwner": "Assign operational owner"
   },
   "corporateReports": {
     "title": "Reports",
@@ -1988,7 +1989,8 @@
     "contextBudgetAdaptationRequired": "A target-specific estimate is required for this version with multiple adaptations.",
     "objectDelete": "Delete object",
     "objectDeleteConfirm": "Delete this object? This cannot be undone.",
-    "objectDeleted": "Object deleted"
+    "objectDeleted": "Object deleted",
+    "copyAndShare": "Copy and share"
   },
   "publisher": {
     "title": "Publisher",
@@ -3371,7 +3373,8 @@
     "teamLeads": "Team lead in",
     "teamLeadsHint": "Choose teams where this member is the lead",
     "editPartial": "{count} updates failed. Retry them.",
-    "showingEvents": "{start}–{end} of {total}"
+    "showingEvents": "{start}–{end} of {total}",
+    "teamLeadIn": "Team lead in"
   },
   "gitlabConnector": {
     "title": "GitLab connector",
@@ -3691,7 +3694,11 @@
       "employeeAccess": "Individual access and scoped assignments.",
       "jobTitles": "Job title dictionary.",
       "security": "Service principals and authentication policies.",
-      "dashboard": "Configurable overview and quick links."
+      "dashboard": "Configurable overview and quick links.",
+      "scans": "Repository and project scan history.",
+      "settings": "Organization settings and policy.",
+      "technologyAreas": "Technology area dictionary.",
+      "telemetry": "Installation and usage telemetry."
     },
     "organizationRole": "Organization role",
     "source": "Source",

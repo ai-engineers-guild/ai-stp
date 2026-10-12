@@ -1,6 +1,6 @@
 ---
 description: "Live, ordered entity action projections shared by catalog and corporate interfaces."
-last_verified: "2026-10-11"
+last_verified: "2026-10-12"
 ---
 
 # SPEC-096: Server entity actions
@@ -52,6 +52,20 @@ request. The generated contract owns selector fields and the response shape.
 - `REQ-9605`: Mutation endpoints independently reauthorize and validate revisions,
   state and idempotency. Menus never serve as permission credentials. Received
   grants are displayed separately from grants issued by the current account.
+- `REQ-9606`: A detail-view subject omits only its own `open` action. Related
+  cards keep navigation. Sharing actions retain server order in one flyout
+  submenu. An assignment context adds `unlink` only for a matching current direct
+  assignment and a principal authorized to update its target. Inherited rows
+  retain their source-team link and cannot unlink the source from the receiving
+  page. Retiring a latest assignment preserves its selector, null version and
+  harness condition.
+- `REQ-9607`: Corporate access creation opens the common grant dialog over its
+  invoking page. Menu authority is `binding.create` plus directory access,
+  independently of personal authorship. A member is preselected; catalog objects
+  preselect their catalog scope. Reopening restores that selection. Technology
+  owner assignment requires organization management authority, independently
+  of technology editing or current ownership. Corporate catalog ownership uses
+  its existing subject authorization and opens the operational-owner editor.
 
 ## Acceptance criteria
 
@@ -68,6 +82,14 @@ boundaries and request limits against PostgreSQL.
 absence of locally supplied unauthorized actions, reloading and explicit retry.
 Existing corporate delegation, directory authorization, context matrix and direct
 grant recipient suites exercise the shared authorization boundaries.
+
+`REQ-9606` and `REQ-9607`: `tests/integration/platform/test_entity_menu_followups.py`
+uses PostgreSQL for authorized/denied actions, assignment selectors and receipts.
+`tests/unit/test_entity_action_detail_context.py` covers every detail subject.
+Web `entity-menu-context`, `menu`, `entity-action-items`, and
+`corporate-assignment-cards` tests cover detail identity, ordered flyouts,
+reopening grants, owner writes and contextual unlink. Browser detail and
+corporate directory scenarios cover popup geometry and route interception.
 
 ## States and errors
 
@@ -90,8 +112,8 @@ grants, role bindings and catalog ownership records are unchanged.
 ## Corporate directory interactions
 
 Corporate organizational creation and edit use intercepted modal routes. Employee
-presentation edit and access grants also preserve the originating page. Project
-and team presentation editing use distinct `/presentation/edit` pages. Repository
+access grants also preserve the originating page. Employee, project, team and
+technology presentation editing use distinct `/presentation/edit` pages. Repository
 binding is part of project edit and uses the same subject permission decision,
 including the active lead of the current owner team.
 
@@ -101,3 +123,11 @@ Area menus omit generic sharing and copy actions. Scan menus expose details and
 completed-scan deletion to principals with `landscape.manage`; project navigation
 is an explicit journal button. Reports occurs once in root navigation; Landscape
 contains the map, scans and mapping only.
+
+Direct create/edit URLs render their directory or entity behind the dialog.
+Closing or saving returns through recorded local navigation, retaining origin
+filters; a direct link without that history uses its localized detail/directory
+fallback. Small area/category/technology edits use dialogs, while gallery and
+long-description editors use full pages. Detail columns have a stable responsive
+width independent of expanded passport content. The sidebar stays fixed through
+page and footer scrolling, with its own navigation scroll area.

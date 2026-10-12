@@ -16,7 +16,11 @@ import type {
   CorporateCatalogAssignmentRequest,
 } from "@/lib/api/generated/types.gen";
 import { CatalogItemMenu } from "@/components/organisms/catalog-item-menu";
-import { ObjectCard, type OwnerCardItem } from "@/components/organisms/object-card";
+import {
+  ObjectCard,
+  type CatalogAuthor,
+  type OwnerCardItem,
+} from "@/components/organisms/object-card";
 import { assignmentCardItem } from "@/lib/assignment-card";
 import { Icon } from "@/theme";
 
@@ -30,6 +34,7 @@ export function CorporateCatalogAssignments({
   authorizationRevision,
   csrfToken,
   canManage,
+  authors,
 }: {
   items: CorporateCatalogAssignment[];
   /** Resolved catalog cards keyed by assignment_id; falls back to identity-only rows. */
@@ -40,6 +45,7 @@ export function CorporateCatalogAssignments({
   authorizationRevision: number;
   csrfToken: string;
   canManage: boolean;
+  authors?: Record<string, CatalogAuthor>;
 }) {
   const h = useTranslations("hub");
   const tc = useTranslations("catalog");
@@ -96,12 +102,21 @@ export function CorporateCatalogAssignments({
   }
   async function save(removing?: CorporateCatalogAssignment) {
     if (!canManage || (!removing && (!selected || !version))) return;
+    const selection = removing ?? {
+      selector: "exact" as const,
+      version,
+      harness: null,
+      passport_digest: null,
+    };
     const effect = {
       subject_kind: subjectKind,
       subject_id: subjectId,
       object_kind: removing?.object_kind ?? kind,
       stable_id: removing?.stable_id ?? selected?.id ?? "",
-      version: removing?.version ?? version,
+      selector: selection.selector,
+      version: selection.version,
+      harness: selection.harness,
+      passport_digest: selection.passport_digest,
       state: removing ? "retired" : "current",
       expected_revision:
         removing?.revision ??
@@ -152,7 +167,18 @@ export function CorporateCatalogAssignments({
       summary={`${currentItems.length}`}
       defaultOpen={canManage}
     >
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex items-center justify-end gap-3">
+        {canManage ? (
+          <Button
+            className="mr-auto"
+            disabled={busy}
+            onClick={() => {
+              setAdding(!adding);
+            }}
+          >
+            {h(adding ? "cancel" : "assignCatalog")}
+          </Button>
+        ) : null}
         <Button
           type="button"
           variant={filtersOpen || query || selectedKinds.length ? "default" : "outline"}
@@ -220,6 +246,9 @@ export function CorporateCatalogAssignments({
               className="min-w-0"
             >
               <ObjectCard
+                {...(card.catalog_item?.publisher_id && authors?.[card.catalog_item.publisher_id]
+                  ? { author: authors[card.catalog_item.publisher_id] }
+                  : {})}
                 kind={item.object_kind}
                 item={card}
                 href={`/catalog/${item.object_kind === "setup" ? "setups" : "components"}/${item.stable_id}`}
@@ -255,19 +284,15 @@ export function CorporateCatalogAssignments({
                         {h("viaTeam")}
                       </Link>
                     ) : null}
-                    {canManage && !item.source_team_id ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={busy}
-                        onClick={() => {
-                          void save(item);
-                        }}
-                      >
-                        {h("unlink")}
-                      </Button>
-                    ) : null}
                     <CatalogItemMenu
+                      {...(!item.source_team_id
+                        ? {
+                            assignmentId: item.assignment_id,
+                            onUnlink: () => {
+                              void save(item);
+                            },
+                          }
+                        : {})}
                       kind={item.object_kind}
                       stableId={item.stable_id}
                       version={version}
@@ -293,17 +318,6 @@ export function CorporateCatalogAssignments({
       </ul>
       {!filteredItems.length && (
         <p className="text-muted-foreground text-sm">{h("noAssignments")}</p>
-      )}
-      {canManage && (
-        <Button
-          variant="outline"
-          disabled={busy}
-          onClick={() => {
-            setAdding(!adding);
-          }}
-        >
-          {h(adding ? "cancel" : "assignCatalog")}
-        </Button>
       )}
       {adding && (
         <div className="max-w-xl space-y-4">

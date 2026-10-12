@@ -15,6 +15,7 @@ for (const [objectKind, stableId] of [
   ["component", FIXTURE_COMPONENT_ID],
   ["setup", FIXTURE_SETUP_ID],
 ] as const) {
+  const origin = `/en/catalog?resource=${objectKind}s&include_experimental=1`;
   test.describe(`${objectKind} presentation media editor`, () => {
     test.describe.configure({ timeout: 60_000 });
 
@@ -26,6 +27,8 @@ for (const [objectKind, stableId] of [
         })
         .click();
       await expect(page).toHaveURL(/\/en\/account/);
+      await page.goto(origin);
+      await expect(page.getByRole("heading", { name: "Catalog", exact: true })).toBeVisible();
     });
 
     test("uploads image media, shows preview, and saves presentation", async ({ page }) => {
@@ -64,14 +67,9 @@ for (const [objectKind, stableId] of [
           name: /Save presentation|\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u043f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435/i,
         })
         .click();
-      await expect(
-        page
-          .getByText(
-            /Presentation saved|\u041f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u043e/i,
-          )
-          .first(),
-      ).toBeVisible({ timeout: 15_000 });
+      await expect(page).toHaveURL(origin);
 
+      await page.goto(`/en/objects/${objectKind}/${stableId}/edit`);
       await page.reload();
       await expect(page.locator("#presentation-bio")).toHaveValue(
         "E2E presentation bio with uploaded media",
@@ -101,13 +99,7 @@ for (const [objectKind, stableId] of [
           name: /Save presentation|\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u043f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435/i,
         })
         .click();
-      await expect(
-        page
-          .getByText(
-            /Presentation saved|\u041f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u043e/i,
-          )
-          .first(),
-      ).toBeVisible();
+      await expect(page).toHaveURL(origin);
       await page.goto(`/en/catalog/${objectKind}s/${stableId}`);
       await expect(
         page.getByLabel(/Description|\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435/i),
@@ -230,13 +222,7 @@ for (const [objectKind, stableId] of [
           name: /Save presentation|\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u043f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435/i,
         })
         .click();
-      await expect(
-        page
-          .getByText(
-            /Presentation saved|\u041f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u043e/i,
-          )
-          .first(),
-      ).toBeVisible({ timeout: 15_000 });
+      await expect(page).toHaveURL(origin);
     });
 
     test("keeps keyboard focus order through source controls and save", async ({ page }) => {

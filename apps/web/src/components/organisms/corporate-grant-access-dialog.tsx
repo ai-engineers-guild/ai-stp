@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/atoms/button";
+import { Select } from "@/components/atoms/select";
 import { Label } from "@/components/atoms/label";
 import { FormDialog } from "@/components/molecules/form-dialog";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
@@ -48,6 +49,7 @@ export function CorporateGrantAccessDialog({
   scopeOptions,
   definitions,
   capabilities,
+  initialScope,
   initialMemberIds = [],
 }: {
   open: boolean;
@@ -64,6 +66,7 @@ export function CorporateGrantAccessDialog({
   definitions: readonly CorporatePermissionDefinition[];
   capabilities: readonly string[];
   initialMemberIds?: readonly string[];
+  initialScope?: string | undefined;
 }) {
   const a = useTranslations("accessUi");
   const c = useTranslations("corporate");
@@ -72,7 +75,7 @@ export function CorporateGrantAccessDialog({
   const [busy, startTransition] = useTransition();
   const [selected, setSelected] = useState<string[]>([...initialMemberIds]);
   const [kind, setKind] = useState<"role" | "permission">("role");
-  const [scopeKind, setScopeKind] = useState("organization");
+  const [scopeKind, setScopeKind] = useState(initialScope?.split(":")[0] ?? "organization");
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
   const roleOptions =
     grantableRoleNames !== null ? grantableRoleNames : roles.map((role) => role.name);
@@ -211,17 +214,17 @@ export function CorporateGrantAccessDialog({
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="grant-access-role">{c("role")}</Label>
-              <select id="grant-access-role" name="role" required className={selectClass}>
+              <Select id="grant-access-role" name="role" required className={selectClass}>
                 {roleOptions.map((name) => (
                   <option key={name} value={name}>
                     {roleTitle(name, a)}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="grant-access-coverage">{c("coverage")}</Label>
-              <select
+              <Select
                 id="grant-access-coverage"
                 name="coverage"
                 defaultValue="self"
@@ -229,13 +232,13 @@ export function CorporateGrantAccessDialog({
               >
                 <option value="self">{c("coverageSelf")}</option>
                 <option value="descendants">{c("coverageDescendants")}</option>
-              </select>
+              </Select>
             </div>
           </div>
         ) : (
           <div className="space-y-1.5">
             <Label htmlFor="grant-access-permission">{c("permission")}</Label>
-            <select
+            <Select
               id="grant-access-permission"
               name="permission"
               required
@@ -246,12 +249,13 @@ export function CorporateGrantAccessDialog({
                   {option.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         )}
         <div className="space-y-1.5">
           <Label htmlFor="grant-access-scope">{c("selectScope")}</Label>
           <ScopeField
+            initialScope={initialScope}
             id="grant-access-scope"
             teams={teams}
             projects={projects}

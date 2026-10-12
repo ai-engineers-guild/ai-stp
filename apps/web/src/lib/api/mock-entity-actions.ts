@@ -64,6 +64,9 @@ function fixtureMenu(subject: EntityActionSubject, authenticated: boolean): Enti
       "move_to_dependencies",
     );
   if (!["scan", "finding", "invitation", "area"].includes(subject.kind)) ids.push("report");
+  if (subject.view === "detail") ids.splice(ids.indexOf("open"), ids.includes("open") ? 1 : 0);
+  if (authenticated && subject.assignment_id) ids.push("unlink");
+  if (authenticated && subject.kind === "technology") ids.push("change_owner");
   const actions: EntityAction[] = ids.map((id) => ({
     id,
     group:

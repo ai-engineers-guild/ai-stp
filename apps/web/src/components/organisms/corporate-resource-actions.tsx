@@ -1,4 +1,5 @@
 "use client";
+import { returnFromEditor } from "@/lib/navigation-history";
 
 import { EntityActionItems } from "@/components/organisms/entity-action-items";
 import { toast } from "sonner";
@@ -182,7 +183,7 @@ export function CorporateResourceActions({
         setMessage(labels.saved);
         retry.current = null;
         setEditing(false);
-        if (closeOnSave) router.back();
+        if (closeOnSave) returnFromEditor(router, `/corporate/${resource}/${resourceId}`);
         router.refresh();
       } catch {
         setMessage(common("apiUnavailable"));
@@ -331,7 +332,7 @@ export function CorporateResourceActions({
             variant="outline"
             disabled={busy}
             onClick={() => {
-              if (closeOnSave) router.back();
+              if (closeOnSave) returnFromEditor(router, `/corporate/${resource}/${resourceId}`);
               else setEditing(false);
             }}
           >

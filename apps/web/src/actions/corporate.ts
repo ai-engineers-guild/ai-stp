@@ -21,6 +21,7 @@ import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
 import type {
   CorporateAuditExport,
   CorporateDirectoryView,
+  CorporateCatalogAssignmentList,
   TechnologyMergePlanView,
   ProjectTechnologyView,
   SetupListResponse,
@@ -322,6 +323,48 @@ export async function corporateSubjectSearchAction(input: {
           ),
         )
         .map((item) => ({ value: item.id, label: item.name || item.id })),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof ApiError ? error.message : common("requestFailed"),
+    };
+  }
+}
+
+export async function corporateAssignmentRevisionAction(input: {
+  organizationId: string;
+  kind: CorporateAssignSubjectKind;
+  subjectId: string;
+  objectKind: "component" | "setup";
+  stableId: string;
+  version: string | null;
+  csrfToken: string;
+}): Promise<{ ok: true; revision: number } | { ok: false; message: string }> {
+  const common = await getTranslations("common");
+  try {
+    assertCsrf(input.csrfToken, await readCsrfToken());
+    const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
+    if (!sessionToken || !(await readSession()))
+      return { ok: false, message: common("notSignedIn") };
+    const data = await privateApiRequest<CorporateCatalogAssignmentList>(
+      `/v1/corporate/organizations/${input.organizationId}/catalog-assignments`,
+      {
+        sessionToken,
+        query: { subject_kind: input.kind, subject_id: input.subjectId, include_retired: true },
+      },
+    );
+    return {
+      ok: true,
+      revision:
+        data.items.find(
+          (item) =>
+            !item.source_team_id &&
+            item.object_kind === input.objectKind &&
+            item.stable_id === input.stableId &&
+            item.version === input.version &&
+            !item.harness,
+        )?.revision ?? 0,
     };
   } catch (error) {
     return {

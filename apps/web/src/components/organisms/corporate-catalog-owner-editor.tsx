@@ -1,5 +1,11 @@
 "use client";
 
+import { loadTechnologyOwnerEditor } from "@/actions/entity-actions";
+import { FormDialog } from "@/components/molecules/form-dialog";
+import { MenuItem } from "@/components/atoms/menu";
+import { Icon } from "@/theme";
+import { toast } from "sonner";
+import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
 import { Select } from "@/components/atoms/select";
 import { useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
@@ -80,7 +86,7 @@ export function CorporateCatalogOwnerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{h("edit")}</DialogTitle>
+          <DialogTitle>{h("assignOwner")}</DialogTitle>
           <DialogDescription>{ownerEdit.stableId}</DialogDescription>
         </DialogHeader>
         <OwnerEditForm
@@ -208,5 +214,97 @@ function OwnerEditForm({
         </Button>
       </DialogFooter>
     </form>
+  );
+}
+
+export function TechnologyOwnerMenuAction({ subject }: { subject: EntityActionSubject }) {
+  const hub = useTranslations("hub");
+  const corporate = useTranslations("corporate");
+  const common = useTranslations("common");
+  const router = useRouter();
+  const [context, setContext] = useState<Awaited<
+    ReturnType<typeof loadTechnologyOwnerEditor>
+  > | null>(null);
+  const [open, setOpen] = useState(false);
+  const [busy, start] = useTransition();
+  const retry = useRef<{ owner: string; key: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <>
+      <MenuItem
+        disabled={busy}
+        onSelect={(event) => {
+          event.preventDefault();
+          start(async () => {
+            try {
+              setContext(await loadTechnologyOwnerEditor(subject));
+              retry.current = null;
+              setError(null);
+              setOpen(true);
+            } catch {
+              toast.error(common("requestFailed"));
+            }
+          });
+        }}
+      >
+        <Icon name="user" size="sm" />
+        {hub("assignOwner")}
+      </MenuItem>
+      <FormDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={hub("assignOwner")}
+        closeLabel={corporate("close")}
+        cancelLabel={corporate("cancel")}
+        submitLabel={corporate("update")}
+        busy={busy}
+        error={error}
+        onSubmit={(event) => {
+          if (!context || !subject.organization_id) return;
+          const selectedOwner = new FormData(event.currentTarget).get("owner");
+          const owner = typeof selectedOwner === "string" ? selectedOwner : "";
+          const organizationId = subject.organization_id;
+          if (retry.current?.owner !== owner) retry.current = { owner, key: crypto.randomUUID() };
+          const idempotencyKey = retry.current.key;
+          start(async () => {
+            const result = await corporateMutation({
+              organizationId,
+              csrfToken: context.csrfToken,
+              path: `/v1/corporate/organizations/${subject.organization_id}/technologies/${subject.id}/owner`,
+              method: "PUT",
+              body: {
+                schema_version: 1,
+                owner_account_id: owner || null,
+                expected_revision: context.presentation.revision,
+                authorization_revision: context.presentation.authorization_revision,
+                idempotency_key: idempotencyKey,
+              },
+            });
+            if (!result.ok) setError(result.message);
+            else {
+              retry.current = null;
+              setOpen(false);
+              router.refresh();
+            }
+          });
+        }}
+      >
+        <Label htmlFor={`owner-${subject.id}`}>{hub("operationalOwner")}</Label>
+        <Select
+          id={`owner-${subject.id}`}
+          name="owner"
+          defaultValue={context?.presentation.owner_account_id ?? ""}
+        >
+          <option value="">{hub("ownerUnassigned")}</option>
+          {context?.members
+            .filter((member) => member.state === "active")
+            .map((member) => (
+              <option key={member.account_id} value={member.account_id}>
+                {member.display_name ?? member.account_id}
+              </option>
+            ))}
+        </Select>
+      </FormDialog>
+    </>
   );
 }

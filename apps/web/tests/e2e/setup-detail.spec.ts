@@ -96,7 +96,7 @@ test.describe("setup detail composition", () => {
     ).toHaveCount(1);
     await expect(
       page.getByText(`ai-stp registry version --kind setup --id ${stableId}`),
-    ).toHaveCount(1);
+    ).toHaveCount(0);
     await expect(page.locator('a[href^="/en/catalog/components/"]')).toHaveCount(4);
 
     await expect(page.locator('[data-ui="component-overflow"]')).toHaveClass(/right-0/);
@@ -104,6 +104,8 @@ test.describe("setup detail composition", () => {
       .locator('[data-ui="component-detail-header"]')
       .getByRole("button", { name: "More actions" })
       .click();
+    await expect(page.getByRole("menuitem", { name: "Open details" })).toHaveCount(0);
+    await page.getByRole("menuitem", { name: "Copy and share" }).click();
     await page.getByRole("menuitem", { name: "Copy ID" }).click();
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(stableId);
     await page.getByRole("button", { name: /Like ·/ }).click();

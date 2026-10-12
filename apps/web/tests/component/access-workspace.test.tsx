@@ -88,7 +88,7 @@ describe("AccessWorkspace direct grants", () => {
   ] as const)(
     "submits a %s recipient as a direct grant",
     async (recipientKind, label, recipient) => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ skipHover: true });
       render(<AccessWorkspace users={[]} csrfToken="csrf" labels={labels} />);
 
       await user.selectOptions(screen.getByLabelText("Recipient identifier"), recipientKind);
@@ -112,7 +112,7 @@ describe("AccessWorkspace direct grants", () => {
   );
 
   it("shows a user card and keeps user actions in the menu", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
@@ -142,10 +142,11 @@ describe("AccessWorkspace direct grants", () => {
     await user.click(screen.getByRole("button", { name: "More actions" }));
     await screen.findByRole("menuitem", { name: "Revoke" });
     expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
-      "Copy ID",
+      "copyAndShare",
       "Revoke",
       "Report user",
     ]);
+    await user.click(screen.getByRole("menuitem", { name: "copyAndShare" }));
     await user.click(screen.getByRole("menuitem", { name: "Copy ID" }));
     expect(writeText).toHaveBeenCalledWith("grant_01");
     await user.click(screen.getByRole("button", { name: "More actions" }));
@@ -177,7 +178,7 @@ it("keeps received grants separate and follows their read-only server menu", asy
     },
     csrfToken: "csrf",
   });
-  const user = userEvent.setup();
+  const user = userEvent.setup({ skipHover: true });
   render(
     <AccessWorkspace
       users={[]}
@@ -205,6 +206,7 @@ it("keeps received grants separate and follows their read-only server menu", asy
   );
   expect(screen.queryByRole("button", { name: "Create access" })).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "More actions" }));
+  await user.click(await screen.findByRole("menuitem", { name: "copyAndShare" }));
   await screen.findByRole("menuitem", { name: "Copy ID" });
   expect(screen.queryByRole("menuitem", { name: "Revoke" })).not.toBeInTheDocument();
 });

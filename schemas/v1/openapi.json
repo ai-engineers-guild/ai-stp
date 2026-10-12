@@ -15307,6 +15307,20 @@
       "EntityActionSubject": {
         "additionalProperties": false,
         "properties": {
+          "assignment_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Assignment Id"
+          },
           "coordinate": {
             "anyOf": [
               {
@@ -15402,7 +15416,10 @@
           "view": {
             "anyOf": [
               {
-                "const": "landscape",
+                "enum": [
+                  "landscape",
+                  "detail"
+                ],
                 "type": "string"
               },
               {
@@ -79913,6 +79930,17 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "deleteTechnologyScan.completed": {
+                  "summary": "Administrator removes a completed journal entry while immutable observations remain readable.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "expected_revision": 1,
+                    "idempotency_key": "fixture-deleteTechnologyScan-0001",
+                    "schema_version": 1
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/TechnologyMutation"
               }
@@ -79924,6 +79952,15 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "deleteTechnologyScan.completed": {
+                    "summary": "Administrator removes a completed journal entry while immutable observations remain readable.",
+                    "value": {
+                      "resource_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "schema_version": 1
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/CorporateDeleteResult"
                 }

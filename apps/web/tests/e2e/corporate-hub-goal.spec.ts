@@ -341,6 +341,18 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
         await screenshot(page, info, `${resource}-cards`);
         await cards.first().locator("h3 a").click();
         await expect(main(page).getByRole("heading", { level: 1 })).toHaveText(name);
+        const frame = main(page).locator('[data-ui="component-detail-lower"]').first();
+        const bounds = await frame.boundingBox();
+        const mainBounds = await main(page).boundingBox();
+        expect(bounds).not.toBeNull();
+        if (info.project.name === "chromium" && mainBounds)
+          expect(bounds?.width).toBeGreaterThan(mainBounds.width * 0.9);
+        if (resource === "teams")
+          await expect(
+            main(page)
+              .locator('[data-ui="component-detail-main"]')
+              .getByRole("heading", { name: "Team leads", exact: true }),
+          ).toHaveCount(0);
         if (resource === "projects") {
           // Derived from the current corporate-overview and technology fixtures:
           // Platform is owned by Core and currently uses Offline technology.
@@ -447,6 +459,9 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           .getByRole("button", { name: "More actions", exact: true })
           .click();
         await expect(edit).toBeVisible();
+        await expect(page.getByRole("menuitem", { name: "Open details", exact: true })).toHaveCount(
+          0,
+        );
         await screenshot(page, info, `${resource}-detail`);
         await edit.click();
         await expect(page).toHaveURL(/\/edit$/);

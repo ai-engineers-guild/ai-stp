@@ -114,6 +114,16 @@ describe("i18n parity (REQ-2203, REQ-2311)", () => {
     expect(missing).toEqual([]);
   });
 
+  it("every access-model section has a description in both locales", () => {
+    for (const catalog of [en, ru]) {
+      const sections: Record<string, string> = catalog.accessUi.sections;
+      for (const page of CORPORATE_NAV_PAGES.filter((item) => item.rail || item.root)) {
+        expect(sections[page.id], page.id).toEqual(expect.any(String));
+        expect(sections[page.id]?.trim(), page.id).not.toBe("");
+      }
+    }
+  });
+
   it("every corporate rail label resolves in the hub namespace", () => {
     const hubKeys = new Set(
       enKeys.filter((key) => key.startsWith("hub.")).map((key) => key.slice(4)),

@@ -192,3 +192,29 @@ it("shows no-access and empty relation states without duplicating successful lis
   expect(screen.getByText("Not available")).toHaveAttribute("data-state", "noaccess");
   expect(screen.getByText("No components")).toHaveAttribute("data-state", "empty");
 });
+
+it("shows the teams an employee leads instead of an empty team-leads rail", () => {
+  const presentation = {
+    teams: [],
+    projects: [],
+    technologies: [],
+    leads: [],
+    components: [],
+  } as unknown as CorporatePresentation;
+  const result = applyCorporateEmployeePresentation(presentation, {
+    member: { account_id: accountId, display_name: "Andrey" },
+    teams: [
+      {
+        team_id: "team_infra",
+        name: "Infrastructure",
+        lead_account_ids: [accountId],
+        members: [{ account_id: accountId, display_name: "Andrey" }],
+      } as never,
+    ],
+    projects: [],
+    technologies: [],
+    authoredComponents: [],
+    unknownName: "Unknown employee",
+  });
+  expect(result.leads).toEqual([{ kind: "team", id: "team_infra", name: "Infrastructure" }]);
+});

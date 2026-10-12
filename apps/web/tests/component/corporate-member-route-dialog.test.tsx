@@ -8,14 +8,15 @@ import {
   CorporateMemberRouteDialog,
   CorporateGrantRouteDialog,
 } from "@/components/organisms/corporate-member-route-dialog";
-const { back } = vi.hoisted(() => ({ back: vi.fn() }));
+const { back, replace } = vi.hoisted(() => ({ back: vi.fn(), replace: vi.fn() }));
 vi.mock("@/lib/i18n/navigation", () => ({
   Link: ({ children, href }: { children: React.ReactNode; href: string }) => (
     <a href={href}>{children}</a>
   ),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ back, refresh: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ back, replace, refresh: vi.fn() }) }));
 it("edits a member on the current page and returns through history", async () => {
+  window.sessionStorage.clear();
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <CorporateMemberRouteDialog
@@ -30,7 +31,8 @@ it("edits a member on the current page and returns through history", async () =>
   expect(screen.getByRole("dialog", { name: messages.people.editMember })).toBeVisible();
   expect(screen.getByDisplayValue(member.display_name ?? "")).toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: messages.corporate.cancel }));
-  expect(back).toHaveBeenCalledTimes(1);
+  expect(back).not.toHaveBeenCalled();
+  expect(replace).toHaveBeenCalledTimes(1);
 });
 it("opens access immediately with the subject selected", () => {
   render(

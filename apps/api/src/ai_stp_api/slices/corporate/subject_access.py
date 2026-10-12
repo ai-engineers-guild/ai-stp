@@ -339,6 +339,9 @@ async def can_edit_subject_profile(
             scope_id=organization_id,
         )
 
+    if subject_kind == "technology" and owner_assignment:
+        return await _org("organization.manage")
+
     if (
         await has_corporate_permission(
             db,

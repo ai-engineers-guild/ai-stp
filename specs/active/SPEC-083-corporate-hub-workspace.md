@@ -1,6 +1,6 @@
 ---
 description: "SPEC-083: Corporate Hub directories, relationship editing, and catalog assignments."
-last_verified: "2026-10-05"
+last_verified: "2026-10-12"
 ---
 
 # SPEC-083: Corporate Hub workspace
@@ -346,6 +346,21 @@ assignments. `include_retired=true` additionally returns readable direct history
 for hidden revision handling when reassigning the same exact version. Retired
 team assignments never propagate to employees. Ordinary UI lists hide retired
 rows and load all pages needed to resolve the selected assignment revision.
+
+The ordinary corporate catalog includes readable public objects before an
+assignment exists, alongside authorized private objects. Explicit assignment
+filters still restrict results; tenant hidden/retired overrides remain effective.
+Technology assignment targets accept draft, active and deprecated identities;
+archived targets reject new current assignments. Batch assignment retries retain
+each effect's key and initial object revision and skip successful targets.
+Refreshing authorization does not change that effect's idempotency fingerprint;
+every retry still checks current authorization.
+
+Employee creation contains identity and organization relations, without catalog
+assignment fields. Assigned catalog cards resolve publisher display names and
+avatars, place the primary assign control before filters, and put unlink in the
+authorized contextual action menu. Team leads occur in the detail's right rail;
+an employee who leads teams lists those teams rather than an empty leader card.
 
 Employee project memberships are read through `GET
 /v1/corporate/organizations/{organization_id}/members/{account_id}/projects`.

@@ -1,3 +1,6 @@
+import { loadPublisherProfiles, mapPool, readAssignedObjectSummary } from "@/lib/catalog-load";
+import type { OwnerCardItem } from "@/components/organisms/object-card";
+import { assignmentCardItem } from "@/lib/assignment-card";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { StatePanel } from "@/components/molecules/state-panel";
@@ -45,6 +48,15 @@ export default async function TechnologyDetailPage({
     "technology",
     technologyId,
   );
+  const summaries = await mapPool(assignments.items, 6, (item) =>
+    readAssignedObjectSummary(item, session),
+  );
+  const assignmentCards: Record<string, OwnerCardItem> = Object.fromEntries(
+    assignments.items.map((item, index) => [
+      item.assignment_id,
+      assignmentCardItem(item, summaries[index]),
+    ]),
+  );
   const presentation = await readCorporatePresentation(
     session,
     organizationId,
@@ -59,8 +71,13 @@ export default async function TechnologyDetailPage({
       ? { kind: "employee", id: owner.account_id, name: owner.display_name ?? h("employees") }
       : null;
   }
+  const assignmentAuthors = await loadPublisherProfiles(
+    Object.values(assignmentCards).flatMap((card) =>
+      card.catalog_item?.publisher_id ? [card.catalog_item.publisher_id] : [],
+    ),
+  );
   return (
-    <div className="min-w-0 space-y-8">
+    <div className="mx-auto w-full max-w-screen-2xl min-w-0 space-y-8">
       <HistoryBackButton label={t("backToTechnologies")} fallback="/corporate/technologies" />
       <CorporateEntityDetail
         presentation={presentation}
@@ -85,13 +102,15 @@ export default async function TechnologyDetailPage({
           }}
         />
         <CorporateCatalogAssignments
+          authors={assignmentAuthors}
           items={assignments.items}
+          cards={assignmentCards}
           organizationId={organizationId}
           subjectKind="technology"
           subjectId={technologyId}
           authorizationRevision={workspace.organization.authorization_revision}
           csrfToken={(await readCsrfToken()) ?? ""}
-          canManage={workspace.capabilities.includes("catalog_object.assign")}
+          canManage={detail.permissions.capabilities.includes("technology.update")}
         />
         {technology.redirect_id && (
           <Link

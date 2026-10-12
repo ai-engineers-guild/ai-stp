@@ -154,6 +154,7 @@ describe("corporate entity owner labels", () => {
     );
 
     await userEvent.click(screen.getByRole("button", { name: "access.more" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "catalog.copyAndShare" }));
     expect(await screen.findByRole("menuitem", { name: "hub.copyId" })).toBeVisible();
     expect(screen.getByRole("menuitem", { name: "hub.share" })).toBeVisible();
     expect(screen.getByRole("menuitem", { name: "hub.report" })).toBeVisible();

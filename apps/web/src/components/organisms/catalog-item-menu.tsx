@@ -13,6 +13,8 @@ type CatalogItemMenuProps = {
   initiallyLiked?: boolean;
   leadingItems?: ReactNode[];
   objectName?: string;
+  assignmentId?: string;
+  onUnlink?: () => void;
   labels: {
     more: string;
     copyUrl: string;
@@ -32,11 +34,15 @@ export function CatalogItemMenu({
   initiallyLiked = false,
   labels,
   objectName,
+  assignmentId,
+  onUnlink,
 }: CatalogItemMenuProps) {
   const catalog = useTranslations("catalog");
   return (
     <ObjectOverflowMenu
       stableId={stableId}
+      {...(assignmentId ? { assignmentId } : {})}
+      {...(onUnlink ? { onUnlink } : {})}
       objectKind={kind}
       sharePath={href}
       likesCount={0}

@@ -45,6 +45,19 @@ def test_profile_contracts_validate_identity_and_safe_content() -> None:
         "| Status | Task |\n| :--- | :--- |\n| 🚀 **In progress** | Launch a **new campaign** |"
     )
     assert EntityProfileFields(description=markdown).description == markdown
+    table = (
+        "| Tool | Features |\n| :--- | :--- |\n"
+        "| 🚀 **Next.js** | 🟢 `v15` • SSR<br>• App Router [Docs](https://nextjs.org) |"
+    )
+    assert EntityProfileFields(description=table).description == table
+    for unsafe in [
+        "<script>alert(1)</script>",
+        '<br onclick="alert(1)">',
+        "[Run](javascript:alert(1))",
+        "<br><img src=x onerror=alert(1)>",
+    ]:
+        with pytest.raises(ValidationError):
+            EntityProfileFields(description=unsafe)
     for fields in [
         {"role": "superadmin"},
         {"links": [{"label": "Bad", "url": "http://bad"}]},

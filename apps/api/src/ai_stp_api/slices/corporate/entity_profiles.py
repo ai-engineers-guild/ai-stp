@@ -176,7 +176,12 @@ async def write_profile(
         raise ApiError(ErrorCategory.VALIDATION, "ownership requires a technology")
     operation = "technology.owner.update" if owner_assignment else "entity.profile.update"
     fingerprint = service.mutation_fingerprint(
-        {**subject.model_dump(), **payload.model_dump(mode="json", exclude={"idempotency_key"})}
+        {
+            **subject.model_dump(),
+            **payload.model_dump(
+                mode="json", exclude={"idempotency_key", "authorization_revision"}
+            ),
+        }
     )
     _, receipt = await service.authorize_idempotent(
         db,
@@ -189,6 +194,9 @@ async def write_profile(
         idempotency_key=payload.idempotency_key,
         operation=operation,
         fingerprint=fingerprint,
+        legacy_fingerprint=service.mutation_fingerprint(
+            {**subject.model_dump(), **payload.model_dump(mode="json", exclude={"idempotency_key"})}
+        ),
         request_id=request_id,
     )
     if receipt is not None:

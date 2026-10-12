@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "@/app/api/corporate/team-assignments/route";
 import { privateApiRequest } from "@/lib/api/http";
+import { corporateSubjectSearchAction } from "@/actions/corporate";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next-intl/server", () => ({
@@ -15,6 +16,7 @@ vi.mock("@/lib/auth/session", () => ({
   readCsrfToken: () => Promise.resolve("csrf"),
   readSession: () => Promise.resolve({}),
   SESSION_COOKIE: "session",
+  SESSION_TTL_MS: 3_600_000,
 }));
 vi.mock("@/lib/api/http", () => ({ privateApiRequest: vi.fn() }));
 
@@ -50,6 +52,34 @@ function call(body: unknown) {
 
 describe("corporate assignment batches", () => {
   beforeEach(() => vi.clearAllMocks());
+  it("keeps assignable directory rows without inventing a generic state field", async () => {
+    vi.mocked(privateApiRequest).mockResolvedValueOnce({
+      items: [
+        {
+          id: "technology_draft",
+          name: "Draft technology",
+          available_actions: ["technology.update"],
+        },
+        { id: "technology_readonly", name: "Read only", available_actions: [] },
+      ],
+    });
+    const result = await corporateSubjectSearchAction({
+      csrfToken: "csrf",
+      organizationId: input.organizationId,
+      kind: "technology",
+    });
+    expect(result).toEqual({
+      ok: true,
+      items: [{ value: "technology_draft", label: "Draft technology" }],
+    });
+    expect(privateApiRequest).toHaveBeenCalledWith(
+      `/v1/corporate/organizations/${input.organizationId}/directory`,
+      expect.objectContaining({
+        query: { resource: "technologies", limit: 128 },
+        sessionToken: "session-fixture",
+      }),
+    );
+  });
   it("refreshes revision between assignments and reports only completed rows on failure", async () => {
     vi.mocked(privateApiRequest)
       .mockResolvedValueOnce({ organization: { authorization_revision: 3 } })

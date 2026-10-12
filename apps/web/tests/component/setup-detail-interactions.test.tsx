@@ -1,6 +1,6 @@
 import { entityMenuResult, catalogActions } from "../entity-menu-fixture";
 import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { NextIntlClientProvider } from "next-intl";
@@ -24,7 +24,7 @@ import { ComponentActions } from "@/components/organisms/component-actions";
 
 describe("setup detail actions", () => {
   it("copies a setup id from overflow and exposes the report target", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     render(
@@ -52,6 +52,7 @@ describe("setup detail actions", () => {
 
     expect(screen.queryByRole("button", { name: "Copy ID" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Copy and share" }));
     await user.click(await screen.findByRole("menuitem", { name: /Copy ID/ }));
     expect(writeText).toHaveBeenCalledWith("setup_example");
     await user.click(screen.getByRole("button", { name: "Like · 12" }));
@@ -66,7 +67,7 @@ describe("setup detail actions", () => {
   });
 
   it("keeps setup overflow actions at 44px without leaving the viewport", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     render(
       <div className="relative">
         <NextIntlClientProvider locale="en" messages={messages}>
@@ -95,7 +96,8 @@ describe("setup detail actions", () => {
     await user.click(more);
     const menu = await screen.findByRole("menu");
     expect(menu.className).toContain("max-w-[min(20rem,calc(100vw-1.5rem))]");
-    expect(within(menu).getByRole("menuitem", { name: /Copy ID/ })).toHaveClass("min-h-11");
+    await user.click(await screen.findByRole("menuitem", { name: "Copy and share" }));
+    expect(screen.getByRole("menuitem", { name: /Copy ID/ })).toHaveClass("min-h-11");
   });
 });
 
