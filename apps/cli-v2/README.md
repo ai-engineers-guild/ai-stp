@@ -831,9 +831,10 @@ the host parent is held and revalidated but never exposed to the component.
 A fresh read-only namespace mount represents that parent; the entry process
 checks that the prefix remains absent before invoking the component. An aliased
 or replaced parent, a newly present leaf, a missing parent or an overlap refuses.
-Sibling target and state directories remain valid. Each held host directory
-must be resolvable in the service's mount namespace; private container temporary
-paths can refuse even when visible to the caller. No alternate writable path or
+Sibling target and state directories remain valid. Execution preserves the
+caller's mount namespace, including private temporary directories, while the
+systemd service owns every provider process before invocation. Held directory
+identities and mount modes remain verified; no alternate writable path or
 launcher is selected.
 The provider plan is observed twice and both closed responses must agree; target
 status before/after, directory identities and trust/request expiry are checked.
@@ -2413,19 +2414,27 @@ no async runtime or tracing feature is enabled for it.
 
 Linux provider invocation additionally requires a reachable local systemd user
 manager (version 250 or later) and cgroup v2. `process/linux` creates a transient
-`Type=exec`, `ExitType=main`, `KillMode=control-group` service through the existing
+`Type=exec`, `ExitType=main`, `KillMode=control-group`, `Delegate=true` service through the existing
 `zbus` dependency and verifies its lifetime properties before sending work.
-The service executes a sealed copy of the running CLI, receives exact held
-launcher/input/target/bundle descriptors over a private Unix socket, and forwards
-only the declared environment. Descriptor argument positions are explicit; raw
+The service executes a sealed supervisor with a private owner lease. A second
+sealed worker starts in the caller's mount namespace, arms parent-death handling
+and waits at a bounded gate. `AttachProcessesToUnit` places this owned child in
+the verified service before the gate opens; the worker independently checks its
+actual cgroup membership and sealed image before receiving any work. Delegation
+is required for attachment, but neither the cgroup filesystem nor the manager's
+bus is exposed to the component. Attachment or identity failure refuses execution.
+The worker receives exact held launcher/input/target/bundle descriptors over a
+separate private Unix socket and forwards only the declared environment.
+Descriptor argument positions are explicit; raw
 OS bytes, numeric arguments and Unicode are not normalized. The launcher is
 reopened in the worker's mount namespace only when its device and inode match
 the received capability, preserving the installed AppArmor executable profile.
 A replaced or inaccessible launcher refuses execution.
 
-The private socket is also the owner lease. EOF or invalid lease traffic exits
+EOF or invalid traffic on the supervisor's private owner lease exits
 the service main; systemd then terminates its entire cgroup, including stopped
-children and descendants in other sessions. Worker death has the same effect.
+children and descendants in other sessions. Supervisor death has the same effect;
+execution-worker death closes its response socket and retires the service.
 A manager-enforced maximum runtime of the command deadline plus ten seconds
 also bounds a frozen worker, with a one-second stop grace before `SIGKILL`.
 This covers the launcher bootstrap interval before Bubblewrap arms its own
@@ -2434,7 +2443,8 @@ external service-runner executable or target write. An unavailable manager or
 unverified boundary refuses provider invocation. The private worker entry is
 absent from the public registry and rejects ordinary direct invocation.
 See systemd's [service lifetime](https://www.freedesktop.org/software/systemd/man/255/systemd.service.html)
-and [cgroup termination](https://www.freedesktop.org/software/systemd/man/255/systemd.kill.html).
+and [cgroup termination](https://www.freedesktop.org/software/systemd/man/255/systemd.kill.html),
+and the [delegation boundary](https://systemd.io/CGROUP_DELEGATION/).
 
 Before the first managed Windows spawn, `process/windows` places the calling
 CLI process itself in an anonymous, non-inheritable kill-on-close Job Object.

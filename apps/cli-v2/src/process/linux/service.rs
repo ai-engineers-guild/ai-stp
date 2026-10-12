@@ -1,7 +1,8 @@
 //! Transient user-service ownership; no persistent unit or privileged manager.
 
 use std::{
-    collections::BTreeMap, fs::File, os::fd::AsFd, os::unix::net::UnixStream, time::Duration,
+    collections::BTreeMap, fs::File, io::Read, os::fd::AsFd, os::unix::net::UnixStream,
+    time::Duration,
 };
 
 use zbus::{
@@ -13,7 +14,7 @@ use zbus::{
 
 use crate::error::Result;
 
-use super::{FLAG, unavailable};
+use super::{SUPERVISOR_FLAG, unavailable};
 
 const DESTINATION: &str = "org.freedesktop.systemd1";
 const MANAGER: &str = "org.freedesktop.systemd1.Manager";
@@ -22,6 +23,7 @@ const SERVICE: &str = "org.freedesktop.systemd1.Service";
 pub(super) struct Service {
     connection: Connection,
     name: String,
+    _lease: UnixStream,
 }
 
 fn proxy<'a>(connection: &'a Connection, path: &'a str, interface: &'a str) -> Result<Proxy<'a>> {
@@ -38,7 +40,24 @@ impl Service {
         proxy(&self.connection, "/org/freedesktop/systemd1", MANAGER)
     }
 
-    pub(super) fn start(image: &File, channel: &UnixStream, timeout: Duration) -> Result<Self> {
+    pub(super) fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub(super) fn attach(&self, pid: u32) -> Result<()> {
+        self.manager()?
+            .call::<_, _, ()>(
+                "AttachProcessesToUnit",
+                &(self.name.as_str(), "", vec![pid]),
+            )
+            .map_err(|_| unavailable())
+    }
+
+    pub(super) fn start(image: &File, timeout: Duration) -> Result<Self> {
+        let (mut lease, channel) = UnixStream::pair().map_err(|_| unavailable())?;
+        lease
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .map_err(|_| unavailable())?;
         let address = Address::session()
             .or_else(|_| {
                 Address::try_from(
@@ -63,6 +82,7 @@ impl Service {
         let service = Self {
             connection,
             name: format!("ai-stp-provider-{}.service", ulid::Ulid::generate()),
+            _lease: lease.try_clone().map_err(|_| unavailable())?,
         };
         let null = File::options()
             .write(true)
@@ -75,6 +95,9 @@ impl Service {
             ("ExitType", Value::from("main")),
             ("RemainAfterExit", Value::from(false)),
             ("KillMode", Value::from("control-group")),
+            // Required by AttachProcessesToUnit. No cgroup filesystem or bus
+            // descriptor is exposed to the sandboxed component.
+            ("Delegate", Value::from(true)),
             ("KillSignal", Value::from(15i32)),
             ("FinalKillSignal", Value::from(9i32)),
             ("SendSIGKILL", Value::from(true)),
@@ -113,7 +136,11 @@ impl Service {
                 "ExecStartEx",
                 Value::new(vec![(
                     "/proc/self/fd/0",
-                    vec!["ai-stp-provider-worker", FLAG, service.name.as_str()],
+                    vec![
+                        "ai-stp-provider-supervisor",
+                        SUPERVISOR_FLAG,
+                        service.name.as_str(),
+                    ],
                     vec!["no-env-expand"],
                 )]),
             ),
@@ -160,6 +187,12 @@ impl Service {
         drop(execution);
         drop(unit);
         drop(manager);
+        drop(channel);
+        let mut ready = [0];
+        lease.read_exact(&mut ready).map_err(|_| unavailable())?;
+        if ready != [1] {
+            return Err(unavailable());
+        }
         Ok(service)
     }
 }
