@@ -4,7 +4,8 @@ Native preview of the ai-stp CLI. One Cargo package contains a headless library
 and the `ai-stp-v2` executable. The supported production executable is still
 `ai-stp`; the preview uses explicit isolated state. On Linux it can install a
 harness program into a new directory, update it and remove an exact version
-through an authenticated setup component.
+through an authenticated setup component. It also plans, applies and recovers
+configuration installation, replacement and removal on an inactive single root.
 
 ## Preview distribution
 
@@ -549,7 +550,8 @@ existing provider contract. Trust expiry is rechecked after execution. The repor
 binds artifact, launcher and exact response digests and records no installation
 or harness write. Serialized reports cannot construct the runtime capability.
 Only isolated TUF state is retained. macOS and Windows currently return an
-unavailable error; writable installation remains separate C4 work. See the
+unavailable error; writable provider isolation on those platforms remains C4
+work. See the
 [Bubblewrap options](https://github.com/containers/bubblewrap/blob/v0.9.0/bwrap.xml).
 
 Status and plan-operation output streams and their native readers allow at most
