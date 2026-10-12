@@ -567,11 +567,16 @@ environment = "pypi"
 verified_publisher = true
 """
     policy = release.load_policy(VALID_POLICY_TEXT + extra)
-    rule = policy.index_publishers["pi-setup-system"]
+    rule = policy.index_publishers["pi-setup-system"][0]
     assert rule.repository == "NDDev-OpenNetwork/pi-setup-system"
     assert rule.workflow == "publish-pypi.yml"
     assert rule.environment == "pypi"
     assert rule.verified_publisher is True
+    moved = extra.replace("NDDev-OpenNetwork", "NDDev-Technocracy-Sandbox")
+    policy = release.load_policy(VALID_POLICY_TEXT + extra + moved)
+    assert len(policy.index_publishers["pi-setup-system"]) == 2
+    with pytest.raises(CliFailure):
+        release.load_policy(VALID_POLICY_TEXT + extra + extra)
 
 
 def test_an_index_publisher_rule_must_be_a_closed_table() -> None:
@@ -668,7 +673,11 @@ def test_the_trust_command_reports_what_actually_makes_an_install_possible() -> 
     )
     assert all(rule.verified_publisher for rule in view.build_attestations)
     assert all(rule.signer_workflow for rule in view.build_attestations)
-    assert [rule.pypi_project for rule in view.index_publishers] == sorted(policy.index_publishers)
+    assert [(rule.pypi_project, rule.repository) for rule in view.index_publishers] == sorted(
+        (project, rule.repository)
+        for project, rules in policy.index_publishers.items()
+        for rule in rules
+    )
     assert all(rule.verified_publisher for rule in view.index_publishers)
 
 

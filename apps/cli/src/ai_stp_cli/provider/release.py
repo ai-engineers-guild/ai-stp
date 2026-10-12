@@ -181,7 +181,7 @@ class TrustPolicy:
     build_attestations: Mapping[str, BuildAttestationRule] = field(
         default_factory=lambda: MappingProxyType({})
     )
-    index_publishers: Mapping[str, IndexPublisherRule] = field(
+    index_publishers: Mapping[str, tuple[IndexPublisherRule, ...]] = field(
         default_factory=lambda: MappingProxyType({})
     )
     public_keys: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
@@ -1045,11 +1045,11 @@ def _build_attestations(document: dict[str, object]) -> dict[str, BuildAttestati
     return rules
 
 
-def _index_publishers(document: dict[str, object]) -> dict[str, IndexPublisherRule]:
+def _index_publishers(document: dict[str, object]) -> dict[str, tuple[IndexPublisherRule, ...]]:
     held = document.get("index_publishers", [])
     if not isinstance(held, list):
         _policy_failure("index_publishers", "expected a list of project rules")
-    rules: dict[str, IndexPublisherRule] = {}
+    rules: dict[str, tuple[IndexPublisherRule, ...]] = {}
     expected = {"pypi_project", "repository", "workflow", "environment", "verified_publisher"}
     for index, raw in enumerate(cast(list[object], held)):
         if not isinstance(raw, dict):
@@ -1078,15 +1078,21 @@ def _index_publishers(document: dict[str, object]) -> dict[str, IndexPublisherRu
             or not isinstance(verified, bool)
         ):
             _policy_failure("index_publishers", f"rule {index} has the wrong shape")
-        if project in rules:
-            _policy_failure("index_publishers", f"duplicate project {project}")
-        rules[project] = IndexPublisherRule(
+        candidates = rules.get(project, ())
+        if any(
+            (rule.repository, rule.workflow, rule.environment)
+            == (repository, workflow, environment)
+            for rule in candidates
+        ):
+            _policy_failure("index_publishers", f"duplicate publisher for project {project}")
+        rule = IndexPublisherRule(
             pypi_project=project,
             repository=repository,
             workflow=workflow,
             environment=environment,
             verified_publisher=verified,
         )
+        rules[project] = (*candidates, rule)
     return rules
 
 

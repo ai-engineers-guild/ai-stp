@@ -240,8 +240,14 @@ def test_every_supported_harness_has_a_pinned_index_publisher() -> None:
     policy = release.pinned_policy()
     projects = {repository.rsplit("/", 1)[-1] for repository in policy.build_attestations}
     assert set(policy.index_publishers) == projects
-    assert all(rule.workflow == "publish-pypi.yml" for rule in policy.index_publishers.values())
-    assert all(rule.environment == "pypi" for rule in policy.index_publishers.values())
+    assert all(
+        rule.workflow == "publish-pypi.yml"
+        for rules in policy.index_publishers.values()
+        for rule in rules
+    )
+    assert all(
+        rule.environment == "pypi" for rules in policy.index_publishers.values() for rule in rules
+    )
     assert {index_bind.project_for_harness(name) for name in HARNESS_IDS} == set(
         policy.index_publishers
     )
@@ -377,7 +383,8 @@ def test_record_mismatch_is_refused() -> None:
     assert "RECORD" in raised.value.message
 
 
-def test_fetch_verifies_before_provider_info(tmp_path: Path) -> None:
+@pytest.mark.parametrize("owner", ["NDDev-OpenNetwork", "NDDev-Technocracy-Sandbox"])
+def test_fetch_verifies_before_provider_info(tmp_path: Path, owner: str) -> None:
     blob = _wheel_bytes()
     filename = _filename()
     order: list[str] = []
@@ -405,7 +412,9 @@ def test_fetch_verifies_before_provider_info(tmp_path: Path) -> None:
         index=_Index(
             blob=blob,
             filename=filename,
-            provenance=_provenance(filename=filename, digest=_digest(blob)),
+            provenance=_provenance(
+                filename=filename, digest=_digest(blob), repository=f"{owner}/pi-setup-system"
+            ),
         ),
         inspect=inspect,
         verifier=verifier,
@@ -414,6 +423,8 @@ def test_fetch_verifies_before_provider_info(tmp_path: Path) -> None:
     assert bound.trust_level == "verified_publisher"
     assert bound.commit == "a" * 40
     assert bound.artifact.is_file()
+    assert bound.manifest.repository == f"github.com/{owner}/pi-setup-system"
+    assert bound.manifest.publisher == owner
     assert bound.manifest.signing_key == "attested"
     assert bound.manifest.signature == ""
     assert "latest" not in bound.artifact_url.casefold()
@@ -565,7 +576,7 @@ def test_production_verifier_reports_a_managed_runtime_start_failure(
         index_attestation.verify(
             destination,
             provenance,
-            release.pinned_policy().index_publishers["pi-setup-system"],
+            release.pinned_policy().index_publishers["pi-setup-system"][0],
         )
     assert raised.value.code == "AI_STP_DEPENDENCY_UNAVAILABLE"
 
@@ -582,7 +593,7 @@ def test_managed_verifier_returns_the_verified_source_commit(
     evidence = index_attestation.verify(
         destination,
         provenance,
-        release.pinned_policy().index_publishers["pi-setup-system"],
+        release.pinned_policy().index_publishers["pi-setup-system"][0],
     )
     assert evidence.trust_level == "verified_publisher"
     assert evidence.identity.source_commit == "d" * 40
@@ -601,7 +612,7 @@ def test_the_cli_verifier_refuses_a_failed_subprocess(
         index_attestation.verify(
             destination,
             provenance,
-            release.pinned_policy().index_publishers["pi-setup-system"],
+            release.pinned_policy().index_publishers["pi-setup-system"][0],
         )
     assert "no acceptable PEP 740" in raised.value.message
 
@@ -785,7 +796,7 @@ def test_the_library_verifier_supplies_the_source_commit(
     evidence = index_attestation.verify(
         destination,
         provenance,
-        release.pinned_policy().index_publishers["pi-setup-system"],
+        release.pinned_policy().index_publishers["pi-setup-system"][0],
     )
     assert evidence.identity.source_commit == "d" * 40
     assert evidence.trust_level == "verified_publisher"

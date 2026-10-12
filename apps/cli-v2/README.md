@@ -589,8 +589,11 @@ trust to the compiled shared provider policy. Harness IDs remain canonical:
 `claude-code` maps to `claude-setup-system`, and `grok-build` to
 `grok-setup-system`. Version input is canonical `X.Y.Z` with a `u32` major and
 minor/patch below 1,000, avoiding collisions in the policy's release sequence.
-The policy's minimum sequence, protocol 3, repository and unique verified index
+The policy's minimum sequence, protocol 3, repository and a verified index
 publisher must permit the request; downloaded metadata cannot widen policy.
+A repository transfer can pin several distinct publisher triples for one project.
+Signatures must match one exact triple, and reports retain that verified identity;
+historical signed identities are not rewritten.
 
 `fetch` reuses the exact PyPI source adapter with one 30-second deadline for
 release metadata, wheel and provenance. It checks the registry's size/SHA-256,

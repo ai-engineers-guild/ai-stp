@@ -2617,7 +2617,10 @@ def provider_trust(parameters: Mapping[str, object]) -> Answer[ProviderTrust]:
                 environment=rule.environment,
                 verified_publisher=rule.verified_publisher,
             )
-            for _, rule in sorted(policy.index_publishers.items())
+            for _, rules in sorted(policy.index_publishers.items())
+            for rule in sorted(
+                rules, key=lambda rule: (rule.repository, rule.workflow, rule.environment)
+            )
         ],
     )
 
