@@ -53,7 +53,6 @@ _SUFFIXES = (
     "cookie",
 )
 _VARIABLE = re.compile(r"\A[a-zA-Z0-9_-]{1,256}\Z")
-_STRING = r'"(?:[^"\\]|\\.)*"'
 
 
 def _sensitive(parent: str, name: str) -> bool:
@@ -233,6 +232,43 @@ def _constant(_value: str) -> object:
     raise invalid()
 
 
+def _jsonc(source: str) -> str:
+    """Strip comments and trailing commas in one bounded, forward-only scan."""
+    kept: list[str] = []
+    decoder = json.JSONDecoder()
+    index = 0
+    previous = ""
+    trailing: int | None = None
+    while index < len(source):
+        char = source[index]
+        if char == '"':
+            _value, end = decoder.raw_decode(source, index)
+            kept.append(source[index:end])
+            index, previous, trailing = end, '"', None
+            continue
+        if source.startswith("//", index):
+            index += 2
+            while index < len(source) and source[index] not in "\r\n":
+                index += 1
+            kept.append(" ")
+            continue
+        if source.startswith("/*", index):
+            end = source.find("*/", index + 2)
+            if end < 0:
+                raise invalid()
+            index = end + 2
+            kept.append(" ")
+            continue
+        if char not in " \t\r\n":
+            if char in "}]" and previous == "," and trailing is not None:
+                kept[trailing] = ""
+            trailing = len(kept) if char == "," and previous not in "[{,:" else None
+            previous = char
+        kept.append(char)
+        index += 1
+    return "".join(kept)
+
+
 def _bounded(document: dict[str, object]) -> dict[str, object]:
     pending: list[tuple[object, int]] = [(document, 0)]
     nodes = 0
@@ -242,9 +278,20 @@ def _bounded(document: dict[str, object]) -> dict[str, object]:
         if depth > 128 or nodes > 20_000:
             raise invalid()
         if isinstance(value, dict):
+            # JSON can spell lone surrogates that cannot be native UTF-8.
+            try:
+                for name in cast(dict[str, object], value):
+                    name.encode("utf-8")
+            except UnicodeError as error:
+                raise invalid() from error
             pending.extend((child, depth + 1) for child in cast(dict[str, object], value).values())
         elif isinstance(value, list):
             pending.extend((child, depth + 1) for child in cast(list[object], value))
+        elif isinstance(value, str):
+            try:
+                value.encode("utf-8")
+            except UnicodeError as error:
+                raise invalid() from error
     return document
 
 
@@ -259,16 +306,7 @@ def _document(path: str, payload: bytes) -> dict[str, object]:
         if suffix not in {"json", "jsonc"}:
             raise invalid()
         if suffix == "jsonc":
-            source = re.sub(
-                _STRING + r"|//[^\r\n]*|/\*[\s\S]*?\*/",
-                lambda match: match[0] if match[0].startswith('"') else " ",
-                source,
-            )
-            source = re.sub(
-                _STRING + r"|,\s*(?=[}\]])",
-                lambda match: match[0] if match[0].startswith('"') else "",
-                source,
-            )
+            source = _jsonc(source)
         document: object = json.loads(
             source, object_pairs_hook=_object, parse_constant=_constant, parse_float=Decimal
         )

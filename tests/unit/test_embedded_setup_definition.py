@@ -278,6 +278,23 @@ def test_embedded_native_identities_use_the_shared_consumer_corpora() -> None:
     )
     with pytest.raises(SourceError):
         _freeze(embedded=(duplicate,))
+    for payload in (
+        b'{"mcp":{"proof":{,}}}',
+        b'{"mcp":{"proof":{}}} /* unterminated',
+        b'{"mcp":{"proof":{"value":1/* comment */2}}}',
+        rb'{"mcp":{"\ud800":{}}}',
+        rb'{"mcp":{"proof":{"value":"\ud800"}}}',
+        json.dumps({"mcp": {"proof": {"args": ["x"] * 20_001}}}).encode(),
+    ):
+        with pytest.raises(SourceError):
+            identities("opencode", "mcp", {"opencode.jsonc": payload})
+    assert identities(
+        "opencode",
+        "mcp",
+        {
+            "opencode.jsonc": b'{// comment\r"mcp": {"proof": {"url": "https://example.test/a/*b",},},}'
+        },
+    ) == {"opencode.jsonc": ["proof"]}
 
 
 def test_catalog_only_freeze_stays_definition_version_1() -> None:
