@@ -154,6 +154,7 @@ fn actual_passport_scopes_and_provider_profiles_control_eligibility() -> Result<
         env_present: BTreeSet::new(),
         grants: BTreeSet::new(),
         pinned_passport_digests: BTreeSet::new(),
+        owned_passport_digests: Default::default(),
         for_redistribution: false,
     };
     let report = eligibility::assess(&document, &target, &facts(&document)?, Some(&provider))?;

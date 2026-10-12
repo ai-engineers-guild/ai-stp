@@ -34,6 +34,13 @@ pub(super) fn replay(
     identity: &Identity,
 ) -> Result<Confirmation> {
     let passport = Objects { connection }.exact_version(id, version, None)?;
+    if !crate::account::attachment::retained(connection, &identity.account_id, &passport)? {
+        return Err(invalid());
+    }
+    let historical = Identity {
+        account_id: passport["owner_id"].as_str().ok_or_else(invalid)?.into(),
+        device_id: identity.device_id.clone(),
+    };
     let mut expected_members = value(
         &held
             .members
@@ -42,8 +49,7 @@ pub(super) fn replay(
             .collect::<Vec<_>>(),
     )?;
     passport::versions::normalize_component_refs(&mut expected_members)?;
-    if passport["owner_id"] != identity.account_id
-        || passport["harness_id"] != held.harness_id
+    if passport["harness_id"] != held.harness_id
         || passport["facts"]["snapshot"]["value"] != held.snapshot
         || passport["facts"]["project_id"]["value"] != held.project_id
         || passport["components"] != expected_members
@@ -70,7 +76,7 @@ pub(super) fn replay(
     if trace.candidates != held.members || context.snapshot(&trace.candidates)? != held.snapshot {
         return Err(invalid());
     }
-    context_history(connection, &context, identity)?;
+    context_history(connection, &context, &historical)?;
     let receipt: (String, String, String) = connection.query_row(
         "SELECT o.kind,o.state,coalesce(o.detail,'') FROM revision r JOIN operation o ON o.operation_id=r.operation_id WHERE r.revision_id=?",
         [passport["revision_id"].as_str().ok_or_else(invalid)?],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).map_err(database)?;

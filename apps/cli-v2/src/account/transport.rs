@@ -62,6 +62,21 @@ struct ErrorEnvelope {
 }
 
 impl Api {
+    pub fn me(&self, credential: &Secret) -> Result<Reply<Account>> {
+        let authorization = Zeroizing::new(format!("Bearer {}", credential.0.as_str()));
+        let agent = self.agent.borrow();
+        let response = agent
+            .get(format!("{}/v1/auth/me", self.origin))
+            .header("Accept", "application/json")
+            .header("Accept-Encoding", "identity")
+            .header("X-AI-STP-Schema-Version", "1")
+            .header("Authorization", authorization.as_str())
+            .call()
+            .map_err(|_| unavailable())?;
+        drop(agent);
+        self.read(response)
+    }
+
     pub fn new(value: &str) -> Result<Self> {
         Ok(Self {
             origin: origin(value)?,
@@ -97,8 +112,15 @@ impl Api {
         if let Some(value) = &authorization {
             request = request.header("Authorization", value.as_str());
         }
-        let mut response = request.send(body).map_err(|_| unavailable())?;
+        let response = request.send(body).map_err(|_| unavailable())?;
         drop(agent);
+        self.read(response)
+    }
+
+    fn read<T: DeserializeOwned>(
+        &self,
+        mut response: ureq::http::Response<ureq::Body>,
+    ) -> Result<Reply<T>> {
         http::discard_closed_pool(&self.agent, response.version());
         let status = response.status().as_u16();
         if response
@@ -137,6 +159,14 @@ impl Api {
             )),
         }
     }
+}
+
+#[derive(Deserialize)]
+pub(super) struct Account {
+    pub schema_version: u32,
+    pub account_id: String,
+    pub device_id: Option<String>,
+    pub account_status: String,
 }
 
 fn unavailable() -> Failure {

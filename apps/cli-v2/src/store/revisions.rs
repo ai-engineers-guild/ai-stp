@@ -15,6 +15,11 @@ pub enum Write<'a> {
     Advance {
         expected_heads: &'a [String],
     },
+    /// Explicit account attachment only; retain history and visibility.
+    Transfer {
+        expected_heads: &'a [String],
+        previous_owner: &'a str,
+    },
     Immutable,
     /// An externally sealed version; retain its bytes and initialize only a missing head.
     Acquired,
@@ -105,6 +110,11 @@ pub fn commit(
         .optional()
         .map_err(database)?;
     let current_heads = heads(transaction, id)?;
+    let owner_matches = |held: &Value| {
+        held["owner_id"] == document["owner_id"]
+            || matches!(&write,
+            Write::Transfer { previous_owner, .. } if held["owner_id"] == *previous_owner)
+    };
     if let Some(held) = &existing {
         if held != kind || current_heads.is_empty() {
             return Err(Failure::precondition(
@@ -121,7 +131,7 @@ pub fn commit(
                     "a setup cannot change its harness after creation",
                 ));
             }
-            if held["stable_id"] != id || held["owner_id"] != document["owner_id"] {
+            if held["stable_id"] != id || !owner_matches(&held) {
                 return Err(Failure::precondition(
                     "a revision cannot change its entity owner",
                 ));
@@ -149,10 +159,12 @@ pub fn commit(
         }
         return Ok(held);
     }
-    Objects {
-        connection: transaction,
+    if !matches!(write, Write::Transfer { .. }) {
+        Objects {
+            connection: transaction,
+        }
+        .require_active(id)?;
     }
-    .require_active(id)?;
     let parents: Vec<_> = document["parent_revision_ids"]
         .as_array()
         .into_iter()
@@ -161,7 +173,7 @@ pub fn commit(
         .map(str::to_owned)
         .collect();
     match &write {
-        Write::Advance { expected_heads } => {
+        Write::Advance { expected_heads } | Write::Transfer { expected_heads, .. } => {
             let mut expected = expected_heads.to_vec();
             expected.sort();
             let mut declared = parents.clone();
@@ -194,7 +206,7 @@ pub fn commit(
         }
         .revision(parent)?;
         if held["stable_id"] != id
-            || held["owner_id"] != document["owner_id"]
+            || !owner_matches(&held)
             || held["visibility"] != document["visibility"]
         {
             return Err(Failure::precondition(
@@ -212,7 +224,7 @@ pub fn commit(
             )
             .map_err(database)?;
     }
-    if matches!(write, Write::Advance { .. })
+    if matches!(write, Write::Advance { .. } | Write::Transfer { .. })
         || (matches!(write, Write::Acquired) && existing.is_none())
     {
         transaction

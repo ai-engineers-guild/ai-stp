@@ -131,6 +131,7 @@ impl Selector {
             env_present: Default::default(),
             grants: Default::default(),
             pinned_passport_digests: Default::default(),
+            owned_passport_digests: Default::default(),
             for_redistribution: false,
         };
         target.validate()?;
@@ -210,7 +211,14 @@ fn inputs_with_budget(
         ));
     }
     let mut evidence = BTreeMap::new();
+    let inherited = crate::account::attachment::inherited(connection, &target.owner_id)?;
     for document in &documents {
+        let passport_digest = crate::digest::canonical("ai-stp:passport:v1", document)?;
+        if document["owner_id"] != target.owner_id && inherited.contains(&passport_digest) {
+            target
+                .owned_passport_digests
+                .insert(passport_digest.clone());
+        }
         if document["kind"] == "component" {
             freezing::verify(connection, document)?;
         } else {
@@ -228,7 +236,7 @@ fn inputs_with_budget(
         evidence.insert(
             text(document, "stable_id")?.into(),
             Evidence {
-                passport_digest: crate::digest::canonical("ai-stp:passport:v1", document)?,
+                passport_digest,
                 registrable: true,
                 blocked: false,
                 author_verified: false,

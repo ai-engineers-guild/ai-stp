@@ -14,6 +14,7 @@ pub enum Action {
     Poll,
     Refresh,
     Logout,
+    Attach,
 }
 
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
@@ -36,6 +37,8 @@ pub struct Plan {
     pub origin: String,
     pub provider: String,
     pub expected_revision: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attachment: Option<super::attachment::Selection>,
 }
 
 impl Plan {
@@ -48,6 +51,11 @@ impl Plan {
 
     pub(super) fn validate(&self) -> Result<()> {
         self.identity.validate()?;
+        match (&self.attachment, self.action) {
+            (Some(selection), Action::Attach) => selection.validate(&self.identity)?,
+            (None, action) if action != Action::Attach => {}
+            _ => return Err(super::invalid()),
+        }
         if self.schema_version != 1
             || !passport::stable_id(&self.operation_id, "operation")
             || !self.root.is_absolute()

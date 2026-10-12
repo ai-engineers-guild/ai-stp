@@ -94,6 +94,12 @@ pub(super) struct Scope {
 }
 
 impl Scope {
+    pub(super) fn fence(&self, marker: &[u8]) -> Result<()> {
+        self.validate()
+            .map_err(|_| Failure::precondition("the registry binding changed"))?;
+        self.owned.atomic("owner", marker)
+    }
+
     pub(super) fn open(parent: Dir, owned: OwnedDirectory) -> Result<Arc<Self>> {
         let failure = || Failure::precondition("the registry file boundary is invalid");
         static REGISTERED: OnceLock<VfsResult<()>> = OnceLock::new();

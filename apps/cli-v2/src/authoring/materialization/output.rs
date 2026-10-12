@@ -77,6 +77,7 @@ pub(super) fn prepare(
         }
         document["version"] =
             versions::next(connection, &request.source.stable_id, Increment::Minor)?.into();
+        document["owner_id"] = identity.account_id.clone().into();
         document["created_at"] = at.into();
         document["parent_revision_ids"] = json!([]);
         let document = revisions::seal(&document)?;
@@ -96,7 +97,7 @@ pub(super) fn prepare(
     let existing = if exists {
         let held = exact(connection, id, "1.0", None)?;
         let head = objects.head("component", id)?;
-        if held["owner_id"] != identity.account_id
+        if !crate::account::attachment::retained(connection, &identity.account_id, &held)?
             || head["owner_id"] != identity.account_id
             || held["visibility"] != "private"
             || head["visibility"] != "private"
@@ -116,6 +117,9 @@ pub(super) fn prepare(
         .unwrap_or(at);
     document["stable_id"] = id.into();
     document["owner_id"] = identity.account_id.clone().into();
+    if let Some(held) = &existing {
+        document["owner_id"] = held["owner_id"].clone();
+    }
     document["visibility"] = "private".into();
     document["version"] = "1.0".into();
     document["created_at"] = created.into();

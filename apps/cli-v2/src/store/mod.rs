@@ -19,6 +19,7 @@ use crate::{
 
 const NAMESPACE: &str = "ai-stp-v2-state";
 const OWNER: &[u8] = b"ai-stp-cli-v2 local registry v1\n";
+const ATTACHED_OWNER: &[u8] = b"ai-stp-cli-v2 local registry v2\n";
 const BOOTSTRAP: &str = include_str!("schema.sql");
 type Schema = Vec<(String, String, String, String)>;
 
@@ -131,12 +132,13 @@ impl Store {
 
     fn open_existing(parent: Dir, create: bool, planning: bool) -> Result<Self> {
         let directory =
-            OwnedDirectory::open_at(&parent, NAMESPACE, OWNER, create)?.ok_or_else(|| {
-                Failure::new(
-                    ErrorKind::NotFound,
-                    "the explicit preview registry does not exist",
-                )
-            })?;
+            OwnedDirectory::open_compatible(&parent, NAMESPACE, OWNER, &[ATTACHED_OWNER], create)?
+                .ok_or_else(|| {
+                    Failure::new(
+                        ErrorKind::NotFound,
+                        "the explicit preview registry does not exist",
+                    )
+                })?;
         if let Err(error) = directory.directory.symlink_metadata("registry.sqlite3") {
             if error.kind() != std::io::ErrorKind::NotFound
                 || directory
@@ -270,6 +272,15 @@ impl Store {
             scope: Some(scope),
             planning,
         })
+    }
+
+    /// Fence older preview writers before committing ownership. An interruption
+    /// here leaves an ordinary, readable registry with its original owner.
+    pub(crate) fn fence_legacy_writers(&self) -> Result<()> {
+        self.scope
+            .as_ref()
+            .ok_or_else(|| Failure::precondition("attachment requires a persistent registry"))?
+            .fence(ATTACHED_OWNER)
     }
 
     pub fn transaction<T>(
