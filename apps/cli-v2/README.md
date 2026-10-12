@@ -1970,6 +1970,10 @@ and physical provider target. Replacement supersedes older attribution; removal
 and an unattributed rollback clear it. Backup and software operations do not
 establish an installed setup. Historical records without a physical target
 conservatively supersede older records for their project/harness pair.
+Native project attribution additionally requires the currently registered root
+to match the bound installation target. Imported legacy journal records retain
+their original explicit project attribution, including when no root mapping was
+stored; a later native mutation of that physical target can still supersede them.
 
 The report verifies immutable coordinates, dependency closure and every scope
 projection for the setup's harness. It measures those projection files, including
