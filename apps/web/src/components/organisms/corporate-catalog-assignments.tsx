@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- The assignment section and its dialog share selection and retry state. */
 "use client";
 import { Select } from "@/components/atoms/select";
 import { useRef, useState } from "react";
@@ -7,10 +8,19 @@ import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { DetailAccordion } from "@/components/molecules/detail-accordion";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/atoms/dialog";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
+import { PeopleCheckbox } from "@/components/molecules/people-ui";
 import { RefineSurface } from "@/components/molecules/filter-surface";
 import { corporateMutation } from "@/lib/api/corporate-mutation";
-import { Link, useRouter } from "@/lib/i18n/navigation";
+import { useRouter } from "@/lib/i18n/navigation";
 import type {
   CorporateCatalogAssignment,
   CorporateCatalogAssignmentRequest,
@@ -49,19 +59,26 @@ export function CorporateCatalogAssignments({
 }) {
   const h = useTranslations("hub");
   const tc = useTranslations("catalog");
+  const common = useTranslations("common");
   const router = useRouter();
   const [adding, setAdding] = useState(false);
-  const [kind, setKind] = useState<"setup" | "component">("setup");
-  const [results, setResults] = useState<{ id: string; name: string }[]>([]);
-  const [selected, setSelected] = useState<{ id: string; name: string } | null>(null);
-  const [versions, setVersions] = useState<string[]>([]);
-  const [version, setVersion] = useState("");
+  const [kind, setKind] = useState<"all" | "setup" | "component">("all");
+  const [results, setResults] = useState<
+    { kind: "setup" | "component"; id: string; name: string }[]
+  >([]);
+  const [selected, setSelected] = useState<
+    { kind: "setup" | "component"; id: string; name: string; version: string; versions: string[] }[]
+  >([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pendingChoices, setPendingChoices] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedKinds, setSelectedKinds] = useState<string[]>([]);
-  const retry = useRef<{ effect: string; key: string } | null>(null);
+  const retry = useRef(new Map<string, string>());
+  const searchRequest = useRef(0);
+  const pendingSelection = useRef(new Set<string>());
   const currentItems = items.filter((item) => item.state === "current");
   const filteredItems = currentItems.filter((item) => {
     const text = `${item.display_name ?? ""} ${item.stable_id}`.toLocaleLowerCase();
@@ -70,93 +87,155 @@ export function CorporateCatalogAssignments({
       (!selectedKinds.length || selectedKinds.includes(item.object_kind))
     );
   });
-  async function search(query: string) {
+  async function search(query: string, filter = kind) {
+    const request = ++searchRequest.current;
     setBusy(true);
     setMessage(null);
-    setSelected(null);
-    setVersions([]);
-    setVersion("");
     try {
-      const result = await corporateCatalogSearchAction({ kind, query, csrfToken });
-      if (result.ok) setResults(result.items);
-      else setMessage(result.message);
+      const kinds = filter === "all" ? (["setup", "component"] as const) : [filter];
+      const pages = await Promise.all(
+        kinds.map(async (entryKind) => ({
+          kind: entryKind,
+          result: await corporateCatalogSearchAction({ kind: entryKind, query, csrfToken }),
+        })),
+      );
+      const failed = pages.find((page) => !page.result.ok);
+      if (request !== searchRequest.current) return;
+      if (failed && !failed.result.ok) setMessage(failed.result.message);
+      setResults(
+        pages.flatMap(({ kind: entryKind, result }) =>
+          result.ok ? result.items.map((item) => ({ ...item, kind: entryKind })) : [],
+        ),
+      );
+    } catch {
+      if (request === searchRequest.current) setMessage(common("requestFailed"));
     } finally {
-      setBusy(false);
+      if (request === searchRequest.current) setBusy(false);
     }
   }
-  async function choose(item: { id: string; name: string }) {
-    setBusy(true);
+  async function choose(item: { kind: "setup" | "component"; id: string; name: string }) {
+    const identity = `${item.kind}:${item.id}`;
+    if (pendingSelection.current.has(identity)) return;
+    if (selected.some((entry) => entry.kind === item.kind && entry.id === item.id)) {
+      setSelected((entries) =>
+        entries.filter((entry) => entry.kind !== item.kind || entry.id !== item.id),
+      );
+      return;
+    }
+    pendingSelection.current.add(identity);
+    setPendingChoices((count) => count + 1);
     setMessage(null);
-    setSelected(item);
-    setVersions([]);
-    setVersion("");
     try {
-      const result = await corporateCatalogVersionsAction({ kind, id: item.id, csrfToken });
-      if (result.ok) {
-        setVersions(result.versions);
-        setVersion(result.versions[0] ?? "");
-      } else setMessage(result.message);
+      const result = await corporateCatalogVersionsAction({
+        kind: item.kind,
+        id: item.id,
+        csrfToken,
+      });
+      const availableVersions = result.ok ? result.versions : [];
+      const firstVersion = availableVersions[0];
+      if (firstVersion) {
+        setSelected((entries) => [
+          ...entries,
+          { ...item, version: firstVersion, versions: availableVersions },
+        ]);
+      } else setMessage(result.ok ? h("noMatches") : result.message);
+    } catch {
+      setMessage(common("requestFailed"));
     } finally {
-      setBusy(false);
+      pendingSelection.current.delete(identity);
+      setPendingChoices((count) => count - 1);
     }
   }
-  async function save(removing?: CorporateCatalogAssignment) {
-    if (!canManage || (!removing && (!selected || !version))) return;
-    const selection = removing ?? {
-      selector: "exact" as const,
-      version,
-      harness: null,
-      passport_digest: null,
-    };
-    const effect = {
-      subject_kind: subjectKind,
-      subject_id: subjectId,
-      object_kind: removing?.object_kind ?? kind,
-      stable_id: removing?.stable_id ?? selected?.id ?? "",
-      selector: selection.selector,
-      version: selection.version,
-      harness: selection.harness,
-      passport_digest: selection.passport_digest,
-      state: removing ? "retired" : "current",
-      expected_revision:
-        removing?.revision ??
-        items.find(
-          (item) =>
-            !item.source_team_id &&
-            item.object_kind === kind &&
-            item.stable_id === selected?.id &&
-            item.version === version,
-        )?.revision ??
-        0,
-    } satisfies Omit<
+  async function writeAssignment(
+    effect: Omit<
       CorporateCatalogAssignmentRequest,
       "schema_version" | "authorization_revision" | "idempotency_key"
-    >;
+    >,
+  ) {
     const fingerprint = JSON.stringify(effect);
-    if (retry.current?.effect !== fingerprint)
-      retry.current = { effect: fingerprint, key: crypto.randomUUID() };
+    const idempotencyKey = retry.current.get(fingerprint) ?? crypto.randomUUID();
+    retry.current.set(fingerprint, idempotencyKey);
+    const result = await corporateMutation({
+      organizationId,
+      csrfToken,
+      path: `/v1/corporate/organizations/${organizationId}/catalog-assignments`,
+      method: "PUT",
+      body: {
+        ...effect,
+        schema_version: 1,
+        authorization_revision: authorizationRevision,
+        idempotency_key: idempotencyKey,
+      },
+    });
+    if (result.ok) retry.current.delete(fingerprint);
+    return result;
+  }
+  async function unlink(removing: CorporateCatalogAssignment) {
+    if (!canManage) return;
     setBusy(true);
     setMessage(null);
     try {
-      const result = await corporateMutation({
-        organizationId,
-        csrfToken,
-        path: `/v1/corporate/organizations/${organizationId}/catalog-assignments`,
-        method: "PUT",
-        body: {
-          ...effect,
-          schema_version: 1,
-          authorization_revision: authorizationRevision,
-          idempotency_key: retry.current.key,
-        },
+      const result = await writeAssignment({
+        subject_kind: subjectKind,
+        subject_id: subjectId,
+        object_kind: removing.object_kind,
+        stable_id: removing.stable_id,
+        selector: removing.selector,
+        version: removing.version,
+        harness: removing.harness,
+        passport_digest: removing.passport_digest,
+        state: "retired",
+        expected_revision: removing.revision,
       });
-      if (!result.ok) {
-        setMessage(result.message);
-        return;
+      if (!result.ok) setMessage(result.message);
+      else router.refresh();
+    } catch {
+      setMessage(common("requestFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function assignSelected() {
+    if (!canManage || !selected.length) return;
+    setBusy(true);
+    setMessage(null);
+    const failed: typeof selected = [];
+    let firstError: string | null = null;
+    try {
+      for (const item of selected) {
+        try {
+          const result = await writeAssignment({
+            subject_kind: subjectKind,
+            subject_id: subjectId,
+            object_kind: item.kind,
+            stable_id: item.id,
+            selector: "exact",
+            version: item.version,
+            harness: null,
+            passport_digest: null,
+            state: "current",
+            expected_revision:
+              items.find(
+                (existing) =>
+                  !existing.source_team_id &&
+                  existing.object_kind === item.kind &&
+                  existing.stable_id === item.id &&
+                  existing.version === item.version,
+              )?.revision ?? 0,
+          });
+          if (!result.ok) {
+            failed.push(item);
+            firstError ??= result.message;
+          }
+        } catch {
+          failed.push(item);
+          firstError ??= common("requestFailed");
+        }
       }
-      retry.current = null;
-      setAdding(false);
-      router.refresh();
+      setSelected(failed);
+      if (failed.length) setMessage(firstError ?? common("requestFailed"));
+      else setAdding(false);
+      if (failed.length !== selected.length) router.refresh();
     } finally {
       setBusy(false);
     }
@@ -173,10 +252,11 @@ export function CorporateCatalogAssignments({
             className="mr-auto"
             disabled={busy}
             onClick={() => {
-              setAdding(!adding);
+              setAdding(true);
+              void search("");
             }}
           >
-            {h(adding ? "cancel" : "assignCatalog")}
+            {h("assignCatalog")}
           </Button>
         ) : null}
         <Button
@@ -276,20 +356,12 @@ export function CorporateCatalogAssignments({
                 view="list"
                 ownerActions={
                   <div className="flex min-w-0 flex-wrap items-center justify-end gap-3">
-                    {item.source_team_id ? (
-                      <Link
-                        href={`/corporate/teams/${item.source_team_id}`}
-                        className="text-muted-foreground text-sm underline underline-offset-4"
-                      >
-                        {h("viaTeam")}
-                      </Link>
-                    ) : null}
                     <CatalogItemMenu
                       {...(!item.source_team_id
                         ? {
                             assignmentId: item.assignment_id,
                             onUnlink: () => {
-                              void save(item);
+                              void unlink(item);
                             },
                           }
                         : {})}
@@ -319,87 +391,137 @@ export function CorporateCatalogAssignments({
       {!filteredItems.length && (
         <p className="text-muted-foreground text-sm">{h("noAssignments")}</p>
       )}
-      {adding && (
-        <div className="max-w-xl space-y-4">
+      <Dialog open={adding} onOpenChange={setAdding}>
+        <DialogContent className="max-h-[min(46rem,calc(100vh-2rem))] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{h("assignCatalog")}</DialogTitle>
+            <DialogDescription>{h("search")}</DialogDescription>
+          </DialogHeader>
           <form
-            className="space-y-3"
+            className="grid gap-3 sm:grid-cols-[1fr_auto_auto]"
             onSubmit={(event) => {
               event.preventDefault();
-              const query = new FormData(event.currentTarget).get("query");
-              void search(typeof query === "string" ? query : "");
+              void search(searchQuery);
             }}
           >
-            <fieldset disabled={busy} className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="assignment-query">{h("search")}</Label>
+              <Input
+                id="assignment-query"
+                value={searchQuery}
+                maxLength={200}
+                onChange={(event) => {
+                  setSearchQuery(event.target.value);
+                }}
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="assignment-kind">{h("objectKind")}</Label>
               <Select
                 id="assignment-kind"
                 className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
                 value={kind}
                 onChange={(event) => {
-                  const value = event.target.value;
-                  if (value === "setup" || value === "component") {
-                    setKind(value);
-                    setResults([]);
-                    setSelected(null);
-                    setVersion("");
-                  }
+                  const value = event.target.value as "all" | "setup" | "component";
+                  setKind(value);
+                  void search(searchQuery, value);
                 }}
               >
+                <option value="all">{h("all")}</option>
                 <option value="setup">{h("setup")}</option>
                 <option value="component">{h("component")}</option>
               </Select>
-              <Label htmlFor="assignment-query">{h("search")}</Label>
-              <Input id="assignment-query" name="query" maxLength={200} />
-              <Button type="submit">{h("search")}</Button>
-            </fieldset>
-          </form>
-          <ul className="divide-border divide-y">
-            {results.map((item) => (
-              <li key={item.id} className="py-2">
-                <Button
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => {
-                    void choose(item);
-                  }}
-                >
-                  {item.name}
-                </Button>
-              </li>
-            ))}
-          </ul>
-          {selected && (
-            <div className="space-y-3">
-              <p className="font-medium">{selected.name}</p>
-              <Label htmlFor="assignment-version">{h("exactVersion")}</Label>
-              <Select
-                id="assignment-version"
-                className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
-                value={version}
-                disabled={busy}
-                onChange={(event) => {
-                  setVersion(event.target.value);
-                }}
-              >
-                {versions.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </Select>
-              <Button
-                disabled={busy || !version}
-                onClick={() => {
-                  void save();
-                }}
-              >
-                {h("save")}
-              </Button>
             </div>
-          )}
-        </div>
-      )}
-      {message && (
+            <Button type="submit" className="self-end" disabled={busy}>
+              {h("search")}
+            </Button>
+          </form>
+          <ul className="grid max-h-64 min-w-0 gap-2 overflow-y-auto sm:grid-cols-2">
+            {results.map((item) => {
+              const checked = selected.some(
+                (entry) => entry.kind === item.kind && entry.id === item.id,
+              );
+              return (
+                <li
+                  key={`${item.kind}:${item.id}`}
+                  className="border-border min-w-0 rounded-lg border p-3"
+                >
+                  <div className="flex min-h-11 min-w-0 items-center gap-3 text-sm">
+                    <PeopleCheckbox
+                      label={item.name}
+                      checked={checked}
+                      onChange={() => {
+                        if (!busy) void choose(item);
+                      }}
+                    />
+                    <span className="min-w-0 font-medium break-words">{item.name}</span>
+                    <span className="text-muted-foreground ml-auto text-xs">{h(item.kind)}</span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          {selected.length ? (
+            <div className="border-border space-y-2 border-t pt-4">
+              {selected.map((item) => (
+                <div
+                  key={`${item.kind}:${item.id}`}
+                  className="grid items-center gap-2 sm:grid-cols-[1fr_auto]"
+                >
+                  <span className="min-w-0 truncate text-sm">{item.name}</span>
+                  <Select
+                    aria-label={`${item.name} ${h("exactVersion")}`}
+                    className="border-input bg-background min-h-11 rounded-sm border px-3 text-sm"
+                    value={item.version}
+                    onChange={(event) => {
+                      setSelected((entries) =>
+                        entries.map((entry) =>
+                          entry.kind === item.kind && entry.id === item.id
+                            ? { ...entry, version: event.target.value }
+                            : entry,
+                        ),
+                      );
+                    }}
+                  >
+                    {item.versions.map((version) => (
+                      <option key={version} value={version}>
+                        {version}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {message ? (
+            <p role="alert" className="text-destructive text-sm">
+              {message}
+            </p>
+          ) : null}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                setAdding(false);
+              }}
+            >
+              {h("cancel")}
+            </Button>
+            <Button
+              type="button"
+              disabled={busy || pendingChoices > 0 || !selected.length}
+              onClick={() => {
+                void assignSelected();
+              }}
+            >
+              {h("assign")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {message && !adding && (
         <p role="alert" className="text-sm">
           {message}
         </p>

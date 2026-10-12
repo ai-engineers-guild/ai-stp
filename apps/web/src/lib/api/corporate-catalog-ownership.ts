@@ -14,7 +14,7 @@ import type { ComponentId, SetupId, VersionId } from "@/lib/brands";
 
 export type CorporateCatalogObjectKind = "component" | "setup";
 
-export type CorporateCatalogOwnerMember = Pick<CorporateDirectoryItem, "id" | "name" | "state">;
+export type CorporateCatalogOwnerMember = Pick<CorporateDirectoryItem, "id" | "name">;
 
 export type CorporateCatalogOwnershipData = {
   ownership: CorporateCatalogOwnership;
@@ -92,17 +92,13 @@ export async function readCorporateCatalogOwnership(
       version,
     );
     if (!ownership) return null;
-    const members =
-      ownership.can_edit && context.capabilities.includes("member.list")
-        ? (
-            await readCorporateDirectoryPages(sessionToken, organizationId, {
-              resource: "members",
-              include_archived: true,
-            })
-          ).items
-            .filter((item) => item.state === "active")
-            .map(({ id, name, state }) => ({ id, name, state }))
-        : null;
+    const members = ownership.can_edit
+      ? (
+          await readCorporateDirectoryPages(sessionToken, organizationId, {
+            resource: "members",
+          })
+        ).items.map(({ id, name }) => ({ id, name }))
+      : null;
     return {
       ownership,
       authorizationRevision: context.organization.authorization_revision,

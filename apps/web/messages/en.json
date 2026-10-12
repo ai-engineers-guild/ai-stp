@@ -63,7 +63,6 @@
     "objectKind": "Object type",
     "setup": "Setup",
     "component": "Component",
-    "viaTeam": "Assigned through a team",
     "directAssignment": "Direct assignment",
     "noAssignments": "No setups or components assigned yet.",
     "exactVersion": "Version",
@@ -164,7 +163,8 @@
     "technologyMap": "Technology map",
     "areas": "Areas",
     "telemetry": "Telemetry",
-    "assignOwner": "Assign operational owner"
+    "assignOwner": "Assign operational owner",
+    "catalogEditDescription": "Manage the operational owner and links to employees, teams, projects, and technologies."
   },
   "corporateReports": {
     "title": "Reports",

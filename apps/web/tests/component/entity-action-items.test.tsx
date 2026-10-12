@@ -113,7 +113,7 @@ it("opens grant access over its originating card without navigation", async () =
   const user = userEvent.setup();
   render(<Example entity={principal} />);
   await user.click(screen.getByRole("button", { name: "Actions" }));
-  await user.click(await screen.findByRole("menuitem", { name: messages.objects.manageAccess }));
+  await user.click(await screen.findByRole("menuitem", { name: messages.accessUi.grantAccess }));
   expect(await screen.findByRole("dialog", { name: messages.accessUi.grantAccess })).toBeVisible();
   expect(window.location.href).toBe(origin);
   expect(
@@ -121,11 +121,46 @@ it("opens grant access over its originating card without navigation", async () =
   ).toBeChecked();
   await user.click(screen.getByRole("button", { name: messages.corporate.cancel }));
   expect(screen.queryByRole("dialog")).toBeNull();
-  await user.click(screen.getByRole("menuitem", { name: messages.objects.manageAccess }));
+  await user.click(screen.getByRole("menuitem", { name: messages.accessUi.grantAccess }));
   await screen.findByRole("dialog", { name: messages.accessUi.grantAccess });
   expect(
     document.querySelector(`input[name="members"][value="${member.account_id}"]`),
   ).toBeChecked();
+});
+
+it("opens component manage access over the catalog card", async () => {
+  const principal = {
+    kind: "component" as const,
+    id: "component_1",
+    organization_id: "organization_1",
+  };
+  vi.mocked(queryEntityActionMenu).mockResolvedValue({
+    ...result(["manage_access"]),
+    menu: { ...result(["manage_access"]).menu, subject: principal },
+  });
+  vi.mocked(loadCorporateGrantDialog).mockResolvedValue({
+    organizationId: "organization_1",
+    authorizationRevision: 1,
+    csrfToken: "csrf",
+    members: [member],
+    initialMemberIds: [],
+    initialScope: "catalog_object:component_1",
+    roles: [],
+    grantableRoleNames: null,
+    teams: [],
+    projects: [],
+    scopeOptions: [{ value: "catalog_object:component_1", label: "Component" }],
+    definitions: [],
+    capabilities: ["binding.create"],
+  });
+  const origin = window.location.href;
+  const user = userEvent.setup();
+  render(<Example entity={principal} />);
+  await user.click(screen.getByRole("button", { name: "Actions" }));
+  await user.click(await screen.findByRole("menuitem", { name: messages.objects.manageAccess }));
+  expect(await screen.findByRole("dialog", { name: messages.accessUi.grantAccess })).toBeVisible();
+  expect(window.location.href).toBe(origin);
+  expect(loadCorporateGrantDialog).toHaveBeenCalledWith(principal);
 });
 
 it("assigns a technology owner from its menu and closes after a successful write", async () => {

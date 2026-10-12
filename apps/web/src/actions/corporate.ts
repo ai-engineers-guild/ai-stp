@@ -74,7 +74,11 @@ export async function corporateCatalogSearchAction(input: {
     const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
     const options = {
       ...(sessionToken ? { sessionToken } : {}),
-      query: { q: input.query, page_size: 32, include_experimental: true },
+      query: {
+        ...(input.query.trim() ? { q: input.query.trim() } : {}),
+        page_size: 32,
+        include_experimental: true,
+      },
     };
     const result =
       input.kind === "setup"

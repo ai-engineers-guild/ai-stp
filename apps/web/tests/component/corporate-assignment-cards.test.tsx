@@ -111,7 +111,7 @@ it("keeps inherited assignments attached to their source team", async () => {
   );
   const user = userEvent.setup();
   render(<Cards inherited />);
-  expect(screen.getByRole("link", { name: messages.hub.viaTeam })).toBeVisible();
+  expect(screen.queryByRole("link", { name: /Assigned through a team/i })).toBeNull();
   await user.click(screen.getByRole("button", { name: messages.catalog.moreActions }));
   await screen.findByRole("menuitem", { name: messages.hub.openDetails });
   expect(vi.mocked(queryEntityActionMenu).mock.calls[0]?.[0].assignment_id).toBeUndefined();

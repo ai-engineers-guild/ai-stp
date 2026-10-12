@@ -143,6 +143,8 @@ export function CorporateEntityDetail({
                     projects: h("projects"),
                     technologies: h("technologies"),
                     categories: h("categories"),
+                    areas: h("areas"),
+                    job_titles: corporate("jobTitles"),
                     teamLeads: h("teamLeads"),
                     team: h("team"),
                     employee: h("employee"),

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 
@@ -10,17 +10,12 @@ import {
 } from "@/components/organisms/entity-action-items";
 import { Button } from "@/components/atoms/button";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/atoms/menu";
-import { ContactReportDialog } from "@/components/organisms/contact-report-dialog";
-import { CorporateAssignDialog } from "@/components/organisms/corporate-assign-dialog";
 import {
   useObjectMenuExecution,
   CatalogShareMenuItem,
-  ObjectVisibilityDialog,
+  ObjectMenuDialogs,
 } from "@/components/organisms/object-menu-privileged";
-import {
-  CorporateCatalogOwnerDialog,
-  type CorporateCatalogOwnerEdit,
-} from "@/components/organisms/corporate-catalog-owner-editor";
+import { type CorporateCatalogOwnerEdit } from "@/components/organisms/corporate-catalog-owner-editor";
 import { useCatalogLike, type LikeState } from "@/lib/use-catalog-like";
 import { UI } from "@/lib/ui-selectors";
 import { Icon } from "@/theme/icons";
@@ -146,6 +141,7 @@ export function ObjectLikeControl({
   );
 }
 
+// eslint-disable-next-line max-lines-per-function -- The catalog menu binds backend actions to their dialogs.
 export function ObjectOverflowMenu({
   stableId,
   objectKind = "component",
@@ -170,6 +166,11 @@ export function ObjectOverflowMenu({
   const behavior = useObjectMenuExecution(stableId, ownerEdit, visibilityEdit);
   const { execution, setExecution, setReportOpen, setVisibilityOpen, openOwner, openAssignment } =
     behavior;
+  const [editOpen, setEditOpen] = useState(false);
+  const activeMenu = execution?.menu ?? preloaded?.menu;
+  const corporateEdit = Boolean(activeMenu?.subject.organization_id);
+  const canChangeOwner = activeMenu?.actions.some((action) => action.id === "change_owner");
+  const canAssign = activeMenu?.actions.some((action) => action.id === "assign");
   const like = useLikeState({
     stableId,
     objectKind,
@@ -208,6 +209,18 @@ export function ObjectOverflowMenu({
               setExecution({ menu, csrfToken });
             }}
             entries={{
+              edit: corporateEdit ? (
+                <MenuItem
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    if (!execution && preloaded) setExecution(preloaded);
+                    setEditOpen(true);
+                  }}
+                >
+                  <Icon name="edit" size="sm" />
+                  {hub("edit")}
+                </MenuItem>
+              ) : null,
               unlink: onUnlink ? (
                 <MenuItem onSelect={onUnlink}>
                   <Icon name="close" size="sm" />
@@ -300,93 +313,15 @@ export function ObjectOverflowMenu({
       </Menu>
       <ObjectMenuDialogs
         execution={behavior}
+        editOpen={editOpen}
+        setEditOpen={setEditOpen}
+        canChangeOwner={Boolean(canChangeOwner)}
+        canAssign={Boolean(canAssign)}
         objectKind={objectKind}
         stableId={stableId}
         objectName={objectName}
         labels={labels}
       />
-    </>
-  );
-}
-
-function ObjectMenuDialogs({
-  execution,
-  objectKind,
-  stableId,
-  objectName,
-  labels,
-}: {
-  execution: Pick<
-    ReturnType<typeof useObjectMenuExecution>,
-    | "assignCtx"
-    | "assignOpen"
-    | "setAssignOpen"
-    | "effectiveOwner"
-    | "ownerOpen"
-    | "setOwnerOpen"
-    | "effectiveVisibility"
-    | "visibilityOpen"
-    | "setVisibilityOpen"
-    | "reportOpen"
-    | "setReportOpen"
-  >;
-  objectKind: "component" | "setup";
-  stableId: string;
-  objectName: string | undefined;
-  labels: ObjectActionLabels;
-}) {
-  const {
-    assignCtx,
-    assignOpen,
-    setAssignOpen,
-    effectiveOwner,
-    ownerOpen,
-    setOwnerOpen,
-    effectiveVisibility,
-    visibilityOpen,
-    setVisibilityOpen,
-    reportOpen,
-    setReportOpen,
-  } = execution;
-  return (
-    <>
-      {" "}
-      {assignCtx?.ok ? (
-        <CorporateAssignDialog
-          open={assignOpen}
-          onOpenChange={setAssignOpen}
-          context={assignCtx}
-          objectKind={objectKind}
-          stableId={stableId}
-          objectName={objectName ?? stableId}
-        />
-      ) : null}
-      {effectiveOwner ? (
-        <CorporateCatalogOwnerDialog
-          open={ownerOpen}
-          onOpenChange={setOwnerOpen}
-          ownerEdit={effectiveOwner}
-        />
-      ) : null}
-      {effectiveVisibility ? (
-        <ObjectVisibilityDialog
-          open={visibilityOpen}
-          onOpenChange={setVisibilityOpen}
-          edit={effectiveVisibility}
-          objectKind={objectKind}
-          stableId={stableId}
-        />
-      ) : null}
-      {reportOpen ? (
-        <ContactReportDialog
-          kind={objectKind}
-          target={stableId}
-          label={labels.report}
-          open={reportOpen}
-          onOpenChange={setReportOpen}
-          hideTrigger
-        />
-      ) : null}
     </>
   );
 }

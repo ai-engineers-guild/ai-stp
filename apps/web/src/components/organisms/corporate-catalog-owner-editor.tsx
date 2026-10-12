@@ -7,6 +7,7 @@ import { Icon } from "@/theme";
 import { toast } from "sonner";
 import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
 import { Select } from "@/components/atoms/select";
+import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
 import { useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { z } from "zod";
@@ -180,25 +181,22 @@ function OwnerEditForm({
       }}
     >
       <div className="space-y-2 text-sm">
-        <Label htmlFor={`${objectKind}-catalog-owner`}>{h("operationalOwner")}</Label>
-        <Select
-          id={`${objectKind}-catalog-owner`}
-          className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
-          disabled={pending}
-          value={owner}
-          onChange={(event) => {
-            setOwner(event.target.value);
-          }}
-        >
-          <option value="">{h("ownerUnassigned")}</option>
-          {members
-            .filter((member) => member.state === "active")
-            .map((member) => (
-              <option key={member.id} value={member.id}>
-                {member.name}
-              </option>
-            ))}
-        </Select>
+        <fieldset disabled={pending}>
+          <SearchableMultiSelect
+            name="owner_account_id"
+            label={h("operationalOwner")}
+            searchLabel={h("search")}
+            options={members.map((member) => ({ value: member.id, label: member.name }))}
+            selected={owner ? [owner] : []}
+            onChange={(values) => {
+              setOwner(values[0] ?? "");
+            }}
+            multiple={false}
+            inline
+            emptyHint={h("ownerUnassigned")}
+            closeLabel={h("cancel")}
+          />
+        </fieldset>
       </div>
       {error ? (
         <p role="alert" className="text-destructive text-sm">
@@ -296,13 +294,11 @@ export function TechnologyOwnerMenuAction({ subject }: { subject: EntityActionSu
           defaultValue={context?.presentation.owner_account_id ?? ""}
         >
           <option value="">{hub("ownerUnassigned")}</option>
-          {context?.members
-            .filter((member) => member.state === "active")
-            .map((member) => (
-              <option key={member.account_id} value={member.account_id}>
-                {member.display_name ?? member.account_id}
-              </option>
-            ))}
+          {context?.members.map((member) => (
+            <option key={member.account_id} value={member.account_id}>
+              {member.display_name ?? member.account_id}
+            </option>
+          ))}
         </Select>
       </FormDialog>
     </>

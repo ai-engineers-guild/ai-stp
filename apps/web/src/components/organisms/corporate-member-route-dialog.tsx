@@ -41,6 +41,7 @@ export function CorporateGrantRouteDialog(
 
 export function CorporateGrantMenuAction({ subject }: { subject: EntityActionSubject }) {
   const objects = useTranslations("objects");
+  const access = useTranslations("accessUi");
   const common = useTranslations("common");
   const [context, setContext] = useState<Awaited<
     ReturnType<typeof loadCorporateGrantDialog>
@@ -64,7 +65,7 @@ export function CorporateGrantMenuAction({ subject }: { subject: EntityActionSub
         }}
       >
         <Icon name="access" size="sm" />
-        {objects("manageAccess")}
+        {subject.kind === "member" ? access("grantAccess") : objects("manageAccess")}
       </MenuItem>
       {context && open ? (
         <CorporateGrantAccessDialog {...context} open={open} onOpenChange={setOpen} />

@@ -209,14 +209,6 @@ async def _read_menu(
             subject_id=organization.id,
             permission="member.read",
         )
-        and await subject_permission_allowed(
-            db,
-            account_id=ctx.account_id,
-            organization_id=organization.id,
-            subject_kind="organization",
-            subject_id=organization.id,
-            permission="member.list",
-        )
     ):
         actions.append(EntityAction(id="manage_access", group="management"))
     delegable_role = True
@@ -483,7 +475,7 @@ async def _catalog_menu(
     actions.insert(3, EntityAction(id="copy_cli", group="sharing"))
     if ctx is not None:
         actions.append(EntityAction(id="like", group="management"))
-    for capability in ("edit_presentation", "manage_access", "delete"):
+    for capability in ("edit", "edit_presentation", "manage_access", "delete"):
         if manage_access if capability == "manage_access" else capability in capabilities:
             actions.append(
                 EntityAction(

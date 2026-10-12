@@ -99,7 +99,7 @@ not redesign administration or Technology Landscape. Dashboard is an empty route
 - `REQ-8311`: Team, project, technology, and employee directories share Catalog
   search, filter, full-width list, and two-column card composition. Team filters
   include leads, technologies, and related teams; project filters include teams
-  and technologies; technology filters include projects, teams, and categories;
+  and technologies; technology filters include projects, teams, categories, and areas;
   employee filters include projects, teams, technologies, and whether the employee
   leads a team. Filter semantics and related-team derivation must be explicit in
   the generated machine contract; unreadable objects never affect visible counts.
@@ -357,9 +357,14 @@ Refreshing authorization does not change that effect's idempotency fingerprint;
 every retry still checks current authorization.
 
 Employee creation contains identity and organization relations, without catalog
-assignment fields. Assigned catalog cards resolve publisher display names and
+assignment fields. Assign from catalog opens a dialog on the current detail page
+with an initial unfiltered result across setups and components, name search, a
+kind filter, multiple selectable cards, and an exact version per selection. Partial failures keep only failed
+selections for retry. Assigned catalog cards resolve publisher display names and
 avatars, place the primary assign control before filters, and put unlink in the
-authorized contextual action menu. Team leads occur in the detail's right rail;
+authorized contextual action menu. In corporate catalog menus, Edit opens an in-place dialog
+for authorized relationship assignment and operational owner changes; Edit public
+presentation continues to open its separate editor. Team leads occur in the detail's right rail;
 an employee who leads teams lists those teams rather than an empty leader card.
 
 Employee project memberships are read through `GET

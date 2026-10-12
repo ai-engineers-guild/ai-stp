@@ -85,15 +85,6 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      {
-        source: "/_next/static/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: isDevelopment ? "no-store" : "public, max-age=31536000, immutable",
-          },
-        ],
-      },
     ]);
   },
   // Lean production image: copy .next/standalone into a minimal Node runtime (REQ-2403).

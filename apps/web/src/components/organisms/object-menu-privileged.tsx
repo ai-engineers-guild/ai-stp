@@ -9,6 +9,9 @@ import { corporateAssignContextAction, type CorporateAssignContext } from "@/act
 import type { EntityActionMenu } from "@/lib/api/generated/types.gen";
 import type { CorporateCatalogOwnerEdit } from "@/components/organisms/corporate-catalog-owner-editor";
 import type { ObjectActionLabels } from "@/components/organisms/component-actions";
+import { CorporateAssignDialog } from "@/components/organisms/corporate-assign-dialog";
+import { CorporateCatalogOwnerDialog } from "@/components/organisms/corporate-catalog-owner-editor";
+import { ContactReportDialog } from "@/components/organisms/contact-report-dialog";
 import { useState, useTransition } from "react";
 
 import { visibilityConfirm, visibilityPlan } from "@/actions/github";
@@ -241,5 +244,134 @@ export function CatalogShareMenuItem({
       <Icon name="link" size="sm" />
       {labels.share}
     </MenuItem>
+  );
+}
+
+export function ObjectMenuDialogs({
+  execution,
+  editOpen,
+  setEditOpen,
+  canChangeOwner,
+  canAssign,
+  objectKind,
+  stableId,
+  objectName,
+  labels,
+}: {
+  execution: Pick<
+    ReturnType<typeof useObjectMenuExecution>,
+    | "execution"
+    | "openOwner"
+    | "openAssignment"
+    | "assignCtx"
+    | "assignOpen"
+    | "setAssignOpen"
+    | "effectiveOwner"
+    | "ownerOpen"
+    | "setOwnerOpen"
+    | "effectiveVisibility"
+    | "visibilityOpen"
+    | "setVisibilityOpen"
+    | "reportOpen"
+    | "setReportOpen"
+  >;
+  editOpen: boolean;
+  setEditOpen: (open: boolean) => void;
+  canChangeOwner: boolean;
+  canAssign: boolean;
+  objectKind: "component" | "setup";
+  stableId: string;
+  objectName: string | undefined;
+  labels: ObjectActionLabels;
+}) {
+  const {
+    assignCtx,
+    assignOpen,
+    setAssignOpen,
+    effectiveOwner,
+    ownerOpen,
+    setOwnerOpen,
+    effectiveVisibility,
+    visibilityOpen,
+    setVisibilityOpen,
+    reportOpen,
+    setReportOpen,
+  } = execution;
+  const hub = useTranslations("hub");
+  return (
+    <>
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{hub("edit")}</DialogTitle>
+            <DialogDescription>{hub("catalogEditDescription")}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3">
+            {canChangeOwner ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!execution.execution}
+                onClick={() => {
+                  setEditOpen(false);
+                  void execution.openOwner();
+                }}
+              >
+                {hub("assignOwner")}
+              </Button>
+            ) : null}
+            {canAssign ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!execution.execution}
+                onClick={() => {
+                  setEditOpen(false);
+                  void execution.openAssignment();
+                }}
+              >
+                {hub("assign")}
+              </Button>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
+      {assignCtx?.ok ? (
+        <CorporateAssignDialog
+          open={assignOpen}
+          onOpenChange={setAssignOpen}
+          context={assignCtx}
+          objectKind={objectKind}
+          stableId={stableId}
+          objectName={objectName ?? stableId}
+        />
+      ) : null}
+      {effectiveOwner ? (
+        <CorporateCatalogOwnerDialog
+          open={ownerOpen}
+          onOpenChange={setOwnerOpen}
+          ownerEdit={effectiveOwner}
+        />
+      ) : null}
+      {effectiveVisibility ? (
+        <ObjectVisibilityDialog
+          open={visibilityOpen}
+          onOpenChange={setVisibilityOpen}
+          edit={effectiveVisibility}
+          objectKind={objectKind}
+          stableId={stableId}
+        />
+      ) : null}
+      {reportOpen ? (
+        <ContactReportDialog
+          kind={objectKind}
+          target={stableId}
+          label={labels.report}
+          open={reportOpen}
+          onOpenChange={setReportOpen}
+          hideTrigger
+        />
+      ) : null}
+    </>
   );
 }

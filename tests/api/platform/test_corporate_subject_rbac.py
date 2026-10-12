@@ -450,6 +450,7 @@ async def test_solo_author_menu_is_independent_of_corporate_and_rejects_anonymou
         "copy_cli",
         "share",
         "like",
+        "edit",
         "edit_presentation",
         "manage_access",
         "delete",

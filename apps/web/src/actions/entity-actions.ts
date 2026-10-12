@@ -103,6 +103,10 @@ export async function loadTechnologyOwnerEditor(subject: EntityActionSubject) {
   };
 }
 
+function settledValue<T>(result: PromiseSettledResult<T>, fallback: T): T {
+  return result.status === "fulfilled" ? result.value : fallback;
+}
+
 export async function loadCorporateGrantDialog(subject: EntityActionSubject) {
   const token = await sessionCookieValue();
   if (!token || !subject.organization_id) throw new Error("invalid grant context");
@@ -121,18 +125,32 @@ export async function loadCorporateGrantDialog(subject: EntityActionSubject) {
     throw new Error("grant unavailable");
   const org = subject.organization_id;
   const caps = workspace.context.capabilities;
-  const [access, matrix, technologies, catalog, categories] = await Promise.all([
-    subject.kind === "member" ? readCorporateMemberAccess(token, subject.id) : null,
-    caps.includes("role.read")
-      ? apiRequest<CorporatePermissionMatrix>(
-          `/v1/corporate/organizations/${org}/permissions/matrix`,
-          { sessionToken: token },
-        )
-      : null,
-    readCorporateScopeTechnologies(token, org, caps),
-    readCorporateCatalogScopeOptions(token, org, caps),
-    readCorporateCategoryScopeOptions(token, org, caps),
-  ]);
+  const [accessResult, matrixResult, technologiesResult, catalogResult, categoriesResult] =
+    await Promise.allSettled([
+      subject.kind === "member" ? readCorporateMemberAccess(token, subject.id) : null,
+      caps.includes("role.read")
+        ? apiRequest<CorporatePermissionMatrix>(
+            `/v1/corporate/organizations/${org}/permissions/matrix`,
+            { sessionToken: token },
+          )
+        : null,
+      readCorporateScopeTechnologies(token, org, caps),
+      readCorporateCatalogScopeOptions(token, org, caps),
+      readCorporateCategoryScopeOptions(token, org, caps),
+    ]);
+  const access = settledValue(accessResult, null);
+  const matrix = settledValue(matrixResult, null);
+  const technologies = settledValue(technologiesResult, []);
+  const catalog = settledValue(catalogResult, []);
+  const categories = settledValue(categoriesResult, []);
+  const scopeOptions = [
+    ...technologies.map((item) => ({ value: `technology:${item.id}`, label: item.name })),
+    ...catalog,
+    ...categories,
+  ];
+  const targetScope = `catalog_object:${subject.id}`;
+  if (subject.kind !== "member" && !scopeOptions.some((option) => option.value === targetScope))
+    scopeOptions.unshift({ value: targetScope, label: menus.items[0].object_name ?? subject.id });
   return {
     csrfToken: (await readCsrfToken()) ?? "",
     organizationId: org,
@@ -146,10 +164,6 @@ export async function loadCorporateGrantDialog(subject: EntityActionSubject) {
     projects: workspace.context.projects,
     capabilities: caps,
     definitions: matrix?.definitions ?? [],
-    scopeOptions: [
-      ...technologies.map((item) => ({ value: `technology:${item.id}`, label: item.name })),
-      ...catalog,
-      ...categories,
-    ],
+    scopeOptions,
   };
 }
