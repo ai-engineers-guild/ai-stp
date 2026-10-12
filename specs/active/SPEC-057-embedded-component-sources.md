@@ -1,6 +1,6 @@
 ---
 description: "SPEC-057: Exact external and local components embedded in setup definitions."
-last_verified: "2026-10-09"
+last_verified: "2026-10-12"
 ---
 
 # SPEC-057: Embedded component sources
@@ -81,13 +81,17 @@ the architecture and extends ADR-0051 without changing `ComponentRef`.
   publisher, while upstream project, source, and maintainers remain separate
   attribution. It has no catalog metadata, reactions, publisher page, or direct
   search result.
-  Newly frozen Codex skills derive native invocation IDs from the exact mapped
-  `SKILL.md` bytes and the pinned Codex loader rules, including directory-name
-  fallback, visible path/depth limits and duplicate/plugin refusal. Display
-  labels never supply these IDs. The bounded YAML reader preserves scalar spelling
-  and distinguishes explicit strings from null. Retained immutable definitions
-  keep their original sealed bytes. Other embedded harness/kind identity writers
-  still require separate parity qualification; this correction does not claim it.
+  Newly frozen native Markdown and MCP components derive invocation IDs from exact
+  mapped files under the implemented Rust readers' rules. These include skill,
+  command and agent names where supported, directory aliases, visibility/depth
+  limits, Pi ignore rules, YAML dialects, and duplicate/plugin refusal. MCP reads
+  JSON, JSONC and TOML server maps with native credential references and URL guards;
+  freezing never resolves a credential or executes a harness. Display labels never
+  supply invocation IDs. YAML parsing is bounded and distinguishes lexical string
+  fields, typed values and null. Retained immutable definitions keep their sealed
+  bytes. The shared native corpus and real producer-to-Rust acquisition proof own
+  compatibility evidence; this does not qualify unrelated formats or transfer
+  production CLI ownership.
 - `REQ-5708`: A local/private setup may embed public Git, package, and local
   sources. Public setup publication sends the exact definition bytes to the
   server and is rejected when redistribution rights are unknown/prohibited or

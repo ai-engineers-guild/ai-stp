@@ -89,18 +89,19 @@ transfers production ownership.
 
 Execute the remaining integration in this order:
 
-The shared Python embedded producer now derives Codex skill invocation IDs from
-exact mapped files, with the same native corpus and a real Rust acquisition,
-SQLite and owned-authoring journey. This addresses the Codex skill defect in
-[#752](https://github.com/ai-engineers-guild/ai-stp/issues/752); other embedded
-harness/kind producers still require qualification. Retained definitions are
-not rewritten and both acquired verification flags remain false.
+The shared embedded producer now derives IDs for the implemented native Markdown
+and MCP readers from exact mapped files. The native corpus covers harness-specific
+names, aliases, visibility, YAML dialects and MCP credential refusals; all 19
+remaining identity routes pass real Rust acquisition, SQLite and offline replay.
+The Codex mixed setup additionally passes owned authoring. This resolves the
+producer gap in [#752](https://github.com/ai-engineers-guild/ai-stp/issues/752).
+Retained definitions are not rewritten and both acquired verification flags remain
+false. Artifact publication and the broader migration gates remain separate.
 
 1. Reconcile C3 business coverage alongside C4, including remaining harness
-   formats, credential handling and native transformations. Correct the embedded
-   source producer's missing byte-derived native identities
-   ([#752](https://github.com/ai-engineers-guild/ai-stp/issues/752)); retain strict
-   Rust verification and immutable published definitions. Verify the connected
+   formats, credential handling and native transformations. Embedded source
+   release qualification must retain strict Rust verification and immutable
+   published definitions. Verify the connected
    author-to-install journey as its remaining services become available;
    command counts and isolated installation proofs are not acceptance.
 2. Complete task integration around the single-root configuration service.
