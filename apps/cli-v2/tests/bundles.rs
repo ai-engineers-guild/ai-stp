@@ -1729,6 +1729,7 @@ fn declared_exclusions_are_symmetric_and_do_not_conflict_with_their_owner()
                     result: Err(refusal),
                     machine: true,
                     text: None,
+                    warnings: Vec::new(),
                 }
                 .envelope();
                 assert_eq!(

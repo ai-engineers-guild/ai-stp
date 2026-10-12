@@ -2,7 +2,8 @@
 //!
 //! The standard `plain` session avoids custom cryptography. Bus transport must be
 //! local; at-rest protection belongs to the user's existing credential service.
-//! No Unlock, Prompt, CreateCollection, replacement or fallback is permitted.
+//! No Unlock, Prompt, CreateCollection or backend fallback is permitted.
+//! Device keys are immutable; account credential replacement is explicit.
 
 use std::{collections::HashMap, time::Duration};
 use zbus::{
@@ -49,7 +50,13 @@ fn service(conn: &Connection) -> Result<Proxy<'_>> {
 }
 
 fn attributes(id: &str) -> HashMap<&str, &str> {
-    HashMap::from([("service", "ai-stp-v2"), ("device_id", id)])
+    // Keep the original device-key lookup compatible. Account slots have a
+    // separate attribute and cannot collide with an existing signing key.
+    if let Some(device) = id.strip_prefix("device-key.") {
+        HashMap::from([("service", "ai-stp-v2"), ("device_id", device)])
+    } else {
+        HashMap::from([("service", "ai-stp-v2"), ("credential_id", id)])
+    }
 }
 
 fn find(service: &Proxy<'_>, id: &str) -> Result<Option<OwnedObjectPath>> {
@@ -90,10 +97,22 @@ pub(super) fn read(id: &str) -> Result<Option<Zeroizing<Vec<u8>>>> {
     Ok(Some(bytes))
 }
 
-pub(super) fn create(id: &str, value: &str) -> Result<()> {
+pub(super) fn write(id: &str, value: &str, replace: bool) -> Result<()> {
     let conn = connection()?;
     let service = service(&conn)?;
-    if find(&service, id)?.is_some() {
+    if let Some(path) = find(&service, id)? {
+        if !replace {
+            return Err(super::invalid());
+        }
+        let item = proxy(&conn, path.as_str(), "org.freedesktop.Secret.Item")?;
+        let session = session(&service)?;
+        let secret = (&session, &[] as &[u8], value.as_bytes(), "text/plain");
+        let (): () = item
+            .call("SetSecret", &(secret,))
+            .map_err(|_| unavailable())?;
+        return Ok(());
+    }
+    if replace {
         return Err(super::invalid());
     }
     let collection: OwnedObjectPath = service
@@ -117,7 +136,11 @@ pub(super) fn create(id: &str, value: &str) -> Result<()> {
     let properties = HashMap::from([
         (
             "org.freedesktop.Secret.Item.Label",
-            Value::from("ai-stp-v2 device signing key"),
+            Value::from(if id.starts_with("device-key.") {
+                "ai-stp-v2 device signing key"
+            } else {
+                "ai-stp-v2 account credential"
+            }),
         ),
         (
             "org.freedesktop.Secret.Item.Attributes",

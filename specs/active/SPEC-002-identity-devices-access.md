@@ -56,6 +56,12 @@ The device private key is stored only in secure local storage and is not synchro
 
 `Account` remains stable when an OAuth provider is added or removed. Changing the device key format requires parallel reads of the old and new formats, separate rotation, and the ability to revoke without deleting local data.
 
+The isolated Rust preview's implemented account plan/apply/status boundary is
+defined by the [code-adjacent CLI contract](../../apps/cli-v2/README.md). Device
+authorization, signed refresh and logout do not transfer local authoring ownership
+or establish sync/publication support. Production state remains with the existing
+CLI until the verified migration checkpoint.
+
 ## Acceptance criteria
 
 | Requirement | Executable oracle |

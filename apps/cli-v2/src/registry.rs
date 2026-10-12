@@ -1,5 +1,6 @@
 //! One command definition drives both the parser and its machine description.
 
+mod account;
 mod local;
 mod providers;
 mod reports;
@@ -19,6 +20,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Clone, Copy)]
 enum Handler {
+    Account(account::Handler),
     Local(local::Handler),
     Report(reports::Handler),
     Provider(providers::Handler),
@@ -647,6 +649,7 @@ fn declarations() -> impl Iterator<Item = &'static Declaration> {
         .chain(reports::COMMANDS)
         .chain(providers::COMMANDS)
         .chain(selections::COMMANDS)
+        .chain(account::COMMANDS)
 }
 
 fn children(parent: Command, prefix: &[&str]) -> Command {
@@ -712,6 +715,7 @@ fn mutability(handler: Handler) -> &'static str {
         Handler::Local(handler) => handler.mutability(),
         Handler::Selection(handler) => handler.mutability(),
         Handler::Provider(handler) => handler.mutability(),
+        Handler::Account(handler) => handler.mutability(),
         _ => "read",
     }
 }
@@ -757,6 +761,16 @@ pub fn help(path: &str, find: &str) -> Result<Value> {
     )
 }
 
+pub(crate) fn warnings(matches: &ArgMatches, result: &Result<Value>) -> Vec<String> {
+    if matches
+        .subcommand_matches("account")
+        .is_some_and(|args| args.subcommand_name() == Some("apply"))
+    {
+        return account::warnings(result);
+    }
+    Vec::new()
+}
+
 pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
     let mut leaf = matches;
     let mut path = Vec::new();
@@ -773,6 +787,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
     match declaration.handler {
         Handler::Local(handler) => local::dispatch(handler, leaf),
         Handler::Report(handler) => reports::dispatch(handler, leaf),
+        Handler::Account(handler) => account::dispatch(handler, leaf),
         Handler::Provider(handler) => providers::dispatch(handler, leaf),
         Handler::Selection(handler) => selections::dispatch(handler, leaf),
         Handler::Version => Ok(json!({"schema_version": 1, "cli_version": VERSION,

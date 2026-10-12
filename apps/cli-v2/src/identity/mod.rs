@@ -1,6 +1,6 @@
 //! Isolated offline identity. Public plans never contain key material or cloud claims.
 
-mod credentials;
+pub(crate) mod credentials;
 #[cfg(target_os = "linux")]
 mod secret_service;
 
@@ -20,7 +20,7 @@ use crate::{
     passport,
     wire::Schema,
 };
-use credentials::Credentials;
+use credentials::Vault;
 
 const NAMESPACE: &str = "ai-stp-v2-identity";
 const OWNER: &[u8] = b"ai-stp-cli-v2 isolated identity v1\n";
@@ -109,9 +109,13 @@ pub struct Identity {
     context: authoring::Identity,
     key: SigningKey,
     device: Value,
+    storage: Storage,
 }
 
 impl Identity {
+    pub(crate) fn storage(&self) -> Storage {
+        self.storage
+    }
     pub fn context(&self) -> authoring::Identity {
         self.context.clone()
     }
@@ -135,7 +139,7 @@ fn invalid() -> Failure {
     Failure::precondition("the local identity, key or initialization record is inconsistent")
 }
 
-fn root(path: &Path) -> Result<(PathBuf, [String; 2])> {
+pub(crate) fn root(path: &Path) -> Result<(PathBuf, [String; 2])> {
     let location = PathBuf::from(files::location(path)?);
     let dir =
         Dir::open_ambient_dir(&location, cap_std::ambient_authority()).map_err(|_| invalid())?;
@@ -235,7 +239,7 @@ fn report(plan: &Plan, key: &SigningKey) -> Value {
 }
 
 fn load(directory: &OwnedDirectory, record: &Record) -> Result<Identity> {
-    let key = Credentials::new(directory,record.plan.credential_store)?.read(&record.plan.device_id)?
+    let key = Vault::new(directory,record.plan.credential_store)?.read_key(&record.plan.device_id)?
         .ok_or_else(||Failure::precondition("the device has a public record but its private key is missing; initialization will not replace it"))?;
     let public = report(&record.plan, &key);
     if record.device["public_key"] != public["public_key"]
@@ -253,6 +257,7 @@ fn load(directory: &OwnedDirectory, record: &Record) -> Result<Identity> {
         },
         key,
         device: record.device.clone(),
+        storage: record.plan.credential_store,
     })
 }
 
@@ -363,8 +368,8 @@ pub fn apply(plan: &Plan, expected_digest: &str, at: &str) -> Result<Identity> {
             )?;
         }
     }
-    let credentials = Credentials::new(&directory, plan.credential_store)?;
-    let key = match credentials.read(&plan.device_id)? {
+    let credentials = Vault::new(&directory, plan.credential_store)?;
+    let key = match credentials.read_key(&plan.device_id)? {
         Some(key) => key,
         None => {
             let mut seed = Zeroizing::new([0u8; 32]);
@@ -375,7 +380,7 @@ pub fn apply(plan: &Plan, expected_digest: &str, at: &str) -> Result<Identity> {
                 )
             })?;
             let key = SigningKey::from_bytes(&seed);
-            credentials.create(&plan.device_id, &key)?;
+            credentials.create_key(&plan.device_id, &key)?;
             key
         }
     };
