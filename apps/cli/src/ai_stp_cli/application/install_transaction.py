@@ -132,7 +132,8 @@ def compose_environment(parameters: Mapping[str, object]) -> Answer[MultiRootTra
             if operation in operation_v3.SOFTWARE_OPERATIONS:
                 raise CliFailure(
                     "AI_STP_PRECONDITION_FAILED",
-                    "harness executables are user-managed; retired program plans cannot be composed",
+                    "harness executables are user-managed; "
+                    "retired program plans cannot be composed",
                 )
             operation_v3.require_native_capture(
                 planned.artifact, operation=operation, capture_mode="complete_native"
