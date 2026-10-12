@@ -29,7 +29,7 @@ from pathlib import Path
 
 #: Measured on 2026-09-22 after naming the heartbeat validation refusals.
 #: Lower it when one is tightened; it may never be raised for unrelated tests.
-BUDGET = 38
+BUDGET = 37
 
 
 def _loose(path: Path) -> list[int]:

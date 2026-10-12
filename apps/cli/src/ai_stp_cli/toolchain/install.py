@@ -488,27 +488,6 @@ def perform(tool: Tool, artifact: Artifact, content: bytes) -> tuple[Path, list[
 DOWNLOAD_TIMEOUT_SECONDS: Final[float] = 120.0
 MAX_ARTIFACT_BYTES: Final[int] = 512 * 1024 * 1024
 
-#: The slowest link a download is still expected to finish over. A fixed 120 s
-#: is a size limit wearing a clock: it passes a 60 MB artifact and fails a
-#: 167 MB one on the same connection, and the failure looks like the larger
-#: vendor's fault. Deriving the deadline from the length the plan already states
-#: makes the limit the same for every artifact — this rate — instead of
-#: different for each size.
-MINIMUM_DOWNLOAD_BYTES_PER_SECOND: Final[int] = 512 * 1024
-
-
-def download_deadline(byte_length: int) -> float:
-    """How long an artifact of a stated length may take to arrive.
-
-    Never shorter than the flat timeout, so nothing that used to fit stops
-    fitting.
-    """
-    return max(
-        DOWNLOAD_TIMEOUT_SECONDS,
-        DOWNLOAD_TIMEOUT_SECONDS + byte_length / MINIMUM_DOWNLOAD_BYTES_PER_SECOND,
-    )
-
-
 #: Where a GitHub release asset is allowed to hand its bytes over, and nowhere
 #: else. Closed and observed rather than assumed: on 2026-08-20 a `GET` of a
 #: pinned `github.com/.../releases/download/...` answered `302` with a signed
