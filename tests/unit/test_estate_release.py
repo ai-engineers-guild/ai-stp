@@ -383,7 +383,8 @@ def test_seven_by_six_passed_launch_cells_can_be_complete() -> None:
 
 
 def test_required_providers_match_the_attested_policy() -> None:
-    assert frozenset(REQUIRED_PROVIDERS) == frozenset(policy_provider_repositories())
+    # Rotation identities are permitted signers, not extra estate members.
+    assert frozenset(REQUIRED_PROVIDERS) <= frozenset(policy_provider_repositories())
 
 
 def test_artifacts_must_match_the_recorded_digest(tmp_path: Path) -> None:

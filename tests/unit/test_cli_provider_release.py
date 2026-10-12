@@ -575,8 +575,13 @@ verified_publisher = true
     moved = extra.replace("NDDev-OpenNetwork", "NDDev-Technocracy-Sandbox")
     policy = release.load_policy(VALID_POLICY_TEXT + extra + moved)
     assert len(policy.index_publishers["pi-setup-system"]) == 2
-    with pytest.raises(CliFailure):
+    with pytest.raises(CliFailure) as duplicate:
         release.load_policy(VALID_POLICY_TEXT + extra + extra)
+    assert duplicate.value.code == "AI_STP_VALIDATION_ERROR"
+    assert duplicate.value.details == {
+        "field": "index_publishers",
+        "detail": "duplicate publisher for project pi-setup-system",
+    }
 
 
 def test_an_index_publisher_rule_must_be_a_closed_table() -> None:
