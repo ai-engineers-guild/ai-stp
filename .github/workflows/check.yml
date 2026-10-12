@@ -293,10 +293,10 @@ jobs:
             extra: tests/property
     services:
       postgres:
-        # Docker's official ECR distribution avoids Docker Hub anonymous pull
-        # limits on shared runners. The digest is identical to production.
+        # GitHub-hosted runners are exempt from public Docker Hub pull limits.
+        # Keep the exact production digest without ECR's anonymous data quota.
         image: >-
-          public.ecr.aws/docker/library/postgres:18@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
+          docker.io/library/postgres:18@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
         env:
           POSTGRES_USER: ai_stp
           POSTGRES_PASSWORD: ai_stp_dev
