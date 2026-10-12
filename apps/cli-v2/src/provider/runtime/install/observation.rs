@@ -22,7 +22,9 @@ const HISTORY_BYTES: usize = 16 * 1024 * 1024;
 fn history(connection: &Connection, prefix: &str) -> Result<Vec<(Record, Plan)>> {
     let mut statement = connection
         .prepare(
-            "SELECT o.operation_id,o.kind,o.state,o.detail,e.global_sequence,e.state_after, \
+            "SELECT o.operation_id,o.kind,o.state, \
+         CASE WHEN length(CAST(o.detail AS BLOB))<=2097152 THEN o.detail END, \
+         e.global_sequence,e.state_after, \
          CASE WHEN length(CAST(e.evidence AS BLOB))<=1024 THEN e.evidence END,e.result \
          FROM operation o LEFT JOIN operation_event e ON e.operation_id=o.operation_id \
          AND e.sequence=(SELECT max(sequence) FROM operation_event WHERE operation_id=o.operation_id) \
