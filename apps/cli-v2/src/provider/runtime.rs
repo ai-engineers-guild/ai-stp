@@ -29,7 +29,7 @@ use crate::{
 };
 use serde_json::Value;
 use std::path::Path;
-pub(crate) const CONFIGURATION_PLAN_BYTES: usize = 32 * 1024 * 1024;
+pub(crate) const CONFIGURATION_PLAN_BYTES: usize = super::configuration::plan::LIMIT;
 #[cfg(target_os = "linux")]
 use {
     crate::{digest, wire},
@@ -85,6 +85,23 @@ pub fn program_change_apply(
     }
 }
 
+pub fn program_change_cancel(
+    parent: &Path,
+    bytes: &[u8],
+    digest: &str,
+    action: &str,
+) -> Result<Value> {
+    #[cfg(target_os = "linux")]
+    {
+        install::change::cancellation::cancel(parent, bytes, digest, action)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (parent, bytes, digest, action);
+        Err(unavailable())
+    }
+}
+
 pub fn platform() -> Result<&'static str> {
     match (std::env::consts::OS, std::env::consts::ARCH) {
         ("linux", "x86_64") => Ok("linux/x86_64"),
@@ -114,6 +131,18 @@ pub fn configuration_apply(
     }
 }
 
+pub fn configuration_cancel(parent: &Path, bytes: &[u8], digest: &str) -> Result<Value> {
+    #[cfg(target_os = "linux")]
+    {
+        configuration::cancel::cancel(parent, bytes, digest)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (parent, bytes, digest);
+        Err(unavailable())
+    }
+}
+
 pub struct Runtime {
     #[cfg(target_os = "linux")]
     launcher: linux::Launcher,
@@ -134,14 +163,15 @@ impl Runtime {
         context: &TargetRequest<'_>,
         operation: &str,
         bundle: Option<&[u8]>,
+        project: Option<&str>,
     ) -> Result<Value> {
         #[cfg(target_os = "linux")]
         {
-            configuration::plan(self, context, operation, bundle)
+            configuration::plan(self, context, operation, bundle, project)
         }
         #[cfg(not(target_os = "linux"))]
         {
-            let _ = (context, operation, bundle);
+            let _ = (context, operation, bundle, project);
             Err(unavailable())
         }
     }

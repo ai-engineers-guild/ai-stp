@@ -691,10 +691,44 @@ replay needs no live target, provider, bundle source or network, and cleanup
 interrupted after the receipt commit resumes independently. An admitted
 component request keeps its original expiry and identity during recovery;
 native admission alone does not bypass the component's first-admission expiry.
-Cancellation of a native intent that the component never admitted is not yet
-implemented. In particular, a null public journal does not prove absence of a
-forward admission: the component can commit admission before publishing that
-guard. Such an ambiguous operation is retained rather than declared cancelled.
+
+Project-scope configuration plans may bind `--project-id` to an existing owned
+project. The physical target must be that registered project root, and install
+or replacement must use its exact selected setup. The plan captures the project
+passport, owner, root identity and selection timestamp. Admission rechecks that
+context; the verified receipt and matching `installed` selection commit in one
+SQLite transaction. Recovery of an older installation preserves a later
+selection. Removal and unbound writes reset a matching root's recorded selection
+to `pending_install`. Cancellation and historical replay do not rewrite it.
+
+Impact reports combine legacy and native configuration receipts in journal
+order. A later replacement/removal supersedes the earlier root; an admitted
+unfinished operation withholds its previous installation claim. Cancelled
+operations do not erase verified history. Explicit project attribution is never
+inferred solely from a setup ID or a matching path. Reports remain local
+historical evidence, not live target observations; session reads keep
+`installation_observed: false`. The portable plan/receipt reader shares the
+execution contract on every platform, including original unbound plans.
+
+`configuration cancel --state-dir <state> --plan <intent.json> --plan-digest <digest>`
+requires the original component to be 0.0.92 or newer; it never substitutes a
+new release into an older plan. Cancellation authenticates that component and
+binds the original request even after expiry, without reading a source or retained
+bundle. Under its own writer lock the component persists an exact cancellation
+receipt before the CLI records a terminal `cancelled` result and retires desired
+payloads. A null public journal is insufficient: SQLite admission may already
+exist. The component checks its own admission and refuses cancellation once
+staging or publication may have started, or original admitted observations changed.
+
+The CLI independently compares affected file bytes, modes and physical identities
+plus the public status before and after cancellation, bounded to 64 MiB. It never
+opens the component's private ledger. A lost response or native terminal commit
+is recovered by repeating the same cancellation request; the component's durable
+receipt prevents a delayed apply from resurrecting it. Existing terminal results
+are returned unchanged by both apply and cancel, even after a later operation or
+target removal. Thus cancelling an already verified operation reports its original
+verified result and does not undo it. In-place program update/removal cancellation
+remains a separate boundary.
 
 Current-project and configured harness roots refuse direct application: their
 activation requires staged replacement and durable agent handoff. Multi-root
@@ -901,13 +935,28 @@ native state. It releases after interruption; the component's durable writer
 admission remains authoritative across clients. The original apply resumes an
 admitted operation after expiry. A request never admitted by the component must
 still be unexpired; an expired request requires a new plan. Native intent alone
-does not extend component admission. There is no in-place cancellation command.
+does not extend component admission.
 Unrelated changes or a replaced directory refuse; they are not overwritten to
 make recovery pass. Terminal receipts replay without network or current-prefix
 access and remain historical evidence, not current installation verification.
 An external writer using another state can change the prefix after component
 completion; if that precedes native readback, the native operation refuses
 instead of claiming an independently verified result.
+
+`program update cancel` and `program remove cancel` consume only the original
+plan and digest. They require that plan's authenticated component to support
+exact software cancellation (0.0.93 or newer); old plans are never rebound to a
+new release. An unadmitted request is durably cancelled in the component; an
+admitted request can cancel only before any program effect, with unchanged
+initial contents and no kernel journal. Cancellation never resumes extraction or
+removal, downloads no vendor archive and remains available after plan expiry.
+The CLI checks the entire prefix's bytes, modes, link values and physical entry
+identities before and after invocation, excluding only shared component metadata,
+and independently compares public target status. Only then does its journal
+commit `cancelled`. A lost response retains the original retry path. The
+component refuses late apply permanently; native apply/cancel replay the original
+terminal receipt offline even after later prefix removal. An already verified
+native request returns its verified receipt, never a claim of cancellation.
 
 Machine help marks all program plans as `plan` and apply/cancel as `apply` with
 `plan_digest` confirmation. Active-agent handoff, multi-root coordination,
@@ -1921,6 +1970,10 @@ and physical provider target. Replacement supersedes older attribution; removal
 and an unattributed rollback clear it. Backup and software operations do not
 establish an installed setup. Historical records without a physical target
 conservatively supersede older records for their project/harness pair.
+Native project attribution additionally requires the currently registered root
+to match the bound installation target. Imported legacy journal records retain
+their original explicit project attribution, including when no root mapping was
+stored; a later native mutation of that physical target can still supersede them.
 
 The report verifies immutable coordinates, dependency closure and every scope
 projection for the setup's harness. It measures those projection files, including

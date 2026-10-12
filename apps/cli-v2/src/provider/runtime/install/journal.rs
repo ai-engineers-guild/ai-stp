@@ -87,6 +87,11 @@ impl Record {
                     &plan,
                     digest,
                 ),
+                Phase::Cancelled => super::change::cancellation::validate_outcome(
+                    self.result.as_ref().ok_or_else(invalid)?,
+                    &plan,
+                    digest,
+                ),
                 _ => Err(conflict()),
             };
         }
@@ -220,7 +225,7 @@ impl Journal {
                 | (Some(Phase::Staged), Phase::Publishing | Phase::Cancelling)
                 | (Some(Phase::Publishing), Phase::Complete | Phase::Cancelling)
                 | (Some(Phase::Cancelling), Phase::Cancelled)
-                | (Some(Phase::Applying), Phase::Complete)
+                | (Some(Phase::Applying), Phase::Complete | Phase::Cancelled)
         ) {
             return Err(conflict());
         }

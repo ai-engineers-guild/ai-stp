@@ -79,6 +79,7 @@ fn removal_binds_physical_parents_and_replays_history_without_the_target()
         setup: Value::Null,
         ownership: json!([]),
         effects,
+        project: None,
     };
     let mut document = plan.value()?;
     document["provider_plan"] = json!({"plan_digest":hash,"plan":{
@@ -90,12 +91,24 @@ fn removal_binds_physical_parents_and_replays_history_without_the_target()
     let bytes = serde_json::to_vec(&document)?;
     let plan = Plan::parse(&bytes, &digest)?;
     assert!(Plan::parse(&bytes, &hash).is_err());
+    let mut ambiguous = document.clone();
+    ambiguous["project"] = Value::Null;
+    assert!(
+        Plan::parse(
+            &serde_json::to_vec(&ambiguous)?,
+            &plan::fingerprint(&ambiguous)?
+        )
+        .is_err()
+    );
+
     assert!(journal::Journal::history(&state, &plan, &digest)?.is_none());
     assert_eq!(fs::read_dir(&state)?.count(), 0);
     assert!(
         apply::apply(&state, &bytes, &digest, None).is_err(),
         "an expired unadmitted intent was accepted"
     );
+    assert_eq!(fs::read_dir(&state)?.count(), 0);
+    assert!(cancel::cancel(&state, &bytes, &digest).is_err());
     assert_eq!(fs::read_dir(&state)?.count(), 0);
     let journal = journal::Journal::open(&state, &plan, &digest)?;
     journal.admit(&plan, &digest)?;
@@ -139,5 +152,33 @@ fn removal_binds_physical_parents_and_replays_history_without_the_target()
         result
     );
     assert!(!root.exists());
+    for admitted in [false, true] {
+        let mut document = document.clone();
+        let operation = format!("operation_{}", ulid::Ulid::generate());
+        document["operation_id"] = json!(operation);
+        document["provider_plan"]["plan"]["operation_id"] = json!(operation);
+        document["provider_version"] = json!("0.0.92");
+        document["provider_plan"]["plan"]["provider_version"] = json!("0.0.92");
+        let digest = plan::fingerprint(&document)?;
+        let bytes = serde_json::to_vec(&document)?;
+        let plan = Plan::parse(&bytes, &digest)?;
+        let journal = journal::Journal::open(&state, &plan, &digest)?;
+        if admitted {
+            journal.admit(&plan, &digest)?;
+        }
+        let provider = json!({"state":"cancelled", "operation_id":operation,
+            "operation":"remove", "plan_digest":hash, "expected_target_digest":hash,
+            "configuration_changed":false});
+        let result = outcome::cancellation(&plan, &digest, &provider, &hash);
+        let mut forged = result.clone();
+        forged["provider_result"]["operation_id"] = json!("another-operation");
+        assert!(journal.cancel(&plan, &digest, &forged).is_err());
+        journal.cancel(&plan, &digest, &result)?;
+        drop(journal);
+        assert_eq!(apply::apply(&state, &bytes, &digest, None)?, result);
+        assert_eq!(cancel::cancel(&state, &bytes, &digest)?, result);
+        assert!(!root.exists());
+    }
+    super::project_tests::prove(&state, &plan)?;
     Ok(())
 }
