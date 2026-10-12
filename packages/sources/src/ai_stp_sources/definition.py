@@ -40,7 +40,6 @@ from ai_stp_passports import (
 )
 from ai_stp_passports.versions import ComponentType, ProjectionKind, TargetScope
 from ai_stp_sources.archive import MAX_ARCHIVE_BYTES, reject_secret_name
-from ai_stp_sources.codex_identity import skill_identities
 from ai_stp_sources.errors import (
     CATALOG_COLLISION,
     INCOMPLETE_PASSPORT,
@@ -50,6 +49,7 @@ from ai_stp_sources.errors import (
     SourceError,
 )
 from ai_stp_sources.models import SourceSnapshot
+from ai_stp_sources.native_identity import identities
 from ai_stp_sources.resolve import validate_frozen_snapshot
 
 DEFINITION_V1: Final[str] = "ai-stp-setup-definition/1"
@@ -363,11 +363,9 @@ def _projection(draft: EmbeddedDraft) -> tuple[bytes, JsonValue]:
         path: content
         for path, (_source_name, content) in zip(draft.managed_paths, source_files, strict=True)
     }
-    native_ids = (
-        skill_identities(contents)
-        if draft.harness_id == "codex" and draft.component_type == "skill"
-        else {}
-    )
+    if len(contents) != len(source_files):
+        raise SourceError(INVALID_SOURCE, "embedded managed paths must be unique")
+    native_ids = identities(draft.harness_id, draft.component_type, contents)
     members: list[JsonValue] = [
         {
             "path": path,

@@ -83,12 +83,14 @@ self-update and the production switch remain C4/C6/C7 work.
 
 ## Contract
 
-The shared embedded-definition producer derives Codex skill IDs from mapped
-native files. The acquisition proof carries a real skill through Python freeze,
-Rust validation, SQLite, owned setup authoring and offline replay. Display names
-do not become invocation IDs, and acquired embedded members retain both
-verification flags as false. Other embedded harness/kind producer identities
-remain a separate qualification boundary.
+The shared embedded-definition producer derives native Markdown and MCP IDs from
+exact mapped files for the implemented readers, including harness-specific
+aliases, visibility and YAML dialects. The shared corpus covers accepted entries
+and refusals. The acquisition proof carries every supported identity route
+through Python freeze, strict Rust validation, SQLite and offline replay; a mixed
+setup also survives owned authoring. Display labels do not become invocation IDs,
+and acquired embedded members retain both verification flags as false. Existing
+immutable definitions are never re-sealed.
 
 `registry.rs` owns command definitions, parsing, descriptors and the registry
 digest. `help --json` is the current command reference; this document does not
