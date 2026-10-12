@@ -1776,7 +1776,7 @@ def _observed_harness_version(harness_id: str) -> str:
     if detector is None:
         return ""
     found = harnesses.detect(detector)
-    return found.installations[0].version if found.installations else ""
+    return harnesses.installed_version(found)
 
 
 def _verify(

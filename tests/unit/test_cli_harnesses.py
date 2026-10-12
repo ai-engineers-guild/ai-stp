@@ -111,6 +111,7 @@ def test_an_installed_harness_reports_its_path_version_and_reason(tmp_path: Path
     assert found.state == "installed"
     assert found.installations[0].path.casefold() == str(fake).casefold()
     assert found.installations[0].version == "2.1.223 (Claude Code)"
+    assert harnesses.installed_version(found) == "2.1.223"
     assert found.installations[0].reason
     assert found.configuration is None
 
@@ -195,6 +196,11 @@ def test_every_installation_is_listed_not_just_the_first(tmp_path: Path) -> None
 
     found = harnesses.detect(harnesses.DETECTORS[0], environment=environment)
     assert [item.version for item in found.installations] == ["1.0.0", "2.0.0"]
+    assert harnesses.installed_version(found) == "1.0.0"
+    _fake(first, "claude", answer="", code=3)
+    found = harnesses.detect(harnesses.DETECTORS[0], environment=environment)
+    assert harnesses.installed_version(found) == ""
+    assert found.installations[1].version == "2.0.0"
 
 
 def test_the_same_binary_reached_twice_is_one_installation(tmp_path: Path) -> None:

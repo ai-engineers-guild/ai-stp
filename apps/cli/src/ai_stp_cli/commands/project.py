@@ -1176,19 +1176,11 @@ def import_register(parameters: Mapping[str, object]) -> Answer[ImportedSetup]:
     def work(connection: sqlite3.Connection) -> ImportedSetup:
         at = moment()
         found = importing.inspect(root, harness_id=harness)
-        # Pin what the capture was captured against. One detection, best
-        # answer wins: the normalized token when the harness spoke, the raw
-        # line when it spoke unparseably, and honestly empty when this machine
-        # holds no answering installation — an imported tree from elsewhere is
-        # exactly that case.
+        # Record the observed comparable version without pinning the executable.
         detector = next((item for item in harnesses.DETECTORS if item.harness_id == harness), None)
         harness_version = ""
         if detector is not None:
-            detected = harnesses.detect(detector)
-            if detected.installations:
-                first = detected.installations[0]
-                if first.version != "unknown":
-                    harness_version = first.normalized_version or first.version
+            harness_version = harnesses.installed_version(harnesses.detect(detector))
         current, _warning = identity.load_or_create()
         imported = importing.register_graph(
             connection,

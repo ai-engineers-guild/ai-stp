@@ -175,6 +175,18 @@ class Found:
     reason: str
 
 
+def installed_version(found: Found) -> str:
+    """The comparable version of the executable selected first, or unknown.
+
+    A later installation must not substitute for the command the user runs.
+    Raw banners remain available in the discovery record.
+    """
+    if not found.installations:
+        return ""
+    first = found.installations[0]
+    return first.normalized_version or normalized_version(first.version)
+
+
 def config_root(detector: Detector, environment: dict[str, str] | None = None) -> Path:
     """Where this harness keeps user configuration, on this machine.
 
