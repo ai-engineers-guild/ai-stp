@@ -15,7 +15,6 @@ use crate::{
     projection::Scope,
     provider::Info,
     selection::{graph, sessions},
-    store::Store,
 };
 
 #[derive(Deserialize)]
@@ -134,7 +133,7 @@ fn bounded(result: Value) -> Result<Value> {
 pub fn read(parent: &Path, path: &Path) -> Result<Value> {
     let source = Source::parse(path)?;
     let identity = owner(parent)?;
-    let mut store = Store::planning(parent)?;
+    let mut store = identity.planning()?;
     let (selector, offline) = store.transaction(|t| {
         let selected = source.selected(t)?;
         let selector = selected.selector.clone();
@@ -155,7 +154,7 @@ pub fn read(parent: &Path, path: &Path) -> Result<Value> {
         &selector,
         &identity,
         |provider, artifact, report| {
-            let mut store = Store::planning(parent)?;
+            let mut store = identity.planning()?;
             store.transaction(|t| {
                 let selected = source.selected(t)?;
                 if selected.selector.harness_id != selector.harness_id {

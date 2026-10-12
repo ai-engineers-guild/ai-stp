@@ -135,6 +135,10 @@ Its physical parent, owner/device IDs and storage choice are bound to the plan.
 The loaded identity retains that opened parent; account journal admission uses
 the same directory handle. Renaming or replacing the path cannot redirect
 credentials or receipts into a substitute parent.
+Authoring, selection, bundle compilation and project installation attribution
+retain the same parent through their registry connections, including connections
+opened after provider observation. Read-only history remains available without
+loading an author or credential store.
 The small public intent remains the initialization receipt. Missing keys with an
 existing public record, substituted keys, revoked devices, conflicting receipts,
 or orphaned state are refused; initialization never replaces them. A local

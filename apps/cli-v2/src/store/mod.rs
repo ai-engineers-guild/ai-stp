@@ -8,6 +8,7 @@ mod vfs;
 
 use std::{path::Path, sync::OnceLock, time::Duration};
 
+use cap_std::fs::Dir;
 use rusqlite::{Connection, OpenFlags, Transaction, TransactionBehavior, config::DbConfig};
 
 use crate::{
@@ -74,13 +75,35 @@ fn expected_schema() -> Result<&'static Schema> {
 
 impl Store {
     pub fn open(parent: &Path, create: bool) -> Result<Self> {
-        Self::open_existing(parent, create, false)
+        let parent = Self::parent(parent)?;
+        Self::open_at(&parent, create)
+    }
+
+    pub(crate) fn open_at(parent: &Dir, create: bool) -> Result<Self> {
+        Self::open_existing(
+            parent
+                .try_clone()
+                .map_err(|_| Failure::precondition("the registry parent cannot be retained"))?,
+            create,
+            false,
+        )
     }
 
     /// A missing registry is represented in memory. Existing state is query-only:
     /// planning cannot bootstrap a directory or commit domain records.
     pub fn planning(parent: &Path) -> Result<Self> {
-        match Self::open_existing(parent, false, true) {
+        let parent = Self::parent(parent)?;
+        Self::planning_at(&parent)
+    }
+
+    pub(crate) fn planning_at(parent: &Dir) -> Result<Self> {
+        match Self::open_existing(
+            parent
+                .try_clone()
+                .map_err(|_| Failure::precondition("the registry parent cannot be retained"))?,
+            false,
+            true,
+        ) {
             Ok(store) => Ok(store),
             Err(error) if matches!(error.kind, ErrorKind::NotFound) => {
                 let connection = Connection::open_in_memory().map_err(database)?;
@@ -101,9 +124,12 @@ impl Store {
         }
     }
 
-    fn open_existing(parent: &Path, create: bool, planning: bool) -> Result<Self> {
-        let parent = cap_std::fs::Dir::open_ambient_dir(parent, cap_std::ambient_authority())
-            .map_err(|_| Failure::precondition("the registry parent cannot be opened"))?;
+    fn parent(parent: &Path) -> Result<Dir> {
+        Dir::open_ambient_dir(parent, cap_std::ambient_authority())
+            .map_err(|_| Failure::precondition("the registry parent cannot be opened"))
+    }
+
+    fn open_existing(parent: Dir, create: bool, planning: bool) -> Result<Self> {
         let directory =
             OwnedDirectory::open_at(&parent, NAMESPACE, OWNER, create)?.ok_or_else(|| {
                 Failure::new(
