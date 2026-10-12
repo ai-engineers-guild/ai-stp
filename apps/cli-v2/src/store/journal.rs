@@ -5,6 +5,14 @@ use rusqlite::{Connection, OptionalExtension};
 use super::database;
 use crate::error::{ErrorKind, Failure, Result};
 
+/// Admission to historical, query-only replay. Each domain still validates its
+/// exact digest or retained plan in its own receipt format before returning.
+pub(crate) fn finished(connection: &Connection, id: &str, kind: &str) -> Result<bool> {
+    connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM operation WHERE operation_id=? AND kind=? AND state IN ('verified','completed') AND finished_at IS NOT NULL)",
+        [id, kind], |row| row.get(0)).map_err(database)
+}
+
 pub(crate) fn state(
     connection: &Connection,
     id: &str,

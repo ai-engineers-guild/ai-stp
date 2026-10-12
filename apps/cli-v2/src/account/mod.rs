@@ -1,5 +1,6 @@
 //! Explicit isolated account sessions. Authentication does not transfer local ownership.
 
+pub(crate) mod attachment;
 mod journal;
 mod model;
 #[cfg(all(test, unix))]
@@ -97,7 +98,7 @@ pub fn plan(
             .as_ref()
             .map_or("github", |s| s.plan.provider.as_str())
     });
-    let plan = Plan {
+    let mut plan = Plan {
         schema_version: 1,
         action,
         operation_id: format!("operation_{}", ulid::Ulid::generate()),
@@ -114,14 +115,28 @@ pub fn plan(
         origin,
         provider: provider.into(),
         expected_revision: state.as_ref().map(|s| s.revision.clone()),
+        attachment: None,
     };
+    if action == Action::Attach {
+        let state = state.as_ref().ok_or_else(invalid)?;
+        let Session::Authorized { account_id, .. } = &state.session else {
+            return Err(invalid());
+        };
+        let store = crate::store::Store::planning_at(identity.root_directory())?;
+        plan.attachment = Some(attachment::selection(
+            &store.connection,
+            &plan.identity,
+            account_id,
+            at,
+        )?);
+    }
     plan.validate()?;
     precondition(&plan, state.as_ref(), at)?;
     Ok(plan)
 }
 
 pub fn read_plan(path: &Path) -> Result<Plan> {
-    let value = canonical::parse(&files::read(path, 65536)?)?;
+    let value = canonical::parse(&files::read(path, 4 * 1024 * 1024)?)?;
     let plan: Plan = serde_json::from_value(value.clone()).map_err(|_| invalid())?;
     plan.validate()?;
     if crate::digest::canonical("ai-stp:plan:v1", &value)? != plan.digest()? {
@@ -161,6 +176,21 @@ fn precondition(plan: &Plan, state: Option<&State>, at: &str) -> Result<()> {
             }),
         ) if at >= next_poll_at.as_str() || at >= expires_at.as_str() => Ok(()),
         (Action::Refresh, Some(Session::Authorized { .. })) => Ok(()),
+        (
+            Action::Attach,
+            Some(Session::Authorized {
+                account_id,
+                expires_at,
+                ..
+            }),
+        ) if at < expires_at.as_str()
+            && plan
+                .attachment
+                .as_ref()
+                .is_some_and(|s| s.account_id == *account_id) =>
+        {
+            Ok(())
+        }
         (Action::Logout, Some(_)) => Ok(()),
         (Action::Poll, Some(Session::Pending { .. })) => Err(Failure::precondition(
             "the authorization polling interval has not elapsed",
@@ -176,9 +206,13 @@ pub fn status(root: &Path, at: &str) -> Result<Value> {
         return Err(invalid());
     }
     let identity = identity_at(root)?;
-    let Some(journal) = Journal::open(&identity, false)? else {
+    let journal = Journal::open(&identity, false)?;
+    let store = crate::store::Store::planning_at(identity.root_directory())?;
+    let owner = attachment::effective(&store.connection, &identity.context())?;
+    drop(store);
+    let Some(journal) = journal else {
         return Ok(
-            json!({"schema_version":1,"session":{"state":"absent"},"owner_attached":false,"online_verified":false}),
+            json!({"schema_version":1,"session":{"state":"absent"},"owner_attached":owner != identity.context(),"effective_owner_id":owner.account_id,"online_verified":false}),
         );
     };
     let state = journal.state()?;
@@ -190,6 +224,8 @@ pub fn status(root: &Path, at: &str) -> Result<Value> {
         check_binding(&identity, &pending.plan)?;
     }
     let mut result=state.map_or_else(||json!({"schema_version":1,"session":{"state":"absent"},"owner_attached":false,"online_verified":false}),|s|s.public(at));
+    result["owner_attached"] = (owner != identity.context()).into();
+    result["effective_owner_id"] = owner.account_id.into();
     result["pending_operation"] = match pending {
         Some(p) => json!({"plan":p.plan,"plan_digest":p.plan.digest()?}),
         None => Value::Null,
@@ -203,6 +239,9 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
         return Err(invalid());
     }
     let identity = bind(plan)?;
+    if plan.action == Action::Attach {
+        return attachment::apply(plan, &identity, at);
+    }
     let existing = Journal::open(&identity, false)?;
     if existing.is_none() && (at < plan.created_at.as_str() || at > plan.expires_at.as_str()) {
         return Err(Failure::precondition(
@@ -302,6 +341,7 @@ fn execute(
 ) -> Result<(Session, Outcome)> {
     let api = Api::new(&plan.origin)?;
     match plan.action {
+        Action::Attach => Err(invalid()),
         Action::Start => {
             // Preserve the first attempt's deadline across idempotent start retries.
             if at >= after(requested_at, 1800)?.as_str() {

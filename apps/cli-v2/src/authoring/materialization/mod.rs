@@ -214,7 +214,9 @@ fn build(
     verify(connection, &before)?;
     if request.output == Mode::Owned {
         let head = objects.head("component", &request.source.stable_id)?;
-        if before["owner_id"] != identity.account_id || head["owner_id"] != identity.account_id {
+        if !crate::account::attachment::retained(connection, &identity.account_id, &before)?
+            || head["owner_id"] != identity.account_id
+        {
             return Err(invalid());
         }
     }

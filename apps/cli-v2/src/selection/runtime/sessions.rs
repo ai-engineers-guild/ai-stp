@@ -184,6 +184,54 @@ pub fn apply(path: &Path, expected: &str) -> Result<Value> {
         return Err(invalid());
     }
     let identity = owner(&plan.state_parent)?;
+    let planned: crate::authoring::Identity =
+        serde_json::from_value(plan.operation["identity"].clone()).map_err(|_| invalid())?;
+    if planned != *identity {
+        if planned != identity.original() {
+            return Err(invalid());
+        }
+        let mut store = identity.planning()?;
+        return match plan.operation["action"].as_str().ok_or_else(invalid)? {
+            "selection.propose" => {
+                let operation: sessions::Plan =
+                    serde_json::from_value(plan.operation).map_err(|_| invalid())?;
+                let digest = operation.digest()?;
+                store.transaction(|t| {
+                    value(
+                        &sessions::proposed(t, &operation, &digest, &planned, &moment())?
+                            .ok_or_else(invalid)?,
+                    )
+                })
+            }
+            "selection.confirm" => {
+                let operation: sessions::Decision =
+                    serde_json::from_value(plan.operation).map_err(|_| invalid())?;
+                let digest = operation.digest()?;
+                store.transaction(|t| {
+                    value(
+                        &sessions::confirmed(t, &operation, &digest, &planned, &moment())?
+                            .ok_or_else(invalid)?,
+                    )
+                })
+            }
+            "selection.cancel" => {
+                let operation: sessions::Decision =
+                    serde_json::from_value(plan.operation).map_err(|_| invalid())?;
+                operation.validate(
+                    &operation.digest()?,
+                    &planned,
+                    &moment(),
+                    "selection.cancel",
+                )?;
+                let held = sessions::read(&mut store, &operation.proposal_id)?;
+                if held.cancelled_at.is_none() || held.snapshot != operation.snapshot {
+                    return Err(invalid());
+                }
+                value(&held)
+            }
+            _ => Err(invalid()),
+        };
+    }
     match plan.operation["action"].as_str().ok_or_else(invalid)? {
         "selection.propose" => apply_proposal(&plan, &identity),
         "selection.confirm" => apply_confirmation(&plan, &identity),
