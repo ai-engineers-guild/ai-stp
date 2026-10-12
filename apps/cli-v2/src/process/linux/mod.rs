@@ -19,7 +19,7 @@ use std::{
         },
     },
     path::{Path, PathBuf},
-    process::{Output, Stdio},
+    process::{Child, Command as ProcessCommand, Output, Stdio},
     sync::OnceLock,
     thread,
     time::Duration,
@@ -33,6 +33,7 @@ use crate::error::{Failure, Result};
 
 /// Internal descriptor-only worker entry; not a public command or authority input.
 pub const FLAG: &str = "--ai-stp-provider-worker";
+pub const SUPERVISOR_FLAG: &str = "--ai-stp-provider-supervisor";
 const MAX_IMAGE: u64 = 512 * 1024 * 1024;
 const MAX_REQUEST: usize = 64 * 1024;
 
@@ -72,6 +73,17 @@ fn image() -> Result<&'static File> {
         .get_or_init(seal_image)
         .as_ref()
         .map_err(|_| unavailable())
+}
+
+struct Worker(Child);
+
+impl Drop for Worker {
+    fn drop(&mut self) {
+        // The owned child cannot be PID-reused before wait. Before attachment
+        // it can only wait at the gate; afterwards the service owns descendants.
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
 }
 
 #[derive(Deserialize, Serialize)]
@@ -159,8 +171,23 @@ pub(super) fn invoke(
     channel
         .set_write_timeout(Some(Duration::from_secs(5)))
         .map_err(|_| unavailable())?;
-    let service = service::Service::start(image()?, &remote, request.timeout)?;
-    drop(remote);
+    let image = image()?;
+    let service = service::Service::start(image, request.timeout)?;
+    // Preserve the caller's mount namespace, including private temporary
+    // directories. The sealed worker cannot spawn until attached and verified.
+    let worker = Worker(
+        ProcessCommand::new("/proc/self/fd/0")
+            .args([FLAG, service.name(), &std::process::id().to_string()])
+            .env_clear()
+            .current_dir("/")
+            .stdin(Stdio::from(image.try_clone().map_err(|_| unavailable())?))
+            .stdout(Stdio::from(OwnedFd::from(remote)))
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|_| unavailable())?,
+    );
+    service.attach(worker.0.id())?;
+    channel.write_all(&[1]).map_err(|_| unavailable())?;
     // All capabilities remain held until sendmsg has transferred them. No path
     // in the manager's potentially different mount namespace names these inputs.
     let mut files = vec![executable.as_fd(), input.as_fd()];
@@ -174,6 +201,7 @@ pub(super) fn invoke(
     // Closing the private lease also stops a worker interrupted while returning.
     drop(channel);
     drop(service);
+    drop(worker);
     Ok(output)
 }
 
@@ -225,10 +253,31 @@ fn local_executable(received: File) -> Result<File> {
     Ok(local)
 }
 
-/// Runs only with a sealed bootstrap image and the named service's actual cgroup.
-/// The private socket is both a bounded protocol and the lifetime lease.
-pub fn worker(unit: &OsStr) -> Result<()> {
+/// The service main owns a separate lease even if the execution worker freezes.
+pub fn supervise(unit: &OsStr) -> Result<()> {
     membership(unit)?;
+    let mut channel = UnixStream::from(
+        std::io::stdout()
+            .as_fd()
+            .try_clone_to_owned()
+            .map_err(|_| unavailable())?,
+    );
+    channel.write_all(&[1]).map_err(|_| unavailable())?;
+    let mut byte = [0];
+    // EOF, unexpected traffic and I/O failure all retire the service main;
+    // systemd kills the complete group under the verified lifetime policy.
+    let _ = channel.read(&mut byte);
+    Ok(())
+}
+
+/// The caller-created worker waits for attachment before accepting any work.
+pub fn worker(unit: &OsStr, parent: &OsStr) -> Result<()> {
+    rustix::process::set_parent_process_death_signal(Some(rustix::process::Signal::KILL))
+        .map_err(|_| unavailable())?;
+    let expected = parent.to_str().and_then(|s| s.parse::<u32>().ok());
+    if expected.is_none() || rustix::process::getppid().map(|p| p.as_raw_pid() as u32) != expected {
+        return Err(unavailable());
+    }
     let mut channel = UnixStream::from(
         std::io::stdout()
             .as_fd()
@@ -241,6 +290,12 @@ pub fn worker(unit: &OsStr) -> Result<()> {
     channel
         .set_write_timeout(Some(Duration::from_secs(5)))
         .map_err(|_| unavailable())?;
+    let mut gate = [0];
+    channel.read_exact(&mut gate).map_err(|_| unavailable())?;
+    if gate != [1] {
+        return Err(unavailable());
+    }
+    membership(unit)?;
     let mut files = transport::receive(&channel)?.into_iter();
     let executable = local_executable(File::from(files.next().ok_or_else(unavailable)?))?;
     let input = File::from(files.next().ok_or_else(unavailable)?);
