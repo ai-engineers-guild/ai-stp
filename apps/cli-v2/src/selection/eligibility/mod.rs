@@ -36,6 +36,8 @@ pub struct Target {
     /// Exact object:major rights already established by the owning runtime.
     pub grants: BTreeSet<String>,
     pub pinned_passport_digests: BTreeSet<String>,
+    /// Exact historical ownership established by the local attachment receipt.
+    pub owned_passport_digests: BTreeSet<String>,
     pub for_redistribution: bool,
 }
 
@@ -106,7 +108,11 @@ pub fn assess(
             "eligibility requires a bounded target and evidence for the exact passport",
         ));
     }
-    let own = !target.owner_id.is_empty() && document["owner_id"] == target.owner_id;
+    let own = !target.owner_id.is_empty()
+        && (document["owner_id"] == target.owner_id
+            || target
+                .owned_passport_digests
+                .contains(&evidence.passport_digest));
     let local = own
         || target
             .pinned_passport_digests

@@ -78,6 +78,18 @@ impl OwnedDirectory {
     }
 
     pub fn open_at(parent: &Dir, name: &str, owner: &[u8], create: bool) -> Result<Option<Self>> {
+        Self::open_compatible(parent, name, owner, &[], create)
+    }
+
+    /// Accept an explicitly supported previous marker only after acquiring the
+    /// namespace lock. The caller owns any monotonic format transition.
+    pub(crate) fn open_compatible(
+        parent: &Dir,
+        name: &str,
+        owner: &[u8],
+        compatible: &[&[u8]],
+        create: bool,
+    ) -> Result<Option<Self>> {
         if create {
             let mut builder = DirBuilder::new();
             builder.recursive(false);
@@ -177,7 +189,7 @@ impl OwnedDirectory {
         };
         let expected_owner = owner;
         match owned.read_file("owner", 256)? {
-            Some(owner) if owner == expected_owner => {}
+            Some(owner) if owner == expected_owner || compatible.contains(&owner.as_slice()) => {}
             held if expected_owner.starts_with(held.as_deref().unwrap_or_default()) => {
                 if owned
                     .directory

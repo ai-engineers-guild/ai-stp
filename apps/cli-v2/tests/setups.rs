@@ -745,6 +745,7 @@ fn exact_setup_closure_constraints_atomicity_and_replay() -> Result<(), Box<dyn 
         env_present: Default::default(),
         grants: Default::default(),
         pinned_passport_digests: Default::default(),
+        owned_passport_digests: Default::default(),
         for_redistribution: false,
     };
     let declarations: Vec<Value> =

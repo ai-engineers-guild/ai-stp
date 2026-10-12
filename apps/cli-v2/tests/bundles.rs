@@ -47,6 +47,7 @@ fn target(harness: &str, scope: Scope) -> Target {
         env_present: Default::default(),
         grants: Default::default(),
         pinned_passport_digests: Default::default(),
+        owned_passport_digests: Default::default(),
         for_redistribution: false,
     }
 }

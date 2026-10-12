@@ -61,12 +61,27 @@ impl std::ops::Deref for Owner {
 }
 
 impl Owner {
+    fn checked(&self, store: Store) -> Result<Store> {
+        if crate::account::attachment::effective(&store.connection, &self.device.context())?
+            != self.context
+        {
+            return Err(Failure::precondition(
+                "the registry owner changed after this author was loaded",
+            ));
+        }
+        Ok(store)
+    }
+
     pub(crate) fn planning(&self) -> Result<Store> {
-        Store::planning_at(self.device.root_directory())
+        self.checked(Store::planning_at(self.device.root_directory())?)
     }
 
     pub(crate) fn open(&self, create: bool) -> Result<Store> {
-        Store::open_at(self.device.root_directory(), create)
+        self.checked(Store::open_at(self.device.root_directory(), create)?)
+    }
+
+    pub(crate) fn original(&self) -> Identity {
+        self.device.context()
     }
 }
 
@@ -74,10 +89,9 @@ pub(crate) fn owner(parent: &Path) -> Result<Owner> {
     let device = identity::current(parent)?.ok_or_else(|| Failure::precondition(
         "initialize the isolated native identity before planning or applying authoring operations"
     ))?;
-    Ok(Owner {
-        context: device.context(),
-        device,
-    })
+    let store = Store::planning_at(device.root_directory())?;
+    let context = crate::account::attachment::effective(&store.connection, &device.context())?;
+    Ok(Owner { context, device })
 }
 
 fn moment() -> String {
@@ -107,11 +121,8 @@ fn execute<T: DeserializeOwned>(plan: Plan, apply: Apply<T>) -> Result<Value> {
     // Decode the closed domain plan before opening a writable database.
     let operation: T = serde_json::from_value(plan.operation.clone()).map_err(|_| invalid())?;
     let identity = owner(&plan.state_parent)?;
-    if plan.operation["identity"] != serde_json::to_value(&*identity).map_err(|_| invalid())? {
-        return Err(Failure::precondition(
-            "the local identity differs from the planned author",
-        ));
-    }
+    let planned: Identity =
+        serde_json::from_value(plan.operation["identity"].clone()).map_err(|_| invalid())?;
     let created = plan.operation["created_at"].as_str().ok_or_else(invalid)?;
     let expires = plan.operation["expires_at"].as_str().ok_or_else(invalid)?;
     let operation_id = plan.operation["operation_id"]
@@ -124,6 +135,29 @@ fn execute<T: DeserializeOwned>(plan: Plan, apply: Apply<T>) -> Result<Value> {
         return Err(invalid());
     }
     let at = moment();
+    let digest = digest::canonical("ai-stp:plan:v1", &plan.operation)?;
+    if planned != *identity {
+        // Historical replay is query-only and must identify the exact completed
+        // effect. An unexecuted old plan cannot recover former owner authority.
+        if planned != identity.original() {
+            return Err(invalid());
+        }
+        let mut store = identity.planning()?;
+        if crate::store::journal::state(
+            &store.connection,
+            operation_id,
+            plan.operation["action"].as_str().ok_or_else(invalid)?,
+            &digest,
+        )?
+        .as_deref()
+            != Some("verified")
+        {
+            return Err(Failure::precondition(
+                "the local identity differs from the unexecuted planned author",
+            ));
+        }
+        return apply(&mut store, &operation, &digest, &planned, &at);
+    }
     let mut store = match identity.open(false) {
         Ok(store) => store,
         Err(error) if matches!(error.kind, ErrorKind::NotFound) => {
@@ -136,7 +170,6 @@ fn execute<T: DeserializeOwned>(plan: Plan, apply: Apply<T>) -> Result<Value> {
         }
         Err(error) => return Err(error),
     };
-    let digest = digest::canonical("ai-stp:plan:v1", &plan.operation)?;
     apply(&mut store, &operation, &digest, &identity, &at)
 }
 
