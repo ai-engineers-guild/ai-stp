@@ -333,6 +333,7 @@ fn execute(
             let session = session.ok_or_else(invalid)?;
             match refresh(&api, plan, &session, identity, at)? {
                 Reply::Resource(tokens) => Ok((authorized(tokens, at)?, Outcome::Authorized)),
+                Reply::Refused(Code::Revoked) => Ok(closed("device_revoked", Outcome::Revoked)),
                 Reply::Refused(Code::Unauthorized | Code::Forbidden) => {
                     Ok(closed("credentials_rejected", Outcome::Refused))
                 }
@@ -386,12 +387,13 @@ fn remote_logout(
                 return Ok(true);
             }
             Reply::Refused(Code::Unauthorized | Code::Forbidden) => {}
+            Reply::Refused(Code::Revoked) => return Ok(false),
             _ => return Err(invalid()),
         }
     }
     let tokens = match refresh(api, plan, session, identity, at)? {
         Reply::Resource(tokens) => tokens,
-        Reply::Refused(Code::Unauthorized | Code::Forbidden) => return Ok(false),
+        Reply::Refused(Code::Unauthorized | Code::Forbidden | Code::Revoked) => return Ok(false),
         _ => return Err(invalid()),
     };
     match api.post::<transport::Logout>("logout", b"{}", Some(&tokens.access_token))? {
@@ -444,6 +446,9 @@ fn poll(api: &Api, plan: &Plan, session: Session, at: &str) -> Result<(Session, 
         }
         Reply::Refused(Code::Declined) => {
             return Ok(closed("authorization_declined", Outcome::Declined));
+        }
+        Reply::Refused(Code::Revoked) => {
+            return Ok(closed("device_revoked", Outcome::Revoked));
         }
         Reply::Refused(Code::Pending) => Outcome::Pending,
         Reply::Refused(Code::SlowDown) => {
@@ -619,6 +624,7 @@ fn validate_session(state: &State) -> Result<()> {
             if !matches!(
                 reason.as_str(),
                 "exchange_response_unknown"
+                    | "device_revoked"
                     | "authorization_expired"
                     | "authorization_refused"
                     | "authorization_declined"

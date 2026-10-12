@@ -67,6 +67,77 @@ fn generated() -> String {
 }
 
 #[test]
+fn server_device_revocation_clears_credentials_and_has_a_distinct_receipt()
+-> std::result::Result<(), Box<dyn Error>> {
+    let root = tempfile::tempdir()?;
+    let at = format!("{:.3}", jiff::Timestamp::now());
+    let initialization = identity::plan(root.path(), identity::Storage::File, &at)?;
+    let device = identity::apply(&initialization, &initialization.digest()?, &at)?;
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let origin = format!("http://{}", listener.local_addr()?);
+    let access = generated();
+    let refresh = generated();
+    let responses = [
+        (
+            201,
+            json!({"schema_version":1,"device_code":generated(),"user_code":"ABCD-1234","verification_uri":format!("{origin}/en/device-login"),"verification_uri_complete":format!("{origin}/en/device-login?user_code=ABCD-1234"),"expires_in":600,"interval":1}),
+        ),
+        (
+            200,
+            json!({"schema_version":1,"access_token":access,"refresh_token":refresh,"token_type":"Bearer","expires_in":600,"account_id":format!("account_{}",ulid::Ulid::generate()),"device_id":device.context().device_id}),
+        ),
+        (
+            403,
+            json!({"schema_version":1,"ok":false,"error":{"code":"AI_STP_DEVICE_REVOKED"}}),
+        ),
+    ];
+    let worker = thread::spawn(move || -> std::io::Result<()> {
+        for (route, (status, response)) in ["device", "device/token", "device/refresh"]
+            .into_iter()
+            .zip(responses)
+        {
+            let mut socket = accept(&listener)?;
+            let (header, _) = receive(&mut socket)?;
+            assert!(header.starts_with(&format!("POST /v1/auth/{route} HTTP/1.1")));
+            respond(&mut socket, status, response)?;
+        }
+        Ok(())
+    });
+    let start = plan(root.path(), Action::Start, Some(&origin), None, &at)?;
+    apply(&start, &start.digest()?, &at)?;
+    let clock = after(&at, 2)?;
+    let poll = plan(root.path(), Action::Poll, None, None, &clock)?;
+    apply(&poll, &poll.digest()?, &clock)?;
+    let refresh_plan = plan(root.path(), Action::Refresh, None, None, &clock)?;
+    let revoked = apply(&refresh_plan, &refresh_plan.digest()?, &clock)?;
+    worker.join().map_err(|_| "revocation fixture failed")??;
+    assert_eq!(revoked["outcome"], "revoked");
+    assert_eq!(
+        status(root.path(), &clock)?["session"],
+        json!({"state":"closed","reason":"device_revoked"})
+    );
+    assert!(plan(root.path(), Action::Refresh, None, None, &clock).is_err());
+    assert_eq!(
+        apply(&refresh_plan, &refresh_plan.digest()?, &clock)?,
+        revoked
+    );
+    for entry in fs::read_dir(root.path().join("ai-stp-v2-account"))? {
+        let entry = entry?;
+        if entry.file_type()?.is_file() {
+            let content = fs::read(entry.path())?;
+            for secret in [&access, &refresh] {
+                assert!(
+                    !content
+                        .windows(secret.len())
+                        .any(|v| v == secret.as_bytes())
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn account_flow_keeps_secrets_private_and_recovers_without_reexchanging()
 -> std::result::Result<(), Box<dyn Error>> {
     let root = tempfile::tempdir()?;

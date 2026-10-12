@@ -135,6 +135,7 @@ pub(super) enum Outcome {
     Closed,
     Expired,
     Declined,
+    Revoked,
     RateLimited,
     ExchangeUnknown,
     RequestUnknown,

@@ -44,6 +44,8 @@ pub(super) enum Code {
     Unauthorized,
     #[serde(rename = "AI_STP_PERMISSION_DENIED")]
     Forbidden,
+    #[serde(rename = "AI_STP_DEVICE_REVOKED")]
+    Revoked,
     #[serde(other)]
     Other,
 }
