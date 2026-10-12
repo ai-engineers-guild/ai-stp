@@ -2,49 +2,49 @@
   "antigravity": {
     "artifact_digest": "sha256:3aff1c1f3d67079337e7f8468a041e1ecdf581b94ce6beebbc7d6b51e3f29612",
     "commit": "4fa1bcaadaf37dc93808106d3758c64e992204e2",
-    "repository": "github.com/NDDev-OpenNetwork/antigravity-setup-system",
+    "repository": "github.com/NDDev-Technocracy-Sandbox/antigravity-setup-system",
     "tag": "0.0.89",
     "trust_level": "verified_publisher"
   },
   "claude-code": {
     "artifact_digest": "sha256:ff1ff6299e60a073aab8b91f471a16151ab9d92fc6a146d1f16ac565c38f5f37",
     "commit": "ab8860fcf0a79729aa41b8451f523775884d0ed2",
-    "repository": "github.com/NDDev-OpenNetwork/claude-setup-system",
+    "repository": "github.com/NDDev-Technocracy-Sandbox/claude-setup-system",
     "tag": "0.0.89",
     "trust_level": "verified_publisher"
   },
   "codex": {
     "artifact_digest": "sha256:84967e0a499460f3b22a83690ad232dd01e18d9ed70dd1b500564c6c651856af",
     "commit": "4d0c54cf986a44c3dbf0a81e4d9a22cf24d4f312",
-    "repository": "github.com/NDDev-OpenNetwork/codex-setup-system",
+    "repository": "github.com/NDDev-Technocracy-Sandbox/codex-setup-system",
     "tag": "0.0.89",
     "trust_level": "verified_publisher"
   },
   "cursor": {
     "artifact_digest": "sha256:78b48c436a2169c344fdf7965e52b38adbde442e8d49eb5249dec2c58449aed3",
     "commit": "f9934785fe0ec51842284f3b57dcab192cc88a2d",
-    "repository": "github.com/NDDev-OpenNetwork/cursor-setup-system",
+    "repository": "github.com/NDDev-Technocracy-Sandbox/cursor-setup-system",
     "tag": "0.0.89",
     "trust_level": "verified_publisher"
   },
   "grok-build": {
     "artifact_digest": "sha256:203f7e5b20bd31d4132e71ebdf5f3686083393503478a16f8a83eafd6e92c02a",
     "commit": "527db9b6c8ba21dbdac4c62a9e96654cec6904f7",
-    "repository": "github.com/NDDev-OpenNetwork/grok-setup-system",
+    "repository": "github.com/NDDev-Technocracy-Sandbox/grok-setup-system",
     "tag": "0.0.89",
     "trust_level": "verified_publisher"
   },
   "opencode": {
     "artifact_digest": "sha256:a02bacf7bb5a4b90df8bf5b933eb2d923bcaba283c1b871898ef64a2d4ae8041",
     "commit": "a88a30e0ea9f5f97bf779787a9e2d48c1daa6813",
-    "repository": "github.com/NDDev-OpenNetwork/opencode-setup-system",
+    "repository": "github.com/NDDev-Technocracy-Sandbox/opencode-setup-system",
     "tag": "0.0.89",
     "trust_level": "verified_publisher"
   },
   "pi": {
     "artifact_digest": "sha256:c4fef00fb77ce0eeec9180673d17b2628bd1d4782c70d89f5255e37030e5eb8a",
     "commit": "41e3f27103fc15ec99347a227b0317f0efaa2a6f",
-    "repository": "github.com/NDDev-OpenNetwork/pi-setup-system",
+    "repository": "github.com/NDDev-Technocracy-Sandbox/pi-setup-system",
     "tag": "0.0.89",
     "trust_level": "verified_publisher"
   }
