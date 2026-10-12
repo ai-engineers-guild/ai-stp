@@ -105,7 +105,7 @@ Preparation, environment checks, idempotence, and PyPI readback belong to
 The repository gate does not depend on provider networks or a deployed account.
 The inventory and meaning of release evidence belong to
 [release-evidence.md](../engineering/release-evidence.md). Its current workflows
-are `config-evidence.yml`, `software-evidence.yml`, and `platform-evidence.yml`.
+are `config-evidence.yml` and `platform-evidence.yml`.
 A local or CI test of one operating system does not prove the other native
 OS/architecture legs. Missing launch evidence remains `not_verified`.
 

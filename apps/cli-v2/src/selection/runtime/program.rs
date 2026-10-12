@@ -1,4 +1,4 @@
-//! Explicit program prefixes are observations, never caller-supplied versions.
+//! User-installed executables are observations, never caller-supplied versions.
 
 use std::path::{Path, PathBuf};
 
@@ -10,14 +10,13 @@ use super::{Identity, Selector, Target, invalid};
 use crate::{
     error::{Failure, Result},
     files,
-    provider::runtime,
 };
 
 #[derive(Clone, Serialize)]
 #[serde(transparent)]
-pub(super) struct Prefix(#[serde(serialize_with = "files::serialize_path")] pub PathBuf);
+pub(super) struct Executable(#[serde(serialize_with = "files::serialize_path")] pub PathBuf);
 
-impl<'de> Deserialize<'de> for Prefix {
+impl<'de> Deserialize<'de> for Executable {
     fn deserialize<D: serde::Deserializer<'de>>(
         deserializer: D,
     ) -> std::result::Result<Self, D::Error> {
@@ -40,29 +39,21 @@ impl Selector {
         identity: &Identity,
     ) -> Result<(Target, Option<String>)> {
         let mut target = self.target(identity)?;
-        let digest = if let Some(prefix) = &self.program_prefix {
-            let report =
-                runtime::program_observe_in(connection, parent, &self.harness_id, &prefix.0)?;
-            if report["state"] != "verified" || report["program_observed"] != true {
-                return Err(Failure::precondition(
-                    "the explicit program prefix has no current verified installation",
-                )
-                .with_details([("program".into(), report)]));
-            }
-            target.harness_version = report["observation"]["software_version"]
+        let _ = (connection, parent);
+        let report = crate::program::observe(
+            &self.harness_id,
+            self.harness_executable
+                .as_ref()
+                .map(|executable| executable.0.as_path()),
+        )?;
+        target.harness_version = report["version"].as_str().unwrap_or("").into();
+        target.validate()?;
+        let digest = Some(
+            report["observation_digest"]
                 .as_str()
                 .ok_or_else(invalid)?
-                .into();
-            target.validate()?;
-            Some(
-                report["observation_digest"]
-                    .as_str()
-                    .ok_or_else(invalid)?
-                    .into(),
-            )
-        } else {
-            None
-        };
+                .into(),
+        );
         Ok((target, digest))
     }
 }

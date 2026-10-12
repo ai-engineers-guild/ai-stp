@@ -28,6 +28,30 @@ fn public_pypi_evidence_and_adversarial_variants() -> Result<(), Box<dyn Error>>
         accepted.source_commit,
         record["source_commit"].as_str().ok_or("commit")?
     );
+    let mut moved = expected.clone();
+    moved.repository = moved
+        .repository
+        .replace("NDDev-OpenNetwork", "NDDev-Technocracy-Sandbox");
+    let accepted = provenance::verify_any(
+        filename,
+        sha256,
+        &serde_json::to_vec(&original)?,
+        &[moved.clone(), expected.clone()],
+        &root,
+    )?;
+    assert_eq!(accepted.publisher, expected);
+    let mut forged = original.clone();
+    forged["attestation_bundles"][0]["publisher"]["repository"] = moved.repository.clone().into();
+    assert!(
+        provenance::verify_any(
+            filename,
+            sha256,
+            &serde_json::to_vec(&forged)?,
+            &[moved, expected.clone()],
+            &root,
+        )
+        .is_err()
+    );
 
     for case in [
         "digest",

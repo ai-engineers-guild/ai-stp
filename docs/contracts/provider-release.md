@@ -48,7 +48,8 @@ is refused, because the digest and name checked here must belong to the bytes
 that run.
 
 The shipped policy marks `build_attestations` rules for
-`NDDev-OpenNetwork/*-setup-system` as `verified_publisher`. After successful
+`NDDev-OpenNetwork/*-setup-system` and
+`NDDev-Technocracy-Sandbox/*-setup-system` as `verified_publisher`. After successful
 GitHub attestation verification, the level becomes `verified_publisher`, not
 `build_attested`. A manifest whose `repository` matches these rules is verified
 through the attestation path; `provider-build-attestation` remains an explicit
@@ -59,6 +60,12 @@ The same seven providers are also pinned as `[[index_publishers]]` tables:
 `pypi_project`, PEP 740 `repository` (`owner/name`), `workflow`, `environment`,
 and `verified_publisher`. Automatic missing-provider acquisition uses the index
 under ADR-0171. An explicitly selected GitHub fetch remains available.
+A project may pin several distinct publisher triples during a repository
+transfer. Duplicate triples are refused. Each file must still pass signature,
+digest, transparency and exact publisher checks against one pinned triple;
+unsigned index metadata cannot authorize a new identity. Bound manifests retain
+the verified repository and publisher, including when revalidated from cache.
+Historical signatures retain their original repository identity.
 Empty `index_publishers` is the rollback: every wheel-delivered provider stays
 `unverified` (`REQ-851`). Cryptographic verification of a PEP 740 bundle uses
 `pypi-attestations` the way GitHub verification uses `gh`; its absence is

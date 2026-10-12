@@ -229,6 +229,7 @@ last_verified: "2026-08-03"
 | [ADR-0229-corporate-repository-sources.md](ADR-0229-corporate-repository-sources.md) | Bind a corporate project repository without manufacturing a local CLI identity. | 2026-10-08 |
 | [ADR-0230-corporate-participation-and-people-visibility.md](ADR-0230-corporate-participation-and-people-visibility.md) | Participation roles on projects, a scoped teammates projection, an organization people-visibility policy, and category as a binding scope. | 2026-10-02 |
 | [ADR-0231-technology-finding-interpretation.md](ADR-0231-technology-finding-interpretation.md) | Keep owner finding decisions separate from immutable technology scan evidence. | 2026-10-08 |
+| [ADR-0232-harness-executables-remain-user-managed.md](ADR-0232-harness-executables-remain-user-managed.md) | ai-stp observes harness executables and manages configuration, without installing or updating the harness. | 2026-10-12 |
 | [binding.md](binding.md) | Which accepted ADRs still constrain non-corporate work; default is binding. | 2026-09-20 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 

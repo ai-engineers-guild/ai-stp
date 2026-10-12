@@ -244,8 +244,12 @@ def _index_evidence(
     stored_document: str | None = None,
 ) -> ReleaseEvidence:
     project = manifest.provider_id
-    rule = policy.index_publishers.get(project)
-    if rule is None or f"github.com/{rule.repository}" != manifest.repository:
+    rules = tuple(
+        rule
+        for rule in policy.index_publishers.get(project, ())
+        if f"github.com/{rule.repository}" == manifest.repository
+    )
+    if not rules:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED", "the provider wheel has no acceptable PEP 740 provenance"
         )
@@ -299,7 +303,7 @@ def _index_evidence(
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED", "the provider wheel has no acceptable PEP 740 provenance"
         )
-    evidence = index_attestation.verify(wheel, cast(dict[str, object], document), rule)
+    evidence = index_attestation.verify_pinned(wheel, cast(dict[str, object], document), rules)
     if evidence.identity.source_commit != manifest.commit or evidence.digest != receipt.get(
         "wheel_digest"
     ):

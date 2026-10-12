@@ -47,7 +47,7 @@ struct Request {
     #[serde(default)]
     for_redistribution: bool,
     #[serde(default)]
-    program_prefix: Option<program::Prefix>,
+    harness_executable: Option<program::Executable>,
 }
 
 fn invalid() -> Failure {
@@ -89,7 +89,7 @@ impl Request {
             harness_id: self.harness_id.clone(),
             scope: self.scope,
             provider_version: self.provider_version.clone(),
-            program_prefix: self.program_prefix.clone(),
+            harness_executable: self.harness_executable.clone(),
         }
     }
 }
@@ -101,7 +101,7 @@ struct Selector {
     scope: Scope,
     provider_version: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    program_prefix: Option<program::Prefix>,
+    harness_executable: Option<program::Executable>,
 }
 
 impl Selector {
@@ -111,7 +111,7 @@ impl Selector {
             return Err(invalid());
         }
         crate::provider::managed::sequence(&self.provider_version)?;
-        if let Some(prefix) = &self.program_prefix
+        if let Some(prefix) = &self.harness_executable
             && (!prefix.0.is_absolute()
                 || !prefix
                     .0

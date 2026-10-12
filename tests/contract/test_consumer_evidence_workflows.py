@@ -9,7 +9,7 @@ import yaml
 ROOT = Path(__file__).parents[2]
 
 
-@pytest.mark.parametrize("name", ["config-evidence", "software-evidence"])
+@pytest.mark.parametrize("name", ["config-evidence"])
 def test_package_only_evidence_keeps_the_bundled_cli_installed(name: str) -> None:
     """A later uv run must not replace the working wheel with an editable CLI.
 

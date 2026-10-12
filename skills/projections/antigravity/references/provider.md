@@ -7,10 +7,11 @@ one automatically. Follow the installed version's declared source behavior;
 newer CLI versions bootstrap their PyPI provenance verifier themselves.
 Do not require the user to preinstall gh, Rust or a separate verifier for that path.
 
-Do not type `ai-stp harness install` or `ai-stp harness status` for an ordinary
-setup. The `install` intent acquires the program. Program presence, working
-configuration and the vendor's own sign-in are separate results. Installation
-does not require a model key for ai-stp.
+Harness executables and their updates belong to the user and vendor. ai-stp
+observes the installed version with `ai-stp toolchain harnesses`; it acquires
+configuration providers, not harness distributions. The `install` intent
+configures a setup. Program presence, working configuration and vendor sign-in
+are separate results. ai-stp does not require a model key.
 
 Do not type `ai-stp provider fetch`. For explicit preload or repair resolve
 `ai-stp provider trust`, `ai-stp provider check` and
@@ -20,7 +21,7 @@ the download directory. A verified publisher and protocol conformance answer
 different questions.
 
 To update a provider do not type `ai-stp provider update plan`. Resolve that
-family from machine help. Do not type `ai-stp harness update`. To update a
+family from machine help. To update a
 setup or the CLI itself use their respective playbooks. Provider replacement
 alone never updates installed setups.
 

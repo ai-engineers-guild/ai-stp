@@ -49,6 +49,31 @@ class BundleVerifier(Protocol):
     ) -> PublisherIdentity: ...
 
 
+def verify_pinned(
+    artifact: Path,
+    provenance: Mapping[str, object] | None,
+    rules: tuple[IndexPublisherRule, ...],
+    *,
+    verifier: BundleVerifier | None = None,
+) -> Evidence:
+    """Select a pinned identity, then require its cryptographic verification."""
+    if provenance is None:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED", "the index serves no provenance for this file"
+        )
+    identity = parse_identity(provenance)
+    for rule in rules:
+        if (identity.repository, identity.workflow, identity.environment) == (
+            rule.repository,
+            rule.workflow,
+            rule.environment,
+        ):
+            return verify(artifact, provenance, rule, verifier=verifier)
+    raise CliFailure(
+        "AI_STP_PRECONDITION_FAILED", "the index provenance publisher is not pinned by local policy"
+    )
+
+
 def verify(
     artifact: Path,
     provenance: Mapping[str, object] | None,

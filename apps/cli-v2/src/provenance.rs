@@ -82,6 +82,24 @@ pub fn verify(
     publisher: &Publisher,
     trusted_root: &TrustedRoot,
 ) -> Result<VerifiedPublisher> {
+    verify_any(
+        filename,
+        sha256,
+        document,
+        std::slice::from_ref(publisher),
+        trusted_root,
+    )
+}
+
+/// Repository transfers retain old signed identities alongside explicitly
+/// pinned new ones. Unsigned metadata only selects a verification candidate.
+pub fn verify_any(
+    filename: &str,
+    sha256: [u8; 32],
+    document: &[u8],
+    publishers: &[Publisher],
+    trusted_root: &TrustedRoot,
+) -> Result<VerifiedPublisher> {
     let provenance: Provenance =
         serde_json::from_value(canonical::parse(document)?).map_err(|_| refused())?;
     if provenance.version != 1
@@ -92,9 +110,12 @@ pub fn verify(
     }
     let verifier = Verifier::new(trusted_root).map_err(|_| refused())?;
     for bundle in provenance.attestation_bundles {
-        if bundle.publisher.kind != "GitHub" || bundle.publisher.identity != *publisher {
+        if bundle.publisher.kind != "GitHub" {
             continue;
         }
+        let Some(publisher) = publishers.iter().find(|p| **p == bundle.publisher.identity) else {
+            continue;
+        };
         if bundle.attestations.len() > 16 {
             return Err(refused());
         }

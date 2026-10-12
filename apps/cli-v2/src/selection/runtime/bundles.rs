@@ -137,7 +137,7 @@ pub fn plan(
     provider_version: &str,
     target: Option<&Path>,
     output: &Path,
-    program_prefix: Option<&Path>,
+    harness_executable: Option<&Path>,
 ) -> Result<Value> {
     let state_parent = PathBuf::from(files::location(parent)?);
     let identity = owner(&state_parent)?;
@@ -146,7 +146,7 @@ pub fn plan(
         harness_id: field(&document, "harness_id")?.into(),
         scope,
         provider_version: provider_version.into(),
-        program_prefix: program_prefix.map(|p| program::Prefix(p.into())),
+        harness_executable: harness_executable.map(|p| program::Executable(p.into())),
     };
     selector.validate()?;
     let (output, parent_identity) = tree::destination(output)?;

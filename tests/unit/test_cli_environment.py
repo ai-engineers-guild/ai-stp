@@ -36,17 +36,15 @@ def _prepared(root: Path) -> dict[str, object]:
         }
 
 
-def test_preparation_exposes_access_and_concrete_program_action_without_writes(
+def test_preparation_reports_user_managed_harness_without_mutations(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     parameters = _prepared(tmp_path)
-    prefix = tmp_path / "managed-harness"
-    parameters["harness-prefix"] = [f"claude-code={prefix}"]
+    monkeypatch.setenv("PATH", str(tmp_path / "no-programs"))
     monkeypatch.setenv("ENVIRONMENT_TEST_ACCESS", "private-value-never-printed")
     before = configured_path().read_bytes()
     observed = environment.inspect(parameters).payload
-    assert not prefix.exists()
     assert configured_path().read_bytes() == before
     assert not observed.prerequisites_satisfied
     assert observed.configuration_state == "not_observed"
@@ -56,8 +54,8 @@ def test_preparation_exposes_access_and_concrete_program_action_without_writes(
     auth = next(row for row in observed.requirements if row.kind == "authorization")
     assert auth.state == "not_observed"
     program = next(row for row in observed.requirements if row.kind == "harness_program")
-    assert program.state == "action_required"
-    assert str(prefix) in program.actions[0]
+    assert program.state == "not_observed"
+    assert program.actions == []
     assert "private-value-never-printed" not in observed.model_dump_json()
 
 

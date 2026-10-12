@@ -52,18 +52,18 @@ pub fn verify<'a>(
     let policy::Request {
         project,
         filename,
-        publisher,
+        publishers,
         sequence,
         policy_id,
     } = policy::request(harness, version, platform)?;
     if archive.is_empty() || archive.len() > 64 * 1024 * 1024 || document.len() > 1024 * 1024 {
         return Err(refused());
     }
-    let identity = provenance::verify(
+    let identity = provenance::verify_any(
         &filename,
         Sha256::digest(archive).into(),
         document,
-        &publisher,
+        &publishers,
         trust.root()?,
     )?;
     if identity.source_commit.len() != 40 {
@@ -71,6 +71,7 @@ pub fn verify<'a>(
     }
     let payload = wheel::inspect(archive, &project, version, platform)?;
     trust.root()?;
+    let publisher = identity.publisher;
     let report = json!({"harness_id":harness,"project":project,"version":version,"platform":platform,
         "filename":filename,"archive_digest":digest::sha256(archive),"archive_bytes":archive.len(),
         "executable_name":payload.executable_name,"executable_digest":digest::sha256(&payload.executable),"executable_bytes":payload.executable.len(),"license":payload.license,

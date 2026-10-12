@@ -56,13 +56,13 @@ def _git_tree(entries: dict[str, tuple[int, bytes]]) -> str:
 #: One public repository per harness. Release coordinates belong to the build
 #: receipt, so the contract does not duplicate a particular captured release.
 REPOSITORIES = {
-    "antigravity": "https://github.com/NDDev-OpenNetwork/antigravity-setup-system",
-    "claude-code": "https://github.com/NDDev-OpenNetwork/claude-setup-system",
-    "codex": "https://github.com/NDDev-OpenNetwork/codex-setup-system",
-    "cursor": "https://github.com/NDDev-OpenNetwork/cursor-setup-system",
-    "grok-build": "https://github.com/NDDev-OpenNetwork/grok-setup-system",
-    "opencode": "https://github.com/NDDev-OpenNetwork/opencode-setup-system",
-    "pi": "https://github.com/NDDev-OpenNetwork/pi-setup-system",
+    "antigravity": "https://github.com/NDDev-Technocracy-Sandbox/antigravity-setup-system",
+    "claude-code": "https://github.com/NDDev-Technocracy-Sandbox/claude-setup-system",
+    "codex": "https://github.com/NDDev-Technocracy-Sandbox/codex-setup-system",
+    "cursor": "https://github.com/NDDev-Technocracy-Sandbox/cursor-setup-system",
+    "grok-build": "https://github.com/NDDev-Technocracy-Sandbox/grok-setup-system",
+    "opencode": "https://github.com/NDDev-Technocracy-Sandbox/opencode-setup-system",
+    "pi": "https://github.com/NDDev-Technocracy-Sandbox/pi-setup-system",
 }
 
 
