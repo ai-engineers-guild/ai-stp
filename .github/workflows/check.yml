@@ -81,6 +81,9 @@ jobs:
             ~/.cargo/git
             apps/cli-v2/target
           key: cli-v2-${{ runner.os }}-${{ hashFiles('apps/cli-v2/Cargo.*', 'apps/cli-v2/*.toml') }}
+          # A package-version bump should retain reusable dependencies. Cargo
+          # revalidates the restored build; every check below still runs.
+          restore-keys: cli-v2-${{ runner.os }}-
       - name: Native boundary checks
         working-directory: apps/cli-v2
         shell: bash
