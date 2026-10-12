@@ -1,17 +1,4 @@
-"""`ADR-0122`: one place reports the state of a harness program, and one only.
-
-The record deferred this guard on purpose. Written before `harness status`
-existed it would have been green because the path it guards did not exist yet,
-and a green sentinel over nothing reads as coverage while staying green through
-any future mistake. `harness status` exists now, so the guard is written now.
-
-What it protects is a collision that already happened once in this vocabulary.
-`toolchain harnesses` answers *what is visible on this machine* and spells one
-of its answers `installed`. A program lifecycle that also spelled a state
-`installed` would give one word two subjects — the product being present
-somewhere, and this CLI having put a specific build under a specific prefix.
-The two are not the same claim and an agent cannot tell them apart by reading.
-"""
+"""User-managed harness executables; historical schemas remain readable."""
 
 from __future__ import annotations
 
@@ -39,13 +26,9 @@ def _literal_values(annotation: object) -> frozenset[str]:
     return frozenset(str(item) for item in get_args(annotation))
 
 
-def test_exactly_one_command_reports_the_state_of_a_harness_program() -> None:
-    declared = [
-        " ".join(item.path)
-        for item in DECLARATIONS
-        if item.result_schema == "urn:ai-stp:schema:v1:cli-harness-program-status"
-    ]
-    assert declared == ["harness status"]
+def test_harness_lifecycle_is_not_exposed() -> None:
+    assert not any(item.path[0] == "harness" for item in DECLARATIONS)
+    assert any(item.path == ["toolchain", "harnesses"] for item in DECLARATIONS)
 
 
 def test_only_the_program_family_names_a_prefix() -> None:
@@ -62,7 +45,7 @@ def test_only_the_program_family_names_a_prefix() -> None:
 def test_program_state_and_detection_state_share_no_word() -> None:
     """One word, one subject.
 
-    `toolchain harnesses` keeps detection; `harness status` keeps the program.
+    Detection states remain distinct from the retained historical program states.
     An overlap would not fail any other check — both models would still be
     valid — and would still make the answer unreadable.
     """

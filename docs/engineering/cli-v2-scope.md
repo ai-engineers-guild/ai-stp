@@ -45,6 +45,11 @@ command is unimplemented. The shipped intents are `inspect`, `initialize`,
 `install`, `change`, `author`, `switch`, `account`, `publish`, and `technology`.
 Porting only those nine names would not preserve the whole CLI.
 
+Harness executable installation, upgrade, removal and managed-prefix status rows
+in the frozen baseline are retired by ADR-0232. Their history remains frozen;
+current native `program status` observes the user-installed executable. Exact
+setup/component/provider releases remain in scope.
+
 ## Business functions
 
 The groups below partition all 245 commands once. They describe user outcomes,

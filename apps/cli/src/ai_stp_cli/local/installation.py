@@ -150,7 +150,7 @@ class Plan:
     program_entry_point_planned: str = ""
 
     #: What stood under the prefix when this was planned, serialized by
-    #: `provider.program_state`. Empty means a plan recorded before prefix state
+    #: the retired program observer. Empty means a plan recorded before prefix state
     #: was read — nothing may be concluded from it, and settling refuses rather
     #: than treating it as an empty prefix.
     program_prefix_state: str = ""

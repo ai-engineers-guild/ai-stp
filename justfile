@@ -308,37 +308,7 @@ evidence-provider-scopes setup_systems_root:
     uv run --locked python -m release_scripts.verify_scoped_provider_slice \
         --setup-systems-root "{{ setup_systems_root }}"
 
-# The second half of the same question: `evidence-providers` proves the
-# contract and the bytes, while this slice drives each released provider
-# through the **consumer** path — `harness install/status/update/remove`
-# calls of `ai-stp` itself.
-#
-# These are different questions and they fail for different reasons. Every
-# integration defect in this estate lived exactly between consumer and
-# provider: argv the provider did not expect; a status read differently; a
-# record that did not survive the sandbox; a postcondition taken from the
-# wrong subject. None of them is visible to a slice that asks the provider
-# directly.
-#
-# One line per harness, an outcome out of five, and a missing line is an
-# error, not zero refusals. `GH_CONFIG_DIR` is needed for the same reason as
-# its neighbour.
-[arg('tag', help='provider release tag')]
-[arg('harness', help='limit to one harness')]
-[arg('acquire', help='non-empty to auto-acquire artifacts')]
-[doc('Drive released providers through the consumer install path')]
-[group('evidence')]
-evidence-software tag harness="" acquire="":
-    GH_CONFIG_DIR="${GH_CONFIG_DIR:-${APPDATA:+$APPDATA/GitHub CLI}}"; \
-    GH_CONFIG_DIR="${GH_CONFIG_DIR:-$HOME/.config/gh}" \
-    uv run --locked python -m release_scripts.verify_software_slice \
-        --tag "{{ tag }}" \
-        {{ if harness == "" { "" } else { prepend("--harness ", harness) } }} \
-        {{ if acquire == "" { "" } else { "--acquire" } }}
-
-# The third question of the same pair, and the only one about
-# **configuration**. `evidence-providers` asks the contract,
-# `evidence-software` the program, and this drives each harness's native
+# Drive each harness's configuration through the consumer lifecycle.
 # surface through the full arc: seed → adopt → release → propose → confirm →
 # plan → approve → apply → target observation → removal plan → apply → the
 # target is clean again.

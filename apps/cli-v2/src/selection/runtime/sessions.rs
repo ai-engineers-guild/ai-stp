@@ -160,7 +160,7 @@ pub fn decision(
         harness_id: proposal.harness_id,
         scope,
         provider_version: version.into(),
-        program_prefix: prefix.map(|p| program::Prefix(p.into())),
+        harness_executable: prefix.map(|p| program::Executable(p.into())),
     });
     if let Some(selector) = &selector {
         selector.validate()?;

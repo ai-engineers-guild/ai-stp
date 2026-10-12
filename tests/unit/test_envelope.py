@@ -69,12 +69,12 @@ def test_unknown_fields_are_rejected() -> None:
 def test_a_complete_continuation_is_runnable_argv() -> None:
     item = Continuation(
         kind="advance",
-        path=["harness", "remove"],
-        arguments={"harness": "codex", "prefix": "/p", "target": "/t", "confirm": ""},
+        path=["component", "program", "remove"],
+        arguments={"id": "component_example", "confirm": ""},
     )
     assert (
         continuation_command(item)
-        == "harness remove --harness codex --prefix /p --target /t --confirm --json"
+        == "component program remove --id component_example --confirm --json"
     )
 
 

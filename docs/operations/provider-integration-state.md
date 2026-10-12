@@ -147,6 +147,6 @@ and explicitly named caller paths.
 Provider implementation/release and consumer enforcement are separate commits
 and change boundaries. The consumer status-response enforcement schema is
 complete, and cross-repository consumer evidence now exists on both subjects:
-`evidence-software` for the program lifecycle and `evidence-config` for the
+`evidence-config` for the
 configuration lifecycle, seven rows each, plus `evidence-contribution` for the
 three native MCP forms.

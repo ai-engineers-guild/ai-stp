@@ -19,10 +19,10 @@ from pathlib import Path
 
 import pytest
 
-from ai_stp_cli.commands import harness as harness_commands
 from ai_stp_cli.local import provider_installations as installations
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_cli.local.passports import moment
+from ai_stp_cli.provider import acquire
 
 pytestmark = pytest.mark.cli
 
@@ -72,9 +72,7 @@ def test_a_remembered_provider_is_found_without_the_flag(home: Path, tmp_path: P
     _remember("codex", place)
 
     with open_registry(configured_path()) as connection:
-        found = harness_commands._resolve_provider(  # pyright: ignore[reportPrivateUsage]
-            connection, "codex", {}
-        )
+        found = acquire.ensure_provider(connection, "codex", {})
 
     assert Path(found) == place.resolve()
 
@@ -85,9 +83,7 @@ def test_an_explicit_path_still_wins(home: Path, tmp_path: Path) -> None:
     override = _executable(tmp_path, "override")
 
     with open_registry(configured_path()) as connection:
-        found = harness_commands._resolve_provider(  # pyright: ignore[reportPrivateUsage]
-            connection, "codex", {"provider": str(override)}
-        )
+        found = acquire.ensure_provider(connection, "codex", {"provider": str(override)})
 
     assert Path(found) == override.resolve()
 
@@ -114,9 +110,7 @@ def test_no_provider_acquires_the_attested_release(
 
     monkeypatch.setattr("ai_stp_cli.provider.acquire.index_bind.fetch", fetch)
     with open_registry(configured_path(), create=True) as connection:
-        found = harness_commands._resolve_provider(  # pyright: ignore[reportPrivateUsage]
-            connection, "codex", {}
-        )
+        found = acquire.ensure_provider(connection, "codex", {})
     assert Path(found) == fetched.resolve()
 
 
@@ -164,8 +158,6 @@ def test_a_discovered_observation_does_not_become_the_answer(
 
     monkeypatch.setattr("ai_stp_cli.provider.acquire.index_bind.fetch", fetch)
     with open_registry(registry) as connection:
-        found = harness_commands._resolve_provider(  # pyright: ignore[reportPrivateUsage]
-            connection, "codex", {}
-        )
+        found = acquire.ensure_provider(connection, "codex", {})
     assert Path(found) == fetched.resolve()
     assert Path(found) != place.resolve()

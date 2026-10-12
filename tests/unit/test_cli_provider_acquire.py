@@ -9,7 +9,6 @@ from types import SimpleNamespace
 
 import pytest
 
-from ai_stp_cli.commands import harness as harness_commands
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import provider_installations as installations
 from ai_stp_cli.local.database import configured_path, open_registry
@@ -191,9 +190,7 @@ def test_harness_resolution_acquires_when_missing(
 
     _patch_fetch(monkeypatch, fetch)
     with open_registry(configured_path(), create=True) as connection:
-        found = harness_commands._resolve_provider(  # pyright: ignore[reportPrivateUsage]
-            connection, "codex", {}
-        )
+        found = acquire.ensure_provider(connection, "codex", {})
     assert Path(found) == fetched.resolve()
 
 
@@ -227,9 +224,7 @@ def test_a_discovered_observation_is_not_the_acquired_provider(
 
     _patch_fetch(monkeypatch, fetch)
     with open_registry(registry) as connection:
-        found = harness_commands._resolve_provider(  # pyright: ignore[reportPrivateUsage]
-            connection, "codex", {}
-        )
+        found = acquire.ensure_provider(connection, "codex", {})
     assert Path(found) == fetched.resolve()
     assert Path(found) != observed.resolve()
 

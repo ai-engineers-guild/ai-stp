@@ -21,10 +21,9 @@ program does not mark them historical and does not move their specs or tests.
 
 ## Historical
 
-None yet. A later classification PR adds a row here only when
-`docs/engineering/implementation-canon.md` records the ADR as historical and
-the matching spec, if any, is in `specs/archive/` or was folded into a
-rewritten active spec.
+ADR-0122 is superseded by ADR-0232: harness executables are user-managed.
+ADR-0228 remains binding for configuration components; its program lifecycle
+portion is superseded by ADR-0232.
 
 ## Still-binding examples for the non-corporate line
 

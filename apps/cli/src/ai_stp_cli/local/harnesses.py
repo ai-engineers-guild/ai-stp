@@ -262,6 +262,12 @@ def ask_version(
     if (system_name or platform.system()) == "Windows":
         allowed += ["SYSTEMROOT", "COMSPEC", "PATHEXT", "TEMP", "TMP", "USERPROFILE"]
     filtered = {name: held[name] for name in allowed if held.get(name)}
+    # Query-only flags; never persist or change the user's update policy.
+    filtered.update(
+        DISABLE_AUTOUPDATER="1",
+        CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1",
+        OPENCODE_DISABLE_AUTOUPDATE="true",
+    )
     try:
         # An argument array and no shell: `REQ-1409` asks for exactly this, and
         # a string command would have to be split by something that is not us.

@@ -35,6 +35,13 @@ Test tags used in later rows: **keep** (real I/O against live modules), **replac
 | Branch | `feat/milestone-6-b2b-03` |
 | Issues | #254, #256 — colleague scope; both CLOSED as of 2026-09-26 |
 
+## Superseded executable lifecycle
+
+ADR-0122 is historical under ADR-0232. Harness installation, upgrade and removal
+are outside ai-stp scope. Native `program status` and production `toolchain
+harnesses` observe user-installed versions; SPEC-070 is rewritten accordingly.
+Historical operation models remain readable without exposing mutation commands.
+
 ## Surfaces (code owners)
 
 | Surface | Code | Notes |
