@@ -1,7 +1,7 @@
 //! Minimal Linux filesystem and measured IPv4/IPv6/UDP network separation.
 
 use super::{
-    execution::Installation,
+    execution::{Configuration, Execution, Installation},
     prefix::{Prefix, View},
     probe,
     target::Target,
@@ -90,18 +90,21 @@ pub(super) fn sealed(bytes: &[u8]) -> Result<File> {
     Ok(file)
 }
 
-fn bundle_arguments(request: &plan::Request) -> Vec<OsString> {
+pub(super) fn bundle_arguments(request: &plan::Request) -> Vec<OsString> {
+    let Some(bundle) = &request.bundle else {
+        return Vec::new();
+    };
     vec![
         "--bundle".into(),
         "/run/bundle".into(),
         "--bundle-format".into(),
-        request.bundle.bundle_format.clone().into(),
+        bundle.bundle_format.clone().into(),
         "--bundle-digest".into(),
-        request.bundle.bundle_digest.clone().into(),
+        bundle.bundle_digest.clone().into(),
         "--artifact-digest".into(),
-        request.bundle.artifact_digest.clone().into(),
+        bundle.artifact_digest.clone().into(),
         "--bundle-size".into(),
-        request.bundle.bundle_size.to_string().into(),
+        bundle.bundle_size.to_string().into(),
     ]
 }
 
@@ -332,7 +335,23 @@ impl Launcher {
             &[target],
             None,
             Some((installation.prefix, View::Observed)),
-            Some(installation),
+            Some(Execution::Program(installation)),
+        )
+    }
+    pub(super) fn configure(
+        &self,
+        bytes: &[u8],
+        target: &Target,
+        configuration: &Configuration<'_>,
+        bundle: &[u8],
+    ) -> Result<Vec<u8>> {
+        self.invoke(
+            bytes,
+            &configuration.command(bytes, target)?,
+            &[target],
+            configuration.request.bundle.as_ref().map(|_| bundle),
+            None,
+            Some(Execution::Configuration(configuration)),
         )
     }
     pub(super) fn status(&self, bytes: &[u8], target: &Target, scope: Scope) -> Result<Vec<u8>> {
@@ -393,7 +412,14 @@ impl Launcher {
             arguments.extend(["--target-scope".into(), scope.as_str().into()]);
         }
         arguments.extend(bundle_arguments(request));
-        self.invoke(bytes, &arguments, &[target], Some(bundle), None, None)
+        self.invoke(
+            bytes,
+            &arguments,
+            &[target],
+            request.bundle.as_ref().map(|_| bundle),
+            None,
+            None,
+        )
     }
     pub(super) fn software_plan(
         &self,
@@ -451,12 +477,15 @@ impl Launcher {
         targets: &[&Target],
         bundle: Option<&[u8]>,
         synthetic_prefix: Option<(&Path, View)>,
-        installation: Option<&Installation<'_>>,
+        execution: Option<Execution<'_>>,
     ) -> Result<Vec<u8>> {
         let input = sealed(bytes)?;
         let mut arguments = base();
         let mut handles = Vec::new();
-        if targets.len() > 2 {
+        let writable_target = matches!(execution, Some(Execution::Configuration(_)));
+        if targets.len() > 2
+            || writable_target && (targets.len() != 1 || synthetic_prefix.is_some())
+        {
             return Err(unavailable());
         }
         let missing_parent = synthetic_prefix
@@ -481,14 +510,19 @@ impl Launcher {
             target.revalidate()?;
             let handle = target.handle()?;
             arguments.extend([
-                "--ro-bind-fd".into(),
+                if writable_target {
+                    "--bind-fd"
+                } else {
+                    "--ro-bind-fd"
+                }
+                .into(),
                 handle.as_raw_fd().to_string().into(),
                 target.path().as_os_str().into(),
             ]);
             handles.push((arguments.len() - 2, handle));
         }
-        if let Some(installation) = installation {
-            installation.mount(&mut arguments, &mut handles)?;
+        if let Some(execution) = execution {
+            execution.mount(&mut arguments, &mut handles)?;
         }
         if let Some(parent) = missing_parent {
             arguments.extend(["--remount-ro".into(), parent.as_os_str().into()]);
@@ -533,11 +567,11 @@ impl Launcher {
             .map(OsString::from),
         );
         if !targets.is_empty() {
-            arguments.extend([
-                "/run/target-entry".into(),
-                super::entry::FLAG.into(),
-                targets.len().to_string().into(),
-            ]);
+            arguments.extend(["/run/target-entry".into(), super::entry::FLAG.into()]);
+            if writable_target {
+                arguments.push(super::entry::WRITABLE_TARGET.into());
+            }
+            arguments.push(targets.len().to_string().into());
             for target in targets {
                 let (device, inode) = target.identity()?;
                 arguments.extend([
@@ -549,7 +583,7 @@ impl Launcher {
         } else {
             arguments.push("/run/provider".into());
         }
-        if let Some(installation) = installation {
+        if let Some(Execution::Program(installation)) = execution {
             let (dev, ino) = installation.stage.identity()?;
             arguments.extend([
                 super::entry::WRITABLE_PREFIX.into(),
@@ -572,11 +606,26 @@ impl Launcher {
         self.revalidate()?;
         let environment = environment();
         let mut request = request(&self.executable, &arguments, &environment);
-        if installation.is_some() {
+        if command
+            .first()
+            .is_some_and(|command| command == "status" || command == "plan-operation")
+        {
+            request.output_limit = plan::MAX_RESPONSE_BYTES;
+        }
+        if execution.is_some() {
             request.timeout = Duration::from_secs(300);
         }
         let output = process::with_files(request, &self.image, input, handles)?;
         if !output.status.success() {
+            // Components use a nonzero exit for a typed mechanical refusal.
+            // Preserve its bounded reason, never the raw host-bearing detail.
+            if let Ok(value) = wire::parse(&output.stdout)
+                && (value["state"] == "refused"
+                    || value["rejected"] == true
+                    || value["valid"] == false)
+            {
+                return plan::response(&output.stdout).and_then(|_| Err(unavailable()));
+            }
             return Err(crate::error::Failure::new(
                 crate::error::ErrorKind::Unavailable,
                 "the isolated provider command did not complete",
@@ -698,6 +747,7 @@ mod tests {
         let document = json!({"protocol_version":3,"provider_id":"codex-setup-system","harness_id":"codex","canonical_target":path,
             "state":"missing","target_digest":empty,"target_identity_digest":empty,"provider_state":{"present":false},"journal":null,"backups":[],"shadowed_by":[],"cleanup_state":"none"});
         target.response(&serde_json::to_vec(&document)?, &info)?;
+        large_configuration_status(&target, &info)?;
         for (key, value) in [
             ("canonical_target", json!(temporary.path())),
             ("provider_id", json!("another-provider")),
@@ -732,6 +782,34 @@ mod tests {
         assert_eq!(held.metadata()?.ino(), before.ino());
         assert_ne!(fs::metadata(&path)?.ino(), before.ino());
 
+        Ok(())
+    }
+
+    fn large_configuration_status(
+        target: &Target,
+        provider: &Info,
+    ) -> std::result::Result<(), Box<dyn Error>> {
+        let vectors: Value = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/provider-status-ownership.json"
+        ))?;
+        let mut document = vectors["base"].clone();
+        document["canonical_target"] = json!(target.path());
+        let segment = "a".repeat(220);
+        let paths: Vec<_> = (0..2000)
+            .map(|index| format!("skills/{segment}/{segment}/{segment}/{segment}/{index:04}.md"))
+            .collect();
+        document["written_paths"] = json!(paths);
+        document["configuration_ownership"] = paths.iter().map(|path| {
+            json!({"path":path,"ownership":"whole","parser_id":null,"ownership_keys":[]})
+        }).collect();
+        let bytes = serde_json::to_vec(&document)?;
+        assert!(bytes.len() > 1024 * 1024);
+        target.response(&bytes, provider)?;
+        assert!(
+            target
+                .response(&vec![b' '; plan::MAX_RESPONSE_BYTES + 1], provider)
+                .is_err()
+        );
         Ok(())
     }
 }

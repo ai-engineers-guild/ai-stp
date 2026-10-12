@@ -299,7 +299,6 @@ pub(in crate::provider::runtime) fn apply(
             prefix: prefix.path(),
             plan: &plan.provider_plan,
             archive: archive.as_ref().map(|a| &a.file),
-            scope: plan.scope()?,
         },
     )?;
     let provider_result = applied(&response, &plan)?;

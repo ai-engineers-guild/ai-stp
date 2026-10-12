@@ -28,35 +28,9 @@ pub fn validate(document: &Value) -> Result<()> {
     else {
         return Ok(());
     };
-    let mut paths = Vec::new();
-    for row in rows.as_array().ok_or_else(invalid)? {
-        let path = row["path"].as_str().ok_or_else(invalid)?;
-        if !path_valid(path) {
-            return Err(invalid());
-        }
-        let keys = row["ownership_keys"].as_array().ok_or_else(invalid)?;
-        let keys = keys
-            .iter()
-            .map(|v| v.as_str().ok_or_else(invalid))
-            .collect::<Result<Vec<_>>>()?;
-        if keys.iter().any(|key| key.len() > 255) || keys.windows(2).any(|pair| pair[0] >= pair[1])
-        {
-            return Err(invalid());
-        }
-        if row["ownership"] == "contribution"
-            && !match row["parser_id"].as_str() {
-                Some("json/1") => path.ends_with(".json") || path.ends_with(".jsonc"),
-                Some("toml/1") => path.ends_with(".toml"),
-                _ => false,
-            }
-        {
-            return Err(invalid());
-        }
-        paths.push(path);
-    }
+    let paths = ownership_paths(rows)?;
     let state = &document["provider_state"];
-    if paths.windows(2).any(|pair| pair[0] >= pair[1])
-        || state["present"] != true && !paths.is_empty()
+    if state["present"] != true && !paths.is_empty()
         || state["present"] == true && state["readable"] != true
     {
         return Err(invalid());
@@ -73,6 +47,61 @@ pub fn validate(document: &Value) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// A planned ownership list can be validated without inventing provider state.
+pub(crate) fn ownership_paths(rows: &Value) -> Result<Vec<&str>> {
+    let rows = rows.as_array().ok_or_else(invalid)?;
+    if rows.len() > 8192 {
+        return Err(invalid());
+    }
+    let mut paths = Vec::new();
+    for row in rows {
+        let fields = row.as_object().ok_or_else(invalid)?;
+        if fields.len() != 4
+            || ["path", "ownership", "parser_id", "ownership_keys"]
+                .iter()
+                .any(|key| !fields.contains_key(*key))
+        {
+            return Err(invalid());
+        }
+        let path = row["path"].as_str().ok_or_else(invalid)?;
+        if !path_valid(path) {
+            return Err(invalid());
+        }
+        let keys = row["ownership_keys"].as_array().ok_or_else(invalid)?;
+        let keys = keys
+            .iter()
+            .map(|v| v.as_str().ok_or_else(invalid))
+            .collect::<Result<Vec<_>>>()?;
+        if keys.len() > 2000
+            || keys
+                .iter()
+                .any(|key| key.is_empty() || key.len() > 255 || key.chars().any(char::is_control))
+            || keys.windows(2).any(|pair| pair[0] >= pair[1])
+        {
+            return Err(invalid());
+        }
+        if !match row["ownership"].as_str() {
+            Some("whole") => row["parser_id"].is_null() && keys.is_empty(),
+            Some("contribution") => {
+                !keys.is_empty()
+                    && match row["parser_id"].as_str() {
+                        Some("json/1") => path.ends_with(".json") || path.ends_with(".jsonc"),
+                        Some("toml/1") => path.ends_with(".toml"),
+                        _ => false,
+                    }
+            }
+            _ => false,
+        } {
+            return Err(invalid());
+        }
+        paths.push(path);
+    }
+    if paths.windows(2).any(|pair| pair[0] >= pair[1]) {
+        return Err(invalid());
+    }
+    Ok(paths)
 }
 
 fn path_valid(path: &str) -> bool {

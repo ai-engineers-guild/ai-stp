@@ -1,4 +1,7 @@
-//! A held read-only target directory; path lookup never follows an alias.
+//! A held target directory; path lookup never follows an alias.
+
+#[path = "target_content.rs"]
+pub(crate) mod content;
 
 use cap_fs_ext::DirExt;
 use cap_std::fs::Dir;
@@ -148,7 +151,7 @@ impl Target {
     }
 
     pub(super) fn response(&self, bytes: &[u8], provider: &Info) -> Result<Value> {
-        if bytes.len() > 1024 * 1024 {
+        if bytes.len() > crate::provider::plan::MAX_RESPONSE_BYTES {
             return Err(invalid());
         }
         let document = wire::parse(bytes)?;

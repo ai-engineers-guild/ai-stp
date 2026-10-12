@@ -15,12 +15,7 @@ use crate::{
 };
 
 #[cfg(target_os = "linux")]
-use {
-    crate::provider::runtime::target::Target,
-    cap_fs_ext::DirExt,
-    cap_std::fs::Dir,
-    std::{io::Read, path::PathBuf},
-};
+use crate::provider::runtime::target::Target;
 
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -109,11 +104,10 @@ impl Root {
                     Err(invalid())
                 };
             };
-            let directory = target.directory()?;
             let mut bytes = 0usize;
             let mut result = super::Hosts::new();
             for path in paths {
-                let content = read(&directory, path)?;
+                let content = target.read(path)?.map(|content| content.bytes);
                 bytes = bytes
                     .checked_add(content.as_ref().map_or(0, Vec::len))
                     .ok_or_else(invalid)?;
@@ -169,50 +163,6 @@ pub(crate) fn paths(
         }
     }
     Ok(result)
-}
-
-#[cfg(target_os = "linux")]
-fn read(root: &Dir, path: &str) -> Result<Option<Vec<u8>>> {
-    if !crate::artifacts::safe_path(path) {
-        return Err(invalid());
-    }
-    let path = PathBuf::from(path);
-    let mut current = root.try_clone().map_err(|_| invalid())?;
-    for part in path.parent().ok_or_else(invalid)?.components() {
-        match current.symlink_metadata(part.as_os_str()) {
-            Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => (),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-            _ => return Err(invalid()),
-        }
-        current = current
-            .open_dir_nofollow(part.as_os_str())
-            .map_err(|_| invalid())?;
-    }
-    let name = path.file_name().ok_or_else(invalid)?;
-    match current.symlink_metadata(name) {
-        Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => (),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        _ => return Err(invalid()),
-    }
-    let mut file = files::open_regular(&current, Path::new(name)).map_err(|_| invalid())?;
-    let before = file.metadata().map_err(|_| invalid())?;
-    if before.len() > 4 * 1024 * 1024 || cap_fs_ext::MetadataExt::nlink(&before) != 1 {
-        return Err(invalid());
-    }
-    let mut bytes = Vec::new();
-    file.by_ref()
-        .take(4 * 1024 * 1024 + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|_| invalid())?;
-    let after = file.metadata().map_err(|_| invalid())?;
-    if before.len() != bytes.len() as u64
-        || after.len() != before.len()
-        || cap_fs_ext::MetadataExt::nlink(&after) != 1
-        || before.modified().map_err(|_| invalid())? != after.modified().map_err(|_| invalid())?
-    {
-        return Err(invalid());
-    }
-    Ok(Some(bytes))
 }
 
 #[cfg(all(test, target_os = "linux"))]
