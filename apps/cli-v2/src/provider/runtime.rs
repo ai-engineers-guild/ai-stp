@@ -114,6 +114,18 @@ pub fn configuration_apply(
     }
 }
 
+pub fn configuration_cancel(parent: &Path, bytes: &[u8], digest: &str) -> Result<Value> {
+    #[cfg(target_os = "linux")]
+    {
+        configuration::cancel::cancel(parent, bytes, digest)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (parent, bytes, digest);
+        Err(unavailable())
+    }
+}
+
 pub struct Runtime {
     #[cfg(target_os = "linux")]
     launcher: linux::Launcher,

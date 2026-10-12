@@ -39,6 +39,7 @@ impl Execution<'_> {
 pub(super) struct Configuration<'a> {
     pub plan: &'a Value,
     pub request: &'a crate::provider::plan::Request,
+    pub cancel: bool,
 }
 
 impl Configuration<'_> {
@@ -59,6 +60,9 @@ impl Configuration<'_> {
             digest::sha256(component).into(),
         ];
         command.extend(linux::bundle_arguments(self.request));
+        if self.cancel {
+            command.push("--cancel".into());
+        }
         // Apply derives scope from the sealed plan, never a second argv claim.
         Ok(command)
     }

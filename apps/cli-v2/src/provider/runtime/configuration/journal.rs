@@ -71,6 +71,11 @@ fn read(connection: &Connection, plan: &Plan, digest: &str) -> Result<Option<Rec
     match record.state.as_str() {
         "applying" if record.result.is_none() => (),
         "verified" => outcome::validate(record.result.as_ref().ok_or_else(invalid)?, plan, digest)?,
+        "cancelled" => outcome::validate_cancellation(
+            record.result.as_ref().ok_or_else(invalid)?,
+            plan,
+            digest,
+        )?,
         _ => return Err(invalid()),
     }
     Ok(Some(record))
@@ -170,21 +175,22 @@ impl Journal {
     }
 
     pub fn admit(&self, plan: &Plan, digest: &str) -> Result<()> {
-        self.write(plan, digest, None)
+        self.write(plan, digest, "applying", None)
     }
 
     pub fn complete(&self, plan: &Plan, digest: &str, result: &Value) -> Result<()> {
         outcome::validate(result, plan, digest)?;
-        self.write(plan, digest, Some(result))?;
+        self.write(plan, digest, "verified", Some(result))?;
         self.cleanup()
     }
 
-    fn write(&self, plan: &Plan, digest: &str, result: Option<&Value>) -> Result<()> {
-        let state = if result.is_some() {
-            "verified"
-        } else {
-            "applying"
-        };
+    pub fn cancel(&self, plan: &Plan, digest: &str, result: &Value) -> Result<()> {
+        outcome::validate_cancellation(result, plan, digest)?;
+        self.write(plan, digest, "cancelled", Some(result))?;
+        self.cleanup()
+    }
+
+    fn write(&self, plan: &Plan, digest: &str, state: &str, result: Option<&Value>) -> Result<()> {
         let detail = serde_json::to_string(&Record {
             schema_version: 1,
             plan_digest: digest.into(),
@@ -200,9 +206,14 @@ impl Journal {
         let now = jiff::Timestamp::now().to_string();
         store.transaction(|transaction| {
             let previous = read(transaction, plan, digest)?;
+            let before = previous.as_ref().map_or("unseen", |record| record.state.as_str()).to_owned();
             match (previous, result) {
                 (None, None) => { transaction.execute("INSERT INTO operation(operation_id,kind,state,started_at,detail) VALUES (?,?,?,?,?)",
                     rusqlite::params![plan.operation_id,plan.action,state,now,detail]).map_err(database)?; }
+                (None, Some(_)) if state == "cancelled" => {
+                    transaction.execute("INSERT INTO operation(operation_id,kind,state,started_at,finished_at,detail) VALUES (?,?,?,?,?,?)",
+                        rusqlite::params![plan.operation_id,plan.action,state,now,now,detail]).map_err(database)?;
+                }
                 (Some(record), Some(_)) if record.state == "applying" => {
                     transaction.execute("UPDATE operation SET state=?,detail=?,finished_at=? WHERE operation_id=?",
                         rusqlite::params![state,detail,now,plan.operation_id]).map_err(database)?;
@@ -213,7 +224,7 @@ impl Journal {
             transaction.execute("INSERT INTO operation_event(operation_id,sequence,at,state_before,state_after,result,evidence,global_sequence) \
                 SELECT ?,coalesce((SELECT max(sequence) FROM operation_event WHERE operation_id=?),0)+1,?,?,?,?,?, \
                 coalesce((SELECT max(global_sequence) FROM operation_event),0)+1",
-                rusqlite::params![plan.operation_id,plan.operation_id,now,if result.is_some() {"applying"} else {"unseen"},state,"accepted",evidence]).map_err(database)?;
+                rusqlite::params![plan.operation_id,plan.operation_id,now,before,state,"accepted",evidence]).map_err(database)?;
             Ok(())
         })?;
         self.state.revalidate()

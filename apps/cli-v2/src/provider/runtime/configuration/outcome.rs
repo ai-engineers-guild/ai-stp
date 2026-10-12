@@ -79,3 +79,43 @@ pub(super) fn validate(value: &Value, plan: &Plan, digest: &str) -> Result<()> {
     }
     Ok(())
 }
+
+pub(super) fn cancelled(bytes: &[u8], plan: &Plan) -> Result<Value> {
+    let value = response(bytes)?;
+    let expected = json!({"state":"cancelled", "operation_id":plan.operation_id,
+        "operation":plan.operation()?, "plan_digest":plan.provider_plan["plan_digest"],
+        "expected_target_digest":plan.provider_plan["plan"]["expected_target_digest"],
+        "configuration_changed":false});
+    if value != expected {
+        return Err(invalid());
+    }
+    Ok(value)
+}
+
+pub(super) fn cancellation(
+    plan: &Plan,
+    digest: &str,
+    provider: &Value,
+    observation: &str,
+) -> Value {
+    json!({"operation_id":plan.operation_id,"plan_digest":digest,"state":"cancelled",
+        "action":plan.action,"harness_id":plan.harness_id,"provider_version":plan.provider_version,
+        "target":plan.target_path,"scope":plan.target_scope,"configuration_changed":false,
+        "provider_result":provider,"unchanged_observation_digest":observation})
+}
+
+pub(super) fn validate_cancellation(value: &Value, plan: &Plan, digest: &str) -> Result<()> {
+    super::cancel::require_component(&plan.provider_version)?;
+    let observation = value["unchanged_observation_digest"]
+        .as_str()
+        .filter(|s| hash(s))
+        .ok_or_else(invalid)?;
+    let provider = cancelled(
+        &serde_json::to_vec(&value["provider_result"]).map_err(|_| invalid())?,
+        plan,
+    )?;
+    if value != &cancellation(plan, digest, &provider, observation) {
+        return Err(invalid());
+    }
+    Ok(())
+}

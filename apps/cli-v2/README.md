@@ -691,10 +691,26 @@ replay needs no live target, provider, bundle source or network, and cleanup
 interrupted after the receipt commit resumes independently. An admitted
 component request keeps its original expiry and identity during recovery;
 native admission alone does not bypass the component's first-admission expiry.
-Cancellation of a native intent that the component never admitted is not yet
-implemented. In particular, a null public journal does not prove absence of a
-forward admission: the component can commit admission before publishing that
-guard. Such an ambiguous operation is retained rather than declared cancelled.
+
+`configuration cancel --state-dir <state> --plan <intent.json> --plan-digest <digest>`
+requires the original component to be 0.0.92 or newer; it never substitutes a
+new release into an older plan. Cancellation authenticates that component and
+binds the original request even after expiry, without reading a source or retained
+bundle. Under its own writer lock the component persists an exact cancellation
+receipt before the CLI records a terminal `cancelled` result and retires desired
+payloads. A null public journal is insufficient: SQLite admission may already
+exist. The component checks its own admission and refuses cancellation once
+staging or publication may have started, or original admitted observations changed.
+
+The CLI independently compares affected file bytes, modes and physical identities
+plus the public status before and after cancellation, bounded to 64 MiB. It never
+opens the component's private ledger. A lost response or native terminal commit
+is recovered by repeating the same cancellation request; the component's durable
+receipt prevents a delayed apply from resurrecting it. Existing terminal results
+are returned unchanged by both apply and cancel, even after a later operation or
+target removal. Thus cancelling an already verified operation reports its original
+verified result and does not undo it. In-place program update/removal cancellation
+remains a separate boundary.
 
 Current-project and configured harness roots refuse direct application: their
 activation requires staged replacement and durable agent handoff. Multi-root

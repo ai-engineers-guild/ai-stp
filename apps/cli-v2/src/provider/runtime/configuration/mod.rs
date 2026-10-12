@@ -2,6 +2,7 @@
 
 pub(super) mod apply;
 mod bundle;
+pub(super) mod cancel;
 mod effects;
 mod instructions;
 mod journal;
