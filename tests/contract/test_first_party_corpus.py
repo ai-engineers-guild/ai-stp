@@ -75,8 +75,9 @@ def test_every_first_party_object_preserves_its_release_repository() -> None:
     """A repository transfer must not rewrite an existing version's passport.
 
     These are release-time source identities. Current fetch locations live in
-    corpus-release-pins.json and the builder; changing a source or evidence URL
-    inside a sealed passport requires a new version, even with identical bytes.
+    the builder; captured release receipts remain immutable. Changing a source
+    or evidence URL inside a sealed passport requires a new version, even with
+    identical bytes.
     """
     corpus = versions()
     components = [item for item in corpus if item.kind == "component"]
