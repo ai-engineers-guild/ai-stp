@@ -1,6 +1,7 @@
 //! One command definition drives both the parser and its machine description.
 
 mod account;
+mod catalog;
 mod local;
 mod providers;
 mod reports;
@@ -11,7 +12,7 @@ use serde_json::{Value, json};
 
 use crate::{
     authoring::{scaffold, source_project, templates},
-    catalog, config, digest, environment,
+    config, digest, environment,
     error::{ErrorKind, Failure, Result},
     identity, projects, selection, snapshot,
 };
@@ -177,7 +178,7 @@ const STATE_DIR: Parameter = Parameter {
 
 const KIND: Parameter = Parameter {
     name: "kind",
-    summary: "Public catalog object kind.",
+    summary: "Catalog object kind.",
     kind: ParameterType::Choice(&["component", "setup"]),
     required: true,
 };
@@ -190,6 +191,13 @@ const CACHE: Parameter = Parameter {
 const OFFLINE: Parameter = Parameter {
     name: "offline",
     summary: "Read only the explicit cache without opening a network connection.",
+    kind: ParameterType::Boolean,
+    required: false,
+};
+
+const PRIVATE: Parameter = Parameter {
+    name: "private",
+    summary: "Allow exact account-authorized private versions from the retained session origin; requires state-dir.",
     kind: ParameterType::Boolean,
     required: false,
 };
@@ -565,13 +573,20 @@ const COMMANDS: &[Declaration] = &[
     },
     Declaration {
         path: &["registry", "version"],
-        summary: "Read and verify an exact public version and preserve its cache observation time.",
+        summary: "Read and verify an exact version; private access is explicit and its cache is account-scoped.",
         parameters: &[
             CONFIG,
             KIND,
             ID,
             CACHE,
             OFFLINE,
+            PRIVATE,
+            Parameter {
+                name: "state-dir",
+                summary: "Isolated device/account state; required for private access and its bounded private cache.",
+                kind: ParameterType::Path,
+                required: false,
+            },
             Parameter {
                 name: "version",
                 summary: "Exact immutable X.Y version.",
@@ -583,11 +598,12 @@ const COMMANDS: &[Declaration] = &[
     },
     Declaration {
         path: &["registry", "acquire", "plan"],
-        summary: "Capture an exact public setup graph and all declared projections for atomic local acquisition.",
+        summary: "Capture an exact setup graph and projections for atomic acquisition; private access binds the account session explicitly.",
         parameters: &[
             STATE_DIR,
             CONFIG,
             ID,
+            PRIVATE,
             Parameter {
                 name: "version",
                 summary: "Exact immutable setup X.Y version.",
@@ -882,22 +898,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
                 None
             },
         ),
-        Handler::CatalogAcquirePlan => crate::authoring::runtime::plan(
-            leaf.get_one::<std::path::PathBuf>("state-dir")
-                .ok_or_else(|| Failure::input("state directory is required"))?,
-            |_, identity, at| {
-                catalog::acquisition::plan(
-                    leaf.get_one::<std::path::PathBuf>("config")
-                        .map(std::path::PathBuf::as_path),
-                    leaf.get_one::<String>("id")
-                        .ok_or_else(|| Failure::input("setup id is required"))?,
-                    leaf.get_one::<String>("version")
-                        .ok_or_else(|| Failure::input("setup version is required"))?,
-                    identity,
-                    at,
-                )
-            },
-        ),
+        Handler::CatalogAcquirePlan => catalog::plan(leaf),
         Handler::IdentityPlan => {
             let storage = match leaf
                 .get_one::<String>("credential-store")
@@ -961,42 +962,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
             }
         }
         Handler::CatalogSearch | Handler::CatalogShow | Handler::CatalogVersion => {
-            let reader = catalog::Reader::new(
-                leaf.get_one::<std::path::PathBuf>("config")
-                    .map(|p| p.as_path()),
-                leaf.try_get_one::<std::path::PathBuf>("cache-dir")
-                    .ok()
-                    .flatten()
-                    .map(|p| p.as_path()),
-                leaf.try_get_one::<bool>("offline")
-                    .ok()
-                    .flatten()
-                    .copied()
-                    .unwrap_or(false),
-            )?;
-            let kind = catalog::Kind::parse(
-                leaf.get_one::<String>("kind")
-                    .ok_or_else(|| Failure::input("kind is required"))?,
-            )?;
-            if matches!(declaration.handler, Handler::CatalogSearch) {
-                reader.search(
-                    kind,
-                    leaf.get_one::<String>("query").map(String::as_str),
-                    leaf.get_one::<String>("cursor").map(String::as_str),
-                    leaf.get_one::<String>("limit").map(String::as_str),
-                    leaf.get_flag("include-experimental"),
-                )
-            } else {
-                reader.show(
-                    kind,
-                    leaf.get_one::<String>("id")
-                        .ok_or_else(|| Failure::input("id is required"))?,
-                    leaf.try_get_one::<String>("version")
-                        .ok()
-                        .flatten()
-                        .map(String::as_str),
-                )
-            }
+            catalog::read(leaf, declaration.handler)
         }
         Handler::DependencyGraph => {
             let members = leaf

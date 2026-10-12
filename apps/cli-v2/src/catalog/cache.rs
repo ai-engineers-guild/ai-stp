@@ -1,4 +1,4 @@
-//! Discardable public cache, isolated below an explicitly supplied directory.
+//! Bounded catalog caches: explicit public storage or held account-scoped state.
 
 use crate::{
     canonical, digest,
@@ -15,6 +15,7 @@ const MAX_CACHE: u64 = 64 * 1024 * 1024;
 const MAX_ENTRIES: usize = 64;
 pub struct Cache {
     storage: files::OwnedDirectory,
+    scope: Vec<u8>,
 }
 pub struct Entry {
     pub document: Value,
@@ -26,12 +27,36 @@ fn invalid() -> Failure {
 
 impl Cache {
     pub fn open(root: &Path, create: bool) -> Result<Option<Self>> {
-        files::OwnedDirectory::open(root, "ai-stp-v2-catalog", OWNER, create)
-            .map(|owned| owned.map(|storage| Self { storage }))
+        files::OwnedDirectory::open(root, "ai-stp-v2-catalog", OWNER, create).map(|owned| {
+            owned.map(|storage| Self {
+                storage,
+                scope: Vec::new(),
+            })
+        })
+    }
+
+    pub(super) fn private(
+        access: &crate::account::access::Access,
+        create: bool,
+    ) -> Result<Option<Self>> {
+        let binding = access.binding();
+        let scope = canonical::bytes(&json!([binding.origin, binding.account_id]))?;
+        Ok(access.cache(create)?.map(|storage| Self { storage, scope }))
+    }
+
+    fn key(&self, url: &str) -> String {
+        if self.scope.is_empty() {
+            digest::sha256(url.as_bytes())
+        } else {
+            let mut bytes = self.scope.clone();
+            bytes.push(0);
+            bytes.extend_from_slice(url.as_bytes());
+            digest::sha256(&bytes)
+        }
     }
 
     pub fn load(&self, url: &str) -> Result<Option<Entry>> {
-        let key = digest::sha256(url.as_bytes());
+        let key = self.key(url);
         let filename = format!("{}.json", &key[7..]);
         let Some(bytes) = self.storage.read_file(&filename, MAX_BODY + 4096)? else {
             return Ok(None);
@@ -55,7 +80,7 @@ impl Cache {
     }
 
     pub fn store(&self, url: &str, document: &Value, checked_at: &str) -> Result<()> {
-        let key = digest::sha256(url.as_bytes());
+        let key = self.key(url);
         let name = format!("{}.json", &key[7..]);
         let bytes = serde_json::to_vec(&json!({"schema_version": 1, "url": url, "key": key,
             "checked_at": checked_at, "document": document, "document_digest": digest::sha256(&canonical::bytes(document)?)})).map_err(|_| invalid())?;

@@ -2,6 +2,7 @@
 
 pub mod acquisition;
 mod cache;
+pub(crate) mod private;
 use crate::{
     digest,
     error::{ErrorKind, Failure, Result},

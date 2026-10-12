@@ -115,9 +115,10 @@ pub fn plan<T: Serialize>(
     Ok(json!({"plan_digest":plan.digest()?, "plan":plan}))
 }
 
-type Apply<T> = fn(&mut Store, &T, &str, &Identity, &str) -> Result<Value>;
-
-fn execute<T: DeserializeOwned>(plan: Plan, apply: Apply<T>) -> Result<Value> {
+fn execute<T: DeserializeOwned>(
+    plan: Plan,
+    apply: impl FnOnce(&mut Store, &T, &str, &Identity, &str) -> Result<Value>,
+) -> Result<Value> {
     // Decode the closed domain plan before opening a writable database.
     let operation: T = serde_json::from_value(plan.operation.clone()).map_err(|_| invalid())?;
     let identity = owner(&plan.state_parent)?;
@@ -171,6 +172,47 @@ fn execute<T: DeserializeOwned>(plan: Plan, apply: Apply<T>) -> Result<Value> {
     apply(&mut store, &operation, &digest, &identity, &at)
 }
 
+fn acquire(plan: Plan) -> Result<Value> {
+    let operation: crate::catalog::acquisition::Plan =
+        serde_json::from_value(plan.operation.clone()).map_err(|_| invalid())?;
+    let Some(binding) = &operation.access else {
+        return execute(plan, crate::catalog::acquisition::apply);
+    };
+    binding.validate()?;
+    // Terminal history is local and remains replayable after logout or session
+    // refresh. The domain rechecks its exact digest and immutable content.
+    let identity = owner(&plan.state_parent)?;
+    let store = identity.planning()?;
+    let finished = crate::store::journal::finished(
+        &store.connection,
+        &operation.operation_id,
+        &operation.action,
+    )?;
+    drop(store);
+    if finished {
+        return execute(plan, crate::catalog::acquisition::apply);
+    }
+    // Acquire the account lock before execute opens a writable registry.
+    let mut access =
+        crate::account::access::Access::load(&plan.state_parent, &binding.origin, false)?;
+    if access.binding() != binding {
+        return Err(Failure::precondition(
+            "the planned private acquisition session changed",
+        ));
+    }
+    access.verify()?;
+    execute(plan, |store, operation, digest, identity, at| {
+        crate::catalog::acquisition::apply_with_access(
+            store,
+            operation,
+            digest,
+            identity,
+            at,
+            Some(&access),
+        )
+    })
+}
+
 pub fn apply(path: &Path, expected_digest: &str) -> Result<Value> {
     let plan: Plan = serde_json::from_value(canonical::parse(&files::read(path, MAX_PLAN)?)?)
         .map_err(|_| invalid())?;
@@ -198,7 +240,7 @@ pub fn apply(path: &Path, expected_digest: &str) -> Result<Value> {
         "setup.passport.update" => execute(plan, setups::drafts::apply),
         "setup.version.release" => execute(plan, setups::releases::apply),
         "setup.import" => execute(plan, importing::apply),
-        "catalog.setup.acquire" => execute(plan, crate::catalog::acquisition::apply),
+        "catalog.setup.acquire" => acquire(plan),
         "setup.fork" | "setup.recast" => execute(plan, setups::copies::apply),
         _ => Err(Failure::input(
             "this operation is not implemented by the local authoring runtime",

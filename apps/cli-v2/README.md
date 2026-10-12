@@ -1787,6 +1787,22 @@ transient failures can fall back to a validated entry, while not-found,
 authorization, transport-policy and invalid-body refusals remain refusals.
 Cached answers retain their original `checked_at` and report `source: cache`.
 
+`registry version --private --state-dir` explicitly permits an exact authenticated
+private-version fallback after a public not-found response. Before private HTTP
+reads, the CLI checks the retained session's origin, expiry, physical root and
+device key, then requires fresh same-account/device `/v1/auth/me` confirmation.
+Tokens are confined to that origin; redirects and ambient proxies remain disabled.
+Private responses preserve `local_owner_or_pinned` and the independent verification
+flags. They never imply a public trust line or a selection grant.
+
+The bounded private metadata cache lives below the held isolated state root in
+`ai-stp-v2-private-catalog`; its keys bind account, origin and exact URL. It never
+uses the anonymous `--cache-dir`. An explicit offline read can use an expired
+retained session to identify its account's cached bytes, and reports
+`online_authorized: false`. Logout or absent credentials cannot select a private
+cache account. A live authorization/not-found/integrity refusal cannot be replaced
+by cached success. No token or refresh credential enters a plan, cache or result.
+
 Catalog, public source, software download and trust-metadata refusals preserve a
 valid `Retry-After` as `error.details.retry_after_seconds`, without shortening it
 to the request timeout or an hourly cap. Decimal seconds and the three HTTP-date
@@ -1811,6 +1827,14 @@ rechecks stored versions, trust records and projection bytes without networking.
 Capture is limited to 512 components, 8,192 references, 8 MiB of metadata,
 64 MiB per artifact, 128 MiB of distinct bytes and projection verification work,
 and thirty seconds per capture. HTTP connections are reused within that capture.
+With `--private`, the same capture permits private members and binds the exact
+account/session revision, device key and physical root in its plan. Account
+identity is verified before each graph capture. Account locking precedes registry
+locking; apply refuses a changed session or origin, and revalidates the held
+authority after network work before committing. Completed acquisition receipts
+remain local and replayable after logout or refresh. Mixed public/private graphs
+retain each member's original bytes and trust; acquisition alone changes neither
+object ownership nor visibility and does not fabricate private selection grants.
 Version-2 definitions carry at most 500 embedded records in at most 20 MiB.
 The shared definition reader binds each closed record to a setup reference and
 checks its original passport, revision, size/digest pairs, unpadded base64url
@@ -2482,7 +2506,7 @@ breakaway and never infers termination from PID disappearance alone.
 | `config.rs`, `files.rs` | Explicit bounded configuration reads and path rendering |
 | `snapshot.rs`, `objects.rs` | Explicit backup inspection and verified local reads |
 | `wire.rs`, `passport.rs`, `passport/` | Offline wire validation, immutable passport rules and content identities |
-| `http.rs`, `catalog/` | Bounded public reads/cache and planned atomic exact graph acquisition |
+| `http.rs`, `catalog/` | Bounded public/private reads, scoped caches and atomic exact graph acquisition |
 | `projects/` | Bounded project discovery and content-free file evidence |
 | `environment.rs` | Exact setup prerequisites, project binding and variable-name presence |
 | `selection/` | Verified exact graphs, deterministic ordering and graph-wide mechanical eligibility |

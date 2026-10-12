@@ -1,5 +1,6 @@
 //! Explicit isolated account sessions. Authentication does not transfer local ownership.
 
+pub(crate) mod access;
 pub(crate) mod attachment;
 mod journal;
 mod model;
