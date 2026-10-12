@@ -1,6 +1,6 @@
 //! Isolated offline identity. Public plans never contain key material or cloud claims.
 
-mod credentials;
+pub(crate) mod credentials;
 #[cfg(target_os = "linux")]
 mod secret_service;
 
@@ -20,7 +20,7 @@ use crate::{
     passport,
     wire::Schema,
 };
-use credentials::Credentials;
+use credentials::Vault;
 
 const NAMESPACE: &str = "ai-stp-v2-identity";
 const OWNER: &[u8] = b"ai-stp-cli-v2 isolated identity v1\n";
@@ -106,14 +106,27 @@ struct Record {
 
 /// No Serialize or Debug implementation: only report() and explicit signing can leave this type.
 pub struct Identity {
-    context: authoring::Identity,
     key: SigningKey,
     device: Value,
+    plan: Plan,
+    root: Dir,
 }
 
 impl Identity {
+    pub(crate) fn storage(&self) -> Storage {
+        self.plan.credential_store
+    }
+    pub(crate) fn root_directory(&self) -> &Dir {
+        &self.root
+    }
+    pub(crate) fn root_binding(&self) -> (&Path, &[String; 2]) {
+        (&self.plan.root, &self.plan.root_identity)
+    }
     pub fn context(&self) -> authoring::Identity {
-        self.context.clone()
+        authoring::Identity {
+            account_id: self.plan.account_id.clone(),
+            device_id: self.plan.device_id.clone(),
+        }
     }
     pub fn report(&self) -> Value {
         self.device.clone()
@@ -135,18 +148,19 @@ fn invalid() -> Failure {
     Failure::precondition("the local identity, key or initialization record is inconsistent")
 }
 
-fn root(path: &Path) -> Result<(PathBuf, [String; 2])> {
+pub(crate) fn root(path: &Path) -> Result<(PathBuf, [String; 2])> {
     let location = PathBuf::from(files::location(path)?);
     let dir =
         Dir::open_ambient_dir(&location, cap_std::ambient_authority()).map_err(|_| invalid())?;
+    Ok((location, physical_root(&dir)?))
+}
+
+fn physical_root(dir: &Dir) -> Result<[String; 2]> {
     let meta = dir.dir_metadata().map_err(|_| invalid())?;
-    Ok((
-        location,
-        [
-            cap_fs_ext::MetadataExt::dev(&meta).to_string(),
-            cap_fs_ext::MetadataExt::ino(&meta).to_string(),
-        ],
-    ))
+    Ok([
+        cap_fs_ext::MetadataExt::dev(&meta).to_string(),
+        cap_fs_ext::MetadataExt::ino(&meta).to_string(),
+    ])
 }
 
 fn revalidate(plan: &Plan) -> Result<()> {
@@ -234,8 +248,11 @@ fn report(plan: &Plan, key: &SigningKey) -> Value {
         "credential_store":plan.credential_store,"credential_store_detail":plan.credential_store.detail(),"retired_device_ids":[]})
 }
 
-fn load(directory: &OwnedDirectory, record: &Record) -> Result<Identity> {
-    let key = Credentials::new(directory,record.plan.credential_store)?.read(&record.plan.device_id)?
+fn load(directory: &OwnedDirectory, record: &Record, root: Dir) -> Result<Identity> {
+    if physical_root(&root)? != record.plan.root_identity {
+        return Err(invalid());
+    }
+    let key = Vault::new(directory,record.plan.credential_store)?.read_key(&record.plan.device_id)?
         .ok_or_else(||Failure::precondition("the device has a public record but its private key is missing; initialization will not replace it"))?;
     let public = report(&record.plan, &key);
     if record.device["public_key"] != public["public_key"]
@@ -247,18 +264,18 @@ fn load(directory: &OwnedDirectory, record: &Record) -> Result<Identity> {
         return Err(Failure::precondition("the local device is revoked"));
     }
     Ok(Identity {
-        context: authoring::Identity {
-            account_id: record.plan.account_id.clone(),
-            device_id: record.plan.device_id.clone(),
-        },
         key,
         device: record.device.clone(),
+        plan: record.plan.clone(),
+        root,
     })
 }
 
 /// Read-only: absent identity stays absent, and no keyring availability probe is written.
 pub fn current(parent: &Path) -> Result<Option<Identity>> {
-    let Some(directory) = OwnedDirectory::open(parent, NAMESPACE, OWNER, false)? else {
+    let root =
+        Dir::open_ambient_dir(parent, cap_std::ambient_authority()).map_err(|_| invalid())?;
+    let Some(directory) = OwnedDirectory::open_at(&root, NAMESPACE, OWNER, false)? else {
         return Ok(None);
     };
     let Some(record) = record(&directory)? else {
@@ -266,7 +283,7 @@ pub fn current(parent: &Path) -> Result<Option<Identity>> {
         return Ok(None);
     };
     revalidate_at(&record.plan, parent)?;
-    load(&directory, &record).map(Some)
+    load(&directory, &record, root).map(Some)
 }
 
 /// Public intent binds identities and storage; key entropy is generated only during apply.
@@ -321,7 +338,12 @@ pub fn apply(plan: &Plan, expected_digest: &str, at: &str) -> Result<Identity> {
         return Err(invalid());
     }
     revalidate(plan)?;
-    let existing = OwnedDirectory::open(&plan.root, NAMESPACE, OWNER, false)?;
+    let root =
+        Dir::open_ambient_dir(&plan.root, cap_std::ambient_authority()).map_err(|_| invalid())?;
+    if physical_root(&root)? != plan.root_identity {
+        return Err(invalid());
+    }
+    let existing = OwnedDirectory::open_at(&root, NAMESPACE, OWNER, false)?;
     if existing.is_none() && (at < plan.created_at.as_str() || at > plan.expires_at.as_str()) {
         return Err(Failure::precondition(
             "the initialization plan expired before it started",
@@ -329,7 +351,7 @@ pub fn apply(plan: &Plan, expected_digest: &str, at: &str) -> Result<Identity> {
     }
     let directory = match existing {
         Some(dir) => dir,
-        None => OwnedDirectory::open(&plan.root, NAMESPACE, OWNER, true)?.ok_or_else(invalid)?,
+        None => OwnedDirectory::open_at(&root, NAMESPACE, OWNER, true)?.ok_or_else(invalid)?,
     };
     if let Some(record) = record(&directory)? {
         if record.plan_digest != expected_digest {
@@ -338,7 +360,7 @@ pub fn apply(plan: &Plan, expected_digest: &str, at: &str) -> Result<Identity> {
                 "another plan initialized this installation",
             ));
         }
-        return load(&directory, &record);
+        return load(&directory, &record, root);
     }
     match pending(&directory)? {
         Some(held) if held == *plan => {
@@ -363,8 +385,8 @@ pub fn apply(plan: &Plan, expected_digest: &str, at: &str) -> Result<Identity> {
             )?;
         }
     }
-    let credentials = Credentials::new(&directory, plan.credential_store)?;
-    let key = match credentials.read(&plan.device_id)? {
+    let credentials = Vault::new(&directory, plan.credential_store)?;
+    let key = match credentials.read_key(&plan.device_id)? {
         Some(key) => key,
         None => {
             let mut seed = Zeroizing::new([0u8; 32]);
@@ -375,7 +397,7 @@ pub fn apply(plan: &Plan, expected_digest: &str, at: &str) -> Result<Identity> {
                 )
             })?;
             let key = SigningKey::from_bytes(&seed);
-            credentials.create(&plan.device_id, &key)?;
+            credentials.create_key(&plan.device_id, &key)?;
             key
         }
     };
@@ -391,5 +413,5 @@ pub fn apply(plan: &Plan, expected_digest: &str, at: &str) -> Result<Identity> {
         &canonical::bytes(&serde_json::to_value(&record).map_err(|_| invalid())?)?,
     )?;
     // Retain the small public intent as the exact initialization receipt.
-    load(&directory, &record)
+    load(&directory, &record, root)
 }

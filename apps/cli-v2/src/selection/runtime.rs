@@ -19,15 +19,19 @@ use super::{
     graph,
 };
 use crate::{
-    authoring::{Identity, freezing, setups},
+    authoring::{
+        Identity, freezing,
+        runtime::{Owner, owner},
+        setups,
+    },
     canonical,
     error::{Failure, Result},
-    files, harnesses, identity,
+    files, harnesses,
     objects::Objects,
     passport,
     projection::Scope,
     provider::{Info, artifact, runtime, trust},
-    store::{Store, revisions},
+    store::revisions,
 };
 
 const MAX_REQUEST: u64 = 256 * 1024;
@@ -258,20 +262,10 @@ fn assess_snapshot(
     Ok(report(observed.target, assessment, observed.bytes))
 }
 
-fn owner(parent: &Path) -> Result<Identity> {
-    Ok(identity::current(parent)?
-        .ok_or_else(|| {
-            Failure::precondition(
-                "initialize the isolated native identity before selecting owned objects",
-            )
-        })?
-        .context())
-}
-
 fn with_provider<T>(
     parent: &Path,
     selector: &Selector,
-    identity: &Identity,
+    identity: &Owner,
     effect: impl FnOnce(&Info, &artifact::Artifact<'_>, Value) -> Result<T>,
 ) -> Result<T> {
     selector.validate()?;
@@ -284,7 +278,7 @@ fn with_provider<T>(
         &trust,
     )?;
     let (provider, report) = runtime.declaration(&artifact)?;
-    if owner(parent)? != *identity {
+    if *owner(parent)? != **identity {
         return Err(Failure::precondition(
             "the isolated identity changed during provider observation",
         ));
@@ -303,7 +297,7 @@ pub fn assess(parent: &Path, path: &Path) -> Result<Value> {
         .as_array()
         .ok_or_else(invalid)?
         .clone();
-    let mut store = Store::planning(parent)?;
+    let mut store = identity.planning()?;
     // Refuse missing or conflicting coordinates before network or trust writes.
     let graph = store.transaction(|t| graph::exact(t, &roots))?;
     drop(store);
@@ -321,7 +315,7 @@ pub fn assess(parent: &Path, path: &Path) -> Result<Value> {
         &identity,
         |provider, artifact, report| {
             // Re-read the graph after external I/O; preflight is never a permit.
-            let mut store = Store::planning(parent)?;
+            let mut store = identity.planning()?;
             let mut result = store.transaction(|t| assess_snapshot(t, &roots, target, provider))?;
             artifact.executable()?;
             result["provider"] = report;

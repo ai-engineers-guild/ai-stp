@@ -12,7 +12,7 @@ use crate::{
     authoring::{Identity, expiry},
     digest,
     error::{Failure, Result},
-    files, identity,
+    files,
     objects::Objects,
     passport,
     projects::passports::{self, Registered},
@@ -217,8 +217,8 @@ pub fn apply(
 
 /// Stored local evidence is available without reopening the observed filesystem.
 pub fn findings(parent: &Path, id: &str) -> Result<Value> {
-    let identity = identity::current(parent)?.ok_or_else(invalid)?.context();
-    let mut store = Store::planning(parent)?;
+    let identity = crate::authoring::runtime::owner(parent)?;
+    let mut store = identity.planning()?;
     store.transaction(|transaction| {
         owned(transaction, id, &identity)?;
         let findings = storage::read(transaction, id)?;

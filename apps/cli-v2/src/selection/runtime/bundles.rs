@@ -8,7 +8,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::{Selector, inputs, owner, with_provider};
+use super::{Owner, Selector, inputs, owner, with_provider};
 use crate::{
     authoring::{Identity, setups::Source},
     bundle::{self, hosts},
@@ -18,7 +18,6 @@ use crate::{
     objects::Objects,
     projection::Scope,
     selection::graph,
-    store::Store,
 };
 
 const MAX_PLAN: u64 = 16 * 1024;
@@ -71,8 +70,8 @@ impl Plan {
     }
 }
 
-fn setup(parent: &Path, source: &Source) -> Result<Value> {
-    let mut store = Store::planning(parent)?;
+fn setup(identity: &Owner, source: &Source) -> Result<Value> {
+    let mut store = identity.planning()?;
     store.transaction(|t| {
         let document = Objects { connection: t }.exact_version(
             &source.stable_id,
@@ -97,16 +96,16 @@ fn with_bundle(
     parent: &Path,
     source: &Source,
     selector: &Selector,
-    identity: &Identity,
+    identity: &Owner,
     host: &hosts::Root,
     finish: impl FnOnce(bundle::Bundle, Value) -> Result<Value>,
 ) -> Result<Value> {
-    if setup(parent, source)?["harness_id"] != selector.harness_id {
+    if setup(identity, source)?["harness_id"] != selector.harness_id {
         return Err(invalid());
     }
     let reference = value(source)?;
     with_provider(parent, selector, identity, |provider, artifact, report| {
-        let mut store = Store::planning(parent)?;
+        let mut store = identity.planning()?;
         store.transaction(|t| {
             let target = selector.target(identity)?;
             let observed = inputs(t, std::slice::from_ref(&reference), target)?;
@@ -139,7 +138,7 @@ pub fn plan(
 ) -> Result<Value> {
     let state_parent = PathBuf::from(files::location(parent)?);
     let identity = owner(&state_parent)?;
-    let document = setup(&state_parent, &source)?;
+    let document = setup(&identity, &source)?;
     let selector = Selector {
         harness_id: field(&document, "harness_id")?.into(),
         scope,
@@ -199,7 +198,11 @@ pub fn apply(path: &Path, expected: &str) -> Result<Value> {
         || plan.action != "selection.bundle"
         || !plan.state_parent.is_absolute()
         || plan.digest()? != expected
-        || plan.identity != owner(&plan.state_parent)?
+    {
+        return Err(invalid());
+    }
+    let identity = owner(&plan.state_parent)?;
+    if plan.identity != *identity
         || tree::destination(Path::new(&plan.output))?
             != (plan.output.clone(), plan.parent_identity.clone())
     {
@@ -219,7 +222,7 @@ pub fn apply(path: &Path, expected: &str) -> Result<Value> {
         &plan.state_parent,
         &plan.source,
         &plan.selector,
-        &plan.identity,
+        &identity,
         &host,
         |bundle, _| {
             if bundle.artifact_digest != plan.artifact_digest

@@ -16,7 +16,7 @@ use crate::{
     passport,
     provider::{Info, artifact, runtime, trust},
     selection::eligibility,
-    store::{Store, database},
+    store::database,
 };
 
 const MAX_REPORT: usize = 8 * 1024 * 1024;
@@ -255,7 +255,7 @@ pub(super) fn assess_snapshot(
 pub fn assess(parent: &Path, path: &Path) -> Result<Value> {
     let request = Request::parse(path)?;
     let identity = owner(parent)?;
-    let mut store = Store::planning(parent)?;
+    let mut store = identity.planning()?;
     let empty = store.transaction(|t| {
         let page = page(t, &request)?;
         if page.0.iter().all(|c| c.coordinate.is_none()) {
@@ -283,12 +283,12 @@ pub fn assess(parent: &Path, path: &Path) -> Result<Value> {
         )?;
         providers.push(runtime.declaration(&artifact)?);
     }
-    if owner(parent)? != identity {
+    if *owner(parent)? != *identity {
         return Err(Failure::precondition(
             "the isolated identity changed during matrix observation",
         ));
     }
-    let mut store = Store::planning(parent)?;
+    let mut store = identity.planning()?;
     store.transaction(|t| {
         let report = assess_snapshot(t, &request, &identity, &providers)?;
         trust.root()?;
