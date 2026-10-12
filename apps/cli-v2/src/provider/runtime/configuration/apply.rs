@@ -134,7 +134,6 @@ pub(in crate::provider::runtime) fn apply(
         &Configuration {
             plan: &plan.provider_plan,
             request: &request,
-            scope: plan.target_scope,
         },
         &bundle_bytes,
     )?;

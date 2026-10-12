@@ -186,7 +186,6 @@ pub(super) fn apply(parent: &Path, bytes: &[u8], digest: &str) -> Result<Value> 
                 prefix: Path::new(&plan.prefix.path),
                 plan: &plan.provider_plan,
                 archive: Some(&archive.file),
-                scope: plan.scope()?,
             },
         )?;
         let provider_result = applied(&response, &plan)?;

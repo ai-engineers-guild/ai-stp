@@ -9,7 +9,7 @@ use std::{
 };
 
 use super::{linux, target::Target, unavailable};
-use crate::{digest, error::Result, projection::Scope};
+use crate::{digest, error::Result};
 
 #[derive(Clone, Copy)]
 pub(super) enum Execution<'a> {
@@ -39,7 +39,6 @@ impl Execution<'_> {
 pub(super) struct Configuration<'a> {
     pub plan: &'a Value,
     pub request: &'a crate::provider::plan::Request,
-    pub scope: Scope,
 }
 
 impl Configuration<'_> {
@@ -60,9 +59,7 @@ impl Configuration<'_> {
             digest::sha256(component).into(),
         ];
         command.extend(linux::bundle_arguments(self.request));
-        if self.scope != Scope::Global {
-            command.extend(["--target-scope".into(), self.scope.as_str().into()]);
-        }
+        // Apply derives scope from the sealed plan, never a second argv claim.
         Ok(command)
     }
 }
@@ -95,7 +92,6 @@ pub(super) struct Installation<'a> {
     pub prefix: &'a Path,
     pub plan: &'a Value,
     pub archive: Option<&'a File>,
-    pub scope: Scope,
 }
 
 impl Installation<'_> {
@@ -119,9 +115,6 @@ impl Installation<'_> {
         ];
         if self.archive.is_some() {
             command.extend(["--software-artifact".into(), "/run/vendor-artifact".into()]);
-        }
-        if self.scope != Scope::Global {
-            command.extend(["--target-scope".into(), self.scope.as_str().into()]);
         }
         Ok(command)
     }
