@@ -257,6 +257,7 @@ fn forward_recovery(
     planned["plan"]["operation"] = "remove".into();
     planned["plan"]["bundle"] = Value::Null;
     for field in [
+        "valid",
         "bundle_format",
         "bundle_digest",
         "artifact_digest",
@@ -266,6 +267,13 @@ fn forward_recovery(
     }
     planned["plan_digest"] = digest_plan(&planned["plan"])?.into();
     remove.planned(&serde_json::to_vec(&planned)?, &supported, now)?;
+    let mut invented_validation = planned.clone();
+    invented_validation["valid"] = true.into();
+    assert!(
+        remove
+            .planned(&serde_json::to_vec(&invented_validation)?, &supported, now)
+            .is_err()
+    );
     assert!(
         remove
             .planned(&serde_json::to_vec(&planned)?, observed, now)

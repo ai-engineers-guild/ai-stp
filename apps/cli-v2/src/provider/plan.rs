@@ -241,7 +241,9 @@ impl Request {
             .as_ref()
             .map_or_else(|| Ok(json!({})), serde_json::to_value)
             .map_err(|_| invalid())?;
-        expected["valid"] = true.into();
+        if self.bundle.is_some() {
+            expected["valid"] = true.into();
+        }
         expected["state"] = "planned".into();
         expected["expected_target_digest"] = observed.target_digest.into();
         expected["effects"] = effects.clone().into();
