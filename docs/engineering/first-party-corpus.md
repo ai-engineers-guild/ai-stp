@@ -1,6 +1,6 @@
 ---
 description: "Rebuilding and publishing the first-party corpus from exact attested setup-system releases."
-last_verified: "2026-10-10"
+last_verified: "2026-10-12"
 ---
 
 # First-party launch corpus
@@ -70,6 +70,13 @@ a coordinated release changes their passport representation or setup pins;
 `--bump-id` advances an explicitly named object. Before publication, compare the
 candidate passports with the public exact versions and refuse any same-version
 change. A rebuild is not permission to overwrite an existing publication.
+
+A repository transfer changes where the builder fetches future source. It does
+not rewrite `source.repository`, evidence URLs, or the verified repository
+identity in an existing release receipt. Preserve the captured corpus and its
+release pins byte-for-byte; any changed sealed passport needs a new version.
+The builder's current organization and the release-time provenance may therefore
+differ deliberately. GitHub redirects are transport behavior, not new provenance.
 
 Compare complete sealed passports, not only source blobs. A new source commit
 changes a component passport even when its artifact bytes remain identical;
