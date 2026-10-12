@@ -35,7 +35,7 @@ REPOSITORIES: dict[str, str] = {
     "antigravity": "antigravity-setup-system",
 }
 
-ORGANISATION = "NDDev-OpenNetwork"
+ORGANISATION = "NDDev-Technocracy-Sandbox"
 #: The product axis the setup-systems publish on, in the order a reader should
 #: meet them: least configured first. Each is a directory under `setups/` in
 #: every one of the seven repositories, and its `setup.json` carries `"id"` with
