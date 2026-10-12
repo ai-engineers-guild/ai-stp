@@ -96,6 +96,7 @@ pub(super) struct Installation<'a> {
     pub prefix: &'a Path,
     pub plan: &'a Value,
     pub archive: Option<&'a File>,
+    pub cancel: bool,
 }
 
 impl Installation<'_> {
@@ -117,6 +118,12 @@ impl Installation<'_> {
             "--provider-release-digest".into(),
             digest::sha256(component).into(),
         ];
+        if self.cancel {
+            if self.archive.is_some() {
+                return Err(unavailable());
+            }
+            command.push("--cancel".into());
+        }
         if self.archive.is_some() {
             command.extend(["--software-artifact".into(), "/run/vendor-artifact".into()]);
         }

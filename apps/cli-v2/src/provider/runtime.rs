@@ -85,6 +85,23 @@ pub fn program_change_apply(
     }
 }
 
+pub fn program_change_cancel(
+    parent: &Path,
+    bytes: &[u8],
+    digest: &str,
+    action: &str,
+) -> Result<Value> {
+    #[cfg(target_os = "linux")]
+    {
+        install::change::cancellation::cancel(parent, bytes, digest, action)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (parent, bytes, digest, action);
+        Err(unavailable())
+    }
+}
+
 pub fn platform() -> Result<&'static str> {
     match (std::env::consts::OS, std::env::consts::ARCH) {
         ("linux", "x86_64") => Ok("linux/x86_64"),

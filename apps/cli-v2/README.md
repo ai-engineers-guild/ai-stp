@@ -917,13 +917,28 @@ native state. It releases after interruption; the component's durable writer
 admission remains authoritative across clients. The original apply resumes an
 admitted operation after expiry. A request never admitted by the component must
 still be unexpired; an expired request requires a new plan. Native intent alone
-does not extend component admission. There is no in-place cancellation command.
+does not extend component admission.
 Unrelated changes or a replaced directory refuse; they are not overwritten to
 make recovery pass. Terminal receipts replay without network or current-prefix
 access and remain historical evidence, not current installation verification.
 An external writer using another state can change the prefix after component
 completion; if that precedes native readback, the native operation refuses
 instead of claiming an independently verified result.
+
+`program update cancel` and `program remove cancel` consume only the original
+plan and digest. They require that plan's authenticated component to support
+exact software cancellation (0.0.93 or newer); old plans are never rebound to a
+new release. An unadmitted request is durably cancelled in the component; an
+admitted request can cancel only before any program effect, with unchanged
+initial contents and no kernel journal. Cancellation never resumes extraction or
+removal, downloads no vendor archive and remains available after plan expiry.
+The CLI checks the entire prefix's bytes, modes, link values and physical entry
+identities before and after invocation, excluding only shared component metadata,
+and independently compares public target status. Only then does its journal
+commit `cancelled`. A lost response retains the original retry path. The
+component refuses late apply permanently; native apply/cancel replay the original
+terminal receipt offline even after later prefix removal. An already verified
+native request returns its verified receipt, never a claim of cancellation.
 
 Machine help marks all program plans as `plan` and apply/cancel as `apply` with
 `plan_digest` confirmation. Active-agent handoff, multi-root coordination,

@@ -30,6 +30,8 @@ pub(super) enum Handler {
     ProgramRemovePlan,
     ProgramUpdateApply,
     ProgramRemoveApply,
+    ProgramUpdateCancel,
+    ProgramRemoveCancel,
     ConfigurationPlan,
     ConfigurationApply,
     ConfigurationCancel,
@@ -43,6 +45,8 @@ impl Handler {
             | Self::ConfigurationCancel
             | Self::ProgramInstallCancel
             | Self::ProgramUpdateApply
+            | Self::ProgramUpdateCancel
+            | Self::ProgramRemoveCancel
             | Self::ProgramRemoveApply => "apply",
             Self::Plan
             | Self::ConfigurationPlan
@@ -168,6 +172,18 @@ pub(super) const COMMANDS: &[Declaration] = &[
             },
         ],
         handler: super::Handler::Provider(Handler::ProgramRemovePlan),
+    },
+    Declaration {
+        path: &["program", "update", "cancel"],
+        summary: "Cancel an exact update before component effects; return its original terminal receipt on retry.",
+        parameters: INSTALL_PARAMETERS,
+        handler: super::Handler::Provider(Handler::ProgramUpdateCancel),
+    },
+    Declaration {
+        path: &["program", "remove", "cancel"],
+        summary: "Cancel an exact removal before component effects; preserve the program and original terminal history.",
+        parameters: INSTALL_PARAMETERS,
+        handler: super::Handler::Provider(Handler::ProgramRemoveCancel),
     },
     Declaration {
         path: &["program", "update", "apply"],
@@ -351,6 +367,8 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             | Handler::ConfigurationCancel
             | Handler::ProgramInstallCancel
             | Handler::ProgramUpdateApply
+            | Handler::ProgramUpdateCancel
+            | Handler::ProgramRemoveCancel
             | Handler::ProgramRemoveApply
     ) {
         let parent = args
@@ -378,6 +396,21 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             );
         }
         let bytes = files::read(path, 64 * 1024)?;
+        if matches!(
+            handler,
+            Handler::ProgramUpdateCancel | Handler::ProgramRemoveCancel
+        ) {
+            return runtime::program_change_cancel(
+                parent,
+                &bytes,
+                digest,
+                if matches!(handler, Handler::ProgramUpdateCancel) {
+                    "program.update"
+                } else {
+                    "program.remove"
+                },
+            );
+        }
         return if matches!(
             handler,
             Handler::ProgramUpdateApply | Handler::ProgramRemoveApply
@@ -406,6 +439,8 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         | Handler::ConfigurationCancel
         | Handler::ProgramInstallCancel
         | Handler::ProgramUpdateApply
+        | Handler::ProgramUpdateCancel
+        | Handler::ProgramRemoveCancel
         | Handler::ProgramRemoveApply => Err(Failure::input("the installation command is invalid")),
         Handler::Inspect
         | Handler::ConfigurationPlan
@@ -544,6 +579,8 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                 | Handler::ProgramInstallApply
                 | Handler::ProgramInstallCancel
                 | Handler::ProgramUpdateApply
+                | Handler::ProgramUpdateCancel
+                | Handler::ProgramRemoveCancel
                 | Handler::ProgramRemoveApply => {
                     Err(Failure::input("the provider command is invalid"))
                 }

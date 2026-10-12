@@ -17,6 +17,7 @@ struct Inventory {
     entries: BTreeMap<String, Value>,
     bytes: u64,
     started: Instant,
+    identities: bool,
 }
 
 impl Inventory {
@@ -25,6 +26,7 @@ impl Inventory {
             entries: BTreeMap::new(),
             bytes: 0,
             started: Instant::now(),
+            identities: false,
         }
     }
 
@@ -111,7 +113,10 @@ impl Inventory {
                 continue;
             }
             let before = directory.symlink_metadata(leaf).map_err(|_| invalid())?;
-            let value = self.entry(directory, leaf, &path)?.ok_or_else(invalid)?;
+            let mut value = self.entry(directory, leaf, &path)?.ok_or_else(invalid)?;
+            if self.identities {
+                value["identity"] = json!([before.dev().to_string(), before.ino().to_string()]);
+            }
             let descend = value["kind"] == "directory";
             self.entries.insert(path.clone(), value);
             if descend {
@@ -159,6 +164,21 @@ pub(super) fn launch_names(entry: &str) -> Result<[String; 3]> {
         format!(".{command}.version"),
         format!(".{command}.manifest.json"),
     ])
+}
+
+/// Cancellation may change only the component's validated shared metadata.
+pub(super) fn unchanged(root: &Dir) -> Result<String> {
+    let metadata = root.dir_metadata().map_err(|_| invalid())?;
+    let mut inventory = Inventory::new();
+    inventory.identities = true;
+    inventory.entries.insert(
+        String::new(),
+        json!({"kind":"directory",
+        "mode":metadata.permissions().mode() & 0o7777,
+        "identity":[metadata.dev().to_string(), metadata.ino().to_string()]}),
+    );
+    inventory.walk(root, "", &BTreeSet::from([".nddev-software".into()]))?;
+    inventory.digest()
 }
 
 pub(super) fn preserved(root: &Dir, version: &str, entry: &str) -> Result<String> {
