@@ -16,6 +16,7 @@ pub(super) struct Installed {
     pub root: String,
     pub setup_id: String,
     pub version: String,
+    pub native: bool,
 }
 
 pub(super) fn installed(connection: &Connection) -> Result<Vec<Installed>> {
@@ -75,7 +76,8 @@ pub(super) fn installed(connection: &Connection) -> Result<Vec<Installed>> {
             state,
             operation_id,
         ) = row.map_err(database)?;
-        let harness = if action.starts_with("configuration.") {
+        let native = action.starts_with("configuration.");
+        let harness = if native {
             let detail = detail.ok_or_else(super::invalid)?;
             read_bytes = read_bytes.saturating_add(detail.len());
             if read_bytes > 128 * 1024 * 1024 {
@@ -140,6 +142,7 @@ pub(super) fn installed(connection: &Connection) -> Result<Vec<Installed>> {
                 root,
                 setup_id,
                 version,
+                native,
             });
         }
     }
@@ -164,7 +167,8 @@ pub(super) fn baseline(
         .into_iter()
         .filter(|item| {
             item.target == target
-                && (item.root.is_empty() || root.as_ref().is_some_and(|root| root == &item.root))
+                && (!item.native
+                    || root.as_ref().is_some_and(|root| root == &item.root))
         })
         .map(|item| (item.setup_id, item.version))
         .collect();
