@@ -83,7 +83,7 @@ The optimized preview also authenticates every managed default and completes
 an explicit Claude Code project author/selection/bundle/install/remove journey.
 Issues #764 and #860 own exact source, artifact and operational evidence. Base forward
 configuration execution requires 0.0.91; exact configuration cancellation needs
-0.0.92. Program mutation commands and their evidence runner are retired by ADR-0232. Python 0.0.46 remains
+0.0.92. Program mutation commands and their evidence runner are retired by ADR-0232. The published Python CLI remains
 the production writer. Neither an artifact release nor an isolated journey
 transfers production ownership.
 
