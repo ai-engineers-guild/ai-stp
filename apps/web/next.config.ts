@@ -33,6 +33,7 @@ const contentSecurityPolicy = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ["localhost", "127.0.0.1"],
   pageExtensions: webPageExtensions(featureProfile),
   skipProxyUrlNormalize: featureProfile.profile === "corporate_hub",
   outputFileTracingExcludes: {

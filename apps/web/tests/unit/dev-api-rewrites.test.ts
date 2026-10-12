@@ -13,6 +13,10 @@ afterEach(() => {
 });
 
 describe("dev API rewrites (same-origin hop without a host proxy)", () => {
+  it("allows local Docker browser origins to load Next development resources", () => {
+    expect(nextConfig.allowedDevOrigins).toEqual(["localhost", "127.0.0.1"]);
+  });
+
   it("enables rewrites only in development", () => {
     expect(shouldEnableDevApiRewrites("development")).toBe(true);
     expect(shouldEnableDevApiRewrites("production")).toBe(false);
