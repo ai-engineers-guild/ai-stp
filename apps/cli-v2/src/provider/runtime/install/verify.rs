@@ -258,8 +258,34 @@ pub(super) fn payload_at(
     if actual != expected {
         return Err(invalid());
     }
+    let member = launch(
+        root,
+        &version_root,
+        &actual,
+        version,
+        entry_point,
+        final_prefix,
+        fresh,
+    )?;
+    let bytes = serde_json_canonicalizer::to_vec(&actual).map_err(|_| invalid())?;
+    Ok(
+        json!({"verification":"exact_vendor_archive_inventory", "files":actual.files.len(), "archive_entries":archive_entries, "bytes":actual.bytes,
+        "inventory_digest":digest::sha256(&bytes), "entry_point":entry_point,"member":member}),
+    )
+}
+
+fn launch(
+    root: &Dir,
+    version_root: &Dir,
+    actual: &Inventory,
+    version: &str,
+    entry_point: &str,
+    final_prefix: &Path,
+    fresh: bool,
+) -> Result<String> {
+    let command = entry_point.strip_prefix("bin/").ok_or_else(invalid)?;
     let bin = root.open_dir_nofollow("bin").map_err(|_| invalid())?;
-    for directory in [&version_root, &bin] {
+    for directory in [version_root, &bin] {
         if directory
             .dir_metadata()
             .map_err(|_| invalid())?
@@ -325,11 +351,33 @@ pub(super) fn payload_at(
     {
         return Err(invalid());
     }
-    let bytes = serde_json_canonicalizer::to_vec(&actual).map_err(|_| invalid())?;
-    Ok(
-        json!({"verification":"exact_vendor_archive_inventory", "files":actual.files.len(), "archive_entries":archive_entries, "bytes":actual.bytes,
-        "inventory_digest":digest::sha256(&bytes), "entry_point":entry_point,"member":member}),
-    )
+    Ok(member)
+}
+
+/// Fresh file evidence against a previously independently verified inventory.
+/// Historical operation replay deliberately does not call this function.
+pub(super) fn recorded(root: &Dir, proof: &Value, version: &str, prefix: &Path) -> Result<()> {
+    let started = Instant::now();
+    let directory = root.open_dir_nofollow(version).map_err(|_| invalid())?;
+    let held = directory.dir_metadata().map_err(|_| invalid())?;
+    let entry = proof["entry_point"].as_str().ok_or_else(invalid)?;
+    for _ in 0..2 {
+        let mut actual = Inventory::default();
+        installed(&directory, Path::new(""), &mut actual, started)?;
+        let bytes = serde_json_canonicalizer::to_vec(&actual).map_err(|_| invalid())?;
+        if proof["inventory_digest"] != digest::sha256(&bytes)
+            || proof["files"] != actual.files.len()
+            || proof["bytes"] != actual.bytes
+            || proof["member"] != launch(root, &directory, &actual, version, entry, prefix, false)?
+        {
+            return Err(invalid());
+        }
+        let current = root.symlink_metadata(version).map_err(|_| invalid())?;
+        if !current.is_dir() || current.dev() != held.dev() || current.ino() != held.ino() {
+            return Err(invalid());
+        }
+    }
+    Ok(())
 }
 
 fn record(parent: &Dir, name: &str) -> Result<Vec<u8>> {
@@ -349,4 +397,29 @@ fn record(parent: &Dir, name: &str) -> Result<Vec<u8>> {
         return Err(invalid());
     }
     Ok(bytes)
+}
+
+pub(super) fn active_version(root: &Dir, entry_point: &str) -> Result<Option<String>> {
+    let command = entry_point.strip_prefix("bin/").ok_or_else(invalid)?;
+    let bin = match root.open_dir_nofollow("bin") {
+        Ok(bin) => bin,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(_) => return Err(invalid()),
+    };
+    let name = format!(".{command}.version");
+    match bin.symlink_metadata(&name) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(_) => return Err(invalid()),
+        Ok(_) => (),
+    }
+    let value = String::from_utf8(record(&bin, &name)?).map_err(|_| invalid())?;
+    if value.is_empty()
+        || value.len() > 128
+        || !value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_' | b'+'))
+    {
+        return Err(invalid());
+    }
+    Ok(Some(value))
 }

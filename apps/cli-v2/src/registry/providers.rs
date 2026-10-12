@@ -17,6 +17,7 @@ use std::path::PathBuf;
 
 #[derive(Clone, Copy)]
 pub(super) enum Handler {
+    ProgramStatus,
     Network,
     Inspect,
     Status,
@@ -54,7 +55,11 @@ impl Handler {
             | Self::ProgramInstallPlan
             | Self::ProgramUpdatePlan
             | Self::ProgramRemovePlan => "plan",
-            Self::Network | Self::Inspect | Self::Status | Self::SoftwareAcquire => "read",
+            Self::Network
+            | Self::Inspect
+            | Self::Status
+            | Self::ProgramStatus
+            | Self::SoftwareAcquire => "read",
         }
     }
 }
@@ -142,6 +147,21 @@ const CHANGE_VERSION: Parameter = Parameter {
 };
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["program", "status"],
+        summary: "Observe current managed program files and launcher against their original verified installation receipt, without network or program execution.",
+        parameters: &[
+            STATE_DIR,
+            HARNESS,
+            Parameter {
+                name: "prefix",
+                summary: "Explicit absolute managed program directory; a missing leaf is observed under its existing plain parent.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Provider(Handler::ProgramStatus),
+    },
     Declaration {
         path: &["program", "update", "plan"],
         summary: "Plan an exact update inside an existing program directory; bind preserved content and authenticated component identity.",
@@ -366,6 +386,16 @@ pub(super) const COMMANDS: &[Declaration] = &[
 ];
 
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
+    if matches!(handler, Handler::ProgramStatus) {
+        return runtime::program_status(
+            args.get_one::<PathBuf>("state-dir")
+                .ok_or_else(|| Failure::input("the explicit state parent is required"))?,
+            args.get_one::<String>("harness")
+                .ok_or_else(|| Failure::input("the harness is required"))?,
+            args.get_one::<PathBuf>("prefix")
+                .ok_or_else(|| Failure::input("the explicit program prefix is required"))?,
+        );
+    }
     if matches!(
         handler,
         Handler::ProgramInstallApply
@@ -440,7 +470,8 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     let runtime = Runtime::observe()?;
     match handler {
         Handler::Network => Ok(runtime.report()),
-        Handler::ProgramInstallApply
+        Handler::ProgramStatus
+        | Handler::ProgramInstallApply
         | Handler::ConfigurationApply
         | Handler::ConfigurationCancel
         | Handler::ProgramInstallCancel
@@ -585,6 +616,7 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                     }
                 }
                 Handler::Network
+                | Handler::ProgramStatus
                 | Handler::ConfigurationApply
                 | Handler::ConfigurationCancel
                 | Handler::ProgramInstallApply

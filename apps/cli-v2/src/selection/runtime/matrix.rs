@@ -6,7 +6,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::{MAX_CONTENT, Selector, inputs_with_budget, owner};
+use super::{MAX_CONTENT, Selector, inputs_with_budget, owner, program};
 use crate::{
     authoring::Identity,
     canonical,
@@ -45,7 +45,7 @@ fn invalid() -> Failure {
 
 impl Request {
     pub(super) fn parse(path: &Path) -> Result<Self> {
-        let mut value = canonical::parse(&files::read(path, 16 * 1024)?)?;
+        let mut value = crate::wire::parse(&files::read(path, 16 * 1024)?)?;
         if let Some(targets) = value.get_mut("targets").and_then(Value::as_array_mut) {
             for target in targets {
                 crate::provider::managed::resolve_request(target);
@@ -123,6 +123,7 @@ fn page(connection: &Connection, request: &Request) -> Result<(Vec<Candidate>, O
 
 fn render(
     connection: &Connection,
+    parent: &Path,
     request: &Request,
     identity: &Identity,
     page: (Vec<Candidate>, Option<String>),
@@ -134,11 +135,15 @@ fn render(
         ));
     }
     let mut targets = Vec::new();
+    let mut observed_targets = Vec::new();
     for (index, selector) in request.targets.iter().enumerate() {
-        let mut target = selector.target(identity)?;
+        let (mut target, program) = selector.observe(connection, parent, identity)?;
         target.for_redistribution = request.for_redistribution;
         targets.push(json!({"selector":selector,"target":target,
+            "program_observation_digest":program,
+            "not_observed":program::unobserved(target.harness_version.is_empty()),
             "provider":providers.map(|p|&p[index].1),"provider_observed":providers.is_some()}));
+        observed_targets.push(target);
     }
     let mut size = canonical::bytes(&json!(targets))?.len();
     let mut verified = 0u64;
@@ -165,7 +170,7 @@ fn render(
             let observed = inputs_with_budget(
                 connection,
                 &roots,
-                request.targets[0].target(identity)?,
+                observed_targets[0].clone(),
                 MAX_CONTENT - verified,
             )?;
             verified += observed.bytes;
@@ -174,8 +179,7 @@ fn render(
             let mut eligible = false;
             let mut cell_bytes = 0usize;
             for (index, selector) in request.targets.iter().enumerate() {
-                let mut target = selector.target(identity)?;
-                target.for_redistribution = request.for_redistribution;
+                let mut target = observed_targets[index].clone();
                 target.env_present.clone_from(&observed.target.env_present);
                 let mut assessment = eligibility::assess_connection(
                     connection,
@@ -226,7 +230,7 @@ fn render(
     }
     let report = json!({"schema_version":1,"candidate_policy":"latest_immutable_per_object",
         "targets":targets,"candidates":candidates,"next_after":page.1,"verified_artifact_bytes":verified,
-        "not_observed":["harness_version","project_capabilities","cloud_trust","cloud_grants"],
+        "not_observed":program::unobserved(observed_targets.iter().any(|t|t.harness_version.is_empty())),
         "permission_policy":"none_granted","installation_authorized":false,"harness_written":false});
     if canonical::bytes(&report)?.len() > MAX_REPORT {
         return Err(Failure::precondition(
@@ -239,12 +243,14 @@ fn render(
 /// Shared with the real-state proof; only this runtime establishes provider authority.
 pub(super) fn assess_snapshot(
     connection: &Connection,
+    parent: &Path,
     request: &Request,
     identity: &Identity,
     providers: &[(Info, Value)],
 ) -> Result<Value> {
     render(
         connection,
+        parent,
         request,
         identity,
         page(connection, request)?,
@@ -259,7 +265,7 @@ pub fn assess(parent: &Path, path: &Path) -> Result<Value> {
     let empty = store.transaction(|t| {
         let page = page(t, &request)?;
         if page.0.iter().all(|c| c.coordinate.is_none()) {
-            render(t, &request, &identity, page, None).map(Some)
+            render(t, parent, &request, &identity, page, None).map(Some)
         } else {
             Ok(None)
         }
@@ -290,7 +296,7 @@ pub fn assess(parent: &Path, path: &Path) -> Result<Value> {
     }
     let mut store = identity.planning()?;
     store.transaction(|t| {
-        let report = assess_snapshot(t, &request, &identity, &providers)?;
+        let report = assess_snapshot(t, parent, &request, &identity, &providers)?;
         trust.root()?;
         Ok(report)
     })

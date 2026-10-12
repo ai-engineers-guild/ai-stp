@@ -34,6 +34,13 @@ impl Handler {
     }
 }
 
+const PROGRAM_PREFIX: Parameter = Parameter {
+    name: "program-prefix",
+    summary: "Explicit managed program prefix; verify its current installed version and bind it to this plan.",
+    kind: ParameterType::Path,
+    required: false,
+};
+
 pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
         path: &["select", "session"],
@@ -73,6 +80,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
         parameters: &[
             STATE_DIR,
             ID,
+            PROGRAM_PREFIX,
             Parameter {
                 name: "version",
                 summary: "Exact immutable setup X.Y version.",
@@ -144,7 +152,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             },
             Parameter {
                 name: "request",
-                summary: "Eligibility request JSON with exact component roots, scope and optional exact provider_version; redistribution must be false.",
+                summary: "Eligibility request JSON with exact component roots, scope and optional program_prefix and exact provider_version; redistribution must be false.",
                 kind: ParameterType::Path,
                 required: true,
             },
@@ -163,6 +171,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
         parameters: &[
             STATE_DIR,
             ID,
+            PROGRAM_PREFIX,
             Parameter {
                 name: "scope",
                 summary: "The same provider target scope used for the proposal.",
@@ -263,6 +272,8 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             )?,
             args.get_one::<PathBuf>("target").map(PathBuf::as_path),
             path(args, "output")?,
+            args.get_one::<PathBuf>("program-prefix")
+                .map(PathBuf::as_path),
         ),
         Handler::BundleApply => bundles::apply(path(args, "plan")?, text(args, "plan-digest")?),
         Handler::Propose => sessions::propose(
@@ -280,6 +291,8 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                     args.get_one::<String>("provider-version")
                         .map(String::as_str),
                 )?,
+                args.get_one::<PathBuf>("program-prefix")
+                    .map(PathBuf::as_path),
             )),
         ),
         Handler::Cancel => sessions::decision(path(args, "state-dir")?, text(args, "id")?, None),

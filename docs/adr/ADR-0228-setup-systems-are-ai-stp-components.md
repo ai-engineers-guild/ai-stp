@@ -1,11 +1,11 @@
 ---
 description: "One ai-stp product and Rust CLI, with separately released setup components behind the existing provider boundary."
-last_verified: "2026-10-10"
+last_verified: "2026-10-12"
 ---
 
 # ADR-0228: Setup systems are ai-stp components
 
-Status: accepted; configuration lifecycle and production cutover remain pending.
+Status: accepted; multi-root coordination, active-target handoff and production cutover remain pending.
 
 ## Context
 
@@ -51,13 +51,17 @@ not create separate user workflows.
 ## Delivery and consequences
 
 The native CLI implements managed release selection for new provider, selection,
-matrix and composition requests, and fresh-program plan/apply/cancel on Linux.
-The component writes into a private stage; the CLI verifies and activates its
-complete directory. The code-adjacent CLI contract and executable registry own
-implemented behavior and its limits.
+matrix and composition requests. Linux program install/update/remove and
+single-root configuration install/replace/remove bind exact plans and component
+identities, verify resulting files independently and retain durable recovery and
+terminal receipts. Cancellation requires the component's original admission
+decision and independent unchanged-state readback. Fresh program installation
+uses a private stage and atomic directory activation; configuration changes use
+the explicit desired-only forward lifecycle. The code-adjacent CLI contract and
+executable registry own implemented behavior and its limits.
 
-C4 must finish durable exact-plan software/configuration apply, independent
-verification, interruption recovery and active-target handoff. C6 owns coordinated
+C4 must finish multi-root coordination, durable task orchestration,
+active-target handoff and supported-OS provider isolation. C6 owns coordinated
 attested releases and consumers; C7 owns the default executable and legacy CLI
 retirement. Their acceptance criteria stay in the existing implementation roadmap.
 Do not create automatic backups; preserve existing recovery references and use
