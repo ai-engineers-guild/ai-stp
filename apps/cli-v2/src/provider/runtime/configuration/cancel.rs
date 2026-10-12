@@ -7,23 +7,16 @@ use std::path::Path;
 use super::{identity, invalid, journal::Journal, outcome, plan::Plan};
 use crate::{
     digest,
-    error::{Failure, Result},
+    error::Result,
     provider::{
-        Info, artifact, managed,
+        Info, artifact,
         plan::Observed,
         runtime::{Runtime, execution::Configuration, platform, target::Target},
         trust,
     },
 };
 
-pub(super) fn require_component(version: &str) -> Result<()> {
-    if managed::sequence(version)? < managed::sequence("0.0.92")? {
-        return Err(Failure::precondition(
-            "the original plan requires a component with exact cancellation (0.0.92 or newer); its release identity cannot be replaced",
-        ));
-    }
-    Ok(())
-}
+use crate::provider::configuration::require_cancellation as require_component;
 
 fn observe(
     runtime: &Runtime,

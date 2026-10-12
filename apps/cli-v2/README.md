@@ -692,6 +692,24 @@ interrupted after the receipt commit resumes independently. An admitted
 component request keeps its original expiry and identity during recovery;
 native admission alone does not bypass the component's first-admission expiry.
 
+Project-scope configuration plans may bind `--project-id` to an existing owned
+project. The physical target must be that registered project root, and install
+or replacement must use its exact selected setup. The plan captures the project
+passport, owner, root identity and selection timestamp. Admission rechecks that
+context; the verified receipt and matching `installed` selection commit in one
+SQLite transaction. Recovery of an older installation preserves a later
+selection. Removal and unbound writes reset a matching root's recorded selection
+to `pending_install`. Cancellation and historical replay do not rewrite it.
+
+Impact reports combine legacy and native configuration receipts in journal
+order. A later replacement/removal supersedes the earlier root; an admitted
+unfinished operation withholds its previous installation claim. Cancelled
+operations do not erase verified history. Explicit project attribution is never
+inferred solely from a setup ID or a matching path. Reports remain local
+historical evidence, not live target observations; session reads keep
+`installation_observed: false`. The portable plan/receipt reader shares the
+execution contract on every platform, including original unbound plans.
+
 `configuration cancel --state-dir <state> --plan <intent.json> --plan-digest <digest>`
 requires the original component to be 0.0.92 or newer; it never substitutes a
 new release into an older plan. Cancellation authenticates that component and

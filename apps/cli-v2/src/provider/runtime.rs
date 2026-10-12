@@ -29,7 +29,7 @@ use crate::{
 };
 use serde_json::Value;
 use std::path::Path;
-pub(crate) const CONFIGURATION_PLAN_BYTES: usize = 32 * 1024 * 1024;
+pub(crate) const CONFIGURATION_PLAN_BYTES: usize = super::configuration::plan::LIMIT;
 #[cfg(target_os = "linux")]
 use {
     crate::{digest, wire},
@@ -163,14 +163,15 @@ impl Runtime {
         context: &TargetRequest<'_>,
         operation: &str,
         bundle: Option<&[u8]>,
+        project: Option<&str>,
     ) -> Result<Value> {
         #[cfg(target_os = "linux")]
         {
-            configuration::plan(self, context, operation, bundle)
+            configuration::plan(self, context, operation, bundle, project)
         }
         #[cfg(not(target_os = "linux"))]
         {
-            let _ = (context, operation, bundle);
+            let _ = (context, operation, bundle, project);
             Err(unavailable())
         }
     }

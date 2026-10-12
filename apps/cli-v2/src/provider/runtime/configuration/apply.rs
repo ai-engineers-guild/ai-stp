@@ -114,7 +114,7 @@ pub(in crate::provider::runtime) fn apply(
             path: target.path(),
             scope: plan.target_scope,
         };
-        let (current, _) = prepare(
+        let (mut current, _) = prepare(
             &runtime,
             &context,
             &request,
@@ -122,6 +122,11 @@ pub(in crate::provider::runtime) fn apply(
             &bundle_bytes,
             bundle.as_ref(),
         )?;
+        current.project = plan
+            .project
+            .as_ref()
+            .map(|binding| super::project::observe(&current, &binding.project_id))
+            .transpose()?;
         if current.value()? != plan.value()? {
             return Err(invalid());
         }

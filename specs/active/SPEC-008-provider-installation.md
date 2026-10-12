@@ -22,7 +22,7 @@ parser, owned top-level key and exact host digest (or observed absence) in its
 bundle file record. Native configuration execution uses explicit forward recovery
 and requires the corrected component lifecycle, including surviving host modes.
 Preserved host fields are not ownership claims. The isolated Rust service's exact
-plan, independent readback, recovery and cancellation boundaries are owned by its
+plan, explicit project attribution, independent readback, recovery and cancellation boundaries are owned by its
 [code-adjacent contract](../../apps/cli-v2/README.md). This does not transfer
 production writer ownership under ADR-0227.
 

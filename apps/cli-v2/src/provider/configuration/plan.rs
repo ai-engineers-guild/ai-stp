@@ -3,7 +3,6 @@
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use std::path::{Component, Path};
 
 use super::{
     effects::{self, Effect},
@@ -18,12 +17,12 @@ use crate::{
     wire,
 };
 
-pub(super) const LIMIT: usize = crate::provider::runtime::CONFIGURATION_PLAN_BYTES;
-pub(super) type Identity = [String; 2];
+pub(crate) const LIMIT: usize = 32 * 1024 * 1024;
+pub(crate) type Identity = [String; 2];
 
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub(super) struct Plan {
+pub(crate) struct Plan {
     pub schema_version: u32,
     pub action: String,
     pub operation_id: String,
@@ -45,14 +44,15 @@ pub(super) struct Plan {
     pub setup: Value,
     pub ownership: Value,
     pub effects: Vec<Effect>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project: Option<super::project::Binding>,
 }
 
 fn path(value: &str) -> bool {
     value.len() <= 4096
-        && Path::new(value).is_absolute()
-        && Path::new(value)
-            .components()
-            .all(|part| matches!(part, Component::Normal(_) | Component::RootDir))
+        && value.starts_with('/')
+        && !value.contains('\0')
+        && value.split('/').all(|part| part != "..")
 }
 
 impl Plan {
@@ -139,6 +139,14 @@ impl Plan {
         }
         plan.request(created)?;
         effects::validate(&plan.effects)?;
+        if let Some(project) = &plan.project {
+            project.validate(&plan)?;
+        }
+        // Optional compatibility fields must not lose bytes between an accepted
+        // intent and its durable record (for example an explicit project: null).
+        if fingerprint(&plan.value()?)? != expected {
+            return Err(invalid());
+        }
         Ok(plan)
     }
 
@@ -161,7 +169,7 @@ impl Plan {
     }
 }
 
-pub(super) fn fingerprint(value: &Value) -> Result<String> {
+pub(crate) fn fingerprint(value: &Value) -> Result<String> {
     digest::bytes(
         "ai-stp:installation-operation:v1",
         &serde_json_canonicalizer::to_vec(value).map_err(|_| invalid())?,

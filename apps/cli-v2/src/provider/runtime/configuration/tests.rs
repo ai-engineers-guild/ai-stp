@@ -79,6 +79,7 @@ fn removal_binds_physical_parents_and_replays_history_without_the_target()
         setup: Value::Null,
         ownership: json!([]),
         effects,
+        project: None,
     };
     let mut document = plan.value()?;
     document["provider_plan"] = json!({"plan_digest":hash,"plan":{
@@ -90,6 +91,16 @@ fn removal_binds_physical_parents_and_replays_history_without_the_target()
     let bytes = serde_json::to_vec(&document)?;
     let plan = Plan::parse(&bytes, &digest)?;
     assert!(Plan::parse(&bytes, &hash).is_err());
+    let mut ambiguous = document.clone();
+    ambiguous["project"] = Value::Null;
+    assert!(
+        Plan::parse(
+            &serde_json::to_vec(&ambiguous)?,
+            &plan::fingerprint(&ambiguous)?
+        )
+        .is_err()
+    );
+
     assert!(journal::Journal::history(&state, &plan, &digest)?.is_none());
     assert_eq!(fs::read_dir(&state)?.count(), 0);
     assert!(
@@ -168,5 +179,6 @@ fn removal_binds_physical_parents_and_replays_history_without_the_target()
         assert_eq!(cancel::cancel(&state, &bytes, &digest)?, result);
         assert!(!root.exists());
     }
+    super::project_tests::prove(&state, &plan)?;
     Ok(())
 }

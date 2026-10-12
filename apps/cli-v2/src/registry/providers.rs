@@ -319,6 +319,12 @@ pub(super) const COMMANDS: &[Declaration] = &[
             TARGET,
             SCOPE,
             Parameter {
+                name: "project-id",
+                summary: "Bind this project-scope operation to its registered project and exact selected setup.",
+                kind: ParameterType::String,
+                required: false,
+            },
+            Parameter {
                 name: "operation",
                 summary: "Configuration operation; removal withdraws recorded ownership without a bundle.",
                 kind: ParameterType::Choice(&["install", "replace", "remove"]),
@@ -498,7 +504,12 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                             .get_one::<PathBuf>("bundle")
                             .map(|path| files::read(path, plan::MAX_BUNDLE_BYTES as u64))
                             .transpose()?;
-                        runtime.configuration_plan(&context, operation, bundle.as_deref())
+                        runtime.configuration_plan(
+                            &context,
+                            operation,
+                            bundle.as_deref(),
+                            args.get_one::<String>("project-id").map(String::as_str),
+                        )
                     } else if matches!(
                         handler,
                         Handler::ProgramInstallPlan

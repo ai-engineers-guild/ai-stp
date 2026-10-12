@@ -1,7 +1,6 @@
 //! Exact native admission and terminal receipts; only desired bundle bytes are retained.
 
 use rusqlite::{Connection, OptionalExtension};
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
 
@@ -12,21 +11,10 @@ use crate::{
     files::OwnedDirectory,
     provider::runtime::target::Target,
     store::{Store, database},
-    wire,
 };
 
 const OWNER: &[u8] = b"ai-stp-cli-v2:configuration-operations/v1\n";
-const RECORD_LIMIT: usize = super::plan::LIMIT + 8 * 1024 * 1024;
-
-#[derive(Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-pub(super) struct Record {
-    schema_version: u32,
-    plan_digest: String,
-    plan: Value,
-    pub state: String,
-    pub result: Option<Value>,
-}
+use crate::provider::configuration::record::{LIMIT as RECORD_LIMIT, Record};
 
 pub(super) struct Journal {
     state: Target,
@@ -55,28 +43,9 @@ fn read(connection: &Connection, plan: &Plan, digest: &str) -> Result<Option<Rec
     let Some((kind, state, detail)) = row else {
         return Ok(None);
     };
-    if detail.len() > RECORD_LIMIT {
+    let (record, held) = Record::parse(&detail, &kind, &state)?;
+    if record.plan_digest != digest || held.value()? != plan.value()? {
         return Err(invalid());
-    }
-    let record: Record =
-        serde_json::from_value(wire::parse(detail.as_bytes())?).map_err(|_| invalid())?;
-    if record.schema_version != 1
-        || record.plan_digest != digest
-        || record.plan != plan.value()?
-        || kind != plan.action
-        || state != record.state
-    {
-        return Err(invalid());
-    }
-    match record.state.as_str() {
-        "applying" if record.result.is_none() => (),
-        "verified" => outcome::validate(record.result.as_ref().ok_or_else(invalid)?, plan, digest)?,
-        "cancelled" => outcome::validate_cancellation(
-            record.result.as_ref().ok_or_else(invalid)?,
-            plan,
-            digest,
-        )?,
-        _ => return Err(invalid()),
     }
     Ok(Some(record))
 }
@@ -205,6 +174,7 @@ impl Journal {
         let mut store = self.store(true)?;
         let now = jiff::Timestamp::now().to_string();
         store.transaction(|transaction| {
+            if state == "applying" { super::project::admitting(transaction, plan)?; }
             let previous = read(transaction, plan, digest)?;
             let before = previous.as_ref().map_or("unseen", |record| record.state.as_str()).to_owned();
             match (previous, result) {
@@ -220,6 +190,7 @@ impl Journal {
                 }
                 _ => return Err(invalid()),
             }
+            if state == "verified" { super::project::completed(transaction, plan)?; }
             let evidence = serde_json::to_string(&json!({"plan_digest":digest})).map_err(|_| invalid())?;
             transaction.execute("INSERT INTO operation_event(operation_id,sequence,at,state_before,state_after,result,evidence,global_sequence) \
                 SELECT ?,coalesce((SELECT max(sequence) FROM operation_event WHERE operation_id=?),0)+1,?,?,?,?,?, \
