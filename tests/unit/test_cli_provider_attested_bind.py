@@ -165,7 +165,7 @@ def test_every_supported_harness_maps_to_one_opennetwork_attestation() -> None:
     opennetwork = {
         name
         for name in policy.build_attestations
-        if name.startswith("github.com/NDDev-OpenNetwork/")
+        if name.startswith("github.com/NDDev-Technocracy-OpenNetwork/")
     }
     assert set(attested_bind.HARNESS_REPOSITORIES) == set(HARNESS_IDS)
     assert set(attested_bind.HARNESS_REPOSITORIES.values()) == opennetwork
@@ -196,11 +196,29 @@ def test_artifact_url_contains_the_tag_not_a_floating_name() -> None:
     assert "latest" not in url.casefold()
 
 
+@pytest.mark.parametrize(
+    "owner", ["NDDev-Technocracy-OpenNetwork", "NDDev-OpenNetwork", "NDDev-Technocracy-Sandbox"]
+)
 def test_fetch_writes_a_closed_manifest_after_attestation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, owner: str
 ) -> None:
     order: list[str] = []
-    _attest(monkeypatch, order)
+    verified: list[str] = []
+    expected = f"{owner}/pi-setup-system"
+
+    def verify(
+        artifact: Path, held: build_attestation.Policy, *, bundle: Path | None = None
+    ) -> build_attestation.Evidence:
+        order.append("attest")
+        verified.append(held.repository)
+        assert artifact.is_file() and bundle is None and held.verified_publisher
+        assert held.source_commit == "f" * 40
+        assert held.signer_workflow == f"{held.repository}/.github/workflows/release.yml"
+        if held.repository != expected:
+            raise CliFailure("AI_STP_PRECONDITION_FAILED", "fixture signer mismatch")
+        return build_attestation.Evidence("verified_publisher", _digest("c"), "[]")
+
+    monkeypatch.setattr(build_attestation, "verify", verify)
     payload = _info()
 
     def inspect(executable: Path, **_kwargs: object) -> protocol_v3.ProviderCapabilities:
@@ -214,7 +232,10 @@ def test_fetch_writes_a_closed_manifest_after_attestation(
         github=_Github(),
         inspect=inspect,
     )
-    assert order == ["attest", "inspect"]
+    assert verified[0] == "NDDev-Technocracy-OpenNetwork/pi-setup-system"
+    assert verified[-1] == expected and len(verified) == len(set(verified))
+    assert order == ["attest"] * len(verified) + ["inspect"]
+    assert bound.repository == f"github.com/{expected}"
     assert bound.trust_level == "verified_publisher"
     assert bound.sequence == 1
     assert bound.commit == "f" * 40
@@ -222,6 +243,8 @@ def test_fetch_writes_a_closed_manifest_after_attestation(
     assert bound.manifest_path.is_file()
     parsed = release.parse_manifest(bound.manifest_path.read_text("utf-8"))
     assert parsed == bound.manifest
+    assert parsed.repository == bound.repository and parsed.publisher == owner
+    assert parsed.artifact_url.startswith(f"https://github.com/{expected}/releases/")
     assert parsed.signing_key == attested_bind.ATTESTED_SIGNING_KEY
     assert parsed.signature == ""
     assert parsed.protocol_version == protocol_v3.VERSION
@@ -238,6 +261,31 @@ def test_fetch_writes_a_closed_manifest_after_attestation(
     view = select.provider_trust({"manifest": str(bound.manifest_path)}).payload
     assert view.accepted is True
     assert view.refusals == []
+
+
+@pytest.mark.parametrize("code", ["AI_STP_PRECONDITION_FAILED", "AI_STP_DEPENDENCY_UNAVAILABLE"])
+def test_fetch_never_inspects_without_a_pinned_attestation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, code: str
+) -> None:
+    attempted: list[str] = []
+
+    def verify(
+        artifact: Path, held: build_attestation.Policy, *, bundle: Path | None = None
+    ) -> build_attestation.Evidence:
+        attempted.append(held.repository)
+        raise CliFailure(code, "fixture refusal")
+
+    def inspect(_artifact: Path) -> protocol_v3.ProviderCapabilities:
+        raise AssertionError("unverified bytes reached provider-info")
+
+    monkeypatch.setattr(build_attestation, "verify", verify)
+    with pytest.raises(CliFailure) as raised:
+        attested_bind.fetch(
+            harness="pi", tag="0.0.1", directory=tmp_path, github=_Github(), inspect=inspect
+        )
+    assert raised.value.code == code
+    assert len(attempted) == (3 if code == "AI_STP_PRECONDITION_FAILED" else 1)
+    assert not (tmp_path / attested_bind.MANIFEST_NAME).exists()
 
 
 def test_fetch_refuses_a_missing_platform_asset(
