@@ -4,6 +4,7 @@ mod composition;
 pub(crate) mod hosts;
 mod package;
 pub mod reports;
+pub mod scopes;
 
 use std::collections::BTreeMap;
 
@@ -85,6 +86,35 @@ pub(crate) fn compile_snapshot(
     provider: &Info,
     hosts: &Hosts,
 ) -> Result<Bundle> {
+    let host_identities = validate_inputs(setup, hosts)?;
+    let assessment = eligibility::assess_connection(
+        connection,
+        std::slice::from_ref(setup),
+        target,
+        evidence,
+        Some(provider),
+    )?;
+    let nodes = assessment["graph"]["nodes"]
+        .as_array()
+        .ok_or_else(|| invalid("graph nodes are missing"))?
+        .clone();
+    compile_qualified(
+        connection,
+        setup,
+        target,
+        provider,
+        hosts,
+        Qualified { assessment, nodes },
+        host_identities,
+    )
+}
+
+struct Qualified {
+    assessment: Value,
+    nodes: Vec<Value>,
+}
+
+fn validate_inputs(setup: &Value, hosts: &Hosts) -> Result<BTreeMap<String, Option<String>>> {
     if !passport::stable_id(text(setup, "stable_id")?, "setup")
         || setup.as_object().is_none_or(|fields| fields.len() != 3)
         || canonical::bytes(setup)?.len() > 4096
@@ -105,15 +135,24 @@ pub(crate) fn compile_snapshot(
         {
             return Err(invalid("host inputs exceed their path or size bounds"));
         }
-        host_identities.insert(path, bytes.as_ref().map(|bytes| digest::sha256(bytes)));
+        host_identities.insert(
+            path.clone(),
+            bytes.as_ref().map(|bytes| digest::sha256(bytes)),
+        );
     }
-    let assessment = eligibility::assess_connection(
-        connection,
-        std::slice::from_ref(setup),
-        target,
-        evidence,
-        Some(provider),
-    )?;
+    Ok(host_identities)
+}
+
+fn compile_qualified(
+    connection: &Connection,
+    setup: &Value,
+    target: &Target,
+    provider: &Info,
+    hosts: &Hosts,
+    qualified: Qualified,
+    host_identities: BTreeMap<String, Option<String>>,
+) -> Result<Bundle> {
+    let Qualified { assessment, nodes } = qualified;
     if assessment["admissible"] != true {
         return Err(
             invalid("the exact setup graph is not mechanically admissible")
@@ -137,10 +176,7 @@ pub(crate) fn compile_snapshot(
         .collect();
     let mut projection_bytes = 0u64;
     let mut output_bytes = 0usize;
-    let nodes = assessment["graph"]["nodes"]
-        .as_array()
-        .ok_or_else(|| invalid("graph nodes are missing"))?;
-    for node in nodes {
+    for node in &nodes {
         let component = exact(connection, node)?;
         if component["kind"] == "setup" {
             continue;

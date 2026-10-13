@@ -1,6 +1,6 @@
 ---
 description: "SPEC-006: Search, candidate selection, and setup compiler."
-last_verified: "2026-09-24"
+last_verified: "2026-10-13"
 ---
 
 # SPEC-006: Search, Selection, and Setup Compiler
@@ -14,6 +14,24 @@ The agent receives a bounded set of eligible candidates and selects or adapts co
 The scope includes mechanical constraints, trust lines, search and its ordering, an optional scoring layer, an arbitrary dependency graph, bounded overlays, conflict resolution, composition and conversion reports, and a deterministic package. The agent does not replace the dependency resolver, policy mechanism, or write provider. The MVP setup compiler implementation boundary is owned by `ADR-0028`: semantic merging, equivalent selection, and composition optimization are not performed in the MVP.
 
 Specific scoring criteria and weights belong to versioned policy and are not fixed here: the MVP must work without this layer.
+
+### Native preview boundary
+
+The Rust single-scope compiler requires exact adaptations at the requested scope;
+it does not infer a fallback to another root. The headless `bundle::scopes`
+compiler covers one complete exact setup graph across two or three explicitly
+requested scopes. Each component receives one declared placement; ambiguity
+requires an explicit mapping, and uncovered components, unknown placements or
+empty requested scopes refuse. Each scope package retains the complete original
+setup passport and binds its own assigned components. Logical native conflicts
+are checked across the composition, while relative path ownership remains scoped.
+Contribution hosts follow the same routing rule and preserve unowned fields.
+Aggregate byte/file limits and refusal behavior are owned by the code-adjacent
+[native contract](../../apps/cli-v2/README.md) and exercised by
+`apps/cli-v2/tests/bundles.rs` and `tests/bundles/scopes.rs` beneath that package.
+This compiler returns packages without effects; the native executable's bundle
+and configuration adapters remain single-root. Durable multi-root installation
+and active-root handoff are not implemented by this library boundary.
 
 ## Terms
 
