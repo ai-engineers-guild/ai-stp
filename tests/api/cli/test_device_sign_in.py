@@ -14,7 +14,7 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
-from sqlalchemy import update
+from sqlalchemy import func, select, update
 from tests.api.cli.conftest import WebApprover
 from tests.support.asgi_sync import SyncAsgiServer
 
@@ -116,42 +116,51 @@ def test_sign_in_pending_then_approved(
     assert logout.revoked is True
 
 
-def test_a_foreign_device_key_names_the_rebind_reason(
+@pytest.mark.parametrize(
+    ("foreign", "state", "code"),
+    [
+        (True, "active", "AI_STP_PERMISSION_DENIED"),
+        (True, "revoked", "AI_STP_PERMISSION_DENIED"),
+        (False, "revoked", "AI_STP_DEVICE_REVOKED"),
+    ],
+)
+def test_unusable_device_keys_name_the_exact_recovery(
     cli_server: SyncAsgiServer,
     cli_endpoint: Endpoint,
     web_approver: ApproverFactory,
+    foreign: bool,
+    state: str,
+    code: str,
 ) -> None:
-    """The exchange qualifies a foreign key so the CLI can name the rebind.
+    """An approved flow cannot reuse a foreign or revoked device key.
 
-    `reason=device_key_foreign` is the detail `_way_back_for` keys the
-    `device reset` recovery on (#359); an unqualified denial suggests none.
-    This covers the exchange leg; `test_devices_lifecycle` covers
-    `POST /v1/devices`.
+    Ownership refusal precedes revocation disclosure. The CLI receives its
+    existing key-recovery signal without minting either session credential.
     """
     from ai_stp_api.slices.devices.crypto import normalize_public_key
     from ai_stp_platform.models import Account, Device
 
-    foreign_owner = new_id("account")
+    approver = web_approver()
+    owner = new_id("account") if foreign else approver.account_id
     sessionmaker = cli_server.app.state.sessionmaker
+    key = normalize_public_key(PUBLIC_KEY)
 
     async def seed() -> None:
         async with sessionmaker() as db:
-            db.add(Account(id=foreign_owner))
+            if foreign:
+                db.add(Account(id=owner))
             db.add(
                 Device(
-                    id=new_id("device"),
-                    account_id=foreign_owner,
-                    # The lookup compares the canonical form; seeding the raw
-                    # padded key would never match.
-                    public_key=normalize_public_key(PUBLIC_KEY),
-                    state="active",
+                    id=DEVICE_ID,
+                    account_id=owner,
+                    public_key=key,
+                    state=state,
                 )
             )
             await db.commit()
 
     cli_server.call(seed)
 
-    approver = web_approver()
     started = login.start(cli_endpoint, "github")
     assert approver.approve(started.user_code).status_code == 200
 
@@ -163,9 +172,25 @@ def test_a_foreign_device_key_names_the_rebind_reason(
             public_key=PUBLIC_KEY,
             display_name="boundary-test",
         )
-    assert raised.value.code == "AI_STP_PERMISSION_DENIED"
-    assert raised.value.details.get("reason") == "device_key_foreign"
+    assert raised.value.code == code
+    assert raised.value.details.get("reason") == ("device_key_foreign" if foreign else None)
     assert any("device reset" in action for action in raised.value.next_actions)
+
+    async def unchanged() -> None:
+        async with sessionmaker() as db:
+            held = await db.get(Device, DEVICE_ID)
+            assert held is not None
+            assert (held.account_id, held.public_key, held.state) == (owner, key, state)
+            assert (
+                await db.scalar(
+                    select(func.count())
+                    .select_from(AccountSession)
+                    .where(AccountSession.device_id == DEVICE_ID)
+                )
+                == 0
+            )
+
+    cli_server.call(unchanged)
 
 
 def test_approve_with_an_unknown_code_is_a_typed_answer(
