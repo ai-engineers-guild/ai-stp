@@ -203,43 +203,16 @@ fn compile_qualified(
             .collect::<Result<_>>()?;
         let mut member_paths = Vec::new();
         for mut member in members {
-            let mut contribution = None;
             let declaration = declared
                 .get(member.path.as_str())
                 .ok_or_else(|| invalid("a projection file has no declaration"))?;
             composition.claim(id, &member.path)?;
-            if declaration["ownership"] == "contribution" {
-                let host = remaining_hosts.remove(member.path.as_str()).ok_or_else(|| {
-                    invalid(
-                        "a configuration contribution needs exact observed host bytes or absence",
-                    )
-                })?;
-                let format = crate::authoring::contribution::Format::for_path(&member.path)?;
-                let parser = if format == crate::authoring::contribution::Format::Toml {
-                    "toml/1"
-                } else {
-                    "json/1"
-                };
-                if declaration["parser_id"] != parser {
-                    return Err(invalid(
-                        "the configuration parser does not match its host format",
-                    ));
-                }
-                contribution = Some(json!({"parser_id":parser,
-                    "ownership_key":text(declaration, "ownership_key")?,
-                    "host_digest":host.map(digest::sha256)}));
-                member.bytes = crate::authoring::contribution::assemble(
-                    format,
-                    host,
-                    text(declaration, "ownership_key")?,
-                    &member.bytes,
-                )?;
-                crate::authoring::native_identity::verify_configuration_credentials(
-                    &target.harness_id,
-                    &member.path,
-                    &member.bytes,
-                )?;
-            }
+            let host = if declaration["ownership"] == "contribution" {
+                remaining_hosts.remove(member.path.as_str())
+            } else {
+                None
+            };
+            let contribution = assemble(&mut member, declaration, &target.harness_id, host)?;
             output_bytes = output_bytes
                 .checked_add(member.bytes.len())
                 .ok_or_else(|| invalid("bundle files exceed their bounds"))?;
@@ -303,6 +276,42 @@ fn compile_qualified(
         archive,
         assessment,
     })
+}
+
+/// Use the same native assembly for emitted packages and project attribution.
+fn assemble(
+    member: &mut Member,
+    declaration: &Value,
+    harness: &str,
+    host: Option<Option<&[u8]>>,
+) -> Result<Option<Value>> {
+    if declaration["ownership"] != "contribution" {
+        return Ok(None);
+    }
+    let host = host.ok_or_else(|| {
+        invalid("a configuration contribution needs exact observed host bytes or absence")
+    })?;
+    let format = crate::authoring::contribution::Format::for_path(&member.path)?;
+    let parser = if format == crate::authoring::contribution::Format::Toml {
+        "toml/1"
+    } else {
+        "json/1"
+    };
+    if declaration["parser_id"] != parser {
+        return Err(invalid(
+            "the configuration parser does not match its host format",
+        ));
+    }
+    let key = text(declaration, "ownership_key")?;
+    let contribution = json!({"parser_id":parser,"ownership_key":key,
+        "host_digest":host.map(digest::sha256)});
+    member.bytes = crate::authoring::contribution::assemble(format, host, key, &member.bytes)?;
+    crate::authoring::native_identity::verify_configuration_credentials(
+        harness,
+        &member.path,
+        &member.bytes,
+    )?;
+    Ok(Some(contribution))
 }
 
 /// A valid retained projection can still be unrepresentable in bundle v2.

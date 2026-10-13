@@ -265,7 +265,76 @@ fn coverage(store: &mut Store, declarations: &[Value]) -> Result<(), Box<dyn Err
             "accepted forged {field}"
         );
     }
+    let files = payload(&built)?;
+    let verify = |store: &mut Store, files: &BTreeMap<String, bundle::coverage::File>| {
+        bundle::coverage::verify_payload(
+            store,
+            &setup,
+            "cursor",
+            Scope::Project,
+            bindings,
+            files,
+            &Hosts::new(),
+        )
+    };
+    verify(store, &files)?;
+    let path = files.keys().next().ok_or("file absent")?.clone();
+    for changed in ["bytes", "mode", "owner", "contribution", "missing", "extra"] {
+        let mut altered = files.clone();
+        match changed {
+            "missing" => {
+                altered.remove(&path);
+            }
+            "extra" => {
+                altered.insert("unclaimed.md".into(), files[&path].clone());
+            }
+            _ => {
+                let file = altered.get_mut(&path).ok_or("file absent")?;
+                match changed {
+                    "bytes" => file
+                        .bytes
+                        .extend_from_slice(b"\nSubstituted instructions.\n"),
+                    "mode" => file.mode = 0o755,
+                    "owner" => file.owner = "another-component".into(),
+                    "contribution" => file.contribution = Some(json!({})),
+                    _ => unreachable!(),
+                }
+            }
+        }
+        assert!(
+            verify(store, &altered).is_err(),
+            "accepted substituted {changed}"
+        );
+    }
     Ok(())
+}
+
+fn payload(
+    built: &bundle::Bundle,
+) -> Result<BTreeMap<String, bundle::coverage::File>, Box<dyn Error>> {
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(&built.archive))?;
+    built.manifest["files"]
+        .as_array()
+        .ok_or("files absent")?
+        .iter()
+        .map(|file| {
+            let path = text(file, "path")?;
+            let mut bytes = Vec::new();
+            std::io::Read::read_to_end(
+                &mut archive.by_name(&format!("files/{path}"))?,
+                &mut bytes,
+            )?;
+            Ok((
+                path.into(),
+                bundle::coverage::File {
+                    bytes,
+                    mode: file["mode"].as_u64().ok_or("mode absent")? as u32,
+                    owner: text(file, "owner")?.into(),
+                    contribution: file.get("contribution").cloned(),
+                },
+            ))
+        })
+        .collect()
 }
 
 fn contributions(store: &mut Store, provider: &Info, skill: Value) -> Result<(), Box<dyn Error>> {
@@ -280,7 +349,7 @@ fn contributions(store: &mut Store, provider: &Info, skill: Value) -> Result<(),
         },
         Some("env"),
     )?;
-    let (setup, evidence) = compose(store, "codex", &[settings, skill])?;
+    let (setup, evidence) = compose(store, "codex", &[settings.clone(), skill])?;
     let scopes = BTreeSet::from([Scope::Global, Scope::UserRoot]);
     let paths =
         bundle::scopes::contribution_paths(store, &setup, "codex", &scopes, &BTreeMap::new())?;
@@ -329,6 +398,60 @@ fn contributions(store: &mut Store, provider: &Info, skill: Value) -> Result<(),
     let configuration: toml_edit::DocumentMut = text.parse()?;
     assert_eq!(configuration["model"].as_str(), Some("user-choice"));
     assert_eq!(configuration["env"]["LOG_LEVEL"].as_str(), Some("info"));
+    let (complete, evidence) = compose(store, "codex", &[settings])?;
+    let observed_hosts = &hosts[&Scope::Global];
+    let built = bundle::compile(
+        store,
+        &complete,
+        &selected,
+        &evidence,
+        provider,
+        observed_hosts,
+    )?;
+    let files = payload(&built)?;
+    let bindings = built.manifest["component_adaptations"]
+        .as_array()
+        .ok_or("bindings absent")?;
+    bundle::coverage::verify_payload(
+        store,
+        &complete,
+        "codex",
+        Scope::Global,
+        bindings,
+        &files,
+        observed_hosts,
+    )?;
+    let mut forged = files.clone();
+    forged
+        .get_mut("config.toml")
+        .ok_or("configuration absent")?
+        .bytes = b"model = 'user-choice'\n[env]\nLOG_LEVEL = 'substituted'\n".to_vec();
+    assert!(
+        bundle::coverage::verify_payload(
+            store,
+            &complete,
+            "codex",
+            Scope::Global,
+            bindings,
+            &forged,
+            observed_hosts
+        )
+        .is_err()
+    );
+    let changed_hosts =
+        Hosts::from([("config.toml".into(), Some(b"model = 'changed'\n".to_vec()))]);
+    assert!(
+        bundle::coverage::verify_payload(
+            store,
+            &complete,
+            "codex",
+            Scope::Global,
+            bindings,
+            &files,
+            &changed_hosts
+        )
+        .is_err()
+    );
     Ok(())
 }
 

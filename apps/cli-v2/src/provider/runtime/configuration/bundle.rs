@@ -7,11 +7,7 @@ use serde_json::{Value, json};
 use super::invalid;
 use crate::{archive, digest, error::Result, passport, provider::plan::Binding, wire};
 
-pub(super) struct File {
-    pub bytes: Vec<u8>,
-    pub mode: u32,
-    pub contribution: Option<Value>,
-}
+use crate::bundle::coverage::File;
 
 pub(super) struct Bundle {
     pub binding: Binding,
@@ -70,6 +66,7 @@ impl Bundle {
                 File {
                     bytes: entry.bytes.to_vec(),
                     mode: entry.mode,
+                    owner: file["owner"].as_str().ok_or_else(invalid)?.into(),
                     contribution: file.get("contribution").cloned(),
                 },
             );

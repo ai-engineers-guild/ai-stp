@@ -26,7 +26,9 @@ plan, explicit project attribution, independent readback, recovery and cancellat
 [code-adjacent contract](../../apps/cli-v2/README.md). This does not transfer
 production writer ownership under ADR-0227. Native single-root project
 attribution requires exact package coverage of the selected setup's complete
-transitive component graph at project scope; a partial scope package does not
+transitive component graph at project scope, with exact projection bytes, modes,
+owners and contributions assembled against observed host content; a partial or
+substituted package does not
 establish installation of the full setup.
 
 The Python and Rust status readers accept optional recorded
