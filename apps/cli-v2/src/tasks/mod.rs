@@ -226,7 +226,7 @@ pub fn advance(
     cancel: bool,
 ) -> Result<Value> {
     let owner = runtime::owner(parent)?;
-    {
+    let selected_id = {
         let store = owner.planning()?;
         let row = selected(&store, id)?;
         revision(&row, expected)?;
@@ -236,9 +236,10 @@ pub fn advance(
             }
             return history(&row, &owner);
         }
-    }
+        row.id
+    };
     let mut store = owner.open(false)?;
-    let mut row = selected(&store, id)?;
+    let mut row = journal::load(&store.connection, &selected_id)?;
     revision(&row, expected)?;
     current(&row, &owner)?;
     if cancel {
