@@ -78,7 +78,11 @@ schema-53 `agent_task` table; they do not interpret production Python task paylo
 Author consumes an absolute directory, harness, supported kind, portable name
 and license. Missing facts produce one literal human answer at a time. Source
 capture, native readers and shared passport/definition validation determine
-acceptance. It creates one private component and one embedded setup at immutable
+acceptance. New authoring uses bundled surfaces qualified against the managed
+component release, preserving the shared historical catalog. Kind, namespace,
+projection and size must fit that surface before object writes; unsupported
+standalone `cli` files are not offered. This compatibility check is offline and
+does not establish object verification. It creates one private component and one embedded setup at immutable
 version `1.0`, or reuses the exact retained pair. The registry owner, source
 digest and mapped projection facts determine identities. No target or harness
 executable changes are part of authoring.

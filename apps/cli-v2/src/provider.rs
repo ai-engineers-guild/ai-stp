@@ -6,6 +6,7 @@ pub mod managed;
 pub mod plan;
 pub mod runtime;
 pub mod status;
+pub(crate) mod surfaces;
 pub mod trust;
 pub mod wheel;
 
@@ -118,35 +119,59 @@ impl Info {
         let Some(profile) = self.profile(scope) else {
             return false;
         };
-        let required = &adaptation["required_surface"];
-        if required["profile_id"] != profile["profile_id"]
-            || required["profile_digest"] != profile["digest"]
-            || !required["bundle_format"]
-                .as_str()
-                .is_some_and(|name| contains(&profile["bundle_formats"], name))
-            || !adaptation["provider_component_kind"]
-                .as_str()
-                .is_some_and(|name| contains(&profile["component_kinds"], name))
-            || !adaptation["projection_kind"]
-                .as_str()
-                .is_some_and(|name| contains(&profile["projection_kinds"], name))
-        {
+        supports_profile(profile, adaptation)
+    }
+}
+
+pub(crate) fn supports_profile(profile: &Value, adaptation: &Value) -> bool {
+    let required = &adaptation["required_surface"];
+    if required["profile_id"] != profile["profile_id"]
+        || required["profile_digest"] != profile["digest"]
+        || !required["bundle_format"]
+            .as_str()
+            .is_some_and(|name| contains(&profile["bundle_formats"], name))
+        || !adaptation["provider_component_kind"]
+            .as_str()
+            .is_some_and(|name| contains(&profile["component_kinds"], name))
+        || !adaptation["projection_kind"]
+            .as_str()
+            .is_some_and(|name| contains(&profile["projection_kinds"], name))
+    {
+        return false;
+    }
+    let Some(members) = adaptation["members"].as_array() else {
+        return false;
+    };
+    let mut count = 0u64;
+    let mut size = 0u64;
+    for member in members {
+        let Some(path) = member["path"].as_str() else {
+            return false;
+        };
+        if !covers_path(profile, path) {
             return false;
         }
-        let Some(members) = adaptation["members"].as_array() else {
-            return false;
-        };
-        let Some(namespaces) = profile["native_namespaces"].as_array() else {
-            return false;
-        };
-        let mut count = 0u64;
-        let mut size = 0u64;
-        for member in members {
-            let Some(path) = member["path"].as_str() else {
+        if member["object_type"] == "file" {
+            count += 1;
+            let Some(next) = member["content_artifact"]["size_bytes"]
+                .as_u64()
+                .and_then(|value| size.checked_add(value))
+            else {
                 return false;
             };
-            if !artifacts::safe_path(path)
-                || !namespaces
+            size = next;
+        }
+    }
+    count <= profile["max_files"].as_u64().unwrap_or(0)
+        && size <= profile["max_bytes"].as_u64().unwrap_or(0)
+}
+
+pub(crate) fn covers_path(profile: &Value, path: &str) -> bool {
+    artifacts::safe_path(path)
+        && profile["native_namespaces"]
+            .as_array()
+            .is_some_and(|namespaces| {
+                namespaces
                     .iter()
                     .filter_map(Value::as_str)
                     .any(|namespace| {
@@ -155,26 +180,10 @@ impl Info {
                                 .strip_prefix(namespace)
                                 .is_some_and(|tail| tail.starts_with('/'))
                     })
-            {
-                return false;
-            }
-            if member["object_type"] == "file" {
-                count += 1;
-                let Some(next) = member["content_artifact"]["size_bytes"]
-                    .as_u64()
-                    .and_then(|value| size.checked_add(value))
-                else {
-                    return false;
-                };
-                size = next;
-            }
-        }
-        count <= profile["max_files"].as_u64().unwrap_or(0)
-            && size <= profile["max_bytes"].as_u64().unwrap_or(0)
-    }
+            })
 }
 
-fn profile(value: &Value) -> Result<()> {
+pub(crate) fn profile(value: &Value) -> Result<()> {
     let mut payload = value.clone();
     payload
         .as_object_mut()

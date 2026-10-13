@@ -24,6 +24,8 @@ const LATER: &str = "2026-10-08T00:00:01.000Z";
 #[test]
 fn embedded_author_is_atomic_exact_and_replayable_without_source() -> Result<(), Box<dyn Error>> {
     use ai_stp_cli_v2::authoring::embedded;
+    let declarations: Vec<Value> =
+        serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
     let temporary = tempfile::tempdir()?;
     let root = temporary.path().canonicalize()?;
     let source = root.join("author-source");
@@ -53,6 +55,17 @@ fn embedded_author_is_atomic_exact_and_replayable_without_source() -> Result<(),
         };
         let before = counts(&mut store)?;
         let plan = embedded::plan(&mut store, request.clone(), identity.clone(), AT)?;
+        let declaration = declarations
+            .iter()
+            .find(|value| value["harness_id"] == harness)
+            .ok_or("released provider declaration absent")?;
+        let provider = ai_stp_cli_v2::provider::Info::parse(&canonical::bytes(declaration)?)?;
+        let scope = &plan.component["adaptations"][0]["scope_adaptations"][0];
+        assert!(
+            provider.supports_scope(serde_json::from_value(scope["scope"].clone())?, scope),
+            "new {harness} authoring does not match the released provider surface"
+        );
+        assert!(!embedded::kinds(harness)?.iter().any(|kind| kind == "cli"));
         assert_eq!(counts(&mut store)?, before, "planning wrote state");
         let expected = plan.digest()?;
         fs::write(source.join("SKILL.md"), format!("{bytes}Changed.\n"))?;
@@ -106,12 +119,13 @@ fn embedded_author_is_atomic_exact_and_replayable_without_source() -> Result<(),
         name: "native-tool".into(),
         license_spdx: "MIT".into(),
     };
-    let plan = embedded::plan(&mut store, request, identity.clone(), AT)?;
+    let before = counts(&mut store)?;
+    assert!(embedded::plan(&mut store, request, identity.clone(), AT).is_err());
     assert_eq!(
-        plan.component["adaptations"][0]["scope_adaptations"][0]["members"][0]["path"],
-        "bin/native-tool"
+        counts(&mut store)?,
+        before,
+        "unsupported executable was authored"
     );
-    embedded::apply(&mut store, &plan, &plan.digest()?, &identity, LATER)?;
     fs::remove_file(source.join("tool.sh"))?;
     fs::write(
         source.join("config.json"),
