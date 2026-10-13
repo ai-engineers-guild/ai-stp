@@ -54,6 +54,13 @@ credentials. A key belonging to another account still returns
 `AI_STP_PERMISSION_DENIED` with `reason=device_key_foreign` before disclosing
 its revocation state. Neither refusal changes the device owner or key.
 
+A recovery exchange may provide `revoked_public_key` and `expected_account_id`.
+Before enrolling the replacement or issuing credentials, the API requires the
+predecessor key to belong to the approving account and remain revoked, the new
+key to differ, and any expected account to match. A missing or foreign predecessor
+is refused without disclosing its revocation state. Ordinary exchanges omit the
+optional fields. A new browser approval never reactivates a revoked key.
+
 ## Security and privacy
 
 The device private key is stored only in secure local storage and is not synchronized. OAuth tokens and the invitation key do not appear in YAML, logs, traces, metrics, or Agent output. Knowledge of an account identifier or email address does not constitute authority. No administrator product role bypasses private-object authorization; infrastructure-operator access remains outside the product API and follows operational controls.
@@ -64,8 +71,10 @@ The device private key is stored only in secure local storage and is not synchro
 
 The isolated Rust preview's implemented account plan/apply/status boundary is
 defined by the [code-adjacent CLI contract](../../apps/cli-v2/README.md). Device
-authorization, signed refresh and logout do not transfer local authoring ownership
-or establish sync/publication support. Production state remains with the existing
+authorization, signed refresh, logout and explicit revoked-key recovery do not
+transfer local authoring ownership or establish sync/publication support.
+Recovery preserves completed local history and exact retained access, removes the
+retired private key, and requires a new sign-in to the same account. Production state remains with the existing
 CLI until the verified migration checkpoint.
 
 ## Acceptance criteria
@@ -78,7 +87,7 @@ CLI until the verified migration checkpoint.
 | `REQ-204` | A device registration test verifies the ID, public key, timestamps, and uniqueness. |
 | `REQ-205` | A revocation test rejects sync/attestation and preserves offline read access. |
 | `REQ-206` | An API authorization matrix covers owner, grantee, and outsider and proves that no product administrator role bypasses the same predicate. |
-| `REQ-207` | Device lifecycle tests revoke the current device. The real API/client sign-in proof rejects an approved exchange with its old key using the distinct revocation code, issues no credentials and preserves foreign-owner refusal. The native account proof clears credentials and replays the exact revocation receipt for both exchange and refresh. |
+| `REQ-207` | Device lifecycle and API/client proofs reject revoked keys and check recovery ownership before enrollment. Native account proofs resume interrupted replacement without regenerating the key; the attachment journey preserves owner, completed history and retained versions across repeated recovery while refusing stale writers and unexecuted plans. |
 | `REQ-208` | An unaccepted invitation grants no read access to the private object. |
 | `REQ-209` | Responses for known and unknown addresses are indistinguishable in body, code, and timing. |
 | `REQ-210` | Signing in with a different verified address or with an unverified address does not create a permission. |

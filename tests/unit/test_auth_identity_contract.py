@@ -99,6 +99,23 @@ def test_starting_a_sign_in_carries_no_device_identity() -> None:
 def test_the_exchange_is_what_binds_the_device_key() -> None:
     fields = set(DeviceTokenRequest.model_fields)
     assert {"device_code", "device_id", "public_key", "display_name"} <= fields
+    ordinary = DeviceTokenRequest(
+        device_code="d" * 40, device_id=DEVICE, public_key=KEY, display_name="device"
+    )
+    # Existing callers retain their old strict-server wire shape.
+    assert set(ordinary.model_dump()) == {
+        "schema_version",
+        "device_code",
+        "device_id",
+        "public_key",
+        "display_name",
+    }
+    recovered = ordinary.model_copy(
+        update={"expected_account_id": ACCOUNT, "revoked_public_key": KEY}
+    )
+    assert recovered.model_dump()["expected_account_id"] == ACCOUNT
+    assert recovered.model_dump()["revoked_public_key"] == KEY
+    assert DeviceTokenRequest.model_validate_json(recovered.model_dump_json()) == recovered
 
 
 def test_all_named_providers_are_representable() -> None:

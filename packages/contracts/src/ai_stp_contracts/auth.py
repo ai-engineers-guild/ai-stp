@@ -23,7 +23,7 @@ the most common accident — an object interpolated into a log line.
 
 from typing import Annotated, Final, Literal, get_args
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, SerializerFunctionWrapHandler, model_serializer
 
 from ai_stp_contracts.http import (
     IdempotencyKey,
@@ -137,6 +137,19 @@ class DeviceTokenRequest(ContractModel):
     device_id: DeviceId
     public_key: PublicKey
     display_name: DisplayName
+    # Recovery must reject a different approving account before enrolling a key.
+    expected_account_id: AccountId | None = None
+    revoked_public_key: PublicKey | None = None
+
+    @model_serializer(mode="wrap")
+    def sparse_recovery_binding(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        # Preserve the old strict-server request shape on every supported
+        # Pydantic version; Field(exclude_if=...) requires a newer minimum.
+        value: dict[str, object] = handler(self)
+        for name in ("expected_account_id", "revoked_public_key"):
+            if value.get(name) is None:
+                value.pop(name, None)
+        return value
 
 
 class DeviceTokenResponse(ContractModel):

@@ -9,11 +9,13 @@ serves.
 
 from __future__ import annotations
 
+import base64
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from sqlalchemy import func, select, update
 from tests.api.cli.conftest import WebApprover
 from tests.support.asgi_sync import SyncAsgiServer
@@ -199,6 +201,106 @@ def test_approve_with_an_unknown_code_is_a_typed_answer(
     response = web_approver().approve("XXXX-YYYY")
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "AI_STP_NOT_FOUND"
+
+
+@pytest.mark.parametrize(
+    ("case", "expected"),
+    [
+        ("bound", 200),
+        ("unknown_account", 200),
+        ("foreign", 403),
+        ("active", 412),
+        ("missing", 403),
+        ("wrong_account", 403),
+        ("same_key", 412),
+    ],
+)
+def test_recovery_checks_the_retired_key_before_enrolling_a_replacement(
+    cli_server: SyncAsgiServer,
+    cli_endpoint: Endpoint,
+    web_approver: ApproverFactory,
+    case: str,
+    expected: int,
+) -> None:
+    from ai_stp_api.slices.devices.crypto import normalize_public_key
+    from ai_stp_platform.models import Account, Device
+
+    approver = web_approver()
+    owner = new_id("account") if case == "foreign" else approver.account_id
+    old_id, new_device = new_id("device"), new_id("device")
+    old_key = base64.b64encode(
+        Ed25519PrivateKey.generate().public_key().public_bytes_raw()
+    ).decode()
+    new_key = (
+        old_key
+        if case == "same_key"
+        else base64.b64encode(Ed25519PrivateKey.generate().public_key().public_bytes_raw()).decode()
+    )
+    state = "active" if case == "active" else "revoked"
+
+    async def seed() -> None:
+        async with cli_server.app.state.sessionmaker() as db:
+            if case == "foreign":
+                db.add(Account(id=owner))
+            if case != "missing":
+                db.add(
+                    Device(
+                        id=old_id,
+                        account_id=owner,
+                        public_key=normalize_public_key(old_key),
+                        state=state,
+                    )
+                )
+            await db.commit()
+
+    cli_server.call(seed)
+    started = login.start(cli_endpoint, "github")
+    assert approver.approve(started.user_code).status_code == 200
+    body = {
+        "schema_version": 1,
+        "device_code": started.device_code,
+        "device_id": new_device,
+        "public_key": new_key,
+        "display_name": "recovery-proof",
+        "revoked_public_key": old_key,
+    }
+    if case != "unknown_account":
+        body["expected_account_id"] = (
+            new_id("account") if case == "wrong_account" else approver.account_id
+        )
+    assert cli_server.transport is not None
+    with httpx.Client(transport=cli_server.transport, base_url="http://127.0.0.1") as client:
+        response = client.post("/v1/auth/device/token", json=body)
+    assert response.status_code == expected
+    if expected == 200:
+        result = response.json()
+        assert result["account_id"] == approver.account_id
+        assert result["device_id"] == new_device
+
+    async def observe() -> None:
+        async with cli_server.app.state.sessionmaker() as db:
+            previous = await db.get(Device, old_id)
+            if case == "missing":
+                assert previous is None
+            else:
+                assert previous is not None
+                assert (previous.account_id, previous.state) == (owner, state)
+            replacement = await db.get(Device, new_device)
+            if expected == 200:
+                assert replacement is not None
+                assert replacement.account_id == approver.account_id
+                assert replacement.public_key == normalize_public_key(new_key)
+                assert replacement.state == "active"
+            else:
+                assert replacement is None
+            count = await db.scalar(
+                select(func.count())
+                .select_from(AccountSession)
+                .where(AccountSession.device_id == new_device)
+            )
+            assert count == (2 if expected == 200 else 0)
+
+    cli_server.call(observe)
 
 
 def test_pending_polls_are_paced_and_the_pace_survives_refusals(

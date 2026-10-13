@@ -4,6 +4,7 @@ pub(crate) mod access;
 pub(crate) mod attachment;
 mod journal;
 mod model;
+mod recovery;
 #[cfg(all(test, unix))]
 mod tests;
 mod transport;
@@ -48,6 +49,13 @@ fn check_binding(identity: &identity::Identity, plan: &Plan) -> Result<()> {
         || identity.context() != plan.identity
         || identity.storage() != plan.credential_store
         || identity.report()["public_key"] != plan.public_key
+        || identity.recovery_binding().map(|e| &e.plan.public_key)
+            != plan.revoked_public_key.as_ref()
+        || identity
+            .recovery_binding()
+            .and_then(|e| e.plan.recovery.as_ref())
+            .and_then(|r| r.account_id.as_ref())
+            != plan.expected_account_id.as_ref()
     {
         return Err(invalid());
     }
@@ -60,6 +68,8 @@ fn check_state(state: &State, plan: &Plan) -> Result<()> {
         || state.plan.identity != plan.identity
         || state.plan.credential_store != plan.credential_store
         || state.plan.public_key != plan.public_key
+        || state.plan.expected_account_id != plan.expected_account_id
+        || state.plan.revoked_public_key != plan.revoked_public_key
     {
         return Err(invalid());
     }
@@ -89,16 +99,22 @@ pub fn plan(
         ));
     }
     let state = journal.as_ref().map(Journal::state).transpose()?.flatten();
+    let recovered = identity.recovery_binding();
     let origin = transport::origin(api.unwrap_or_else(|| {
-        state
-            .as_ref()
-            .map_or(crate::config::CATALOG_URL, |s| s.plan.origin.as_str())
+        state.as_ref().map_or_else(
+            || recovered.map_or(crate::config::CATALOG_URL, |e| e.plan.origin.as_str()),
+            |s| s.plan.origin.as_str(),
+        )
     }))?;
     let provider = provider.unwrap_or_else(|| {
-        state
-            .as_ref()
-            .map_or("github", |s| s.plan.provider.as_str())
+        state.as_ref().map_or_else(
+            || recovered.map_or("github", |e| e.plan.provider.as_str()),
+            |s| s.plan.provider.as_str(),
+        )
     });
+    if recovered.is_some_and(|e| e.plan.origin != origin) {
+        return Err(invalid());
+    }
     let mut plan = Plan {
         schema_version: 1,
         action,
@@ -117,7 +133,20 @@ pub fn plan(
         provider: provider.into(),
         expected_revision: state.as_ref().map(|s| s.revision.clone()),
         attachment: None,
+        recovery: None,
+        expected_account_id: recovered
+            .and_then(|e| e.plan.recovery.as_ref())
+            .and_then(|r| r.account_id.clone()),
+        revoked_public_key: recovered.map(|e| e.plan.public_key.clone()),
     };
+    if action == Action::Recover {
+        plan.recovery = Some(recovery::selection(
+            &identity,
+            journal.as_ref().ok_or_else(invalid)?,
+            state.as_ref().ok_or_else(invalid)?,
+            at,
+        )?);
+    }
     if action == Action::Attach {
         let state = state.as_ref().ok_or_else(invalid)?;
         let Session::Authorized { account_id, .. } = &state.session else {
@@ -193,6 +222,7 @@ fn precondition(plan: &Plan, state: Option<&State>, at: &str) -> Result<()> {
             Ok(())
         }
         (Action::Logout, Some(_)) => Ok(()),
+        (Action::Recover, Some(Session::Closed { reason })) if reason == "device_revoked" => Ok(()),
         (Action::Poll, Some(Session::Pending { .. })) => Err(Failure::precondition(
             "the authorization polling interval has not elapsed",
         )),
@@ -206,10 +236,14 @@ pub fn status(root: &Path, at: &str) -> Result<Value> {
     if !passport::timestamp(at) {
         return Err(invalid());
     }
+    if let Some(pending) = recovery::pending(root)? {
+        return Ok(pending);
+    }
     let identity = identity_at(root)?;
     let journal = Journal::open(&identity, false)?;
+    identity.revalidate()?;
     let store = crate::store::Store::planning_at(identity.root_directory())?;
-    let owner = attachment::effective(&store.connection, &identity.context())?;
+    let owner = attachment::effective(&store.connection, &identity)?;
     drop(store);
     let Some(journal) = journal else {
         return Ok(
@@ -239,7 +273,24 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
     if !passport::timestamp(at) || plan.digest()? != expected {
         return Err(invalid());
     }
-    let identity = bind(plan)?;
+    if plan.action == Action::Recover {
+        return recovery::apply(plan, at);
+    }
+    let identity = identity_at(&plan.root)?;
+    if check_binding(&identity, plan).is_err() {
+        identity.historical_account(plan)?;
+        if plan.action == Action::Attach {
+            return attachment::apply(plan, &identity, at);
+        }
+        let journal = Journal::at(
+            identity.root_directory(),
+            plan.credential_store,
+            &plan.identity.device_id,
+            false,
+        )?
+        .ok_or_else(invalid)?;
+        return Ok(journal.receipt(plan)?.ok_or_else(invalid)?.public());
+    }
     if plan.action == Action::Attach {
         return attachment::apply(plan, &identity, at);
     }
@@ -342,7 +393,7 @@ fn execute(
 ) -> Result<(Session, Outcome)> {
     let api = Api::new(&plan.origin)?;
     match plan.action {
-        Action::Attach => Err(invalid()),
+        Action::Attach | Action::Recover => Err(invalid()),
         Action::Start => {
             // Preserve the first attempt's deadline across idempotent start retries.
             if at >= after(requested_at, 1800)?.as_str() {
@@ -472,6 +523,10 @@ fn poll(api: &Api, plan: &Plan, session: Session, at: &str) -> Result<(Session, 
         device_id: &'a str,
         public_key: &'a str,
         display_name: &'a str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        expected_account_id: Option<&'a str>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        revoked_public_key: Option<&'a str>,
     }
     let body = Zeroizing::new(
         serde_json::to_vec(&Request {
@@ -480,12 +535,14 @@ fn poll(api: &Api, plan: &Plan, session: Session, at: &str) -> Result<(Session, 
             device_id: &plan.identity.device_id,
             public_key: &plan.public_key,
             display_name: "ai-stp Rust CLI",
+            expected_account_id: plan.expected_account_id.as_deref(),
+            revoked_public_key: plan.revoked_public_key.as_deref(),
         })
         .map_err(|_| invalid())?,
     );
     let outcome = match api.post::<Tokens>("device/token", &body, None)? {
         Reply::Resource(tokens) => {
-            validate_tokens(&tokens, plan, None)?;
+            validate_tokens(&tokens, plan, plan.expected_account_id.as_deref())?;
             return Ok((authorized(tokens, at)?, Outcome::Authorized));
         }
         Reply::Refused(Code::Expired) => {

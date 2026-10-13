@@ -3,7 +3,7 @@
 //! The standard `plain` session avoids custom cryptography. Bus transport must be
 //! local; at-rest protection belongs to the user's existing credential service.
 //! No Unlock, Prompt, CreateCollection or backend fallback is permitted.
-//! Device keys are immutable; account credential replacement is explicit.
+//! Device keys are immutable until explicit retirement; account replacement is explicit.
 
 use std::{collections::HashMap, time::Duration};
 use zbus::{
@@ -153,6 +153,20 @@ pub(super) fn write(id: &str, value: &str, replace: bool) -> Result<()> {
         .map_err(|_| unavailable())?;
     // A prompt becomes invalid when this connection closes. Never display it.
     if item.as_str() == "/" || prompt.as_str() != "/" {
+        return Err(unavailable());
+    }
+    Ok(())
+}
+
+pub(super) fn remove(id: &str) -> Result<()> {
+    let conn = connection()?;
+    let service = service(&conn)?;
+    let Some(path) = find(&service, id)? else {
+        return Ok(());
+    };
+    let item = proxy(&conn, path.as_str(), "org.freedesktop.Secret.Item")?;
+    let prompt: OwnedObjectPath = item.call("Delete", &()).map_err(|_| unavailable())?;
+    if prompt.as_str() != "/" {
         return Err(unavailable());
     }
     Ok(())

@@ -62,9 +62,8 @@ impl std::ops::Deref for Owner {
 
 impl Owner {
     fn checked(&self, store: Store) -> Result<Store> {
-        if crate::account::attachment::effective(&store.connection, &self.device.context())?
-            != self.context
-        {
+        self.device.revalidate()?;
+        if crate::account::attachment::effective(&store.connection, &self.device)? != self.context {
             return Err(Failure::precondition(
                 "the registry owner changed after this author was loaded",
             ));
@@ -80,8 +79,8 @@ impl Owner {
         self.checked(Store::open_at(self.device.root_directory(), create)?)
     }
 
-    pub(crate) fn original(&self) -> Identity {
-        self.device.context()
+    pub(crate) fn historical(&self, identity: &Identity) -> bool {
+        self.device.historical(identity)
     }
 }
 
@@ -90,7 +89,8 @@ pub(crate) fn owner(parent: &Path) -> Result<Owner> {
         "initialize the isolated native identity before planning or applying authoring operations"
     ))?;
     let store = Store::planning_at(device.root_directory())?;
-    let context = crate::account::attachment::effective(&store.connection, &device.context())?;
+    device.revalidate()?;
+    let context = crate::account::attachment::effective(&store.connection, &device)?;
     Ok(Owner { context, device })
 }
 
@@ -140,7 +140,7 @@ fn execute<T: DeserializeOwned>(
     if planned != *identity {
         // Historical replay is query-only and must identify the exact completed
         // effect. An unexecuted old plan cannot recover former owner authority.
-        if planned != identity.original() {
+        if !identity.historical(&planned) {
             return Err(Failure::precondition(
                 "the local identity differs from the planned author",
             ));

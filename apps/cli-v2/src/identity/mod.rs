@@ -1,6 +1,7 @@
 //! Isolated offline identity. Public plans never contain key material or cloud claims.
 
 pub(crate) mod credentials;
+pub mod recovery;
 #[cfg(target_os = "linux")]
 mod secret_service;
 
@@ -110,6 +111,7 @@ pub struct Identity {
     device: Value,
     plan: Plan,
     root: Dir,
+    history: recovery::History,
 }
 
 impl Identity {
@@ -125,7 +127,7 @@ impl Identity {
     pub fn context(&self) -> authoring::Identity {
         authoring::Identity {
             account_id: self.plan.account_id.clone(),
-            device_id: self.plan.device_id.clone(),
+            device_id: self.device["device_id"].as_str().unwrap_or_default().into(),
         }
     }
     pub fn report(&self) -> Value {
@@ -140,7 +142,25 @@ impl Identity {
                 "a revoked device cannot sign or author new state",
             ));
         }
+        self.revalidate()?;
         Ok(self.key.sign(payload).to_bytes())
+    }
+
+    pub(crate) fn revalidate(&self) -> Result<()> {
+        let directory = open(&self.root, false)?.ok_or_else(invalid)?;
+        let record = record(&directory)?.ok_or_else(invalid)?;
+        let current = load(
+            &directory,
+            &record,
+            self.root.try_clone().map_err(|_| invalid())?,
+        )?;
+        if current.context() != self.context()
+            || current.report() != self.report()
+            || current.root_binding() != self.root_binding()
+        {
+            return Err(invalid());
+        }
+        Ok(())
     }
 }
 
@@ -155,7 +175,7 @@ pub(crate) fn root(path: &Path) -> Result<(PathBuf, [String; 2])> {
     Ok((location, physical_root(&dir)?))
 }
 
-fn physical_root(dir: &Dir) -> Result<[String; 2]> {
+pub(crate) fn physical_root(dir: &Dir) -> Result<[String; 2]> {
     let meta = dir.dir_metadata().map_err(|_| invalid())?;
     Ok([
         cap_fs_ext::MetadataExt::dev(&meta).to_string(),
@@ -191,6 +211,7 @@ fn pending(directory: &OwnedDirectory) -> Result<Option<Plan>> {
 
 fn inventory(directory: &OwnedDirectory, plan: Option<&Plan>) -> Result<()> {
     let key = plan.map(|plan| format!("device-key.{}", plan.device_id));
+    let recovered = recovery::inventory(directory)?;
     for entry in directory.directory.entries().map_err(|_| invalid())? {
         let entry = entry.map_err(|_| invalid())?;
         let name = entry.file_name();
@@ -204,7 +225,8 @@ fn inventory(directory: &OwnedDirectory, plan: Option<&Plan>) -> Result<()> {
             .is_some_and(|id| ulid::Ulid::from_string(id).is_ok());
         if plan.is_none()
             || !(matches!(name, "pending.json" | "identity.json")
-                || key.as_deref() == Some(name)
+                || key.as_deref() == Some(name) && !recovered.contains("recoveries.json")
+                || recovered.contains(name)
                 || temporary)
         {
             return Err(invalid());
@@ -237,45 +259,90 @@ fn record(directory: &OwnedDirectory) -> Result<Option<Record>> {
 }
 
 fn report(plan: &Plan, key: &SigningKey) -> Value {
+    report_for(
+        &plan.device_id,
+        &plan.created_at,
+        plan.credential_store,
+        &[],
+        key,
+    )
+}
+
+fn report_for(id: &str, at: &str, storage: Storage, retired: &[String], key: &SigningKey) -> Value {
     let public = key.verifying_key().to_bytes();
+    public_report(id, at, storage, retired, &public)
+}
+
+fn public_report(
+    id: &str,
+    at: &str,
+    storage: Storage,
+    retired: &[String],
+    public: &[u8; 32],
+) -> Value {
     let fingerprint = Sha256::digest(public)[..16]
         .iter()
         .map(|byte| format!("{byte:02x}"))
         .collect::<Vec<_>>()
         .join(":");
-    json!({"schema_version":1,"device_id":plan.device_id,"public_key":STANDARD.encode(public),
-        "key_fingerprint":fingerprint,"created_at":plan.created_at,"state":"active",
-        "credential_store":plan.credential_store,"credential_store_detail":plan.credential_store.detail(),"retired_device_ids":[]})
+    json!({"schema_version":1,"device_id":id,"public_key":STANDARD.encode(public),
+        "key_fingerprint":fingerprint,"created_at":at,"state":"active",
+        "credential_store":storage,"credential_store_detail":storage.detail(),"retired_device_ids":retired})
 }
 
 fn load(directory: &OwnedDirectory, record: &Record, root: Dir) -> Result<Identity> {
     if physical_root(&root)? != record.plan.root_identity {
         return Err(invalid());
     }
-    let key = Vault::new(directory,record.plan.credential_store)?.read_key(&record.plan.device_id)?
+    let history = recovery::History::read(directory, record)?;
+    if recovery::pending(directory)?.is_some() {
+        return Err(Failure::precondition(
+            "resume the retained account recovery before using this device",
+        ));
+    }
+    let device = history
+        .entries
+        .last()
+        .map_or(&record.device, |entry| &entry.device);
+    let id = device["device_id"].as_str().ok_or_else(invalid)?;
+    let key = Vault::new(directory,record.plan.credential_store)?.read_key(id)?
         .ok_or_else(||Failure::precondition("the device has a public record but its private key is missing; initialization will not replace it"))?;
-    let public = report(&record.plan, &key);
-    if record.device["public_key"] != public["public_key"]
-        || record.device["key_fingerprint"] != public["key_fingerprint"]
-    {
+    let retired = history
+        .entries
+        .iter()
+        .map(|entry| entry.plan.identity.device_id.clone())
+        .collect::<Vec<_>>();
+    let public = report_for(
+        id,
+        device["created_at"].as_str().ok_or_else(invalid)?,
+        record.plan.credential_store,
+        &retired,
+        &key,
+    );
+    if device != &public {
         return Err(invalid());
     }
-    if record.device["state"] != "active" {
+    if device["state"] != "active" {
         return Err(Failure::precondition("the local device is revoked"));
     }
     Ok(Identity {
         key,
-        device: record.device.clone(),
+        device: device.clone(),
         plan: record.plan.clone(),
         root,
+        history,
     })
+}
+
+fn open(parent: &Dir, create: bool) -> Result<Option<OwnedDirectory>> {
+    OwnedDirectory::open_compatible(parent, NAMESPACE, OWNER, &[recovery::OWNER], create)
 }
 
 /// Read-only: absent identity stays absent, and no keyring availability probe is written.
 pub fn current(parent: &Path) -> Result<Option<Identity>> {
     let root =
         Dir::open_ambient_dir(parent, cap_std::ambient_authority()).map_err(|_| invalid())?;
-    let Some(directory) = OwnedDirectory::open_at(&root, NAMESPACE, OWNER, false)? else {
+    let Some(directory) = open(&root, false)? else {
         return Ok(None);
     };
     let Some(record) = record(&directory)? else {
@@ -291,7 +358,9 @@ pub fn plan(parent: &Path, storage: Storage, at: &str) -> Result<Plan> {
     storage.validate()?;
     let expires_at = authoring::expiry(at)?;
     let (root, root_identity) = root(parent)?;
-    if let Some(directory) = OwnedDirectory::open(&root, NAMESPACE, OWNER, false)? {
+    let parent =
+        Dir::open_ambient_dir(&root, cap_std::ambient_authority()).map_err(|_| invalid())?;
+    if let Some(directory) = open(&parent, false)? {
         if record(&directory)?.is_some() {
             return Err(Failure::precondition(
                 "this preview installation already has an identity",
@@ -343,7 +412,7 @@ pub fn apply(plan: &Plan, expected_digest: &str, at: &str) -> Result<Identity> {
     if physical_root(&root)? != plan.root_identity {
         return Err(invalid());
     }
-    let existing = OwnedDirectory::open_at(&root, NAMESPACE, OWNER, false)?;
+    let existing = open(&root, false)?;
     if existing.is_none() && (at < plan.created_at.as_str() || at > plan.expires_at.as_str()) {
         return Err(Failure::precondition(
             "the initialization plan expired before it started",
@@ -351,7 +420,7 @@ pub fn apply(plan: &Plan, expected_digest: &str, at: &str) -> Result<Identity> {
     }
     let directory = match existing {
         Some(dir) => dir,
-        None => OwnedDirectory::open_at(&root, NAMESPACE, OWNER, true)?.ok_or_else(invalid)?,
+        None => open(&root, true)?.ok_or_else(invalid)?,
     };
     if let Some(record) = record(&directory)? {
         if record.plan_digest != expected_digest {
@@ -389,14 +458,7 @@ pub fn apply(plan: &Plan, expected_digest: &str, at: &str) -> Result<Identity> {
     let key = match credentials.read_key(&plan.device_id)? {
         Some(key) => key,
         None => {
-            let mut seed = Zeroizing::new([0u8; 32]);
-            getrandom::fill(seed.as_mut()).map_err(|_| {
-                Failure::new(
-                    ErrorKind::Unavailable,
-                    "the operating system random source is unavailable",
-                )
-            })?;
-            let key = SigningKey::from_bytes(&seed);
+            let key = generate()?;
             credentials.create_key(&plan.device_id, &key)?;
             key
         }
@@ -414,4 +476,41 @@ pub fn apply(plan: &Plan, expected_digest: &str, at: &str) -> Result<Identity> {
     )?;
     // Retain the small public intent as the exact initialization receipt.
     load(&directory, &record, root)
+}
+
+fn generate() -> Result<SigningKey> {
+    let mut seed = Zeroizing::new([0u8; 32]);
+    getrandom::fill(seed.as_mut()).map_err(|_| {
+        Failure::new(
+            ErrorKind::Unavailable,
+            "the operating system random source is unavailable",
+        )
+    })?;
+    Ok(SigningKey::from_bytes(&seed))
+}
+
+/// A completed initialization remains a public receipt after its key is retired.
+pub fn apply_public(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
+    plan.validate()?;
+    if plan.digest()? != expected || !passport::timestamp(at) {
+        return Err(invalid());
+    }
+    revalidate(plan)?;
+    let parent =
+        Dir::open_ambient_dir(&plan.root, cap_std::ambient_authority()).map_err(|_| invalid())?;
+    if physical_root(&parent)? != plan.root_identity {
+        return Err(invalid());
+    }
+    if let Some(directory) = open(&parent, false)?
+        && let Some(record) = record(&directory)?
+    {
+        let history = recovery::History::read(&directory, &record)?;
+        if !history.entries.is_empty() {
+            if record.plan != *plan {
+                return Err(invalid());
+            }
+            return Ok(record.device);
+        }
+    }
+    Ok(apply(plan, expected, at)?.report())
 }

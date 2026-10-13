@@ -44,13 +44,15 @@ impl Handler {
 pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
         path: &["account", "plan"],
-        summary: "Plan a session action or explicit local-owner attachment against the exact isolated account revision and device key.",
+        summary: "Plan a session action, owner attachment or revoked-key recovery against the exact isolated account revision and device key.",
         parameters: &[
             STATE_DIR,
             Parameter {
                 name: "action",
                 summary: "One bounded account operation; poll honors its durable minimum interval.",
-                kind: ParameterType::Choice(&["start", "poll", "refresh", "logout", "attach"]),
+                kind: ParameterType::Choice(&[
+                    "start", "poll", "refresh", "logout", "attach", "recover",
+                ]),
                 required: true,
             },
             Parameter {
@@ -110,6 +112,7 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                 Some("refresh") => account::Action::Refresh,
                 Some("logout") => account::Action::Logout,
                 Some("attach") => account::Action::Attach,
+                Some("recover") => account::Action::Recover,
                 _ => return Err(Failure::input("account action is absent")),
             };
             let plan = account::plan(

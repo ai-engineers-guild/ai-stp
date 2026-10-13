@@ -54,7 +54,7 @@ fn current(row: &Row, owner: &runtime::Owner) -> Result<()> {
 /// Settled receipts remain readable after owner attachment, without granting
 /// the original owner authority to execute another child operation.
 fn history(row: &Row, owner: &runtime::Owner) -> Result<Value> {
-    if !row.settled() || row.payload.identity != **owner && row.payload.identity != owner.original()
+    if !row.settled() || row.payload.identity != **owner && !owner.historical(&row.payload.identity)
     {
         return Err(Failure::precondition(
             "the task is not retained owner history",
