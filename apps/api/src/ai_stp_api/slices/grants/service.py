@@ -471,6 +471,12 @@ async def accept_invitation(
     if invitation.state == "accepted" and invitation.accepted_grant_id:
         grant = await db.get(AccessGrant, invitation.accepted_grant_id)
         if grant is not None:
+            # A completed retry still needs the original recipient and proof;
+            # the invitation identifier alone must not disclose grant metadata.
+            if grant.grantee_account_id != ctx.account_id:
+                raise ApiError(ErrorCategory.NOT_FOUND, "invitation not found")
+            if hash_token(body.token) != invitation.token_hash:
+                raise ApiError(ErrorCategory.VALIDATION, "invitation token invalid")
             return grant_to_wire(grant)
     if invitation.state != "pending":
         raise ApiError(ErrorCategory.CONFLICT, f"invitation is {invitation.state}")

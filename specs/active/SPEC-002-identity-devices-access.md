@@ -35,6 +35,9 @@ The scope includes the internal account, OAuth identities, device keys, device r
 - `REQ-209`: The response to invitation creation is the same whether or not the address is registered.
 - `REQ-210`: An invitation becomes an `AccessGrant` only after an account signs in with the same provider-verified address; matching the string without provider verification is insufficient.
 - `REQ-211`: An invitation key is single-use and expires, while conversion into a permission is atomic and idempotent by key.
+  Completed acceptance replay requires the same recipient account and original
+  invitation token. A valid replay may outlive the invitation expiry; it returns
+  the existing grant's current state and never reactivates a revoked permission.
 - `REQ-212`: The owner revokes an invitation and a granted permission separately; revocation does not delete bytes already received by the recipient, and the owner is informed of this.
 - `REQ-213`: Each device maintains its own revisioned device passport of kind `device`; its observed OS, architecture, installed harnesses, and tool versions belong to it, not to the developer passport.
 - `REQ-214`: Only the permitted summary from the closed set in `docs/contracts/device-passport.md` leaves the device; absolute user paths and environment variable values are excluded from a summary revision.
@@ -91,7 +94,7 @@ CLI until the verified migration checkpoint.
 | `REQ-208` | An unaccepted invitation grants no read access to the private object. |
 | `REQ-209` | Responses for known and unknown addresses are indistinguishable in body, code, and timing. |
 | `REQ-210` | Signing in with a different verified address or with an unverified address does not create a permission. |
-| `REQ-211` | Reusing a key returns the same permission, while expired and used keys produce typed errors. |
+| `REQ-211` | The real API/client journey rejects another account and an invalid token after acceptance. The original recipient/token replays the same permission after invitation expiry, including its revoked state, without creating a second grant. Expired unaccepted invitations refuse. |
 | `REQ-212` | Invitation revocation and permission revocation are verified independently, and the key does not appear in logs. |
 | `REQ-213` | A two-device fixture stores different environments in two device passports and does not change the developer passport. |
 | `REQ-214` | The synchronized summary rejects a field outside the closed set, an absolute path, and an environment variable value. |
