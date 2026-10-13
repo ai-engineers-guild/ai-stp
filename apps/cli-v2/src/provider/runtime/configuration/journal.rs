@@ -4,22 +4,21 @@ use rusqlite::{Connection, OptionalExtension};
 use serde_json::{Value, json};
 use std::path::Path;
 
-use super::{identity, invalid, outcome, plan::Plan};
+use super::{identity, invalid, outcome, plan::Plan, reservations};
 use crate::{
-    digest,
     error::{ErrorKind, Result},
     files::OwnedDirectory,
     provider::runtime::target::Target,
     store::{Store, database},
 };
 
-const OWNER: &[u8] = b"ai-stp-cli-v2:configuration-operations/v1\n";
 use crate::provider::configuration::record::{LIMIT as RECORD_LIMIT, Record};
 
 pub(super) struct Journal {
     state: Target,
     operation: OwnedDirectory,
     _target_lock: OwnedDirectory,
+    namespace: Option<OwnedDirectory>,
 }
 
 fn context(parent: &Path, plan: &Plan) -> Result<Target> {
@@ -60,20 +59,32 @@ impl Journal {
     }
 
     pub fn open(parent: &Path, plan: &Plan, digest: &str) -> Result<Self> {
+        Self::open_namespace(parent, plan, digest, true)
+    }
+
+    pub fn cleanup_history(parent: &Path, plan: &Plan, digest: &str) -> Result<()> {
+        // Historical replay cannot depend on other unfinished targets or
+        // migrate a live writer namespace. Only this operation's private
+        // retained payload is retired, under the original target/operation locks.
+        let journal = Self::open_namespace(parent, plan, digest, false)?;
+        let record = journal.read(plan, digest)?.ok_or_else(invalid)?;
+        if record.state == "applying" {
+            return Err(invalid());
+        }
+        journal.cleanup()
+    }
+
+    fn open_namespace(parent: &Path, plan: &Plan, digest: &str, migrate: bool) -> Result<Self> {
         let state = context(parent, plan)?;
-        let namespace =
-            OwnedDirectory::open_at(&state.directory()?, "configuration-operations", OWNER, true)?
-                .ok_or_else(invalid)?;
-        let target_key = digest::sha256(
-            format!("{}:{}", plan.target_identity[0], plan.target_identity[1]).as_bytes(),
-        );
+        let namespace = reservations::namespace(&state.directory()?, migrate)?;
+        let target_key = reservations::target_key(plan);
         let target_lock = OwnedDirectory::open_at(
             &namespace.directory,
             &format!(
                 "target-{}",
                 target_key.strip_prefix("sha256:").ok_or_else(invalid)?
             ),
-            format!("ai-stp:configuration-target/v1\n{target_key}\n").as_bytes(),
+            &reservations::target_owner(&target_key),
             true,
         )?
         .ok_or_else(invalid)?;
@@ -93,12 +104,17 @@ impl Journal {
             state,
             operation,
             _target_lock: target_lock,
+            namespace: Some(namespace),
         })
     }
 
     fn store(&self, create: bool) -> Result<Store> {
         self.state.revalidate()?;
         self.operation.validate_lock()?;
+        self._target_lock.validate_lock()?;
+        if let Some(namespace) = &self.namespace {
+            namespace.validate_lock()?;
+        }
         Store::open(self.state.path(), create)
     }
 
@@ -144,7 +160,31 @@ impl Journal {
     }
 
     pub fn admit(&self, plan: &Plan, digest: &str) -> Result<()> {
+        self.namespace
+            .as_ref()
+            .ok_or_else(invalid)?
+            .validate_lock()?;
         self.write(plan, digest, "applying", None)
+    }
+
+    /// Release short admission serialization only after durable reservation.
+    /// Unrelated roots can then execute concurrently; overlapping roots cannot
+    /// enter until the existing operation has a verified terminal receipt.
+    pub fn resume(&mut self, plan: &Plan, digest: &str) -> Result<()> {
+        self.namespace
+            .as_ref()
+            .ok_or_else(invalid)?
+            .validate_lock()?;
+        let store = self.store(false)?;
+        let record = read(&store.connection, plan, digest)?.ok_or_else(invalid)?;
+        if record.state != "applying" {
+            return Err(invalid());
+        }
+        reservations::available(&store.connection, plan)?;
+        drop(store);
+        self.state.revalidate()?;
+        self.namespace.take();
+        Ok(())
     }
 
     pub fn complete(&self, plan: &Plan, digest: &str, result: &Value) -> Result<()> {
@@ -174,6 +214,7 @@ impl Journal {
         let mut store = self.store(true)?;
         let now = jiff::Timestamp::now().to_string();
         store.transaction(|transaction| {
+            if state == "applying" { reservations::available(transaction, plan)?; }
             if state == "applying" { super::project::admitting(transaction, plan)?; }
             let previous = read(transaction, plan, digest)?;
             let before = previous.as_ref().map_or("unseen", |record| record.state.as_str()).to_owned();

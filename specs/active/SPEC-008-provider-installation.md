@@ -31,6 +31,15 @@ owners and contributions assembled against observed host content; a partial or
 substituted package does not
 establish installation of the full setup.
 
+Within one isolated Rust state parent, unfinished configuration operations
+reserve physical roots against identical and overlapping admissions, including
+after process exit. Disjoint roots remain concurrent after durable admission.
+The v2 configuration namespace fences older writers only after their target
+locks drain; an empty SQLite operation query alone does not prove quiescence.
+The transition preserves original plans and terminal receipts, and requires a
+compatible executable for subsequent recovery. This does not coordinate
+independent state parents or implement aggregate multi-root application.
+
 The Python and Rust status readers accept optional recorded
 `configuration_ownership` through kit 0.2.17. They distinguish unavailable
 ownership from an empty record and reject ambiguous paths/keys, parser mismatches

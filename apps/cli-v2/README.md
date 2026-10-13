@@ -818,12 +818,32 @@ JSON/JSONC/TOML transformations. Marked instruction attachments survive setup
 withdrawal. Native verification reads only the affected paths, at most 64 MiB,
 and never reads a component's private ledger or copies previous configuration.
 
-The native operation lock serializes one physical target within the explicit
-state, while the component owns cross-caller admission and file recovery.
+Within one explicit state parent, native admission reserves unfinished target
+roots against identical, ancestor, descendant and physical-alias operations.
+Reservations survive process exit and expire only with a verified terminal
+receipt, not with the original plan's deadline. A missing or substituted
+unfinished root cannot be declared disjoint. Cancellation remains available
+under its original component checks. The component owns cross-caller admission
+and file recovery; separate isolated state parents do not share native locks.
+
+The configuration namespace marker is v2. Its monotonic upgrade excludes new
+old-writer admissions and drains existing target locks before publishing the
+marker, including old processes that have not yet recorded SQLite admission.
+Overlapping unfinished legacy operations refuse the upgrade while preserving
+the old marker and recovery path. Old configuration writers refuse an upgraded
+namespace. Short namespace admission
+serialization ends after the durable reservation is verified; unrelated roots
+can execute concurrently. The existing bounded lock timeout remains retryable.
+Operation records, the SQLite schema, original plans and completed receipts stay
+unchanged. Recovery after this upgrade requires a v2-aware executable; rollback
+must retain current state and this reader rather than restoring old state.
+
 Pending application retains desired bundle bytes in private operation state;
 completion removes them and records an immutable receipt in SQLite. Terminal
 replay needs no live target, provider, bundle source or network, and cleanup
-interrupted after the receipt commit resumes independently. An admitted
+interrupted after the receipt commit resumes independently. Replaying legacy
+terminal history does not migrate its namespace or inspect other pending roots.
+An admitted
 component request keeps its original expiry and identity during recovery;
 native admission alone does not bypass the component's first-admission expiry.
 
