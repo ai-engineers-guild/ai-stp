@@ -11,7 +11,7 @@ from collections.abc import Callable
 from contextlib import closing, suppress
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import parse_qs, urlsplit
 
 from verify_impact_sources import AT, record_setup, release_instruction
@@ -26,11 +26,13 @@ from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.refs import ComponentRef
 from ai_stp_passports.envelope import derive_revision_id
+from ai_stp_passports.versions import ComponentType, TargetScope
 from ai_stp_sources.definition import (
     EmbeddedDraft,
     freeze_setup_definition,
     validate_setup_definition,
 )
+from ai_stp_sources.files import files_digest
 from ai_stp_sources.models import SourceSnapshot
 
 Runner = Callable[[Path, Path, list[str], int], dict[str, Any]]
@@ -161,43 +163,140 @@ def fixture(root: Path) -> tuple[dict[str, bytes], dict[str, Any], dict[str, Any
         return responses, setup, component
 
 
-def embedded_setup(setup: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+def embedded_setup(
+    setup: dict[str, Any],
+    *,
+    harness: str = "codex",
+    kind: ComponentType = "skill",
+    files: dict[str, bytes] | None = None,
+    scope: TargetScope = "global",
+) -> tuple[dict[str, Any], dict[str, Any]]:
     document = copy.deepcopy(setup)
     document["stable_id"] = new_id("setup")
-    payload = b"---\nname: inspect-source\ndescription: Inspect exact source bytes.\n---\nReview.\n"
+    if files is None:
+        files = {
+            "skills/source-review/SKILL.md": (
+                b"---\nname: inspect-source\ndescription: Inspect exact source bytes.\n"
+                b"---\nReview.\n"
+            )
+        }
+    document["harness_id"] = harness
+    document["facts"]["harness_id"]["value"] = harness
+    catalog: list[dict[str, Any]] = setup["components"] if harness == "codex" else []
     frozen = freeze_setup_definition(
         setup_id=document["stable_id"],
         version=document["version"],
-        harness_id="codex",
+        harness_id=harness,
         input_digest=document["facts"]["snapshot"]["value"],
         publisher_id=document["owner_id"],
         created_at=AT,
-        catalog_members=tuple(ComponentRef.model_validate(ref) for ref in setup["components"]),
+        catalog_members=tuple(ComponentRef.model_validate(ref) for ref in catalog),
         embedded_members=(
             EmbeddedDraft(
                 snapshot=SourceSnapshot(
                     kind="path",
                     canonical_coordinate="path:embedded-skill",
                     exact_identity="embedded-skill",
-                    component_digest=digest_bytes("ai-stp:artifact:v1", payload),
-                    files={"SKILL.md": payload},
+                    component_digest=files_digest(files),
+                    files=files,
                 ),
-                component_type="skill",
+                component_type=kind,
                 name="Display label differs from invocation",
                 description="Byte-derived native skill for acquisition proof.",
                 license_spdx="MIT",
-                harness_id="codex",
-                target_scope="global",
+                harness_id=harness,
+                target_scope=scope,
                 stable_id=new_id("component"),
-                managed_paths=("skills/source-review/SKILL.md",),
+                managed_paths=tuple(sorted(files)),
             ),
         ),
-        catalog_ids=frozenset(ref["stable_id"] for ref in setup["components"]),
+        catalog_ids=frozenset(ref["stable_id"] for ref in catalog),
     )
     document["components"] = frozen.document["components"]
     document["facts"]["members"]["value"] = frozen.document["components"]
     document["artifact_format"] = frozen.format
     return document, dict(frozen.document)
+
+
+def native_embedded_cases() -> list[tuple[str, ComponentType, TargetScope, dict[str, bytes]]]:
+    """One installed-format sample per existing native identity route."""
+    fixtures = Path(__file__).parents[1] / "tests" / "fixtures"
+    cases: list[tuple[str, ComponentType, TargetScope, dict[str, bytes]]] = []
+    for harness, corpus, case_id in (
+        ("claude-code", "claude-native-entries", "merge"),
+        ("cursor", "cursor-native-entries", "folder-identity"),
+        ("cursor", "cursor-native-agents", "quoted-name"),
+        ("grok-build", "grok-native-entries", "normalized"),
+        ("antigravity", "antigravity-native-skills", "missing-name"),
+        ("antigravity", "antigravity-native-agents", "invalid-nested-mcp"),
+        ("pi", "pi-native-entries", "skill-category"),
+        ("pi", "pi-native-entries", "prompt-name"),
+    ):
+        case = next(
+            row
+            for row in json.loads((fixtures / f"{corpus}.json").read_text(encoding="utf-8"))
+            if row["id"] == case_id
+        )
+        cases.append(
+            (
+                harness,
+                case["kind"],
+                "global",
+                {path: body.encode() for path, body in case["files"].items()},
+            )
+        )
+    for harness, kind, path, body in (
+        ("claude-code", "command", "commands/team/review.md", "Review source.\n"),
+        (
+            "claude-code",
+            "agent",
+            "agents/review.md",
+            "---\nname: inspect\ndescription: Inspect source.\n---\nReview.\n",
+        ),
+        ("opencode", "skill", "skills/folder/SKILL.md", "---\nname: inspect\n---\nReview.\n"),
+        ("opencode", "command", "commands/team/review.md", "Review source.\n"),
+        (
+            "opencode",
+            "agent",
+            "agents/review.md",
+            "---\nname: inspect\nmode: subagent\n---\nReview.\n",
+        ),
+    ):
+        cases.append((harness, cast(ComponentType, kind), "global", {path: body.encode()}))
+    for harness, path, body in (
+        ("claude-code", ".mcp.json", '{"mcpServers":{"proof":{"command":"proof"}}}'),
+        (
+            "cursor",
+            "mcp.json",
+            '{"mcpServers":{"proof":{"command":"proof","env":{"API_TOKEN":"${env:TOKEN}"}}}}',
+        ),
+        ("antigravity", "config/mcp_config.json", '{"mcpServers":{"proof":{"command":"proof"}}}'),
+        (
+            "opencode",
+            "opencode.jsonc",
+            '{/* keep */ "mcp":{"proof":{"command":["proof"],'
+            '"environment":{"API_TOKEN":"{env:TOKEN}"}},},}',
+        ),
+        (
+            "codex",
+            "config.toml",
+            '[mcp_servers.proof]\ncommand="proof"\nenv_http_headers={Authorization="TOKEN"}\n',
+        ),
+        (
+            "grok-build",
+            "config.toml",
+            '[mcp_servers.proof]\ncommand="proof"\nenv={API_TOKEN="${TOKEN}"}\n',
+        ),
+    ):
+        cases.append(
+            (
+                harness,
+                "mcp",
+                "project" if harness == "claude-code" else "global",
+                {path: body.encode()},
+            )
+        )
+    return cases
 
 
 def prove(binary: Path, home: Path, state: Path, root: Path, run: Runner) -> None:
@@ -373,6 +472,44 @@ def prove(binary: Path, home: Path, state: Path, root: Path, run: Runner) -> Non
                 corpus_result = native([*apply[:-1], corpus_plan["plan_digest"]], 0)["data"]
                 assert corpus_result["stable_id"] == corpus_setup["stable_id"]
                 responses.update(initial_responses)
+                for harness, kind, scope, files in native_embedded_cases():
+                    document, definition = embedded_setup(
+                        setup, harness=harness, kind=kind, files=files, scope=scope
+                    )
+                    payload = canonize(definition)
+                    document["artifact"] = {
+                        "digest": digest_bytes("ai-stp:artifact:v1", payload),
+                        "size_bytes": len(payload),
+                    }
+                    document["revision_id"] = derive_revision_id(document)
+                    path = f"/v1/catalog/setups/{document['stable_id']}/versions/1.0"
+                    template = json.loads(
+                        responses[f"/v1/catalog/setups/{setup['stable_id']}/versions/1.0"]
+                    )
+                    template.update(
+                        passport=document,
+                        passport_digest=digest_canonical("ai-stp:passport:v1", document),
+                    )
+                    responses[path], responses[path + "/artifact"] = (
+                        json.dumps(template).encode(),
+                        payload,
+                    )
+                    variant_args = [*args[:-4], "--id", document["stable_id"], "--version", "1.0"]
+                    variant_plan = native(variant_args, 0)["data"]
+                    plan_path.write_text(json.dumps(variant_plan["plan"]), encoding="utf-8")
+                    variant_apply = [*apply[:-1], variant_plan["plan_digest"]]
+                    result = native(variant_apply, 0)["data"]
+                    embedded_id = definition["embedded"][0]["ref"]["stable_id"]
+                    assert db.execute(
+                        "SELECT author_verified,component_verified FROM acquired_trust "
+                        "WHERE stable_id=?",
+                        (embedded_id,),
+                    ).fetchone() == (0, 0)
+                    requests = len(server.requests)
+                    responses.pop(path)
+                    responses.pop(path + "/artifact")
+                    assert native(variant_apply, 0)["data"] == result
+                    assert len(server.requests) == requests
                 mixed, definition = embedded_setup(setup)
                 path = f"/v1/catalog/setups/{mixed['stable_id']}/versions/{mixed['version']}"
                 template = json.loads(

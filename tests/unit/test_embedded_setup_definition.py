@@ -186,6 +186,7 @@ def test_embedded_codex_identity_respects_visibility_and_refuses_ambiguity() -> 
         with pytest.raises(SourceError) as refusal:
             skill_identities(files | extra)
         assert refusal.value.code == INVALID_SOURCE
+
     for payload in (
         b"---\nname: first\nname: second\ndescription: Inspect.\n---\n",
         b"---\nname: &name [*name]\ndescription: Inspect.\n---\n",
@@ -194,6 +195,106 @@ def test_embedded_codex_identity_respects_visibility_and_refuses_ambiguity() -> 
         with pytest.raises(SourceError) as refusal:
             skill_identities({entry: payload})
         assert refusal.value.code == INVALID_SOURCE
+
+
+def test_embedded_native_identities_use_the_shared_consumer_corpora() -> None:
+    root = Path(__file__).parents[2] / "apps/cli-v2/tests/fixtures"
+    corpora = (
+        ("claude-code", "claude-native-entries"),
+        ("cursor", "cursor-native-entries"),
+        ("cursor", "cursor-native-agents"),
+        ("grok-build", "grok-native-entries"),
+        ("antigravity", "antigravity-native-skills"),
+        ("antigravity", "antigravity-native-agents"),
+        ("pi", "pi-native-entries"),
+    )
+    for harness, corpus in corpora:
+        for case in json.loads((root / f"{corpus}.json").read_text(encoding="utf-8")):
+            paths = tuple(sorted(case["files"]))
+            snapshot = _path_snapshot().model_copy(
+                update={"files": {path: case["files"][path].encode() for path in paths}}
+            )
+            draft = replace(
+                _draft(snapshot, stable_id=EMBEDDED_ID, name="Unrelated display label"),
+                harness_id=harness,
+                component_type=case["kind"],
+                target_scope="project"
+                if paths[0].startswith((".agent/", ".agents/"))
+                else "global",
+                managed_paths=paths,
+            )
+            if not case["adoptable"]:
+                with pytest.raises(SourceError):
+                    _freeze(embedded=(draft,), harness_id=harness)
+                continue
+            frozen = _freeze(embedded=(draft,), harness_id=harness)
+            document = json.loads(frozen.payload)
+            passport = document["embedded"][0]["passport"]
+            members = passport["adaptations"][0]["scope_adaptations"][0]["members"]
+            assert sorted(name for member in members for name in member["native_ids"]) == sorted(
+                case["names"]
+            ), (corpus, case["id"])
+            assert validate_setup_definition(frozen.payload) is not None
+    for case in json.loads((root / "claude-native-mcp.json").read_text(encoding="utf-8")):
+        payload = json.dumps({"mcpServers": {"proof": case["server"]}}).encode()
+        draft = replace(
+            _draft(
+                _path_snapshot().model_copy(update={"files": {"mcp.json": payload}}),
+                stable_id=EMBEDDED_ID,
+            ),
+            component_type="mcp",
+            managed_paths=(".mcp.json",),
+            target_scope="project",
+        )
+        if not case["accepted"]:
+            with pytest.raises(SourceError):
+                _freeze(embedded=(draft,))
+        else:
+            frozen = _freeze(embedded=(draft,))
+            passport = json.loads(frozen.payload)["embedded"][0]["passport"]
+            member = passport["adaptations"][0]["scope_adaptations"][0]["members"][0]
+            assert member["native_ids"] == ["proof"], case["id"]
+    # Shared aliases and duplicate mapped files cannot acquire a second owner.
+    from ai_stp_sources.native_identity import identities
+
+    body = b"---\nname: inspect\ndescription: Inspect.\n---\nBody.\n"
+    for harness, kind, paths in (
+        ("claude-code", "skill", ("skills/first/SKILL.md", "skills/second/SKILL.md")),
+        ("claude-code", "command", ("commands/team/review.md", "commands/team:review.md")),
+        ("cursor", "skill", ("skills/first/review/SKILL.md", "skills/second/review/SKILL.md")),
+        ("cursor", "agent", ("agents/first.md", "agents/second.md")),
+        ("opencode", "skill", ("skills/first/SKILL.md", "skills/second/SKILL.md")),
+        ("grok-build", "skill", ("skills/first/SKILL.md", "skills/second/SKILL.md")),
+        ("antigravity", "skill", ("config/skills/first/SKILL.md", "config/skills/second/SKILL.md")),
+    ):
+        with pytest.raises(SourceError):
+            identities(harness, kind, dict.fromkeys(paths, body))
+    duplicate = replace(
+        _draft(
+            _path_snapshot().model_copy(update={"files": {"a.md": body, "b.md": body}}),
+            stable_id=EMBEDDED_ID,
+        ),
+        managed_paths=("skills/review/SKILL.md", "skills/review/SKILL.md"),
+    )
+    with pytest.raises(SourceError):
+        _freeze(embedded=(duplicate,))
+    for payload in (
+        b'{"mcp":{"proof":{,}}}',
+        b'{"mcp":{"proof":{}}} /* unterminated',
+        b'{"mcp":{"proof":{"value":1/* comment */2}}}',
+        rb'{"mcp":{"\ud800":{}}}',
+        rb'{"mcp":{"proof":{"value":"\ud800"}}}',
+        json.dumps({"mcp": {"proof": {"args": ["x"] * 20_001}}}).encode(),
+    ):
+        with pytest.raises(SourceError):
+            identities("opencode", "mcp", {"opencode.jsonc": payload})
+    assert identities(
+        "opencode",
+        "mcp",
+        {
+            "opencode.jsonc": b'{// comment\r"mcp": {"proof": {"url": "https://example.test/a/*b",},},}'
+        },
+    ) == {"opencode.jsonc": ["proof"]}
 
 
 def test_catalog_only_freeze_stays_definition_version_1() -> None:
@@ -307,9 +408,29 @@ def test_package_snapshot_exposes_upstream_and_registry_source_pages() -> None:
 
 @pytest.mark.parametrize("component_type", KINDS)
 def test_embedded_passport_covers_each_component_kind(component_type: ComponentType) -> None:
-    frozen = _freeze(
-        embedded=(_draft(_path_snapshot(), stable_id=PATH_ID, component_type=component_type),)
-    )
+    draft = _draft(_path_snapshot(), stable_id=PATH_ID, component_type=component_type)
+    if component_type == "command":
+        draft = replace(draft, managed_paths=("commands/demo.md",))
+    elif component_type == "agent":
+        draft = replace(
+            draft,
+            managed_paths=("agents/demo.md",),
+            snapshot=_path_snapshot().model_copy(
+                update={
+                    "files": {"demo.md": b"---\nname: demo\ndescription: Inspect.\n---\nBody.\n"}
+                }
+            ),
+        )
+    elif component_type == "mcp":
+        draft = replace(
+            draft,
+            managed_paths=(".mcp.json",),
+            target_scope="project",
+            snapshot=_path_snapshot().model_copy(
+                update={"files": {"mcp.json": b'{"mcpServers":{"proof":{"command":"proof"}}}'}}
+            ),
+        )
+    frozen = _freeze(embedded=(draft,))
     document = from_json_bytes(frozen.payload)
     assert isinstance(document, dict)
     record = cast(list[object], document["embedded"])[0]

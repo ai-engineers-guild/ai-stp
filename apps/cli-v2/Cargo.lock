@@ -27,7 +27,7 @@ dependencies = [
 
 [[package]]
 name = "ai-stp-cli-v2"
-version = "0.1.0-preview.9"
+version = "0.1.0-preview.10"
 dependencies = [
  "apple-native-keyring-store",
  "base64 0.23.1",

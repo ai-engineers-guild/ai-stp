@@ -828,7 +828,10 @@ def test_author_directory_argv_mints_one_setup(
 ) -> None:
     tree = tmp_path / "demo-skill"
     tree.mkdir()
-    (tree / "SKILL.md").write_text("# Demo\n\nA local skill.\n", encoding="utf-8")
+    (tree / "SKILL.md").write_text(
+        "---\nname: demo-skill\ndescription: A local skill.\n---\n# Demo\n",
+        encoding="utf-8",
+    )
     facts = _facts_file(
         tmp_path,
         {

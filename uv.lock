@@ -227,7 +227,7 @@ requires-dist = [
 
 [[package]]
 name = "ai-stp-cli"
-version = "0.0.46"
+version = "0.0.47"
 source = { editable = "apps/cli" }
 dependencies = [
     { name = "click" },
@@ -236,6 +236,7 @@ dependencies = [
     { name = "keyring" },
     { name = "markdown-it-py" },
     { name = "packaging" },
+    { name = "pathspec" },
     { name = "pydantic" },
     { name = "pynacl" },
     { name = "python-ulid" },
@@ -253,6 +254,7 @@ requires-dist = [
     { name = "keyring", specifier = ">=25.6" },
     { name = "markdown-it-py", specifier = ">=4.0,<5" },
     { name = "packaging", specifier = ">=24" },
+    { name = "pathspec", specifier = ">=1.1.1,<2" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "pynacl", specifier = ">=1.6.2" },
     { name = "python-ulid", specifier = ">=3.0" },
@@ -372,6 +374,7 @@ dependencies = [
     { name = "ai-stp-foundation" },
     { name = "ai-stp-passports" },
     { name = "packaging" },
+    { name = "pathspec" },
     { name = "pydantic" },
     { name = "pyyaml" },
 ]
@@ -382,6 +385,7 @@ requires-dist = [
     { name = "ai-stp-foundation", editable = "packages/foundation" },
     { name = "ai-stp-passports", editable = "packages/passports" },
     { name = "packaging", specifier = ">=24" },
+    { name = "pathspec", specifier = ">=1.1.1,<2" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "pyyaml", specifier = ">=6" },
 ]
