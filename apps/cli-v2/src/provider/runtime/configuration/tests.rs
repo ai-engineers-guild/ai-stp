@@ -265,6 +265,44 @@ fn overlapping_admissions(template: &Plan) -> std::result::Result<(), Box<dyn Er
         fs::read(state.join("configuration-operations/owner"))?,
         old_owner
     );
+    let historical_root = temporary.path().join("historical");
+    fs::create_dir(&historical_root)?;
+    let (historical, historical_digest) = make(&historical_root)?;
+    let hash = &historical.provider_plan["plan_digest"];
+    let provider = json!({"state":"cancelled", "operation_id":historical.operation_id,
+        "operation":"remove", "plan_digest":hash, "expected_target_digest":hash,
+        "configuration_changed":false});
+    let result = outcome::cancellation(
+        &historical,
+        &historical_digest,
+        &provider,
+        hash.as_str().ok_or("digest")?,
+    );
+    {
+        let store = crate::store::Store::open(&state, false)?;
+        let detail = serde_json::to_string(&crate::provider::configuration::record::Record {
+            schema_version: 1,
+            plan_digest: historical_digest.clone(),
+            plan: historical.value()?,
+            state: "cancelled".into(),
+            result: Some(result.clone()),
+        })?;
+        store.connection.execute(
+            "INSERT INTO operation(operation_id,kind,state,started_at,finished_at,detail) VALUES (?,?,?,?,?,?)",
+            rusqlite::params![historical.operation_id, historical.action, "cancelled", historical.created_at, historical.created_at, detail],
+        )?;
+    }
+    fs::remove_dir(&historical_root)?;
+    let bytes = serde_json::to_vec(&historical.value()?)?;
+    assert_eq!(
+        apply::apply(&state, &bytes, &historical_digest, None)?,
+        result
+    );
+    assert_eq!(cancel::cancel(&state, &bytes, &historical_digest)?, result);
+    assert_eq!(
+        fs::read(state.join("configuration-operations/owner"))?,
+        old_owner
+    );
     // Remove only the generated legacy rows, as if the old writer had settled
     // them. The production transition must not fence that recovery path first.
     {
@@ -274,7 +312,7 @@ fn overlapping_admissions(template: &Plan) -> std::result::Result<(), Box<dyn Er
                 .connection
                 .query_row("SELECT count(*) FROM operation", [], |row| row
                     .get::<_, i64>(0))?,
-            2
+            3
         );
         store.connection.execute("DELETE FROM operation", [])?;
     }

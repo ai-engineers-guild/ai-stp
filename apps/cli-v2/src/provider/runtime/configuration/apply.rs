@@ -33,7 +33,7 @@ pub(in crate::provider::runtime) fn apply(
     {
         // Cleanup may have been interrupted after the terminal SQLite commit.
         // This path never opens the target, provider, bundle source or network.
-        Journal::open(parent, &plan, digest)?.cleanup()?;
+        Journal::cleanup_history(parent, &plan, digest)?;
         return prior.result.clone().ok_or_else(invalid);
     }
     if prior.is_none() {

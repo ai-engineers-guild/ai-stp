@@ -59,8 +59,24 @@ impl Journal {
     }
 
     pub fn open(parent: &Path, plan: &Plan, digest: &str) -> Result<Self> {
+        Self::open_namespace(parent, plan, digest, true)
+    }
+
+    pub fn cleanup_history(parent: &Path, plan: &Plan, digest: &str) -> Result<()> {
+        // Historical replay cannot depend on other unfinished targets or
+        // migrate a live writer namespace. Only this operation's private
+        // retained payload is retired, under the original target/operation locks.
+        let journal = Self::open_namespace(parent, plan, digest, false)?;
+        let record = journal.read(plan, digest)?.ok_or_else(invalid)?;
+        if record.state == "applying" {
+            return Err(invalid());
+        }
+        journal.cleanup()
+    }
+
+    fn open_namespace(parent: &Path, plan: &Plan, digest: &str, migrate: bool) -> Result<Self> {
         let state = context(parent, plan)?;
-        let namespace = reservations::namespace(&state.directory()?)?;
+        let namespace = reservations::namespace(&state.directory()?, migrate)?;
         let target_key = reservations::target_key(plan);
         let target_lock = OwnedDirectory::open_at(
             &namespace.directory,

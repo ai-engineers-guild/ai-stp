@@ -841,7 +841,9 @@ must retain current state and this reader rather than restoring old state.
 Pending application retains desired bundle bytes in private operation state;
 completion removes them and records an immutable receipt in SQLite. Terminal
 replay needs no live target, provider, bundle source or network, and cleanup
-interrupted after the receipt commit resumes independently. An admitted
+interrupted after the receipt commit resumes independently. Replaying legacy
+terminal history does not migrate its namespace or inspect other pending roots.
+An admitted
 component request keeps its original expiry and identity during recovery;
 native admission alone does not bypass the component's first-admission expiry.
 

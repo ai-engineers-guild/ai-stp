@@ -25,12 +25,12 @@ pub(super) fn target_owner(key: &str) -> Vec<u8> {
     format!("ai-stp:configuration-target/v1\n{key}\n").into_bytes()
 }
 
-pub(super) fn namespace(parent: &Dir) -> Result<OwnedDirectory> {
+pub(super) fn namespace(parent: &Dir, migrate: bool) -> Result<OwnedDirectory> {
     let namespace =
         OwnedDirectory::open_compatible(parent, NAMESPACE, OWNER, &[PREVIOUS_OWNER], true)?
             .ok_or_else(invalid)?;
     namespace.validate_lock()?;
-    if namespace.read_file("owner", 256)?.as_deref() == Some(PREVIOUS_OWNER) {
+    if migrate && namespace.read_file("owner", 256)?.as_deref() == Some(PREVIOUS_OWNER) {
         // An older writer releases this namespace before SQLite admission but
         // retains its target lock until its final effect/receipt. Drain those
         // locks while excluding new old admissions, then fence that executable.
