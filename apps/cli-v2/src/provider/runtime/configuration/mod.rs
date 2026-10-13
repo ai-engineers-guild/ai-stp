@@ -71,7 +71,9 @@ pub(super) fn plan(
         bytes.unwrap_or_default(),
         bundle.as_ref(),
     )?;
-    plan.project = project.map(|id| project::observe(&plan, id)).transpose()?;
+    plan.project = project
+        .map(|id| project::observe(&plan, id, bundle.as_ref()))
+        .transpose()?;
     let value = plan.value()?;
     let digest = plan::fingerprint(&value)?;
     Plan::parse(&serde_json::to_vec(&value).map_err(|_| invalid())?, &digest)?;

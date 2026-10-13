@@ -1,6 +1,6 @@
 //! Registered-project observation and atomic installation attribution.
 
-use super::{invalid, plan::Plan};
+use super::{bundle::Bundle, invalid, plan::Plan};
 use crate::{
     authoring::runtime::owner,
     digest,
@@ -13,7 +13,7 @@ use crate::{
 use rusqlite::{Connection, OptionalExtension, params};
 use std::path::Path;
 
-pub(crate) fn observe(plan: &Plan, project: &str) -> Result<Binding> {
+pub(super) fn observe(plan: &Plan, project: &str, bundle: Option<&Bundle>) -> Result<Binding> {
     let parent = Path::new(&plan.state_parent);
     let owner = owner(parent)?;
     let mut store = owner.planning()?;
@@ -31,6 +31,12 @@ pub(crate) fn observe(plan: &Plan, project: &str) -> Result<Binding> {
             if document["harness_id"] != plan.harness_id ||
                 (plan.operation()? != "remove" && digest::canonical("ai-stp:passport:v1", &document)? != plan.setup["passport_digest"]) {
                 return Err(invalid());
+            }
+            if plan.operation()? != "remove" {
+                let bundle = bundle.ok_or_else(invalid)?;
+                crate::bundle::coverage::verify_snapshot(
+                    connection, &bundle.setup, &plan.harness_id, plan.target_scope, &bundle.adaptations,
+                )?;
             }
         }
         let binding = Binding {project_id:project.into(),identity:owner.clone(),

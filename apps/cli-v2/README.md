@@ -829,7 +829,11 @@ native admission alone does not bypass the component's first-admission expiry.
 
 Project-scope configuration plans may bind `--project-id` to an existing owned
 project. The physical target must be that registered project root, and install
-or replacement must use its exact selected setup. The plan captures the project
+or replacement must use its exact selected setup. The package must cover every
+component in that setup's complete transitive graph at project scope, with exact
+adaptation, projection and member bindings. A scoped subset cannot mark the full
+setup installed; unbound per-root packages remain usable independently.
+The plan captures the project
 passport, owner, root identity and selection timestamp. Admission rechecks that
 context; the verified receipt and matching `installed` selection commit in one
 SQLite transaction. Recovery of an older installation preserves a later

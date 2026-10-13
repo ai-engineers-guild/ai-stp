@@ -24,7 +24,10 @@ and requires the corrected component lifecycle, including surviving host modes.
 Preserved host fields are not ownership claims. The isolated Rust service's exact
 plan, explicit project attribution, independent readback, recovery and cancellation boundaries are owned by its
 [code-adjacent contract](../../apps/cli-v2/README.md). This does not transfer
-production writer ownership under ADR-0227.
+production writer ownership under ADR-0227. Native single-root project
+attribution requires exact package coverage of the selected setup's complete
+transitive component graph at project scope; a partial scope package does not
+establish installation of the full setup.
 
 The Python and Rust status readers accept optional recorded
 `configuration_ownership` through kit 0.2.17. They distinguish unavailable

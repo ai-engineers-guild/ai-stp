@@ -125,7 +125,7 @@ pub(in crate::provider::runtime) fn apply(
         current.project = plan
             .project
             .as_ref()
-            .map(|binding| super::project::observe(&current, &binding.project_id))
+            .map(|binding| super::project::observe(&current, &binding.project_id, bundle.as_ref()))
             .transpose()?;
         if current.value()? != plan.value()? {
             return Err(invalid());

@@ -68,6 +68,19 @@ pub(super) fn journey(store: &mut Store, declarations: &[Value]) -> Result<(), B
         "user_root"
     );
     for (scope, built) in &result.bundles {
+        assert!(
+            bundle::coverage::verify(
+                store,
+                &setup,
+                "codex",
+                *scope,
+                built.manifest["component_adaptations"]
+                    .as_array()
+                    .ok_or("bindings absent")?,
+            )
+            .is_err(),
+            "a scope subset claimed the complete setup"
+        );
         assert_eq!(
             built.manifest["setup"], setup,
             "a scope invented another setup"
@@ -164,6 +177,94 @@ pub(super) fn journey(store: &mut Store, declarations: &[Value]) -> Result<(), B
     assert_eq!(error.details["constraint"], "native_id_collision");
     ambiguity(store, &provider, &instruction)?;
     contributions(store, &provider, skill)?;
+    coverage(store, declarations)?;
+    Ok(())
+}
+
+fn coverage(store: &mut Store, declarations: &[Value]) -> Result<(), Box<dyn Error>> {
+    let provider = Info::parse(&serde_json::to_vec(
+        declarations
+            .iter()
+            .find(|value| value["harness_id"] == "cursor")
+            .ok_or("Cursor declaration absent")?,
+    )?)?;
+    let dependency = component(
+        store,
+        &provider,
+        Scope::Project,
+        File {
+            path: ".cursor/skills/dependency/SKILL.md".into(),
+            bytes: b"---\nname: dependency\ndescription: Inspect the complete project.\n---\nInspect every retained member.\n".to_vec(),
+            mode: 0o644,
+        },
+        None,
+    )?;
+    let mut skill = component(
+        store, &provider, Scope::Project,
+        File { path: ".cursor/skills/coverage/SKILL.md".into(),
+            bytes: b"---\nname: coverage\ndescription: Verify complete setup coverage.\n---\nInspect every dependency.\n".to_vec(), mode: 0o644 }, None,
+    )?;
+    skill["version"] = "2.0".into();
+    skill["requires_components"] = json!([super::reference(&dependency)?]);
+    let skill =
+        store.transaction(|t| versions::record(t, &skill, &identity().device_id, None, AT))?;
+    let (_, mut evidence) = compose(store, "cursor", std::slice::from_ref(&dependency))?;
+    let (setup, more) = compose(store, "cursor", std::slice::from_ref(&skill))?;
+    evidence.extend(more);
+    let built = bundle::compile(
+        store,
+        &setup,
+        &target("cursor", Scope::Project),
+        &evidence,
+        &provider,
+        &Hosts::new(),
+    )?;
+    // Catalog passports may retain a direct member whose dependency is not a root.
+    let (setup, more) = super::catalog_repin(store, &built, &skill)?;
+    evidence.extend(more);
+    let built = bundle::compile(
+        store,
+        &setup,
+        &target("cursor", Scope::Project),
+        &evidence,
+        &provider,
+        &Hosts::new(),
+    )?;
+    let bindings = built.manifest["component_adaptations"]
+        .as_array()
+        .ok_or("bindings absent")?;
+    assert_eq!(bindings.len(), 2);
+    bundle::coverage::verify(store, &setup, "cursor", Scope::Project, bindings)?;
+    let mut reversed = bindings.clone();
+    reversed.reverse();
+    bundle::coverage::verify(store, &setup, "cursor", Scope::Project, &reversed)?;
+    assert!(bundle::coverage::verify(store, &setup, "cursor", Scope::Global, bindings).is_err());
+    let missing_dependency: Vec<_> = bindings
+        .iter()
+        .filter(|item| item["stable_id"] != dependency["stable_id"])
+        .cloned()
+        .collect();
+    assert!(
+        bundle::coverage::verify(store, &setup, "cursor", Scope::Project, &missing_dependency)
+            .is_err()
+    );
+    let mut duplicate = bindings.clone();
+    duplicate.push(bindings[0].clone());
+    assert!(bundle::coverage::verify(store, &setup, "cursor", Scope::Project, &duplicate).is_err());
+    for field in [
+        "version",
+        "passport_digest",
+        "adaptation_id",
+        "projection_artifact",
+        "member_paths",
+    ] {
+        let mut forged = bindings.clone();
+        forged[0][field] = Value::Null;
+        assert!(
+            bundle::coverage::verify(store, &setup, "cursor", Scope::Project, &forged).is_err(),
+            "accepted forged {field}"
+        );
+    }
     Ok(())
 }
 

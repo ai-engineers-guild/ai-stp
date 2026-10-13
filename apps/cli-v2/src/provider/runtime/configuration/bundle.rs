@@ -16,6 +16,7 @@ pub(super) struct File {
 pub(super) struct Bundle {
     pub binding: Binding,
     pub setup: Value,
+    pub adaptations: Vec<Value>,
     pub files: BTreeMap<String, File>,
 }
 
@@ -87,6 +88,10 @@ impl Bundle {
                 bundle_size: bytes.len(),
             },
             setup: manifest["setup"].clone(),
+            adaptations: manifest["component_adaptations"]
+                .as_array()
+                .ok_or_else(invalid)?
+                .clone(),
             files,
         })
     }

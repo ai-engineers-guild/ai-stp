@@ -1,6 +1,7 @@
 //! Deterministic provider packages from exact local versions and explicit evidence.
 
 mod composition;
+pub mod coverage;
 pub(crate) mod hosts;
 mod package;
 pub mod reports;
