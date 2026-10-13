@@ -234,7 +234,7 @@ def native_embedded_cases() -> list[tuple[str, ComponentType, TargetScope, dict[
     ):
         case = next(
             row
-            for row in json.loads((fixtures / f"{corpus}.json").read_text())
+            for row in json.loads((fixtures / f"{corpus}.json").read_text(encoding="utf-8"))
             if row["id"] == case_id
         )
         cases.append(

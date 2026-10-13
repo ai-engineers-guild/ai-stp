@@ -209,7 +209,7 @@ def test_embedded_native_identities_use_the_shared_consumer_corpora() -> None:
         ("pi", "pi-native-entries"),
     )
     for harness, corpus in corpora:
-        for case in json.loads((root / f"{corpus}.json").read_text()):
+        for case in json.loads((root / f"{corpus}.json").read_text(encoding="utf-8")):
             paths = tuple(sorted(case["files"]))
             snapshot = _path_snapshot().model_copy(
                 update={"files": {path: case["files"][path].encode() for path in paths}}
@@ -235,7 +235,7 @@ def test_embedded_native_identities_use_the_shared_consumer_corpora() -> None:
                 case["names"]
             ), (corpus, case["id"])
             assert validate_setup_definition(frozen.payload) is not None
-    for case in json.loads((root / "claude-native-mcp.json").read_text()):
+    for case in json.loads((root / "claude-native-mcp.json").read_text(encoding="utf-8")):
         payload = json.dumps({"mcpServers": {"proof": case["server"]}}).encode()
         draft = replace(
             _draft(
