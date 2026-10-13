@@ -6,7 +6,9 @@ use rusqlite::Connection;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::{MAX_REQUEST, Request, Selector, inputs, invalid, owner, program, with_provider};
+use super::{
+    MAX_REQUEST, Request, Selector, access, inputs, invalid, owner, program, with_provider,
+};
 use crate::{
     authoring::Identity,
     bundle, canonical,
@@ -25,6 +27,8 @@ struct ProposalRequest {
     provider_version: String,
     #[serde(default)]
     harness_executable: Option<program::Executable>,
+    #[serde(default)]
+    access: access::Request,
 }
 
 enum Source {
@@ -37,6 +41,7 @@ struct Selected {
     roots: Vec<Value>,
     redistribution: bool,
     proposal: Value,
+    access: access::Request,
 }
 
 impl Source {
@@ -48,6 +53,7 @@ impl Source {
             if !passport::stable_id(&request.proposal_id, "proposal") {
                 return Err(invalid());
             }
+            request.access.validate()?;
             Ok(Self::Proposal(request))
         } else {
             Ok(Self::Exact(Request::from_value(value, false)?))
@@ -65,6 +71,7 @@ impl Source {
                     .collect::<Result<_>>()?,
                 redistribution: request.for_redistribution,
                 proposal: Value::Null,
+                access: request.access.clone(),
             },
             Self::Proposal(request) => {
                 let held = sessions::read_in(connection, &request.proposal_id)?;
@@ -86,6 +93,7 @@ impl Source {
                     redistribution: false,
                     proposal: json!({"proposal_id":held.proposal_id,"snapshot":held.snapshot,
                         "state":held.state(&at)?,"context_freshness":"not_evaluated"}),
+                    access: request.access.clone(),
                 }
             }
         };
@@ -100,10 +108,14 @@ fn inspect(
     selected: Selected,
     identity: &Identity,
     provider: Option<&Info>,
+    access: Option<&access::Observed>,
 ) -> Result<Value> {
     let (mut target, program) = selected.selector.observe(connection, parent, identity)?;
     target.for_redistribution = selected.redistribution;
-    let observed = inputs(connection, &selected.roots, target)?;
+    let mut observed = inputs(connection, &selected.roots, target)?;
+    if let Some(access) = access {
+        access.apply(&mut observed)?;
+    }
     let mut result = bundle::reports::inspect_snapshot(
         connection,
         &selected.roots,
@@ -121,6 +133,11 @@ fn inspect(
     result["provider_observed"] = false.into();
     result["not_observed"] = json!(not_observed);
     result["permission_policy"] = "none_granted".into();
+    if let Some(access) = access
+        && let Some(observation) = access.report()?
+    {
+        result["access_observation"] = observation;
+    }
     bounded(result)
 }
 
@@ -135,16 +152,18 @@ pub fn read(parent: &Path, path: &Path) -> Result<Value> {
     let source = Source::parse(path)?;
     let identity = owner(parent)?;
     let mut store = identity.planning()?;
-    let (selector, offline) = store.transaction(|t| {
+    let (selector, access_request, roots, offline) = store.transaction(|t| {
         let selected = source.selected(t)?;
         let selector = selected.selector.clone();
+        let access = selected.access.clone();
+        let roots = selected.roots.clone();
         let graph = graph::exact(t, &selected.roots)?;
         let offline = if selected.roots.is_empty() || graph["resolved"] != true {
-            Some(inspect(t, parent, selected, &identity, None)?)
+            Some(inspect(t, parent, selected, &identity, None, None)?)
         } else {
             None
         };
-        Ok((selector, offline))
+        Ok((selector, access, roots, offline))
     })?;
     drop(store);
     if let Some(report) = offline {
@@ -155,6 +174,12 @@ pub fn read(parent: &Path, path: &Path) -> Result<Value> {
         &selector,
         &identity,
         |provider, artifact, report| {
+            let access = access::Observed::capture(
+                parent,
+                &identity,
+                &[roots],
+                access::Intent::Review(&access_request),
+            )?;
             let mut store = identity.planning()?;
             store.transaction(|t| {
                 let selected = source.selected(t)?;
@@ -163,7 +188,14 @@ pub fn read(parent: &Path, path: &Path) -> Result<Value> {
                         "the proposal harness changed during provider observation",
                     ));
                 }
-                let mut result = inspect(t, parent, selected, &identity, Some(provider))?;
+                let mut result = inspect(
+                    t,
+                    parent,
+                    selected,
+                    &identity,
+                    Some(provider),
+                    Some(&access),
+                )?;
                 artifact.executable()?;
                 result["provider"] = report;
                 result["provider_observed"] = true.into();

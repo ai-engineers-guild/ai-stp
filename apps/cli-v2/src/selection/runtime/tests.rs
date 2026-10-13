@@ -111,6 +111,7 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
         members: vec![],
         for_redistribution: false,
         harness_executable: None,
+        access: access::Request::default(),
     }
     .selector()
     .target(&identity)?;
@@ -121,7 +122,8 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
         )
     };
     let roots = [reference(&original)?];
-    let observed = store.transaction(|t| assess_snapshot(t, &roots, target.clone(), &provider))?;
+    let observed =
+        store.transaction(|t| assess_snapshot(t, &roots, target.clone(), &provider, None))?;
     assert_eq!(observed["assessment"]["admissible"], true);
     assert_eq!(observed["target"]["harness_version"], "");
     assert_eq!(observed["target"]["permissions"], json!([]));
@@ -162,7 +164,7 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
             current_target.owner_id = "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z".into();
         }
         let observed = store.transaction(|t| {
-            assess_snapshot(t, &[reference(&document)?], current_target, &provider)
+            assess_snapshot(t, &[reference(&document)?], current_target, &provider, None)
         })?;
         assert_eq!(observed["assessment"]["admissible"], false, "{case}");
         assert!(
@@ -213,7 +215,7 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
         })
         .collect::<Result<Vec<_>>>()?;
     let report = store.transaction(|t| {
-        matrix::assess_snapshot(t, directory.path(), &request, &identity, &providers)
+        matrix::assess_snapshot(t, directory.path(), &request, &identity, &providers, None)
     })?;
     assert_eq!(
         report["targets"][0]["selector"]["harness_id"],
@@ -252,7 +254,7 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
         std::fs::write(&matrix_path, serde_json::to_vec(&matrix_request)?)?;
         let request = matrix::Request::parse(&matrix_path)?;
         let report = store.transaction(|t| {
-            matrix::assess_snapshot(t, directory.path(), &request, &identity, &providers)
+            matrix::assess_snapshot(t, directory.path(), &request, &identity, &providers, None)
         })?;
         found.push(report["candidates"][0]["stable_id"].clone());
         if report["next_after"].is_null() {
@@ -278,6 +280,102 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
         std::fs::write(&matrix_path, serde_json::to_vec(&claimed)?)?;
         assert!(matrix::Request::parse(&matrix_path).is_err(), "{field}");
     }
+    // Retained attachment authority is exact per graph, not a former-owner
+    // alias. A newer imported version of that owner's object is not covered.
+    let attached = Identity {
+        account_id: "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z".into(),
+        device_id: identity.device_id.clone(),
+    };
+    let retained_setup = store
+        .transaction(|t| Objects { connection: t }.exact_version(&setup_ids[0], "1.0", None))?;
+    let mut heads = serde_json::Map::new();
+    let mut versions = serde_json::Map::new();
+    for document in [&original, &retained_setup] {
+        heads.insert(
+            text(document, "stable_id")?.into(),
+            document["revision_id"].clone(),
+        );
+        versions.insert(
+            crate::digest::canonical("ai-stp:passport:v1", document)?,
+            json!({"stable_id":document["stable_id"],"version":document["version"]}),
+        );
+    }
+    let attachment: crate::account::Plan = serde_json::from_value(json!({
+        "schema_version":1,"action":"attach",
+        "operation_id":format!("operation_{}",ulid::Ulid::generate()),
+        "created_at":AT,"expires_at":crate::authoring::expiry(AT)?,
+        "root":files::serialize_path(directory.path(), serde_json::value::Serializer)?,"root_identity":["fixture-volume","fixture-inode"],
+        "identity":identity,"public_key":"fixture-public-key","credential_store":"file",
+        "origin":"https://example.invalid","provider":"github","expected_revision":null,
+        "attachment":{"account_id":attached.account_id,"heads":heads,"versions":versions}
+    }))?;
+    attachment.validate()?;
+    store.transaction(|t| {
+        t.execute("INSERT INTO operation(operation_id,kind,state,started_at,finished_at,detail) VALUES (?,'account.attach','verified',?,?,?)",
+            rusqlite::params![attachment.operation_id,AT,AT,attachment.digest()?]).map_err(crate::store::database)?;
+        t.execute("INSERT INTO operation_event(operation_id,sequence,at,state_before,state_after,result,evidence) VALUES (?,1,?,'planned','verified','attached',?)",
+            rusqlite::params![attachment.operation_id,AT,serde_json::to_string(&json!({"plan":attachment,"completed_at":AT})).map_err(|_|invalid())?]).map_err(crate::store::database)?;
+        Ok(())
+    })?;
+    matrix_request
+        .as_object_mut()
+        .ok_or("request")?
+        .remove("after");
+    matrix_request["limit"] = 10.into();
+    std::fs::write(&matrix_path, serde_json::to_vec(&matrix_request)?)?;
+    let request = matrix::Request::parse(&matrix_path)?;
+    let report = store.transaction(|t| {
+        matrix::assess_snapshot(t, directory.path(), &request, &attached, &providers, None)
+    })?;
+    let attached_target = Request::from_value(
+        json!({"harness_id":"claude-code",
+        "scope":"global","members":[reference(&retained_setup)?]}),
+        false,
+    )?
+    .selector()
+    .target(&attached)?;
+    let exact = store.transaction(|t| {
+        assess_snapshot(
+            t,
+            &[reference(&retained_setup)?],
+            attached_target,
+            &provider,
+            None,
+        )
+    })?;
+    assert_eq!(exact["assessment"]["admissible"], true);
+    for row in report["candidates"].as_array().ok_or("candidates")? {
+        if row["state"] == "unreleased" {
+            continue;
+        }
+        let retained = row["stable_id"] == retained_setup["stable_id"];
+        assert_eq!(
+            row["cells"][0]["assessment"]["admissible"], retained,
+            "{row}"
+        );
+        for (index, cell) in row["cells"].as_array().ok_or("cells")?.iter().enumerate() {
+            assert_eq!(cell["assessment"]["admissible"], retained && index == 0);
+            for assessment in cell["assessment"]["assessments"]
+                .as_array()
+                .ok_or("assessments")?
+            {
+                assert_eq!(
+                    assessment["lane"],
+                    if retained {
+                        "local_owner_or_pinned"
+                    } else {
+                        "experimental"
+                    }
+                );
+                let missing_grant = assessment["refusals"]
+                    .as_array()
+                    .ok_or("refusals")?
+                    .iter()
+                    .any(|r| r["code"] == "grant_missing");
+                assert_eq!(missing_grant, !retained);
+            }
+        }
+    }
     // A correctly addressed passport cannot stand in for missing/corrupt bytes.
     store.transaction(|t| {
         t.execute(
@@ -289,7 +387,7 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
     })?;
     assert!(
         store
-            .transaction(|t| assess_snapshot(t, &roots, target.clone(), &provider))
+            .transaction(|t| assess_snapshot(t, &roots, target.clone(), &provider, None))
             .is_err()
     );
     for field in [

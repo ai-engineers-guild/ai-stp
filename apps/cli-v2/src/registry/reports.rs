@@ -29,7 +29,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             STATE_DIR,
             Parameter {
                 name: "request",
-                summary: "Closed JSON up to 256 KiB: the exact eligibility request, or proposal_id, scope, optional harness_executable and exact provider_version. Proposal harness and members come from the retained record.",
+                summary: "Closed JSON up to 256 KiB: the exact eligibility request, or proposal_id, scope, optional harness_executable, exact provider_version and access. Proposal harness and members come from the retained record.",
                 kind: ParameterType::Path,
                 required: true,
             },
@@ -43,7 +43,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             STATE_DIR,
             Parameter {
                 name: "request",
-                summary: "Closed JSON up to 16 KiB: targets (one to seven distinct harness_id/scope selectors with optional harness_executable and exact provider_version), optional after, limit (1–50, default 10) and for_redistribution. No claimed authority fields.",
+                summary: "Closed JSON up to 64 KiB: targets (one to seven distinct harness_id/scope selectors with optional harness_executable and exact provider_version), optional after, limit (1–50, default 10), for_redistribution and access with exact trust_pins and opt-in account reads.",
                 kind: ParameterType::Path,
                 required: true,
             },
@@ -52,12 +52,12 @@ pub(super) const COMMANDS: &[Declaration] = &[
     },
     Declaration {
         path: &["select", "eligibility"],
-        summary: "Assess an exact local graph using the current identity, platform, stored bytes and authenticated provider; no claimed rights are accepted.",
+        summary: "Assess an exact local graph using the current identity, platform, stored bytes and authenticated provider; optional trust pins remain separate from fresh account access.",
         parameters: &[
             STATE_DIR,
             Parameter {
                 name: "request",
-                summary: "Closed JSON up to 256 KiB: harness_id, scope, optional harness_executable and exact provider_version, exact members and optional for_redistribution.",
+                summary: "Closed JSON up to 256 KiB: harness_id, scope, optional harness_executable and exact provider_version, exact members, optional for_redistribution and access with exact trust_pins and opt-in account reads.",
                 kind: ParameterType::Path,
                 required: true,
             },

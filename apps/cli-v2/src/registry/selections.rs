@@ -41,6 +41,13 @@ const HARNESS_EXECUTABLE: Parameter = Parameter {
     required: false,
 };
 
+const ACCESS: Parameter = Parameter {
+    name: "access",
+    summary: "Closed JSON with exact trust_pins and optional account access; at most 64 KiB. Grants never imply trust.",
+    kind: ParameterType::Path,
+    required: false,
+};
+
 pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
         path: &["select", "session"],
@@ -81,6 +88,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             STATE_DIR,
             ID,
             HARNESS_EXECUTABLE,
+            ACCESS,
             Parameter {
                 name: "version",
                 summary: "Exact immutable setup X.Y version.",
@@ -126,7 +134,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
         parameters: &[
             Parameter {
                 name: "plan",
-                summary: "Closed JSON from select bundle plan, at most 16 KiB.",
+                summary: "Closed JSON from select bundle plan, at most 64 KiB.",
                 kind: ParameterType::Path,
                 required: true,
             },
@@ -172,6 +180,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             STATE_DIR,
             ID,
             HARNESS_EXECUTABLE,
+            ACCESS,
             Parameter {
                 name: "scope",
                 summary: "The same provider target scope used for the proposal.",
@@ -260,20 +269,24 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         }
         Handler::BundlePlan => bundles::plan(
             path(args, "state-dir")?,
-            crate::authoring::setups::Source {
-                stable_id: text(args, "id")?.into(),
-                version: text(args, "version")?.into(),
-                passport_digest: text(args, "passport-digest")?.into(),
+            bundles::Request {
+                source: crate::authoring::setups::Source {
+                    stable_id: text(args, "id")?.into(),
+                    version: text(args, "version")?.into(),
+                    passport_digest: text(args, "passport-digest")?.into(),
+                },
+                scope: scope(args)?,
+                provider_version: crate::provider::managed::version(
+                    args.get_one::<String>("provider-version")
+                        .map(String::as_str),
+                )?,
+                target: args.get_one::<PathBuf>("target").map(PathBuf::as_path),
+                output: path(args, "output")?,
+                harness_executable: args
+                    .get_one::<PathBuf>("harness-executable")
+                    .map(PathBuf::as_path),
+                access: args.get_one::<PathBuf>("access").map(PathBuf::as_path),
             },
-            scope(args)?,
-            crate::provider::managed::version(
-                args.get_one::<String>("provider-version")
-                    .map(String::as_str),
-            )?,
-            args.get_one::<PathBuf>("target").map(PathBuf::as_path),
-            path(args, "output")?,
-            args.get_one::<PathBuf>("harness-executable")
-                .map(PathBuf::as_path),
         ),
         Handler::BundleApply => bundles::apply(path(args, "plan")?, text(args, "plan-digest")?),
         Handler::Propose => sessions::propose(
@@ -294,8 +307,11 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                 args.get_one::<PathBuf>("harness-executable")
                     .map(PathBuf::as_path),
             )),
+            args.get_one::<PathBuf>("access").map(PathBuf::as_path),
         ),
-        Handler::Cancel => sessions::decision(path(args, "state-dir")?, text(args, "id")?, None),
+        Handler::Cancel => {
+            sessions::decision(path(args, "state-dir")?, text(args, "id")?, None, None)
+        }
         Handler::Apply => sessions::apply(path(args, "plan")?, text(args, "plan-digest")?),
         Handler::Show => sessions::read(path(args, "state-dir")?, text(args, "id")?),
     }
