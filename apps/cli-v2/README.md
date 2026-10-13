@@ -239,7 +239,8 @@ completed before a receipt write is recovered without repeating HTTP.
 Refresh proves the existing Ed25519 device key and checks the returned account
 and device. During token exchange or refresh, an explicit server
 `AI_STP_DEVICE_REVOKED` response clears the held tokens and returns a replayable `revoked` outcome with the cached reason
-`device_revoked`; it is distinct from a transient failure or a generic refusal.
+`device_revoked` in the `closed` cached session; it is distinct from a transient
+failure or a generic refusal.
 Logout uses the held access token; an expired or rejected token
 requires signed refresh before revoking the device session pair. `closed` confirms remote revocation;
 `locally_closed` discards a pending flow or already-rejected credentials without
