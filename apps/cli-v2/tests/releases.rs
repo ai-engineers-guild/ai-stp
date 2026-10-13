@@ -21,6 +21,115 @@ use serde_json::{Value, json};
 const AT: &str = "2026-10-08T00:00:00.000Z";
 const LATER: &str = "2026-10-08T00:00:01.000Z";
 
+#[test]
+fn embedded_author_is_atomic_exact_and_replayable_without_source() -> Result<(), Box<dyn Error>> {
+    use ai_stp_cli_v2::authoring::embedded;
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().canonicalize()?;
+    let source = root.join("author-source");
+    fs::create_dir(&source)?;
+    let bytes = "---\nname: native-review\ndescription: Review changed code.\n---\nReport concrete findings.\n";
+    fs::write(source.join("SKILL.md"), bytes)?;
+    let identity = Identity {
+        account_id: format!("account_{}", ulid::Ulid::generate()),
+        device_id: format!("device_{}", ulid::Ulid::generate()),
+    };
+    let mut store = Store::open(&root, true)?;
+    for harness in [
+        "codex",
+        "claude-code",
+        "cursor",
+        "pi",
+        "opencode",
+        "grok-build",
+        "antigravity",
+    ] {
+        let request = embedded::Request {
+            directory: source.clone(),
+            harness_id: harness.into(),
+            component_type: "skill".into(),
+            name: "native-review".into(),
+            license_spdx: "MIT".into(),
+        };
+        let before = counts(&mut store)?;
+        let plan = embedded::plan(&mut store, request.clone(), identity.clone(), AT)?;
+        assert_eq!(counts(&mut store)?, before, "planning wrote state");
+        let expected = plan.digest()?;
+        fs::write(source.join("SKILL.md"), format!("{bytes}Changed.\n"))?;
+        assert!(embedded::apply(&mut store, &plan, &expected, &identity, LATER).is_err());
+        assert_eq!(counts(&mut store)?, before);
+        fs::write(source.join("SKILL.md"), bytes)?;
+        if harness == "codex" {
+            store.transaction(|t| t.execute_batch("CREATE TEMP TRIGGER fail_author_setup BEFORE INSERT ON object_version WHEN NEW.stable_id LIKE 'setup_%' BEGIN SELECT RAISE(ABORT,'injected setup failure'); END;").map_err(|_|Failure::precondition("proof trigger failed")))?;
+            assert!(embedded::apply(&mut store, &plan, &expected, &identity, LATER).is_err());
+            assert_eq!(
+                counts(&mut store)?,
+                before,
+                "component or bytes survived the failed setup commit"
+            );
+            store.transaction(|t| {
+                t.execute_batch("DROP TRIGGER fail_author_setup")
+                    .map_err(|_| Failure::precondition("proof trigger cleanup failed"))
+            })?;
+        }
+        let outcome = embedded::apply(&mut store, &plan, &expected, &identity, LATER)?;
+        assert_eq!(outcome["minted"], true);
+        let repeated = embedded::plan(&mut store, request, identity.clone(), LATER)?;
+        assert!(!repeated.minted);
+        assert_eq!(repeated.component, plan.component);
+        assert_eq!(repeated.setup, plan.setup);
+        assert_eq!(
+            embedded::apply(&mut store, &repeated, &repeated.digest()?, &identity, LATER)?["minted"],
+            false
+        );
+        fs::rename(&source, root.join("unavailable-source"))?;
+        let after = counts(&mut store)?;
+        assert_eq!(
+            embedded::apply(
+                &mut store,
+                &plan,
+                &expected,
+                &identity,
+                "2026-10-10T00:00:00.000Z"
+            )?,
+            outcome
+        );
+        assert_eq!(counts(&mut store)?, after, "historical replay wrote state");
+        fs::rename(root.join("unavailable-source"), &source)?;
+    }
+    fs::remove_file(source.join("SKILL.md"))?;
+    fs::write(source.join("tool.sh"), "#!/bin/sh\nprintf 'tool\\n'\n")?;
+    let request = embedded::Request {
+        directory: source.clone(),
+        harness_id: "codex".into(),
+        component_type: "cli".into(),
+        name: "native-tool".into(),
+        license_spdx: "MIT".into(),
+    };
+    let plan = embedded::plan(&mut store, request, identity.clone(), AT)?;
+    assert_eq!(
+        plan.component["adaptations"][0]["scope_adaptations"][0]["members"][0]["path"],
+        "bin/native-tool"
+    );
+    embedded::apply(&mut store, &plan, &plan.digest()?, &identity, LATER)?;
+    fs::remove_file(source.join("tool.sh"))?;
+    fs::write(
+        source.join("config.json"),
+        r#"{"mcpServers":{"sample":{"command":"server","env":{"API_KEY":"raw-credential"}}}}"#,
+    )?;
+    let request = embedded::Request {
+        directory: source,
+        harness_id: "claude-code".into(),
+        component_type: "mcp".into(),
+        name: "sample".into(),
+        license_spdx: "MIT".into(),
+    };
+    let before = counts(&mut store)?;
+    assert!(embedded::plan(&mut store, request, identity, AT).is_err());
+    assert_eq!(counts(&mut store)?, before);
+    Ok(())
+}
+
 fn field<'a>(document: &'a Value, key: &str) -> Result<&'a str, Box<dyn Error>> {
     document[key]
         .as_str()
