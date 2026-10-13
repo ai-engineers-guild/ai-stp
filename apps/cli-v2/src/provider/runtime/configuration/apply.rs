@@ -47,7 +47,7 @@ pub(in crate::provider::runtime) fn apply(
     }
     target.disjoint(&state.directory()?)?;
     require_inactive(&target)?;
-    let journal = Journal::open(parent, &plan, digest)?;
+    let mut journal = Journal::open(parent, &plan, digest)?;
     let prior = journal.read(&plan, digest)?;
     if let Some(prior) = &prior
         && prior.state != "applying"
@@ -133,6 +133,7 @@ pub(in crate::provider::runtime) fn apply(
         request.check_time(Timestamp::now())?;
         journal.admit(&plan, digest)?;
     }
+    journal.resume(&plan, digest)?;
     let response = runtime.launcher.configure(
         artifact.executable()?,
         &target,

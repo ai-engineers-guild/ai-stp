@@ -90,6 +90,7 @@ fn removal_binds_physical_parents_and_replays_history_without_the_target()
     let digest = plan::fingerprint(&document)?;
     let bytes = serde_json::to_vec(&document)?;
     let plan = Plan::parse(&bytes, &digest)?;
+    overlapping_admissions(&plan)?;
     assert!(Plan::parse(&bytes, &hash).is_err());
     let mut ambiguous = document.clone();
     ambiguous["project"] = Value::Null;
@@ -180,5 +181,168 @@ fn removal_binds_physical_parents_and_replays_history_without_the_target()
         assert!(!root.exists());
     }
     super::project_tests::prove(&state, &plan)?;
+    Ok(())
+}
+
+fn overlapping_admissions(template: &Plan) -> std::result::Result<(), Box<dyn Error>> {
+    let temporary = tempfile::tempdir_in("/tmp")?;
+    let state = temporary.path().join("state");
+    let root = temporary.path().join("target");
+    fs::create_dir(&state)?;
+    fs::create_dir(&root)?;
+    fs::create_dir(root.join("nested"))?;
+    let make = |path: &Path| -> std::result::Result<(Plan, String), Box<dyn Error>> {
+        let mut value = template.value()?;
+        let operation = format!("operation_{}", ulid::Ulid::generate());
+        value["operation_id"] = json!(operation);
+        value["state_parent"] = json!(state);
+        value["state_identity"] = json!(identity(&Target::open(&state)?)?);
+        value["target_path"] = json!(path);
+        value["target_identity"] = json!(identity(&Target::open(path)?)?);
+        value["status_before"]["canonical_target"] = json!(path);
+        value["provider_plan"]["plan"]["canonical_target"] = json!(path);
+        value["provider_plan"]["plan"]["operation_id"] = json!(operation);
+        value["provider_version"] = json!("0.0.93");
+        value["provider_plan"]["plan"]["provider_version"] = json!("0.0.93");
+        let digest = plan::fingerprint(&value)?;
+        Ok((Plan::parse(&serde_json::to_vec(&value)?, &digest)?, digest))
+    };
+    let (parent, parent_digest) = make(&root)?;
+    let (child, child_digest) = make(&root.join("nested"))?;
+    let old_owner = b"ai-stp-cli-v2:configuration-operations/v1\n";
+    let namespace =
+        crate::files::OwnedDirectory::open(&state, "configuration-operations", old_owner, true)?
+            .ok_or("old namespace")?;
+    let key = crate::digest::sha256(
+        format!(
+            "{}:{}",
+            parent.target_identity[0], parent.target_identity[1]
+        )
+        .as_bytes(),
+    );
+    let old_writer = crate::files::OwnedDirectory::open_at(
+        &namespace.directory,
+        &format!(
+            "target-{}",
+            key.strip_prefix("sha256:").ok_or("target key")?
+        ),
+        format!("ai-stp:configuration-target/v1\n{key}\n").as_bytes(),
+        true,
+    )?
+    .ok_or("old writer")?;
+    drop(namespace);
+    // The old process holds a target but has not admitted a SQLite operation.
+    // A migration based only on durable rows would incorrectly report idle.
+    let refused = journal::Journal::open(&state, &parent, &parent_digest)
+        .err()
+        .ok_or("active old writer was ignored")?;
+    assert!(matches!(refused.kind, crate::error::ErrorKind::Unavailable));
+    assert_eq!(
+        fs::read(state.join("configuration-operations/owner"))?,
+        old_owner
+    );
+    assert!(journal::Journal::history(&state, &parent, &parent_digest)?.is_none());
+    drop(old_writer);
+    {
+        use crate::{provider::configuration::record::Record, store::Store};
+        let store = Store::open(&state, true)?;
+        for (plan, digest) in [(&parent, &parent_digest), (&child, &child_digest)] {
+            let detail = serde_json::to_string(&Record {
+                schema_version: 1,
+                plan_digest: digest.clone(),
+                plan: plan.value()?,
+                state: "applying".into(),
+                result: None,
+            })?;
+            store.connection.execute(
+                "INSERT INTO operation(operation_id,kind,state,started_at,detail) VALUES (?,?,?,?,?)",
+                rusqlite::params![plan.operation_id, plan.action, "applying", plan.created_at, detail],
+            )?;
+        }
+    }
+    assert!(journal::Journal::open(&state, &parent, &parent_digest).is_err());
+    assert_eq!(
+        fs::read(state.join("configuration-operations/owner"))?,
+        old_owner
+    );
+    // Remove only the generated legacy rows, as if the old writer had settled
+    // them. The production transition must not fence that recovery path first.
+    {
+        let store = crate::store::Store::open(&state, false)?;
+        assert_eq!(
+            store
+                .connection
+                .query_row("SELECT count(*) FROM operation", [], |row| row
+                    .get::<_, i64>(0))?,
+            2
+        );
+        store.connection.execute("DELETE FROM operation", [])?;
+    }
+    let mut parent_journal = journal::Journal::open(&state, &parent, &parent_digest)?;
+    let refused = journal::Journal::open(&state, &child, &child_digest)
+        .err()
+        .ok_or("unadmitted writer lost serialization")?;
+    assert!(matches!(refused.kind, crate::error::ErrorKind::Unavailable));
+    parent_journal.admit(&parent, &parent_digest)?;
+    parent_journal.resume(&parent, &parent_digest)?;
+    assert!(
+        crate::files::OwnedDirectory::open(&state, "configuration-operations", old_owner, true)
+            .is_err()
+    );
+    let child_journal = journal::Journal::open(&state, &child, &child_digest)?;
+    assert!(
+        child_journal.admit(&child, &child_digest).is_err(),
+        "a second operation was admitted inside an unfinished configuration root"
+    );
+    assert!(child_journal.read(&child, &child_digest)?.is_none());
+    drop(child_journal);
+    // Once admission is durable, disjoint roots can proceed concurrently.
+    let sibling_path = temporary.path().join("sibling");
+    fs::create_dir(&sibling_path)?;
+    let (sibling, sibling_digest) = make(&sibling_path)?;
+    let mut sibling_journal = journal::Journal::open(&state, &sibling, &sibling_digest)?;
+    sibling_journal.admit(&sibling, &sibling_digest)?;
+    sibling_journal.resume(&sibling, &sibling_digest)?;
+    drop(parent_journal);
+    // Process exit drops locks, but cannot discard the unfinished reservation.
+    let child_journal = journal::Journal::open(&state, &child, &child_digest)?;
+    assert!(child_journal.admit(&child, &child_digest).is_err());
+    drop(child_journal);
+    let mut parent_journal = journal::Journal::open(&state, &parent, &parent_digest)?;
+    parent_journal.resume(&parent, &parent_digest)?;
+    let hash = &parent.provider_plan["plan_digest"];
+    let provider = json!({"state":"cancelled", "operation_id":parent.operation_id,
+        "operation":"remove", "plan_digest":hash, "expected_target_digest":hash,
+        "configuration_changed":false});
+    let cancelled = outcome::cancellation(
+        &parent,
+        &parent_digest,
+        &provider,
+        hash.as_str().ok_or("digest")?,
+    );
+    parent_journal.cancel(&parent, &parent_digest, &cancelled)?;
+    drop(parent_journal);
+    let mut child_journal = journal::Journal::open(&state, &child, &child_digest)?;
+    child_journal.admit(&child, &child_digest)?;
+    child_journal.resume(&child, &child_digest)?;
+    let (ancestor, ancestor_digest) = make(&root)?;
+    let ancestor_journal = journal::Journal::open(&state, &ancestor, &ancestor_digest)?;
+    assert!(ancestor_journal.admit(&ancestor, &ancestor_digest).is_err());
+    assert!(
+        ancestor_journal
+            .read(&ancestor, &ancestor_digest)?
+            .is_none()
+    );
+    drop(ancestor_journal);
+    // The retained terminal receipt is independent of another active root.
+    assert_eq!(
+        apply::apply(
+            &state,
+            &serde_json::to_vec(&parent.value()?)?,
+            &parent_digest,
+            None
+        )?,
+        cancelled
+    );
     Ok(())
 }
