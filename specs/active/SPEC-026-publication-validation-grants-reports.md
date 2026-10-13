@@ -182,7 +182,13 @@ callers use `grant list` and pass the reviewed revision explicitly; web actions
 carry the rendered grant identity/revision through confirmation. Readers may
 accept an older response without `revision` as an observation, not as authority
 to mutate. Initial direct creation and invitation operations retain their old
-request shape when no new precondition is supplied. Rollback must preserve grant
+request shape when no new precondition is supplied. Grant mutation bodies also
+accept the optional `mutation_contract: 1` guard. Native plans always include it;
+older strict request readers reject it before any effect instead of accepting a
+request without replay protection. The guard does not change the business intent
+or operation-receipt digest, so a guarded retry retains an earlier unguarded
+request's identity. Other values are rejected. Omission preserves existing clients.
+Rollback must preserve grant
 revisions/receipts and use a compatible writer; do not downgrade replay protection.
 
 ### Reports and moderation

@@ -7479,6 +7479,10 @@ export type DirectGrantCreateRequest = {
    * Major
    */
   major: number;
+  /**
+   * Mutation Contract
+   */
+  mutation_contract?: 1 | null;
   object_kind: ObjectKind;
   /**
    * Recipient
@@ -8839,6 +8843,10 @@ export type GitSource = {
 export type GrantAcceptRequest = {
   idempotency_key: IdempotencyKey;
   /**
+   * Mutation Contract
+   */
+  mutation_contract?: 1 | null;
+  /**
    * Schema Version
    */
   schema_version?: 1;
@@ -8859,6 +8867,10 @@ export type GrantInvitationCreateRequest = {
    * Major
    */
   major: number;
+  /**
+   * Mutation Contract
+   */
+  mutation_contract?: 1 | null;
   object_kind: ObjectKind;
   /**
    * Recipient Email
@@ -8939,6 +8951,10 @@ export type GrantRevokeRequest = {
    */
   expected_revision?: number | null;
   idempotency_key: IdempotencyKey;
+  /**
+   * Mutation Contract
+   */
+  mutation_contract?: 1 | null;
   /**
    * Reason
    */
