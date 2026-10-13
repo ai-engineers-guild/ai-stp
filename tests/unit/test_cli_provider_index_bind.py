@@ -383,7 +383,9 @@ def test_record_mismatch_is_refused() -> None:
     assert "RECORD" in raised.value.message
 
 
-@pytest.mark.parametrize("owner", ["NDDev-OpenNetwork", "NDDev-Technocracy-Sandbox"])
+@pytest.mark.parametrize(
+    "owner", ["NDDev-OpenNetwork", "NDDev-Technocracy-Sandbox", "NDDev-Technocracy-OpenNetwork"]
+)
 def test_fetch_verifies_before_provider_info(tmp_path: Path, owner: str) -> None:
     blob = _wheel_bytes()
     filename = _filename()
