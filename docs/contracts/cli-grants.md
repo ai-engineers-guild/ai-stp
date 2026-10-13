@@ -32,6 +32,9 @@ Older API responses without a revision remain readable but cannot authorize a
 mutation. Older CLI builds cannot supply these new preconditions: update the
 CLI before revoking or reissuing access. The API refuses unbound requests,
 including old retries for which no receipt was retained before this upgrade.
+The database also rejects state changes from older API writers that do not
+advance the revision. Rollback must retain this protection and use a compatible
+writer; reverting application code alone does not restore old mutation behavior.
 
 `grant accept` obtains the invitation secret only from the environment variable
 named by `--token-env`. The token value is not a process argument and does not

@@ -16,6 +16,27 @@ def upgrade() -> None:
         "access_grant", sa.Column("revision", sa.Integer(), server_default="1", nullable=False)
     )
     op.create_check_constraint("ck_access_grant_revision", "access_grant", "revision >= 1")
+    # Migration precedes API replacement. An old writer must not bypass the
+    # new precondition/receipt service during that overlap or a source rollback.
+    op.execute("""
+        CREATE FUNCTION enforce_access_grant_revision() RETURNS trigger
+        LANGUAGE plpgsql AS $$
+        BEGIN
+            IF NEW.revision::bigint <> OLD.revision::bigint +
+                (CASE WHEN NEW.state IS DISTINCT FROM OLD.state THEN 1 ELSE 0 END)
+            THEN
+                RAISE EXCEPTION 'grant state change requires its next revision'
+                    USING ERRCODE = '23514';
+            END IF;
+            RETURN NEW;
+        END;
+        $$
+    """)
+    op.execute("""
+        CREATE TRIGGER access_grant_revision_guard
+        BEFORE UPDATE OF state, revision ON access_grant
+        FOR EACH ROW EXECUTE FUNCTION enforce_access_grant_revision()
+    """)
     op.create_table(
         "grant_operation_receipt",
         sa.Column(
@@ -52,6 +73,8 @@ def downgrade() -> None:
         raise RuntimeError(
             "Grant replay protection has retained data; preserve revisions and receipts."
         )
+    op.execute("DROP TRIGGER access_grant_revision_guard ON access_grant")
+    op.execute("DROP FUNCTION enforce_access_grant_revision()")
     op.drop_index("ix_grant_operation_receipt_grant_id", table_name="grant_operation_receipt")
     op.drop_table("grant_operation_receipt")
     op.drop_constraint("ck_access_grant_revision", "access_grant", type_="check")

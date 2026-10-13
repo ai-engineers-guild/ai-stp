@@ -144,6 +144,9 @@ owned by `ADR-0092`. Artifact-byte binding is owned by `ADR-0093`.
   grant ID and observed `expected_revision`; an absent or changed revision
   refuses before a new effect. A grant's revision starts at 1 and advances on
   revocation or explicit reactivation. Invitation revocation remains separate.
+  The database enforces that exact increment on state transitions and refuses
+  revision changes without a transition. Older API writers cannot change grant
+  state during deployment overlap or after an incompatible source rollback.
   The original actor's exact revoke retry returns its retained outcome without
   revoking a later regrant; this receipt is not a fresh assertion of grant state.
 - `REQ-2613`: The `deliver_invitation` job sends email through the Resend port;

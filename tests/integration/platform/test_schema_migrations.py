@@ -188,6 +188,20 @@ def test_grant_replay_migration_preserves_data_and_refuses_unsafe_downgrade(
         asyncio.run(_scalar(isolated_database_url, "SELECT count(*) FROM grant_operation_receipt"))
         == 0
     )
+
+    async def old_writer() -> None:
+        engine = create_async_engine(isolated_database_url)
+        try:
+            async with engine.begin() as connection:
+                await connection.execute(
+                    text("UPDATE access_grant SET state = 'active' WHERE state = 'revoked'")
+                )
+        finally:
+            await engine.dispose()
+
+    with pytest.raises(DBAPIError, match="grant state change requires its next revision"):
+        asyncio.run(old_writer())
+    assert asyncio.run(_scalar(isolated_database_url, rows)) == before
     with pytest.raises(RuntimeError, match="preserve revisions and receipts"):
         command.downgrade(config, "0114_corporate_role_flat")
     assert _version(isolated_database_url) == "0124_grant_operation_receipts"
