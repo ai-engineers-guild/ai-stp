@@ -1,6 +1,6 @@
 [package]
 name = "ai-stp-cli-v2"
-version = "0.1.0-preview.10"
+version = "0.1.0-preview.11"
 edition = "2024"
 rust-version = "1.99"
 publish = false

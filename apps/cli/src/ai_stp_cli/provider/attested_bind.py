@@ -45,18 +45,16 @@ _SEMVER_TAG: Final[re.Pattern[str]] = re.compile(
 )
 _COMMIT: Final[re.Pattern[str]] = re.compile(r"^[0-9a-f]{40}$")
 
-#: One public OpenNetwork setup-system per supported harness. Values must match
-#: `build_attestations` in the shipped policy; a drift is a test failure, not a
-#: silent second map.
+#: Current transport locations. Historical signing identities remain in policy.
 HARNESS_REPOSITORIES: Final[Mapping[str, str]] = MappingProxyType(
     {
-        "claude-code": "github.com/NDDev-OpenNetwork/claude-setup-system",
-        "codex": "github.com/NDDev-OpenNetwork/codex-setup-system",
-        "pi": "github.com/NDDev-OpenNetwork/pi-setup-system",
-        "opencode": "github.com/NDDev-OpenNetwork/opencode-setup-system",
-        "grok-build": "github.com/NDDev-OpenNetwork/grok-setup-system",
-        "cursor": "github.com/NDDev-OpenNetwork/cursor-setup-system",
-        "antigravity": "github.com/NDDev-OpenNetwork/antigravity-setup-system",
+        "claude-code": "github.com/NDDev-Technocracy-OpenNetwork/claude-setup-system",
+        "codex": "github.com/NDDev-Technocracy-OpenNetwork/codex-setup-system",
+        "pi": "github.com/NDDev-Technocracy-OpenNetwork/pi-setup-system",
+        "opencode": "github.com/NDDev-Technocracy-OpenNetwork/opencode-setup-system",
+        "grok-build": "github.com/NDDev-Technocracy-OpenNetwork/grok-setup-system",
+        "cursor": "github.com/NDDev-Technocracy-OpenNetwork/cursor-setup-system",
+        "antigravity": "github.com/NDDev-Technocracy-OpenNetwork/antigravity-setup-system",
     }
 )
 
@@ -246,16 +244,8 @@ def fetch(
         _copy_artifact(artifact, destination)
     _make_executable(destination)
     digest, size = release.artifact_identity(destination)
-    rule = policy.build_attestations[repository]
-    evidence = build_attestation.verify(
-        destination,
-        build_attestation.Policy(
-            repository=_owner_repo(repository),
-            source_commit=facts.commit,
-            signer_workflow=rule.signer_workflow,
-            verified_publisher=rule.verified_publisher,
-        ),
-        bundle=attestation_bundle,
+    repository, evidence = _verify_publisher(
+        destination, repository, facts.commit, policy, attestation_bundle
     )
     capabilities = (
         inspect(destination)
@@ -329,6 +319,48 @@ def fetch(
         trust_level=trust_level,
         manifest=manifest,
     )
+
+
+def _verify_publisher(
+    artifact: Path,
+    repository: str,
+    commit: str,
+    policy: release.TrustPolicy,
+    bundle: Path | None,
+) -> tuple[str, build_attestation.Evidence]:
+    """Bind the manifest to a verified signing identity, not a redirected URL."""
+    project = repository.rsplit("/", 1)[-1]
+    candidates = (
+        repository,
+        f"github.com/NDDev-OpenNetwork/{project}",
+        f"github.com/NDDev-Technocracy-Sandbox/{project}",
+    )
+    failure = CliFailure(
+        "AI_STP_PRECONDITION_FAILED",
+        "the provider artifact has no acceptable GitHub build attestation",
+    )
+    for candidate in candidates:
+        rule = policy.build_attestations.get(candidate)
+        if rule is None:
+            continue
+        try:
+            evidence = build_attestation.verify(
+                artifact,
+                build_attestation.Policy(
+                    repository=_owner_repo(candidate),
+                    source_commit=commit,
+                    signer_workflow=rule.signer_workflow,
+                    verified_publisher=rule.verified_publisher,
+                ),
+                bundle=bundle,
+            )
+        except CliFailure as error:
+            if error.code != "AI_STP_PRECONDITION_FAILED":
+                raise
+            failure = error
+        else:
+            return candidate, evidence
+    raise failure
 
 
 class GithubReleases:
