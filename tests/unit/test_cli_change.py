@@ -333,7 +333,10 @@ def test_change_adds_a_locally_authored_component_without_cloud(
 ) -> None:
     tree = tmp_path / "demo-skill"
     tree.mkdir()
-    (tree / "SKILL.md").write_text("# Demo\n\nA local skill.\n", encoding="utf-8")
+    (tree / "SKILL.md").write_text(
+        "---\nname: demo\ndescription: A local skill.\n---\n# Demo\n\nA local skill.\n",
+        encoding="utf-8",
+    )
     author_in = tmp_path / "author-in"
     author_in.mkdir()
     authored = task_command.start(
@@ -431,7 +434,9 @@ def test_change_an_owned_authored_setup_then_remove_from_its_derived_setup(
     for name in ("first", "second"):
         tree = tmp_path / name
         tree.mkdir()
-        (tree / "SKILL.md").write_text(f"# {name}\n", encoding="utf-8")
+        (tree / "SKILL.md").write_text(
+            f"---\nname: {name}\ndescription: A local skill.\n---\n# {name}\n", encoding="utf-8"
+        )
         authored.append(
             author_service.persist(
                 directory=tree,
