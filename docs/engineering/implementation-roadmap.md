@@ -107,7 +107,11 @@ false. Artifact publication and the broader migration gates remain separate.
 2. Complete task integration around the single-root configuration service.
    Harness version observation is read-only under ADR-0232; harness executable
    installation/update/removal is outside scope. Registered-project attribution
-   and exact configuration cancellation are implemented. Complete the
+   and exact configuration cancellation are implemented. The native `author`
+   task now calls the embedded authoring service in-process and retains exact
+   child plans in the existing task journal ([#895](https://github.com/ai-engineers-guild/ai-stp/issues/895)).
+   Atomic object writes, lost-receipt recovery, question continuations and
+   account-owner boundaries have local executable proofs. Complete the
    author-to-install task journey; a confirmed selection alone is not an
    installed configuration.
 3. Complete multi-root recovery, staged active-agent replacement, durable handoff

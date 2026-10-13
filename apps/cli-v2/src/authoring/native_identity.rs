@@ -223,6 +223,54 @@ pub(crate) fn verify_configuration_credentials(
     credentials::settings(harness, path, "", bytes)
 }
 
+/// Observe whole-file projections through the same readers used at acquisition.
+/// Markdown loaders own a complete tree (including ignore files and aliases),
+/// so their invocation set is shared by that projection's members, as in freezing.
+pub(super) fn projection_names(
+    kind: &str,
+    harness: &str,
+    files: &[artifacts::Member],
+) -> Result<BTreeMap<String, Vec<String>>> {
+    let shared = if has_markdown_entries(harness, kind) {
+        let names = markdown_entries(
+            harness,
+            kind,
+            files
+                .iter()
+                .map(|file| (file.path.as_str(), file.bytes.as_slice())),
+        )?;
+        valid(&names)?;
+        Some(names)
+    } else {
+        None
+    };
+    let mut observed = BTreeSet::new();
+    files
+        .iter()
+        .map(|file| {
+            let names = if let Some(names) = &shared {
+                names.clone()
+            } else {
+                let names = match (kind, harness) {
+                    ("mcp", _) => mcp::names(harness, &file.path, "", &file.bytes)?,
+                    ("agent", "claude-code") => claude::agent_names(&file.bytes)?,
+                    ("setting", _) => {
+                        credentials::settings(harness, &file.path, "", &file.bytes)?;
+                        Vec::new()
+                    }
+                    _ => Vec::new(),
+                };
+                valid(&names)?;
+                if names.iter().any(|name| !observed.insert(name.clone())) {
+                    return Err(invalid());
+                }
+                names
+            };
+            Ok((file.path.clone(), names))
+        })
+        .collect()
+}
+
 /// Retained or catalog projections get the same byte-derived check as new sources.
 /// Inputs come from freshly compiled files or an archive verified against its declarations.
 pub(crate) fn verify_files(

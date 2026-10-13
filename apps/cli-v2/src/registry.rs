@@ -6,6 +6,7 @@ mod local;
 mod providers;
 mod reports;
 mod selections;
+mod tasks;
 
 use clap::{Arg, ArgAction, ArgMatches, Command, builder::ValueParser};
 use serde_json::{Value, json};
@@ -21,6 +22,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Clone, Copy)]
 enum Handler {
+    Task(tasks::Handler),
     Account(account::Handler),
     Local(local::Handler),
     Report(reports::Handler),
@@ -666,6 +668,7 @@ fn declarations() -> impl Iterator<Item = &'static Declaration> {
         .chain(providers::COMMANDS)
         .chain(selections::COMMANDS)
         .chain(account::COMMANDS)
+        .chain(tasks::COMMANDS)
 }
 
 fn children(parent: Command, prefix: &[&str]) -> Command {
@@ -718,7 +721,7 @@ fn descriptors() -> Vec<Value> {
     declarations().map(|item| json!({
         "path": item.path, "summary": item.summary,
         "mutability": mutability(item.handler),
-        "confirmation": if mutability(item.handler) == "apply" { "plan_digest" } else { "none" },
+        "confirmation": if mutability(item.handler) == "apply" && !matches!(item.handler, Handler::Task(_)) { "plan_digest" } else { "none" },
         "parameters": item.parameters.iter().map(Parameter::descriptor).collect::<Vec<_>>(),
         "parameter_rules": [], "result_schema": null, "next_actions": []
     })).collect()
@@ -732,6 +735,7 @@ fn mutability(handler: Handler) -> &'static str {
         Handler::Selection(handler) => handler.mutability(),
         Handler::Provider(handler) => handler.mutability(),
         Handler::Account(handler) => handler.mutability(),
+        Handler::Task(handler) => handler.mutability(),
         _ => "read",
     }
 }
@@ -750,6 +754,10 @@ pub fn digest() -> Result<String> {
         "ai-stp:cli-registry:v1",
         &json!({"global_options": [JSON.descriptor()], "commands": descriptors(), "error_codes": errors}),
     )
+}
+
+pub(crate) fn continuations(matches: &ArgMatches, result: &Result<Value>) -> Vec<Value> {
+    tasks::continuations(matches, result)
 }
 
 pub fn help(path: &str, find: &str) -> Result<Value> {
@@ -801,6 +809,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         .find(|item| item.path == path)
         .ok_or_else(|| Failure::new(ErrorKind::Internal, "parsed command has no handler"))?;
     match declaration.handler {
+        Handler::Task(handler) => tasks::dispatch(handler, leaf),
         Handler::Local(handler) => local::dispatch(handler, leaf),
         Handler::Report(handler) => reports::dispatch(handler, leaf),
         Handler::Account(handler) => account::dispatch(handler, leaf),
@@ -811,7 +820,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::Capabilities => Ok(json!({"schema_version": 1, "cli_version": VERSION,
             "wire_schema_version": 1, "registry_digest": digest()?, "release_channel": "preview",
             "command_paths": declarations().map(|item| item.path.join(" ")).collect::<Vec<_>>(),
-            "task_intents": [], "supported_harnesses": [], "catalog_enabled": true, "sync_enabled": false,
+            "task_intents": crate::tasks::INTENTS, "supported_harnesses": [], "catalog_enabled": true, "sync_enabled": false,
             "state_access": "explicit_snapshot_and_isolated_authoring", "cache_access": "explicit_public_catalog_cache",
             "identity_access": "explicit_isolated_device",
             "managed_provider_version": crate::provider::managed::RELEASE,

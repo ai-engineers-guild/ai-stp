@@ -15,6 +15,7 @@ from typing import Any
 from verify_acquisition import prove as prove_acquisition
 from verify_context import prove as prove_context
 from verify_impact import prove as prove_impact
+from verify_tasks import prove as prove_tasks
 
 from ai_stp_cli.local import content as stored_content
 from ai_stp_cli.local import revisions, setup_versions, versions
@@ -1127,3 +1128,4 @@ def prove(binary: Path, home: Path, temporary: Path, run: Runner) -> None:
         "project_01ARZ3NDEKTSV4RRFFQ69G5FAV\n"
     )
     assert (moved_root / "main.rs").read_text(encoding="utf-8") == "fn main() {}\n"
+    prove_tasks(binary, home, root, state, run)

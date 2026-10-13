@@ -28,6 +28,7 @@ pub mod selection;
 pub mod snapshot;
 pub mod sources;
 pub mod store;
+pub mod tasks;
 mod wire;
 
 use std::ffi::OsString;
@@ -41,6 +42,7 @@ pub struct Invocation {
     pub machine: bool,
     pub text: Option<String>,
     pub warnings: Vec<String>,
+    pub continuations: Vec<Value>,
 }
 
 impl Invocation {
@@ -54,7 +56,7 @@ impl Invocation {
     pub fn envelope(&self) -> Value {
         let mut envelope = json!({"schema_version": 1, "ok": self.result.is_ok(),
             "request_id": format!("request_{}", ulid::Ulid::generate()), "operation_id": null,
-            "next_actions": [], "continuations": []});
+            "next_actions": [], "continuations": self.continuations});
         match &self.result {
             Ok(data) => {
                 envelope["data"] = data.clone();
@@ -82,11 +84,13 @@ pub fn invoke(arguments: impl IntoIterator<Item = OsString>) -> Invocation {
                 .then(|| parser.render_help().to_string());
             let result = registry::dispatch(&matches);
             let warnings = registry::warnings(&matches, &result);
+            let continuations = registry::continuations(&matches, &result);
             Invocation {
                 result,
                 machine,
                 text,
                 warnings,
+                continuations,
             }
         }
         Err(error) if error.kind() == clap::error::ErrorKind::DisplayHelp => Invocation {
@@ -94,6 +98,7 @@ pub fn invoke(arguments: impl IntoIterator<Item = OsString>) -> Invocation {
             machine,
             text: Some(error.to_string()),
             warnings: Vec::new(),
+            continuations: Vec::new(),
         },
         Err(_) => Invocation {
             result: Err(Failure::input(
@@ -102,6 +107,7 @@ pub fn invoke(arguments: impl IntoIterator<Item = OsString>) -> Invocation {
             machine,
             text: None,
             warnings: Vec::new(),
+            continuations: Vec::new(),
         },
     }
 }

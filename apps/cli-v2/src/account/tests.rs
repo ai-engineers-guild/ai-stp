@@ -471,6 +471,7 @@ fn account_flow_keeps_secrets_private_and_recovers_without_reexchanging()
     ])?;
     let warnings = crate::registry::warnings(&parsed, &result);
     let invocation = crate::Invocation {
+        continuations: Vec::new(),
         result,
         machine: true,
         text: None,

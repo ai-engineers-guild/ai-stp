@@ -94,8 +94,8 @@ immutable definitions are never re-sealed.
 
 `registry.rs` owns command definitions, parsing, descriptors and the registry
 digest. `help --json` is the current command reference; this document does not
-duplicate its flags. Only implemented commands are advertised. No task intent
-or supported harness is advertised at this checkpoint.
+duplicate its flags. Only implemented commands are advertised. The `author`
+task intent is implemented; no end-to-end supported harness is advertised yet.
 
 Machine mode returns one envelope v1 object on stdout, including refusals.
 Exit classes and request IDs retain the existing wire contract. Human parser
@@ -118,6 +118,47 @@ or the production capability payload, which requires a supported harness.
 Envelope and machine-help consumers are checked against the existing models;
 preview payloads have no production result-schema URN. Default cutover still
 requires a consumer-compatible version/capability contract.
+
+### Native author tasks
+
+`task intents` advertises `author` and derives its input fields from the shared
+`cli-task-input-author` schema. `task start`, `answer`, `continue`, `status`,
+`cancel` and `list` use the existing task and continuation wire models. They
+require an explicit isolated state directory with an initialized native identity.
+There is no production task import or implicit current-task pointer.
+
+The author service captures one bounded local directory and creates one private
+component version and one embedded setup version, both at `1.0`. Kind choices
+come from the harness's declared global/user-root routes, plus a single-file
+`cli` component. Native identities and credential refusals use the same readers
+as release and acquisition. Captured source, mapped paths, provider profile,
+license, kind and owner bind deterministic object identities. Identical inputs
+reuse retained immutable versions; changed source or metadata creates new
+identities. The service does not install configuration or modify its source.
+Objects remain experimental and non-redistributable by default.
+
+Absent facts produce one human question at a time. Answers are literal values
+against the current revision. Start keys follow the shared 16–128 ASCII-character
+contract and bind the original normalized request; later answers do not change
+that binding. The existing SQLite overlap constraint prevents two unfinished
+tasks from owning the same harness/global binding. Continuation argv retains
+the exact task, revision and isolated state root.
+
+Before effects, the journal saves the exact child plan and digest. One SQLite
+transaction records component content, immutable component/setup versions and
+the child receipt. A lost task-completion write recovers that receipt even when
+the source is gone. Failed preconditions leave the unfinished task visible with
+its current revision and child identity; an expired or changed unexecuted source
+requires cancellation and a fresh request. Cancellation reconciles a committed
+child as completed instead of claiming its effects were undone. Settled start,
+continue and cancel replay is read-only. Account attachment refuses unfinished
+tasks; settled original-owner history remains readable after attachment.
+
+`tests/releases.rs`, `tasks/tests.rs`, the account attachment journey and
+`scripts/verify_tasks.py` exercise atomic rollback, receipt-loss recovery,
+cross-language passport/definition consumption, exact-revision conflicts,
+question continuations and historical replay. These proofs do not qualify the
+remaining task intents, multi-root installation or production cutover.
 
 The implemented metadata, configuration and snapshot commands are offline.
 They do not discover production state, initialize a
@@ -2340,6 +2381,8 @@ breakaway and never infers termination from PID disappearance alone.
 | `authoring/frontmatter.rs` | Shared bounded YAML header parsing without source execution |
 | `authoring/project_binding.rs` | Atomic portable project identity and complete adaptation refresh |
 | `authoring/runtime.rs` | Identity-bound local plans, closed operation dispatch and private registry reads |
+| `authoring/embedded.rs` | Exact directory-to-component/setup authoring with atomic private versions and replay |
+| `tasks/`, `registry/tasks.rs` | Durable native author tasks, closed input questions and executable continuations |
 | `authoring/bindings.rs` | Shared local source addresses, relocation and binding replacement |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 

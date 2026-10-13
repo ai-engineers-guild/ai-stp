@@ -6,6 +6,7 @@ mod bindings;
 pub mod contribution;
 pub mod derivation;
 pub mod discovery;
+pub mod embedded;
 pub mod forks;
 pub(crate) mod freezing;
 mod frontmatter;
