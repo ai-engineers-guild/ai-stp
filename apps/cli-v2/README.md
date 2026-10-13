@@ -1969,8 +1969,10 @@ seven executables are not retained in memory. Trust expiry is checked before
 returning. Artifact verification is shared across harness cells for each
 candidate and bounded to 64 MiB across the page, counting repeated dependency
 reads. Report data is bounded to 8 MiB; reduce the page limit on refusal. Every
-cell retains the existing mechanical refusals and only declared environment
-names can be observed. An empty or wholly unreleased page needs no provider or
+cell retains the existing mechanical refusals and the exact historical ownership
+established for that candidate graph by an account attachment receipt. These
+rights do not cover other versions or change harness compatibility. Only declared
+environment names can be observed. An empty or wholly unreleased page needs no provider or
 network and marks provider observations absent. The matrix grants no rights,
 selects nothing and writes no harness. Its `next_after` cursor advances to a
 fresh page observation, not a transaction spanning CLI calls.
