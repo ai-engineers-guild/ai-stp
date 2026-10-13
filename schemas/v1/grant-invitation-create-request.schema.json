@@ -26,6 +26,19 @@
       "title": "Major",
       "type": "integer"
     },
+    "mutation_contract": {
+      "anyOf": [
+        {
+          "const": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Mutation Contract"
+    },
     "object_kind": {
       "$ref": "#/$defs/ObjectKind"
     },

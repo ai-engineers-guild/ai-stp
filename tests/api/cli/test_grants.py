@@ -137,7 +137,10 @@ def test_a_direct_grant_reaches_the_grantee_and_revokes(
     assert revoked.revoked is True
     assert revoked.local_bytes_retained is True
 
-    retained = grants.direct(cli_endpoint, owner_token, request)
+    # Native callers require the guarded mutation contract; adding that
+    # compatibility guard must preserve an existing legacy request receipt.
+    native_request = request.model_copy(update={"mutation_contract": 1})
+    retained = grants.direct(cli_endpoint, owner_token, native_request)
     assert retained.grant_id == grant.grant_id
     assert retained.state == "revoked" and retained.revision == 2
     # A pre-upgrade request has no receipt. It still cannot silently regrant.
@@ -154,7 +157,12 @@ def test_a_direct_grant_reaches_the_grantee_and_revokes(
     active = grants.direct(cli_endpoint, owner_token, regrant)
     assert active.grant_id == grant.grant_id and active.state == "active" and active.revision == 3
     # A lost revoke response must not revoke a later explicit regrant.
-    assert grants.revoke_grant(cli_endpoint, owner_token, grant.grant_id, revoke).revoked
+    assert grants.revoke_grant(
+        cli_endpoint,
+        owner_token,
+        grant.grant_id,
+        revoke.model_copy(update={"mutation_contract": 1}),
+    ).revoked
     assert (
         next(
             item

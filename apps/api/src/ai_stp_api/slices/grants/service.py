@@ -180,7 +180,10 @@ async def create_direct_grant(
         ctx.account_id,
         body.idempotency_key,
         "direct",
-        cast(JsonValue, body.model_dump(mode="json", exclude={"idempotency_key"})),
+        cast(
+            JsonValue,
+            body.model_dump(mode="json", exclude={"idempotency_key", "mutation_contract"}),
+        ),
     )
     if receipt is not None:
         grant = await db.get(AccessGrant, receipt.grant_id)
@@ -698,7 +701,10 @@ async def revoke_grant(
         "revoke",
         cast(
             JsonValue,
-            {"grant_id": grant_id, **body.model_dump(mode="json", exclude={"idempotency_key"})},
+            {
+                "grant_id": grant_id,
+                **body.model_dump(mode="json", exclude={"idempotency_key", "mutation_contract"}),
+            },
         ),
     )
     grant = await db.get(AccessGrant, grant_id, with_for_update=True, populate_existing=True)

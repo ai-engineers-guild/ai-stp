@@ -28,6 +28,7 @@ class DirectGrantCreateRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     schema_version: Literal[1] = 1
+    mutation_contract: Literal[1] | None = None
     object_kind: ObjectKind
     stable_id: Annotated[str, Field(min_length=8, max_length=64)]
     major: Annotated[int, Field(ge=0, le=9999)]
@@ -40,7 +41,7 @@ class DirectGrantCreateRequest(ContractModel):
     @model_serializer(mode="wrap")
     def sparse_preconditions(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
         value: dict[str, object] = handler(self)
-        for name in ("expected_grant_id", "expected_revision"):
+        for name in ("expected_grant_id", "expected_revision", "mutation_contract"):
             if value.get(name) is None:
                 value.pop(name, None)
         return value
@@ -52,12 +53,20 @@ class GrantInvitationCreateRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     schema_version: Literal[1] = 1
+    mutation_contract: Literal[1] | None = None
     object_kind: ObjectKind
     stable_id: Annotated[str, Field(min_length=8, max_length=64)]
     major: Annotated[int, Field(ge=0, le=9999)]
     recipient_email: Annotated[str, Field(min_length=3, max_length=320)]
     idempotency_key: IdempotencyKey
     ttl_seconds: Annotated[int, Field(default=604_800, ge=60, le=2_592_000)] = 604_800
+
+    @model_serializer(mode="wrap")
+    def sparse_contract(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        value: dict[str, object] = handler(self)
+        if value.get("mutation_contract") is None:
+            value.pop("mutation_contract", None)
+        return value
 
 
 class GrantInvitationResponse(ContractModel):
@@ -119,8 +128,16 @@ class GrantAcceptRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     schema_version: Literal[1] = 1
+    mutation_contract: Literal[1] | None = None
     token: Annotated[str, Field(min_length=16, max_length=256)]
     idempotency_key: IdempotencyKey
+
+    @model_serializer(mode="wrap")
+    def sparse_contract(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        value: dict[str, object] = handler(self)
+        if value.get("mutation_contract") is None:
+            value.pop("mutation_contract", None)
+        return value
 
 
 class GrantRevokeRequest(ContractModel):
@@ -129,6 +146,7 @@ class GrantRevokeRequest(ContractModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
     schema_version: Literal[1] = 1
+    mutation_contract: Literal[1] | None = None
     reason: Annotated[str, Field(default="", max_length=500)] = ""
     expected_revision: Annotated[int, Field(ge=1, le=2_147_483_646)] | None = None
     idempotency_key: IdempotencyKey
@@ -136,7 +154,7 @@ class GrantRevokeRequest(ContractModel):
     @model_serializer(mode="wrap")
     def sparse_preconditions(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
         value: dict[str, object] = handler(self)
-        for name in ("expected_revision",):
+        for name in ("expected_revision", "mutation_contract"):
             if value.get(name) is None:
                 value.pop(name, None)
         return value
