@@ -3,6 +3,7 @@
 #[cfg(test)]
 mod tests;
 
+mod access;
 pub mod bundles;
 pub mod matrix;
 mod program;
@@ -48,6 +49,8 @@ struct Request {
     for_redistribution: bool,
     #[serde(default)]
     harness_executable: Option<program::Executable>,
+    #[serde(default)]
+    access: access::Request,
 }
 
 fn invalid() -> Failure {
@@ -63,6 +66,7 @@ impl Request {
         crate::provider::managed::resolve_request(&mut value);
         let request: Self = serde_json::from_value(value).map_err(|_| invalid())?;
         request.selector().validate()?;
+        request.access.validate()?;
         if request.members.is_empty() != empty
             || request.members.len() > 512
             || request.members.iter().any(|member| {
@@ -140,6 +144,8 @@ impl Selector {
             grants: Default::default(),
             pinned_passport_digests: Default::default(),
             owned_passport_digests: Default::default(),
+            accessible_passport_digests: Default::default(),
+            access_context_digest: None,
             for_redistribution: false,
         };
         target.validate()?;
@@ -267,8 +273,12 @@ fn assess_snapshot(
     roots: &[Value],
     target: Target,
     provider: &Info,
+    access: Option<&access::Observed>,
 ) -> Result<Value> {
-    let observed = inputs(connection, roots, target)?;
+    let mut observed = inputs(connection, roots, target)?;
+    if let Some(access) = access {
+        access.apply(&mut observed)?;
+    }
     let assessment = eligibility::assess_connection(
         connection,
         roots,
@@ -303,8 +313,8 @@ fn with_provider<T>(
     effect(&provider, &artifact, report)
 }
 
-/// Network access authenticates the provider only; local owner authority comes
-/// from the isolated identity. Public trust, grants and consent remain absent.
+/// Local owner authority comes from the isolated identity. Optional account
+/// access and exact local trust decisions remain independent observations.
 pub fn assess(parent: &Path, path: &Path) -> Result<Value> {
     let request = Request::parse(path, false)?;
     let identity = owner(parent)?;
@@ -336,18 +346,27 @@ pub fn assess(parent: &Path, path: &Path) -> Result<Value> {
         &request.selector(),
         &identity,
         |provider, artifact, report| {
+            let access = access::Observed::capture(
+                parent,
+                &identity,
+                std::slice::from_ref(&roots),
+                access::Intent::Review(&request.access),
+            )?;
             // Re-read the graph after external I/O; preflight is never a permit.
             let mut store = identity.planning()?;
             let mut result = store.transaction(|t| {
                 let (mut target, program) = request.selector().observe(t, parent, &identity)?;
                 target.for_redistribution = request.for_redistribution;
-                let mut result = assess_snapshot(t, &roots, target, provider)?;
+                let mut result = assess_snapshot(t, &roots, target, provider, Some(&access))?;
                 result["program_observation_digest"] = json!(program);
                 Ok(result)
             })?;
             artifact.executable()?;
             result["provider"] = report;
             result["provider_observed"] = true.into();
+            if let Some(observation) = access.report()? {
+                result["access_observation"] = observation;
+            }
             Ok(result)
         },
     )

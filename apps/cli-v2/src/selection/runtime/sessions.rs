@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::{Owner, Request, Selector, inputs, invalid, owner, program, with_provider};
+use super::{Owner, Request, Selector, access, inputs, invalid, owner, program, with_provider};
 use crate::{
     canonical, digest,
     error::{Failure, Result},
@@ -31,6 +31,8 @@ struct Plan {
     selector: Option<Selector>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     program_observation_digest: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    access: Option<access::Plan>,
     operation: Value,
 }
 
@@ -67,12 +69,14 @@ fn planned(
     operation: &impl Serialize,
     provider: Value,
     program_observation_digest: Option<String>,
+    access: Option<access::Plan>,
 ) -> Result<Value> {
     let plan = Plan {
         schema_version: 1,
         state_parent: PathBuf::from(files::location(parent)?),
         selector,
         program_observation_digest,
+        access,
         operation: value(operation)?,
     };
     Ok(json!({"plan_digest":plan.digest()?,"plan":plan,"provider":provider}))
@@ -125,10 +129,17 @@ pub fn propose(parent: &Path, project: &str, path: &Path, empty: bool) -> Result
         &selector,
         &identity,
         |provider, artifact, report| {
+            let access = access::Observed::capture(
+                parent,
+                &identity,
+                std::slice::from_ref(&roots),
+                access::Intent::Review(&request.access),
+            )?;
             let mut store = identity.planning()?;
             let (operation, program) = store.transaction(|t| {
                 let (target, program) = selector.observe(t, parent, &identity)?;
-                let observed = inputs(t, &roots, target)?;
+                let mut observed = inputs(t, &roots, target)?;
+                access.apply(&mut observed)?;
                 let runtime = sessions::Runtime {
                     identity: &identity,
                     target: &observed.target,
@@ -141,7 +152,14 @@ pub fn propose(parent: &Path, project: &str, path: &Path, empty: bool) -> Result
                 artifact.executable()?;
                 Ok((plan, program))
             })?;
-            planned(parent, Some(selector.clone()), &operation, report, program)
+            planned(
+                parent,
+                Some(selector.clone()),
+                &operation,
+                report,
+                program,
+                access.plan()?,
+            )
         },
     )
 }
@@ -152,7 +170,12 @@ pub fn decision(
     parent: &Path,
     id: &str,
     target: Option<(Scope, &str, Option<&Path>)>,
+    access_path: Option<&Path>,
 ) -> Result<Value> {
+    if target.is_none() && access_path.is_some() {
+        return Err(invalid());
+    }
+    let request = access::Request::read(access_path)?;
     let identity = owner(parent)?;
     let mut store = identity.planning()?;
     let proposal = sessions::read(&mut store, id)?;
@@ -175,7 +198,19 @@ pub fn decision(
     } else {
         None
     };
-    planned(parent, selector, &plan, Value::Null, program)
+    drop(store);
+    let access = if selector.is_some() {
+        access::Observed::capture(
+            parent,
+            &identity,
+            &[references(&proposal.members)?],
+            access::Intent::Review(&request),
+        )?
+        .plan()?
+    } else {
+        None
+    };
+    planned(parent, selector, &plan, Value::Null, program, access)
 }
 
 pub fn read(parent: &Path, id: &str) -> Result<Value> {
@@ -201,6 +236,7 @@ pub fn apply(path: &Path, expected: &str) -> Result<Value> {
     if plan.schema_version != 1 || !plan.state_parent.is_absolute() || plan.digest()? != expected {
         return Err(invalid());
     }
+    access::Request::planned(plan.access.as_ref())?;
     let identity = owner(&plan.state_parent)?;
     let planned: crate::authoring::Identity =
         serde_json::from_value(plan.operation["identity"].clone()).map_err(|_| invalid())?;
@@ -254,7 +290,10 @@ pub fn apply(path: &Path, expected: &str) -> Result<Value> {
         "selection.propose" => apply_proposal(&plan, &identity),
         "selection.confirm" => apply_confirmation(&plan, &identity),
         "selection.cancel" => {
-            if plan.selector.is_some() || plan.program_observation_digest.is_some() {
+            if plan.selector.is_some()
+                || plan.program_observation_digest.is_some()
+                || plan.access.is_some()
+            {
                 return Err(invalid());
             }
             let operation: sessions::Decision =
@@ -293,6 +332,12 @@ fn apply_proposal(plan: &Plan, identity: &Owner) -> Result<Value> {
         selector,
         identity,
         |provider, artifact, _| {
+            let access = access::Observed::capture(
+                &plan.state_parent,
+                identity,
+                std::slice::from_ref(&roots),
+                access::Intent::Apply(plan.access.as_ref()),
+            )?;
             let mut store = identity.open(false)?;
             store.transaction(|t| {
                 // Another invocation may have completed while provider I/O ran.
@@ -302,7 +347,8 @@ fn apply_proposal(plan: &Plan, identity: &Owner) -> Result<Value> {
                 }
                 let (target, program) = selector.observe(t, &plan.state_parent, identity)?;
                 program::matches(&program, &plan.program_observation_digest)?;
-                let observed = inputs(t, &roots, target)?;
+                let mut observed = inputs(t, &roots, target)?;
+                access.apply(&mut observed)?;
                 let runtime = sessions::Runtime {
                     identity,
                     target: &observed.target,
@@ -312,6 +358,7 @@ fn apply_proposal(plan: &Plan, identity: &Owner) -> Result<Value> {
                 };
                 let result = sessions::propose_in(t, &operation, &digest, &runtime, &moment())?;
                 artifact.executable()?;
+                access.revalidate()?;
                 value(&result)
             })
         },
@@ -338,6 +385,12 @@ fn apply_confirmation(plan: &Plan, identity: &Owner) -> Result<Value> {
         selector,
         identity,
         |provider, artifact, _| {
+            let access = access::Observed::capture(
+                &plan.state_parent,
+                identity,
+                std::slice::from_ref(&roots),
+                access::Intent::Apply(plan.access.as_ref()),
+            )?;
             let mut store = identity.open(false)?;
             store.transaction(|t| {
                 if let Some(held) =
@@ -347,7 +400,8 @@ fn apply_confirmation(plan: &Plan, identity: &Owner) -> Result<Value> {
                 }
                 let (target, program) = selector.observe(t, &plan.state_parent, identity)?;
                 program::matches(&program, &plan.program_observation_digest)?;
-                let observed = inputs(t, &roots, target)?;
+                let mut observed = inputs(t, &roots, target)?;
+                access.apply(&mut observed)?;
                 let runtime = sessions::Runtime {
                     identity,
                     target: &observed.target,
@@ -357,6 +411,7 @@ fn apply_confirmation(plan: &Plan, identity: &Owner) -> Result<Value> {
                 };
                 let result = sessions::confirm_in(t, &operation, &digest, &runtime, &moment())?;
                 artifact.executable()?;
+                access.revalidate()?;
                 value(&result)
             })
         },

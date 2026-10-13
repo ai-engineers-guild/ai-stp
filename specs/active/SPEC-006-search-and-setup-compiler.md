@@ -33,6 +33,19 @@ This compiler returns packages without effects; the native executable's bundle
 and configuration adapters remain single-root. Durable multi-root installation
 and active-root handoff are not implemented by this library boundary.
 
+Native eligibility, matrix and composition reports, proposals, confirmation and
+single-root bundles accept explicit per-operation trust pins independently of
+opt-in account access. Pins name exact retained graph digests and confer neither
+ownership nor verification. Account access uses fresh catalog metadata for each
+foreign private member, validates its exact digest and current lifecycle, and
+does not reuse cached grants or infer dependency access from the root. Plans bind
+the account, origin, device and session; new effects revalidate current access.
+Same-account refresh requires a new outer plan while preserving proposal policy.
+Completed selection receipts remain readable without account/network access;
+bundle publication requires current evidence on every apply. Bounds, command
+shapes and lock ordering belong to the native contract. Default local-only
+requests and historical receipts retain their meaning.
+
 ## Terms
 
 - `SelectionRun` is a frozen context of passports, questions, and candidates.

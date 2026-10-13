@@ -111,6 +111,7 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
         members: vec![],
         for_redistribution: false,
         harness_executable: None,
+        access: access::Request::default(),
     }
     .selector()
     .target(&identity)?;
@@ -121,7 +122,8 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
         )
     };
     let roots = [reference(&original)?];
-    let observed = store.transaction(|t| assess_snapshot(t, &roots, target.clone(), &provider))?;
+    let observed =
+        store.transaction(|t| assess_snapshot(t, &roots, target.clone(), &provider, None))?;
     assert_eq!(observed["assessment"]["admissible"], true);
     assert_eq!(observed["target"]["harness_version"], "");
     assert_eq!(observed["target"]["permissions"], json!([]));
@@ -162,7 +164,7 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
             current_target.owner_id = "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z".into();
         }
         let observed = store.transaction(|t| {
-            assess_snapshot(t, &[reference(&document)?], current_target, &provider)
+            assess_snapshot(t, &[reference(&document)?], current_target, &provider, None)
         })?;
         assert_eq!(observed["assessment"]["admissible"], false, "{case}");
         assert!(
@@ -213,7 +215,7 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
         })
         .collect::<Result<Vec<_>>>()?;
     let report = store.transaction(|t| {
-        matrix::assess_snapshot(t, directory.path(), &request, &identity, &providers)
+        matrix::assess_snapshot(t, directory.path(), &request, &identity, &providers, None)
     })?;
     assert_eq!(
         report["targets"][0]["selector"]["harness_id"],
@@ -252,7 +254,7 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
         std::fs::write(&matrix_path, serde_json::to_vec(&matrix_request)?)?;
         let request = matrix::Request::parse(&matrix_path)?;
         let report = store.transaction(|t| {
-            matrix::assess_snapshot(t, directory.path(), &request, &identity, &providers)
+            matrix::assess_snapshot(t, directory.path(), &request, &identity, &providers, None)
         })?;
         found.push(report["candidates"][0]["stable_id"].clone());
         if report["next_after"].is_null() {
@@ -323,7 +325,7 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
     std::fs::write(&matrix_path, serde_json::to_vec(&matrix_request)?)?;
     let request = matrix::Request::parse(&matrix_path)?;
     let report = store.transaction(|t| {
-        matrix::assess_snapshot(t, directory.path(), &request, &attached, &providers)
+        matrix::assess_snapshot(t, directory.path(), &request, &attached, &providers, None)
     })?;
     let attached_target = Request::from_value(
         json!({"harness_id":"claude-code",
@@ -338,6 +340,7 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
             &[reference(&retained_setup)?],
             attached_target,
             &provider,
+            None,
         )
     })?;
     assert_eq!(exact["assessment"]["admissible"], true);
@@ -384,7 +387,7 @@ fn local_runtime_reads_real_artifacts_without_inventing_rights()
     })?;
     assert!(
         store
-            .transaction(|t| assess_snapshot(t, &roots, target.clone(), &provider))
+            .transaction(|t| assess_snapshot(t, &roots, target.clone(), &provider, None))
             .is_err()
     );
     for field in [

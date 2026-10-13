@@ -155,6 +155,8 @@ fn actual_passport_scopes_and_provider_profiles_control_eligibility() -> Result<
         grants: BTreeSet::new(),
         pinned_passport_digests: BTreeSet::new(),
         owned_passport_digests: Default::default(),
+        accessible_passport_digests: Default::default(),
+        access_context_digest: None,
         for_redistribution: false,
     };
     let report = eligibility::assess(&document, &target, &facts(&document)?, Some(&provider))?;
@@ -313,6 +315,36 @@ fn actual_passport_scopes_and_provider_profiles_control_eligibility() -> Result<
             &private,
             &another,
             &evidence,
+            Some(&provider)
+        )?),
+        ["grant_missing"].into()
+    );
+    let mut authorized = another.clone();
+    authorized
+        .accessible_passport_digests
+        .insert(evidence.passport_digest.clone());
+    assert_eq!(
+        eligibility::assess(&private, &authorized, &evidence, Some(&provider))?["admissible"],
+        true
+    );
+    authorized.pinned_passport_digests.clear();
+    let report = eligibility::assess(&private, &authorized, &evidence, Some(&provider))?;
+    assert!(!codes(&report).contains("grant_missing"));
+    assert!(codes(&report).contains("unverified_without_consent"));
+    assert_eq!(report["admissible"], false);
+    // Access to retained bytes must not extend to another immutable version.
+    let mut later = private.clone();
+    later["version"] = "1.1".into();
+    let later = seal(later)?;
+    let later_evidence = facts(&later)?;
+    authorized
+        .pinned_passport_digests
+        .insert(later_evidence.passport_digest.clone());
+    assert_eq!(
+        codes(&eligibility::assess(
+            &later,
+            &authorized,
+            &later_evidence,
             Some(&provider)
         )?),
         ["grant_missing"].into()

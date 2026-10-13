@@ -1,5 +1,7 @@
 use super::*;
-use crate::{account::access::Access, http::Endpoint};
+use crate::{
+    account::access::Access, authoring::setups::Source, catalog::acquisition, http::Endpoint,
+};
 
 #[test]
 fn private_access_binds_account_device_origin_expiry_and_physical_root()
@@ -52,12 +54,28 @@ fn private_access_binds_account_device_origin_expiry_and_physical_root()
     );
     let observed = json!({"schema_version":1,"account_id":account,
         "device_id":device.context().device_id,"account_status":"active"});
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../../tests/golden/passports/component-version.json"
+    ))?;
+    let mut document = fixture["value"].clone();
+    document["visibility"] = "private".into();
+    let document = crate::store::revisions::seal(&document)?;
+    let source = Source {
+        stable_id: document["stable_id"].as_str().ok_or("id")?.into(),
+        version: "1.0".into(),
+        passport_digest: crate::digest::canonical("ai-stp:passport:v1", &document)?,
+    };
+    let route = format!("/v1/catalog/components/{}/versions/1.0", source.stable_id);
+    let metadata = json!({"schema_version":1,"visibility":"private","lifecycle":"active",
+        "published_at":"2026-08-05T00:00:00.000Z","passport":document,
+        "passport_digest":source.passport_digest,
+        "trust":{"author_verified":false,"component_verified":false,"trust_lane":"local_owner_or_pinned"}});
     let server = thread::spawn(move || -> std::io::Result<()> {
         let mut wrong_account = observed.clone();
         wrong_account["account_id"] = format!("account_{}", ulid::Ulid::generate()).into();
         let mut wrong_device = observed.clone();
         wrong_device["device_id"] = format!("device_{}", ulid::Ulid::generate()).into();
-        for value in [wrong_account, wrong_device, observed] {
+        for value in [wrong_account, wrong_device, observed.clone()] {
             let mut socket = accept(&listener)?;
             let (headers, body) = receive(&mut socket)?;
             assert!(headers.starts_with("GET /v1/auth/me "));
@@ -79,6 +97,27 @@ fn private_access_binds_account_device_origin_expiry_and_physical_root()
         );
         assert!(body.is_empty());
         respond(&mut socket, 200, json!({"fixture":true}))?;
+        // Every authorization is a fresh metadata read, even after success.
+        for status in [200, 200, 404] {
+            let mut socket = accept(&listener)?;
+            let (headers, _) = receive(&mut socket)?;
+            assert!(headers.starts_with("GET /v1/auth/me "));
+            respond(&mut socket, 200, observed.clone())?;
+            let mut socket = accept(&listener)?;
+            let (headers, _) = receive(&mut socket)?;
+            assert!(headers.starts_with(&format!("GET {route} ")));
+            assert!(!headers.to_ascii_lowercase().contains("authorization:"));
+            respond(&mut socket, 404, json!({}))?;
+            let mut socket = accept(&listener)?;
+            let (headers, _) = receive(&mut socket)?;
+            assert!(headers.starts_with(&format!("GET {route}/private ")));
+            assert!(
+                headers
+                    .to_ascii_lowercase()
+                    .contains("authorization: bearer generated-private-access\r\n")
+            );
+            respond(&mut socket, status, metadata.clone())?;
+        }
         Ok(())
     });
     assert!(access.verify().is_err());
@@ -104,6 +143,17 @@ fn private_access_binds_account_device_origin_expiry_and_physical_root()
         Duration::from_secs(5),
     )?;
     assert_eq!(crate::wire::parse(&bytes)?, json!({"fixture":true}));
+    let sources = std::slice::from_ref(&source);
+    assert_eq!(
+        acquisition::authorize_versions(&mut access, sources)?,
+        [source.passport_digest.clone()].into()
+    );
+    let wrong = Source {
+        passport_digest: crate::digest::sha256(b"another retained passport"),
+        ..source.clone()
+    };
+    assert!(acquisition::authorize_versions(&mut access, &[wrong]).is_err());
+    assert!(acquisition::authorize_versions(&mut access, sources).is_err());
     server.join().map_err(|_| "fixture server panicked")??;
 
     let displaced = sandbox.path().join("displaced");

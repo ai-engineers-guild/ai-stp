@@ -166,6 +166,8 @@ fn durable_selection_rechecks_context_and_commits_one_complete_effect() -> Resul
         grants: Default::default(),
         pinned_passport_digests: Default::default(),
         owned_passport_digests: Default::default(),
+        accessible_passport_digests: Default::default(),
+        access_context_digest: None,
         for_redistribution: false,
     };
     let runtime = Runtime {

@@ -6,7 +6,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::{MAX_CONTENT, Selector, inputs_with_budget, owner, program};
+use super::{MAX_CONTENT, Selector, access, inputs_with_budget, owner, program};
 use crate::{
     authoring::Identity,
     canonical,
@@ -35,6 +35,8 @@ pub(super) struct Request {
     limit: usize,
     #[serde(default)]
     for_redistribution: bool,
+    #[serde(default)]
+    access: access::Request,
 }
 
 fn invalid() -> Failure {
@@ -45,13 +47,14 @@ fn invalid() -> Failure {
 
 impl Request {
     pub(super) fn parse(path: &Path) -> Result<Self> {
-        let mut value = crate::wire::parse(&files::read(path, 16 * 1024)?)?;
+        let mut value = crate::wire::parse(&files::read(path, 64 * 1024)?)?;
         if let Some(targets) = value.get_mut("targets").and_then(Value::as_array_mut) {
             for target in targets {
                 crate::provider::managed::resolve_request(target);
             }
         }
         let mut request: Self = serde_json::from_value(value).map_err(|_| invalid())?;
+        request.access.validate()?;
         if request.targets.is_empty()
             || request.targets.len() > 7
             || !(1..=50).contains(&request.limit)
@@ -128,6 +131,7 @@ fn render(
     identity: &Identity,
     page: (Vec<Candidate>, Option<String>),
     providers: Option<&[(Info, Value)]>,
+    access: Option<&access::Observed>,
 ) -> Result<Value> {
     if providers.is_some_and(|p| p.len() != request.targets.len()) {
         return Err(Failure::precondition(
@@ -167,12 +171,15 @@ fn render(
                 ));
             }
             let roots = [reference];
-            let observed = inputs_with_budget(
+            let mut observed = inputs_with_budget(
                 connection,
                 &roots,
                 observed_targets[0].clone(),
                 MAX_CONTENT - verified,
             )?;
+            if let Some(access) = access {
+                access.apply(&mut observed)?;
+            }
             verified += observed.bytes;
             env_present.extend(observed.target.env_present.iter().cloned());
             let mut cells = Vec::new();
@@ -184,6 +191,15 @@ fn render(
                 target
                     .owned_passport_digests
                     .clone_from(&observed.target.owned_passport_digests);
+                target
+                    .pinned_passport_digests
+                    .clone_from(&observed.target.pinned_passport_digests);
+                target
+                    .accessible_passport_digests
+                    .clone_from(&observed.target.accessible_passport_digests);
+                target
+                    .access_context_digest
+                    .clone_from(&observed.target.access_context_digest);
                 let mut assessment = eligibility::assess_connection(
                     connection,
                     &roots,
@@ -231,10 +247,15 @@ fn render(
     for target in &mut targets {
         target["target"]["env_present"] = json!(env_present);
     }
-    let report = json!({"schema_version":1,"candidate_policy":"latest_immutable_per_object",
+    let mut report = json!({"schema_version":1,"candidate_policy":"latest_immutable_per_object",
         "targets":targets,"candidates":candidates,"next_after":page.1,"verified_artifact_bytes":verified,
         "not_observed":program::unobserved(observed_targets.iter().any(|t|t.harness_version.is_empty())),
         "permission_policy":"none_granted","installation_authorized":false,"harness_written":false});
+    if let Some(access) = access
+        && let Some(observation) = access.report()?
+    {
+        report["access_observation"] = observation;
+    }
     if canonical::bytes(&report)?.len() > MAX_REPORT {
         return Err(Failure::precondition(
             "the matrix exceeds 8 MiB of report data; reduce the page limit",
@@ -250,6 +271,7 @@ pub(super) fn assess_snapshot(
     request: &Request,
     identity: &Identity,
     providers: &[(Info, Value)],
+    access: Option<&access::Observed>,
 ) -> Result<Value> {
     render(
         connection,
@@ -258,6 +280,7 @@ pub(super) fn assess_snapshot(
         identity,
         page(connection, request)?,
         Some(providers),
+        access,
     )
 }
 
@@ -265,13 +288,19 @@ pub fn assess(parent: &Path, path: &Path) -> Result<Value> {
     let request = Request::parse(path)?;
     let identity = owner(parent)?;
     let mut store = identity.planning()?;
-    let empty = store.transaction(|t| {
+    let (groups, empty) = store.transaction(|t| {
         let page = page(t, &request)?;
-        if page.0.iter().all(|c| c.coordinate.is_none()) {
-            render(t, parent, &request, &identity, page, None).map(Some)
+        let groups = page
+            .0
+            .iter()
+            .filter_map(|candidate| candidate.coordinate.clone().map(|value| vec![value]))
+            .collect::<Vec<_>>();
+        let empty = if groups.is_empty() {
+            Some(render(t, parent, &request, &identity, page, None, None)?)
         } else {
-            Ok(None)
-        }
+            None
+        };
+        Ok((groups, empty))
     })?;
     drop(store);
     if let Some(report) = empty {
@@ -297,9 +326,15 @@ pub fn assess(parent: &Path, path: &Path) -> Result<Value> {
             "the isolated identity changed during matrix observation",
         ));
     }
+    let access = access::Observed::capture(
+        parent,
+        &identity,
+        &groups,
+        access::Intent::Review(&request.access),
+    )?;
     let mut store = identity.planning()?;
     store.transaction(|t| {
-        let report = assess_snapshot(t, parent, &request, &identity, &providers)?;
+        let report = assess_snapshot(t, parent, &request, &identity, &providers, Some(&access))?;
         trust.root()?;
         Ok(report)
     })

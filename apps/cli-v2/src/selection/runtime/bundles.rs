@@ -8,7 +8,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::{Owner, Selector, inputs, owner, program, with_provider};
+use super::{Owner, Selector, access, inputs, owner, program, with_provider};
 use crate::{
     authoring::{Identity, setups::Source},
     bundle::{self, hosts},
@@ -20,7 +20,17 @@ use crate::{
     selection::graph,
 };
 
-const MAX_PLAN: u64 = 16 * 1024;
+const MAX_PLAN: u64 = 64 * 1024;
+
+pub struct Request<'a> {
+    pub source: Source,
+    pub scope: Scope,
+    pub provider_version: &'a str,
+    pub target: Option<&'a Path>,
+    pub output: &'a Path,
+    pub harness_executable: Option<&'a Path>,
+    pub access: Option<&'a Path>,
+}
 
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -37,6 +47,8 @@ struct Plan {
     selector: Selector,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     program_observation_digest: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    access: Option<access::Plan>,
     host: Option<hosts::Binding>,
     #[serde(
         serialize_with = "files::serialize_location",
@@ -100,17 +112,21 @@ fn with_bundle(
     selector: &Selector,
     identity: &Owner,
     host: &hosts::Root,
-    finish: impl FnOnce(bundle::Bundle, Value, Option<String>) -> Result<Value>,
+    access: access::Intent<'_>,
+    finish: impl FnOnce(bundle::Bundle, Value, Option<String>, &access::Observed) -> Result<Value>,
 ) -> Result<Value> {
     if setup(identity, source)?["harness_id"] != selector.harness_id {
         return Err(invalid());
     }
     let reference = value(source)?;
     with_provider(parent, selector, identity, |provider, artifact, report| {
+        let access =
+            access::Observed::capture(parent, identity, &[vec![reference.clone()]], access)?;
         let mut store = identity.planning()?;
         store.transaction(|t| {
             let (target, program) = selector.observe(t, parent, identity)?;
-            let observed = inputs(t, std::slice::from_ref(&reference), target)?;
+            let mut observed = inputs(t, std::slice::from_ref(&reference), target)?;
+            access.apply(&mut observed)?;
             let paths = hosts::paths(t, &reference, &selector.harness_id, selector.scope)?;
             let before = host.read(&paths)?;
             let bundle = bundle::compile_snapshot(
@@ -125,20 +141,23 @@ fn with_bundle(
                 return Err(invalid());
             }
             artifact.executable()?;
-            finish(bundle, report, program)
+            access.revalidate()?;
+            finish(bundle, report, program, &access)
         })
     })
 }
 
-pub fn plan(
-    parent: &Path,
-    source: Source,
-    scope: Scope,
-    provider_version: &str,
-    target: Option<&Path>,
-    output: &Path,
-    harness_executable: Option<&Path>,
-) -> Result<Value> {
+pub fn plan(parent: &Path, request: Request<'_>) -> Result<Value> {
+    let Request {
+        source,
+        scope,
+        provider_version,
+        target,
+        output,
+        harness_executable,
+        access,
+    } = request;
+    let access_request = access::Request::read(access)?;
     let state_parent = PathBuf::from(files::location(parent)?);
     let identity = owner(&state_parent)?;
     let document = setup(&identity, &source)?;
@@ -167,7 +186,8 @@ pub fn plan(
         &selector,
         &identity,
         &host,
-        |bundle, provider, program| {
+        access::Intent::Review(&access_request),
+        |bundle, provider, program, access| {
             if host.binding()? != binding {
                 return Err(invalid());
             }
@@ -180,6 +200,7 @@ pub fn plan(
                 source: source.clone(),
                 selector: selector.clone(),
                 program_observation_digest: program,
+                access: access.plan()?,
                 host: binding.clone(),
                 output: output.clone(),
                 parent_identity,
@@ -188,10 +209,12 @@ pub fn plan(
                 artifact_digest: bundle.artifact_digest,
                 artifact_bytes: bundle.archive.len() as u64,
             };
-            Ok(
-                json!({"plan_digest":plan.digest()?,"plan":plan,"manifest":bundle.manifest,
-            "assessment":bundle.assessment,"provider":provider,"harness_written":false}),
-            )
+            let mut result = json!({"plan_digest":plan.digest()?,"plan":plan,"manifest":bundle.manifest,
+                "assessment":bundle.assessment,"provider":provider,"harness_written":false});
+            if let Some(observation) = access.report()? {
+                result["access_observation"] = observation;
+            }
+            Ok(result)
         },
     )
 }
@@ -229,7 +252,8 @@ pub fn apply(path: &Path, expected: &str) -> Result<Value> {
         &plan.selector,
         &identity,
         &host,
-        |bundle, _, program| {
+        access::Intent::Apply(plan.access.as_ref()),
+        |bundle, _, program, access| {
             program::matches(&program, &plan.program_observation_digest)?;
             if bundle.artifact_digest != plan.artifact_digest
                 || bundle.archive.len() as u64 != plan.artifact_bytes
@@ -240,6 +264,7 @@ pub fn apply(path: &Path, expected: &str) -> Result<Value> {
                 return Err(invalid());
             }
             host.outside(output_parent)?;
+            access.revalidate()?;
             let files = BTreeMap::from([("bundle.zip".into(), bundle.archive)]);
             let (created, cleanup_pending) = tree::publish(
                 &tree::Tree {
