@@ -33,7 +33,7 @@ pub(in crate::provider::runtime) fn apply(
     {
         // Cleanup may have been interrupted after the terminal SQLite commit.
         // This path never opens the target, provider, bundle source or network.
-        Journal::open(parent, &plan, digest)?.cleanup()?;
+        Journal::cleanup_history(parent, &plan, digest)?;
         return prior.result.clone().ok_or_else(invalid);
     }
     if prior.is_none() {
@@ -47,7 +47,7 @@ pub(in crate::provider::runtime) fn apply(
     }
     target.disjoint(&state.directory()?)?;
     require_inactive(&target)?;
-    let journal = Journal::open(parent, &plan, digest)?;
+    let mut journal = Journal::open(parent, &plan, digest)?;
     let prior = journal.read(&plan, digest)?;
     if let Some(prior) = &prior
         && prior.state != "applying"
@@ -133,6 +133,7 @@ pub(in crate::provider::runtime) fn apply(
         request.check_time(Timestamp::now())?;
         journal.admit(&plan, digest)?;
     }
+    journal.resume(&plan, digest)?;
     let response = runtime.launcher.configure(
         artifact.executable()?,
         &target,

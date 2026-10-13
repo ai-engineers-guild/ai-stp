@@ -57,7 +57,7 @@ pub(in crate::provider::runtime) fn cancel(
     if let Some(prior) = Journal::history(parent, &plan, digest)?
         && prior.state != "applying"
     {
-        Journal::open(parent, &plan, digest)?.cleanup()?;
+        Journal::cleanup_history(parent, &plan, digest)?;
         return prior.result.ok_or_else(invalid);
     }
     require_component(&plan.provider_version)?;

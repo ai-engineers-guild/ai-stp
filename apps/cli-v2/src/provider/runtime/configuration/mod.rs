@@ -9,6 +9,7 @@ mod journal;
 mod project;
 #[cfg(test)]
 mod project_tests;
+mod reservations;
 #[cfg(test)]
 mod tests;
 
