@@ -10,6 +10,20 @@
   "additionalProperties": false,
   "description": "Revoke invitation or grant with an optional reason.",
   "properties": {
+    "expected_revision": {
+      "anyOf": [
+        {
+          "maximum": 2147483646,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Expected Revision"
+    },
     "idempotency_key": {
       "$ref": "#/$defs/IdempotencyKey"
     },

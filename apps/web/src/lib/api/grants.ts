@@ -41,6 +41,8 @@ export async function createDirectGrant(
     recipient_kind: "github_username" | "user_id";
     recipient: string;
     idempotency_key: string;
+    expected_grant_id?: string | undefined;
+    expected_revision?: number | undefined;
   },
 ): Promise<{ body: AccessGrantResponse; operationId: string | null }> {
   const result = await apiRequestWithMeta<AccessGrantResponse>("/v1/grants/direct", {
@@ -98,6 +100,7 @@ export async function revokeAccessGrant(
   grantId: string,
   reason: string,
   idempotencyKey: string,
+  expectedRevision: number | null,
 ): Promise<{ body: GrantRevokeResponse; operationId: string | null }> {
   const result = await apiRequestWithMeta<GrantRevokeResponse>(`/v1/grants/${grantId}/revoke`, {
     method: "POST",
@@ -106,6 +109,7 @@ export async function revokeAccessGrant(
       schema_version: 1,
       reason,
       idempotency_key: idempotencyKey,
+      expected_revision: expectedRevision,
     },
   });
   return { body: result.data, operationId: result.operationId };

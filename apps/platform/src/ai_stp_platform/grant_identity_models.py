@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ai_stp_platform.db import Base
@@ -38,4 +38,24 @@ class GrantRecipientReference(Base):
     )
     identifier_kind: Mapped[str] = mapped_column(String(32))
     identifier_value: Mapped[str] = mapped_column(String(320))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class GrantOperationReceipt(Base):
+    """Exact actor-scoped direct-create/revoke intents; no recipient or token copy."""
+
+    __tablename__ = "grant_operation_receipt"
+    __table_args__ = (
+        CheckConstraint("action in ('direct', 'revoke')", name="ck_grant_operation_action"),
+    )
+
+    actor_account_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="CASCADE"), primary_key=True
+    )
+    idempotency_key: Mapped[str] = mapped_column(String(128), primary_key=True)
+    action: Mapped[str] = mapped_column(String(16))
+    request_digest: Mapped[str] = mapped_column(String(64))
+    grant_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("access_grant.id", ondelete="CASCADE"), index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

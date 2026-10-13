@@ -385,6 +385,7 @@ function grantHandlers(
           {
             schema_version: 1,
             grant_id: MOCK_GRANT_ID,
+            revision: 1,
             object_kind: "component",
             stable_id: FIXTURE_COMPONENT_ID,
             major: 1,
@@ -420,6 +421,7 @@ function grantHandlers(
       body: {
         schema_version: 1,
         grant_id: MOCK_GRANT_ID,
+        revision: 1,
         object_kind: "component",
         stable_id: FIXTURE_COMPONENT_ID,
         major: 1,

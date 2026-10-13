@@ -108,7 +108,9 @@ async def test_concurrent_direct_grants_commit_exactly_one_row(
     grantee_id, _grantee_token = await _account_token(sessionmaker)
     await _owned_component(sessionmaker, owner_account_id=owner_id)
 
-    async def create(key: str) -> Response:
+    async def create(
+        key: str, expected: int | None = None, grant_id: str | None = None
+    ) -> Response:
         return await client.post(
             "/v1/grants/direct",
             headers=_auth(owner_token),
@@ -120,12 +122,17 @@ async def test_concurrent_direct_grants_commit_exactly_one_row(
                 "recipient_kind": "user_id",
                 "recipient": grantee_id,
                 "idempotency_key": key,
+                "expected_revision": expected,
+                "expected_grant_id": grant_id,
             },
         )
 
-    first, second = await asyncio.gather(
-        create("race-grant-alpha-0001"), create("race-grant-bravo-001")
+    first, second, repeated = await asyncio.gather(
+        create("race-grant-alpha-0001"),
+        create("race-grant-bravo-001"),
+        create("race-grant-alpha-0001"),
     )
+    assert repeated.status_code == 201 and repeated.json()["grant_id"] == first.json()["grant_id"]
     assert first.status_code == 201, first.text
     assert second.status_code == 201, second.text
     assert first.json()["grant_id"] == second.json()["grant_id"]
@@ -139,6 +146,22 @@ async def test_concurrent_direct_grants_commit_exactly_one_row(
             )
         )
     assert count == 1
+
+    grant_id = first.json()["grant_id"]
+    revoked = await client.post(
+        f"/v1/grants/{grant_id}/revoke",
+        headers=_auth(owner_token),
+        json={"schema_version": 1, "idempotency_key": "race-revoke-00001", "expected_revision": 1},
+    )
+    assert revoked.status_code == 200
+    left, right = await asyncio.gather(
+        create("race-regrant-alpha-01", 2, grant_id), create("race-regrant-bravo-01", 2, grant_id)
+    )
+    assert sorted([left.status_code, right.status_code]) == [201, 412]
+    current = await client.get("/v1/grants", headers=_auth(owner_token))
+    assert [
+        (row["grant_id"], row["state"], row["revision"]) for row in current.json()["grants"]
+    ] == [(grant_id, "active", 3)]
 
 
 async def test_github_username_grant_listing_and_revoke(
@@ -177,6 +200,7 @@ async def test_github_username_grant_listing_and_revoke(
             "schema_version": 1,
             "reason": "done",
             "idempotency_key": "github-revoke-case",
+            "expected_revision": body["revision"],
         },
     )
     assert revoked.status_code == 200
@@ -248,6 +272,7 @@ async def test_user_id_grant_creates_lists_and_revokes_without_reinterpreting_id
             "schema_version": 1,
             "reason": "done",
             "idempotency_key": "user-id-grant-revoke",
+            "expected_revision": body["revision"],
         },
     )
     assert revoked.status_code == 200

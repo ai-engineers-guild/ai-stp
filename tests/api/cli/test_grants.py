@@ -114,7 +114,8 @@ def test_a_direct_grant_reaches_the_grantee_and_revokes(
     owner_token = issue_token(cli_server, SEED_OWNER_ACCOUNT_ID)
     grantee = web_approver()
 
-    grant = grants.direct(cli_endpoint, owner_token, _direct_request(grantee.account_id))
+    request = _direct_request(grantee.account_id)
+    grant = grants.direct(cli_endpoint, owner_token, request)
     assert grant.state == "active"
     assert grant.stable_id == FIXTURE_COMPONENT_ID
 
@@ -124,14 +125,66 @@ def test_a_direct_grant_reaches_the_grantee_and_revokes(
     grantee_view = grants.list_all(cli_endpoint, grantee.token)
     assert any(item.grant_id == grant.grant_id for item in grantee_view.grants)
 
+    revoke = GrantRevokeRequest(
+        reason="done", idempotency_key=secrets.token_hex(8), expected_revision=grant.revision
+    )
     revoked = grants.revoke_grant(
         cli_endpoint,
         owner_token,
         grant.grant_id,
-        GrantRevokeRequest(reason="done", idempotency_key=secrets.token_hex(8)),
+        revoke,
     )
     assert revoked.revoked is True
     assert revoked.local_bytes_retained is True
+
+    retained = grants.direct(cli_endpoint, owner_token, request)
+    assert retained.grant_id == grant.grant_id
+    assert retained.state == "revoked" and retained.revision == 2
+    # A pre-upgrade request has no receipt. It still cannot silently regrant.
+    with pytest.raises(CliFailure) as legacy:
+        grants.direct(cli_endpoint, owner_token, _direct_request(grantee.account_id))
+    assert legacy.value.code == "AI_STP_PRECONDITION_FAILED"
+    regrant = request.model_copy(
+        update={
+            "idempotency_key": secrets.token_hex(8),
+            "expected_grant_id": grant.grant_id,
+            "expected_revision": retained.revision,
+        }
+    )
+    active = grants.direct(cli_endpoint, owner_token, regrant)
+    assert active.grant_id == grant.grant_id and active.state == "active" and active.revision == 3
+    # A lost revoke response must not revoke a later explicit regrant.
+    assert grants.revoke_grant(cli_endpoint, owner_token, grant.grant_id, revoke).revoked
+    assert (
+        next(
+            item
+            for item in grants.list_all(cli_endpoint, owner_token).grants
+            if item.grant_id == grant.grant_id
+        ).revision
+        == 3
+    )
+    for rejected in (
+        revoke.model_copy(update={"idempotency_key": secrets.token_hex(8)}),
+        GrantRevokeRequest(idempotency_key=secrets.token_hex(8)),
+    ):
+        with pytest.raises(CliFailure) as stale:
+            grants.revoke_grant(cli_endpoint, owner_token, grant.grant_id, rejected)
+        assert stale.value.code == "AI_STP_PRECONDITION_FAILED"
+    with pytest.raises(CliFailure) as changed:
+        grants.direct(cli_endpoint, owner_token, request.model_copy(update={"major": 2}))
+    assert changed.value.code == "AI_STP_CONFLICT"
+    with pytest.raises(CliFailure) as changed_revoke:
+        grants.revoke_grant(
+            cli_endpoint,
+            owner_token,
+            grant.grant_id,
+            revoke.model_copy(update={"reason": "changed"}),
+        )
+    assert changed_revoke.value.code == "AI_STP_CONFLICT"
+    final = grants.list_all(cli_endpoint, grantee.token)
+    assert [(item.grant_id, item.state, item.revision) for item in final.grants] == [
+        (grant.grant_id, "active", 3)
+    ]
 
 
 def test_an_invitation_is_accepted_with_the_delivered_token(
@@ -196,7 +249,11 @@ def test_an_invitation_is_accepted_with_the_delivered_token(
                 cli_endpoint,
                 owner_token,
                 grant.grant_id,
-                GrantRevokeRequest(reason="done", idempotency_key=secrets.token_hex(8)),
+                GrantRevokeRequest(
+                    reason="done",
+                    idempotency_key=secrets.token_hex(8),
+                    expected_revision=grant.revision,
+                ),
             )
         replayed = grants.accept(
             cli_endpoint,

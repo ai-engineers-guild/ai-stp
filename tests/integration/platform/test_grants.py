@@ -71,9 +71,12 @@ async def test_direct_grant_reactivates_a_previously_revoked_grant(
             recipient_kind="user_id",
             recipient=grantee_id,
             idempotency_key="regrant-test-20260909",
+            expected_grant_id=grant_id,
+            expected_revision=1,
         ),
     )
 
     assert result.grant_id == grant_id
     assert result.state == "active"
     assert result.revoked_at is None
+    assert result.revision == 2

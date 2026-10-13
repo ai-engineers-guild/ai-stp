@@ -118,6 +118,96 @@ def test_models_match_migrated_ddl(
     assert _model_drift(isolated_database_url) == []
 
 
+def test_grant_replay_migration_preserves_data_and_refuses_unsafe_downgrade(
+    isolated_database_url: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AI_STP_DB_URL", isolated_database_url)
+    config = Config("alembic.ini")
+    command.upgrade(config, "0114_corporate_role_flat")
+    owner, recipient = (f"account_{ULID()}" for _ in range(2))
+    organization = f"organization_{ULID()}"
+
+    async def seed() -> None:
+        engine = create_async_engine(isolated_database_url)
+        try:
+            async with engine.begin() as connection:
+                await connection.execute(
+                    text("INSERT INTO account (id) VALUES (:id)"),
+                    [{"id": owner}, {"id": recipient}],
+                )
+                await connection.execute(
+                    text(
+                        "INSERT INTO organization (id, kind, owner_account_id, display_name) "
+                        "VALUES (:id, 'personal', :owner, 'Migration test')"
+                    ),
+                    {"id": organization, "owner": owner},
+                )
+                await connection.execute(
+                    text(
+                        "INSERT INTO organization_membership "
+                        "(organization_id, account_id, role, state) "
+                        "VALUES (:organization, :owner, 'owner', 'active')"
+                    ),
+                    {"organization": organization, "owner": owner},
+                )
+                for state in ("active", "revoked"):
+                    await connection.execute(
+                        text(
+                            "INSERT INTO access_grant (id, organization_id, object_kind, "
+                            "stable_id, major, owner_account_id, grantee_account_id, state, "
+                            "revoked_at) VALUES (:id, :organization, 'component', :stable, "
+                            "1, :owner, :recipient, CAST(:state AS varchar), "
+                            "CASE WHEN CAST(:state AS varchar) = 'revoked' "
+                            "THEN now() ELSE NULL END)"
+                        ),
+                        {
+                            "id": f"grant_{ULID()}",
+                            "organization": organization,
+                            "stable": f"component_{ULID()}",
+                            "owner": owner,
+                            "recipient": recipient,
+                            "state": state,
+                        },
+                    )
+        finally:
+            await engine.dispose()
+
+    asyncio.run(seed())
+    rows = "SELECT jsonb_agg(to_jsonb(g) - 'revision' ORDER BY g.id) FROM access_grant g"
+    before = asyncio.run(_scalar(isolated_database_url, rows))
+    command.upgrade(config, "head")
+    assert asyncio.run(_scalar(isolated_database_url, rows)) == before
+    assert (
+        asyncio.run(
+            _scalar(isolated_database_url, "SELECT count(*) FROM access_grant WHERE revision = 1")
+        )
+        == 2
+    )
+    assert (
+        asyncio.run(_scalar(isolated_database_url, "SELECT count(*) FROM grant_operation_receipt"))
+        == 0
+    )
+
+    async def old_writer() -> None:
+        engine = create_async_engine(isolated_database_url)
+        try:
+            async with engine.begin() as connection:
+                await connection.execute(
+                    text("UPDATE access_grant SET state = 'active' WHERE state = 'revoked'")
+                )
+        finally:
+            await engine.dispose()
+
+    with pytest.raises(DBAPIError, match="grant state change requires its next revision"):
+        asyncio.run(old_writer())
+    assert asyncio.run(_scalar(isolated_database_url, rows)) == before
+    with pytest.raises(RuntimeError, match="preserve revisions and receipts"):
+        command.downgrade(config, "0114_corporate_role_flat")
+    assert _version(isolated_database_url) == "0124_grant_operation_receipts"
+    assert asyncio.run(_scalar(isolated_database_url, rows)) == before
+
+
 #: `0096_heartbeat_reports` … `0106_technology_review_queue`, the chain the
 #: reordered history let applied databases skip (see `0112`).
 _SKIPPED_CHAIN = (

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "standard_family": "ai-stp-standard/1",
-  "contract_digest": "sha256:94529853ef6e1a55215ad0b2ea3c9ee98e1de9d8bb92b9e62237b05da050c7a9",
+  "contract_digest": "sha256:28c5a0a1c1fd386f3022588a754fd3072f458e7deb8e7644294e4c993e3b38e2",
   "axes": [
     {
       "name": "standard_family",

@@ -29,6 +29,10 @@ export type AccessGrantResponse = {
    */
   recipient: string | null;
   recipient_kind: DirectRecipientKind | null;
+  /**
+   * Revision
+   */
+  revision?: number | null;
   revoked_at: Timestamp | null;
   /**
    * Schema Version
@@ -7462,6 +7466,14 @@ export type DigestValue = string;
  * POST /v1/grants/direct body with an explicit recipient identifier kind.
  */
 export type DirectGrantCreateRequest = {
+  /**
+   * Expected Grant Id
+   */
+  expected_grant_id?: string | null;
+  /**
+   * Expected Revision
+   */
+  expected_revision?: number | null;
   idempotency_key: IdempotencyKey;
   /**
    * Major
@@ -8922,6 +8934,10 @@ export type GrantListResponse = {
  * Revoke invitation or grant with an optional reason.
  */
 export type GrantRevokeRequest = {
+  /**
+   * Expected Revision
+   */
+  expected_revision?: number | null;
   idempotency_key: IdempotencyKey;
   /**
    * Reason

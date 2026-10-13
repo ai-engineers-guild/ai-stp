@@ -261,6 +261,7 @@ async def test_exact_projection_delivery_is_declared_owner_bound_and_authorized(
         retained = await session.get(CatalogMetadata, row.id)
         assert held_grant is not None and retained is not None
         held_grant.state = "revoked"
+        held_grant.revision += 1
         retained.lifecycle_state = "blocked"
         await session.commit()
     assert (
@@ -401,6 +402,7 @@ async def test_private_artifact_owner_grantee_and_revocation_matrix(
         persisted = await session.get(AccessGrant, grant.id)
         assert persisted is not None
         persisted.state = "revoked"
+        persisted.revision += 1
         await session.commit()
     assert (await client.get(artifact_path, headers=grantee_headers)).status_code == 404
     assert (await client.get(private_path, headers=grantee_headers)).status_code == 404
@@ -409,6 +411,7 @@ async def test_private_artifact_owner_grantee_and_revocation_matrix(
         persisted = await session.get(AccessGrant, grant.id)
         assert persisted is not None
         persisted.state = "active"
+        persisted.revision += 1
         persisted.major = 2
         await session.commit()
     assert (await client.get(artifact_path, headers=grantee_headers)).status_code == 404
