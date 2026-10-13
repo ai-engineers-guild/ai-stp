@@ -241,6 +241,11 @@ and device. During token exchange or refresh, an explicit server
 `AI_STP_DEVICE_REVOKED` response clears the held tokens and returns a replayable `revoked` outcome with the cached reason
 `device_revoked` in the `closed` cached session; it is distinct from a transient
 failure or a generic refusal.
+The API returns this code when a newly approved exchange presents that account's
+revoked key, so another browser approval cannot revive the old device. A foreign
+account's key retains its separate ownership refusal without disclosing whether
+it was revoked. Explicit native key replacement remains pending; neither session
+operation replaces a key or changes local ownership.
 Logout uses the held access token; an expired or rejected token
 requires signed refresh before revoking the device session pair. `closed` confirms remote revocation;
 `locally_closed` discards a pending flow or already-rejected credentials without

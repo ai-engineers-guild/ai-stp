@@ -48,6 +48,12 @@ The scope includes the internal account, OAuth identities, device keys, device r
 
 An OAuth link has the states `pending`, `linked`, `conflict`, and `revoked`. A Device has `active` and `revoked`. An invitation has the states `pending`, `accepted`, `expired`, and `revoked`. Errors distinguish an unverified email, an occupied provider identity, a conflict between two populated accounts, an expired session, a revoked device, and an expired or already-used invitation.
 
+Exchanging an approved device code with a revoked key owned by that account
+returns `AI_STP_DEVICE_REVOKED` (HTTP 403), without issuing access or refresh
+credentials. A key belonging to another account still returns
+`AI_STP_PERMISSION_DENIED` with `reason=device_key_foreign` before disclosing
+its revocation state. Neither refusal changes the device owner or key.
+
 ## Security and privacy
 
 The device private key is stored only in secure local storage and is not synchronized. OAuth tokens and the invitation key do not appear in YAML, logs, traces, metrics, or Agent output. Knowledge of an account identifier or email address does not constitute authority. No administrator product role bypasses private-object authorization; infrastructure-operator access remains outside the product API and follows operational controls.
@@ -72,7 +78,7 @@ CLI until the verified migration checkpoint.
 | `REQ-204` | A device registration test verifies the ID, public key, timestamps, and uniqueness. |
 | `REQ-205` | A revocation test rejects sync/attestation and preserves offline read access. |
 | `REQ-206` | An API authorization matrix covers owner, grantee, and outsider and proves that no product administrator role bypasses the same predicate. |
-| `REQ-207` | A test that revokes the current device requires a new login for the next cloud request. |
+| `REQ-207` | Device lifecycle tests revoke the current device. The real API/client sign-in proof rejects an approved exchange with its old key using the distinct revocation code, issues no credentials and preserves foreign-owner refusal. The native account proof clears credentials and replays the exact revocation receipt for both exchange and refresh. |
 | `REQ-208` | An unaccepted invitation grants no read access to the private object. |
 | `REQ-209` | Responses for known and unknown addresses are indistinguishable in body, code, and timing. |
 | `REQ-210` | Signing in with a different verified address or with an unverified address does not create a permission. |

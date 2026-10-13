@@ -117,6 +117,13 @@ fn account_journal_stays_with_the_authenticated_physical_parent()
 #[test]
 fn server_device_revocation_clears_credentials_and_has_a_distinct_receipt()
 -> std::result::Result<(), Box<dyn Error>> {
+    for action in [Action::Poll, Action::Refresh] {
+        check_server_revocation(action)?;
+    }
+    Ok(())
+}
+
+fn check_server_revocation(action: Action) -> std::result::Result<(), Box<dyn Error>> {
     let root = tempfile::tempdir()?;
     // Keep the fixture's logical clock independent of runner scheduling.
     let at = after(&format!("{:.3}", jiff::Timestamp::now()), 3600)?;
@@ -126,10 +133,11 @@ fn server_device_revocation_clears_credentials_and_has_a_distinct_receipt()
     let origin = format!("http://{}", listener.local_addr()?);
     let access = generated();
     let refresh = generated();
-    let responses = [
+    let device_code = generated();
+    let mut responses = vec![
         (
             201,
-            json!({"schema_version":1,"device_code":generated(),"user_code":"ABCD-1234","verification_uri":format!("{origin}/en/device-login"),"verification_uri_complete":format!("{origin}/en/device-login?user_code=ABCD-1234"),"expires_in":600,"interval":1}),
+            json!({"schema_version":1,"device_code":device_code,"user_code":"ABCD-1234","verification_uri":format!("{origin}/en/device-login"),"verification_uri_complete":format!("{origin}/en/device-login?user_code=ABCD-1234"),"expires_in":600,"interval":1}),
         ),
         (
             200,
@@ -140,6 +148,9 @@ fn server_device_revocation_clears_credentials_and_has_a_distinct_receipt()
             json!({"schema_version":1,"ok":false,"error":{"code":"AI_STP_DEVICE_REVOKED"}}),
         ),
     ];
+    if action == Action::Poll {
+        responses.remove(1);
+    }
     let worker = thread::spawn(move || -> std::io::Result<()> {
         for (route, (status, response)) in ["device", "device/token", "device/refresh"]
             .into_iter()
@@ -156,9 +167,13 @@ fn server_device_revocation_clears_credentials_and_has_a_distinct_receipt()
     apply(&start, &start.digest()?, &at)?;
     let clock = after(&at, 2)?;
     let poll = plan(root.path(), Action::Poll, None, None, &clock)?;
-    apply(&poll, &poll.digest()?, &clock)?;
-    let refresh_plan = plan(root.path(), Action::Refresh, None, None, &clock)?;
-    let revoked = apply(&refresh_plan, &refresh_plan.digest()?, &clock)?;
+    let revoked_plan = if action == Action::Refresh {
+        apply(&poll, &poll.digest()?, &clock)?;
+        plan(root.path(), Action::Refresh, None, None, &clock)?
+    } else {
+        poll
+    };
+    let revoked = apply(&revoked_plan, &revoked_plan.digest()?, &clock)?;
     worker.join().map_err(|_| "revocation fixture failed")??;
     assert_eq!(revoked["outcome"], "revoked");
     assert_eq!(
@@ -167,14 +182,15 @@ fn server_device_revocation_clears_credentials_and_has_a_distinct_receipt()
     );
     assert!(plan(root.path(), Action::Refresh, None, None, &clock).is_err());
     assert_eq!(
-        apply(&refresh_plan, &refresh_plan.digest()?, &clock)?,
+        apply(&revoked_plan, &revoked_plan.digest()?, &clock)?,
         revoked
     );
+    assert_eq!(identity_at(root.path())?.report(), device.report());
     for entry in fs::read_dir(root.path().join("ai-stp-v2-account"))? {
         let entry = entry?;
         if entry.file_type()?.is_file() {
             let content = fs::read(entry.path())?;
-            for secret in [&access, &refresh] {
+            for secret in [&access, &refresh, &device_code] {
                 assert!(
                     !content
                         .windows(secret.len())

@@ -281,7 +281,7 @@ async def exchange_device_code(
         )
     if device.state == DeviceState.REVOKED.value:
         raise ApiError(
-            ErrorCategory.PERMISSION,
+            ErrorCategory.DEVICE_REVOKED,
             "device is revoked; register a new device key",
         )
     device.last_seen_at = now
