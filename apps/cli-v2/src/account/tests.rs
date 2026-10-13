@@ -118,12 +118,17 @@ fn account_journal_stays_with_the_authenticated_physical_parent()
 fn server_device_revocation_clears_credentials_and_has_a_distinct_receipt()
 -> std::result::Result<(), Box<dyn Error>> {
     for action in [Action::Poll, Action::Refresh] {
-        check_server_revocation(action)?;
+        for interruption in 0..=5 {
+            check_server_revocation(action, interruption)?;
+        }
     }
     Ok(())
 }
 
-fn check_server_revocation(action: Action) -> std::result::Result<(), Box<dyn Error>> {
+fn check_server_revocation(
+    action: Action,
+    interruption: u8,
+) -> std::result::Result<(), Box<dyn Error>> {
     let root = tempfile::tempdir()?;
     // Keep the fixture's logical clock independent of runner scheduling.
     let at = after(&format!("{:.3}", jiff::Timestamp::now()), 3600)?;
@@ -199,6 +204,106 @@ fn check_server_revocation(action: Action) -> std::result::Result<(), Box<dyn Er
             }
         }
     }
+    let owner_before = authoring::runtime::owner(root.path())?;
+    let recovery = plan(root.path(), Action::Recover, None, None, &clock)?;
+    let intent = recovery.recovery.as_ref().ok_or("recovery intent")?;
+    assert_eq!(intent.account_id.is_some(), action == Action::Refresh);
+    assert_eq!(intent.owner_id, device.context().account_id);
+    let later = after(&clock, 3600)?;
+    assert!(apply(&recovery, &recovery.digest()?, &later).is_err());
+    assert_eq!(identity_at(root.path())?.report(), device.report());
+    if interruption > 0 {
+        let journal = Journal::open(&device, false)?.ok_or("journal")?;
+        journal.admit(&Pending {
+            plan: recovery.clone(),
+            requested_at: clock.clone(),
+        })?;
+        if interruption > 1 {
+            let store = crate::store::Store::open_at(device.root_directory(), true)?;
+            let mut replacement = identity::recovery::Replacement::open(&recovery)?;
+            store.fence_retired_devices()?;
+            journal.fence()?;
+            replacement.admit(&recovery)?;
+            if interruption > 2 {
+                replacement.replace(&recovery, &clock)?;
+            }
+            if interruption > 3 {
+                journal.retire()?;
+            }
+            if interruption > 4 {
+                let entry = replacement.completed(&recovery, &clock)?;
+                journal.complete_receipt(&model::Receipt {
+                    plan: recovery.clone(),
+                    plan_digest: recovery.digest()?,
+                    outcome: Outcome::DeviceReplaced,
+                    completed_at: entry.completed_at,
+                    account_id: intent.account_id.clone(),
+                })?;
+            }
+        }
+        drop(journal);
+        assert_eq!(
+            status(root.path(), &later)?["pending_operation"]["plan_digest"],
+            recovery.digest()?
+        );
+    }
+    let recovered = apply(
+        &recovery,
+        &recovery.digest()?,
+        if interruption == 0 { &clock } else { &later },
+    )?;
+    assert_eq!(recovered["outcome"], "device_replaced");
+    let current = identity_at(root.path())?;
+    assert_eq!(current.context().account_id, device.context().account_id);
+    assert_eq!(current.context().device_id, intent.device_id);
+    assert_ne!(
+        current.report()["public_key"],
+        device.report()["public_key"]
+    );
+    assert_eq!(
+        current.report()["retired_device_ids"],
+        json!([device.context().device_id])
+    );
+    assert!(device.sign(b"retired").is_err());
+    assert!(owner_before.planning().is_err());
+    assert!(
+        !root
+            .path()
+            .join("ai-stp-v2-identity")
+            .join(format!("device-key.{}", device.context().device_id))
+            .exists()
+    );
+    assert!(
+        !root
+            .path()
+            .join("ai-stp-v2-account")
+            .join(format!("account-{}", device.context().device_id))
+            .exists()
+    );
+    assert_eq!(apply(&recovery, &recovery.digest()?, &later)?, recovered);
+    assert_eq!(
+        apply(&revoked_plan, &revoked_plan.digest()?, &later)?,
+        revoked
+    );
+    assert_eq!(
+        identity::apply_public(&initialization, &initialization.digest()?, &later)?,
+        device.report()
+    );
+    assert_eq!(status(root.path(), &later)?["session"]["state"], "absent");
+    let next = plan(root.path(), Action::Start, None, None, &later)?;
+    assert_eq!(next.origin, origin);
+    assert_eq!(next.expected_account_id, intent.account_id);
+    assert_eq!(next.revoked_public_key, Some(recovery.public_key.clone()));
+    assert!(
+        plan(
+            root.path(),
+            Action::Start,
+            Some("https://example.org"),
+            None,
+            &later
+        )
+        .is_err()
+    );
     Ok(())
 }
 

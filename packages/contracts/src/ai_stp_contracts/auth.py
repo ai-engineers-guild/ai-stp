@@ -137,6 +137,13 @@ class DeviceTokenRequest(ContractModel):
     device_id: DeviceId
     public_key: PublicKey
     display_name: DisplayName
+    # Recovery must reject a different approving account before enrolling a key.
+    expected_account_id: AccountId | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    revoked_public_key: PublicKey | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
 
 class DeviceTokenResponse(ContractModel):

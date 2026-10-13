@@ -925,7 +925,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
             )?;
             Ok(json!({"plan_digest": plan.digest()?, "plan": plan}))
         }
-        Handler::IdentityApply => Ok(identity::apply(
+        Handler::IdentityApply => identity::apply_public(
             &identity::read_plan(
                 leaf.get_one::<std::path::PathBuf>("plan")
                     .ok_or_else(|| Failure::input("plan is required"))?,
@@ -933,8 +933,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
             leaf.get_one::<String>("plan-digest")
                 .ok_or_else(|| Failure::input("plan digest is required"))?,
             &format!("{:.3}", jiff::Timestamp::now()),
-        )?
-        .report()),
+        ),
         Handler::IdentityShow => identity::current(
             leaf.get_one::<std::path::PathBuf>("state-dir")
                 .ok_or_else(|| Failure::input("state directory is required"))?,

@@ -801,6 +801,8 @@ async def exchange_device_auth(
         device_id=body.device_id,
         public_key=body.public_key,
         display_name=body.display_name,
+        expected_account_id=body.expected_account_id,
+        revoked_public_key=body.revoked_public_key,
         user_agent=(request.headers.get("user-agent") or "")[:512] or None,
         client_ip=request.headers.get("x-ai-stp-client-ip")
         or (request.client.host if request.client is not None else None),

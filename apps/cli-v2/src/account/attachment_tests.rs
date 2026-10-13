@@ -39,7 +39,7 @@ fn attachment_is_atomic_exact_and_fences_stale_authority() -> std::result::Resul
     let origin = format!("http://{}", listener.local_addr()?);
     let start = plan(root.path(), Action::Start, Some(&origin), None, &at)?;
     let journal = Journal::open(&device, true)?.ok_or("journal")?;
-    journal.write(&State {
+    let authorized = State {
         plan: start.clone(),
         revision: start.operation_id.clone(),
         session: Session::Authorized {
@@ -50,7 +50,9 @@ fn attachment_is_atomic_exact_and_fences_stale_authority() -> std::result::Resul
         },
         outcome: Outcome::Authorized,
         completed_at: at.clone(),
-    })?;
+    };
+    journal.write(&authorized)?;
+    journal.complete(&authorized)?;
     let credentials = fs::read(
         root.path()
             .join("ai-stp-v2-account")
@@ -225,10 +227,7 @@ fn attachment_is_atomic_exact_and_fences_stale_authority() -> std::result::Resul
     store.fence_legacy_writers()?;
     store.connection.execute_batch("CREATE TEMP TRIGGER fail_attachment BEFORE INSERT ON operation_event BEGIN SELECT RAISE(ABORT,'fixture interruption'); END;")?;
     assert!(attachment::commit(&mut store, &attachment, &at, &at).is_err());
-    assert_eq!(
-        attachment::effective(&store.connection, &original)?,
-        original
-    );
+    assert_eq!(attachment::effective(&store.connection, &device)?, original);
     for draft in &drafts {
         assert_eq!(
             Objects {
@@ -353,7 +352,7 @@ fn attachment_is_atomic_exact_and_fences_stale_authority() -> std::result::Resul
     new_version["version"] = "99.0".into();
     store.transaction(|t| versions::record(t, &new_version, &original.device_id, None, &at))?;
     assert_eq!(
-        attachment::effective(&store.connection, &original)?.account_id,
+        attachment::effective(&store.connection, &device)?.account_id,
         account
     );
     drop(store);
@@ -373,8 +372,12 @@ fn attachment_is_atomic_exact_and_fences_stale_authority() -> std::result::Resul
     );
     assert!(plan(root.path(), Action::Attach, None, None, &at).is_err());
     for (name, prepared, expected) in [
-        ("project-replay", project_plan, project),
-        ("technology-replay", technology_plan, technology),
+        ("project-replay", project_plan.clone(), project.clone()),
+        (
+            "technology-replay",
+            technology_plan.clone(),
+            technology.clone(),
+        ),
     ] {
         let path = save_plan(root.path(), name, &prepared)?;
         assert_eq!(
@@ -390,5 +393,119 @@ fn attachment_is_atomic_exact_and_fences_stale_authority() -> std::result::Resul
             .versions
             .contains_key(&digest::canonical("ai-stp:passport:v1", &version)?)
     );
+    // Recovery preserves the attached owner and exact old receipts through
+    // repeated replacement, but never admits an unexecuted retired plan.
+    let mut previous_recovery: Option<(Plan, Value)> = None;
+    let mut retired = Vec::new();
+    for round in 0..2 {
+        let clock = after(&at, 10 + round)?;
+        let current = identity_at(root.path())?;
+        if round > 0 {
+            let signin = plan(root.path(), Action::Start, None, None, &clock)?;
+            let journal = Journal::open(&current, false)?.ok_or("journal")?;
+            let state = State {
+                plan: signin.clone(),
+                revision: signin.operation_id,
+                session: Session::Authorized {
+                    account_id: account.clone(),
+                    access_token: model::Secret(Zeroizing::new(generated())),
+                    refresh_token: model::Secret(Zeroizing::new(generated())),
+                    expires_at: after(&clock, 3600)?,
+                },
+                outcome: Outcome::Authorized,
+                completed_at: clock.clone(),
+            };
+            journal.write(&state)?;
+            journal.complete(&state)?;
+        }
+        let revoke = plan(root.path(), Action::Refresh, None, None, &clock)?;
+        let journal = Journal::open(&current, false)?.ok_or("journal")?;
+        let state = State {
+            plan: revoke.clone(),
+            revision: revoke.operation_id,
+            session: Session::Closed {
+                reason: "device_revoked".into(),
+            },
+            outcome: Outcome::Revoked,
+            completed_at: clock.clone(),
+        };
+        journal.write(&state)?;
+        journal.complete(&state)?;
+        drop(journal);
+        let replacement = plan(root.path(), Action::Recover, None, None, &clock)?;
+        assert_eq!(
+            replacement
+                .recovery
+                .as_ref()
+                .ok_or("intent")?
+                .account_id
+                .as_ref(),
+            Some(&account)
+        );
+        if let Some((previous, receipt)) = &previous_recovery {
+            let journal = Journal::open(&current, false)?.ok_or("journal")?;
+            journal.admit(&Pending {
+                plan: replacement.clone(),
+                requested_at: clock.clone(),
+            })?;
+            drop(journal);
+            assert_eq!(apply(previous, &previous.digest()?, &clock)?, *receipt);
+            assert_eq!(
+                status(root.path(), &clock)?["pending_operation"]["plan_digest"],
+                replacement.digest()?
+            );
+        }
+        let receipt = apply(&replacement, &replacement.digest()?, &clock)?;
+        retired.push(current.context().device_id);
+        assert_eq!(
+            identity_at(root.path())?.report()["retired_device_ids"],
+            json!(retired)
+        );
+        assert_eq!(status(root.path(), &clock)?["effective_owner_id"], account);
+        assert_eq!(apply(&attachment, &attachment.digest()?, &clock)?, applied);
+        assert_eq!(
+            runtime::apply(
+                &completed_path,
+                completed["plan_digest"].as_str().ok_or("digest")?
+            )?,
+            edited
+        );
+        assert!(
+            runtime::apply(
+                &unapplied_path,
+                unapplied["plan_digest"].as_str().ok_or("digest")?
+            )
+            .is_err()
+        );
+        for (name, prepared, expected) in [
+            ("project-recovered", &project_plan, &project),
+            ("technology-recovered", &technology_plan, &technology),
+        ] {
+            let path = save_plan(root.path(), name, prepared)?;
+            assert_eq!(
+                runtime::apply(&path, prepared["plan_digest"].as_str().ok_or("digest")?)?,
+                *expected
+            );
+        }
+        assert_eq!(
+            crate::tasks::advance(
+                root.path(),
+                authored["task_id"].as_str(),
+                authored["revision"].as_i64().ok_or("task revision")?,
+                None,
+                false
+            )?,
+            authored
+        );
+        let owner = runtime::owner(root.path())?;
+        let store = owner.open(false)?;
+        assert!(attachment::retained(&store.connection, &account, &version)?);
+        assert!(!attachment::retained(
+            &store.connection,
+            &account,
+            &ungranted
+        )?);
+        previous_recovery = Some((replacement, receipt));
+    }
     Ok(())
 }

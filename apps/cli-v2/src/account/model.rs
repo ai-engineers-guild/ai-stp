@@ -15,6 +15,7 @@ pub enum Action {
     Refresh,
     Logout,
     Attach,
+    Recover,
 }
 
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
@@ -39,6 +40,12 @@ pub struct Plan {
     pub expected_revision: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attachment: Option<super::attachment::Selection>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recovery: Option<identity::recovery::Intent>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_account_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revoked_public_key: Option<String>,
 }
 
 impl Plan {
@@ -49,11 +56,16 @@ impl Plan {
         )
     }
 
-    pub(super) fn validate(&self) -> Result<()> {
+    pub(crate) fn validate(&self) -> Result<()> {
         self.identity.validate()?;
         match (&self.attachment, self.action) {
             (Some(selection), Action::Attach) => selection.validate(&self.identity)?,
             (None, action) if action != Action::Attach => {}
+            _ => return Err(super::invalid()),
+        }
+        match (&self.recovery, self.action) {
+            (Some(intent), Action::Recover) => intent.validate(&self.identity)?,
+            (None, action) if action != Action::Recover => {}
             _ => return Err(super::invalid()),
         }
         if self.schema_version != 1
@@ -66,6 +78,10 @@ impl Plan {
                 .as_ref()
                 .is_some_and(|v| !passport::stable_id(v, "operation"))
             || super::transport::origin(&self.origin)? != self.origin
+            || self
+                .expected_account_id
+                .as_ref()
+                .is_some_and(|id| !passport::stable_id(id, "account"))
         {
             return Err(super::invalid());
         }
@@ -144,6 +160,7 @@ pub(super) enum Outcome {
     Expired,
     Declined,
     Revoked,
+    DeviceReplaced,
     RateLimited,
     ExchangeUnknown,
     RequestUnknown,
@@ -213,13 +230,19 @@ impl Receipt {
                 .account_id
                 .as_ref()
                 .is_some_and(|v| !passport::stable_id(v, "account"))
+            || (self.outcome == Outcome::DeviceReplaced) != (self.plan.action == Action::Recover)
         {
             return Err(super::invalid());
         }
         Ok(())
     }
     pub fn public(&self) -> Value {
-        json!({"schema_version":1,"operation_id":self.plan.operation_id,"plan_digest":self.plan_digest,"action":self.plan.action,"outcome":self.outcome,"completed_at":self.completed_at,"account_id":self.account_id,"owner_attached":false,"warnings":if self.outcome==Outcome::LogoutUnconfirmed {vec!["remote_logout_unconfirmed"]} else {vec![]}})
+        let mut value = json!({"schema_version":1,"operation_id":self.plan.operation_id,"plan_digest":self.plan_digest,"action":self.plan.action,"outcome":self.outcome,"completed_at":self.completed_at,"account_id":self.account_id,"owner_attached":false,"warnings":if self.outcome==Outcome::LogoutUnconfirmed {vec!["remote_logout_unconfirmed"]} else {vec![]}});
+        if let Some(intent) = &self.plan.recovery {
+            value["device_id"] = intent.device_id.clone().into();
+            value["retired_device_id"] = self.plan.identity.device_id.clone().into();
+        }
+        value
     }
 }
 

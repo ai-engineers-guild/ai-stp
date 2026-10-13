@@ -205,7 +205,7 @@ pub fn apply(path: &Path, expected: &str) -> Result<Value> {
     let planned: crate::authoring::Identity =
         serde_json::from_value(plan.operation["identity"].clone()).map_err(|_| invalid())?;
     if planned != *identity {
-        if planned != identity.original() {
+        if !identity.historical(&planned) {
             return Err(invalid());
         }
         let mut store = identity.planning()?;

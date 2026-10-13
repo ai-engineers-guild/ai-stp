@@ -94,6 +94,12 @@ pub(super) struct Scope {
 }
 
 impl Scope {
+    pub(super) fn fence_unless(&self, marker: &[u8], newer: &[u8]) -> Result<()> {
+        if self.owned.read_file("owner", 256)?.as_deref() != Some(newer) {
+            self.fence(marker)?;
+        }
+        Ok(())
+    }
     pub(super) fn fence(&self, marker: &[u8]) -> Result<()> {
         self.validate()
             .map_err(|_| Failure::precondition("the registry binding changed"))?;

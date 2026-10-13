@@ -83,6 +83,27 @@ fn native_write(id: &str, value: &str, replace: bool) -> Result<()> {
     }
 }
 
+fn native_remove(id: &str) -> Result<()> {
+    #[cfg(target_os = "linux")]
+    return super::secret_service::remove(id);
+    #[cfg(any(target_os = "macos", windows))]
+    {
+        #[cfg(target_os = "macos")]
+        let _access = KEYCHAIN_ACCESS.lock().map_err(|_| unavailable())?;
+        #[cfg(target_os = "macos")]
+        let _interaction = no_interaction()?;
+        match native_entry(id)?.delete_credential() {
+            Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
+            Err(_) => Err(unavailable()),
+        }
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
+    {
+        let _ = id;
+        Err(unavailable())
+    }
+}
+
 #[cfg(target_os = "macos")]
 fn no_interaction()
 -> Result<Option<security_framework::os::macos::keychain::KeychainUserInteractionLock>> {
@@ -175,6 +196,34 @@ impl<'a> Vault<'a> {
         Ok(Some(SigningKey::from_bytes(&seed)))
     }
 
+    /// Only an admitted replacement retires these exact owned credential slots.
+    pub fn retire(&self, name: &str) -> Result<()> {
+        let id = name
+            .strip_prefix("device-key.")
+            .or_else(|| name.strip_prefix("account-"))
+            .ok_or_else(super::invalid)?;
+        if !crate::passport::stable_id(id, "device") {
+            return Err(super::invalid());
+        }
+        if self.read(name, 64 * 1024)?.is_none() {
+            return Ok(());
+        }
+        match self.storage {
+            Storage::File => {
+                self.directory
+                    .directory
+                    .remove_file(name)
+                    .map_err(|_| super::invalid())?;
+                self.directory.sync()?;
+            }
+            Storage::OsKeyring => native_remove(name)?,
+        }
+        if self.read(name, 64 * 1024)?.is_some() {
+            return Err(super::invalid());
+        }
+        Ok(())
+    }
+
     pub fn create_key(&self, id: &str, key: &SigningKey) -> Result<()> {
         if self.read_key(id)?.is_some() {
             return Err(super::invalid());
@@ -204,6 +253,58 @@ impl<'a> Vault<'a> {
         if self.read(name, 64 * 1024)?.as_deref().map(Vec::as_slice) != Some(value.as_bytes()) {
             return Err(super::invalid());
         }
+        Ok(())
+    }
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn retirement_removes_only_the_exact_native_credential()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
+        struct Cleanup(Vec<String>);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                for name in &self.0 {
+                    let _ = native_remove(name);
+                }
+            }
+        }
+        let root = tempfile::tempdir()?;
+        let directory = OwnedDirectory::open(
+            root.path(),
+            "credentials",
+            b"native credential proof\n",
+            true,
+        )?
+        .ok_or("directory")?;
+        let vault = Vault::new(&directory, Storage::OsKeyring)?;
+        let old = format!("device_{}", ulid::Ulid::generate());
+        let new = format!("device_{}", ulid::Ulid::generate());
+        let names = [
+            format!("device-key.{old}"),
+            format!("account-{old}"),
+            format!("device-key.{new}"),
+        ];
+        for name in &names {
+            assert!(vault.read(name, 65536)?.is_none());
+        }
+        let _cleanup = Cleanup(names.to_vec());
+        let replacement = super::super::generate()?;
+        vault.create_key(&old, &super::super::generate()?)?;
+        vault.write_account(&names[1], "disposable-account-state")?;
+        vault.create_key(&new, &replacement)?;
+        for name in &names[..2] {
+            vault.retire(name)?;
+            vault.retire(name)?;
+            assert!(vault.read(name, 65536)?.is_none());
+        }
+        assert!(
+            vault.read_key(&new)?.ok_or("replacement")?.verifying_key()
+                == replacement.verifying_key()
+        );
         Ok(())
     }
 }

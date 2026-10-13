@@ -7408,7 +7408,9 @@ export type DeviceTokenRequest = {
   device_code: DeviceCode;
   device_id: DeviceId;
   display_name: DisplayName;
+  expected_account_id?: AccountId | null;
   public_key: PublicKey;
+  revoked_public_key?: PublicKey | null;
   /**
    * Schema Version
    */
