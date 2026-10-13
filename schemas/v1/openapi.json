@@ -14835,8 +14835,30 @@
           "display_name": {
             "$ref": "#/components/schemas/DisplayName"
           },
+          "expected_account_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccountId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "public_key": {
             "$ref": "#/components/schemas/PublicKey"
+          },
+          "revoked_public_key": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicKey"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "schema_version": {
             "const": 1,

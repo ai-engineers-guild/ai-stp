@@ -183,6 +183,8 @@ async def exchange_device_code(
     device_id: str,
     public_key: str,
     display_name: str,
+    expected_account_id: str | None = None,
+    revoked_public_key: str | None = None,
     user_agent: str | None = None,
     client_ip: str | None = None,
 ) -> dict[str, object]:
@@ -212,6 +214,29 @@ async def exchange_device_code(
         raise ApiError(ErrorCategory.AUTHORIZATION_DECLINED, "authorization declined")
     if row.status != "approved" or not row.account_id:
         raise ApiError(ErrorCategory.AUTHORIZATION_PENDING, "authorization pending")
+
+    if expected_account_id is not None and row.account_id != expected_account_id:
+        raise ApiError(
+            ErrorCategory.PERMISSION,
+            "the authorization belongs to a different account",
+            details={"reason": "account_binding_mismatch"},
+        )
+
+    if revoked_public_key is not None:
+        previous_key = normalize_public_key(revoked_public_key)
+        previous = (
+            await db.execute(select(Device).where(Device.public_key == previous_key))
+        ).scalar_one_or_none()
+        if previous is None or previous.account_id != row.account_id:
+            raise ApiError(
+                ErrorCategory.PERMISSION, "the retired key does not belong to this account"
+            )
+        if previous.state != DeviceState.REVOKED.value or previous_key == normalize_public_key(
+            public_key
+        ):
+            raise ApiError(
+                ErrorCategory.PRECONDITION, "recovery requires a revoked device and a new key"
+            )
 
     if not device_id.startswith("device_"):
         raise ApiError(ErrorCategory.VALIDATION, "invalid device id")

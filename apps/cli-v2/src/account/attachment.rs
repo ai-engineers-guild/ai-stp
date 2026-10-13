@@ -141,17 +141,29 @@ fn receipt(connection: &Connection) -> Result<Option<Receipt>> {
     Ok(Some(held))
 }
 
-pub(crate) fn effective(connection: &Connection, original: &Identity) -> Result<Identity> {
+pub(crate) fn effective(connection: &Connection, device: &identity::Identity) -> Result<Identity> {
+    let original = device.context();
     let Some(held) = receipt(connection)? else {
-        return Ok(original.clone());
+        return Ok(original);
     };
-    if held.plan.identity != *original {
+    if !device.knows_original(&held.plan.identity) {
         return Err(invalid());
     }
     Ok(Identity {
         account_id: held.plan.attachment.ok_or_else(invalid)?.account_id,
-        device_id: original.device_id.clone(),
+        device_id: original.device_id,
     })
+}
+
+pub(super) fn owner_binding(connection: &Connection) -> Result<Option<(Identity, String)>> {
+    receipt(connection)?
+        .map(|held| {
+            Ok((
+                held.plan.identity,
+                held.plan.attachment.ok_or_else(invalid)?.account_id,
+            ))
+        })
+        .transpose()
 }
 
 pub(crate) fn retained(connection: &Connection, owner: &str, document: &Value) -> Result<bool> {
