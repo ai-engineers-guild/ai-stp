@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import secrets
 from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -29,7 +30,7 @@ from ai_stp_contracts.grants import (
     GrantInvitationCreateRequest,
     GrantRevokeRequest,
 )
-from ai_stp_platform.models import OAuthIdentity
+from ai_stp_platform.models import AccessGrant, GrantInvitation, OAuthIdentity
 from ai_stp_platform.queue.models import Job
 from ai_stp_platform.queue.states import JobType
 
@@ -163,6 +164,61 @@ def test_an_invitation_is_accepted_with_the_delivered_token(
         for item in owner_view.invitations
     )
     assert any(item.grant_id == grant.grant_id for item in owner_view.grants)
+
+    # Completed acceptance must not turn the invitation ID into a lookup key
+    # for another account, even when it knows the original invitation token.
+    outsider = web_approver()
+    for credential, supplied_token, code in (
+        (outsider.token, token, "AI_STP_NOT_FOUND"),
+        (outsider.token, "invalid-fixture-token", "AI_STP_NOT_FOUND"),
+        (grantee.token, "invalid-fixture-token", "AI_STP_VALIDATION_ERROR"),
+    ):
+        with pytest.raises(CliFailure) as rejected:
+            grants.accept(
+                cli_endpoint,
+                credential,
+                invitation.invitation_id,
+                GrantAcceptRequest(token=supplied_token, idempotency_key=secrets.token_hex(8)),
+            )
+        assert rejected.value.code == code
+
+    async def expire_accepted_invitation() -> None:
+        async with cli_server.app.state.sessionmaker() as db:
+            held = await db.get(GrantInvitation, invitation.invitation_id)
+            assert held is not None and held.state == "accepted"
+            held.expires_at = datetime.now(UTC) - timedelta(seconds=1)
+            await db.commit()
+
+    cli_server.call(expire_accepted_invitation)
+    for state in ("active", "revoked"):
+        if state == "revoked":
+            grants.revoke_grant(
+                cli_endpoint,
+                owner_token,
+                grant.grant_id,
+                GrantRevokeRequest(reason="done", idempotency_key=secrets.token_hex(8)),
+            )
+        replayed = grants.accept(
+            cli_endpoint,
+            grantee.token,
+            invitation.invitation_id,
+            GrantAcceptRequest(token=token, idempotency_key=secrets.token_hex(8)),
+        )
+        assert replayed.grant_id == grant.grant_id
+        assert replayed.grantee_account_id == grantee.account_id
+        assert replayed.state == state
+
+    async def retained_grants() -> list[str]:
+        async with cli_server.app.state.sessionmaker() as db:
+            return list(
+                (
+                    await db.scalars(
+                        select(AccessGrant.id).where(AccessGrant.stable_id == FIXTURE_COMPONENT_ID)
+                    )
+                ).all()
+            )
+
+    assert cli_server.call(retained_grants) == [grant.grant_id]
 
 
 def test_a_non_owner_is_refused_by_the_server(
