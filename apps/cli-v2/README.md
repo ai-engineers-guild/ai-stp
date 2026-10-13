@@ -129,13 +129,23 @@ There is no production task import or implicit current-task pointer.
 
 The author service captures one bounded local directory and creates one private
 component version and one embedded setup version, both at `1.0`. Kind choices
-come from the harness's declared global/user-root routes, plus a single-file
-`cli` component. Native identities and credential refusals use the same readers
+come from the harness's declared global/user-root routes supported by the
+bundled managed component surfaces. Current components do not project standalone
+`cli` files, so that kind is refused before object writes. Native identities and credential refusals use the same readers
 as release and acquisition. Captured source, mapped paths, provider profile,
 license, kind and owner bind deterministic object identities. Identical inputs
 reuse retained immutable versions; changed source or metadata creates new
 identities. The service does not install configuration or modify its source.
 Objects remain experimental and non-redistributable by default.
+
+New authoring binds `provider/surfaces.json`, captured from authenticated
+components at the managed release. The native loader verifies profile digests
+and requires its release to match the managed component pin. Kind, projection,
+namespace and size admission uses the same checks as provider eligibility.
+Authoring remains offline; the bundled declaration is compatibility input, not
+fresh publisher or object verification. The shared first-alpha catalog and
+retained immutable passports remain unchanged. Completed old author tasks replay
+their exact receipts; unexecuted plans with obsolete surfaces require a fresh task.
 
 Absent facts produce one human question at a time. Answers are literal values
 against the current revision. Start keys follow the shared 16–128 ASCII-character
@@ -229,7 +239,8 @@ completed before a receipt write is recovered without repeating HTTP.
 Refresh proves the existing Ed25519 device key and checks the returned account
 and device. During token exchange or refresh, an explicit server
 `AI_STP_DEVICE_REVOKED` response clears the held tokens and returns a replayable `revoked` outcome with the cached reason
-`device_revoked`; it is distinct from a transient failure or a generic refusal.
+`device_revoked` in the `closed` cached session; it is distinct from a transient
+failure or a generic refusal.
 Logout uses the held access token; an expired or rejected token
 requires signed refresh before revoking the device session pair. `closed` confirms remote revocation;
 `locally_closed` discards a pending flow or already-rejected credentials without
