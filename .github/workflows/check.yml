@@ -759,6 +759,10 @@ jobs:
       # names the hanging test instead of ending mid-line, which is how three
       # CI runs died on their own timeout without saying why.
       - name: Run the cross-platform surface
+        # The live AppContainer probe shares this runner with the unit suite.
+        # Match its four CPU cores without extending the probe's fixed budget.
+        env:
+          CLI_TEST_WORKERS: ${{ runner.os == 'Windows' && matrix.suite == 'unit' && '4' || '8' }}
         run: |
           set -euo pipefail
           source .github/scripts/provider-safe-path.sh
@@ -774,8 +778,8 @@ jobs:
           # `--durations` because this leg is 245s on Windows against 47s on
           # macOS for the same selection, and nothing in the log says where it
           # goes. A list of the slowest tests separates "a few tests are slow
-          # on this filesystem" from "eight xdist workers cost more to start
+          # on this filesystem" from "xdist workers cost more to start
           # than the suite costs to run", which need opposite fixes.
-          uv run --locked pytest -n 8 --dist=load --no-cov -vv \
+          uv run --locked pytest -n "${CLI_TEST_WORKERS}" --dist=load --no-cov -vv \
             -o faulthandler_timeout=300 --durations=15 \
             ${extra}
