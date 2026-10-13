@@ -68,6 +68,19 @@ pub(super) fn journey(store: &mut Store, declarations: &[Value]) -> Result<(), B
         "user_root"
     );
     for (scope, built) in &result.bundles {
+        assert!(
+            bundle::coverage::verify(
+                store,
+                &setup,
+                "codex",
+                *scope,
+                built.manifest["component_adaptations"]
+                    .as_array()
+                    .ok_or("bindings absent")?,
+            )
+            .is_err(),
+            "a scope subset claimed the complete setup"
+        );
         assert_eq!(
             built.manifest["setup"], setup,
             "a scope invented another setup"
@@ -164,7 +177,164 @@ pub(super) fn journey(store: &mut Store, declarations: &[Value]) -> Result<(), B
     assert_eq!(error.details["constraint"], "native_id_collision");
     ambiguity(store, &provider, &instruction)?;
     contributions(store, &provider, skill)?;
+    coverage(store, declarations)?;
     Ok(())
+}
+
+fn coverage(store: &mut Store, declarations: &[Value]) -> Result<(), Box<dyn Error>> {
+    let provider = Info::parse(&serde_json::to_vec(
+        declarations
+            .iter()
+            .find(|value| value["harness_id"] == "cursor")
+            .ok_or("Cursor declaration absent")?,
+    )?)?;
+    let dependency = component(
+        store,
+        &provider,
+        Scope::Project,
+        File {
+            path: ".cursor/skills/dependency/SKILL.md".into(),
+            bytes: b"---\nname: dependency\ndescription: Inspect the complete project.\n---\nInspect every retained member.\n".to_vec(),
+            mode: 0o644,
+        },
+        None,
+    )?;
+    let mut skill = component(
+        store, &provider, Scope::Project,
+        File { path: ".cursor/skills/coverage/SKILL.md".into(),
+            bytes: b"---\nname: coverage\ndescription: Verify complete setup coverage.\n---\nInspect every dependency.\n".to_vec(), mode: 0o644 }, None,
+    )?;
+    skill["version"] = "2.0".into();
+    skill["requires_components"] = json!([super::reference(&dependency)?]);
+    let skill =
+        store.transaction(|t| versions::record(t, &skill, &identity().device_id, None, AT))?;
+    let (_, mut evidence) = compose(store, "cursor", std::slice::from_ref(&dependency))?;
+    let (setup, more) = compose(store, "cursor", std::slice::from_ref(&skill))?;
+    evidence.extend(more);
+    let built = bundle::compile(
+        store,
+        &setup,
+        &target("cursor", Scope::Project),
+        &evidence,
+        &provider,
+        &Hosts::new(),
+    )?;
+    // Catalog passports may retain a direct member whose dependency is not a root.
+    let (setup, more) = super::catalog_repin(store, &built, &skill)?;
+    evidence.extend(more);
+    let built = bundle::compile(
+        store,
+        &setup,
+        &target("cursor", Scope::Project),
+        &evidence,
+        &provider,
+        &Hosts::new(),
+    )?;
+    let bindings = built.manifest["component_adaptations"]
+        .as_array()
+        .ok_or("bindings absent")?;
+    assert_eq!(bindings.len(), 2);
+    bundle::coverage::verify(store, &setup, "cursor", Scope::Project, bindings)?;
+    let mut reversed = bindings.clone();
+    reversed.reverse();
+    bundle::coverage::verify(store, &setup, "cursor", Scope::Project, &reversed)?;
+    assert!(bundle::coverage::verify(store, &setup, "cursor", Scope::Global, bindings).is_err());
+    let missing_dependency: Vec<_> = bindings
+        .iter()
+        .filter(|item| item["stable_id"] != dependency["stable_id"])
+        .cloned()
+        .collect();
+    assert!(
+        bundle::coverage::verify(store, &setup, "cursor", Scope::Project, &missing_dependency)
+            .is_err()
+    );
+    let mut duplicate = bindings.clone();
+    duplicate.push(bindings[0].clone());
+    assert!(bundle::coverage::verify(store, &setup, "cursor", Scope::Project, &duplicate).is_err());
+    for field in [
+        "version",
+        "passport_digest",
+        "adaptation_id",
+        "projection_artifact",
+        "member_paths",
+    ] {
+        let mut forged = bindings.clone();
+        forged[0][field] = Value::Null;
+        assert!(
+            bundle::coverage::verify(store, &setup, "cursor", Scope::Project, &forged).is_err(),
+            "accepted forged {field}"
+        );
+    }
+    let files = payload(&built)?;
+    let verify = |store: &mut Store, files: &BTreeMap<String, bundle::coverage::File>| {
+        bundle::coverage::verify_payload(
+            store,
+            &setup,
+            "cursor",
+            Scope::Project,
+            bindings,
+            files,
+            &Hosts::new(),
+        )
+    };
+    verify(store, &files)?;
+    let path = files.keys().next().ok_or("file absent")?.clone();
+    for changed in ["bytes", "mode", "owner", "contribution", "missing", "extra"] {
+        let mut altered = files.clone();
+        match changed {
+            "missing" => {
+                altered.remove(&path);
+            }
+            "extra" => {
+                altered.insert("unclaimed.md".into(), files[&path].clone());
+            }
+            _ => {
+                let file = altered.get_mut(&path).ok_or("file absent")?;
+                match changed {
+                    "bytes" => file
+                        .bytes
+                        .extend_from_slice(b"\nSubstituted instructions.\n"),
+                    "mode" => file.mode = 0o755,
+                    "owner" => file.owner = "another-component".into(),
+                    "contribution" => file.contribution = Some(json!({})),
+                    _ => unreachable!(),
+                }
+            }
+        }
+        assert!(
+            verify(store, &altered).is_err(),
+            "accepted substituted {changed}"
+        );
+    }
+    Ok(())
+}
+
+fn payload(
+    built: &bundle::Bundle,
+) -> Result<BTreeMap<String, bundle::coverage::File>, Box<dyn Error>> {
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(&built.archive))?;
+    built.manifest["files"]
+        .as_array()
+        .ok_or("files absent")?
+        .iter()
+        .map(|file| {
+            let path = text(file, "path")?;
+            let mut bytes = Vec::new();
+            std::io::Read::read_to_end(
+                &mut archive.by_name(&format!("files/{path}"))?,
+                &mut bytes,
+            )?;
+            Ok((
+                path.into(),
+                bundle::coverage::File {
+                    bytes,
+                    mode: file["mode"].as_u64().ok_or("mode absent")? as u32,
+                    owner: text(file, "owner")?.into(),
+                    contribution: file.get("contribution").cloned(),
+                },
+            ))
+        })
+        .collect()
 }
 
 fn contributions(store: &mut Store, provider: &Info, skill: Value) -> Result<(), Box<dyn Error>> {
@@ -179,7 +349,7 @@ fn contributions(store: &mut Store, provider: &Info, skill: Value) -> Result<(),
         },
         Some("env"),
     )?;
-    let (setup, evidence) = compose(store, "codex", &[settings, skill])?;
+    let (setup, evidence) = compose(store, "codex", &[settings.clone(), skill])?;
     let scopes = BTreeSet::from([Scope::Global, Scope::UserRoot]);
     let paths =
         bundle::scopes::contribution_paths(store, &setup, "codex", &scopes, &BTreeMap::new())?;
@@ -228,6 +398,60 @@ fn contributions(store: &mut Store, provider: &Info, skill: Value) -> Result<(),
     let configuration: toml_edit::DocumentMut = text.parse()?;
     assert_eq!(configuration["model"].as_str(), Some("user-choice"));
     assert_eq!(configuration["env"]["LOG_LEVEL"].as_str(), Some("info"));
+    let (complete, evidence) = compose(store, "codex", &[settings])?;
+    let observed_hosts = &hosts[&Scope::Global];
+    let built = bundle::compile(
+        store,
+        &complete,
+        &selected,
+        &evidence,
+        provider,
+        observed_hosts,
+    )?;
+    let files = payload(&built)?;
+    let bindings = built.manifest["component_adaptations"]
+        .as_array()
+        .ok_or("bindings absent")?;
+    bundle::coverage::verify_payload(
+        store,
+        &complete,
+        "codex",
+        Scope::Global,
+        bindings,
+        &files,
+        observed_hosts,
+    )?;
+    let mut forged = files.clone();
+    forged
+        .get_mut("config.toml")
+        .ok_or("configuration absent")?
+        .bytes = b"model = 'user-choice'\n[env]\nLOG_LEVEL = 'substituted'\n".to_vec();
+    assert!(
+        bundle::coverage::verify_payload(
+            store,
+            &complete,
+            "codex",
+            Scope::Global,
+            bindings,
+            &forged,
+            observed_hosts
+        )
+        .is_err()
+    );
+    let changed_hosts =
+        Hosts::from([("config.toml".into(), Some(b"model = 'changed'\n".to_vec()))]);
+    assert!(
+        bundle::coverage::verify_payload(
+            store,
+            &complete,
+            "codex",
+            Scope::Global,
+            bindings,
+            &files,
+            &changed_hosts
+        )
+        .is_err()
+    );
     Ok(())
 }
 
