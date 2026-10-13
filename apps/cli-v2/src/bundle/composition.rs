@@ -118,6 +118,16 @@ impl Composition {
     }
 
     pub fn include(&mut self, document: &Value, scope: &Value, assessment: &Value) -> Result<()> {
+        self.include_at(document, scope, assessment, None)
+    }
+
+    pub fn include_at(
+        &mut self,
+        document: &Value,
+        scope: &Value,
+        assessment: &Value,
+        path_scope: Option<crate::projection::Scope>,
+    ) -> Result<()> {
         let id = text(document, "stable_id")?;
         let namespace = self.namespace(text(document, "component_type")?).to_owned();
         self.kinds
@@ -144,7 +154,10 @@ impl Composition {
                 self.exclusions.push(Exclusion {
                     owner: id.into(),
                     family,
-                    value: value.into(),
+                    value: match (family, path_scope) {
+                        ("paths", Some(scope)) => format!("{}/{value}", scope.as_str()),
+                        _ => value.into(),
+                    },
                 });
             }
         }
@@ -302,6 +315,10 @@ impl Composition {
                 )?;
             }
         }
+        self.validate_declared_conflicts()
+    }
+
+    pub fn validate_declared_conflicts(&mut self) -> Result<()> {
         for index in 0..self.exclusions.len() {
             let exclusion = &self.exclusions[index];
             let other = if exclusion.family == "paths" {

@@ -12,7 +12,7 @@ use crate::{
     harnesses::{self, Root, Shape},
 };
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "snake_case")]
 pub enum Scope {
     Global,

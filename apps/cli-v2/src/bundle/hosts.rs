@@ -150,19 +150,28 @@ pub(crate) fn paths(
         if document["kind"] == "setup" {
             continue;
         }
-        let (_, adaptation) =
-            projection::adaptation(&document, harness, scope).ok_or_else(invalid)?;
-        for member in adaptation["members"].as_array().ok_or_else(invalid)? {
-            if member["ownership"] == "contribution" {
-                let path = member["path"].as_str().ok_or_else(invalid)?;
-                if !crate::artifacts::safe_path(path) || result.len() >= 2000 {
-                    return Err(invalid());
-                }
-                result.insert(path.into());
-            }
-        }
+        include(&document, harness, scope, &mut result)?;
     }
     Ok(result)
+}
+
+pub(super) fn include(
+    document: &Value,
+    harness: &str,
+    scope: Scope,
+    paths: &mut BTreeSet<String>,
+) -> Result<()> {
+    let (_, adaptation) = projection::adaptation(document, harness, scope).ok_or_else(invalid)?;
+    for member in adaptation["members"].as_array().ok_or_else(invalid)? {
+        if member["ownership"] == "contribution" {
+            let path = member["path"].as_str().ok_or_else(invalid)?;
+            if !crate::artifacts::safe_path(path) || paths.len() >= 2000 {
+                return Err(invalid());
+            }
+            paths.insert(path.into());
+        }
+    }
+    Ok(())
 }
 
 #[cfg(all(test, target_os = "linux"))]
