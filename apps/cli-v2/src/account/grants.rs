@@ -265,7 +265,7 @@ impl Plan {
     pub fn digest(&self) -> Result<String> {
         self.validate()?;
         digest::canonical(
-            "ai-stp:grant-plan:v1",
+            "ai-stp:plan:v1",
             &serde_json::to_value(self).map_err(|_| invalid())?,
         )
     }
@@ -506,6 +506,32 @@ mod tests {
             "object_kind":"component", "stable_id":id("component"), "major":1,
             "recipient_kind":"user_id", "recipient":account, "mutation_contract":1,"idempotency_key":"native-grant-proof-01"}})).map_err(|_| invalid())?;
         direct.validate()?;
+        let mut plan = Plan {
+            schema_version: 1,
+            state_parent: std::env::current_dir().map_err(|_| invalid())?,
+            account: Binding {
+                origin: "https://example.test".into(),
+                account_id: account.clone(),
+                device_id: id("device"),
+                revision: id("operation"),
+                root_identity: ["volume".into(), "directory".into()],
+                public_key: "fixture".into(),
+                credential_store: crate::identity::Storage::File,
+            },
+            request: direct.clone(),
+            token_sha256: None,
+            created_at: "2026-10-13T00:00:00.000Z".into(),
+            expires_at: "2026-10-13T00:15:00.000Z".into(),
+        };
+        let encoded = serde_json::to_value(&plan).map_err(|_| invalid())?;
+        let expected = digest::canonical("ai-stp:plan:v1", &encoded)?;
+        let restored: Plan = serde_json::from_value(encoded).map_err(|_| invalid())?;
+        assert_eq!(restored.digest()?, expected);
+        plan.request.body["idempotency_key"] = "different-grant-intent".into();
+        assert_ne!(plan.digest()?, expected);
+        plan.request = direct.clone();
+        plan.account.revision = id("operation");
+        assert_ne!(plan.digest()?, expected);
         direct.body["expected_grant_id"] = id("grant").into();
         assert!(direct.validate().is_err());
         direct.body["expected_revision"] = 2.into();
