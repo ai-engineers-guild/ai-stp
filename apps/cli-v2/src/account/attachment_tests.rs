@@ -182,6 +182,29 @@ fn attachment_is_atomic_exact_and_fences_stale_authority() -> std::result::Resul
         [&component_id, &old_revision],
     )?;
     drop(store);
+    let blocked = crate::tasks::start(root.path(), "author", "pending-author-01", json!({}))?;
+    assert!(plan(root.path(), Action::Attach, None, None, &at).is_err());
+    let cancelled = crate::tasks::advance(
+        root.path(),
+        blocked["task_id"].as_str(),
+        blocked["revision"].as_i64().ok_or("task revision")?,
+        None,
+        true,
+    )?;
+    let source = root.path().join("task-source");
+    fs::create_dir(&source)?;
+    fs::write(
+        source.join("SKILL.md"),
+        "---\nname: retained\ndescription: Retained task.\n---\nReview code.\n",
+    )?;
+    let author_input = json!({"directory":source,"harness_id":"codex","component_type":"skill","name":"retained","license_spdx":"MIT"});
+    let authored = crate::tasks::start(
+        root.path(),
+        "author",
+        "completed-author",
+        author_input.clone(),
+    )?;
+    fs::rename(source, root.path().join("displaced-task-source"))?;
     let attachment = plan(root.path(), Action::Attach, None, None, &at)?;
     assert_eq!(
         attachment
@@ -190,7 +213,7 @@ fn attachment_is_atomic_exact_and_fences_stale_authority() -> std::result::Resul
             .ok_or("selection")?
             .heads
             .len(),
-        6
+        8
     );
     let mut forged = attachment.clone();
     forged.attachment.as_mut().ok_or("selection")?.heads.clear();
@@ -258,6 +281,24 @@ fn attachment_is_atomic_exact_and_fences_stale_authority() -> std::result::Resul
     );
     assert!(stale_writer.open(false).is_err());
     assert!(stale_writer.planning().is_err());
+    assert_eq!(
+        crate::tasks::start(root.path(), "author", "pending-author-01", json!({}))?,
+        cancelled
+    );
+    assert_eq!(
+        crate::tasks::start(root.path(), "author", "completed-author", author_input)?,
+        authored
+    );
+    assert_eq!(
+        crate::tasks::advance(
+            root.path(),
+            authored["task_id"].as_str(),
+            authored["revision"].as_i64().ok_or("task revision")?,
+            None,
+            false
+        )?,
+        authored
+    );
     assert_eq!(
         identity::current(root.path())?.ok_or("identity")?.context(),
         original
@@ -341,17 +382,13 @@ fn attachment_is_atomic_exact_and_fences_stale_authority() -> std::result::Resul
             expected
         );
     }
-    assert_eq!(
-        digest::canonical("ai-stp:passport:v1", &version)?,
+    assert!(
         attachment
             .attachment
             .as_ref()
             .ok_or("selection")?
             .versions
-            .keys()
-            .next()
-            .ok_or("hash")?
-            .clone()
+            .contains_key(&digest::canonical("ai-stp:passport:v1", &version)?)
     );
     Ok(())
 }

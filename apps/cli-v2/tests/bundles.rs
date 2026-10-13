@@ -1727,6 +1727,7 @@ fn declared_exclusions_are_symmetric_and_do_not_conflict_with_their_owner()
                 assert_eq!(refusal.details["stable_id"], members[declarer]["stable_id"]);
                 assert_eq!(refusal.details["also"], members[excluded]["stable_id"]);
                 let envelope = ai_stp_cli_v2::Invocation {
+                    continuations: Vec::new(),
                     result: Err(refusal),
                     machine: true,
                     text: None,

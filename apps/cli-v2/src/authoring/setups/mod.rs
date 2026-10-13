@@ -177,7 +177,7 @@ pub(crate) fn compile(
 
 /// Assemble an already verified, bounded, complete dependency graph.
 /// Callers either resolve retained versions or deterministically derive that closure.
-fn assemble(
+pub(super) fn assemble(
     request: &Request,
     input: Value,
     id: &str,
@@ -250,7 +250,7 @@ fn finish_from(
     seal(document, payload)
 }
 
-fn seal(mut document: Value, payload: Vec<u8>) -> Result<(Value, Vec<u8>)> {
+pub(super) fn seal(mut document: Value, payload: Vec<u8>) -> Result<(Value, Vec<u8>)> {
     document["artifact"] =
         json!({"digest":digest::bytes("ai-stp:artifact:v1", &payload)?,"size_bytes":payload.len()});
     let document = revisions::seal(&document)?;

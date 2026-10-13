@@ -197,11 +197,11 @@ pub(super) fn selection(
         ));
     }
     let unfinished: bool = connection.query_row(
-        "SELECT EXISTS(SELECT 1 FROM operation WHERE finished_at IS NULL) OR EXISTS(SELECT 1 FROM proposal WHERE cancelled_at IS NULL AND confirmed_stable_id IS NULL AND expires_at>?)",
+        "SELECT EXISTS(SELECT 1 FROM operation WHERE finished_at IS NULL) OR EXISTS(SELECT 1 FROM proposal WHERE cancelled_at IS NULL AND confirmed_stable_id IS NULL AND expires_at>?) OR EXISTS(SELECT 1 FROM agent_task WHERE state IN ('planned','blocked','running'))",
         [at], |row| row.get(0)).map_err(database)?;
     if unfinished {
         return Err(Failure::precondition(
-            "finish or cancel outstanding local operations and proposals before attachment",
+            "finish or cancel outstanding local operations, proposals and tasks before attachment",
         ));
     }
     let mut query = connection.prepare("SELECT h.stable_id,h.revision_id FROM head h ORDER BY h.stable_id,h.revision_id LIMIT 4097").map_err(database)?;

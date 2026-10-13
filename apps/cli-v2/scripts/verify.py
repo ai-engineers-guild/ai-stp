@@ -97,7 +97,8 @@ def prove(binary: Path, root: Path) -> None:
     capabilities = run(binary, home, ["capabilities"])["data"]
     assert capabilities["registry_digest"] == help_data["registry_digest"] == digest
     assert capabilities["command_paths"] == [" ".join(row["path"]) for row in help_data["commands"]]
-    assert capabilities["task_intents"] == capabilities["supported_harnesses"] == []
+    assert capabilities["task_intents"] == ["author"]
+    assert capabilities["supported_harnesses"] == []
     assert run(binary, home, ["version"])["data"]["runtime"] == "rust"
     run(binary, home, ["unknown"], 2)
     prove_config(binary, home, root)

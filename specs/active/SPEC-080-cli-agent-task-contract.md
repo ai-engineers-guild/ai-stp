@@ -1,13 +1,13 @@
 ---
 description: "SPEC-080: Headless CLI application services, capability inventory, and the agent task contract."
-last_verified: "2026-09-24"
+last_verified: "2026-10-13"
 ---
 
 # SPEC-080: CLI agent task contract
 
 ## Purpose
 
-Give the coding agent one headless application core: Click stays a parser,
+Give the coding agent one headless application core: command adapters stay parsers,
 expert commands and the task engine call the same in-process services, and
 every declared leaf is classified so everyday journeys are not trapped behind
 an expert-only vocabulary.
@@ -27,7 +27,7 @@ Closed intent names are `inspect`, `initialize`, `install`, `change`,
 schema enum grows only when that intent is drained. `task intents` lists
 shipped intents only. Unshipped names are refused at `task start`.
 
-The drained intents are `inspect`, `initialize`, `install`, `change`,
+The production Python CLI's drained intents are `inspect`, `initialize`, `install`, `change`,
 `author`, `switch`, `account`, `publish`, and `technology`. `inspect` drains
 `doctor` and slim orientation through `application.inspect`. `initialize` writes
 the active harness user-global instruction section through the provider optional
@@ -63,8 +63,42 @@ resolve — locally, plus the organization's server-side queue when
 immutable organization snapshot from an explicit entries document or the
 bundled seed table; `resolve` executes a decision list against the review
 queue through one derived snapshot. A missing `action` blocks on an external
-question recommending `unmapped`. B2B/enterprise surfaces, estate-release
-F10/R05, a CLI language rewrite, and a PyPI CLI cut are excluded.
+question recommending `unmapped`. B2B/enterprise surfaces and estate-release
+F10/R05 are excluded. The Rust migration is governed by ADR-0227 and the current
+implementation roadmap; its implemented task boundary is recorded below.
+
+### Native preview boundary
+
+The isolated Rust CLI advertises only `author`. Its seven task commands reuse
+the existing `cli-task`, `cli-task-list`, `cli-task-intents` and author input
+models. The executable registry owns its command metadata. Native tasks call
+`authoring::embedded` in-process and store a closed native payload in the existing
+schema-53 `agent_task` table; they do not interpret production Python task payloads.
+
+Author consumes an absolute directory, harness, supported kind, portable name
+and license. Missing facts produce one literal human answer at a time. Source
+capture, native readers and shared passport/definition validation determine
+acceptance. It creates one private component and one embedded setup at immutable
+version `1.0`, or reuses the exact retained pair. The registry owner, source
+digest and mapped projection facts determine identities. No target or harness
+executable changes are part of authoring.
+
+Start binds a valid idempotency key to the original normalized input; answer,
+continue and cancel require the current revision. The task checkpoints its
+exact child plan before the single transaction that writes both objects and the
+child receipt. A failed completion write can resume from that receipt without
+source access. A precondition failure retains the unfinished task and reports
+its current revision and child identities; cancellation of a committed child
+reconciles completion. Changed or expired unexecuted plans require a fresh task.
+Status/list do not advance effects. Settled replay uses query-only state, including
+original-owner history after explicit attachment. Attachment refuses unfinished
+tasks. Existing overlap constraints serialize the same harness/global binding.
+
+Native acceptance is exercised by `apps/cli-v2/tests/releases.rs`,
+`src/tasks/tests.rs`, `src/account/attachment_tests.rs` and
+`scripts/verify_tasks.py` under the CLI package. The broader production task
+requirements below remain migration work where the native registry does not yet
+advertise a corresponding service; an author task is not author-to-install acceptance.
 
 ## Terms
 
