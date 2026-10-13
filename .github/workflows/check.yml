@@ -37,7 +37,8 @@ jobs:
   cli-v2:
     name: cli-v2-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    # A cold Windows build takes about 25 minutes before the consumer proof.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -93,8 +94,15 @@ jobs:
           python scripts/with_libclang.py cargo clippy --locked --all-targets -- -D warnings
           python scripts/with_libclang.py cargo test --locked
           python scripts/with_libclang.py cargo build --locked --release --bins --examples
+      - name: Existing consumers and real SQLite backup
+        shell: bash
+        run: |
+          uv run --no-sync python apps/cli-v2/scripts/verify.py apps/cli-v2/target/release/ai-stp-v2
       - name: Cache the successful native build
         if: steps.native-cache.outputs.cache-hit != 'true'
+        # Cache availability must not prevent or invalidate the checks above.
+        continue-on-error: true
+        timeout-minutes: 5
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: |
@@ -102,10 +110,6 @@ jobs:
             ~/.cargo/git
             apps/cli-v2/target
           key: ${{ steps.native-cache.outputs.cache-primary-key }}
-      - name: Existing consumers and real SQLite backup
-        shell: bash
-        run: |
-          uv run --no-sync python apps/cli-v2/scripts/verify.py apps/cli-v2/target/release/ai-stp-v2
 
   docs:
     name: docs

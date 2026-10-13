@@ -47,6 +47,19 @@
             }
           ]
         },
+        "revision": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revision"
+        },
         "revoked_at": {
           "anyOf": [
             {

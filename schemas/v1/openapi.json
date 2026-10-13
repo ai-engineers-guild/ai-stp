@@ -53,6 +53,19 @@
               }
             ]
           },
+          "revision": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Revision"
+          },
           "revoked_at": {
             "anyOf": [
               {
@@ -14939,6 +14952,34 @@
         "additionalProperties": false,
         "description": "POST /v1/grants/direct body with an explicit recipient identifier kind.",
         "properties": {
+          "expected_grant_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 8,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expected Grant Id"
+          },
+          "expected_revision": {
+            "anyOf": [
+              {
+                "maximum": 2147483646,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expected Revision"
+          },
           "idempotency_key": {
             "$ref": "#/components/schemas/IdempotencyKey"
           },
@@ -17939,6 +17980,20 @@
         "additionalProperties": false,
         "description": "Revoke invitation or grant with an optional reason.",
         "properties": {
+          "expected_revision": {
+            "anyOf": [
+              {
+                "maximum": 2147483646,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expected Revision"
+          },
           "idempotency_key": {
             "$ref": "#/components/schemas/IdempotencyKey"
           },

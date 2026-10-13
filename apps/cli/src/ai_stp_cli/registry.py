@@ -584,6 +584,16 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "recipient", "string", "Recipient value in the selected namespace.", required=True
             ),
+            option(
+                "expected-grant-id",
+                "string",
+                "Exact retained grant ID from grant list; required for regrant.",
+            ),
+            option(
+                "expected-revision",
+                "integer",
+                "Observed revision of that exact grant; never refreshed during retry.",
+            ),
             option("idempotency-key", "string", "Stable key for this exact intent.", required=True),
             option("confirm", "boolean", "Confirm creating this exact grant.", required=True),
         ),
@@ -633,6 +643,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         confirmation="explicit_flag",
         parameters=(
             option("grant-id", "string", "Access grant identifier.", required=True),
+            option(
+                "expected-revision",
+                "integer",
+                "Exact revision from grant list, bound before confirmation.",
+                required=True,
+            ),
             option("reason", "string", "Bounded reason recorded with the revocation."),
             option("idempotency-key", "string", "Stable key for this exact intent.", required=True),
             option("confirm", "boolean", "Confirm revoking this exact grant.", required=True),

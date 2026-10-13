@@ -762,6 +762,7 @@ async def test_grants_invite_accept_revoke(
             "schema_version": 1,
             "reason": "done",
             "idempotency_key": "revokekey00000001",
+            "expected_revision": 1,
         },
     )
     assert rev.status_code == 200

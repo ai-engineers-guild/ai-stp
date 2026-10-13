@@ -412,6 +412,7 @@ async def test_private_component_media_requires_owner_or_active_grant(
         grant = await db.scalar(select(AccessGrant).where(AccessGrant.stable_id == stable_id))
         assert grant is not None
         grant.state = "revoked"
+        grant.revision += 1
         await db.commit()
     assert (
         await client.get(url, headers={"Authorization": f"Bearer {grantee_token}"})

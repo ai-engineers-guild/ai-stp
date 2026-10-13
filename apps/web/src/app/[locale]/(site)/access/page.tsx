@@ -63,6 +63,7 @@ export default async function AccessPage({ params, searchParams }: PageProps) {
   const profiles = await loadPublisherProfiles(scopedGrants.map((item) => item.grantee_account_id));
   const users: AccessUser[] = scopedGrants.map((item) => ({
     grantId: item.grant_id,
+    revision: item.revision ?? null,
     accountId: item.grantee_account_id,
     displayName: profiles[item.grantee_account_id]?.displayName ?? null,
     avatarUrl: profiles[item.grantee_account_id]?.avatarUrl ?? null,
@@ -91,6 +92,7 @@ export default async function AccessPage({ params, searchParams }: PageProps) {
       ) : null}
       <AccessWorkspace
         users={users}
+        observedGrants={grants.grants}
         csrfToken={csrf}
         labels={{
           create: t("createInvitation"),
