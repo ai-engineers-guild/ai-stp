@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Annotated, Literal
 
 from pydantic import ConfigDict, Field, SerializerFunctionWrapHandler, model_serializer
+from pydantic.json_schema import JsonSchemaValue
 
 from ai_stp_contracts.auth import AccountId
 from ai_stp_contracts.http import (
@@ -74,10 +75,18 @@ class GrantInvitationResponse(ContractModel):
     created_at: Timestamp
 
 
+def _access_grant_wire_object(schema: JsonSchemaValue) -> None:
+    open_wire_object(schema)
+    # An older response can omit the revision. Unknown is never a mutation precondition.
+    schema["required"] = [name for name in schema["required"] if name != "revision"]
+
+
 class AccessGrantResponse(ContractModel):
     """One major-line access grant."""
 
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(
+        extra="allow", frozen=True, json_schema_extra=_access_grant_wire_object
+    )
 
     schema_version: Literal[1] = 1
     grant_id: Annotated[str, Field(min_length=8, max_length=64)]

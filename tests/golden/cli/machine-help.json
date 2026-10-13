@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:152689799b3f626c0477c8c63d2c0c6082b6e03c5123c2fdc97544cb4ca6951a",
+  "registry_digest": "sha256:d0a33411f36685fb0b8c7a5897ba02763b7f0ab3311bdcbcc495de50bce7b064",
   "global_options": [
     {
       "name": "json",
@@ -3290,6 +3290,24 @@
           "choices": []
         },
         {
+          "name": "expected-grant-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact retained grant ID from grant list; required for regrant.",
+          "choices": []
+        },
+        {
+          "name": "expected-revision",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Observed revision of that exact grant; never refreshed during retry.",
+          "choices": []
+        },
+        {
           "name": "idempotency-key",
           "kind": "option",
           "value_type": "string",
@@ -3480,6 +3498,15 @@
           "required": true,
           "repeatable": false,
           "summary": "Access grant identifier.",
+          "choices": []
+        },
+        {
+          "name": "expected-revision",
+          "kind": "option",
+          "value_type": "integer",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact revision from grant list, bound before confirmation.",
           "choices": []
         },
         {

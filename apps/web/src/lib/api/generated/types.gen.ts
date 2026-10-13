@@ -32,7 +32,7 @@ export type AccessGrantResponse = {
   /**
    * Revision
    */
-  revision: number | null;
+  revision?: number | null;
   revoked_at: Timestamp | null;
   /**
    * Schema Version

@@ -100,7 +100,6 @@
           "owner_account_id",
           "recipient",
           "recipient_kind",
-          "revision",
           "revoked_at",
           "schema_version",
           "stable_id",
