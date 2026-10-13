@@ -140,7 +140,12 @@ owned by `ADR-0092`. Artifact-byte binding is owned by `ADR-0093`.
   passport identity; a grant never permits changing that visibility.
 - `REQ-2612`: Invitation revocation and grant revocation are separate and apply
   prospectively; bytes already obtained are not deleted, and the owner is
-  informed of this (`SPEC-002` REQ-212/218).
+  informed of this (`SPEC-002` REQ-212/218). Grant revocation binds the exact
+  grant ID and observed `expected_revision`; an absent or changed revision
+  refuses before a new effect. A grant's revision starts at 1 and advances on
+  revocation or explicit reactivation. Invitation revocation remains separate.
+  The original actor's exact revoke retry returns its retained outcome without
+  revoking a later regrant; this receipt is not a fresh assertion of grant state.
 - `REQ-2613`: The `deliver_invitation` job sends email through the Resend port;
   transport failure is retried until dead-letter; the invitation token does not
   enter logs, metrics, or the audit payload (`SPEC-010` REQ-1009).
@@ -155,7 +160,27 @@ owned by `ADR-0092`. Artifact-byte binding is owned by `ADR-0093`.
   is not heuristically recognized as a username. An unknown or inaccessible ID
   produces one `not found`; the grant stores a stable `grantee_account_id`,
   participates in the shared read and revocation matrix, and preserves the
-  selected identifier type.
+  selected identifier type. Direct creation and grant revocation bind an
+  actor-scoped idempotency key to their normalized request and action in the
+  same transaction as the grant effect. Changed request content with the same
+  key conflicts. Same-key concurrency serializes; one exact target/recipient
+  retains one grant identity. Authorization is rechecked before returning the
+  retained resource. A direct-create retry returns the grant's current state
+  and never reactivates it. A new regrant intent must supply the retained
+  `expected_grant_id` and `expected_revision`; a changed recipient resolution,
+  stale state or absent binding refuses. Current-state preconditions are never
+  refreshed automatically during transport retry.
+
+Existing access grants retain their identity, state and timestamps when revision
+and receipt storage is introduced. Historic direct/revoke keys were not stored
+and cannot be reconstructed. Accordingly an unknown old direct request cannot
+reactivate a revoked grant, and an unbound revoke request refuses. Updated CLI
+callers use `grant list` and pass the reviewed revision explicitly; web actions
+carry the rendered grant identity/revision through confirmation. Readers may
+accept an older response without `revision` as an observation, not as authority
+to mutate. Initial direct creation and invitation operations retain their old
+request shape when no new precondition is supplied. Rollback must preserve grant
+revisions/receipts and use a compatible writer; do not downgrade replay protection.
 
 ### Reports and moderation
 
