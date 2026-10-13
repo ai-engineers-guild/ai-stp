@@ -1845,13 +1845,14 @@ Eligibility targets use the same `linux`, `macos`, `windows` and `x86_64`,
 noncanonical values refuse before mechanical assessment.
 
 `select eligibility --state-dir --request` connects that assessment to the native
-runtime. The closed request names a concrete `harness_id`, `scope`, exact
-optional exact `provider_version`, 1–512 exact `members` and optional `for_redistribution`.
+runtime. The closed request names a concrete `harness_id`, `scope`,
+optional exact `provider_version`, 1–512 exact `members`, optional `access`
+and `for_redistribution`.
 Each member has only `stable_id`, `version` and `passport_digest`; the request is
 limited to 256 KiB. Identity comes from the isolated credential store, platform
 from the executing CLI, and provider capabilities from authenticated artifact
 acquisition and isolated `provider-info`. Saved provider reports and caller
-claims about rights, trust or harness versions are not accepted.
+claims about grants, verification or harness versions are not accepted.
 
 The command reads every exact graph member and its retained artifact/projection
 bytes in one query-only SQLite transaction, bounded to 64 MiB of artifact
@@ -1860,12 +1861,47 @@ coordinates return an inadmissible graph before network access. The registry loc
 is released while acquiring the provider; identity and the whole graph are
 rechecked afterwards. Only declared environment-variable name
 presence is observed; values never enter the report. Owned complete objects may
-use the local-owner trust line. Cloud verification, grants, pins, experimental
+use the local-owner trust line. Cloud verification, broad grants, experimental
 consent, project capabilities and permissions are not supplied by this adapter.
 Their dependent constraints remain refusals; no trust mark is inferred from an
 acquisition receipt. An unobserved harness version refuses exact version
 requirements but does not prevent composition without such a requirement.
 The report names its unobserved inputs and never authorizes installation.
+
+Optional `access` is a closed object with `trust_pins` (default empty) and
+`account` (default false). Pins are explicit local trust decisions for at most
+512 exact lowercase `sha256:` passport digests in the resolved candidate graphs;
+extra pins refuse. Pins confer neither ownership nor verification. They do not
+grant private access, bypass mechanical constraints or trust dependencies
+implicitly. `account: true` independently enables fresh exact catalog reads for
+foreign private graph members, using the isolated authenticated session. Each
+member must be accessible; a grant on the root does not authorize its dependency.
+An immutable private passport now publicly distributed can satisfy access through
+the public route. Cached observations and acquisition receipts confer no current
+access. Without `access`, the request retains its local-only behavior.
+
+The account journal is held before registry observation. Exact coordinates are
+read under the registry lock; network I/O follows after releasing it and precedes
+the final graph transaction. The existing catalog reader validates current
+same-device authentication, response schemas, lifecycle and passport digests.
+It reads metadata only, bounded to 512 versions, 8 MiB and thirty seconds across
+the graph or matrix page, without downloading artifacts or storing grants.
+An optional `access_observation` reports the account/origin, check time, explicit
+pins and authorized digests, without credentials. These inputs also feed reports,
+proposals, confirmation and bundles. Confirmation and bundle planning accept
+the same object in a file through `--access` (at most 64 KiB).
+
+Access-bearing plans bind the exact pins and full account/origin/device/session,
+physical state root, signing key and credential storage. Before a new effect,
+apply checks that binding and reads current access again; revocation refuses.
+Proposal policy binds the account context independently of session revision, so
+an explicit same-account refresh permits a new confirmation plan while an old
+outer plan refuses. Completed selection receipts replay before loading an
+account, including after logout. Bundle apply still requires current evidence
+on every invocation. Empty default access fields are omitted from plans and
+policy inputs, preserving local-only history; older strict readers refuse plans
+that carry the new access field.
+
 Selection, matrix and composition requests observe the user-installed harness.
 An optional `harness_executable` selects an absolute executable; omission resolves
 the catalog command on PATH. The runtime derives `harness_version` and binds
@@ -1909,12 +1945,13 @@ row and cannot undo confirmation.
 
 `select eligibility-matrix --state-dir --request` discovers local component and
 setup candidates and evaluates each independently across explicit harness
-selectors. The closed request is at most 16 KiB: `targets` contains one to seven
+selectors. The closed request is at most 64 KiB: `targets` contains one to seven
 distinct `harness_id`, `scope`, optional exact `provider_version` selectors; optional
 `after` is an object identity cursor, `limit` is 1–50 (default 10), and
-`for_redistribution` defaults to false. Targets are sorted by harness identity.
-No caller-supplied rights, evidence, provider declaration or installed version
-is accepted.
+`for_redistribution` defaults to false. Optional `access` applies to the page's
+independent exact graphs; each cell receives only its graph's pins and observed
+access. Targets are sorted by harness identity. No caller-supplied grants,
+verification evidence, provider declaration or installed version is accepted.
 
 Each page lists non-forgotten objects in identity order. For each object it
 uses the highest retained immutable numeric `X.Y`, returns its exact digest,
@@ -1940,7 +1977,8 @@ fresh page observation, not a transaction spanning CLI calls.
 
 `select reports --state-dir --request` reports composition and conversion before
 confirmation or bundle publication. Its closed request, up to 256 KiB, is either
-the exact eligibility request or `proposal_id`, `scope`, optional exact `provider_version`.
+the exact eligibility request or `proposal_id`, `scope`, optional exact
+`provider_version`, `harness_executable` and `access`.
 For a proposal, the harness and members come from the retained bounded record.
 The report evaluates current evidence; it displays the proposal's current state
 and marks context freshness unevaluated rather than authorizing confirmation.
@@ -1970,17 +2008,18 @@ The CLI exposes the durable selection service through five commands:
 - `select propose plan --state-dir --project-id --request [--empty]` uses the
   eligibility request shape with component roots and `for_redistribution: false`.
   It authenticates the provider and derives local evidence with the same limits
-  and absent rights as eligibility. An empty member list requires `--empty`;
+  and explicit access policy as eligibility. An empty member list requires `--empty`;
   setting that flag with nonempty members refuses. Planning writes no proposal.
-- `select confirm plan --state-dir --id --scope --provider-version` records a
+- `select confirm plan --state-dir --id --scope --provider-version [--access]` records a
   decision intent for the retained proposal. Use its original scope and exact
-  provider version; new confirmation checks the recorded policy snapshot again.
+  provider version and explicit pins/account policy; new confirmation checks
+  the recorded policy snapshot again.
 - `select cancel plan --state-dir --id` records cancellation intent without a
   provider observation.
 - `select apply --plan --plan-digest` executes the exact proposal or decision.
   The closed outer plan is bounded to 2 MiB and binds schema version, absolute
   `state_parent`, `selector` (`harness_id`, `scope`, `provider_version`, or null
-  for cancellation) and the closed domain `operation`.
+  for cancellation), optional `access` binding and the closed domain `operation`.
 - `select show --state-dir --id` reads the retained proposal and its current
   `open`, `expired`, `cancelled` or `confirmed` state.
 
@@ -2119,7 +2158,7 @@ commands remain single-root; durable multi-root coordination and active-root
 handoff remain separate incomplete migration boundaries.
 
 `select bundle plan --state-dir --id --version --passport-digest --scope
---provider-version --output [--target]` connects that compiler to authenticated
+--provider-version --output [--target] [--access]` connects that compiler to authenticated
 native provider observations and one exact retained setup. The scope and provider
 version are explicit. The output is an unused directory beneath an existing
 parent; successful apply places only `bundle.zip` there. Planning publishes
@@ -2134,7 +2173,7 @@ again after compilation and must match. The target must be disjoint from trust
 state, and generated output cannot be inside it. No target file is written.
 This adapter currently requires the verified Linux provider runtime.
 
-`select bundle apply --plan --plan-digest` accepts a closed plan up to 16 KiB.
+`select bundle apply --plan --plan-digest` accepts a closed plan up to 64 KiB.
 Its schema/action, identity, state parent, exact source, provider selector,
 optional physical host binding, output/parent identity, input digest, logical
 bundle digest and literal archive digest/size are all bound by the plan digest.

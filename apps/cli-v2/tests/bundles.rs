@@ -50,6 +50,8 @@ fn target(harness: &str, scope: Scope) -> Target {
         grants: Default::default(),
         pinned_passport_digests: Default::default(),
         owned_passport_digests: Default::default(),
+        accessible_passport_digests: Default::default(),
+        access_context_digest: None,
         for_redistribution: false,
     }
 }

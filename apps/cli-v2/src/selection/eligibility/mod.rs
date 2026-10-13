@@ -35,6 +35,13 @@ pub struct Target {
     pub env_present: BTreeSet<String>,
     /// Exact object:major rights already established by the owning runtime.
     pub grants: BTreeSet<String>,
+    /// Exact current catalog access established by the owning runtime. This
+    /// confers neither ownership nor trust and is never a cached grant.
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    pub accessible_passport_digests: BTreeSet<String>,
+    /// Account/origin/device binding, stable across a same-account refresh.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub access_context_digest: Option<String>,
     pub pinned_passport_digests: BTreeSet<String>,
     /// Exact historical ownership established by the local attachment receipt.
     pub owned_passport_digests: BTreeSet<String>,
@@ -177,6 +184,9 @@ pub fn assess(
     if !own
         && document["visibility"] != "public"
         && !target.grants.contains(&format!("{id}:{major}"))
+        && !target
+            .accessible_passport_digests
+            .contains(&evidence.passport_digest)
     {
         report.refuse(
             "access",

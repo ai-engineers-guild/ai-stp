@@ -91,6 +91,48 @@ struct Capture<'a> {
     access: Option<&'a Access>,
 }
 
+/// Current access to exact retained versions, without acquiring their artifacts
+/// or caching authorization. The same bounded reader owns both wire checks.
+pub(crate) fn authorize_versions(
+    access: &mut Access,
+    sources: &[setups::Source],
+) -> Result<BTreeSet<String>> {
+    if sources.len() > MAX_COMPONENTS {
+        return Err(Failure::precondition(
+            "selection access exceeds 512 exact versions; reduce the candidate page",
+        ));
+    }
+    access.verify()?;
+    let endpoint = Endpoint::new(&access.binding().origin)?;
+    let mut capture = Capture::new(endpoint, Some(access));
+    let mut authorized = BTreeSet::new();
+    for source in sources {
+        let kind = if passport::stable_id(&source.stable_id, "component") {
+            Kind::Component
+        } else if passport::stable_id(&source.stable_id, "setup") {
+            Kind::Setup
+        } else {
+            return Err(invalid());
+        };
+        let observed = capture
+            .observation(kind, &source.stable_id, &source.version)
+            .map_err(|failure| {
+                failure.with_details([
+                    ("stable_id".into(), source.stable_id.clone().into()),
+                    ("version".into(), source.version.clone().into()),
+                ])
+            })?;
+        if observed.passport_digest != source.passport_digest {
+            return Err(Failure::precondition(
+                "the authorized catalog version differs from the retained exact passport",
+            ));
+        }
+        authorized.insert(observed.passport_digest);
+    }
+    access.revalidate()?;
+    Ok(authorized)
+}
+
 impl<'a> Capture<'a> {
     fn new(endpoint: Endpoint, access: Option<&'a Access>) -> Self {
         Self {
