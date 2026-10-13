@@ -867,8 +867,6 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "health-readiness": ReadinessResponse,
     "page-info": PageInfo,
     "sync-event": SyncEvent,
-    "sync-consent-upsert": ConsentUpsertPayload,
-    "sync-consent-tombstone": ConsentTombstonePayload,
     "sync-push-request": SyncPushRequest,
     "sync-event-receipt": SyncEventReceipt,
     "sync-conflict-info": SyncConflictInfo,
@@ -1175,6 +1173,10 @@ EXPORTED_MODELS: Final[dict[str, ExportedSchema]] = {
     **ASSURANCE_STACK_MODELS,
     **CONTRACT_MODELS,
     "catalog-author-option": CatalogAuthorOption,
+    # SyncEvent.payload is an opaque JSON object in the HTTP contract. These
+    # schemas describe its existing kind-specific validation, not HTTP models.
+    "sync-consent-upsert": ConsentUpsertPayload,
+    "sync-consent-tombstone": ConsentTombstonePayload,
 }
 
 
