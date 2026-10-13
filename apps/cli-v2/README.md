@@ -1995,6 +1995,25 @@ invents a synthetic component to evade those restrictions. A real SQLite journey
 covers all 16 released profiles; the author/release/setup journey also compiles
 a transitive graph and proves byte stability after a later draft edit.
 
+The headless `bundle::scopes` compiler also accepts two or three explicitly
+requested scopes for one exact setup graph. Every component must have exactly
+one eligible declared placement among those scopes; ambiguity requires an
+explicit component-to-scope mapping. Unknown placements, uncovered components
+and empty requested scopes refuse. Each package retains the original complete
+setup passport and identity while binding only its assigned components.
+Cross-root native identifiers, exclusions, instruction precedence and hook order
+are checked together; relative path ownership is checked within its scope.
+Host inputs are enumerated from the same routing rule and consumed exactly.
+The complete result is bounded to 2,000 files and 64 MiB each of host bytes,
+selected projection archives, output content and emitted archives.
+
+This library boundary performs no installation or publication. Its existing
+SQLite bundle proof covers mixed Codex instruction/skill scopes, cross-root
+identifier collisions, explicit ambiguous placement and preservation of unowned
+configuration fields. The executable `select bundle` and `configuration`
+commands remain single-root; durable multi-root coordination and active-root
+handoff remain separate incomplete migration boundaries.
+
 `select bundle plan --state-dir --id --version --passport-digest --scope
 --provider-version --output [--target]` connects that compiler to authenticated
 native provider observations and one exact retained setup. The scope and provider

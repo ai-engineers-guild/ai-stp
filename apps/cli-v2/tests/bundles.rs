@@ -15,6 +15,8 @@ use serde_json::{Value, json};
 use std::{collections::BTreeMap, error::Error};
 
 const AT: &str = "2026-10-08T00:00:00.000Z";
+#[path = "bundles/scopes.rs"]
+mod scopes;
 fn identity() -> Identity {
     Identity {
         account_id: "account_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
@@ -975,6 +977,7 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
     let mut store = Store::open(root.path(), true)?;
     let declarations: Vec<Value> =
         serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+    scopes::journey(&mut store, &declarations)?;
     opencode_namespaces(&mut store, &declarations)?;
     pi_namespaces(&mut store, &declarations)?;
     for (harness, agent) in [
