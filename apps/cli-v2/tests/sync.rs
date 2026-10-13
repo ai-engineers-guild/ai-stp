@@ -14,6 +14,83 @@ use serde_json::{Value, json};
 const AT: &str = "2026-10-14T00:00:00.000Z";
 const EXPIRED: &str = "2026-10-15T00:00:00.000Z";
 
+#[test]
+fn python_sealed_events_keep_account_content_and_payload_boundaries() -> Result<(), Box<dyn Error>>
+{
+    use ai_stp_cli_v2::{digest, passport, sync::event::Event};
+    // Sealed by Python's production contracts and accepted by the API validator.
+    let events: Vec<Value> = serde_json::from_str(include_str!("fixtures/sync-events.json"))?;
+    let account = "account_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+    for (i, request) in events.iter().enumerate() {
+        let parsed = Event::push(request, account)?;
+        assert_eq!(parsed.revision_id, request["revision_id"]);
+        let mut streamed = serde_json::to_value(parsed)?;
+        streamed["sequence"] = json!(i + 1);
+        assert_eq!(
+            Event::stream(&streamed, account)?.revision_id,
+            request["revision_id"]
+        );
+        assert!(Event::push(request, "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z").is_err());
+        streamed["payload"]["schema_version"] = json!(2);
+        assert!(Event::stream(&streamed, account).is_err());
+    }
+    // Re-sealing the outer event must not legitimize forbidden content or a
+    // mismatched inner passport. Error output never contains excluded values.
+    let reseal = |event: &mut Value| -> Result<(), Box<dyn Error>> {
+        let parsed: Event = serde_json::from_value(event.clone())?;
+        event["revision_id"] = passport::revision_id(&parsed.sealed())?.into();
+        event["content_digest"] =
+            digest::canonical("ai-stp:revision:v1", &event["payload"])?.into();
+        Ok(())
+    };
+    for patch in [
+        json!({"api_key":"never-export-this-value"}),
+        json!({"notes":["/home/proof/private"]}),
+        json!({"required_env":[{"name":"T","purpose":"p","value":"never-export-this-value"}]}),
+        json!({"requires_authorization":"never-export-this-value"}),
+        json!({"nested":{"kind":"ProjectPassport"}}),
+    ] {
+        let mut request = events[0].clone();
+        request["payload"]
+            .as_object_mut()
+            .ok_or("payload")?
+            .extend(patch.as_object().ok_or("patch")?.clone());
+        reseal(&mut request)?;
+        let error = Event::push(&request, account)
+            .err()
+            .ok_or("forbidden event accepted")?;
+        assert!(!serde_json::to_string(&error.details)?.contains("never-export-this-value"));
+    }
+    let mut request = events[0].clone();
+    request["payload"]["facts"]["description"]["value"] = "changed after sealing".into();
+    reseal(&mut request)?;
+    assert!(Event::push(&request, account).is_err());
+    for snapshot in [Value::Null, json!({"kind":"component"})] {
+        let mut request = events[1].clone();
+        request["payload"]["sync_released_versions"][0]["snapshot"] = snapshot;
+        reseal(&mut request)?;
+        assert!(Event::push(&request, account).is_err());
+    }
+    let mut request = events[1].clone();
+    let mut collision = request["payload"]["sync_released_versions"][0].clone();
+    collision["passport_digest"] = format!("sha256:{}", "0".repeat(64)).into();
+    collision
+        .as_object_mut()
+        .ok_or("version")?
+        .remove("snapshot");
+    request["payload"]["sync_released_versions"]
+        .as_array_mut()
+        .ok_or("versions")?
+        .push(collision);
+    reseal(&mut request)?;
+    assert!(Event::push(&request, account).is_err());
+    let mut request = events[4].clone();
+    request["payload"]["target"] = "everything".into();
+    reseal(&mut request)?;
+    assert!(Event::push(&request, account).is_err());
+    Ok(())
+}
+
 fn id(document: &Value) -> Result<&str, Failure> {
     document["revision_id"]
         .as_str()

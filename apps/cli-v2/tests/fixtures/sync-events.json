@@ -1,0 +1,190 @@
+[
+  {
+    "schema_version": 1,
+    "event_id": "event_wire_fixture_0",
+    "entity_id": "developer_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "entity_kind": "developer_passport",
+    "revision_id": "revision_a29cd12766334e43c5da54376751d3c7e173fbff3828fb3577bab65046f5097c",
+    "parent_revision_ids": [],
+    "device_id": "device_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "actor_id": "account_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "operation": "upsert",
+    "content_digest": "sha256:acda40065ca7724194bb9d36691433985f486b460abe60284d6c1be653deb702",
+    "created_at": "2026-10-13T00:00:00.000Z",
+    "idempotency_key": "wire-fixture-request-0",
+    "expected_head_revision_id": null,
+    "payload": {
+      "schema_version": 1,
+      "kind": "developer",
+      "stable_id": "developer_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "revision_id": "revision_22c0c5d6ac27adde6228ddff4dfbb40718e091b8ca55465c2bbd532f351bd217",
+      "parent_revision_ids": [],
+      "owner_id": "account_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "created_at": "2026-10-13T00:00:00.000Z",
+      "visibility": "private",
+      "facts": {
+        "description": {
+          "value": "Café — Rust",
+          "origin": "declared",
+          "confirmation": "user_confirmed",
+          "source_refs": [],
+          "observed_at": null,
+          "confirmed_at": null,
+          "confidence": null
+        }
+      }
+    }
+  },
+  {
+    "schema_version": 1,
+    "event_id": "event_wire_fixture_1",
+    "entity_id": "component_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "entity_kind": "component_private",
+    "revision_id": "revision_12dd521ea05666cc35d1ae7debf511528401a7775778eb75423c8937170adbc0",
+    "parent_revision_ids": [],
+    "device_id": "device_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "actor_id": "account_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "operation": "upsert",
+    "content_digest": "sha256:da05659f19c196a42674f96d9fe3284916ce221526afe1439ff03ccb68ab9a1d",
+    "created_at": "2026-10-13T00:00:00.000Z",
+    "idempotency_key": "wire-fixture-request-1",
+    "expected_head_revision_id": null,
+    "payload": {
+      "schema_version": 1,
+      "kind": "component",
+      "stable_id": "component_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "revision_id": "revision_490220544a9e6a1a79bcd26fa9787eb9c1779693b9572364422fcfd74b953c7c",
+      "parent_revision_ids": [],
+      "owner_id": "account_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "created_at": "2026-10-13T00:00:00.000Z",
+      "visibility": "private",
+      "facts": {
+        "description": {
+          "value": "Café — Rust",
+          "origin": "declared",
+          "confirmation": "user_confirmed",
+          "source_refs": [],
+          "observed_at": null,
+          "confirmed_at": null,
+          "confidence": null
+        }
+      },
+      "sync_released_versions": [
+        {
+          "version": "1.0",
+          "passport_digest": "sha256:0778f73289e4615cb0d06f35d06da091d383242ec475cd7af83c08760b066782",
+          "revision_id": "revision_3390733996174767bac9aff0c4a1cd79f913d6bc5cb1d6e4941163ea94a7a80f",
+          "created_at": "2026-10-13T00:00:00.000Z",
+          "snapshot": {
+            "schema_version": 1,
+            "kind": "component",
+            "stable_id": "component_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "revision_id": "revision_3390733996174767bac9aff0c4a1cd79f913d6bc5cb1d6e4941163ea94a7a80f",
+            "parent_revision_ids": [],
+            "owner_id": "account_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "created_at": "2026-10-13T00:00:00.000Z",
+            "visibility": "private",
+            "facts": {
+              "description": {
+                "value": "Café — Rust",
+                "origin": "declared",
+                "confirmation": "user_confirmed",
+                "source_refs": [],
+                "observed_at": null,
+                "confirmed_at": null,
+                "confidence": null
+              }
+            },
+            "version": "1.0"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "schema_version": 1,
+    "event_id": "event_wire_fixture_2",
+    "entity_id": "setup_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "entity_kind": "setup_private",
+    "revision_id": "revision_3b9230851790e6cb93f17f25086e516bfeb0634eb1f90992382045f8a7d7bee7",
+    "parent_revision_ids": [],
+    "device_id": "device_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "actor_id": "account_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "operation": "upsert",
+    "content_digest": "sha256:331adcd262d2df96d77f4c0eb4ef70d9c2591a754b1cd5c7a7aee2cbab55c8fb",
+    "created_at": "2026-10-13T00:00:00.000Z",
+    "idempotency_key": "wire-fixture-request-2",
+    "expected_head_revision_id": null,
+    "payload": {
+      "schema_version": 1,
+      "kind": "setup",
+      "stable_id": "setup_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "revision_id": "revision_975f523d300056121746c3957cb592dd19bfe8be3c6da107434b13a4bbc2db37",
+      "parent_revision_ids": [],
+      "owner_id": "account_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "created_at": "2026-10-13T00:00:00.000Z",
+      "visibility": "private",
+      "facts": {
+        "description": {
+          "value": "Café — Rust",
+          "origin": "declared",
+          "confirmation": "user_confirmed",
+          "source_refs": [],
+          "observed_at": null,
+          "confirmed_at": null,
+          "confidence": null
+        }
+      },
+      "harness_id": "codex"
+    }
+  },
+  {
+    "schema_version": 1,
+    "event_id": "event_wire_fixture_3",
+    "entity_id": "device_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "entity_kind": "device_summary",
+    "revision_id": "revision_c08d9137058621b9154aaec2e4b1eee0d82a9006290e75dd275d05d537927b81",
+    "parent_revision_ids": [],
+    "device_id": "device_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "actor_id": "account_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "operation": "upsert",
+    "content_digest": "sha256:aa09ad4bc266f888b274392e32a04f251f06b6f718b169b18a72d8d9922b0188",
+    "created_at": "2026-10-13T00:00:00.000Z",
+    "idempotency_key": "wire-fixture-request-3",
+    "expected_head_revision_id": null,
+    "payload": {
+      "schema_version": 1,
+      "display_name": "Proof workstation",
+      "operating_system": "linux",
+      "architecture": "x86_64",
+      "detected_harnesses": [],
+      "toolchain_profile_version": "proof/1",
+      "summary_updated_at": "2026-10-13T00:00:00.000Z"
+    }
+  },
+  {
+    "schema_version": 1,
+    "event_id": "event_wire_fixture_4",
+    "entity_id": "consent_wire_boundary",
+    "entity_kind": "unverified_consent",
+    "revision_id": "revision_77b04def28e957d87132e94221a8a9cf0d1749d90ac5a2723fa6c140ae773e88",
+    "parent_revision_ids": [],
+    "device_id": "device_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "actor_id": "account_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "operation": "upsert",
+    "content_digest": "sha256:8aca778c6276ad7a167cbcacdc26b72afdd69084f79bc5d10de3de9100a89a86",
+    "created_at": "2026-10-13T00:00:00.000Z",
+    "idempotency_key": "wire-fixture-request-4",
+    "expected_head_revision_id": null,
+    "payload": {
+      "schema_version": 1,
+      "scope": "task",
+      "target": "full-auto",
+      "fingerprint": {},
+      "observed": [],
+      "decided_by": "owner",
+      "origin": "user",
+      "created_at": "2026-10-13T00:00:00.000Z"
+    }
+  }
+]

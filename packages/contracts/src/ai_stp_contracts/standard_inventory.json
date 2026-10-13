@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "standard_family": "ai-stp-standard/1",
-  "contract_digest": "sha256:f6ac438807d5abc714de9035810ce5dae932e9ce7e62164dddda0b37d8d62f7a",
+  "contract_digest": "sha256:620c7f4fcc1adab6d4f40ed52dd67956067eeac27d41e85854e2ea49d2b3cbd1",
   "axes": [
     {
       "name": "standard_family",
@@ -2003,6 +2003,14 @@
     {
       "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:sync-conflict-info"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:sync-consent-tombstone"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:sync-consent-upsert"
     },
     {
       "axis": "http_schema",

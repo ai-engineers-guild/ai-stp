@@ -328,6 +328,14 @@ differs from JSON null. Components and setups never receive generic field merges
 Completed merge receipts replay without rewinding later heads. Network push/pull
 and durable account/origin binding remain pending in #944.
 
+The internal sync event reader validates all five existing wire kinds against
+generated schemas, verifies account and content bindings, and preserves original
+passport addresses. Payload exclusions come from the shared packaged policy;
+errors contain field paths rather than excluded values. Version metadata requires
+exact coordinates and, when present, a matching parentless snapshot. Missing
+legacy snapshots remain distinguishable from invalid null snapshots. These
+readers do not send requests or make versions or artifact bytes available.
+
 `grant list --state-dir` reads owned invitations and owned/received major-line
 access grants through fresh authentication of the same account and device.
 `grant plan --state-dir --request` and `grant apply --plan --plan-digest` cover

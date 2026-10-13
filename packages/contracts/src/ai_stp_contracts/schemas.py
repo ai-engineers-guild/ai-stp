@@ -524,6 +524,8 @@ from ai_stp_contracts.store_ports import (
     StorePortInspection,
 )
 from ai_stp_contracts.sync import (
+    ConsentTombstonePayload,
+    ConsentUpsertPayload,
     SyncConflictInfo,
     SyncEvent,
     SyncEventReceipt,
@@ -865,6 +867,8 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "health-readiness": ReadinessResponse,
     "page-info": PageInfo,
     "sync-event": SyncEvent,
+    "sync-consent-upsert": ConsentUpsertPayload,
+    "sync-consent-tombstone": ConsentTombstonePayload,
     "sync-push-request": SyncPushRequest,
     "sync-event-receipt": SyncEventReceipt,
     "sync-conflict-info": SyncConflictInfo,
