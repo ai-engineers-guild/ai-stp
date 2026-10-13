@@ -314,6 +314,20 @@ unexecuted plans refuse. Fresh account login alone neither switches the attached
 owner nor reverses attachment. Private cloud sync and publication remain
 separate pending capabilities.
 
+`sync preview` inspects private revision heads without network or credentials.
+Its explicit account ID scopes retained receipts without establishing authority.
+It distinguishes a current local head, an unreceived server head recorded in
+that account's receipt, a fast-forward, a clean merge, field conflicts and more
+than two heads requiring manual resolution. Conflict reports contain JSON
+Pointers rather than field values. Each ancestor walk is limited to 16,384
+revisions and validates the retained content and parent links.
+`sync merge plan` plans only two connected developer heads owned by the current
+local identity. `local apply` rechecks the exact heads and candidate, then commits
+the two-parent revision and receipt together. Arrays are atomic; an absent key
+differs from JSON null. Components and setups never receive generic field merges.
+Completed merge receipts replay without rewinding later heads. Network push/pull
+and durable account/origin binding remain pending in #944.
+
 `grant list --state-dir` reads owned invitations and owned/received major-line
 access grants through fresh authentication of the same account and device.
 `grant plan --state-dir --request` and `grant apply --plan --plan-digest` cover

@@ -1,6 +1,6 @@
 ---
 description: "SPEC-039: CLI synchronization of the private registry between devices."
-last_verified: "2026-09-20"
+last_verified: "2026-10-13"
 ---
 
 # SPEC-039: CLI synchronization of the private registry
@@ -23,6 +23,15 @@ to `packages/contracts`; the server-side state machine is defined by `SPEC-025`.
 The scope excludes modifying the server ledger, synchronizing artifact bytes,
 the project passport/index, the full device passport, installation into a target,
 and automatic value selection during conflict resolution.
+
+The isolated Rust preview currently implements local `sync preview` and
+`sync merge plan`, applied through `local apply`. The plan binds the exact
+developer heads, current local owner, candidate, operation identity and validity
+interval. The revision and receipt share one transaction; replay returns the
+original result without moving later heads. Conflict reports expose JSON Pointers
+only. The graph walk validates at most 16,384 revisions per head. Network
+push/pull and their account/origin binding are not yet implemented in Rust;
+the network requirements below describe the production Python implementation.
 
 ## Terms
 
