@@ -311,8 +311,53 @@ Author contexts are rechecked after acquiring each registry connection. A proces
 that loaded the former owner cannot write after attachment. Exact completed
 authoring and selection receipts replay through a query-only connection; old
 unexecuted plans refuse. Fresh account login alone neither switches the attached
-owner nor reverses attachment. Revoked-key recovery, private cloud sync and
-publication remain separate pending capabilities.
+owner nor reverses attachment. Private cloud sync and publication remain
+separate pending capabilities.
+
+`grant list --state-dir` reads owned invitations and owned/received major-line
+access grants through fresh authentication of the same account and device.
+`grant plan --state-dir --request` and `grant apply --plan --plan-digest` cover
+the existing five mutations through one closed request format:
+
+| `action` | `body` | Other request fields |
+|---|---|---|
+| `direct` | `grant-direct-create-request` wire body | None |
+| `invite` | `grant-invitation-create-request` wire body | None |
+| `accept` | `grant-accept-request` body with `token` omitted | `target_id` is an invitation ID; `token_env` names the token variable |
+| `revoke` | `grant-revoke-request` body with the observed `expected_revision` | `target_id` is a grant ID |
+| `revoke_invitation` | `grant-revoke-request` body without a revision | `target_id` is an invitation ID |
+
+The named generated schemas under `schemas/v1` own body fields and bounds.
+Every body includes its original `idempotency_key`. Planning adds
+`mutation_contract: 1`; an older API's strict request reader refuses this field
+before any effect. The guard is excluded from the API's business-request digest,
+so adding it preserves existing idempotency receipts. Direct regrant supplies both
+`expected_grant_id` and `expected_revision`; the CLI never substitutes values from
+a later read. An exact account ID is available as the direct recipient kind
+`user_id`; `github_username` is resolved by the API on the first execution.
+Responses retain the server's current grant state, including revoked grants and
+unknown revisions from older readers. A revoke response acknowledges that request;
+use `grant list` to observe later regrants. Unknown response fields are ignored.
+
+Plans bind the complete request, physical state parent, account, device key,
+credential backend and session revision for fifteen minutes. `--api-url` is
+optional for list/plan and otherwise uses the retained session origin. Planning
+and execution authenticate afresh; changing account, origin, session, key, token
+or parent refuses execution. A plan that expires during authentication also
+refuses before mutation. Acceptance tokens enter only through the explicitly named
+environment variable; the plan binds their SHA-256, never their bytes. They are
+serialized directly into zeroizing transport memory, not retained JSON values.
+
+The API owns durable remote idempotency; the native CLI creates no grant database
+or duplicate mutation journal. A lost response retries the original request and
+key. After refresh or expiry, review a new plan preserving that exact request/key,
+including its original revision; never turn an uncertain result into a fresh
+mutation. Requests are bounded, same-origin, and do not follow redirects or
+retry automatically. Results include the observation time and account and are
+not cached authorization. No grant operation changes local objects, trust pins,
+ownership, verification flags or installed files. Invitation withdrawal does not
+revoke an already accepted grant. Grant-backed selection remains a separate
+integration requiring current grantee rights and independent trust evidence.
 
 `passport device refresh plan --state-dir` records the running CLI's operating
 system, execution architecture and reported package version through `local apply`.

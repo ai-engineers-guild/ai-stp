@@ -2,6 +2,7 @@
 
 mod account;
 mod catalog;
+mod grants;
 mod local;
 mod providers;
 mod reports;
@@ -24,6 +25,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 enum Handler {
     Task(tasks::Handler),
     Account(account::Handler),
+    Grant(grants::Handler),
     Local(local::Handler),
     Report(reports::Handler),
     Provider(providers::Handler),
@@ -668,6 +670,7 @@ fn declarations() -> impl Iterator<Item = &'static Declaration> {
         .chain(providers::COMMANDS)
         .chain(selections::COMMANDS)
         .chain(account::COMMANDS)
+        .chain(grants::COMMANDS)
         .chain(tasks::COMMANDS)
 }
 
@@ -735,6 +738,7 @@ fn mutability(handler: Handler) -> &'static str {
         Handler::Selection(handler) => handler.mutability(),
         Handler::Provider(handler) => handler.mutability(),
         Handler::Account(handler) => handler.mutability(),
+        Handler::Grant(handler) => handler.mutability(),
         Handler::Task(handler) => handler.mutability(),
         _ => "read",
     }
@@ -813,6 +817,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::Local(handler) => local::dispatch(handler, leaf),
         Handler::Report(handler) => reports::dispatch(handler, leaf),
         Handler::Account(handler) => account::dispatch(handler, leaf),
+        Handler::Grant(handler) => grants::dispatch(handler, leaf),
         Handler::Provider(handler) => providers::dispatch(handler, leaf),
         Handler::Selection(handler) => selections::dispatch(handler, leaf),
         Handler::Version => Ok(json!({"schema_version": 1, "cli_version": VERSION,
