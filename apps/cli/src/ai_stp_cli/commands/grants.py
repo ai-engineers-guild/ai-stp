@@ -88,6 +88,12 @@ def direct(parameters: Mapping[str, object]) -> Answer[CliGrantAccessView]:
         major=_major(parameters),
         recipient_kind=_required(parameters, "recipient-kind"),  # pyright: ignore[reportArgumentType]
         recipient=_required(parameters, "recipient"),
+        expected_grant_id=str(parameters["expected-grant-id"])
+        if parameters.get("expected-grant-id")
+        else None,
+        expected_revision=_integer(parameters, "expected-revision", 0)
+        if parameters.get("expected-revision") is not None
+        else None,
         idempotency_key=_required(parameters, "idempotency-key"),
     )
     result = grants.direct(endpoint(), held.access_token, request)
@@ -138,6 +144,9 @@ def _revoke(parameters: Mapping[str, object], *, invitation: bool) -> Answer[Cli
     held = _session("grant revocation")
     request = GrantRevokeRequest(
         reason=str(parameters.get("reason") or ""),
+        expected_revision=_integer(parameters, "expected-revision", 0)
+        if parameters.get("expected-revision") is not None
+        else None,
         idempotency_key=_required(parameters, "idempotency-key"),
     )
     identifier = _required(parameters, "invitation-id" if invitation else "grant-id")

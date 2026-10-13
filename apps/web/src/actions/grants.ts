@@ -64,6 +64,9 @@ export async function createDirectGrantAction(input: {
   major: number;
   recipientKind: "github_username" | "user_id";
   recipient: string;
+  expectedGrantId?: string | undefined;
+  expectedRevision?: number | undefined;
+  idempotencyKey: string;
 }): Promise<{ operationId: string | null }> {
   await requireCsrf(input.csrfToken);
   const sessionToken = await sessionTokenOrThrow();
@@ -73,7 +76,9 @@ export async function createDirectGrantAction(input: {
     major: input.major,
     recipient_kind: input.recipientKind,
     recipient: input.recipient,
-    idempotency_key: randomBytes(16).toString("hex"),
+    idempotency_key: input.idempotencyKey,
+    expected_grant_id: input.expectedGrantId,
+    expected_revision: input.expectedRevision,
   });
   revalidatePath("/[locale]/access", "page");
   return { operationId: result.operationId };
@@ -100,6 +105,8 @@ export async function revokeGrantAction(input: {
   csrfToken: string;
   grantId: string;
   reason: string;
+  expectedRevision: number | null;
+  idempotencyKey: string;
 }): Promise<{ operationId: string | null }> {
   await requireCsrf(input.csrfToken);
   const sessionToken = await sessionTokenOrThrow();
@@ -107,7 +114,8 @@ export async function revokeGrantAction(input: {
     sessionToken,
     input.grantId,
     input.reason,
-    randomBytes(16).toString("hex"),
+    input.idempotencyKey,
+    input.expectedRevision,
   );
   revalidatePath("/[locale]/access", "page");
   return { operationId: result.operationId };

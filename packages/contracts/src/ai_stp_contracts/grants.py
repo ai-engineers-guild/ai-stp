@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, SerializerFunctionWrapHandler, model_serializer
 
 from ai_stp_contracts.auth import AccountId
 from ai_stp_contracts.http import (
@@ -32,7 +32,17 @@ class DirectGrantCreateRequest(ContractModel):
     major: Annotated[int, Field(ge=0, le=9999)]
     recipient_kind: DirectRecipientKind
     recipient: Annotated[str, Field(min_length=1, max_length=320)]
+    expected_grant_id: Annotated[str, Field(min_length=8, max_length=64)] | None = None
+    expected_revision: Annotated[int, Field(ge=1, le=2_147_483_646)] | None = None
     idempotency_key: IdempotencyKey
+
+    @model_serializer(mode="wrap")
+    def sparse_preconditions(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        value: dict[str, object] = handler(self)
+        for name in ("expected_grant_id", "expected_revision"):
+            if value.get(name) is None:
+                value.pop(name, None)
+        return value
 
 
 class GrantInvitationCreateRequest(ContractModel):
@@ -77,6 +87,7 @@ class AccessGrantResponse(ContractModel):
     grantee_account_id: AccountId
     owner_account_id: AccountId
     state: GrantState
+    revision: Annotated[int, Field(ge=1)] | None = None
     created_at: Timestamp
     revoked_at: Timestamp | None = None
     recipient_kind: DirectRecipientKind | None
@@ -110,7 +121,16 @@ class GrantRevokeRequest(ContractModel):
 
     schema_version: Literal[1] = 1
     reason: Annotated[str, Field(default="", max_length=500)] = ""
+    expected_revision: Annotated[int, Field(ge=1, le=2_147_483_646)] | None = None
     idempotency_key: IdempotencyKey
+
+    @model_serializer(mode="wrap")
+    def sparse_preconditions(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        value: dict[str, object] = handler(self)
+        for name in ("expected_revision",):
+            if value.get(name) is None:
+                value.pop(name, None)
+        return value
 
 
 class GrantRevokeResponse(ContractModel):

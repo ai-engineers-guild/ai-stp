@@ -847,7 +847,11 @@ async def test_corporate_access_grant_owner_context(
 
     revoked = await client.post(
         f"/v1/grants/{grant['grant_id']}/revoke",
-        json={"schema_version": 1, "idempotency_key": str(uuid.uuid4())},
+        json={
+            "schema_version": 1,
+            "idempotency_key": str(uuid.uuid4()),
+            "expected_revision": grant["revision"],
+        },
         headers=successor_auth,
     )
     assert revoked.status_code == 200, revoked.text

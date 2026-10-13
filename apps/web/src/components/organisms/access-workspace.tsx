@@ -27,8 +27,11 @@ import {
 import { useRouter } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";
 
+import type { AccessGrantResponse } from "@/lib/api/generated/types.gen";
+
 export type AccessUser = {
   grantId: string;
+  revision: number | null;
   accountId: string;
   displayName: string | null;
   avatarUrl: string | null;
@@ -63,6 +66,7 @@ type Labels = {
 
 type AccessWorkspaceProps = {
   users: readonly AccessUser[];
+  observedGrants?: readonly AccessGrantResponse[] | undefined;
   csrfToken: string;
   labels: Labels;
   initialObjectKind?: "component" | "setup" | undefined;
@@ -292,6 +296,7 @@ function AccessUserRow({
 
 export function AccessWorkspace({
   users,
+  observedGrants = [],
   csrfToken,
   labels,
   initialObjectKind,
@@ -302,7 +307,11 @@ export function AccessWorkspace({
   const [pending, startTransition] = useTransition();
   const [operationId, setOperationId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<{
+    grantId: string;
+    revision: number | null;
+    idempotencyKey: string;
+  } | null>(null);
 
   function run(task: () => Promise<{ operationId: string | null }>) {
     setError(null);
@@ -319,9 +328,17 @@ export function AccessWorkspace({
 
   function confirmRevoke() {
     if (!revokeTarget) return;
-    const grantId = revokeTarget;
+    const { grantId, revision, idempotencyKey } = revokeTarget;
     setRevokeTarget(null);
-    run(() => revokeGrantAction({ csrfToken, grantId, reason: "" }));
+    run(() =>
+      revokeGrantAction({
+        csrfToken,
+        grantId,
+        reason: "",
+        expectedRevision: revision,
+        idempotencyKey,
+      }),
+    );
   }
 
   return (
@@ -333,6 +350,19 @@ export function AccessWorkspace({
         initialStableId={initialStableId}
         initialMajor={initialMajor}
         onCreate={(input) => {
+          const recipient = input.recipient.trim();
+          const observed = observedGrants.find(
+            (grant) =>
+              grant.object_kind === input.kind &&
+              grant.stable_id === input.stableId &&
+              grant.major === input.major &&
+              (input.recipientKind === "user_id"
+                ? grant.grantee_account_id === recipient
+                : input.recipientKind === "github_username" &&
+                  grant.recipient_kind === "github_username" &&
+                  grant.recipient === recipient.toLowerCase().replace(/^@/, "")),
+          );
+          const idempotencyKey = crypto.randomUUID();
           run(() =>
             input.recipientKind === "verified_email"
               ? createInvitationAction({
@@ -349,6 +379,9 @@ export function AccessWorkspace({
                   major: input.major,
                   recipientKind: input.recipientKind,
                   recipient: input.recipient,
+                  expectedGrantId: observed?.revision ? observed.grant_id : undefined,
+                  expectedRevision: observed?.revision ?? undefined,
+                  idempotencyKey,
                 }),
           );
         }}
@@ -366,7 +399,13 @@ export function AccessWorkspace({
                 user={user}
                 labels={labels}
                 pending={pending}
-                onRevoke={setRevokeTarget}
+                onRevoke={(grantId) => {
+                  setRevokeTarget({
+                    grantId,
+                    revision: user.revision,
+                    idempotencyKey: crypto.randomUUID(),
+                  });
+                }}
               />
             ))}
           </ul>

@@ -993,6 +993,7 @@ class AccessGrant(OrganizationScopedMixin, Base):
             "grantee_account_id",
             name="uq_access_grant_target_grantee",
         ),
+        CheckConstraint("revision >= 1", name="ck_access_grant_revision"),
         CheckConstraint("state in ('active', 'revoked')", name="ck_access_grant_state"),
         CheckConstraint(
             "object_kind in ('component', 'setup')",
@@ -1010,6 +1011,7 @@ class AccessGrant(OrganizationScopedMixin, Base):
     grantee_account_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("account.id", ondelete="CASCADE"), index=True
     )
+    revision: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     state: Mapped[str] = mapped_column(String(16), default="active")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

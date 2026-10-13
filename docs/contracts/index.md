@@ -18,7 +18,7 @@ last_verified: "2026-08-03"
 | [catalog-usage-metrics.md](catalog-usage-metrics.md) | Wire semantics of public detail-view and artifact-download counters. | 2026-08-17 |
 | [cli-config.md](cli-config.md) | Global CLI configuration fields, defaults, and source precedence. | 2026-09-08 |
 | [cli-copy-templates.md](cli-copy-templates.md) | Canonical CLI templates for web UI copy blocks (SPEC-037). | 2026-09-25 |
-| [cli-grants.md](cli-grants.md) | Client sequence for issuing, accepting, and revoking access grants. | 2026-08-13 |
+| [cli-grants.md](cli-grants.md) | Client sequence for issuing, accepting, and revoking access grants. | 2026-10-13 |
 | [cli-heartbeat.md](cli-heartbeat.md) | Closed heartbeat payload the CLI sends for its corporate installation, and the command behavior around it. | 2026-09-24 |
 | [cli-json.md](cli-json.md) | JSON envelope, error classes, and CLI machine-output rules. | 2026-09-16 |
 | [cli-owner-objects.md](cli-owner-objects.md) | Authorized reading of owner objects through the CLI. | 2026-08-13 |

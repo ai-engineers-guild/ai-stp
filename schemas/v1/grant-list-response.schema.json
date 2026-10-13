@@ -47,6 +47,19 @@
             }
           ]
         },
+        "revision": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revision"
+        },
         "revoked_at": {
           "anyOf": [
             {
@@ -81,6 +94,7 @@
         "owner_account_id",
         "recipient",
         "recipient_kind",
+        "revision",
         "revoked_at",
         "schema_version",
         "stable_id",

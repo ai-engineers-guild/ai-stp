@@ -11,6 +11,7 @@ import {
 import { AccessWorkspace } from "@/components/organisms/access-workspace";
 
 const refresh = vi.fn();
+const idempotencyKey = "88abdcde-5013-40ae-a319-bcd11b0a07fb";
 
 vi.mock("@/lib/i18n/navigation", () => ({
   useRouter: () => ({ refresh }),
@@ -59,16 +60,46 @@ const labels = {
 describe("AccessWorkspace direct grants", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(idempotencyKey);
   });
 
   it.each([
-    ["github_username", "GitHub username", "octocat"],
-    ["user_id", "User ID", "account_01JQZK7B8N4M6P2R9T5V0X3Y70"],
+    ["github_username", "GitHub username", "octocat", undefined],
+    ["user_id", "User ID", "account_01JQZK7B8N4M6P2R9T5V0X3Y70", undefined],
+    ["github_username", "GitHub username", " @OctoCat ", 2],
+    ["user_id", "User ID", "account_01JQZK7B8N4M6P2R9T5V0X3Y70", 2],
   ] as const)(
     "submits a %s recipient as a direct grant",
-    async (recipientKind, label, recipient) => {
+    async (recipientKind, label, recipient, revision) => {
       const user = userEvent.setup();
-      render(<AccessWorkspace users={[]} csrfToken="csrf" labels={labels} />);
+      render(
+        <AccessWorkspace
+          users={[]}
+          csrfToken="csrf"
+          labels={labels}
+          observedGrants={
+            revision === undefined
+              ? []
+              : [
+                  {
+                    schema_version: 1,
+                    grant_id: "grant_01",
+                    revision,
+                    object_kind: "component",
+                    stable_id: "component_test",
+                    major: 1,
+                    grantee_account_id: "account_01JQZK7B8N4M6P2R9T5V0X3Y70",
+                    owner_account_id: "account_owner",
+                    state: "revoked",
+                    created_at: "2026-10-13T00:00:00Z",
+                    revoked_at: "2026-10-13T01:00:00Z",
+                    recipient_kind: "github_username",
+                    recipient: "octocat",
+                  },
+                ]
+          }
+        />,
+      );
 
       await user.selectOptions(screen.getByLabelText("Recipient identifier"), recipientKind);
       await user.type(screen.getByLabelText(label), recipient);
@@ -83,6 +114,9 @@ describe("AccessWorkspace direct grants", () => {
           major: 1,
           recipientKind,
           recipient,
+          expectedGrantId: revision === undefined ? undefined : "grant_01",
+          expectedRevision: revision,
+          idempotencyKey,
         });
       });
       expect(createInvitationAction).not.toHaveBeenCalled();
@@ -99,11 +133,12 @@ describe("AccessWorkspace direct grants", () => {
     });
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
 
-    render(
+    const workspace = (revision: number) => (
       <AccessWorkspace
         users={[
           {
             grantId: "grant_01",
+            revision,
             accountId: "account_01",
             displayName: "Ada Lovelace",
             avatarUrl: null,
@@ -111,8 +146,9 @@ describe("AccessWorkspace direct grants", () => {
         ]}
         csrfToken="csrf"
         labels={labels}
-      />,
+      />
     );
+    const { rerender } = render(workspace(7));
 
     expect(screen.getByRole("link", { name: /Ada Lovelace/ })).toHaveAttribute(
       "href",
@@ -128,12 +164,16 @@ describe("AccessWorkspace direct grants", () => {
     expect(writeText).toHaveBeenCalledWith("account_01");
     await user.click(screen.getByRole("button", { name: "More actions" }));
     await user.click(screen.getByRole("menuitem", { name: "Revoke" }));
+    // A refresh while the confirmation is open cannot widen the approved intent.
+    rerender(workspace(9));
     await user.click(screen.getByRole("button", { name: "Revoke access" }));
     await waitFor(() => {
       expect(revokeGrantAction).toHaveBeenCalledWith({
         csrfToken: "csrf",
         grantId: "grant_01",
         reason: "",
+        expectedRevision: 7,
+        idempotencyKey,
       });
     });
     expect(confirmSpy).not.toHaveBeenCalled();
