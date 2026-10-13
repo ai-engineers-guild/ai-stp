@@ -14989,6 +14989,19 @@
             "title": "Major",
             "type": "integer"
           },
+          "mutation_contract": {
+            "anyOf": [
+              {
+                "const": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mutation Contract"
+          },
           "object_kind": {
             "$ref": "#/components/schemas/ObjectKind"
           },
@@ -17821,6 +17834,19 @@
           "idempotency_key": {
             "$ref": "#/components/schemas/IdempotencyKey"
           },
+          "mutation_contract": {
+            "anyOf": [
+              {
+                "const": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mutation Contract"
+          },
           "schema_version": {
             "const": 1,
             "default": 1,
@@ -17853,6 +17879,19 @@
             "minimum": 0,
             "title": "Major",
             "type": "integer"
+          },
+          "mutation_contract": {
+            "anyOf": [
+              {
+                "const": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mutation Contract"
           },
           "object_kind": {
             "$ref": "#/components/schemas/ObjectKind"
@@ -17996,6 +18035,19 @@
           },
           "idempotency_key": {
             "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "mutation_contract": {
+            "anyOf": [
+              {
+                "const": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mutation Contract"
           },
           "reason": {
             "default": "",

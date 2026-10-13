@@ -13,6 +13,19 @@
     "idempotency_key": {
       "$ref": "#/$defs/IdempotencyKey"
     },
+    "mutation_contract": {
+      "anyOf": [
+        {
+          "const": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Mutation Contract"
+    },
     "schema_version": {
       "const": 1,
       "default": 1,

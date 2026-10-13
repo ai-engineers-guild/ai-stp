@@ -46,6 +46,14 @@ pub(crate) struct Access {
 
 impl Access {
     pub fn load(root: &Path, origin: &str, offline: bool) -> Result<Self> {
+        Self::load_at(root, Some(origin), offline)
+    }
+
+    pub fn for_account(root: &Path, origin: Option<&str>) -> Result<Self> {
+        Self::load_at(root, origin, false)
+    }
+
+    fn load_at(root: &Path, origin: Option<&str>, offline: bool) -> Result<Self> {
         let identity = super::identity_at(root)?;
         let journal =
             Journal::open(&identity, false)?.ok_or_else(|| refused("account_required"))?;
@@ -59,7 +67,11 @@ impl Access {
         let Session::Authorized { account_id, .. } = &state.session else {
             return Err(refused("account_required"));
         };
-        if super::transport::origin(origin)? != state.plan.origin {
+        if origin
+            .map(super::transport::origin)
+            .transpose()?
+            .is_some_and(|origin| origin != state.plan.origin)
+        {
             return Err(refused("account_origin_mismatch"));
         }
         let binding = Binding {
@@ -162,6 +174,22 @@ impl Access {
             b"ai-stp-cli-v2 private catalog cache v1\n",
             create,
         )
+    }
+
+    pub(super) fn grants(&self, route: &str, body: Option<&[u8]>) -> Result<serde_json::Value> {
+        self.revalidate()?;
+        if !self.verified || self.offline {
+            return Err(refused("account_origin_or_authorization_mismatch"));
+        }
+        let Session::Authorized { access_token, .. } = &self.state.session else {
+            return Err(refused("account_required"));
+        };
+        let reply = Api::new(&self.binding.origin)?.grants(route, body, access_token)?;
+        self.revalidate()?;
+        match reply {
+            Reply::Resource(value) => Ok(value),
+            Reply::Refused(code) => Err(super::grants::refusal(code)),
+        }
     }
 }
 
