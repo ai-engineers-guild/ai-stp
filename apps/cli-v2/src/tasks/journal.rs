@@ -113,7 +113,7 @@ impl Row {
             return Err(invalid());
         }
         self.payload.identity.validate()?;
-        Input::parse(self.payload.input.value()?)?;
+        Input::stored(self.payload.input.value()?)?;
         if let Some(plan) = &self.payload.plan {
             if self.payload.plan_digest.as_deref() != Some(plan.digest()?.as_str())
                 || plan.identity != self.payload.identity

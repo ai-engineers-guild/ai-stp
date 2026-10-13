@@ -1,6 +1,6 @@
 //! Closed author facts and questions; the existing wire model remains authoritative.
 
-use std::path::PathBuf;
+use std::{collections::BTreeSet, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -35,6 +35,13 @@ fn version() -> u32 {
 
 impl Input {
     pub(super) fn parse(value: Value) -> Result<Self> {
+        let input = Self::stored(value)?;
+        input.admit()?;
+        Ok(input)
+    }
+
+    /// Historical records retain their wire meaning when current surfaces change.
+    pub(super) fn stored(value: Value) -> Result<Self> {
         if canonical::bytes(&value)?.len() > 16 * 1024 {
             return Err(Failure::input("task input exceeds 16 KiB"));
         }
@@ -67,13 +74,6 @@ impl Input {
         {
             return Err(Failure::input("author task directory must be absolute"));
         }
-        if let (Some(harness), Some(kind)) = (&input.harness_id, &input.component_type)
-            && !embedded::kinds(harness)?.contains(kind)
-        {
-            return Err(Failure::input(
-                "the harness has no authoring surface for that kind",
-            ));
-        }
         if input.name.as_ref().is_some_and(|name| {
             name.trim() != name
                 || name.chars().count() > 160
@@ -97,6 +97,21 @@ impl Input {
             return Err(Failure::input("normalized author input exceeds 16 KiB"));
         }
         Ok(input)
+    }
+
+    pub(super) fn admit(&self) -> Result<()> {
+        if let Some(kind) = &self.component_type {
+            let supported = match &self.harness_id {
+                Some(harness) => embedded::kinds(harness)?.contains(kind),
+                None => available_kinds()?.contains(kind),
+            };
+            if !supported {
+                return Err(Failure::input(
+                    "the current installation component has no authoring surface for that kind",
+                ));
+            }
+        }
+        Ok(())
     }
 
     pub(super) fn value(&self) -> Result<Value> {
@@ -188,7 +203,16 @@ impl Input {
     }
 }
 
+fn available_kinds() -> Result<BTreeSet<String>> {
+    let mut kinds = BTreeSet::new();
+    for harness in harnesses::definitions()? {
+        kinds.extend(embedded::kinds(&harness.harness_id)?);
+    }
+    Ok(kinds)
+}
+
 pub(super) fn descriptor() -> Result<Value> {
+    let supported_kinds = available_kinds()?;
     let schema: Value = serde_json::from_str(include_str!(
         "../../../../schemas/v1/cli-task-input-author.schema.json"
     ))
@@ -199,20 +223,24 @@ pub(super) fn descriptor() -> Result<Value> {
         .iter()
         .filter(|(name, _)| *name != "schema_version")
         .map(|(name, field)| {
-            let choices = field["anyOf"]
-                .as_array()
-                .and_then(|items| {
-                    items.iter().find_map(|item| {
-                        item.get("enum").or_else(|| {
-                            item["$ref"]
-                                .as_str()
-                                .and_then(|reference| reference.strip_prefix("#/$defs/"))
-                                .and_then(|name| schema["$defs"][name].get("enum"))
+            let choices = if name == "component_type" {
+                json!(supported_kinds)
+            } else {
+                field["anyOf"]
+                    .as_array()
+                    .and_then(|items| {
+                        items.iter().find_map(|item| {
+                            item.get("enum").or_else(|| {
+                                item["$ref"]
+                                    .as_str()
+                                    .and_then(|reference| reference.strip_prefix("#/$defs/"))
+                                    .and_then(|name| schema["$defs"][name].get("enum"))
+                            })
                         })
                     })
-                })
-                .cloned()
-                .unwrap_or_else(|| json!([]));
+                    .cloned()
+                    .unwrap_or_else(|| json!([]))
+            };
             json!({"name":name,"required":false,"value_type":"string","choices":choices})
         })
         .collect::<Vec<_>>();

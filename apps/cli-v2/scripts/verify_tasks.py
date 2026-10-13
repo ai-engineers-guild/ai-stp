@@ -64,8 +64,9 @@ def prove(binary: Path, home: Path, root: Path, state: Path, run: Any) -> None:
     assert [row["name"] for row in catalog["intents"]] == ["author"]
     fields = {row["name"]: row for row in catalog["intents"][0]["input_fields"]}
     assert "codex" in fields["harness_id"]["choices"]
-    assert "cli" in fields["component_type"]["choices"]
+    assert "cli" not in fields["component_type"]["choices"]
     before = counts()
+    start("native-author-unsupported", {"harness_id": "codex", "component_type": "cli"}, 2)
     for invalid_key in ("short", "native author invalid", "x" * 129):
         start(invalid_key, {}, 2)
     assert counts() == before

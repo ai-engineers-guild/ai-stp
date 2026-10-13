@@ -18,6 +18,7 @@ use crate::{
     objects::Objects,
     passport,
     projection::{self, Scope, artifact},
+    provider::{self, surfaces},
     sources,
     store::{Store, database, journal, revisions, versions},
 };
@@ -74,15 +75,15 @@ fn text<'a>(value: &'a Value, field: &str) -> Result<&'a str> {
 
 pub fn kinds(harness: &str) -> Result<Vec<String>> {
     crate::harnesses::definition(harness)?;
-    let mut kinds: Vec<_> = projection::routes()?
-        .iter()
-        .filter(|route| {
-            route.harness_id == harness
-                && matches!(route.target_scope, Scope::Global | Scope::UserRoot)
-        })
-        .map(|route| route.component_type.clone())
-        .collect();
-    kinds.push("cli".into());
+    let mut kinds = Vec::new();
+    for route in projection::routes()? {
+        if route.harness_id == harness
+            && matches!(route.target_scope, Scope::Global | Scope::UserRoot)
+            && surfaces::supports_route(route)?
+        {
+            kinds.push(route.component_type.clone());
+        }
+    }
     kinds.sort();
     kinds.dedup();
     Ok(kinds)
@@ -136,9 +137,6 @@ fn capture(request: &Request, owner: &Identity) -> Result<Prepared> {
     let route = projection::route(&request.component_type, &request.harness_id, Scope::Global)?;
     let (relative, shape, scope) = match route {
         Some(route) => (route.relative.clone(), route.shape, route.target_scope),
-        None if request.component_type == "cli" => {
-            (format!("bin/{}", request.name), Shape::File, Scope::Global)
-        }
         None => {
             return Err(Failure::precondition(
                 "this harness has no declared authoring route for that kind",
@@ -177,11 +175,11 @@ fn capture(request: &Request, owner: &Identity) -> Result<Prepared> {
             ));
         }
     }
-    let profile = projection::profile(&request.harness_id, scope)?;
+    let profile = surfaces::profile(&request.harness_id, scope)?;
     let identity = json!({"format":"ai-stp-native-author/1", "owner_id":owner.account_id,
         "harness_id":request.harness_id,"component_type":request.component_type,
         "name":request.name,"license_spdx":request.license_spdx,"source_digest":source_digest,
-        "profile_id":profile.profile_id,"profile_digest":profile.profile_digest,
+        "profile_id":profile["profile_id"],"profile_digest":profile["digest"],
         "scope":scope,"projection_kind":projection_kind,"provider_kind":provider_kind,
         "paths":members.iter().map(|v| &v.path).collect::<Vec<_>>()});
     Ok(Prepared {
@@ -227,17 +225,22 @@ fn component(
     let bytes = artifact::build_members(&members, &prepared.files)?;
     let reference =
         json!({"digest":digest::bytes("ai-stp:artifact:v1",&bytes)?,"size_bytes":bytes.len()});
-    let profile = projection::profile(&request.harness_id, prepared.scope)?;
+    let profile = surfaces::profile(&request.harness_id, prepared.scope)?;
     let adaptation = passport::versions::seal_adaptation(&json!({
     "harness_id":request.harness_id,"implementation_mode":"native","source_artifact":null,"transform":null,
     "logical_component_type":request.component_type,"scope_adaptations":[{
         "scope":prepared.scope,"projection_format":artifact::FORMAT,"projection_artifact":reference,
             "provider_component_kind":prepared.provider_kind,"projection_kind":prepared.projection_kind,
-        "required_surface":{"profile_id":profile.profile_id,"profile_digest":profile.profile_digest,"bundle_format":profile.bundle_format},
+        "required_surface":{"profile_id":profile["profile_id"],"profile_digest":profile["digest"],"bundle_format":"ai-stp-bundle/2"},
         "permissions":{"filesystem":[],"network":[],"process":[]},"members":members,
         "supported_harness_versions":[],"supported_os":[],"supported_arch":[],
         "technical_support":"experimental","technical_support_reason":"locally authored embedded component","semantic_losses":[]
     }]}))?;
+    if !provider::supports_profile(profile, &adaptation["scope_adaptations"][0]) {
+        return Err(Failure::precondition(
+            "the current installation component cannot project these authored files",
+        ));
+    }
     let values = json!({"name":request.name,"description":format!("Local {} {}.",request.component_type,request.name),
         "tags":["authored"],"license":{"spdx_id":request.license_spdx,"redistribution_allowed":false},
         "component_type":request.component_type,"harness_id":request.harness_id});

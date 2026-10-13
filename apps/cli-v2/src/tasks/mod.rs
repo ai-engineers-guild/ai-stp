@@ -160,7 +160,7 @@ pub fn start(parent: &Path, intent: &str, key: &str, value: Value) -> Result<Val
         return Err(Failure::input("this task intent has not been implemented"));
     }
     valid_key(key)?;
-    let input = input::Input::parse(value)?;
+    let input = input::Input::stored(value)?;
     let request = journal::encode(&input.value()?)?;
     let owner = runtime::owner(parent)?;
     {
@@ -172,6 +172,7 @@ pub fn start(parent: &Path, intent: &str, key: &str, value: Value) -> Result<Val
             }
         }
     }
+    input.admit()?;
     let mut store = owner.open(true)?;
     if let Some(row) = journal::key(&store.connection, key)? {
         original(&row, &request)?;
