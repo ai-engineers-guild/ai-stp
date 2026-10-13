@@ -181,6 +181,9 @@ fn render(
             for (index, selector) in request.targets.iter().enumerate() {
                 let mut target = observed_targets[index].clone();
                 target.env_present.clone_from(&observed.target.env_present);
+                target
+                    .owned_passport_digests
+                    .clone_from(&observed.target.owned_passport_digests);
                 let mut assessment = eligibility::assess_connection(
                     connection,
                     &roots,
