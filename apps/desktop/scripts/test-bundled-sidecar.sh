@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Spawn the real PyInstaller sidecar through the app's filtered-env runner
+# Spawn the real Rust sidecar through the app's filtered-env runner
 # path — the same check desktop.yml runs as "Sidecar spawns under the
 # app's filtered env". `CliRunner` clears the child environment and
 # re-adds a passthrough set, which is the path the installed app takes;

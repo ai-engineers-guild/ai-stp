@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import platform
 import subprocess
@@ -42,8 +44,16 @@ def main() -> None:
 
         name = "ai-stp-desktop-cli.exe" if os.name == "nt" else "ai-stp-desktop-cli"
         executable = resource_root / "cli" / name
-        if not executable.is_file() or not (executable.parent / "_internal").is_dir():
-            raise RuntimeError(f"incomplete packaged CLI tree at {executable.parent}")
+        manifest = json.loads((executable.parent / "sidecar.json").read_text())
+        if (
+            not executable.is_file()
+            or manifest.get("runtime") != "rust"
+            or manifest.get("executable") != executable.name
+            or manifest.get("sha256") != hashlib.sha256(executable.read_bytes()).hexdigest()
+            or {path.name for path in executable.parent.iterdir()}
+            != {executable.name, "sidecar.json"}
+        ):
+            raise RuntimeError(f"invalid packaged Rust CLI resource at {executable.parent}")
         env = {**os.environ, "AI_STP_SIDECAR_EXE": str(executable)}
         subprocess.run(
             [

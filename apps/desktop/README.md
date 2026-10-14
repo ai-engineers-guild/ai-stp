@@ -68,8 +68,7 @@ cd src-tauri && cargo check && cargo build
 
 From the repository root, `just desktop-check` runs the same group CI
 runs: frontend tsc/vitest/build, fmt+clippy+tests for both crates, and a
-`desktop-regress` leg that freezes the real PyInstaller sidecar — that
-freeze takes several minutes — and spawns it under the app's filtered
+`desktop-regress` leg that builds the optimized Rust sidecar and spawns it under the app's filtered
 environment. `just desktop-gen` formats both crates. The `--stub` sidecar
 these recipes install is a dev-only placeholder that answers
 `version --json`; it is never written over a real build.
@@ -101,21 +100,18 @@ release. Bundles are unsigned — signing/notarization is a separate track.
 
 ## Requirements
 
-Release bundles carry the CLI inside: `scripts/build-cli-sidecar.sh`
-builds the `ai-stp-cli` wheel, installs it into a fresh environment with the
-hash-checked, locked closure of the dependencies it declares — what
-`pip install ai-stp-cli` gets, nothing from the server or dev groups — and
-freezes that with PyInstaller `--onedir` into
-`src-tauri/sidecar/cli/`. Tauri `bundle.resources` installs the complete
-executable and `_internal` tree under the platform resource directory's
-`cli/` folder. The shell uses Tauri's resource resolver for Linux packages,
-AppImage, macOS and Windows. No extraction is needed on each CLI call and
-no separate CLI install is required. The executable remains named
-`ai-stp-desktop-cli`; it does not occupy `/usr/bin/ai-stp`.
-For development, resolution
-falls back to a configured path and then PATH
-(`uv tool install ai-stp-cli`); a pinned path that is missing is an
-error, not a silent fallback.
+Release bundles carry the Rust CLI inside. `scripts/build-cli-sidecar.sh`
+builds the locked optimized native package, verifies its machine protocol and
+packages one `ai-stp-desktop-cli` executable plus its digest-bound `sidecar.json`.
+Tauri installs those resources under `cli/`; the shell uses the platform resource
+resolver. There is no interpreter, runtime extraction or separate CLI installation.
+The sidecar name does not occupy the standalone `ai-stp` entrypoint. The packaged
+resource probe verifies the actual extracted binary and runs it through the app's
+filtered environment.
+
+Development resolution falls back to a configured path and then PATH. A configured
+path that is missing fails explicitly. `--stub` remains a compile-time development
+placeholder and never replaces a real sidecar.
 
 ## Deliberate boundaries
 
