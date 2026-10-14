@@ -86,6 +86,12 @@ administration; a component grant never confers that authority.
   binding records observed source visibility, publisher, installation, immutable
   repository identity, commit, subpath, artifact digest/size and passport digest.
   The server accepts a missing component source only with that verified binding.
+  A legacy source-tree primary artifact must match the binding's digest, size and
+  inventory. A complete component may instead use a declared projection as its
+  primary artifact; every adaptation must then reference the exact bound source
+  artifact digest and size. Missing or mixed source references refuse. Source
+  provenance does not establish transformation equivalence or verification; the
+  ordinary projection, safety and author-evidence checks still apply.
 - `REQ-7309`: Connector publication retains ordinary plan, artifact, safety and
   owner checks. Preparation grants no public exposure. Plan confirmation rechecks
   the connector and selected repository; identical retries retain the binding and
