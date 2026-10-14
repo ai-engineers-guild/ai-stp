@@ -155,6 +155,167 @@ fn counts(store: &mut Store) -> Result<(i64, i64, i64, i64), Failure> {
         .map_err(|_| Failure::precondition("proof query failed")))
 }
 
+#[test]
+fn publication_prepares_exact_bytes_and_keeps_embedded_members_inside_the_setup()
+-> Result<(), Box<dyn Error>> {
+    use ai_stp_cli_v2::{
+        authoring::{embedded, setups},
+        publication,
+    };
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().canonicalize()?;
+    let source = root.join("source");
+    fs::create_dir(&source)?;
+    fs::write(
+        source.join("SKILL.md"),
+        "---\nname: inspect\ndescription: Inspect changed code.\n---\nReport concrete defects.\n",
+    )?;
+    let identity = Identity {
+        account_id: format!("account_{}", ulid::Ulid::generate()),
+        device_id: format!("device_{}", ulid::Ulid::generate()),
+    };
+    let mut store = Store::open(&root, true)?;
+    let mut members = Vec::new();
+    let mut components = Vec::new();
+    for name in ["alpha", "beta"] {
+        let plan = embedded::plan(
+            &mut store,
+            embedded::Request {
+                directory: source.clone(),
+                harness_id: "codex".into(),
+                component_type: "skill".into(),
+                name: name.into(),
+                license_spdx: "MIT".into(),
+            },
+            identity.clone(),
+            AT,
+        )?;
+        embedded::apply(&mut store, &plan, &plan.digest()?, &identity, AT)?;
+        let before = counts(&mut store)?;
+        let prepared = publication::prepare(
+            &mut store,
+            field(&plan.setup, "stable_id")?,
+            "1.0",
+            None,
+            None,
+        )?;
+        assert_eq!(
+            prepared.len(),
+            1,
+            "embedded member became a separate publication"
+        );
+        assert_eq!(prepared[0].passport, plan.setup);
+        let prepared = publication::prepare(
+            &mut store,
+            field(&plan.component, "stable_id")?,
+            "1.0",
+            None,
+            None,
+        )?;
+        assert_eq!(prepared.len(), 1);
+        let component = prepared.into_iter().next().ok_or("component absent")?;
+        assert_eq!(
+            component.passport, plan.component,
+            "publication resealed an immutable passport"
+        );
+        component.require_owner(&identity.account_id)?;
+        assert!(
+            component
+                .require_owner(&format!("account_{}", ulid::Ulid::generate()))
+                .is_err()
+        );
+        assert_eq!(counts(&mut store)?, before, "preparation wrote local state");
+        members.push(setups::Member {
+            stable_id: field(&component.passport, "stable_id")?.into(),
+            version: "1.0".into(),
+            passport_digest: component.passport_digest.clone(),
+        });
+        components.push(component);
+    }
+    let plan = setups::plan(
+        &mut store,
+        setups::Request {
+            harness_id: "codex".into(),
+            name: "Review source".into(),
+            description: "Inspect a source change.".into(),
+            purpose: "review".into(),
+            members,
+            requirements: None,
+        },
+        identity.clone(),
+        AT,
+    )?;
+    let setup = setups::apply(&mut store, &plan, &plan.digest()?, &identity, AT)?;
+    let setup_id = field(&setup, "stable_id")?;
+    let before = counts(&mut store)?;
+    let prepared = publication::prepare(&mut store, setup_id, "1.0", None, None)?;
+    assert_eq!(prepared.len(), 3);
+    assert_eq!(
+        prepared[2].passport, setup,
+        "setup did not follow its components"
+    );
+    for component in &components {
+        assert!(prepared[..2].contains(component));
+    }
+    assert!(publication::prepare(&mut store, setup_id, "1.0", None, Some(&source)).is_err());
+    let component = &components[0];
+    let id = field(&component.passport, "stable_id")?;
+    assert!(
+        publication::prepare(
+            &mut store,
+            id,
+            "1.0",
+            Some(&prepared[2].passport_digest),
+            None
+        )
+        .is_err()
+    );
+    let scope = &component.passport["adaptations"][0]["scope_adaptations"][0];
+    let payload = store.transaction(|t| component.payload(t, &component.artifact.digest))?;
+    let files = artifact::verify(scope, &payload)?;
+    let comparison = root.join("comparison");
+    for file in &files {
+        let path = comparison.join(&file.path);
+        fs::create_dir_all(path.parent().ok_or("parent missing")?)?;
+        fs::write(path, &file.bytes)?;
+    }
+    assert_eq!(
+        publication::prepare(&mut store, id, "1.0", None, Some(&comparison))?[0],
+        *component
+    );
+    let path = comparison.join(&files[0].path);
+    fs::write(&path, b"changed source")?;
+    assert!(publication::prepare(&mut store, id, "1.0", None, Some(&comparison)).is_err());
+    fs::remove_dir_all(&comparison)?;
+    assert_eq!(
+        publication::prepare(&mut store, id, "1.0", None, None)?[0],
+        *component
+    );
+    assert_eq!(counts(&mut store)?, before);
+    store.transaction(|t| {
+        assert!(component.payload(t, &prepared[2].artifact.digest).is_err());
+        t.execute(
+            "UPDATE content SET bytes=? WHERE digest=?",
+            rusqlite::params![b"tampered".as_slice(), component.artifact.digest],
+        )
+        .map_err(|_| Failure::precondition("proof corruption failed"))?;
+        assert!(component.payload(t, &component.artifact.digest).is_err());
+        Ok(())
+    })?;
+    assert!(publication::prepare(&mut store, setup_id, "1.0", None, None).is_err());
+    store.transaction(|t| {
+        t.execute("UPDATE content SET bytes=? WHERE digest=?", rusqlite::params![payload,component.artifact.digest])
+            .map_err(|_| Failure::precondition("proof restoration failed"))?;
+        t.execute("INSERT INTO overlay_origin(revision_id,source_kind,source_ref,base_digest,applied_at) VALUES (?,'generated',?,?,?)",
+            rusqlite::params![field(&component.passport,"revision_id").map_err(|_|Failure::input("revision absent"))?, id, component.passport_digest, AT])
+            .map_err(|_| Failure::precondition("proof overlay failed"))?;
+        Ok(())
+    })?;
+    assert!(publication::prepare(&mut store, id, "1.0", None, None).is_err());
+    assert!(publication::prepare(&mut store, setup_id, "1.0", None, None).is_err());
+    Ok(())
+}
+
 fn adopt(
     store: &mut Store,
     root: &Path,

@@ -23,6 +23,7 @@ pub mod projection;
 pub mod projects;
 pub mod provenance;
 pub mod provider;
+pub mod publication;
 pub mod registry;
 pub mod selection;
 pub mod snapshot;
