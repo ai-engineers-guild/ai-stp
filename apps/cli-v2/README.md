@@ -2474,10 +2474,13 @@ payload as the Python/API consumer. The native commands are:
 - `attestation status --state-dir --operation-id` reads that retained record and
   its `signed` or `completed` state without authentication or network access.
 
-New signing/export currently requires Unix owner-only file permissions. Windows
-refuses before signing or writing until a native ACL boundary is qualified;
-copying Unix mode bits would not establish equivalent protection. Local status
-and completed historical receipts remain readable.
+Unix export creates owner-only files. Windows export requires an existing output
+directory whose owner and ACL allow only the current user, SYSTEM and local
+administrators. Inherit-only Creator Owner entries are accepted on directories;
+the resulting file is checked separately before writing. Shared or unsupported
+ACLs are refused without changing permissions. Checks use held object handles
+and repeat after publication. Local status and completed historical receipts
+remain readable without the output file.
 
 The request is the author's declaration of an executed check. These commands do
 not execute that check or alter verification flags. They export a bounded JSON

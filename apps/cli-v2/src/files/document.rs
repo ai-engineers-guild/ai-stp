@@ -1,5 +1,8 @@
 //! Publish one complete private document without replacing an existing path.
 
+#[cfg(windows)]
+mod windows;
+
 use crate::{
     error::{Failure, Result},
     files::{self, OwnedDirectory, tree},
@@ -10,15 +13,6 @@ use std::{io::Read, path::Path};
 
 fn invalid() -> Failure {
     Failure::precondition("the exact document destination changed or contains conflicting bytes")
-}
-
-pub(crate) fn supported() -> Result<()> {
-    if !cfg!(unix) {
-        return Err(Failure::precondition(
-            "owner-only attestation export requires Unix file permissions on this preview",
-        ));
-    }
-    Ok(())
 }
 
 fn parent(output: &str, expected: &[String; 2]) -> Result<Dir> {
@@ -34,11 +28,12 @@ fn parent(output: &str, expected: &[String; 2]) -> Result<Dir> {
     if crate::identity::physical_root(&parent)? != *expected {
         return Err(invalid());
     }
+    #[cfg(windows)]
+    windows::private(&parent, true)?;
     Ok(parent)
 }
 
 pub(crate) fn unused(output: &str, expected: &[String; 2]) -> Result<()> {
-    supported()?;
     let parent = parent(output, expected)?;
     match parent.symlink_metadata(Path::new(output).file_name().ok_or_else(invalid)?) {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -77,6 +72,7 @@ fn matches(parent: &Dir, leaf: &Path, bytes: &[u8]) -> Result<bool> {
         if held.file_attributes() & 0x400 != 0 {
             return Err(invalid());
         }
+        windows::private(&file, false)?;
     }
     let mut observed = Vec::new();
     file.take(bytes.len() as u64 + 1)
@@ -96,7 +92,6 @@ pub(crate) fn publish(
     bytes: &[u8],
     digest: &str,
 ) -> Result<bool> {
-    supported()?;
     if bytes.len() > 256 * 1024
         || !(digest.len() == 71
             && digest.starts_with("sha256:")
@@ -120,6 +115,8 @@ pub(crate) fn publish(
     }
     let stage =
         OwnedDirectory::open_at(&parent, &name, owner.as_bytes(), true)?.ok_or_else(invalid)?;
+    #[cfg(windows)]
+    windows::private(&stage.directory, true)?;
     for entry in stage.directory.entries().map_err(|_| invalid())? {
         if !matches!(
             entry.map_err(|_| invalid())?.file_name().to_str(),
@@ -128,7 +125,13 @@ pub(crate) fn publish(
             return Err(invalid());
         }
     }
-    stage.atomic("record", bytes)?;
+    stage.atomic_checked("record", bytes, |file| {
+        #[cfg(windows)]
+        windows::private(file, false)?;
+        #[cfg(not(windows))]
+        let _ = file;
+        Ok(())
+    })?;
     if !matches(&stage.directory, Path::new("record"), bytes)? {
         return Err(invalid());
     }

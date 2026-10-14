@@ -165,7 +165,6 @@ pub fn plan(
     output: &Path,
     at: &str,
 ) -> Result<Plan> {
-    files::document::supported()?;
     evidence(&request.evidence)?;
     let mut account = Access::for_account(root, origin)?;
     account.verify()?;

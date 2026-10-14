@@ -368,6 +368,14 @@ mod tests {
     fn final_publish_never_replaces_a_raced_destination()
     -> std::result::Result<(), Box<dyn std::error::Error>> {
         let temporary = tempfile::tempdir()?;
+        #[cfg(windows)]
+        {
+            let user = win_custody::current_user_sid_string()?;
+            win_custody::SecurityDescriptor::from_sddl(&format!(
+                "D:P(A;OICI;FA;;;{user})(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)"
+            ))?
+            .apply_to_tree(temporary.path(), true)?;
+        }
         let parent = Dir::open_ambient_dir(temporary.path(), cap_std::ambient_authority())?;
         let stage = mkdir(&parent, "stage")?;
         mkdir(&stage, "tree")?;
@@ -383,12 +391,6 @@ mod tests {
         assert_eq!(parent.read("destination")?, b"keep");
         let (output, identity) = destination(&temporary.path().join("signed.json"))?;
         let hash = crate::digest::bytes("ai-stp:plan:v1", b"document fixture")?;
-        if !cfg!(unix) {
-            assert!(crate::files::document::publish(&output, &identity, b"signed", &hash).is_err());
-            assert!(!Path::new(&output).exists());
-            return Ok(());
-        }
-
         assert!(!crate::files::document::publish(
             &output, &identity, b"signed", &hash
         )?);
