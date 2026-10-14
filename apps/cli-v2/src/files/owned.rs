@@ -278,12 +278,23 @@ impl OwnedDirectory {
     }
 
     pub fn atomic(&self, name: &str, bytes: &[u8]) -> Result<()> {
+        self.atomic_checked(name, bytes, |_| Ok(()))
+    }
+
+    /// Check the newly created handle before any caller content is written.
+    pub(crate) fn atomic_checked(
+        &self,
+        name: &str,
+        bytes: &[u8],
+        check: impl FnOnce(&cap_std::fs::File) -> Result<()>,
+    ) -> Result<()> {
         let temporary = format!(".tmp-{}", ulid::Ulid::generate());
         let result = (|| {
             let mut file = self
                 .directory
                 .open_with(&temporary, private_options().create_new(true))
                 .map_err(|error| io_failure("temporary_create", error))?;
+            check(&file)?;
             file.write_all(bytes)
                 .and_then(|_| file.sync_all())
                 .map_err(|error| io_failure("temporary_write", error))?;

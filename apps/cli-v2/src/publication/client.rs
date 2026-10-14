@@ -84,7 +84,7 @@ impl Client {
     }
 
     pub(super) fn registry(&self) -> Result<crate::store::Store> {
-        self.access.publication_registry()
+        self.access.owned_registry()
     }
 
     pub(super) fn recovered(

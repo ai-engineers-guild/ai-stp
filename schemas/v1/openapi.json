@@ -962,7 +962,7 @@
           "adaptation_id": {
             "anyOf": [
               {
-                "maxLength": 64,
+                "maxLength": 75,
                 "minLength": 1,
                 "type": "string"
               },

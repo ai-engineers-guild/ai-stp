@@ -16,6 +16,7 @@ import subprocess
 import tempfile
 import threading
 from contextlib import ExitStack
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 from unittest.mock import patch
@@ -32,9 +33,11 @@ from tests.support.postgres import TEST_DB_ENV, isolated_database
 
 from ai_stp_api.app import create_app
 from ai_stp_api.session import issue_session
+from ai_stp_assurance import AuthorAttestation, attestation_digest
 from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.models import Account, EvidenceBinding, PublicationPlan, ValidationSnapshot
+from ai_stp_platform.publication_logic import verify_author_attestation
 from ai_stp_platform.queue.models import Job
 from ai_stp_platform.safety.adapters._cli import which
 from ai_stp_platform.storage import ImmutableObjectStore
@@ -117,7 +120,9 @@ class _Bridge(http.server.BaseHTTPRequestHandler):
 class _Native(NativeClient):
     stage = "initialization"
 
-    def component(self, root: Path, name: str, *, unsafe: bool = False) -> dict[str, Any]:
+    def component(
+        self, root: Path, name: str, *, unsafe: bool = False, credentials: bool = False
+    ) -> dict[str, Any]:
         self.stage = f"author_{name}"
         source = root / name
         scaffold = self.invoke(
@@ -140,6 +145,7 @@ class _Native(NativeClient):
         document.update(
             description="Review changes and report defects.",
             tags=["review"],
+            requires_credentials=credentials,
             license={"spdx_id": "MIT", "redistribution_allowed": True},
             source={
                 "repository": "https://github.com/example/native-publication-fixture",
@@ -197,16 +203,88 @@ class _Native(NativeClient):
         return self.local(root, "setup compose plan", request=path)
 
     def publication(
-        self, root: Path, document: dict[str, Any], visibility: str = "private", *, ok: bool = True
+        self,
+        root: Path,
+        document: dict[str, Any],
+        visibility: str = "private",
+        *,
+        ok: bool = True,
+        evidence: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         path = root / "publication-request.json"
-        request = {"stable_id": document["stable_id"], "version": document["version"]}
+        request: dict[str, Any] = {
+            "stable_id": document["stable_id"],
+            "version": document["version"],
+        }
+        if evidence is not None:
+            request["evidence"] = evidence
         if visibility != "private":
             request["visibility"] = visibility
         path.write_text(json.dumps(request))
         return self.invoke(
             root, "publication", "plan", "--state-dir", root, "--request", path, ok=ok
         )
+
+    def attest(self, root: Path, document: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+        self.stage = "native_attestation"
+        output = root / f"{document['stable_id']}-attestation.json"
+        evidence = {
+            "check_id": "credentials",
+            "policy_version": "safety-3",
+            "tool_versions": {"native-publication-fixture": "1"},
+            "harness_id": "codex",
+            "harness_version": "fixture-observed",
+            "provider_version": "fixture-observed",
+            "test_case_ids": ["declared-author-fixture"],
+            "result": "passed",
+            "attested_at": datetime.now(UTC)
+            .isoformat(timespec="milliseconds")
+            .replace("+00:00", "Z"),
+        }
+        if document["kind"] == "component":
+            adaptation = document["adaptations"][0]
+            scope = adaptation["scope_adaptations"][0]
+            evidence.update(
+                adaptation_id=adaptation["adaptation_id"],
+                projection_digest=scope["projection_artifact"]["digest"],
+                provider_profile_digest=scope["required_surface"]["profile_digest"],
+                scope=scope["scope"],
+            )
+        request = root / "attestation-request.json"
+        request.write_text(
+            json.dumps(
+                {
+                    "stable_id": document["stable_id"],
+                    "version": document["version"],
+                    "evidence": evidence,
+                }
+            )
+        )
+        prepared = self.invoke(
+            root,
+            "attestation",
+            "plan",
+            "--state-dir",
+            root,
+            "--request",
+            request,
+            "--output",
+            output,
+        )
+        signed = self.apply(root, prepared, ("attestation", "apply"))
+        record = AuthorAttestation.model_validate(json.loads(output.read_text()))
+        assert signed["state"] == "completed" and signed[
+            "attestation_digest"
+        ] == attestation_digest(record)
+        assert verify_author_attestation(
+            public_key=prepared["plan"]["account"]["public_key"], record=record
+        )
+        corrupted = record.model_copy(update={"result": "failed"})
+        assert not verify_author_attestation(
+            public_key=prepared["plan"]["account"]["public_key"], record=corrupted
+        )
+        assert self.apply(root, prepared, ("attestation", "apply")) == signed
+        return prepared, signed
 
     def resume(self, root: Path, operation: str) -> dict[str, Any]:
         return self.invoke(
@@ -244,10 +322,24 @@ class _Native(NativeClient):
         (root / "provider.json").write_text(
             json.dumps(next(v for v in declarations if v["harness_id"] == "codex"))
         )
-        alpha, beta = self.component(root, "review-alpha"), self.component(root, "review-beta")
+        alpha, beta = (
+            self.component(root, "review-alpha", credentials=True),
+            self.component(root, "review-beta"),
+        )
         private = self.setup(root, "private-review", [alpha, beta])
+        assert alpha["requires_credentials"] is True and private["requires_credentials"] is True
+        component_attestation = self.attest(root, alpha)
+        setup_attestation = self.attest(root, private)
+        author_evidence = {
+            document["stable_id"]: {"attestations": [signed["attestation"]]}
+            for document, (_, signed) in [
+                (alpha, component_attestation),
+                (private, setup_attestation),
+            ]
+        }
+        self.scenarios["native_author_signature_python_compatibility"] = "passed"
         self.stage = "lost_creation_reply"
-        prepared = self.publication(root, private)
+        prepared = self.publication(root, private, evidence=author_evidence)
         original = prepared["plan"]["intent"]
         operation = original["operation_id"]
         server.drop_create = True
@@ -322,6 +414,20 @@ class _Native(NativeClient):
         )
         assert status["operations"][0]["state"] == "published"
         assert self.invoke(root, "publication", "status", "--state-dir", root)["operations"] == []
+        for attestation_plan, signed in [component_attestation, setup_attestation]:
+            assert self.apply(root, attestation_plan, ("attestation", "apply")) == signed
+            assert (
+                self.invoke(
+                    root,
+                    "attestation",
+                    "status",
+                    "--state-dir",
+                    root,
+                    "--operation-id",
+                    signed["operation_id"],
+                )
+                == signed
+            )
         assert len(server.requests) == before
         self.scenarios["offline_history_after_logout"] = "passed"
 
@@ -430,6 +536,16 @@ def _prove(native: _Native, root: Path, url: str) -> dict[str, Any]:
                             and "skill-scanner" in v.tool_name
                             for v in checks
                         )
+                        assert (
+                            sum(
+                                v.check_id == "credentials"
+                                and v.result == "passed"
+                                and v.source == "author_attested"
+                                for v in checks
+                            )
+                            == 2
+                        )
+                        native.scenarios["actual_api_accepts_native_author_evidence"] = "passed"
                         return {
                             "plans": [
                                 {
@@ -445,6 +561,7 @@ def _prove(native: _Native, root: Path, url: str) -> dict[str, Any]:
                                     "check_id": v.check_id,
                                     "result": v.result,
                                     "mandatory": v.mandatory,
+                                    "source": v.source,
                                     "tool": v.tool_name,
                                     "tool_version": v.tool_version,
                                 }
