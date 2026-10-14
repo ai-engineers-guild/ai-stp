@@ -14,6 +14,9 @@ use serde_json::{Value, json};
 const AT: &str = "2026-10-14T00:00:00.000Z";
 const EXPIRED: &str = "2026-10-15T00:00:00.000Z";
 
+#[path = "sync/pages.rs"]
+mod pages;
+
 #[test]
 fn durable_outbox_keeps_original_requests_receipts_and_origin() -> Result<(), Box<dyn Error>> {
     use ai_stp_cli_v2::{

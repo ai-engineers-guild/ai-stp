@@ -325,8 +325,8 @@ revisions and validates the retained content and parent links.
 local identity. `local apply` rechecks the exact heads and candidate, then commits
 the two-parent revision and receipt together. Arrays are atomic; an absent key
 differs from JSON null. Components and setups never receive generic field merges.
-Completed merge receipts replay without rewinding later heads. Network push/pull
-and its authenticated command integration remain pending in #944.
+Completed merge receipts replay without rewinding later heads. The network
+command plans and parent-first push walk remain pending in #944.
 
 The internal sync event reader validates all five existing wire kinds against
 generated schemas, verifies account and content bindings, and preserves original
@@ -334,7 +334,7 @@ passport addresses. Payload exclusions come from the shared packaged policy;
 errors contain field paths rather than excluded values. Version metadata requires
 exact coordinates and, when present, a matching parentless snapshot. Missing
 legacy snapshots remain distinguishable from invalid null snapshots. These
-readers do not send requests or make versions or artifact bytes available.
+readers alone do not send requests or establish artifact availability.
 
 The internal outbox retains the complete validated request, including its original
 idempotency key and head precondition, before transport. An unfinished request
@@ -342,9 +342,30 @@ wins over a newer payload for the same entity. Its account is bound to one exact
 origin by a checked operation receipt; a populated ledger without that evidence
 cannot adopt an origin. Passport mappings must match retained local content.
 Receipt and remote-head writes share one SQLite transaction, replay preserves
-later heads, and push receipts never advance the pull cursor. Authentication,
-consent checks, page application and HTTP orchestration remain pending; this
-storage layer alone grants no account authority.
+later heads, and push receipts never advance the pull cursor. This storage layer
+alone grants no account authority.
+
+The internal sync client requires explicit `sync.enabled=true`, verifies the
+held account/device session against `/v1/auth/me`, and binds the effective local
+owner to that session. It uses the existing bounded same-origin HTTP transport
+and retains its connection pool. Network calls run outside SQLite transactions.
+A lost or invalid push reply leaves the original request pending; a later call
+reuses its bytes, key and head precondition. There is no automatic push retry.
+
+Page application rechecks the account, event order and unchanged opaque cursor,
+then commits events, version metadata, explicit skip decisions and the next
+cursor together. Any refusal rolls back the whole page. Replays retain later
+heads and revoked consent; received history does not remove local tombstones.
+Foreign device summaries never create a local device passport. Consent records
+remain account-scoped and confer no catalog verification or installation trust.
+
+Released snapshots keep their original bytes and never replace draft heads.
+Missing snapshots retain pending immutable coordinates; unresolved metadata
+blocks new number allocation, and another writer cannot reassign those numbers.
+Historical envelopes can appear in version history without becoming installable:
+exact-version materialization still requires a complete native passport. No
+artifact bytes are synchronized. These are library capabilities; CLI push/pull
+plans, command integration and the real two-device API journey remain unfinished.
 
 `grant list --state-dir` reads owned invitations and owned/received major-line
 access grants through fresh authentication of the same account and device.

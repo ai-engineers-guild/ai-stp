@@ -28,6 +28,11 @@ pub enum Write<'a> {
     Received {
         account_id: &'a str,
     },
+    /// Exact private sync snapshot, including historical metadata-only versions.
+    /// Its entity must already exist; immutable snapshots never become draft heads.
+    ReceivedSnapshot {
+        account_id: &'a str,
+    },
 }
 
 pub fn seal(document: &Value) -> Result<Value> {
@@ -87,7 +92,10 @@ pub fn commit(
     if !passport::stable_id(device_id, "device") {
         return Err(Failure::input("a revision requires a device identity"));
     }
-    let document = if matches!(write, Write::Acquired | Write::Received { .. }) {
+    let document = if matches!(
+        write,
+        Write::Acquired | Write::Received { .. } | Write::ReceivedSnapshot { .. }
+    ) {
         passport::validate(document)?;
         document.clone()
     } else {
@@ -105,10 +113,10 @@ pub fn commit(
     let revision = text("revision_id")?;
     let kind = text("kind")?;
     let created = text("created_at")?;
-    if let Write::Received { account_id } = &write
+    if let Write::Received { account_id } | Write::ReceivedSnapshot { account_id } = &write
         && (!passport::stable_id(account_id, "account")
             || !passport::stable_id(text("owner_id")?, "account")
-            || document["visibility"] != "private"
+            || (matches!(write, Write::Received { .. }) && document["visibility"] != "private")
             || !matches!(kind, "developer" | "component" | "setup"))
     {
         return Err(Failure::precondition(
@@ -149,7 +157,10 @@ pub fn commit(
                 ));
             }
             if held["stable_id"] != id
-                || (!matches!(write, Write::Received { .. }) && !owner_matches(&held))
+                || (!matches!(
+                    write,
+                    Write::Received { .. } | Write::ReceivedSnapshot { .. }
+                ) && !owner_matches(&held))
             {
                 return Err(Failure::precondition(
                     "a revision cannot change its entity owner",
@@ -178,7 +189,10 @@ pub fn commit(
         }
         return Ok(held);
     }
-    if !matches!(write, Write::Transfer { .. }) {
+    if !matches!(
+        write,
+        Write::Transfer { .. } | Write::Received { .. } | Write::ReceivedSnapshot { .. }
+    ) {
         Objects {
             connection: transaction,
         }
@@ -204,7 +218,7 @@ pub fn commit(
                 ));
             }
         }
-        Write::Immutable => {
+        Write::Immutable | Write::ReceivedSnapshot { .. } => {
             if existing.is_none() || !parents.is_empty() {
                 return Err(Failure::precondition(
                     "an immutable snapshot requires an existing entity and no draft parents",

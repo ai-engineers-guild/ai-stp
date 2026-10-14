@@ -1,6 +1,6 @@
 ---
 description: "SPEC-039: CLI synchronization of the private registry between devices."
-last_verified: "2026-10-13"
+last_verified: "2026-10-14"
 ---
 
 # SPEC-039: CLI synchronization of the private registry
@@ -29,9 +29,27 @@ The isolated Rust preview currently implements local `sync preview` and
 developer heads, current local owner, candidate, operation identity and validity
 interval. The revision and receipt share one transaction; replay returns the
 original result without moving later heads. Conflict reports expose JSON Pointers
-only. The graph walk validates at most 16,384 revisions per head. Network
-push/pull and their account/origin binding are not yet implemented in Rust;
-the network requirements below describe the production Python implementation.
+only. The graph walk validates at most 16,384 revisions per head.
+
+Its internal sync client now verifies the held account/device session, requires
+explicit sync enablement, and binds the local owner and durable ledger to the
+same account and origin. It retains exact requests before HTTP, records checked
+receipts afterward, and applies received pages with their cursor in one SQLite
+transaction. No network request holds a SQLite transaction. Named abandonment
+is durable and account-scoped; replay does not reactivate revoked consent or
+remove local tombstones. Foreign device summaries remain ledger data only.
+
+Native page application preserves original released snapshots and pending
+version coordinates without moving draft heads. Missing snapshot metadata blocks
+new version allocation; another writer cannot reuse an occupied number for
+different content. Historical metadata-only envelopes remain readable history,
+while materialization still validates a complete native immutable passport.
+Neither sync metadata nor consent grants artifact availability or trust.
+
+Rust push/pull command plans, parent-first event construction and the real
+two-device API journey remain unfinished. The network command requirements below
+describe production Python behavior; the native internal transport and SQLite
+proofs do not establish command completion or production writer cutover.
 
 ## Terms
 

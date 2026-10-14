@@ -204,7 +204,7 @@ pub struct Pending {
     pub receipt: Option<Value>,
 }
 
-fn local_revision(connection: &Connection, event: &Event) -> Result<Option<String>> {
+pub(super) fn local_revision(connection: &Connection, event: &Event) -> Result<Option<String>> {
     if event.passport_kind().is_none() || event.operation != "upsert" {
         return Ok(None);
     }
@@ -325,7 +325,7 @@ pub fn retain(transaction: &Transaction<'_>, scope: &Scope, request: &Value) -> 
     })
 }
 
-fn validate_receipt(receipt: &Value, event: &Event) -> Result<()> {
+pub(super) fn validate_receipt(receipt: &Value, event: &Event) -> Result<()> {
     RECEIPT.validate(receipt)?;
     if receipt["event_id"] != event.event_id
         || (receipt["revision_id"] != Value::Null && receipt["revision_id"] != event.revision_id)
@@ -343,12 +343,9 @@ fn validate_receipt(receipt: &Value, event: &Event) -> Result<()> {
     Ok(())
 }
 
-/// Receipt persistence never copies a push cursor into the pull cursor table.
-pub fn record_receipt(transaction: &Transaction<'_>, scope: &Scope, receipt: &Value) -> Result<()> {
-    scope.require(transaction)?;
-    RECEIPT.validate(receipt)?;
-    let event_id = receipt["event_id"].as_str().ok_or_else(invalid)?;
-    let mut query = transaction
+pub(super) fn recorded(connection: &Connection, scope: &Scope, event_id: &str) -> Result<Pending> {
+    scope.require(connection)?;
+    let mut query = connection
         .prepare(&format!(
             "SELECT {} FROM sync_event WHERE account_id=? AND event_id=? AND direction='push'",
             columns()
@@ -357,11 +354,18 @@ pub fn record_receipt(transaction: &Transaction<'_>, scope: &Scope, receipt: &Va
     let mut rows = query
         .query(params![scope.account, event_id])
         .map_err(database)?;
-    let held = read(
-        transaction,
+    read(
+        connection,
         rows.next().map_err(database)?.ok_or_else(invalid)?,
         &scope.account,
-    )?;
+    )
+}
+
+/// Receipt persistence never copies a push cursor into the pull cursor table.
+pub fn record_receipt(transaction: &Transaction<'_>, scope: &Scope, receipt: &Value) -> Result<()> {
+    RECEIPT.validate(receipt)?;
+    let event_id = receipt["event_id"].as_str().ok_or_else(invalid)?;
+    let held = recorded(transaction, scope, event_id)?;
     let event = Event::push(&held.request, &scope.account)?;
     validate_receipt(receipt, &event)?;
     if let Some(previous) = held.receipt {
@@ -383,7 +387,11 @@ pub fn record_receipt(transaction: &Transaction<'_>, scope: &Scope, receipt: &Va
     Ok(())
 }
 
-fn advance(transaction: &Transaction<'_>, scope: &Scope, incoming: &Event) -> Result<()> {
+pub(super) fn advance(
+    transaction: &Transaction<'_>,
+    scope: &Scope,
+    incoming: &Event,
+) -> Result<()> {
     let head: Option<String> = transaction
         .query_row(
             "SELECT remote_revision_id FROM sync_remote_head WHERE account_id=? AND entity_id=?",

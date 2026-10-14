@@ -40,6 +40,7 @@ pub(crate) struct Access {
     _journal: Journal,
     state: State,
     binding: Binding,
+    api: Api,
     verified: bool,
     offline: bool,
 }
@@ -87,6 +88,7 @@ impl Access {
             identity,
             _journal: journal,
             state,
+            api: Api::new(&binding.origin)?,
             binding,
             verified: false,
             offline,
@@ -123,7 +125,7 @@ impl Access {
         let Session::Authorized { access_token, .. } = &self.state.session else {
             return Err(refused("account_required"));
         };
-        let account = match Api::new(&self.binding.origin)?.me(access_token)? {
+        let account = match self.api.me(access_token)? {
             Reply::Resource(account) => account,
             Reply::Refused(super::transport::Code::Revoked) => {
                 return Err(refused("device_revoked"));
@@ -184,11 +186,31 @@ impl Access {
         let Session::Authorized { access_token, .. } = &self.state.session else {
             return Err(refused("account_required"));
         };
-        let reply = Api::new(&self.binding.origin)?.grants(route, body, access_token)?;
+        let reply = self.api.grants(route, body, access_token)?;
         self.revalidate()?;
         match reply {
             Reply::Resource(value) => Ok(value),
             Reply::Refused(code) => Err(super::grants::refusal(code)),
+        }
+    }
+
+    pub(crate) fn sync(
+        &self,
+        request: &crate::sync::network::Request<'_>,
+    ) -> Result<serde_json::Value> {
+        self.revalidate()?;
+        if !self.verified || self.offline {
+            return Err(refused("account_origin_or_authorization_mismatch"));
+        }
+        let Session::Authorized { access_token, .. } = &self.state.session else {
+            return Err(refused("account_required"));
+        };
+        request.validate(&self.binding.account_id, &self.binding.device_id)?;
+        let reply = self.api.sync(request, access_token)?;
+        self.revalidate()?;
+        match reply {
+            Reply::Resource(value) => request.response(value, &self.binding.account_id),
+            Reply::Refused(code) => Err(super::transport::sync_refusal(code)),
         }
     }
 }

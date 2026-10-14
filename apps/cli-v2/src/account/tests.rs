@@ -5,6 +5,8 @@ use super::*;
 mod access_tests;
 #[path = "attachment_tests.rs"]
 mod attachment_tests;
+#[path = "sync_tests.rs"]
+mod sync_tests;
 use base64::engine::general_purpose::STANDARD;
 use ed25519_dalek::{Signature, VerifyingKey};
 use std::{
