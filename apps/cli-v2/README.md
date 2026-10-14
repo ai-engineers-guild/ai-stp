@@ -253,12 +253,15 @@ effective owner and previous recovery. Apply drains account and registry writers
 persists the intent, creates a new key, records its public succession and removes
 only the retired key and account credential entries. It does not authenticate or
 transfer ownership. Finish or cancel outstanding installation/authoring operations,
-proposals and tasks before admission. Unfinished sync commands are captured by
-exact operation, plan and progress digests (at most 128) and finish with an explicit
+proposals and tasks before admission. Unfinished sync commands and publication
+attempts are captured by exact operation, intent and progress digests (at most
+128 combined) and finish with an explicit
 `interrupted` result when key replacement is admitted. Their retained requests
 stay unchanged and their remote outcome stays unknown. A changed checkpoint
 refuses admission; an interruption already committed by this recovery replays
-without touching its outbox. Once admitted, the same intent resumes after expiry; it never
+without changing its retained delivery state. Publication requests and confirmation
+keys remain readable even if creation or confirmation had no received response.
+Once admitted, the same intent resumes after expiry; it never
 generates another key after recording the replacement. `account status` exposes
 the pending plan during interruption, while ordinary identity use refuses until
 recovery finishes. Completed recovery and initialization receipts replay exactly.
@@ -2375,12 +2378,24 @@ exact public or authenticated private catalog readback. Author verification and
 component verification remain independent. A terminal receipt can be read
 locally without an account session or network access.
 
-This is a per-object library checkpoint under #950. Setup orchestration,
-replacement-device interruption/reconciliation, governed commands and a complete
-native/API/worker journey remain pending. No publication command is exposed;
-unfinished publication attempts still block account recovery. The real TCP and
-SQLite proof exercises lost replies, substituted evidence, retained keys and
-delayed catalog visibility; it does not establish real worker acceptance.
+Device replacement captures each unfinished attempt's original intent and exact
+journal position. Its local execution stops with `interrupted` and
+`remote_outcome: unknown`; its last remote plan and original request remain
+unchanged. After same-account sign-in, `Attempt::reconcile` freshly reads a known
+plan and the exact catalog version. A lost creation response leaves the remote
+plan unknown; an absent catalog entry does not prove the request was rejected.
+The service sends no old-device writes and does not create a replacement intent.
+Observations remain separate from the immutable interruption receipt, including
+after another device replacement. Populated `interrupted_publications` recovery
+history requires a compatible native reader; older readers refuse it. Empty
+history omits the field and preserves previous intent digests.
+
+This is a per-object library checkpoint under #950. Outer session-bound planning,
+setup orchestration, governed commands and a complete native/API/worker journey
+remain pending. No publication command is exposed. The real TCP and SQLite
+proofs cover lost replies, substituted evidence, retained keys, delayed catalog
+visibility, interruption before key replacement, repeat replacement and the
+actual previous executable's refusal. They do not establish real worker acceptance.
 
 Private-directory failures include a fixed operation `stage` and, for I/O
 failures, an optional numeric `os_error`. Paths, file contents and raw OS error

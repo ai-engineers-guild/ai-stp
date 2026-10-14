@@ -83,6 +83,14 @@ impl Client {
         self.access.publication_registry()
     }
 
+    pub(super) fn recovered(
+        &self,
+        request: &Create,
+        receipt: &super::interruption::Receipt,
+    ) -> Result<()> {
+        self.access.publication_recovered(request, receipt)
+    }
+
     fn exchange(
         &self,
         request: &Create,

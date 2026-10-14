@@ -244,6 +244,32 @@ impl Access {
         self.revalidate()?;
         Ok(store)
     }
+
+    pub(crate) fn publication_recovered(
+        &self,
+        request: &crate::publication::contract::Create,
+        receipt: &crate::publication::interruption::Receipt,
+    ) -> Result<()> {
+        self.revalidate()?;
+        if self.binding.account_id != request.account.account_id
+            || self.binding.origin != request.account.origin
+            || self.binding.root_identity != request.account.root_identity
+            || self.binding.device_id == request.account.device_id
+        {
+            return Err(refused("publication_recovery_binding_changed"));
+        }
+        let recovery = self.identity.completed_recovery(
+            &receipt.recovery_operation_id,
+            &receipt.recovery_plan_digest,
+        )?;
+        crate::publication::interruption::belongs(request, recovery)?;
+        if *receipt
+            != crate::publication::interruption::Receipt::for_plan(&receipt.checkpoint, recovery)?
+        {
+            return Err(refused("publication_recovery_checkpoint_changed"));
+        }
+        Ok(())
+    }
 }
 
 impl Binding {

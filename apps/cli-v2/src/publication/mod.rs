@@ -1,8 +1,9 @@
 //! Exact immutable publication inputs, durable per-object delivery and catalog
-//! readback. Command orchestration and replacement-device recovery remain separate.
+//! readback, including exact interruption and observation after device replacement.
 
 pub mod client;
 pub mod contract;
+pub mod interruption;
 pub mod journal;
 pub mod readback;
 

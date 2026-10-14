@@ -8,6 +8,7 @@ use serde_json::{Value, json};
 use super::{
     client::Client,
     contract::{Create, Visibility},
+    interruption::{self, Checkpoint},
     readback::Observation,
     text,
 };
@@ -34,6 +35,7 @@ pub struct Attempt {
 enum Outcome {
     Published { catalog: Observation },
     Refused,
+    Interrupted { recovery: interruption::Receipt },
 }
 
 #[derive(Clone, Default, Deserialize, Serialize)]
@@ -106,6 +108,15 @@ impl Attempt {
             self.request.response(plan, None)?;
         }
         match &progress.outcome {
+            Some(Outcome::Interrupted { recovery }) => {
+                recovery.validate()?;
+                if recovery.checkpoint.operation_id != self.operation_id
+                    || recovery.checkpoint.request_digest != self.digest()?
+                    || recovery.replacement_device_id == self.request.account.device_id
+                {
+                    return Err(invalid());
+                }
+            }
             Some(Outcome::Published { catalog }) => {
                 if progress
                     .plan
@@ -172,13 +183,19 @@ impl Attempt {
                 .map_err(|_| invalid())?
         };
         self.check_progress(&progress)?;
+        if sequence > 1
+            && progress.plan.is_none()
+            && !matches!(progress.outcome, Some(Outcome::Interrupted { .. }))
+        {
+            return Err(invalid());
+        }
         if (state == "completed") != progress.outcome.is_some()
             || (result == "settled") != progress.outcome.is_some()
             || finished.as_deref() != progress.outcome.as_ref().map(|_| at.as_str())
         {
             return Err(invalid());
         }
-        if sequence > 1 {
+        if progress.plan.is_some() {
             let first:String=connection.query_row("SELECT evidence FROM operation_event WHERE operation_id=? AND sequence=2 AND result='observed' AND length(CAST(evidence AS BLOB))<=16777216",[&self.operation_id],|r|r.get(0)).map_err(database)?;
             let first: Progress = serde_json::from_value(canonical::parse(first.as_bytes())?)
                 .map_err(|_| invalid())?;
@@ -189,6 +206,28 @@ impl Attempt {
                 progress.plan.as_ref().ok_or_else(invalid)?,
                 Some(first.plan.as_ref().ok_or_else(invalid)?),
             )?;
+        }
+        if let Some(Outcome::Interrupted { recovery }) = &progress.outcome {
+            if sequence < 2
+                || interruption::progress_digest(connection, &self.operation_id, sequence - 1)?
+                    != recovery.checkpoint.progress_digest
+            {
+                return Err(invalid());
+            }
+            let prior = if sequence == 2 {
+                Progress::default()
+            } else {
+                let bytes: String = connection.query_row(
+                    "SELECT CASE WHEN length(CAST(evidence AS BLOB))<=16777216 THEN evidence ELSE NULL END FROM operation_event WHERE operation_id=? AND sequence=?",
+                    params![self.operation_id,sequence-1], |r| r.get(0)).map_err(database)?;
+                serde_json::from_value(canonical::parse(bytes.as_bytes())?)
+                    .map_err(|_| invalid())?
+            };
+            let mut preserved = progress.clone();
+            preserved.outcome = None;
+            if encode(&prior)? != encode(&preserved)? {
+                return Err(invalid());
+            }
         }
         Ok(Some(Held {
             sequence,
@@ -250,11 +289,92 @@ impl Attempt {
         let state = match &held.progress.outcome {
             Some(Outcome::Published { .. }) => "published",
             Some(Outcome::Refused) => "refused",
+            Some(Outcome::Interrupted { .. }) => "interrupted",
             None => "waiting",
         };
+        let mut value = json!({"schema_version":1,"operation_id":self.operation_id,"request_digest":self.digest()?,
+            "state":state,"plan":held.progress.plan,"outcome":held.progress.outcome});
+        if state == "interrupted" {
+            value["remote_outcome"] = "unknown".into();
+        }
+        Ok(value)
+    }
+
+    pub(super) fn checkpoint(&self, connection: &Connection) -> Result<Checkpoint> {
+        let held = self.held(connection)?.ok_or_else(invalid)?;
+        if held.progress.outcome.is_some() {
+            return Err(invalid());
+        }
+        Ok(Checkpoint {
+            operation_id: self.operation_id.clone(),
+            request_digest: self.digest()?,
+            progress_digest: interruption::progress_digest(
+                connection,
+                &self.operation_id,
+                held.sequence,
+            )?,
+        })
+    }
+
+    pub(super) fn interruption(
+        &self,
+        connection: &Connection,
+    ) -> Result<Option<interruption::Receipt>> {
+        Ok(
+            match self.held(connection)?.ok_or_else(invalid)?.progress.outcome {
+                Some(Outcome::Interrupted { recovery }) => Some(recovery),
+                _ => None,
+            },
+        )
+    }
+
+    pub(super) fn interrupt(
+        &self,
+        t: &Transaction<'_>,
+        receipt: &interruption::Receipt,
+    ) -> Result<()> {
+        let mut held = self.held(t)?.ok_or_else(invalid)?;
+        if let Some(Outcome::Interrupted { recovery }) = &held.progress.outcome {
+            return if recovery == receipt {
+                Ok(())
+            } else {
+                Err(invalid())
+            };
+        }
+        if self.checkpoint(t)? != receipt.checkpoint {
+            return Err(invalid());
+        }
+        held.progress.outcome = Some(Outcome::Interrupted {
+            recovery: receipt.clone(),
+        });
+        self.save(t, &mut held)
+    }
+
+    /// Fresh read-only evidence after completed key replacement. This never
+    /// changes the stopped attempt or sends create/bind/confirm as the old device.
+    pub fn reconcile(&self, client: &mut Client) -> Result<Value> {
+        let store = client.registry()?;
+        let held = self.held(&store.connection)?.ok_or_else(invalid)?;
+        let Some(Outcome::Interrupted { recovery }) = &held.progress.outcome else {
+            return Err(Failure::precondition(
+                "only a retained interrupted publication can be reconciled",
+            ));
+        };
+        client.recovered(&self.request, recovery)?;
+        let plan = held
+            .progress
+            .plan
+            .as_ref()
+            .map(|plan| client.status(&self.request, plan))
+            .transpose()?;
+        let visibility: Visibility =
+            serde_json::from_value(self.request.body()["visibility"].clone())
+                .map_err(|_| invalid())?;
+        let catalog = client.catalog(&self.request.snapshot()?, visibility)?;
         Ok(
             json!({"schema_version":1,"operation_id":self.operation_id,"request_digest":self.digest()?,
-            "state":state,"plan":held.progress.plan,"outcome":held.progress.outcome}),
+            "remote_outcome":plan.as_ref().map_or("unknown", |p|p["state"].as_str().unwrap_or("unknown")),
+            "plan":plan,"catalog":catalog}),
         )
     }
 
