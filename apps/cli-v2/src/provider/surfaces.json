@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "provider_version": "0.0.93",
+  "provider_version": "0.0.94",
   "profiles": [
     {
       "harness_id": "codex",
