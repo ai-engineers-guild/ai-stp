@@ -203,8 +203,9 @@ fn candidate(graph: &Graph) -> Result<(Option<Value>, Vec<String>)> {
 }
 
 fn missing_remote(t: &Transaction<'_>, account: &str, id: &str) -> Result<Option<String>> {
+    // Failed outbox attempts hold local retirement evidence, not server receipts.
     let receipt: Option<String> = t.query_row(
-        "SELECT receipt_json FROM sync_event WHERE account_id=? AND entity_id=? AND receipt_json IS NOT NULL ORDER BY created_at DESC,rowid DESC LIMIT 1",
+        "SELECT receipt_json FROM sync_event WHERE account_id=? AND entity_id=? AND direction='push' AND state IN ('accepted','conflict','rejected','superseded') AND receipt_json IS NOT NULL ORDER BY created_at DESC,rowid DESC LIMIT 1",
         [account, id], |row| row.get(0)).optional().map_err(database)?;
     let Some(receipt) = receipt else {
         return Ok(None);

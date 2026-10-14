@@ -307,6 +307,12 @@ fn replaced_device_interrupts_exact_commands_and_preserves_unknown_requests()
         }
         Ok(())
     })?;
+    for id in &ids {
+        assert_eq!(
+            crate::sync::merge::preview(&mut store, id, &context.account_id)?["state"],
+            "up_to_date"
+        );
+    }
     let tampered: crate::error::Result<()> = store.transaction(|t| {
         t.execute(
             "UPDATE sync_event SET receipt_json='{}' WHERE event_id=?",
