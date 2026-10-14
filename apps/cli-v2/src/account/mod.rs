@@ -2,6 +2,7 @@
 
 pub(crate) mod access;
 pub(crate) mod attachment;
+pub mod github;
 pub mod grants;
 mod journal;
 mod model;

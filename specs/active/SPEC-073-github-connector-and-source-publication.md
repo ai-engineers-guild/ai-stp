@@ -22,6 +22,13 @@ Issues [181](https://github.com/ai-engineers-guild/ai-stp/issues/181),
 Artifact authorization remains with SPEC-026 and SPEC-071. Client-side artifact
 encryption and general RBAC are separate work.
 
+The isolated Rust preview implements selected-source reads and preparation as
+`github status`, `github source plan` and `github source apply`. Its exact command
+contract is in [`apps/cli-v2/README.md`](../../apps/cli-v2/README.md). The native
+plan retains the original source request and idempotency key; the existing server
+owns the immutable binding and rechecks selected access on replay. This adapter
+does not add connector administration or transfer production state ownership.
+
 ## Terms
 
 A connector is one account's explicit GitHub App user authorization. An installation
@@ -79,6 +86,12 @@ administration; a component grant never confers that authority.
   binding records observed source visibility, publisher, installation, immutable
   repository identity, commit, subpath, artifact digest/size and passport digest.
   The server accepts a missing component source only with that verified binding.
+  A legacy source-tree primary artifact must match the binding's digest, size and
+  inventory. A complete component may instead use a declared projection as its
+  primary artifact; every adaptation must then reference the exact bound source
+  artifact digest and size. Missing or mixed source references refuse. Source
+  provenance does not establish transformation equivalence or verification; the
+  ordinary projection, safety and author-evidence checks still apply.
 - `REQ-7309`: Connector publication retains ordinary plan, artifact, safety and
   owner checks. Preparation grants no public exposure. Plan confirmation rechecks
   the connector and selected repository; identical retries retain the binding and
