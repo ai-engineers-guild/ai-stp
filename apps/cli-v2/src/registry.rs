@@ -7,6 +7,7 @@ mod local;
 mod providers;
 mod reports;
 mod selections;
+mod sync;
 mod tasks;
 
 use clap::{Arg, ArgAction, ArgMatches, Command, builder::ValueParser};
@@ -26,6 +27,7 @@ enum Handler {
     Task(tasks::Handler),
     Account(account::Handler),
     Grant(grants::Handler),
+    Sync(sync::Handler),
     Local(local::Handler),
     Report(reports::Handler),
     Provider(providers::Handler),
@@ -671,6 +673,7 @@ fn declarations() -> impl Iterator<Item = &'static Declaration> {
         .chain(selections::COMMANDS)
         .chain(account::COMMANDS)
         .chain(grants::COMMANDS)
+        .chain(sync::COMMANDS)
         .chain(tasks::COMMANDS)
 }
 
@@ -739,6 +742,7 @@ fn mutability(handler: Handler) -> &'static str {
         Handler::Provider(handler) => handler.mutability(),
         Handler::Account(handler) => handler.mutability(),
         Handler::Grant(handler) => handler.mutability(),
+        Handler::Sync(handler) => handler.mutability(),
         Handler::Task(handler) => handler.mutability(),
         _ => "read",
     }
@@ -818,6 +822,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::Report(handler) => reports::dispatch(handler, leaf),
         Handler::Account(handler) => account::dispatch(handler, leaf),
         Handler::Grant(handler) => grants::dispatch(handler, leaf),
+        Handler::Sync(handler) => sync::dispatch(handler, leaf),
         Handler::Provider(handler) => providers::dispatch(handler, leaf),
         Handler::Selection(handler) => selections::dispatch(handler, leaf),
         Handler::Version => Ok(json!({"schema_version": 1, "cli_version": VERSION,

@@ -198,6 +198,60 @@ impl Api {
         }
     }
 
+    pub fn sync(
+        &self,
+        request: &crate::sync::network::Request<'_>,
+        credential: &Secret,
+    ) -> Result<Reply<serde_json::Value>> {
+        use crate::sync::network::{Request, uncertain};
+        let authorization = Zeroizing::new(format!("Bearer {}", credential.0.as_str()));
+        let agent = self.agent.borrow();
+        let response = match request {
+            Request::Push(value) => {
+                let bytes = Zeroizing::new(crate::canonical::bytes(value)?);
+                if bytes.len() as u64 > http::MAX_BODY {
+                    return Err(Failure::input(
+                        "the private sync request exceeds its byte limit",
+                    ));
+                }
+                agent
+                    .post(format!("{}/v1/sync/push", self.origin))
+                    .header("Accept", "application/json")
+                    .header("Content-Type", "application/json")
+                    .header("Accept-Encoding", "identity")
+                    .header("X-AI-STP-Schema-Version", "1")
+                    .header("Authorization", authorization.as_str())
+                    .send(bytes.as_slice())
+            }
+            Request::Pull { cursor, page_size } => {
+                let mut url = format!("{}/v1/sync/pull?page_size={page_size}", self.origin);
+                if let Some(cursor) = cursor {
+                    url.push_str("&cursor=");
+                    url.push_str(cursor);
+                }
+                agent
+                    .get(&url)
+                    .header("Accept", "application/json")
+                    .header("Accept-Encoding", "identity")
+                    .header("X-AI-STP-Schema-Version", "1")
+                    .header("Authorization", authorization.as_str())
+                    .call()
+            }
+        }
+        .map_err(|_| uncertain())?;
+        drop(agent);
+        match self.response(response, http::MAX_BODY).map_err(|failure| {
+            if matches!(failure.kind, ErrorKind::Unavailable) {
+                uncertain()
+            } else {
+                failure
+            }
+        })? {
+            Reply::Resource(bytes) => crate::wire::parse(&bytes).map(Reply::Resource),
+            Reply::Refused(code) => Ok(Reply::Refused(code)),
+        }
+    }
+
     fn response(
         &self,
         mut response: ureq::http::Response<ureq::Body>,
@@ -239,6 +293,20 @@ impl Api {
             )),
         }
     }
+}
+
+pub(super) fn sync_refusal(code: Code) -> Failure {
+    let (kind, reason) = match code {
+        Code::Conflict => (ErrorKind::Conflict, "request_conflict"),
+        Code::Invalid => (ErrorKind::Input, "request_rejected"),
+        Code::SlowDown => (ErrorKind::Unavailable, "rate_limited"),
+        Code::Revoked => (ErrorKind::Precondition, "device_revoked"),
+        Code::Unauthorized | Code::Expired => (ErrorKind::Precondition, "account_required"),
+        Code::Forbidden => (ErrorKind::Precondition, "permission_denied"),
+        _ => (ErrorKind::Precondition, "remote_refusal"),
+    };
+    Failure::new(kind, "the private sync API refused the request")
+        .with_details([("reason".into(), reason.into())])
 }
 
 #[derive(Deserialize)]

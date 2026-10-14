@@ -22,6 +22,8 @@ use crate::{
 
 #[derive(Clone, Copy)]
 pub(super) enum Handler {
+    SyncPreview,
+    SyncMerge,
     DeveloperInitialize,
     DeveloperUpdate,
     DeviceRefresh,
@@ -60,7 +62,8 @@ pub(super) enum Handler {
 impl Handler {
     pub(super) fn mutability(self) -> &'static str {
         match self {
-            Self::Discover
+            Self::SyncPreview
+            | Self::Discover
             | Self::TechnologyFindings
             | Self::Show
             | Self::Version
@@ -526,6 +529,27 @@ pub(super) const COMMANDS: &[Declaration] = &[
         handler: super::Handler::Local(Handler::Apply),
     },
     Declaration {
+        path: &["sync", "preview"],
+        summary: "Inspect private revision heads and field conflicts without network, credentials or writes.",
+        parameters: &[
+            STATE_DIR,
+            ID,
+            Parameter {
+                name: "account-id",
+                summary: "Exact account whose retained sync receipts may report an unreceived server head; this read grants no account authority.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Local(Handler::SyncPreview),
+    },
+    Declaration {
+        path: &["sync", "merge", "plan"],
+        summary: "Plan a mechanically clean merge of exactly two connected, owned developer heads; apply with local apply.",
+        parameters: &[STATE_DIR, ID],
+        handler: super::Handler::Local(Handler::SyncMerge),
+    },
+    Declaration {
         path: &["local", "passport", "show"],
         summary: "Read one verified current passport by exact kind and ID from preview state without credentials.",
         parameters: &[
@@ -592,6 +616,14 @@ fn providers(args: &ArgMatches) -> Result<Vec<Info>> {
 
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     match handler {
+        Handler::SyncPreview => crate::sync::merge::preview(
+            &mut Store::planning(path(args, "state-dir")?)?,
+            text(args, "id")?,
+            text(args, "account-id")?,
+        ),
+        Handler::SyncMerge => runtime::plan(path(args, "state-dir")?, |store, identity, at| {
+            crate::sync::merge::plan(store, text(args, "id")?, identity, at)
+        }),
         Handler::Materialize => {
             let request = materialization::Request::read(path(args, "request")?)?;
             let providers = providers(args)?;

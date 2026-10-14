@@ -1,6 +1,6 @@
 ---
 description: "Synchronization event fields, responses, retries, and conflicts."
-last_verified: "2026-09-08"
+last_verified: "2026-10-13"
 ---
 
 # Synchronization event
@@ -131,11 +131,15 @@ socket because a secret that leaves the machine has already left it; the server
 rejects again because the client is not the authority deciding what its payload
 may contain.
 
-The rule has one owner: `ai_stp_contracts.sync_payload`. The prohibited name
-fragments, allowed exceptions, and absolute-path rule live there and are not
-repeated here: a rule written twice diverges, and once already did—only the
-client received the `required_env` exception, so a complete canonical passport
-passed the optional half and was rejected by the authoritative half.
+The constants belong to the packaged `ai_stp_contracts/sync_payload_policy.json`
+resource. Python's `ai_stp_contracts.sync_payload` loads it and the native CLI
+embeds the same file. It owns prohibited kinds and name fragments, allowed
+declarations, and the absolute-path rule. Each implementation checks declaration
+shapes; the server also scans nested kinds. The native event reader verifies all
+five wire kinds, account and content addresses, inner passport revisions, and
+immutable version coordinates before admitting an event. Its payload traversal
+is bounded to 64 nested levels. This reader does not itself perform transport or
+write local state.
 
 The rule works as follows. A key is prohibited if it contains a prohibited
 fragment anywhere, catching `github_token`, `oauth_secret`, and `api_key_value`

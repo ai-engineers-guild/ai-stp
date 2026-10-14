@@ -6,10 +6,15 @@ import json
 import sqlite3
 from collections.abc import Callable
 from contextlib import closing
+from copy import deepcopy
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
+from ai_stp_cli.local import revisions, sync_merge
 from ai_stp_contracts.cli.components import PassportView
+from ai_stp_contracts.cli.sync import SyncPreview
+from ai_stp_foundation.canonical import JsonValue
+from ai_stp_passports.envelope import seal_envelope
 
 
 def prove(
@@ -82,3 +87,62 @@ def prove(
     before = counts()
     invoke(command, 2)
     assert counts() == before
+    prove_merge(state, invoke, apply, updated)
+
+
+def prove_merge(
+    state: Path,
+    invoke: Callable[..., Any],
+    apply: Callable[..., Any],
+    base: dict[str, Any],
+) -> None:
+    """The existing Python graph and merger are an independent native oracle."""
+    preview = [
+        "sync",
+        "preview",
+        "--state-dir",
+        str(state),
+        "--id",
+        base["stable_id"],
+        "--account-id",
+        base["owner_id"],
+    ]
+    assert SyncPreview.model_validate(invoke(preview)).state == "up_to_date"
+    left, right = deepcopy(base), deepcopy(base)
+    for document in (left, right):
+        document["parent_revision_ids"] = [base["revision_id"]]
+        document.pop("revision_id")
+    left["facts"]["role"]["value"] = "Reviewer"
+    right["facts"]["preferred_languages"]["value"] = ["Rust", "Python"]
+    database = state / "ai-stp-v2-state" / "registry.sqlite3"
+    with closing(sqlite3.connect(database, isolation_level=None)) as connection:
+        connection.row_factory = sqlite3.Row
+        device = connection.execute(
+            "SELECT device_id FROM revision WHERE revision_id=?", (base["revision_id"],)
+        ).fetchone()[0]
+        a = revisions.commit(connection, left, device_id=device)
+        b = revisions.commit(connection, right, device_id=device)
+
+    def body(document: dict[str, Any]) -> dict[str, Any]:
+        return {
+            key: value
+            for key, value in document.items()
+            if key not in {"revision_id", "parent_revision_ids"}
+        }
+
+    outcome = sync_merge.merge_documents(body(base), body(left), body(right))
+    assert outcome.document is not None and not outcome.conflicts
+    candidate = seal_envelope(
+        {
+            **outcome.document,
+            "parent_revision_ids": cast(JsonValue, sorted([a.revision_id, b.revision_id])),
+        }
+    )
+    report = SyncPreview.model_validate(invoke(preview))
+    assert report.state == "merge_ready" and report.candidate_revision_id == candidate.revision_id
+    assert report.common_ancestor_revision_id == base["revision_id"]
+    plan = invoke(["sync", "merge", "plan", "--state-dir", str(state), "--id", base["stable_id"]])
+    assert plan["plan"]["operation"]["passport"] == candidate.model_dump(mode="json")
+    merged = apply(plan, "developer-merge")
+    assert merged == candidate.model_dump(mode="json")
+    assert SyncPreview.model_validate(invoke(preview)).state == "up_to_date"
