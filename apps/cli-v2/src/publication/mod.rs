@@ -1,4 +1,10 @@
-//! Read-only preparation of immutable publication inputs, before any remote effect.
+//! Exact immutable publication inputs, durable per-object delivery and catalog
+//! readback. Command orchestration and replacement-device recovery remain separate.
+
+pub mod client;
+pub mod contract;
+pub mod journal;
+pub mod readback;
 
 use std::{collections::BTreeMap, path::Path};
 

@@ -2353,9 +2353,34 @@ modes; a single-file artifact compares its bytes and takes the inventory path
 from that directory. The directory never replaces the sealed artifact. The
 immutable passport and its visibility remain unchanged. Owner matching checks
 the sealed account, not historical attachment rights. This preparation establishes
-neither fresh authorization nor publication: network intent/recovery, account
-binding, catalog reuse and terminal readback remain pending under #950. No
-publication command is exposed by this internal preparation checkpoint.
+neither fresh authorization nor publication.
+
+The internal `publication::contract` and `publication::client` boundaries use
+the generated publication schemas and the existing account credential owner.
+Distribution defaults to private; explicit public distribution never rewrites
+the immutable passport. Component requests require sealed source coordinates or
+an explicit source binding. Supplied attestations must match the exact artifact,
+passport, policy, account and device, with valid signatures and no duplicates.
+Each exchange freshly verifies the account and revalidates the physical root.
+Responses must retain the original object, actor, device, visibility, inventory,
+policy, source bindings and, after creation, plan ID, hash and expiry.
+
+`publication::journal::Attempt` admits the exact request and confirmation key
+in the existing operation journal before the first remote write. SQLite
+transactions finish before HTTP. Lost replies retain the original intent;
+continuation reads a known plan or repeats the same creation key, uploads only
+declared original/projection bytes and uses the original confirmation key.
+Queued work remains unfinished. A published plan settles only after fresh,
+exact public or authenticated private catalog readback. Author verification and
+component verification remain independent. A terminal receipt can be read
+locally without an account session or network access.
+
+This is a per-object library checkpoint under #950. Setup orchestration,
+replacement-device interruption/reconciliation, governed commands and a complete
+native/API/worker journey remain pending. No publication command is exposed;
+unfinished publication attempts still block account recovery. The real TCP and
+SQLite proof exercises lost replies, substituted evidence, retained keys and
+delayed catalog visibility; it does not establish real worker acceptance.
 
 Private-directory failures include a fixed operation `stage` and, for I/O
 failures, an optional numeric `os_error`. Paths, file contents and raw OS error
@@ -2669,7 +2694,7 @@ breakaway and never infers termination from PID disappearance alone.
 | `authoring/lifecycle.rs` | Planned local tombstones, retained history and verified replay |
 | `store/versions.rs` | Verified immutable coordinates, explicit major advancement and replay without draft movement |
 | `authoring/releases.rs`, `authoring/freezing.rs` | Planned component releases and deterministic native projection compilation |
-| `publication/` | Read-only exact publication inputs, embedded/catalog separation and bounded artifact delivery reads |
+| `publication/` | Exact inputs, authenticated transport, durable per-object delivery and catalog readback |
 | `authoring/forks.rs` | Exact private component copies with atomic lineage and replay |
 | `authoring/templates.rs` | Bounded portable template rendering with literal CommonMark code blocks |
 | `authoring/setups/` | Exact private setup composition, conservative requirement aggregation and atomic immutable registration |

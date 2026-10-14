@@ -213,6 +213,37 @@ impl Access {
             Reply::Refused(code) => Err(super::transport::sync_refusal(code)),
         }
     }
+
+    pub(crate) fn publication(
+        &self,
+        request: &crate::publication::client::Request<'_>,
+    ) -> Result<serde_json::Value> {
+        self.revalidate()?;
+        if !self.verified || self.offline {
+            return Err(refused("account_origin_or_authorization_mismatch"));
+        }
+        let Session::Authorized { access_token, .. } = &self.state.session else {
+            return Err(refused("account_required"));
+        };
+        let reply = self.api.publication(request, access_token)?;
+        self.revalidate()?;
+        match reply {
+            Reply::Resource(value) => Ok(value),
+            Reply::Refused(code) => Err(super::transport::publication_refusal(code)),
+        }
+    }
+
+    pub(crate) fn publication_registry(&self) -> Result<crate::store::Store> {
+        self.revalidate()?;
+        let store = crate::store::Store::open_at(self.identity.root_directory(), false)?;
+        let owner = super::attachment::effective(&store.connection, &self.identity)?;
+        if owner.account_id != self.binding.account_id || owner.device_id != self.binding.device_id
+        {
+            return Err(refused("publication_owner_not_attached"));
+        }
+        self.revalidate()?;
+        Ok(store)
+    }
 }
 
 impl Binding {
