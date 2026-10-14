@@ -264,7 +264,7 @@ fn remove_native(id: &str) -> Result<()> {
             Err(keyring_core::Error::NoEntry) => continue,
             Err(_) => return Err(unavailable()),
         };
-        if attributes.get("username").map(String::as_str()) == Some(id) {
+        if attributes.get("username").map(String::as_str) == Some(id) {
             return entry.delete_credential().map_err(|_| unavailable());
         }
     }
