@@ -10,6 +10,7 @@ mod recovery;
 #[cfg(all(test, unix))]
 mod tests;
 mod transport;
+pub mod visibility;
 
 use journal::{Journal, Pending};
 pub use model::{Action, Plan};

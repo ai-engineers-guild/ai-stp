@@ -12,6 +12,7 @@ mod reports;
 mod selections;
 mod sync;
 mod tasks;
+mod visibility;
 
 use clap::{Arg, ArgAction, ArgMatches, Command, builder::ValueParser};
 use serde_json::{Value, json};
@@ -32,6 +33,7 @@ enum Handler {
     Attestation(attestation::Handler),
     Grant(grants::Handler),
     Github(github::Handler),
+    Visibility(visibility::Handler),
     Sync(sync::Handler),
     Publication(publication::Handler),
     Local(local::Handler),
@@ -680,6 +682,7 @@ fn declarations() -> impl Iterator<Item = &'static Declaration> {
         .chain(account::COMMANDS)
         .chain(grants::COMMANDS)
         .chain(github::COMMANDS)
+        .chain(visibility::COMMANDS)
         .chain(sync::COMMANDS)
         .chain(publication::COMMANDS)
         .chain(attestation::COMMANDS)
@@ -752,6 +755,7 @@ fn mutability(handler: Handler) -> &'static str {
         Handler::Account(handler) => handler.mutability(),
         Handler::Grant(handler) => handler.mutability(),
         Handler::Github(handler) => handler.mutability(),
+        Handler::Visibility(handler) => handler.mutability(),
         Handler::Sync(handler) => handler.mutability(),
         Handler::Publication(handler) => handler.mutability(),
         Handler::Attestation(handler) => handler.mutability(),
@@ -835,6 +839,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::Account(handler) => account::dispatch(handler, leaf),
         Handler::Grant(handler) => grants::dispatch(handler, leaf),
         Handler::Github(handler) => github::dispatch(handler, leaf),
+        Handler::Visibility(handler) => visibility::dispatch(handler, leaf),
         Handler::Sync(handler) => sync::dispatch(handler, leaf),
         Handler::Publication(handler) => publication::dispatch(handler, leaf),
         Handler::Attestation(handler) => attestation::dispatch(handler, leaf),
