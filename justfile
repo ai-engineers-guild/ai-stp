@@ -267,6 +267,13 @@ evidence-sync home_a home_b origin="https://ai-stp.aiguild.space" skip="":
 evidence-native-sync binary digest:
     {{ run }} python -m release_scripts.verify_native_sync --binary "{{ binary }}" --binary-sha256 "{{ digest }}"
 
+[arg('binary', help='optimized native executable built with cli-v2-build')]
+[arg('digest', help='reviewed SHA-256 of that executable')]
+[doc('Prove native publication against the real API, isolated PostgreSQL and worker safety')]
+[group('evidence')]
+evidence-native-publication binary digest:
+    {{ run }} python -m release_scripts.verify_native_publication --binary "{{ binary }}" --binary-sha256 "{{ digest }}"
+
 # Measures the private-sync hot paths `#256` R05 keeps explicit — ancestor
 # walks, common-ancestor selection, page application and cold/warm task
 # overhead — against real sqlite statement counts on the shipped functions.

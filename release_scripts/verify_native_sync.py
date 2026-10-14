@@ -18,9 +18,7 @@ import sqlite3
 import subprocess
 import tempfile
 import threading
-import time
 from contextlib import closing
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
@@ -28,6 +26,7 @@ import httpx
 from alembic import command
 from alembic.config import Config
 from release_scripts._evidence import EvidenceError, without_credentials
+from release_scripts._native_client import NativeClient
 from tests.support.api_settings import make_settings, make_test_auth
 from tests.support.asgi_sync import SyncAsgiServer
 from tests.support.postgres import TEST_DB_ENV, isolated_database
@@ -109,74 +108,7 @@ class _Bridge(http.server.BaseHTTPRequestHandler):
             self.close_connection = True
 
 
-class _Native:
-    def __init__(self, binary: Path) -> None:
-        self.binary = binary
-        self.calls = 0
-        self.scenarios: dict[str, str] = {}
-
-    def invoke(self, root: Path, *args: str | Path, ok: bool = True) -> dict[str, Any]:
-        environment = dict(
-            os.environ,
-            HOME=str(root / "home"),
-            USERPROFILE=str(root / "home"),
-            XDG_DATA_HOME=str(root / "data"),
-            XDG_CONFIG_HOME=str(root / "config"),
-            XDG_CACHE_HOME=str(root / "cache"),
-            AI_STP_TELEMETRY_SUPPRESS="1",
-        )
-        result = subprocess.run(
-            [str(self.binary), *map(str, args), "--json"],
-            env=environment,
-            capture_output=True,
-            text=True,
-            timeout=50,
-            check=False,
-        )
-        self.calls += 1
-        if result.stderr:
-            raise EvidenceError("native stderr is not empty")
-        envelope = json.loads(result.stdout)
-        without_credentials(envelope)
-        if envelope["ok"] != ok or (result.returncode == 0) != ok:
-            raise EvidenceError(f"unexpected native outcome for {' '.join(map(str, args[:2]))}")
-        return envelope["data"] if ok else envelope
-
-    def apply(
-        self,
-        root: Path,
-        prepared: dict[str, Any],
-        prefix: tuple[str, ...],
-        *,
-        sync: bool = False,
-        ok: bool = True,
-    ) -> dict[str, Any]:
-        path = root / "plan.json"
-        path.write_text(json.dumps(prepared["plan"]), encoding="utf-8")
-        path.chmod(0o600)
-        args: list[str | Path] = [
-            *prefix,
-            "--plan",
-            path,
-            "--plan-digest",
-            prepared["plan_digest"],
-        ]
-        if sync:
-            args += ["--config", root / "sync.yaml"]
-        return self.invoke(root, *args, ok=ok)
-
-    def account(self, root: Path, action: str, origin: str | None = None) -> dict[str, Any]:
-        args: list[str | Path] = ["account", "plan", "--state-dir", root, "--action", action]
-        if origin:
-            args += ["--api-url", origin]
-        return self.apply(root, self.invoke(root, *args), ("account", "apply"))
-
-    def local(self, root: Path, command_path: str, **flags: str | Path) -> dict[str, Any]:
-        args: list[str | Path] = [*command_path.split(), "--state-dir", root]
-        for key, value in flags.items():
-            args += ["--" + key.replace("_", "-"), value]
-        return self.apply(root, self.invoke(root, *args), ("local", "apply"))
-
+class _Native(NativeClient):
     def update(
         self,
         root: Path,
@@ -240,7 +172,9 @@ class _Native:
         return self.invoke(root, *args)
 
     def sync_apply(self, root: Path, plan: dict[str, Any], *, ok: bool = True) -> dict[str, Any]:
-        return self.apply(root, plan, ("sync", "apply"), sync=True, ok=ok)
+        return self.apply(
+            root, plan, ("sync", "apply"), extra=("--config", root / "sync.yaml"), ok=ok
+        )
 
     def push(self, root: Path, stable_id: str) -> dict[str, Any]:
         return self.sync_apply(root, self.sync_plan(root, "push", id=stable_id))["result"]
@@ -251,25 +185,6 @@ class _Native:
             if page["applied"] + page["replayed"] + len(page["skipped_event_ids"]) == 0:
                 return
         raise EvidenceError("bounded native pull did not converge")
-
-    def login(self, root: Path, origin: str, web: httpx.Client) -> dict[str, Any]:
-        assert self.account(root, "start", origin)["outcome"] == "pending"
-        pending = self.invoke(root, "account", "status", "--state-dir", root)
-        response = web.post(
-            "/v1/auth/device/approve",
-            json={
-                "schema_version": 1,
-                "user_code": pending["session"]["user_code"],
-            },
-        )
-        assert response.status_code == 200
-        deadline = datetime.fromisoformat(pending["session"]["next_poll_at"].replace("Z", "+00:00"))
-        seconds = max(0, (deadline - datetime.now(UTC)).total_seconds())
-        assert seconds < 15
-        time.sleep(seconds + 0.08)
-        authorized = self.account(root, "poll")
-        assert authorized["outcome"] == "authorized"
-        return authorized
 
     def journey(self, root: Path, server: _Server, account: str, web: httpx.Client) -> None:
         a, b = root / "device-a", root / "device-b"

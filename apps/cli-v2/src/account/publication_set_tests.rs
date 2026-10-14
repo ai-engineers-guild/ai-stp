@@ -488,6 +488,21 @@ fn publication_groups_preserve_order_partial_progress_and_replacement_ancestry()
         capacity(126)?;
         let waiting = runtime::apply(&publication, &publication.digest()?, &moment())?;
         assert_eq!(waiting["state"], "waiting");
+        let pending = runtime::status(root.path(), None)?;
+        assert_eq!(
+            pending["operations"].as_array().ok_or("operations")?.len(),
+            1
+        );
+        assert_eq!(pending["operations"][0]["operation_id"], operation);
+        let local = runtime::status(root.path(), Some(&operation))?;
+        assert_eq!(local["observation"], "local_journal");
+        assert_eq!(
+            local["operations"][0]["members"]
+                .as_array()
+                .ok_or("members")?
+                .len(),
+            4
+        );
         {
             let mut client = publication::client::Client::connect(root.path(), None)?;
             for member in serialized["intent"]["members"]
@@ -611,7 +626,10 @@ fn publication_groups_preserve_order_partial_progress_and_replacement_ancestry()
         )?;
         let original = serde_json::to_value(&interrupted)?;
         let interrupted_id = string(&original["intent"], "operation_id")?;
-        assert!(runtime::apply(&interrupted, &interrupted.digest()?, &moment()).is_err());
+        let lost = runtime::apply(&interrupted, &interrupted.digest()?, &moment())
+            .err()
+            .ok_or("fixture must drop confirmation")?;
+        assert_eq!(lost.details["operation_id"], interrupted_id);
         if let Some(binary) = std::env::var_os("AI_STP_TEST_OLD_PUBLICATION_SET_BINARY") {
             let result = std::process::Command::new(binary)
                 .args(["device", "show", "--state-dir"])
@@ -682,6 +700,23 @@ fn publication_groups_preserve_order_partial_progress_and_replacement_ancestry()
             runtime::apply(&refused, &refused.digest()?, &moment())?,
             result
         );
+        assert_eq!(
+            runtime::status(root.path(), Some(&operation))?["operations"][0]["state"],
+            "published"
+        );
+        assert_eq!(
+            runtime::status(root.path(), Some(&interrupted_id))?["operations"][0]["state"],
+            "interrupted"
+        );
+        let refused_status = runtime::status(
+            root.path(),
+            Some(result["operation_id"].as_str().ok_or("operation")?),
+        )?;
+        assert_eq!(
+            refused_status["operations"][0]["members"][3]["delivery"]["plan"]["state"],
+            "failed"
+        );
+        assert_eq!(runtime::status(root.path(), None)?["operations"], json!([]));
         Ok(())
     })();
     shared.lock().map_err(|_| "fixture")?.stop = true;

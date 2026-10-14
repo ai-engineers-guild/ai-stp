@@ -2428,8 +2428,38 @@ New group admission requires room for the group and its active child. Every new
 sync or publication admission enforces the combined 128-operation recovery
 bound; already-admitted work can still settle when that bound is reached.
 
-Governed commands and a complete optimized native/API/worker journey remain
-under #950; no publication command is exposed yet. The real TCP/SQLite proofs
+The executable exposes this boundary through five commands:
+
+- `publication plan --state-dir --request [--api-url]` reads a closed JSON request
+  (at most 16 MiB) with `stable_id`, `version`, optional `visibility` (defaults to
+  `private`), optional `component_root`, and optional `evidence` keyed by member
+  ID. Each evidence entry accepts `source_binding_id`, `gitlab_source_binding_id`
+  and supplied `attestations`. The result contains `plan` and `plan_digest`.
+- `publication apply --plan --plan-digest` applies that exact plan. Failures after
+  digest validation retain an `operation_id` for continuation. An existing
+  competing group's identifier takes precedence over the unadmitted plan's ID.
+- `publication status --state-dir [--operation-id]` reads only the local journal.
+  Without an ID it lists unfinished groups; with an ID it returns that group's
+  saved result and per-member progress, including retained refusal evidence.
+  It works after logout, without local
+  source files or network, and does not claim fresh catalog access.
+- `publication resume plan --state-dir --operation-id [--api-url]` prepares a new
+  confirmation of the retained intent after partial progress or session refresh.
+  The original plan file is not required. Its result uses the same apply command.
+- `publication reconcile --state-dir --operation-id [--api-url]` obtains fresh
+  read-only evidence after completed device replacement and same-account sign-in.
+
+`just evidence-native-publication <binary> <sha256>` exercises these commands
+against the actual API, isolated PostgreSQL and worker. It covers lost-create
+reply/session-refresh continuation, private/public group readback, real safety
+refusal and offline history. Only account/web approval and in-memory S3 transport
+are fixtures; the worker produces its own validation and catalog records. The
+declared fixture source coordinates do not prove GitHub provenance. Pinned
+scanners must be available with `AI_STP_SAFETY_EXTERNAL_CLI=1`; high/critical
+skill findings must produce a failing scanner exit. This evidence does not
+establish deployed storage durability or production writer cutover.
+
+The real TCP/SQLite proofs
 cover exact inputs, lost replies, group ordering, current-session continuation,
 private member reuse, partial refusal, device replacement and previous-reader
 acceptance/refusal. Their controlled HTTP server does not establish actual worker

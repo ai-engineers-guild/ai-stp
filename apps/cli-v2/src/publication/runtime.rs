@@ -20,7 +20,7 @@ use super::{
 use crate::{
     account::access::Binding,
     authoring, canonical, digest,
-    error::{Failure, Result},
+    error::{ErrorKind, Failure, Result},
     files, identity, passport,
     store::Store,
 };
@@ -324,10 +324,25 @@ pub fn read_plan(path: &Path) -> Result<Plan> {
     Ok(plan)
 }
 
+pub fn read_request(path: &Path) -> Result<Request> {
+    serde_json::from_value(canonical::parse(&files::read(path, 16 * 1024 * 1024)?)?)
+        .map_err(|_| Failure::input("the publication request violates its closed contract"))
+}
+
 pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
     if plan.digest()? != expected {
         return Err(invalid());
     }
+    apply_confirmed(plan, at).map_err(|mut failure| {
+        failure
+            .details
+            .entry("operation_id".into())
+            .or_insert_with(|| plan.intent.operation_id.clone().into());
+        failure
+    })
+}
+
+fn apply_confirmed(plan: &Plan, at: &str) -> Result<Value> {
     let intent = &plan.intent;
     let identity = identity::current(&intent.state_parent)?.ok_or_else(invalid)?;
     if identity.root_binding().1 != &intent.account.root_identity {
@@ -426,6 +441,68 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
         .collect::<Result<Vec<_>>>()?;
     store.transaction(|t| run.finish(t, intent, Terminal::Published { catalogs }))?;
     run.view(intent)
+}
+
+/// Local journal evidence only. With no id, discover unfinished groups without
+/// returning their complete passports or loading account credentials.
+pub fn status(root: &Path, operation_id: Option<&str>) -> Result<Value> {
+    if operation_id.is_some_and(|id| !passport::stable_id(id, "operation")) {
+        return Err(Failure::input("invalid publication operation identifier"));
+    }
+    let identity = identity::current(root)?.ok_or_else(invalid)?;
+    let store = Store::planning_at(identity.root_directory())?;
+    let mut query = store.connection.prepare(
+        "SELECT operation_id FROM operation WHERE kind='publication.set' AND ((?1 IS NULL AND finished_at IS NULL) OR operation_id=?1) ORDER BY operation_id LIMIT 129"
+    ).map_err(crate::store::database)?;
+    let ids = query
+        .query_map([operation_id], |r| r.get::<_, String>(0))
+        .map_err(crate::store::database)?
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .map_err(crate::store::database)?;
+    if ids.len() > 128 {
+        return Err(invalid());
+    }
+    if operation_id.is_some() && ids.is_empty() {
+        return Err(Failure::new(
+            ErrorKind::NotFound,
+            "the publication operation was not admitted",
+        ));
+    }
+    let mut operations = Vec::new();
+    for id in ids {
+        let intent = Run::intent(&store.connection, &id)?;
+        if intent.account.root_identity != *identity.root_binding().1 {
+            return Err(invalid());
+        }
+        let run = Run::load(&store.connection, &intent)?.ok_or_else(invalid)?;
+        let target = intent.members.last().ok_or_else(invalid)?.snapshot()?;
+        let mut view = if run.terminal.is_some() {
+            run.view(&intent)?
+        } else {
+            json!({"schema_version":1,"operation_id":id,"intent_digest":intent.digest()?,"state":"waiting"})
+        };
+        view["stable_id"] = target.passport["stable_id"].clone();
+        view["version"] = target.passport["version"].clone();
+        if operation_id.is_some() {
+            let mut members = Vec::new();
+            for member in &intent.members {
+                let snapshot = member.snapshot()?;
+                let delivery = match member {
+                    Member::Publish { attempt } => {
+                        attempt.inspect(&store.connection)?.unwrap_or_else(
+                            || json!({"operation_id":attempt.operation_id,"state":"not_started"}),
+                        )
+                    }
+                    Member::Available { .. } => json!({"state":"reuse_planned"}),
+                };
+                members.push(json!({"stable_id":snapshot.passport["stable_id"],"version":snapshot.passport["version"],"delivery":delivery}));
+            }
+            view["members"] = members.into();
+        }
+        operations.push(view);
+    }
+    identity.revalidate()?;
+    Ok(json!({"schema_version":1,"observation":"local_journal","operations":operations}))
 }
 
 /// Read current remote evidence through the replacement account, preserving the
