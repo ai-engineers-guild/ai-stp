@@ -1,6 +1,6 @@
 ---
 description: "Private upload, exact access reads and owner visibility plans shared with the platform owner."
-last_verified: "2026-09-24"
+last_verified: "2026-10-14"
 ---
 
 # Private distribution
@@ -67,7 +67,9 @@ transactional lock. Repeating an applied plan returns the same result. Opening a
 setup refuses while a required pin is private. A recipient grant cannot create
 or confirm a visibility plan.
 
-Agents use `publication visibility plan`, `status`, `confirm`. Visibility is always
+The Python CLI uses `publication visibility plan`, `status`, `confirm`. The isolated
+Rust CLI uses `plan`, `status`, `apply`; its [code-adjacent contract](../../apps/cli-v2/README.md#explicit-distribution-visibility)
+owns exact local plan/session binding and retry behavior. Visibility is always
 explicit. Confirmation requires an explicit flag and exact hash. The CLI neither
 rewrites local versions nor substitutes ordinary public publication for a missing
 endpoint.

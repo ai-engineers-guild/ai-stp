@@ -34,6 +34,7 @@ from release_scripts._native_client import NativeClient
 from release_scripts._native_github import SelectedGitHub
 from release_scripts._native_github import connect as connect_github
 from release_scripts._native_github import prepare as prepare_github
+from release_scripts._native_visibility import prove as prove_visibility
 from sqlalchemy import select
 from tests.support.api_settings import make_settings, make_test_auth
 from tests.support.asgi_sync import SyncAsgiServer
@@ -73,6 +74,8 @@ class _Server(http.server.ThreadingHTTPServer):
         self.requests: list[dict[str, Any]] = []
         self.creates: list[dict[str, Any]] = []
         self.failures: list[str] = []
+        self.drop_visibility = ""
+        self.visibility_confirms: list[dict[str, Any]] = []
         self.drop_create = False
         self.drop_source = False
         self.sources: list[dict[str, Any]] = []
@@ -99,6 +102,12 @@ class _Bridge(http.server.BaseHTTPRequestHandler):
             payload = self.rfile.read(size)
             creating = self.command == "POST" and self.path == "/v1/publications/plans"
             sourcing = self.command == "POST" and self.path == "/v1/connectors/github/sources"
+            if (
+                self.command == "POST"
+                and self.path.startswith("/v1/access/visibility/plans/")
+                and self.path.endswith("/confirm")
+            ):
+                server.visibility_confirms.append(json.loads(payload))
             if creating:
                 server.creates.append(json.loads(payload))
             if sourcing:
@@ -120,6 +129,12 @@ class _Bridge(http.server.BaseHTTPRequestHandler):
                     "status": response.status_code,
                 }
             )
+            if self.command == "POST" and self.path == server.drop_visibility:
+                assert response.status_code in {200, 201}
+                server.drop_visibility = ""
+                self.close_connection = True
+                self.connection.shutdown(socket.SHUT_RDWR)
+                return
             if (creating and server.drop_create) or (sourcing and server.drop_source):
                 assert response.status_code == (201 if creating else 200)
                 if creating:
@@ -432,6 +447,8 @@ class _Native(NativeClient):
             raise EvidenceError("the actual worker refused the clean public setup")
         _catalogs(public_result, [gamma, public], "public")
         self.scenarios["public_group_preserves_private_passports"] = "passed"
+        self.stage = "native_visibility"
+        prove_visibility(self, root, server, gamma, public)
         unsafe = self.component(root, "review-unsafe", unsafe=True)
         refused = self.setup(root, "refused-review", [alpha, unsafe])
         self.stage = "real_safety_refusal"
@@ -705,6 +722,9 @@ def main() -> int:
                         ),
                         "native_helper_sha256": _sha(Path(__file__).with_name("_native_client.py")),
                         "github_helper_sha256": _sha(Path(__file__).with_name("_native_github.py")),
+                        "visibility_helper_sha256": _sha(
+                            Path(__file__).with_name("_native_visibility.py")
+                        ),
                         **observed,
                     }
                 ),

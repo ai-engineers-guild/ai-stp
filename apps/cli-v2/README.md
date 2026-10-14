@@ -2818,6 +2818,43 @@ unassigned child, then repeats through the real process adapter with a live
 child and grandchild. It waits on retained process handles, checks denied
 breakaway and never infers termination from PID disappearance alone.
 
+### Explicit distribution visibility
+
+`publication visibility plan --state-dir --request [--api-url]` creates or
+recovers one existing API visibility plan. The closed request contains
+`object_kind`, `stable_id`, `version`, `visibility` and a caller-owned
+`idempotency_key`; device and wire version come from the isolated account.
+Planning changes no distribution access. The returned local plan retains the
+original request and exact server effect, passport digest, actor, device,
+previous visibility, expiry and server hash. It binds the account session and
+physical state root for fifteen minutes; the server retains its original
+thirty-minute expiry. No local version or passport is rewritten.
+
+`publication visibility apply --plan --plan-digest --confirm` requires the
+explicit decision before HTTP access. Fresh same-device authentication and a
+read of the original server plan precede confirmation. Every supported immutable
+field must match. The API rechecks current ownership, passport, prior visibility,
+expiry and public setup dependencies under its existing locks. Terminal
+`applied`, `refused` and `expired` results are historical plan outcomes; they do
+not assert the version's current visibility. Replaying `applied` never sends
+another confirmation, including after a later inverse visibility change.
+
+`publication visibility status --state-dir --plan-id [--api-url]` reads that
+account's historical plan; it can read a different device's receipt but grants
+no apply authority. Responses expose only supported fields. Unexpected response
+extensions are not persisted or printed. Network or malformed-response failures
+leave the result unconfirmed. Retain the original request, idempotency key and
+server plan; after session refresh, explicitly re-plan that same request. A
+changed request under the original key conflicts; a new key is a new decision.
+Neither transport failure nor refresh silently renews server intent or expiry.
+
+The focused real-HTTP regression covers explicit confirmation, digest/session
+binding, response substitutions, loss and terminal readback. The existing
+`just evidence-native-publication` journey exercises actual API/PostgreSQL
+close/open transitions, refused private setup dependencies, loss after create
+and confirmation, refresh, stale plans, expiry and exact passport preservation.
+It uses isolated synthetic publications; no owner publication changes access.
+
 ## Modules and proof
 
 | Owner | Responsibility |

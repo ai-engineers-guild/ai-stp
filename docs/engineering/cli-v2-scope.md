@@ -66,16 +66,17 @@ domain modules. The task interface orchestrates these same functions.
 | Technology | 17 | Resolve evidence-backed technology facts, mappings and overrides, including publication and retirement. Do not replace provenance with inferred certainty. |
 | Selection | 11 | Explain eligibility/impact, select exact versions and compile bundles. Mechanical constraints remain authoritative. |
 | Installation and recovery | 25 | Plan/apply single- or multi-root changes, observe drift, preserve/restore setups and recover/roll back. Providers alone write final harness state. |
-| Software lifecycle | 27 | Acquire/verify providers and manage harnesses, toolchains, standalone CLI components and control skills. Artifact trust and installer ownership are separate obligations. |
+| Software lifecycle | 27 | Acquire/verify providers, toolchains, standalone CLI components and control skills. Harness executables remain user/vendor managed; observe the installed executable without installing, pinning or updating it (ADR-0232). |
 | Synchronization | 8 | Exchange private state and project revisions, detect conflicts and apply explicit merges without losing local operations. |
 | Publication and distribution | 14 | Publish exact versions, manage ownership and visibility, prepare GitHub sources and read back terminal results. A queued receipt is not catalog availability. |
 | Assurance | 15 | Run declared component/setup evaluations, sign author attestations and submit/read contribution reports. Author verification is independent of component verification. |
-| Governed operation | 21 | Consume existing Corporate assignments and consented heartbeat/usage/telemetry policy. This preserves CLI adapters, not a rewrite of Corporate services. |
+| Governed operation | 21 | Historical Python inventory only. Corporate assignments, heartbeat and usage are excluded from the native rebuild by the owner’s current scope. |
 | Task interface | 7 | Start, answer, resume, cancel and inspect durable tasks over the same services, with bounded continuations and truthful terminal states. |
 | CLI lifecycle | 6 | Plan/check/apply/recover/roll back the CLI through its installer, including an interrupted update and an active agent handoff. |
 
-Every row in the ledger initially says `retain`: current code supplies no
-`obsolete` set justifying bulk removal. This is a compatibility default, not a
+Every row in the captured Python ledger initially says `retain`; that historical
+baseline does not override the explicit corporate and harness-management exclusions
+above. For the remaining outcomes this is a compatibility default, not a
 promise to preserve internal APIs, Python layout or redundant UX forever.
 Before changing a leaf, record the old outcome, actual consumers, chosen new
 behavior, compatibility path and proof. An alias is justified by a consumer,
@@ -92,7 +93,7 @@ not added automatically to preserve every incidental implementation detail.
 | `provider/verification_runtime.py` provisions pinned Python for `index_attestation.py`; provider acquisition defaults to PyPI. | Native execution is unresolved until the full PEP 740/Sigstore identity and signature policy is proved without that runtime. Rust crate availability alone is not evidence. |
 | `provider/protocol_v3.py`, invocation and OS launchers enforce process/network boundaries. | Retain bounded input/output, deadlines, cancellation, child cleanup and platform isolation. A successful JSON response alone cannot prove a safe provider invocation. |
 | `self_update/` delegates to the installed wheel's owner and keeps recovery outside its prefix. | Design native distribution and ownership explicitly, including legacy installer coexistence, executable locks, journal continuity and post-update readback. |
-| `app.py` may send a due heartbeat and check update notices after ordinary commands; heartbeat can refresh credentials. | A command classified as a read is not automatically side-effect-free. The v2 metadata fast path is an intentional behavior decision; preserve policy delivery through a separately bounded implemented lifecycle. |
+| `app.py` may send a due heartbeat and check update notices after ordinary commands; heartbeat can refresh credentials. | A command classified as a read is not automatically side-effect-free. The v2 metadata fast path is an intentional behavior decision; the native rebuild does not carry over Corporate heartbeat or usage delivery. |
 | `application/initialize.py` checks provider capabilities before patching an instruction region. | Test the exact pinned provider's advertised capabilities and real plan/apply behavior. A schema that permits the field does not prove that every provider advertises it. |
 | `application/publish.py` resumes durable plans and distinguishes accepted jobs from readable published versions. | Prove repeat/retry/restart and final provenance-bound readback; do not reduce publish to one HTTP POST. |
 | Desktop `core/src/cli_runner.rs` prefers the bundled executable over configured/PATH alternatives. | Test an actual preview package/sidecar replacement. Setting a CLI path alone does not prove that a packaged desktop invokes Rust. Keep the CLI process boundary. |

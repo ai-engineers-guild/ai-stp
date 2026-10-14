@@ -1,5 +1,8 @@
 //! Real HTTP and private files, including a lost single-use exchange response.
 
+#[path = "visibility_tests.rs"]
+mod visibility_tests;
+
 use super::*;
 #[path = "access_tests.rs"]
 mod access_tests;
