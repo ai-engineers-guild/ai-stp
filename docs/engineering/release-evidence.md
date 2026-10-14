@@ -1,6 +1,6 @@
 ---
 description: "Required release evidence for the CLI, platform, and providers."
-last_verified: "2026-10-04"
+last_verified: "2026-10-14"
 ---
 
 # Release evidence
@@ -13,39 +13,54 @@ An old CI run on a different SHA is not evidence. A skipped line receives `not_v
 
 ## CLI
 
-A clean installation using the published command, Python 3.12 and 3.14 on Linux
-x86_64, an offline path, removal and reinstallation, reference JSON, and verification
-that no secrets are present are required. The CLI surface is proven on Linux,
-macOS, and Windows (`ADR-0113`). The provider half of `ADR-0062` remains: a
-provider platform that was not exercised is not called supported.
+The public `ai-stp` executable is the optimized Rust engine. Its exact tag-bound
+workflow builds and exercises Linux x86_64, macOS arm64 and Windows x86_64
+archives. Each archive contains the native executable, license, source/target
+manifest and CycloneDX SBOM; its matching checksum and GitHub attestation must
+bind the reviewed source and signer. Verify the public download bytes before
+installation. Compilation is not claimed to be reproducible, OS-signed or
+notarized merely because the archive has an attestation.
 
-The Python candidate is one `ai-stp-cli` wheel and sdist: first-party modules
-ship inside that wheel, metadata has no `Requires-Dist` for former internal
-`ai-stp-*` projects, and the artifact is reproduced byte-for-byte with package
-metadata, LICENSE, a deterministic CycloneDX SBOM, `release-manifest.json`,
-`SHA256SUMS`, and provenance for the exact SHA (`ADR-0146`). A dirty candidate,
-skipped attestation, or a workflow that exists but has not run successfully
-receives `not_verified`.
+`just cli-v2-check` proves formatting, Clippy, executable contracts, the optimized
+build and real SQLite/envelope behavior. The platform jobs execute the native
+operations and archive installer, including ownership, stale-plan and recovery
+refusals. The [native guide](../../apps/cli-v2/README.md) owns the exact platform
+boundary: provider execution, setup installation and active-consumer handoff
+remain Linux-only. A component's platform artifact does not qualify the
+consumer's sandbox on that platform.
 
-Installation evidence records the PEP 610 provenance of that CLI wheel as a
-direct source and proves the bundled modules are present as modules, not extra
-distributions. `--find-links` without a direct binding is insufficient: a
-matching version might resolve from the public index. The check runs machine
-commands outside the source tree and confirms removal of the program. Each row
-of the Python matrix must use a job-local `UV_PROJECT_ENVIRONMENT` and verify
-the actual Python version from the installed CLI's response; one persistent
-`.venv` is not evidence for two versions. The publication procedure lives in
-[`docs/operations/runbooks/pypi-release.md`](../operations/runbooks/pypi-release.md).
+Production transfer requires its own exact plan and observed receipt: retained
+registry rows and identity, schema admission that fences the old writer,
+credential readback and forward recovery. A fixture migration or successful
+compile is not evidence that a user's current state was transferred. Retire
+the old launcher through its package manager only after native installation and
+transfer are verified. Never restore an older registry over native mutations.
+No automatic backup or snapshot is part of this operation.
+
+The historical Python wheel remains a development compatibility oracle. Its
+old installation matrices and immutable artifacts do not qualify the native
+release; the wheel publication lane is retired. The
+[historical PyPI runbook](../operations/runbooks/pypi-release.md) records that
+boundary. Exact publication, installed-command and deployment receipts belong
+to the release and its linked completion issue, not a rolling copy here.
 
 ## Platform
 
-PostgreSQL migrations, user isolation, object authorization, RustFS operation, job idempotency, mixed API versions, administrator audit, backup, and restore are required.
+PostgreSQL migrations, user isolation, object authorization, RustFS operation,
+job idempotency, mixed API versions and administrator audit require evidence.
+Backup and restore operations require an explicitly authorized task; the CLI
+release does not create snapshots or re-enable disabled backup workflows.
 
 ## Provider
 
-The exact public source, release artifact and manifest, trust policy, signature, hash, rollback protection, public checks, closed conformance verification, malicious packages, no-change plan, apply, launch, status, and restore are required.
+The exact public source, release artifact and manifest, trust policy, signature,
+hash, rollback protection, public checks and closed conformance verification
+require evidence. Exercise malicious-package refusal, no-change plans,
+preparation, publication, cancellation, status, removal and interrupted-operation
+recovery through the native consumer. Harness executables remain user/vendor
+managed; observing their identity is not permission to install or update them.
 
-All **seven** `NDDev-OpenNetwork/*-setup-system` providers are in scope, each
+All **seven** `NDDev-Technocracy-Archive/*-setup-system` components are in scope, each
 release carrying six native binaries and `SHA256SUMS`. A platform that was not
 exercised is not called supported.
 
@@ -55,6 +70,12 @@ A script nobody can run is not a check. Every slice below has a recipe, and the
 recipe is where a reader learns the slice exists; none of them enters
 `just check`, because the repository gate may not depend on another party's
 release network or on a deployed environment being reachable.
+
+The older Python slices below remain callable compatibility evidence. Their
+command vocabulary and passing results do not establish native release
+acceptance. Native API slices bind the supplied Rust executable digest;
+installation and handoff receipts must likewise identify the actual native
+consumer and authenticated component artifacts.
 
 | recipe | question it answers |
 |---|---|
@@ -121,17 +142,20 @@ The workflow also takes
 
 A desktop release proves that the shell over the CLI contract builds and runs
 on all three OSes: each `desktop-release` bundle leg rebuilds the frontend and
-both Rust crates, freezes the CLI into the PyInstaller sidecar through
-`apps/desktop/scripts/build-cli-sidecar.sh` — from the built `ai-stp-cli`
-wheel and the locked closure of its declared dependencies, the set a PyPI
-install gets, and smoke-checking the frozen binary's `version --json` and
-`doctor --json` before it is embedded — and runs
+both shell/core Rust crates, builds the optimized native CLI through
+`apps/desktop/scripts/build-cli-sidecar.sh`, and verifies the copied executable's
+Rust runtime and registry digest. The generated `sidecar.json` binds its target,
+version and SHA-256; no interpreter or Python library is packaged. The workflow runs
 `apps/desktop/scripts/test-bundled-sidecar.sh`, the spawn test under the app's
 filtered environment, so a bundled CLI that cannot start on a real OS does not
 ship. After `tauri build`, `just desktop-bundle-test` probes the resource tree
 from an extracted Linux deb, the macOS app, or an administratively extracted
 Windows MSI, without installing the app. `SHA256SUMS` covers every published
 artifact.
+
+Source integration and desktop CI do not publish new desktop bundles. Earlier
+desktop releases retain their original sidecars; a CLI archive release does not
+silently replace those immutable downloads.
 
 It does not prove code integrity by signature — the bundles are unsigned
 (`SHA256SUMS` is the integrity record), the CI never launches the installed

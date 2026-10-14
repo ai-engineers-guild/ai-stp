@@ -16,7 +16,7 @@ Clone the canonical repository and start from the integration branch:
 git clone https://github.com/ai-engineers-guild/ai-stp.git
 cd ai-stp
 git switch --track origin/dev
-git switch -c feat/57-next-native-slice
+git switch -c feat/next-change
 ```
 
 Use the tool versions selected by [.github/workflows/check.yml](.github/workflows/check.yml),
@@ -38,10 +38,12 @@ those areas are needed. Follow AGENTS.md for checks affected by each change.
 Keep lockfiles unchanged during setup. Rebuild local dependencies and caches;
 do not copy another workstation's virtual environment or target directories.
 
-Continue the Rust program from [#57](https://github.com/ai-engineers-guild/ai-stp/issues/57),
-the roadmap and [the native contract](apps/cli-v2/README.md). A published preview
-does not transfer production state ownership. Existing device credentials and
-owner state are not development inputs: authenticate the new workstation
+Use [the native contract](apps/cli-v2/README.md) and the roadmap for current
+behavior; [#57](https://github.com/ai-engineers-guild/ai-stp/issues/57) records the
+stable Rust cutover. Installing a native executable alone does not transfer an
+existing Python state directory: follow the explicit migration procedure.
+Existing device credentials and owner state are not development inputs:
+authenticate the new workstation
 through the normal account flow when a connected task requires it.
 
 Setup-component changes start in their maintained authoring repository and
