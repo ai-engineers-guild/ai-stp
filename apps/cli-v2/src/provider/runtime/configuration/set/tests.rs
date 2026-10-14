@@ -40,6 +40,10 @@ pub(in crate::provider::runtime::configuration) fn prove(
         expires_at: template.expires_at.clone(),
         children,
         project: None,
+        program: model::Program {
+            executable: None,
+            observation_digest: format!("sha256:{}", "a".repeat(64)),
+        },
     };
     let value = plan.value()?;
     let bytes = serde_json::to_vec(&value)?;

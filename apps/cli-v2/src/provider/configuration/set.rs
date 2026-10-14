@@ -4,7 +4,9 @@ use std::collections::BTreeSet;
 
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::Value;
+#[cfg(target_os = "linux")]
+use serde_json::json;
 
 use super::{invalid, outcome, plan, project::Binding};
 use crate::{digest, error::Result, passport, provider::managed, wire};
@@ -40,6 +42,13 @@ pub(crate) struct Project {
 
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
+pub(crate) struct Program {
+    pub executable: Option<String>,
+    pub observation_digest: String,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct Plan {
     pub schema_version: u32,
     pub action: String,
@@ -48,6 +57,7 @@ pub(crate) struct Plan {
     pub expires_at: String,
     pub children: Vec<Child>,
     pub project: Option<Project>,
+    pub program: Program,
 }
 
 pub(crate) fn fingerprint(value: &Value) -> Result<String> {
@@ -82,6 +92,12 @@ impl Plan {
             || !passport::timestamp(&plan.created_at)
             || !passport::timestamp(&plan.expires_at)
             || fingerprint(&plan.value()?)? != expected
+            || !super::super::plan::hash(&plan.program.observation_digest)
+            || plan.program.executable.as_ref().is_some_and(|path| {
+                !std::path::Path::new(path).is_absolute()
+                    || path.len() > 4096
+                    || path.contains('\0')
+            })
         {
             return Err(invalid());
         }
@@ -257,6 +273,7 @@ impl Record {
         Ok((record, plan))
     }
 
+    #[cfg(target_os = "linux")]
     pub fn result(&self, plan: &Plan) -> Result<Value> {
         let first = plan.first()?;
         Ok(

@@ -294,7 +294,7 @@ pub fn contribution_paths(
     store.transaction(|connection| paths(connection, setup, harness, scopes, placements))
 }
 
-fn paths(
+pub(crate) fn paths(
     connection: &Connection,
     setup: &Value,
     harness: &str,

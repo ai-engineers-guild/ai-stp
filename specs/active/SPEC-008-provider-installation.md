@@ -7,11 +7,11 @@ last_verified: "2026-10-14"
 
 ## Purpose
 
-`ai_stp` transfers the verified package to the only public provider of the selected harness. The provider securely manages the runtime, target directory, backup, application, startup, and recovery.
+`ai_stp` transfers the verified package to the public installation component of the selected harness. That component alone writes configuration and owns its application and recovery. The harness executable is user-managed; ai-stp observes its installed version and never installs or updates it. Native operations retain desired payloads for forward recovery and do not create configuration backups.
 
 ## Scope
 
-Includes seven public setup managers `NDDev-Technocracy-Archive/*-setup-system` - one for each harness of the closed set `ADR-0120`: claude-code, codex, cursor, opencode, pi, grok-build and antigravity - release artifacts, common protocol, runtime lifecycle, external package, inactive target directory, plan, application, state, recovery and import of an existing native configuration. Historical releases retain their separately pinned signing identities.
+Includes seven public setup managers `NDDev-Technocracy-Archive/*-setup-system` - one for each harness of the closed set `ADR-0120`: claude-code, codex, cursor, opencode, pi, grok-build and antigravity - release artifacts, common protocol, external configuration packages, inactive target directories, plans, application, state, recovery and import of existing native configuration. Historical releases retain their separately pinned signing identities.
 
 The previous estate of providers has been removed (`ADR-0119`, `ADR-0120`). It remains in historical ADR as context and is not the source for a new object; the trust line is assigned `provider-policy.toml` to the family `*-setup-system`.
 
@@ -40,8 +40,16 @@ The transition preserves original plans and terminal receipts, and requires a
 compatible executable for subsequent recovery. This does not coordinate
 independent state parents.
 
+The native `select bundle scoped` service plans and publishes all packages from
+one exact setup graph. It binds authenticated provider capabilities, actual
+installed-harness observation, access, mechanical eligibility, explicit scope
+placement and held physical target identities. Apply recompiles and revalidates
+before publishing one new directory; it does not write configuration.
+
 The native `configuration set` service binds one complete setup across two or
-three disjoint explicit scopes. Complete graph/source coverage precedes one
+three disjoint explicit scopes. Its installed-harness observation must match
+before first admission; admitted recovery keeps its original operation without
+depending on the current executable. Complete graph/source coverage precedes one
 transaction admitting every child and parent reservation. Authenticated component
 0.0.94 preparation must succeed at every root before any child publishes.
 Child checkpoints permit exact forward recovery; completed child roots remain

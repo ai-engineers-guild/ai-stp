@@ -20,6 +20,8 @@ use crate::{
     selection::graph,
 };
 
+pub mod scoped;
+
 const MAX_PLAN: u64 = 64 * 1024;
 
 pub struct Request<'a> {

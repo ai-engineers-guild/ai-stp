@@ -2312,19 +2312,36 @@ selected projection archives, output content and emitted archives.
 This library boundary performs no installation or publication. Its existing
 SQLite bundle proof covers mixed Codex instruction/skill scopes, cross-root
 identifier collisions, explicit ambiguous placement and preservation of unowned
-configuration fields. `configuration set` consumes complete scoped packages;
-`select bundle` still publishes one scope. Active-root handoff is a separate
-migration boundary.
+configuration fields. `select bundle scoped plan --state-dir --request` exposes
+this compiler through a closed request with exact setup `source`, `targets`
+keyed by scope, an unused `output` directory, optional component `placements`,
+`provider_version`, `harness_executable` and `access`. The request and plan are
+bounded to 256 KiB. Each target is an existing absolute unaliased directory;
+targets must be physically disjoint. The service authenticates the component,
+observes the user-installed harness, verifies access and mechanical eligibility,
+and reads only declared contribution paths from held roots.
+
+`select bundle scoped apply --plan --plan-digest` repeats those checks and binds
+all package digests, source and target identities to the original plan. It
+publishes `<scope>.zip` files together into one review directory using the shared
+non-replacing tree publisher. A matching retry returns `already_matches` after
+fresh revalidation. It creates no installation permission or target changes.
+`configuration set` consumes the resulting complete scoped packages. Active-root
+handoff remains a separate migration boundary.
 
 `configuration set plan --state-dir --request` accepts a closed JSON request
-with `harness_id`, optional `provider_version` and `project_root`, `operation`
+with `harness_id`, optional `provider_version`, `harness_executable` and `project_root`, `operation`
 (`install`, `replace` or `remove`), and two or three `targets`, each containing
 `scope`, an existing absolute `path` and a `bundle` path for install/replace.
 The component release must be at least 0.0.94. Scopes are unique and roots must
 be physically disjoint from each other and the state parent. Every scoped
 package keeps the same complete setup identity. The registry graph, all assigned
 components, projection bytes, modes, owned contributions and cross-root logical
-conflicts are verified together. Removal carries no bundle.
+conflicts are verified together. Removal carries no bundle. The exact installed
+harness observation is bound to the plan and checked again before first
+admission. An executable change requires a new plan; already admitted recovery
+and terminal history do not depend on the current program. ai-stp never manages
+the harness executable.
 
 `configuration set apply|cancel|status --state-dir --plan --plan-digest` consumes
 the exact returned plan. Admission retains only desired package bytes and commits

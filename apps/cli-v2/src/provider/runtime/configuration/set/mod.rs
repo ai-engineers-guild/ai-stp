@@ -40,6 +40,7 @@ struct Request {
     operation: String,
     targets: Vec<Root>,
     project_root: Option<PathBuf>,
+    harness_executable: Option<PathBuf>,
 }
 
 #[derive(Deserialize)]
@@ -61,6 +62,8 @@ pub(in crate::provider::runtime) fn plan(parent: &Path, bytes: &[u8]) -> Result<
     }
     request.targets.sort_by_key(|root| root.scope);
     let version = managed::version(request.provider_version.as_deref())?;
+    let observation =
+        crate::program::observe(&request.harness_id, request.harness_executable.as_deref())?;
     let runtime = Runtime::observe()?;
     let created_at = format!("{:.3}", Timestamp::now());
     let mut children = Vec::new();
@@ -109,6 +112,17 @@ pub(in crate::provider::runtime) fn plan(parent: &Path, bytes: &[u8]) -> Result<
         expires_at,
         children,
         project: None,
+        program: model::Program {
+            executable: request
+                .harness_executable
+                .as_ref()
+                .map(|path| path.to_str().map(str::to_owned).ok_or_else(invalid))
+                .transpose()?,
+            observation_digest: observation["observation_digest"]
+                .as_str()
+                .ok_or_else(invalid)?
+                .into(),
+        },
     };
     plan.project = request
         .project_root
@@ -233,6 +247,17 @@ fn coverage(connection: &Connection, plan: &Plan, bytes: &[Option<Vec<u8>>]) -> 
 
 fn admit(journal: &journal::Journal, cancelling: bool) -> Result<Record> {
     let plan = &journal.plan;
+    if !cancelling {
+        let observation = crate::program::observe(
+            &plan.first()?.harness_id,
+            plan.program.executable.as_deref().map(Path::new),
+        )?;
+        if observation["observation_digest"] != plan.program.observation_digest {
+            return Err(crate::error::Failure::precondition(
+                "the installed harness changed before admission; create a new configuration set plan",
+            ));
+        }
+    }
     let parent = PathBuf::from(plan.first()?.state_parent);
     let roots = roots(plan, !cancelling)?;
     let namespace = journal.namespace.as_ref().ok_or_else(invalid)?;
