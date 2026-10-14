@@ -45,7 +45,7 @@ class NativeClient:
         # Identity/session replies must not carry credentials. Full authoring
         # plans also contain legitimate requires_authorization contract fields;
         # callers export only sanitized reports, checked at that boundary.
-        if args and args[0] in {"account", "device", "sync"}:
+        if args and args[0] in {"account", "device", "sync", "github"}:
             without_credentials(envelope)
         if envelope["ok"] != ok or (result.returncode == 0) != ok:
             error = envelope.get("error", {})

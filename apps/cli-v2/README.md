@@ -635,6 +635,13 @@ Selected GitHub sources use the existing ai-stp account API:
   opaque `source_binding_id`, content digest, byte count, inventory and visibility.
   Supply that binding in the corresponding publication member's evidence.
 
+For a complete component, the server matches that source digest and size to
+every adaptation's `source_artifact`; its primary artifact may be a declared
+harness projection with different bytes and paths. Mixed or missing source
+references refuse. Legacy source-tree primary artifacts retain exact digest,
+size and inventory matching. Source provenance does not imply transformation
+equivalence or a verification badge; normal projection and safety checks remain.
+
 Keep the original request and key after a lost reply. After session refresh or
 plan expiry, explicitly plan that same request again; the server owns durable
 idempotent replay and still checks current source access. No second local source
@@ -2518,9 +2525,13 @@ and signature checks still decide whether to accept the evidence.
 against the actual API, isolated PostgreSQL and worker. It covers lost-create
 reply/session-refresh continuation, private/public group readback, real safety
 refusal, native component/setup author signatures checked by the shared Python
-consumer, actual API acceptance and offline history. Only account/web approval and in-memory S3 transport
-are fixtures; the worker produces its own validation and catalog records. The
-declared fixture source coordinates do not prove GitHub provenance. Pinned
+consumer, actual API acceptance and offline history. It also prepares an exact
+selected private GitHub source, retries the original request after a lost reply
+and session refresh, rechecks revoked selection, and publishes the resulting
+opaque binding without private coordinates in the passport. Only upstream
+GitHub, account/web approval and in-memory S3 transport are fixtures; the API
+creates its source binding and the worker produces its own validation and catalog
+records. Synthetic source coordinates do not prove live GitHub provenance. Pinned
 scanners must be available with `AI_STP_SAFETY_EXTERNAL_CLI=1`; high/critical
 skill findings must produce a failing scanner exit. This evidence does not
 establish deployed storage durability or production writer cutover.
