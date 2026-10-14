@@ -87,9 +87,9 @@ Machine preview prints the banner and the projection fields.
 There is no profile editor in the CLI. Related reads:
 
 ```bash
-ai-stp auth status --json
-ai-stp link web --json
-ai-stp owner objects --json
+ai-stp help --path account --json
+ai-stp help --path registry --json
+ai-stp help --path account --json
 ```
 
 `link web` can print the public publisher URL after you know the

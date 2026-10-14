@@ -159,7 +159,6 @@
     "referenceData": "Reference Data",
     "security": "Security",
     "audit": "Audit",
-
     "scans": "Scans",
     "technologyAreas": "Technology areas",
     "technologyMap": "Technology map",
@@ -496,7 +495,6 @@
     "heartbeatStaleHint": "A device is marked stale when no heartbeat arrives within this window.",
     "heartbeatRetryBaseHint": "Initial delay before retrying a failed report; grows with each attempt.",
     "heartbeatRetryMaxHint": "Largest delay between retries after repeated failures.",
-
     "scans": {
       "title": "Scans",
       "description": "Journal of local and repository technology scans.",
@@ -1556,12 +1554,13 @@
     "title": "The AI setup registry, not just a skill catalog",
     "subtitle": "Find, verify, install, and earn on AI components.",
     "installHeading": "Install the CLI",
-    "installHint": "Run this command as written. Do not assemble it yourself.",
-    "prerequisites": "Prerequisites",
+    "installHint": "Download the native Rust archive for your operating system. Follow the verification and installation steps in its release notes.",
     "browseCatalog": "Browse catalog",
     "signIn": "Sign in",
     "previewLabel": "ai_stp workflow preview",
-    "seoDescription": "The AI setup registry for skills, MCP, hooks, and subagents — not another skills.sh. Search, verify, install, and maintain setups across your team."
+    "seoDescription": "The AI setup registry for skills, MCP, hooks, and subagents — not another skills.sh. Search, verify, install, and maintain setups across your team.",
+    "downloadCli": "Download CLI",
+    "platformSupport": "No Python required. Linux supports provider installation; macOS and Windows currently support authoring, catalog and local state operations."
   },
   "catalog": {
     "title": "Catalog",
@@ -2144,7 +2143,7 @@
     "locationUnavailable": "Location unavailable",
     "technicalDetails": "Technical details",
     "authorizeTitle": "Authorize a device",
-    "authorizeHint": "Run <command>ai-stp task start --intent account --idempotency-key account-session-01 --json</command> in the CLI, then confirm the code here. You can keep multiple devices linked to the same account.",
+    "authorizeHint": "Ask your agent to start an account session with <command>ai-stp account plan --action start --provider github --json</command>, apply the returned plan and confirm its code here.",
     "deviceCode": "Device code",
     "confirmDevice": "Confirm device",
     "codeErrorHint": "Check that the code is current and enter it again.",
@@ -2273,7 +2272,7 @@
   },
   "cli": {
     "useTitle": "Use via CLI",
-    "useBody": "Start the install intent for this object. The CLI asks for the harness.",
+    "useBody": "Copy this prompt to your coding agent. It gathers local installation facts and uses the native CLI.",
     "inspectTitle": "Inspect this version via CLI",
     "inspectBody": "Command uses the stable object id and version.",
     "copy": "Copy",
@@ -3182,7 +3181,6 @@
     "team": "Team",
     "teamDetails": "Team details",
     "teamDetailsBody": "This is the corporate team scope available to your account.",
-
     "teams": "Teams",
     "today": "Today",
     "unknownEmployee": "Unknown employee",
@@ -3190,7 +3188,6 @@
     "suspend": "Suspend",
     "activate": "Activate",
     "rolesBody": "System definitions are immutable; custom roles are managed here. Inherited permissions come from parent roles.",
-
     "revision": "Revision",
     "gitManagement": "Git management",
     "gitManagementBody": "Git providers available to this organization. Capability grants (connector.{provider}.{use,read,write,create,visibility,access}) are assigned through roles.",

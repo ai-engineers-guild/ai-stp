@@ -1,14 +1,3 @@
-# Inspect
+# Inspect bounded sources
 
-Намерения: какие харнессы есть, что на проекте, что установлено.
-
-Когда пользователь спрашивает, что не так или что умеет этот CLI, стартуйте
-intent `inspect`. Не вызывайте inspect как прелюдию к каждой мутации. Не
-выгружайте полный реестр. Не набирайте `ai-stp capabilities` и `ai-stp version`.
-
-Идентификаторы берите из предыдущего ответа. Discovery исчерпывающий только при
-`complete: true`. Иначе покажите `diagnostics`. Отличайте `candidate_id` от
-идентификатора Component. Не назначайте `harness_id: null` харнессу.
-
-Дальнейшая диагностика харнессов, provider, проектов и targets — в machine
-help.
+Используйте `ai-stp component discover`, `ai-stp project discover`, `ai-stp project index` и `ai-stp project symbols` с явными корнями из дескрипторов. Обнаружение не означает принятие объекта или право аккаунта. Candidate и stable ID компонента различаются; чужие домашние каталоги не сканируйте.

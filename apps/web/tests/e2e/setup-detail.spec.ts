@@ -91,7 +91,7 @@ test.describe("setup detail composition", () => {
     await expect(page.getByText("ai-stp select impact")).toHaveCount(0);
     await expect(
       page.getByText(
-        `echo '{"setup_id":"setup_01JQZK7B8N4M6P2R9T5V0X3YC2","setup_version":"1.0"}' | ai-stp task start --intent install --idempotency-key install-setup_01JQZK7B8N4M6P2R9T5V0X3YC2-1.0 --input - --json`,
+        "Use ai-stp to configure my installed harness with setup_01JQZK7B8N4M6P2R9T5V0X3YC2 version 1.0.",
       ),
     ).toHaveCount(1);
     await expect(

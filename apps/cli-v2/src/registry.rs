@@ -151,7 +151,7 @@ const JSON: Parameter = Parameter {
 
 const CONFIG: Parameter = Parameter {
     name: "config",
-    summary: "Explicit YAML configuration file; omission uses preview defaults.",
+    summary: "Explicit YAML configuration file; omission uses native defaults.",
     kind: ParameterType::Path,
     required: false,
 };
@@ -265,7 +265,7 @@ const COMMANDS: &[Declaration] = &[
     },
     Declaration {
         path: &["capabilities"],
-        summary: "List the capabilities implemented by this native preview.",
+        summary: "List implemented services and the current platform installation boundary.",
         parameters: &[],
         handler: Handler::Capabilities,
     },
@@ -767,8 +767,8 @@ fn children(parent: Command, prefix: &[&str]) -> Command {
 
 pub fn parser() -> Command {
     children(
-        Command::new("ai-stp-v2")
-            .about("Native ai-stp preview: only implemented commands are advertised.")
+        Command::new("ai-stp")
+            .about("Native ai-stp: only implemented commands are advertised.")
             .disable_help_subcommand(true)
             .arg(JSON.argument().global(true)),
         &[],
@@ -918,13 +918,16 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::Provider(handler) => providers::dispatch(handler, leaf),
         Handler::Selection(handler) => selections::dispatch(handler, leaf),
         Handler::Version => Ok(json!({"schema_version": 1, "cli_version": VERSION,
-            "wire_schema_version": 1, "runtime": "rust", "release_channel": "preview"})),
+            "wire_schema_version": 1, "runtime": "rust", "release_channel": "stable"})),
         Handler::Capabilities => Ok(json!({"schema_version": 1, "cli_version": VERSION,
-            "wire_schema_version": 1, "registry_digest": digest()?, "release_channel": "preview",
+            "wire_schema_version": 1, "registry_digest": digest()?, "release_channel": "stable",
             "command_paths": declarations().map(|item| item.path.join(" ")).collect::<Vec<_>>(),
-            "task_intents": crate::tasks::INTENTS, "supported_harnesses": [], "catalog_enabled": true, "sync_enabled": false,
-            "state_access": "explicit_snapshot_and_isolated_authoring", "cache_access": "explicit_public_catalog_cache",
-            "identity_access": "explicit_isolated_device",
+            "task_intents": crate::tasks::INTENTS, "supported_harnesses": if cfg!(target_os = "linux") { &config::HARNESSES[..] } else { &[] },
+            "configuration_installation": if cfg!(target_os = "linux") { "supported" } else { "unavailable" },
+            "native_authoring_harnesses": config::HARNESSES,
+            "runtime": "rust", "os": std::env::consts::OS, "architecture": std::env::consts::ARCH, "catalog_enabled": true, "sync_enabled": false,
+            "state_access": "native_registry_with_explicit_legacy_transfer", "cache_access": "explicit_public_catalog_cache",
+            "identity_access": "native_device",
             "managed_provider_version": crate::provider::managed::RELEASE,
             "authoring_access": "identity_bound_local_plans", "readable_local_schema_versions": [snapshot::SCHEMA_VERSION, crate::store::PRODUCTION_SCHEMA],
             "production_transfer": "explicit_in_place_plan", "snapshot_schema_versions": [snapshot::SCHEMA_VERSION]})),

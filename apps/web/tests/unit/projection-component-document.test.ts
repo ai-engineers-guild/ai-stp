@@ -93,7 +93,7 @@ describe("component machine document completeness (REQ-3610, REQ-3623)", () => {
     expect(facts.authorVerified).toBe(false);
     expect(facts.componentVerified).toBe(false);
     expect(facts.dependencies).toEqual([{ stableId: DEPENDENCY_ID, version: "1.0" }]);
-    expect(facts.install).toContain("task start --intent install");
+    expect(facts.install).toContain("Use ai-stp to configure my installed harness");
     expect(facts.inspect).toContain(SEED_A3_AGENT_ID);
     expect(facts.inspect).toContain("--version 1.0");
     expect(facts.license).toBe("AGPL-3.0-or-later");

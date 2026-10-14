@@ -1,6 +1,6 @@
 [package]
 name = "ai-stp-cli-v2"
-version = "0.1.0-preview.14"
+version = "0.1.0"
 edition = "2024"
 rust-version = "1.99"
 publish = false
@@ -8,7 +8,7 @@ license = "AGPL-3.0-or-later"
 description = "Native ai-stp CLI engine"
 
 [[bin]]
-name = "ai-stp-v2"
+name = "ai-stp"
 path = "src/main.rs"
 
 [dependencies]
@@ -78,6 +78,10 @@ windows-native-keyring-store = "=1.1.0"
 
 [dev-dependencies]
 tempfile = "=3.27.0"
+
+# Keep real-binary installer tests within the same bounded archive size as releases.
+[profile.dev]
+debug = 1
 
 [profile.release]
 lto = "thin"

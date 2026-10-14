@@ -35,14 +35,14 @@ harness's setup and inherits its boundaries.
 
     The CLI also ships one canonical Agent Skill that teaches an agent
     how to drive `ai-stp` itself. That object is installed with
-    [`ai-stp skill install`](https://ai-stp.aiguild.space/en/docs/components). It is **not** a catalog
+    [`ai-stp help --path task --json`](https://ai-stp.aiguild.space/en/docs/components). It is **not** a catalog
     component and it is **not** this kind.
 
     | Object | Kind / command family | Lives in a setup? |
     | --- | --- | --- |
     | Role file under `agents/` | kind `agent` (this page) | yes |
     | `AGENTS.md` | [`instruction`](https://ai-stp.aiguild.space/en/docs/components) | yes |
-    | CLI Agent Skill | `ai-stp skill install` / `status` / `remove` | no |
+    | CLI Agent Skill | `ai-stp help --path task --json` / `status` / `remove` | no |
 
 ## Neighbours
 
@@ -131,7 +131,7 @@ outside world unconfirmed.
 | what a finished result looks like | an uncontrolled background daemon |
 | when to call the role | permission to change the outside world unconfirmed |
 
-There is no `ai-stp component agent validate`. Structural readiness is
+There is no `ai-stp help --path component --json`. Structural readiness is
 `component passport validate`. Kind-specific specification checking
 exists only for [`skill`](https://ai-stp.aiguild.space/en/docs/components).
 
@@ -191,7 +191,7 @@ new version. Updating an agent inside a setup is a new setup version.
 
 ```bash
 ai-stp component version list --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
+ai-stp help --path component --json
 ```
 
 `--major` opens the next major line. A major line is a separate access
@@ -231,7 +231,7 @@ safety guarantee.
 Only commands that exist. Flags always from the CLI pages, and always
 `--json`. The executable is `ai-stp` (package `ai-stp-cli`). There is no
 `component inspect` and no `setup show`. The only kind-specific validate
-is `ai-stp component skill validate`.
+is `ai-stp help --path component --json`.
 
 **This kind, specifically:** there is no `component agent validate`. Use
 passport validation.
@@ -243,20 +243,20 @@ ai-stp component passport validate --id <stable_id> --json
 **Not this kind** — CLI Agent Skill (see [Agent Skill CLI](https://ai-stp.aiguild.space/en/docs/components)):
 
 ```bash
-ai-stp skill status --json
+ai-stp help --path task --json
 ```
 
 **Author, adopt, publish:**
 
 ```bash
 ai-stp task start --intent author --idempotency-key author-session-01 --json
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 **Install:**
 
 ```bash
-ai-stp task start --intent install --idempotency-key install-session-01 --json
+ai-stp task input-schema --intent install --json
 ```
 
 Expert catalog inspect:
@@ -291,7 +291,7 @@ An agent can also be an embedded member of a compose manifest. See
 ## Red flags
 
 - Treating `AGENTS.md` as kind `agent`.
-- Treating `ai-stp skill install` as if it published this component.
+- Treating `ai-stp help --path task --json` as if it published this component.
 - A role with no limits, no expected result, and every tool enabled.
 - Codex agents from anywhere except `.codex/agents`.
 - Live tokens, private keys, or `.env` bodies in the package.

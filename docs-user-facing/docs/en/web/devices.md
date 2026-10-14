@@ -12,11 +12,11 @@ on `/device-login`). You revoke a device forward-only.
 Everyday CLI linking is the `account` intent:
 
 ```bash
-ai-stp task start --intent account --idempotency-key account-session-01 --json
+ai-stp help --path account --json
 ```
 
 The website does not create a local device identity. That is expert
-`ai-stp device init`.
+`ai-stp help --path device --json`.
 
 ## URLs and who can see them
 
@@ -82,11 +82,11 @@ Hint on the page tells you to run a CLI command then confirm the
 code. The declared command is:
 
 ```bash
-ai-stp task start --intent account --idempotency-key account-session-01 --json
+ai-stp help --path account --json
 ```
 
 (`google` is the other closed provider). There is no
-`ai-stp auth device` in the registry.
+`ai-stp help --path account --json` in the registry.
 
 Query `status=ok` shows Device approved — return to the CLI.
 `status=error` asks you to check that the code is current.
@@ -101,13 +101,13 @@ include the approve form.
 ## Matching CLI commands
 
 ```text
-ai-stp device init --json
+ai-stp help --path device --json
 ai-stp device show --json
-ai-stp device reset --confirm --json
-ai-stp task start --intent account --idempotency-key account-session-01 --json
-ai-stp auth complete --json
-ai-stp auth status --json
-ai-stp auth logout --json
+ai-stp help --path device --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
 ai-stp passport device show --json
 ```
 

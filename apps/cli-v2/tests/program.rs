@@ -42,7 +42,7 @@ fn user_managed_harnesses_have_no_mutation_commands() -> Result<(), Box<dyn Erro
             observed,
             program::observe("codex", Some(&directory.path().join("alias")))?
         );
-        let output = Command::new(env!("CARGO_BIN_EXE_ai-stp-v2"))
+        let output = Command::new(env!("CARGO_BIN_EXE_ai-stp"))
             .args(["program", "status", "--harness", "codex", "--json"])
             .env("PATH", directory.path())
             .env("AI_STP_TEST_SECRET", "must-not-inherit")

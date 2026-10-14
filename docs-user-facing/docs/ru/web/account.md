@@ -88,10 +88,10 @@ Google или GitHub уже принадлежит другому аккаунт
 ## Соответствующие команды CLI
 
 ```text
-ai-stp auth status --json
-ai-stp auth logout --json
-ai-stp link web --json
-ai-stp owner objects --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path registry --json
+ai-stp help --path account --json
 ```
 
 `auth status` сообщает отношение платформы для **этого CLI-
@@ -100,7 +100,7 @@ ai-stp owner objects --json
 устройстве, сохраняя локальные данные. Выход в браузере не запускает
 `device reset`.
 
-Команды `ai-stp account privacy` нет. Флаги видимости — POST сайта.
+Команды `ai-stp help --path account --json` нет. Флаги видимости — POST сайта.
 
 ## Тупики
 
@@ -113,7 +113,7 @@ ai-stp owner objects --json
 | Не удалось отвязать | отказ API | обновите; проверьте CSRF |
 | Публичный профиль 404 | приватность пустая / не опубликовано | опубликуйте из Профиля или игнорируйте |
 | Сервис временно недоступен | API лежит | повторите; CLI `auth status` скорее локальный |
-| Вышли, но CLI всё ещё аутентифицирован | две сессии | `ai-stp auth logout --json` на устройстве |
+| Вышли, но CLI всё ещё аутентифицирован | две сессии | `ai-stp help --path account --json` на устройстве |
 
 Отзыв **текущего** браузерного устройства на странице Устройств тоже
 выходит. Это отзыв устройства, не эта кнопка Выйти.
@@ -127,8 +127,8 @@ ai-stp owner objects --json
 | --- | --- |
 | Остановить только этот браузер | Выйти на этой странице |
 | Остановить этот браузер как облачное устройство | Отозвать текущее на [Устройствах](devices.md) |
-| Остановить облачную сессию CLI | `ai-stp auth logout --json` |
-| Списать локальную идентичность CLI | `ai-stp device reset --confirm --json` |
+| Остановить облачную сессию CLI | `ai-stp help --path account --json` |
+| Списать локальную идентичность CLI | `ai-stp help --path device --json` |
 | Спрятать био издателя | флаги приватности, затем Сохранить настройки |
 
 `account_id` стабилен. Копируйте его, когда кому-то нужно выдать вам

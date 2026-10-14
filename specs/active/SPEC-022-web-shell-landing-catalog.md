@@ -69,10 +69,9 @@ semantics of accounts and devices (`SPEC-002`).
 - `REQ-2203`: Russian and English locales are available from the first route via `ADR-0035`;
   no user text is hardcoded in one language or mixes languages;
   both locales carry equivalent information and the same route behavior.
-- `REQ-2204`: Landing page shows the exact installation command from the only
-  canonical source `#77` with a copy action and prerequisites; the command is not
-  assembled by the web from parts and does not diverge from the source; before the adoption of `#77`
-  the source is considered unsecured and the landing page is not accepted.
+- `REQ-2204`: Landing links to the native GitHub Release URL owned by
+  `ai_stp_contracts.cli_copy`, states platform support and has no Python
+  prerequisite. Release notes own archive verification and installation.
 - `REQ-2205`: Public routes are rendered without an account; when the web API is unavailable
   fails with a safely observable error state rather than empty or partially
   collected page and not inventing data.
@@ -154,7 +153,7 @@ The installation command is taken from `#77` and changes only with it.
 | `REQ-2201` | The test confirms the start of `apps/web` and an obvious failure with a missing mandatory environment variable. |
 | `REQ-2202` | Component and route tests cover loading, error, empty, and data states. |
 | `REQ-2203` | The locale parity test confirms that `ru` and `en` have equivalent information and behavior and that there is no hardcoded mixed language. |
-| `REQ-2204` | The test confirms the verbatim match of the installation command with the canonical source `#77` and the presence of the copy action and prerequisites. |
+| `REQ-2204` | InstallBlock component test verifies the native download destination and platform boundary. |
 | `REQ-2205` | The API Unreachable test confirms a safe error condition without a blank or partial page. |
 | `REQ-2206` | The test confirms the verbatim cursor return, the absence of duplicates and gaps during pagination, the page limit and the separation of components and setup resources. |
 | `REQ-2207` | The contract-fixture test maps every card, detail, and version field to a contract field and confirms that the publisher, harness, compatibility, and verification summary are shown. |

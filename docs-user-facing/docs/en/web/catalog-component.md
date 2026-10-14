@@ -129,7 +129,7 @@ skip; missing minors are not a catalog bug.
 Everyday install (Use via CLI):
 
 ```bash
-ai-stp task start --intent install --idempotency-key install-session-01 --json
+ai-stp task input-schema --intent install --json
 ```
 
 Expert catalog reads and local blast-radius:
@@ -137,8 +137,8 @@ Expert catalog reads and local blast-radius:
 ```bash
 ai-stp registry show --kind component --id <stable_id> --json
 ai-stp registry version --kind component --id <stable_id> --version <x.y> --json
-ai-stp registry fetch --json
-ai-stp link web --json
+ai-stp help --path registry --json
+ai-stp help --path registry --json
 ai-stp select blast-radius --json
 ```
 
@@ -151,7 +151,7 @@ Adopting or publishing is not this page:
 
 ```bash
 ai-stp task start --intent author --idempotency-key author-session-01 --json
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 ## Dead-ends

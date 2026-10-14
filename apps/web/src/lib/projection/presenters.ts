@@ -118,7 +118,7 @@ export function presentLanding(input: {
   subtitle: string;
   browseCatalog: string;
   signIn?: string;
-  installCommand: string;
+  releasesUrl: string;
   installHeading: string;
   docsHref?: string;
 }): MachineDocument {
@@ -128,7 +128,7 @@ export function presentLanding(input: {
     link(input.browseCatalog, "/catalog"),
     link("Documentation", input.docsHref ?? "/docs"),
     heading(2, input.installHeading),
-    code(input.installCommand),
+    link("Download the native CLI", input.releasesUrl),
     field("initialize", INITIALIZE_START),
     code(INITIALIZE_START),
   ];

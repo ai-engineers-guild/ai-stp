@@ -55,11 +55,11 @@ description: "Модель доверия ai_stp, подтверждения и 
 или авторизованный профиль задачи `full-auto`.
 
 ```bash
-ai-stp consent allow --scope publisher --target <publisher_id> --json
-ai-stp consent allow --scope object_major --target <stable_id>@<major> --json
-ai-stp consent allow --scope task --target full-auto --json
-ai-stp consent list --json
-ai-stp consent revoke --scope publisher --target <publisher_id> --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
 ```
 
 `--scope` — `publisher`, `object_major` или `task`. `task` — именованный

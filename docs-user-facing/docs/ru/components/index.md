@@ -17,7 +17,7 @@ description: "Что такое компоненты ai_stp и как они п�
 
 Исполняемый файл — `ai-stp` (пакет `ai-stp-cli`). Всегда передавайте
 `--json`. Команд `component inspect` и `setup show` нет. Единственный
-kind-specific validate — `ai-stp component skill validate`.
+kind-specific validate — `ai-stp help --path component --json`.
 
 ## Девять глав
 
@@ -42,7 +42,7 @@ layout, какие проверки реально бегут, путь CLI, з�
 
 Столкновения имён, которые главы разбирают отдельно:
 
-- вид `skill` против CLI Agent Skill (`ai-stp skill install`);
+- вид `skill` против CLI Agent Skill (`ai-stp help --path task --json`);
 - вид `plugin` против marketplace;
 - MCP-**сервер** против **клиентского конфига** `.mcp.json` plugin;
 - `AGENTS.md` (instruction) против вида `agent`.
@@ -116,7 +116,7 @@ layout, какие проверки реально бегут, путь CLI, з�
 
 ```bash
 ai-stp task start --intent author --idempotency-key author-session-01 --json
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 Общие `.agents/skills` возвращаются один раз, с `harness_id=null`. Пакет
@@ -139,7 +139,7 @@ MCP-сервера также не принадлежит ни одному ха
 
 Покрытие discovery различается по харнессам и видам. Ограниченная матрица
 layout и `layout_source` живут в каждой главе вида и в
-`ai-stp toolchain harness-capabilities --json`.
+`ai-stp help --path program --json`.
 
 | Харнесс | Объявленные виды (ограниченная матрица) |
 | --- | --- |

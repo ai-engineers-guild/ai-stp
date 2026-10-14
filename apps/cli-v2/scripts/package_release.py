@@ -1,4 +1,4 @@
-"""Build and verify the bounded, standalone Rust preview release archives."""
+"""Build and verify the bounded, standalone Rust release archives."""
 
 from __future__ import annotations
 
@@ -23,9 +23,9 @@ import release_sbom
 ROOT = Path(__file__).resolve().parents[3]
 CRATE = ROOT / "apps" / "cli-v2"
 TARGETS = {
-    "x86_64-unknown-linux-gnu": "ai-stp-v2",
-    "aarch64-apple-darwin": "ai-stp-v2",
-    "x86_64-pc-windows-msvc": "ai-stp-v2.exe",
+    "x86_64-unknown-linux-gnu": "ai-stp",
+    "aarch64-apple-darwin": "ai-stp",
+    "x86_64-pc-windows-msvc": "ai-stp.exe",
 }
 MAX_ARCHIVE = 256 * 1024 * 1024
 
@@ -67,8 +67,8 @@ def probe(binary: Path, version: str) -> None:
         refuse(
             data["cli_version"] == version
             and data["runtime"] == "rust"
-            and data["release_channel"] == "preview",
-            "the executable does not identify the requested Rust preview",
+            and data["release_channel"] == "stable",
+            "the executable does not identify the requested stable Rust release",
         )
 
 
@@ -124,9 +124,9 @@ def build(args: argparse.Namespace) -> None:
     )
     manifest = {
         "schema_version": 2,
-        "package": "ai-stp-cli-v2",
+        "package": "ai-stp-cli",
         "version": args.version,
-        "release_channel": "preview",
+        "release_channel": "stable",
         "source_commit": revision,
         "target": args.target,
         "binary": binary,
@@ -143,7 +143,7 @@ def build(args: argparse.Namespace) -> None:
     }
     windows = args.target.endswith("windows-msvc")
     extension = "zip" if windows else "tar.gz"
-    name = f"ai-stp-cli-v2-{args.version}-{args.target}.{extension}"
+    name = f"ai-stp-cli-{args.version}-{args.target}.{extension}"
     data = archive_bytes(files, binary, windows)
     refuse(len(data) <= MAX_ARCHIVE, "archive exceeds the release size bound")
     args.output.mkdir(parents=True, exist_ok=False)
@@ -201,9 +201,9 @@ def verify(args: argparse.Namespace) -> None:
     manifest: dict[str, Any] = json.loads(files["release.json"])
     expected = {
         "schema_version": 2,
-        "package": "ai-stp-cli-v2",
+        "package": "ai-stp-cli",
         "version": args.version,
-        "release_channel": "preview",
+        "release_channel": "stable",
         "source_commit": args.revision,
         "target": args.target,
         "binary": binary,
@@ -253,8 +253,8 @@ def main() -> None:
             command.add_argument("--install-directory", type=Path, required=True)
     args = parser.parse_args()
     refuse(
-        bool(re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+", args.version)),
-        "preview version required",
+        bool(re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", args.version)),
+        "stable version required",
     )
     refuse(bool(re.fullmatch(r"[0-9a-f]{40}", args.revision)), "exact Git revision required")
     (build if args.command == "build" else verify)(args)

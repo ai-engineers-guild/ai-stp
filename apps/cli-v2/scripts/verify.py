@@ -11,9 +11,12 @@ import base64
 import hashlib
 import json
 import os
+import re
+import shlex
 import sqlite3
 import statistics
 import subprocess
+import sys
 import tempfile
 import time
 from contextlib import closing
@@ -30,6 +33,7 @@ import verify_selection
 
 from ai_stp_cli.local import revisions, versions
 from ai_stp_cli.local.database import open_registry
+from ai_stp_contracts import cli_copy
 from ai_stp_contracts.cli.components import PassportView, VersionLine
 from ai_stp_contracts.cli.registry import MachineHelp
 from ai_stp_contracts.cli.runtime import ConfigReport
@@ -81,6 +85,47 @@ def prove(binary: Path, root: Path) -> None:
     home.mkdir()
     help_data = run(binary, home, ["help", "--agent"])["data"]
     MachineHelp.model_validate(help_data)
+    # Installed agent guidance must describe this native command registry, not
+    # the retained Python oracle. Check all locales against the actual process.
+    skill = Path(__file__).resolve().parents[3] / "skills/canonical/ai-stp"
+    for document in skill.rglob("*.md"):
+        for invocation in re.findall(r"`(ai-stp [^`\n]+)`", document.read_text(encoding="utf-8")):
+            arguments = shlex.split(invocation)[1:]
+            matches = [
+                row for row in help_data["commands"] if arguments[: len(row["path"])] == row["path"]
+            ]
+            assert matches, (document, invocation)
+            command = max(matches, key=lambda row: len(row["path"]))
+            allowed = {
+                "--" + item["name"]
+                for item in [*help_data["global_options"], *command["parameters"]]
+            }
+            assert all(
+                argument.split("=", 1)[0] in allowed
+                for argument in arguments
+                if argument.startswith("--")
+            ), (document, invocation)
+    # Public web commands must fit the shipped native registry, including required flags.
+    sample = "setup_01KZWSHE3V0T8KVJYFEKWJV63Z"
+    for invocation in (
+        cli_copy.registry_show("setup", sample),
+        cli_copy.registry_version("setup", sample, "1.0"),
+        cli_copy.select_impact(sample, "1.0"),
+        cli_copy.owner_component_next_step(),
+        cli_copy.owner_setup_next_step(),
+        cli_copy.install_start(),
+        cli_copy.login("github"),
+        cli_copy.login("google"),
+        cli_copy.INITIALIZE_START,
+    ):
+        arguments = shlex.split(invocation)[1:]
+        command = next(
+            row for row in help_data["commands"] if arguments[: len(row["path"])] == row["path"]
+        )
+        passed = {value[2:] for value in arguments if value.startswith("--")}
+        required = {item["name"] for item in command["parameters"] if item["required"]}
+        allowed = {item["name"] for item in [*help_data["global_options"], *command["parameters"]]}
+        assert required <= passed <= allowed, invocation
     # Harness executables belong to the user; configuration remains the writer.
     assert [row["path"] for row in help_data["commands"] if row["path"][0] == "program"] == [
         ["program", "status"]
@@ -99,7 +144,8 @@ def prove(binary: Path, root: Path) -> None:
     assert capabilities["registry_digest"] == help_data["registry_digest"] == digest
     assert capabilities["command_paths"] == [" ".join(row["path"]) for row in help_data["commands"]]
     assert capabilities["task_intents"] == ["author", "install"]
-    assert capabilities["supported_harnesses"] == []
+    assert bool(capabilities["supported_harnesses"]) == (sys.platform == "linux")
+    assert capabilities["release_channel"] == "stable"
     assert run(binary, home, ["version"])["data"]["runtime"] == "rust"
     run(binary, home, ["unknown"], 2)
     prove_config(binary, home, root)
@@ -224,26 +270,27 @@ def prove(binary: Path, root: Path) -> None:
 def prove_config(binary: Path, home: Path, root: Path) -> None:
     defaults = ConfigReport.model_validate(run(binary, home, ["config", "show"])["data"])
     assert defaults.config_path is None
-    assert len(defaults.values) == 19
+    assert {item.path for item in defaults.values} == {
+        "catalog.enabled",
+        "catalog.url",
+        "sync.enabled",
+    }
     assert all(item.source == "default" for item in defaults.values)
     config = root / "preview.yaml"
-    content = (
-        "schema_version: 1\ncatalog:\n  enabled: false\nsearch:\n  result_limit: 7\n"
-        "provider:\n  paths.codex: ''\nprojects:\n  discovery_roots: []\n"
-    )
+    content = "schema_version: 1\ncatalog:\n  enabled: false\nsync:\n  enabled: false\n"
     config.write_text(content, encoding="utf-8")
     shown = ConfigReport.model_validate(
         run(
             binary,
             home,
-            ["config", "show", "--config", str(config), "--set", "search.result_limit=9"],
+            ["config", "show", "--config", str(config), "--set", "sync.enabled=true"],
         )["data"]
     )
     values = {item.path: item for item in shown.values}
     assert values["catalog.enabled"].value is False
     assert values["catalog.enabled"].source == "config_file"
-    assert values["search.result_limit"].value == 9
-    assert values["search.result_limit"].source == "command_argument"
+    assert values["sync.enabled"].value is True
+    assert values["sync.enabled"].source == "command_argument"
     assert config.read_text(encoding="utf-8") == content
     ConfigReport.model_validate(
         run(binary, home, ["config", "validate", "--config", str(config)])["data"]

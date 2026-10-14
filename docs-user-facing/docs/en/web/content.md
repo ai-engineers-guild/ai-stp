@@ -102,7 +102,7 @@ There is no content-hub CLI. Catalog and help remain:
 ```text
 ai-stp registry search --json
 ai-stp task intents --json
-ai-stp link web --json
+ai-stp help --path registry --json
 ```
 
 `link web` can print a canonical website URL when the target is a

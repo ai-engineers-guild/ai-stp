@@ -6,8 +6,8 @@ A system for creating, validating, storing, selecting, and installing complete A
 
 ## Code map
 
-- `apps/cli` — command registry, SQLite state, discovery, passports, selection, bundles, providers, installation, and recovery;
-- `apps/cli-v2` — isolated Rust preview, with its code-adjacent contract and executable command registry; production state ownership remains in `apps/cli` until verified cutover;
+- `apps/cli-v2` — the Rust `ai-stp` engine: executable registry, native state, authoring, selection, bundles, account/sync/publication, installation and recovery;
+- `apps/cli` — retained Python compatibility oracle and legacy-state fixtures; not the runtime of native release artifacts;
 - `apps/api` — the `/v1` HTTP surface; `apps/worker` — asynchronous jobs;
 - `apps/platform` — persistence, queue, object storage, and domain services;
 - `apps/web` — Next.js over the generated contract client;

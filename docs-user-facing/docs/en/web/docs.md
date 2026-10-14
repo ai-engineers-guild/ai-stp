@@ -115,7 +115,7 @@ clients. Do not assume a reverse proxy collapsed them: the API path
 
 ## Matching CLI commands
 
-There is no `ai-stp docs` command. Everyday discovery:
+There is no `ai-stp help --path task --json` command. Everyday discovery:
 
 ```bash
 ai-stp task intents --json
@@ -134,7 +134,7 @@ disagree, follow the CLI.
 Canonical web links from a shell:
 
 ```bash
-ai-stp link web --json
+ai-stp help --path registry --json
 ```
 
 `link web` prints a round-trippable website URL. It does not open

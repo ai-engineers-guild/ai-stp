@@ -97,7 +97,7 @@ jobs:
       - name: Existing consumers and real SQLite backup
         shell: bash
         run: |
-          uv run --no-sync python apps/cli-v2/scripts/verify.py apps/cli-v2/target/release/ai-stp-v2
+          uv run --no-sync python apps/cli-v2/scripts/verify.py apps/cli-v2/target/release/ai-stp
       - name: Cache the successful native build
         if: steps.native-cache.outputs.cache-hit != 'true'
         # Cache availability must not prevent or invalidate the checks above.

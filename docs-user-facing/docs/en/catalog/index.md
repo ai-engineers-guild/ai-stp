@@ -24,7 +24,7 @@ look, for local selection, and for an agent working before sign-in.
 Everyday install after a candidate exists:
 
 ```bash
-ai-stp task start --intent install --idempotency-key install-session-01 --json
+ai-stp task input-schema --intent install --json
 ```
 
 Expert catalog inspect (identity, not install):
@@ -47,7 +47,7 @@ ai-stp registry search --kind component --query scanner --include-experimental -
 
 `--include-experimental` lasts for that command only. It is not stored, and
 it is not consent to install. Consent is [trust and safety](../trust-and-safety/index.md)
-and `ai-stp consent allow`.
+and `ai-stp help --path account --json`.
 
 ## Fetch and offline cache
 
@@ -58,9 +58,9 @@ snapshot, not a live catalog.
 To pin exact published bytes locally (expert recovery):
 
 ```text
-ai-stp registry fetch --kind component --id <stable_id> --version 1.0 --json
-ai-stp registry acquire --id <setup_id> --version 1.0 --json
-ai-stp registry acquire --id <setup_id> --version 1.0 --offline --json
+ai-stp help --path registry --json
+ai-stp help --path registry --json
+ai-stp help --path registry --json
 ```
 
 `fetch` writes immutable content-addressed bytes into the local cache.

@@ -25,7 +25,7 @@ visitors still see Home; the Sign-in button is hidden for them
 Use Home to:
 
 - read the product sentence: a setup registry, not a skill dump;
-- copy `uv tool install ai-stp-cli` exactly;
+- copy `ai-stp version --json` exactly;
 - open the catalog;
 - open Sign-in when you have no session.
 
@@ -50,7 +50,7 @@ A full-viewport hero, dark even when the rest of the site is light.
 | Subtitle | Find, verify, install, and earn on AI components. | short pitch |
 | Primary button | Browse catalog | goes to `/{locale}/catalog` |
 | Secondary button | Sign in | goes to `/{locale}/login`; hidden when signed in |
-| Install panel | Install the CLI | copies `uv tool install ai-stp-cli` |
+| Install panel | Install the CLI | copies `ai-stp version --json` |
 | Copy | Copy / Copied | writes that string to the clipboard |
 | Prerequisites | `uv`, `python>=3.12` | what the command expects |
 
@@ -82,8 +82,8 @@ Keyboard:
 Install the CLI, then start first-run discoverability:
 
 ```bash
-uv tool install ai-stp-cli
-ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json
+ai-stp version --json
+ai-stp help --path init --json
 ```
 
 Expert inspect of the installed binary:
@@ -103,8 +103,8 @@ After the tool is on `PATH`, the next local identities are created in
 the CLI, not on this page:
 
 ```bash
-ai-stp device init --json
-ai-stp passport developer init --json
+ai-stp help --path device --json
+ai-stp help --path device --json
 ```
 
 Those commands are documented in [Device](../cli/device.md) and
@@ -133,7 +133,7 @@ The landing command only puts `ai-stp` on the machine. A setup is still
 selected and applied in the CLI:
 
 ```text
-Home copy → uv tool install ai-stp-cli
+Home copy → ai-stp version --json
          → task intents --json
          → task start --intent initialize|install|…
          → follow continuations
@@ -158,6 +158,6 @@ reports, and publication confirm.
 - [Harnesses](../harnesses.md) — what Home never detects for you.
 
 !!! warning "Do not invent the install line"
-    The string on the card is `uv tool install ai-stp-cli`. Changing the
+    The string on the card is `ai-stp version --json`. Changing the
     distribution name, adding a pip extra, or wrapping it in a curl
     one-liner is a different product.

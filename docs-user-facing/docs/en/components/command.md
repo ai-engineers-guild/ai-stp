@@ -25,7 +25,7 @@ It does not answer "how should the agent do this class of task?"
     groups — `component`, `select`, `install`, and the rest. Those are
     documented under [CLI](../cli/index.md). They are not catalog
     components, they are not selected into a setup, and there is no
-    `ai-stp component command validate`.
+    `ai-stp help --path component --json`.
 
     Codex names this surface **command/prompt**. Discovery still reports
     kind `command`.
@@ -111,7 +111,7 @@ ai-stp component scaffold apply \
 
 `--language` for a command is `none`. The kind is declarative.
 
-There is no `ai-stp component command validate`. Structural readiness is
+There is no `ai-stp help --path component --json`. Structural readiness is
 `component passport validate`. Kind-specific specification checking
 exists only for [`skill`](skill.md).
 
@@ -182,7 +182,7 @@ a new version. Updating a command inside a setup is a new setup version.
 
 ```bash
 ai-stp component version list --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
+ai-stp help --path component --json
 ```
 
 `--major` opens the next major line. A major line is a separate access
@@ -222,7 +222,7 @@ safety guarantee.
 Only commands that exist. Flags always from the CLI pages, and always
 `--json`. The executable is `ai-stp` (package `ai-stp-cli`). There is no
 `component inspect` and no `setup show`. The only kind-specific validate
-is `ai-stp component skill validate`.
+is `ai-stp help --path component --json`.
 
 **This kind, specifically:** there is no `component command validate`.
 Use passport validation.
@@ -241,13 +241,13 @@ ai-stp task intents --json
 
 ```bash
 ai-stp task start --intent author --idempotency-key author-session-01 --json
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 **Install:**
 
 ```bash
-ai-stp task start --intent install --idempotency-key install-session-01 --json
+ai-stp task input-schema --intent install --json
 ```
 
 Expert catalog inspect:

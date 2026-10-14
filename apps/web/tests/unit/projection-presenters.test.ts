@@ -102,9 +102,7 @@ describe("machine presenters (REQ-3609, REQ-3610, REQ-3608, REQ-3627)", () => {
     expect(text).toContain("trust_lane: authoritative");
     expect(text).toContain("author_verified: Yes");
     expect(text).toContain("component_verified: No");
-    expect(text).toContain(
-      "ai-stp task start --intent install --idempotency-key install-cmp_x-1.2 --json",
-    );
+    expect(text).toContain("Use ai-stp to configure my installed harness with cmp_x version 1.2.");
     expect(text).toContain("ai-stp registry version --kind component --id cmp_x --version 1.2");
     expect(text).not.toMatch(/<img|image\/|avatar/i);
   });
@@ -117,15 +115,13 @@ describe("machine presenters (REQ-3609, REQ-3610, REQ-3608, REQ-3627)", () => {
         title: "The AI setup registry, not just a skill catalog",
         subtitle: "Find, verify, install, and earn on AI components.",
         browseCatalog: "Browse catalog",
-        installCommand: "uv tool install ai-stp-cli",
+        releasesUrl: "https://github.com/ai-engineers-guild/ai-stp/releases/latest",
         installHeading: "Install the CLI",
       }),
       "en",
     );
-    expect(landing).toContain("uv tool install ai-stp-cli");
-    expect(landing).toContain(
-      "ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json",
-    );
+    expect(landing).toContain("https://github.com/ai-engineers-guild/ai-stp/releases/latest");
+    expect(landing).toContain("ai-stp init --credential-store os_keyring --json");
     expect(body).toContain("local_owner_or_pinned");
     expect(body).toContain(platform.trim().slice(0, 40));
     expect(body).toContain(landing.trim().slice(0, 40));
@@ -200,9 +196,7 @@ describe("machine presenters (REQ-3609, REQ-3610, REQ-3608, REQ-3627)", () => {
     );
     expect(text).toContain("q: hook");
     expect(text).toContain("component_type: hook");
-    expect(text).toContain(
-      "ai-stp task start --intent install --idempotency-key install-session-01 --json",
-    );
+    expect(text).toContain("ai-stp task intents --json");
   });
 
   it("nests documentation pages under section headings", () => {
@@ -248,9 +242,7 @@ describe("machine presenters (REQ-3609, REQ-3610, REQ-3608, REQ-3627)", () => {
       }),
       "en",
     );
-    expect(text).toContain(
-      "ai-stp task start --intent account --idempotency-key account-session-01 --json",
-    );
+    expect(text).toContain("ai-stp account plan --action start --provider github --json");
     expect(text).toContain("[catalog](/en/ai/catalog)");
   });
 });

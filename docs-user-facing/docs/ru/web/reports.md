@@ -110,7 +110,7 @@ ai-stp report list --json
 `explicit_flag`) отправляет ровно одно превью. `report list`
 перечисляет закрытые кейсы текущего аккаунта — близнец **Ваши case**.
 
-Команды `ai-stp report staff` в пользовательском CLI нет.
+Команды `ai-stp help --path publication --json` в пользовательском CLI нет.
 
 ## Тупики
 

@@ -1,7 +1,7 @@
 ---
 name: ai-stp
 description: >-
-  Управляйте CLI ai-stp: осмотр, подбор, сборка, установка, обновление, восстановление, авторство и публикация сетапов и компонентов харнесса. Используйте, когда пользователь просит подготовить харнесс, поставить или починить сетап, вести паспорта, искать в каталоге, войти в ai-stp, опубликовать компонент или выполнить любую команду `ai-stp` — даже если говорят «NDDev», «ai_stp» или «setup CLI». НЕ используйте, чтобы вызывать API модели, править target харнесса вручную, писать чужой SKILL.md или отвечать на вопросы вне этого CLI.
+  Operate the native ai-stp CLI to author, select, install, recover and publish complete AI harness setups. Use when the user asks to prepare a harness, manage setup content or access the ai-stp catalog/account. Do NOT use for model API calls or editing harness targets directly.
 license: AGPL-3.0-or-later
 metadata:
   harness: "opencode"
@@ -15,138 +15,53 @@ Native surface for this harness: Native Skill, plugin, agent, and command.
 
 # ai-stp
 
-Помогайте coding agent пользователя выбирать, устанавливать и сопровождать
-полные сетапы харнесса через установленный CLI. Доведите поручение до результата
-и сообщите, что действительно проверено. CLI сам получает байты, собирает граф,
-делает backup, plan, approve, apply, verify, retries и recovery.
+Используйте установленный Rust CLI как единственный бизнес-движок. Сетап-системы
+являются его установочными компонентами; бинарниками харнессов управляют
+пользователь и поставщик.
 
 ## Start here
 
-Вы — coding agent. Запускайте `ai-stp` сами своими tools. Не просите
-человека вставлять или выполнять эти команды. Напечатанная команда — не завершённая операция.
-Если пользователь уже вошёл и этот ход говорит не запускать CLI, не
-набирайте `ai-stp`. Не стартуйте `account`.
-
-1. Выполните `ai-stp task intents --json` и выберите один shipped intent. Если
-   исполняемый файл не найден, откройте [bootstrap](references/bootstrap.md).
-2. Вызовите `ai-stp task start` для этого intent. `input_fields` дескриптора
-   называет все поля, которые принимает `--input`; `--input` — файл с JSON-
-   или YAML-объектом либо `-` для stdin. `schema show` резолвит полную
-   JSON Schema по значению `input_schema`, когда форма поля неясна, а отказ
-   валидации в `details.errors` называет каждое отвергнутое поле и тип нарушения.
-   `envelope.continuations[0].actor` — JSON-поле, а не личность пользователя.
-   Когда поле `cli`, исполните `argv` своими tools. Когда `human`, этот
-   `argv` как напечатан не исполняйте (value нарочно отсутствует). Сразу
-   ответьте из разговора через `ai-stp task answer` с id задачи, её ревизией
-   и текстом вашего ответа — ответ это текст, не файл и не stdin; ответ,
-   который задача не получила, оставляет её blocked. Ждать человека — не
-   работа. Когда `external`, покажите payload один раз и остановитесь.
-   Этот `argv` не исполняйте. `provider-too-old` — не login: не стартуйте
-   `account` и не крутите `task continue`. Device-code покажите один раз;
-   `task continue` только после браузера, не в тесном цикле.
-   `task start` уже продвинул задачу. Не вставляйте `task continue`, когда
-   `actor` равен `human` или continuations нет.
-   Не выдумывайте `task info` или `task get`.
-   Дождитесь JSON-конверта `ai-stp` на stdout. Не запускайте CLI намеренно
-   в background. Если shell tool вернул идентификатор фоновой задачи,
-   получите через этот tool завершённый вывод до следующего вызова CLI.
-   Этот идентификатор не является ai-stp task id. Таймер или статус shell
-   не заменяет результат CLI. Не повторяйте незавершённую команду и не
-   сообщайте об успехе до чтения её конверта.
-3. Остановитесь, когда continuations нет. Если `error.details.state` —
-   `failed`, задача settled; не набирайте `task get`. В отчёте — проверка
-   payload, а не только `ok` конверта.
-
-Только `task intents --json` фиксирует флаги CLI в этом пакете. Остальные пути
-команд описывают процесс; исполняемые аргументы берутся из continuation `argv`
-или из machine help. Последующие вызовы выполняйте в машинном JSON.
-
-Не запускайте `ai-stp doctor` и не дампьте `ai-stp help` как прелюдию к каждому
-запросу. Завершённого inspect достаточно, если пользователь спросил, что не так.
-
-## What is being installed
-
-| Объект | Значение |
-|---|---|
-| CLI ai-stp | Этот продукт; собственное обновление заменяет установленный пакет |
-| Control Skill | Эти инструкции, отдельно установленные в харнесс агента |
-| Провайдер | Setup manager, автоматически получаемый CLI при необходимости |
-| Программа харнесса | Исполняемый coding agent; prefix установки отделён от target конфигурации |
-| Сетап | Точная версия конфигурации одного харнесса и граф её компонентов |
-
-Установка программы ещё не устанавливает сетап. Загрузка сетапа ещё не применяет
-его. Создание или одобрение плана ещё не доказывает результат установки.
+Самостоятельно запустите `ai-stp task intents --json`. Выберите только
+объявленный intent, соответствующий задаче. Для остальных действий прочитайте
+scoped machine help нужного native-сервиса и актуальную input schema.
+Используйте один idempotency key на логическую задачу. Start уже продвинул
+выполнение: проверьте state, goal_satisfied и continuations. Поле actor задаёт
+следующее действие; argv выполняйте массивом аргументов после заполнения
+реальных входов. Не обходите машинный отказ и не подставляйте старые команды.
+Дождитесь завершённого stdout-конверта. После неподтверждённого эффекта читайте
+status и продолжайте исходную операцию. Повторный вход уже вошедшему пользователю
+без причины не нужен; запрет пользователя запускать CLI сохраняет силу.
 
 ## Router
 
-Сначала прочитайте один подходящий playbook. [Envelope](references/envelope.md)
-описывает ответы, [decisions](references/decisions.md) — полномочия задачи,
-[traps](references/traps.md) помогает понять неоднозначное состояние.
+Читайте только подходящий раздел.
 
-| Запрос пользователя | Открыть |
-|---|---|
-| первый запуск, нет CLI, определить проект | [bootstrap](references/bootstrap.md) |
-| локальные настройки и паспорта | [onboard](references/onboard.md) |
-| готовый сетап, обновление, сохранение или восстановление | [install](references/install.md) |
-| найти точный публичный или доступный по grant объект | [catalog](references/catalog.md) |
-| собрать сетап из компонентов, адаптировать для харнесса | [compose](references/compose.md) |
-| подготовить проект или несколько харнессов | [environment](references/environment.md) |
-| обнаружить харнессы, проекты и компоненты | [inspect](references/inspect.md) |
-| сравнить выбранное и установленное, drift | [daily](references/daily.md) |
-| восстановить прерванную или частичную операцию | [recover](references/recover.md) |
-| обновить сам ai-stp | [self-update](references/self-update.md) |
-| создать, принять, проверить или опубликовать контент | [author](references/author.md) |
-| установить программу харнесса или обслужить провайдер | [provider](references/provider.md) |
-| войти, управлять доступом или синхронизировать | [account](references/account.md) |
-| установить или освежить этот control Skill | [self](references/self.md) |
+- [First run](references/bootstrap.md)
+- [Local identity](references/onboard.md)
+- [Install a complete setup](references/install.md)
+- [Catalog and exact acquisition](references/catalog.md)
+- [Compose and select](references/compose.md)
+- [Environment requirements](references/environment.md)
+- [Inspect bounded sources](references/inspect.md)
+- [Read installed state](references/daily.md)
+- [Recover original intent](references/recover.md)
+- [Update the native CLI](references/self-update.md)
+- [Author and publish](references/author.md)
+- [Managed installation components](references/provider.md)
+- [Account, grants and sync](references/account.md)
+- [Control procedure](references/self.md)
+- [Machine results](references/envelope.md)
+- [Decisions](references/decisions.md)
+- [Avoid false completion](references/traps.md)
 
 ## Hard rules
 
-- Machine help владеет командами, параметрами, схемами и обработкой ошибок.
-  Перед исполнением next actions установите фактические значения аргументов.
-  Предпочитайте continuation `argv`, а не набор expert leaves вручную.
-- Не хореографируйте `install plan`, `install approve` или `install apply`.
-  Не набирайте группу install без leaf. Intent install сливает их
-  in-process. Не набирайте `install transaction plan`.
-- Не набирайте `setup compose plan`, `setup compose apply`, `setup update apply`,
-  `component adopt`, `component scaffold`, `component publish` или `config init`.
-  Для правки сохранённого сетапа используйте `change`, для author / publish /
-  initialize — соответствующие intent'ы.
-- Не набирайте `setup restore plan` или `setup preserve plan`. Не набирайте
-  `setup preserve recover` или `setup preserved list`. Для возврата
-  последней рабочей пользовательской конфигурации используйте `switch`.
-  Никогда не убивайте вызывающий процесс. Не утверждайте, что текущая сессия
-  уже загрузила новые файлы.
-- Не набирайте `auth login`, `auth complete`, `auth logout`, `sync push`,
-  `sync pull`, `publication plan`, `publication confirm`, `setup publish plan`,
-  `setup publish confirm`, `select propose`,
-  `select confirm`, `select bundle`, `registry acquire`, `registry search`,
-  `registry show`, `registry fetch`, `registry version`,
-  `registry port inspect`, `registry port plan` или `registry port discover`.
-  Для входа и sync используйте `account` (login ничего не загружает), для
-  локального объекта — `publish`, для байт каталога — `install`. Device-code
-  с `actor=external` покажите один раз, затем позже `task continue`.
-  `provider-too-old` — не device-code. Не выдумывайте git-происхождение.
-  Не набирайте remote `github.com`. Уже вошли и нет запроса войти, выйти или sync: не набирайте `ai-stp` и
-  не стартуйте `account`.
-- Не набирайте `ai-stp help` или `help --json`. Начинайте с
-  `task intents --json`. Дамп реестра — expert recovery.
-- Не набирайте `ai-stp capabilities`. В ответе каждый command path. Используйте
-  intent `inspect`.
-- Не набирайте `provider network`. Пустой `continuations` значит остановиться
-  и сообщить типизированную ошибку. Когда `error.details.state` — `failed`,
-  задача settled; не набирайте `task get` или `task continue`.
-- Используйте команды конфигурации и установки CLI. В harness target пишет
-  провайдер; ручная правка нативных файлов не заменяет его работу.
-- Сохраняйте точные версии, идентификаторы proposal и operation, plan digest
-  и ссылки на сохранённые сетапы из настоящих ответов.
-- По умолчанию выбирайте `authoritative`. В рамках уже разрешённой задачи
-  `experimental` сохраняет явную маркировку. Показывайте `author_verified` и
-  `component_verified` независимо.
-- Control Skill должен переживать смену сетапа. Активное окружение меняется
-  через предусмотренную передачу управления и перезапуск.
-- При ошибке или частичном результате выясните фактическое состояние и выполните
-  восстановление. Timeout не доказывает отсутствия эффекта. Необходимый вход
-  браузером остаётся незавершённым до реального подтверждения.
-- В отчёте укажите установленную идентичность, состояние target, оставшуюся
-  авторизацию и ссылку восстановления. Непроверенную часть назовите явно.
+- Machine help описывает реальные команды; Python fallback отсутствует.
+- Целевое состояние харнесса пишет только проверенный установочный компонент.
+- Сохраняйте точные версии, digest, права доступа и метки доверия.
+- ai-stp не устанавливает и не обновляет исполняемые файлы харнессов.
+- Бэкапы и snapshots требуют явного запроса пользователя.
+- Активную среду меняйте через staging, handoff и подтверждение после restart.
+- Credentials не попадают в чат, логи и паспорта.
+- Уже разрешённую работу выполняйте после механических проверок;
+  границы полномочий описаны в [decisions](references/decisions.md).

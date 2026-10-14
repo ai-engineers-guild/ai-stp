@@ -3,7 +3,7 @@ use std::{error::Error, fs, path::Path, process::Command};
 use serde_json::Value;
 
 fn run(home: &Path, state: Option<&Path>, args: &[&str]) -> Result<Value, Box<dyn Error>> {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_ai-stp-v2"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_ai-stp"));
     command
         .args(args)
         .arg("--json")

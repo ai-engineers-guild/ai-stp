@@ -9,7 +9,7 @@ fn invoke(binary: &Path, args: &[&str]) -> Result<Value, Box<dyn Error>> {
 
 #[test]
 fn archive_ownership_replay_and_interrupted_publication() -> Result<(), Box<dyn Error>> {
-    let binary = Path::new(env!("CARGO_BIN_EXE_ai-stp-v2"));
+    let binary = Path::new(env!("CARGO_BIN_EXE_ai-stp"));
     let root = tempfile::tempdir()?;
     let prefix = root.path().join("native");
     let plan = invoke(

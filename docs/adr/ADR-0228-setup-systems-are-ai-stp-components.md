@@ -18,7 +18,7 @@ not create separate user workflows.
 ## Decision
 
 - Setup systems are managed installation components of ai-stp. The eventual
-  public entry point is `ai-stp`; `ai-stp-v2` remains the isolated Rust preview.
+  public entry point is `ai-stp`; `ai-stp` remains the isolated Rust implementation.
 - Keep the existing source workspace, seven public repositories, package names,
   publisher identities and immutable releases. Repository ownership, licenses
   and access do not change. A product boundary is not a repository transfer.

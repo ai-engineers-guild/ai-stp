@@ -90,7 +90,7 @@ ai-stp report list --json
 `report list` lists **your** closed cases (signed-in CLI). That is the
 twin of [Reports](reports.md), not of this page.
 
-There is no `ai-stp contact` command. Do not pipe a message into
+There is no `ai-stp help --path task --json` command. Do not pipe a message into
 `report confirm` to “contact support”.
 
 ## Dead-ends

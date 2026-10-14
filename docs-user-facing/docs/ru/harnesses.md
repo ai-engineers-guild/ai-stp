@@ -83,8 +83,8 @@ plugin. `CODEX.md` — не официальный layout инструкции C
 После apply подтвердите:
 
 ```bash
-ai-stp target status --project <id> --harness <id> --json
-ai-stp target diff --project <id> --harness <id> --json
+ai-stp help --path configuration --json
+ai-stp help --path configuration --json
 ```
 
 ## Официальная документация харнессов
@@ -110,15 +110,15 @@ ai-stp target diff --project <id> --harness <id> --json
 ## Как выбрать target
 
 1. Запустите `ai-stp doctor --json`.
-2. Проверьте, какой харнесс обнаружен: `ai-stp toolchain harnesses --json`.
+2. Проверьте, какой харнесс обнаружен: `ai-stp help --path program --json`.
 3. Откройте сетап или компонент в каталоге.
 4. Сверьте поддержку харнесса и линию доверия.
 5. Смотрите provider-план до применения.
 
 ```bash
 ai-stp doctor --json
-ai-stp toolchain harnesses --json
-ai-stp toolchain harness-capabilities --json
+ai-stp help --path program --json
+ai-stp help --path program --json
 ```
 
 !!! tip "Для MVP"

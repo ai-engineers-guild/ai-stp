@@ -106,8 +106,8 @@ provider. Он не пишет файлы харнесса.
     изменения — без аккаунта.
 
     ```bash
-    ai-stp device init --json
-    ai-stp passport developer init --json
+    ai-stp help --path device --json
+    ai-stp help --path device --json
     ai-stp doctor --json
     ```
 
@@ -127,8 +127,8 @@ provider. Он не пишет файлы харнесса.
     и привязки устройства к облачной сессии.
 
     ```bash
-    ai-stp task start --intent account --idempotency-key account-session-01 --json
-    ai-stp auth status --json
+    ai-stp help --path account --json
+    ai-stp help --path account --json
     ```
 
 Локальная работа остаётся локальной, пока вы не публикуете и не
@@ -143,7 +143,7 @@ provider. Он не пишет файлы харнесса.
 уровень. Нет тихого fallback, который выдаёт plaintext-файл за связку ключей.
 
 ```bash
-ai-stp device init --json
+ai-stp help --path device --json
 ai-stp device show --json
 ```
 
@@ -159,7 +159,7 @@ ai-stp device show --json
 ```text
 ai-stp project discover --root . --json
 ai-stp project index --root . --json
-ai-stp project passport --root . --json
+ai-stp help --path project --json
 ```
 
 Сетап устанавливается в пару проект-харнесс. Status, diff, резервные копии и

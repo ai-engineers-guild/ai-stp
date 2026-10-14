@@ -86,10 +86,10 @@ Human / Machine switch keeps `/account` vs `/account/privacy`.
 ## Matching CLI commands
 
 ```text
-ai-stp auth status --json
-ai-stp auth logout --json
-ai-stp link web --json
-ai-stp owner objects --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path registry --json
+ai-stp help --path account --json
 ```
 
 `auth status` reports the platform relationship for **this CLI
@@ -97,7 +97,7 @@ device**, which may differ from the browser cookie. `auth logout`
 ends the cloud session on the server and on that device, keeping
 local data. Signing out in the browser does not run `device reset`.
 
-There is no `ai-stp account privacy` command. Visibility flags are
+There is no `ai-stp help --path account --json` command. Visibility flags are
 website POSTs.
 
 ## Dead-ends
@@ -111,7 +111,7 @@ website POSTs.
 | Could not unlink | API refusal | refresh; check CSRF |
 | Public profile 404 | privacy empty / unpublished | publish from Profile, or ignore |
 | The service is temporarily unavailable | API down | retry; CLI `auth status` is local-ish |
-| Signed out but CLI still authenticated | two sessions | `ai-stp auth logout --json` on the device |
+| Signed out but CLI still authenticated | two sessions | `ai-stp help --path account --json` on the device |
 
 Revoking the **current** browser device on the Devices page also signs
 you out. That is a device revoke, not this Sign out button.
@@ -125,8 +125,8 @@ an active account: OAuth created the first one. Two is the maximum.
 | --- | --- |
 | Stop this browser only | Sign out on this page |
 | Stop this browser as a cloud device | Revoke current on [Devices](devices.md) |
-| Stop the CLI cloud session | `ai-stp auth logout --json` |
-| Retire the local CLI identity | `ai-stp device reset --confirm --json` |
+| Stop the CLI cloud session | `ai-stp help --path account --json` |
+| Retire the local CLI identity | `ai-stp help --path device --json` |
 | Hide the publisher bio | Privacy flags, then Save preferences |
 
 `account_id` is stable. Copy it when someone needs to grant you a

@@ -51,11 +51,11 @@ STUB
 fi
 
 cd "${cli_root}"
-uv run --locked python scripts/with_libclang.py cargo build --locked --release --target-dir target --bin ai-stp-v2
+uv run --locked python scripts/with_libclang.py cargo build --locked --release --target-dir target --bin ai-stp
 mkdir -p "$(dirname "${out_dir}")"
 work_dir="$(mktemp -d "$(dirname "${out_dir}")/.native-cli-XXXXXX")"
 trap 'rm -rf "${work_dir}"' EXIT
-cp "target/release/ai-stp-v2${suffix}" "${work_dir}/${bin}"
+cp "target/release/ai-stp${suffix}" "${work_dir}/${bin}"
 if [[ -z "${suffix}" ]]; then chmod +x "${work_dir}/${bin}"; fi
 
 # Verify the copied executable itself before replacing the generated resources.

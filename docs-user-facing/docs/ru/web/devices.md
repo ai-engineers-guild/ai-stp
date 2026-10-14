@@ -13,11 +13,11 @@ description: "Устройства аккаунта и связь с device в C
 Повседневная привязка CLI — intent `account`:
 
 ```bash
-ai-stp task start --intent account --idempotency-key account-session-01 --json
+ai-stp help --path account --json
 ```
 
 Сайт не создаёт локальную идентичность устройства. Это expert
-`ai-stp device init`.
+`ai-stp help --path device --json`.
 
 ## URL и кто их видит
 
@@ -84,11 +84,11 @@ ai-stp task start --intent account --idempotency-key account-session-01 --json
 код. Объявленная команда:
 
 ```bash
-ai-stp task start --intent account --idempotency-key account-session-01 --json
+ai-stp help --path account --json
 ```
 
 (`google` — другой закрытый provider). В реестре нет
-`ai-stp auth device`.
+`ai-stp help --path account --json`.
 
 Query `status=ok` показывает Устройство подтверждено — вернитесь в
 CLI. `status=error` просит проверить, что код ещё действует.
@@ -103,13 +103,13 @@ state, last_active_at, location и повседневный account start. Фо�
 ## Соответствующие команды CLI
 
 ```text
-ai-stp device init --json
+ai-stp help --path device --json
 ai-stp device show --json
-ai-stp device reset --confirm --json
-ai-stp task start --intent account --idempotency-key account-session-01 --json
-ai-stp auth complete --json
-ai-stp auth status --json
-ai-stp auth logout --json
+ai-stp help --path device --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
 ai-stp passport device show --json
 ```
 

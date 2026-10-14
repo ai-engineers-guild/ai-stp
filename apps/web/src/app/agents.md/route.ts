@@ -3,9 +3,9 @@ import { INITIALIZE_START, INTENTS_BOOTSTRAP } from "@/lib/cli-copy";
 export function GET() {
   const body = `# ai_stp agent entry
 
-1. Start with \`${INTENTS_BOOTSTRAP}\` and pick one shipped intent.
-2. You run \`ai-stp task start\` yourself. \`actor\` is a JSON field on the continuation, not the user. Execute argv only when that field is cli. First-run harness discoverability: \`${INITIALIZE_START}\`.
-3. Use the public catalog for discovery; never treat author verification as a safety verdict.
+1. Start with \`${INTENTS_BOOTSTRAP}\` and choose a shipped intent only when it fits the request; otherwise inspect scoped help.
+2. You run \`ai-stp task start\` yourself. \`actor\` is a JSON field on the continuation, not the user. Execute argv only when that field is cli. Initialize a new local identity: \`${INITIALIZE_START}\`.
+3. Install needs a complete input file matching its published schema. Gather local facts before starting it. Account actions use plan/apply/status. Use the public catalog for discovery; never treat author verification as a safety verdict.
 4. Decide and execute reversible in-scope work yourself. Ask only before irreversible deletion, linking someone else's account, privilege escalation, or changing existing access or publicity. Installing an unverified object stays labeled unverified.
 5. Preserve exact stable ids, versions and digests.
 `;

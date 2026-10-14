@@ -91,11 +91,11 @@ Human / Machine сохраняет account id. Machine-проекция печа
 ## Совпадающие команды CLI
 
 ```text
-ai-stp link web --json
+ai-stp help --path registry --json
 ai-stp registry search --json
 ai-stp registry show --kind component --id <stable_id> --json
 ai-stp registry show --kind setup --id <stable_id> --json
-ai-stp owner objects --json
+ai-stp help --path account --json
 ```
 
 `link web` — то, что страница копирует для цели издателя. `registry
@@ -103,7 +103,7 @@ search` с ограничением по автору — CLI-эквивален
 `owner objects` — **ваши** объекты после входа; чужой частный граф так
 не выгрузить.
 
-Команды `ai-stp publisher` нет.
+Команды `ai-stp help --path publication --json` нет.
 
 ## Тупики
 

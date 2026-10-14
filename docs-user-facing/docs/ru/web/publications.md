@@ -77,17 +77,17 @@ Confirm только human.
 ## Совпадающие команды CLI
 
 ```bash
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 Expert leaves, если план уже построен (status/confirm на этой странице):
 
 ```text
 ai-stp publication status --plan-id <plan_id> --json
-ai-stp publication confirm --plan-id <plan_id> --plan-hash <plan_hash> --confirm --json
-ai-stp attestation sign --json
-ai-stp owner version show --json
-ai-stp link web --json
+ai-stp help --path publication --json
+ai-stp help --path attestation --json
+ai-stp help --path account --json
+ai-stp help --path registry --json
 ```
 
 `publication plan` (`plan`) создаёт неизменяемый серверный план для
@@ -100,8 +100,8 @@ ai-stp link web --json
 Expert leaves публикации сетапа (просмотренный набор pin, затем сетап):
 
 ```text
-ai-stp setup publish plan --json
-ai-stp setup publish confirm --json
+ai-stp help --path setup --json
+ai-stp help --path setup --json
 ```
 
 Они подтверждают просмотренный набор: закреплённые компоненты, затем

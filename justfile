@@ -722,7 +722,7 @@ cli-v2-build:
 # Existing envelope consumer, registry digest and live-WAL backup compatibility
 [group('cli-v2')]
 cli-v2-regress: cli-v2-build
-    {{ run }} python apps/cli-v2/scripts/verify.py apps/cli-v2/target/release/ai-stp-v2
+    {{ run }} python apps/cli-v2/scripts/verify.py apps/cli-v2/target/release/ai-stp
 
 # Native CLI boundary gate (also part of the repository gate)
 [group('cli-v2')]

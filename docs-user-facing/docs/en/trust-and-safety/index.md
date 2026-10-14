@@ -54,11 +54,11 @@ record for one publisher, one object major line, or the authorized
 `full-auto` task profile.
 
 ```bash
-ai-stp consent allow --scope publisher --target <publisher_id> --json
-ai-stp consent allow --scope object_major --target <stable_id>@<major> --json
-ai-stp consent allow --scope task --target full-auto --json
-ai-stp consent list --json
-ai-stp consent revoke --scope publisher --target <publisher_id> --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
 ```
 
 `--scope` is `publisher`, `object_major`, or `task`. `task` is the
