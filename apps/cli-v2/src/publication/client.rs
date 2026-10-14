@@ -50,6 +50,10 @@ impl Client {
         self.access.binding()
     }
 
+    pub(super) fn verify(&mut self) -> Result<()> {
+        self.access.verify()
+    }
+
     pub fn catalog(
         &mut self,
         snapshot: &super::Snapshot,
@@ -88,7 +92,15 @@ impl Client {
         request: &Create,
         receipt: &super::interruption::Receipt,
     ) -> Result<()> {
-        self.access.publication_recovered(request, receipt)
+        self.recovered_binding(&request.account, receipt)
+    }
+
+    pub(super) fn recovered_binding(
+        &self,
+        binding: &Binding,
+        receipt: &super::interruption::Receipt,
+    ) -> Result<()> {
+        self.access.publication_recovered(binding, receipt)
     }
 
     fn exchange(

@@ -110,7 +110,8 @@ impl Attempt {
         match &progress.outcome {
             Some(Outcome::Interrupted { recovery }) => {
                 recovery.validate()?;
-                if recovery.checkpoint.operation_id != self.operation_id
+                if recovery.checkpoint.kind != interruption::Kind::Attempt
+                    || recovery.checkpoint.operation_id != self.operation_id
                     || recovery.checkpoint.request_digest != self.digest()?
                     || recovery.replacement_device_id == self.request.account.device_id
                 {
@@ -239,6 +240,7 @@ impl Attempt {
     fn admit(&self, store: &mut Store) -> Result<Held> {
         store.transaction(|t| {
             if let Some(held)=self.held(t)? {return Ok(held);}
+            journal::recovery_capacity(t, 1)?;
             let at=format!("{:.3}",jiff::Timestamp::now());
             t.execute("INSERT INTO operation(operation_id,kind,state,started_at,detail) VALUES (?,?,'applying',?,?)",
                 params![self.operation_id,KIND,at,self.digest()?]).map_err(database)?;
@@ -306,6 +308,7 @@ impl Attempt {
             return Err(invalid());
         }
         Ok(Checkpoint {
+            kind: interruption::Kind::Attempt,
             operation_id: self.operation_id.clone(),
             request_digest: self.digest()?,
             progress_digest: interruption::progress_digest(
@@ -387,9 +390,23 @@ impl Attempt {
     }
 
     pub fn advance(&self, client: &mut Client) -> Result<Value> {
-        self.digest()?;
         let mut store = client.registry()?;
-        if let Some(value) = self.completed(&store)? {
+        self.advance_in(client, &mut store)
+    }
+
+    pub(super) fn inspect(&self, connection: &Connection) -> Result<Option<Value>> {
+        self.held(connection)?.map(|h| self.view(&h)).transpose()
+    }
+
+    pub(super) fn position(&self, connection: &Connection) -> Result<Option<String>> {
+        self.held(connection)?
+            .map(|h| interruption::progress_digest(connection, &self.operation_id, h.sequence))
+            .transpose()
+    }
+
+    pub(super) fn advance_in(&self, client: &mut Client, store: &mut Store) -> Result<Value> {
+        self.digest()?;
+        if let Some(value) = self.completed(store)? {
             return Ok(value);
         }
         // One fresh account observation precedes local admission. The request's
@@ -397,9 +414,9 @@ impl Attempt {
         client.authorize(&self.request, true)?;
         let existing = self.held(&store.connection)?;
         if existing.is_none() {
-            self.local(&mut store)?;
+            self.local(store)?;
         }
-        let mut held = self.admit(&mut store)?;
+        let mut held = self.admit(store)?;
         let observed = match &held.progress.plan {
             Some(plan) => client.status(&self.request, plan)?,
             None => client.create(&self.request)?,
@@ -408,7 +425,7 @@ impl Attempt {
         store.transaction(|t| self.save(t, &mut held))?;
         let mut plan = held.progress.plan.clone().ok_or_else(invalid)?;
         if matches!(plan["state"].as_str(), Some("draft" | "ready")) {
-            self.local(&mut store)?;
+            self.local(store)?;
             for (address, _) in self.request.artifacts()? {
                 if !matches!(plan["state"].as_str(), Some("draft" | "ready")) {
                     break;

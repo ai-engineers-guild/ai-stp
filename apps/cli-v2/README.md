@@ -253,8 +253,8 @@ effective owner and previous recovery. Apply drains account and registry writers
 persists the intent, creates a new key, records its public succession and removes
 only the retired key and account credential entries. It does not authenticate or
 transfer ownership. Finish or cancel outstanding installation/authoring operations,
-proposals and tasks before admission. Unfinished sync commands and publication
-attempts are captured by exact operation, intent and progress digests (at most
+proposals and tasks before admission. Unfinished sync commands, publication
+groups and object attempts are captured by exact operation, intent and progress digests (at most
 128 combined) and finish with an explicit
 `interrupted` result when key replacement is admitted. Their retained requests
 stay unchanged and their remote outcome stays unknown. A changed checkpoint
@@ -2390,12 +2390,50 @@ after another device replacement. Populated `interrupted_publications` recovery
 history requires a compatible native reader; older readers refuse it. Empty
 history omits the field and preserves previous intent digests.
 
-This is a per-object library checkpoint under #950. Outer session-bound planning,
-setup orchestration, governed commands and a complete native/API/worker journey
-remain pending. No publication command is exposed. The real TCP and SQLite
-proofs cover lost replies, substituted evidence, retained keys, delayed catalog
-visibility, interruption before key replacement, repeat replacement and the
-actual previous executable's refusal. They do not establish real worker acceptance.
+`publication::runtime::{plan,resume,apply,reconcile}` owns one component or the
+complete setup publication group. Planning captures every exact local member
+before remote writes, with one distribution visibility (private by default) and
+optional source bindings/attestations keyed by member ID. Exact fresh catalog
+versions are reused, including accessible foreign components. Evidence for an
+already-readable version is refused rather than silently discarded. Embedded
+members remain inside the setup definition.
+
+A request for public distribution refuses an existing private version during
+planning and before apply writes. Republishing does not change that version's
+visibility; widening access requires the separate explicit visibility operation.
+
+The group intent retains all original child requests before delivery starts.
+Its confirmation binds the current account/session, device, physical root and
+exact group/child journal position. A stale confirmation refuses without new
+writes. `resume` produces a fresh confirmation of that same intent after partial
+progress or session refresh; it does not regenerate request or confirmation keys.
+Admission rechecks that another group has not occupied the same target. The
+existing operation journal stores group confirmations separately from child
+delivery, without a schema migration or a transaction spanning HTTP.
+
+Apply revalidates the complete local graph and fresh access to reused versions,
+then advances components before the setup. It stops at the first asynchronous
+dependency or refusal. Accepted child effects remain durable; a refused group
+retains the accepted prefix's catalog observations. Published completion requires
+exact fresh catalog evidence for every member, while historical terminal replay
+requires neither a session nor network access. A child readback obtained during
+this execution is reused without an immediate duplicate HTTP read.
+
+Device replacement stops the group and its active child together. Read-only
+group reconciliation checks completed replacement ancestry and reports fresh
+remote observations separately from historical receipts. Set interruption
+checkpoints carry `kind: set`; older readers refuse populated set history. The
+field is omitted for existing per-object checkpoints, preserving their digests.
+New group admission requires room for the group and its active child. Every new
+sync or publication admission enforces the combined 128-operation recovery
+bound; already-admitted work can still settle when that bound is reached.
+
+Governed commands and a complete optimized native/API/worker journey remain
+under #950; no publication command is exposed yet. The real TCP/SQLite proofs
+cover exact inputs, lost replies, group ordering, current-session continuation,
+private member reuse, partial refusal, device replacement and previous-reader
+acceptance/refusal. Their controlled HTTP server does not establish actual worker
+acceptance.
 
 Private-directory failures include a fixed operation `stage` and, for I/O
 failures, an optional numeric `os_error`. Paths, file contents and raw OS error

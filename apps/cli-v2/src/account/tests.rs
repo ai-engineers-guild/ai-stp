@@ -7,6 +7,8 @@ mod access_tests;
 mod attachment_tests;
 #[path = "publication_recovery_tests.rs"]
 mod publication_recovery_tests;
+#[path = "publication_set_tests.rs"]
+mod publication_set_tests;
 #[path = "publication_tests.rs"]
 mod publication_tests;
 #[path = "sync_recovery_tests.rs"]

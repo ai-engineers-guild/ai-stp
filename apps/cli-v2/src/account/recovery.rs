@@ -19,7 +19,7 @@ use crate::{
 
 fn quiescent(connection: &rusqlite::Connection, at: &str) -> crate::error::Result<()> {
     let unfinished: bool = connection.query_row(
-        "SELECT EXISTS(SELECT 1 FROM operation WHERE finished_at IS NULL AND kind NOT IN ('sync.run','publication.run')) OR EXISTS(SELECT 1 FROM proposal WHERE cancelled_at IS NULL AND confirmed_stable_id IS NULL AND expires_at>?) OR EXISTS(SELECT 1 FROM agent_task WHERE state IN ('planned','blocked','running'))",
+        "SELECT EXISTS(SELECT 1 FROM operation WHERE finished_at IS NULL AND kind NOT IN ('sync.run','publication.run','publication.set')) OR EXISTS(SELECT 1 FROM proposal WHERE cancelled_at IS NULL AND confirmed_stable_id IS NULL AND expires_at>?) OR EXISTS(SELECT 1 FROM agent_task WHERE state IN ('planned','blocked','running'))",
         [at], |row| row.get(0)).map_err(database)?;
     if unfinished {
         return Err(crate::error::Failure::precondition(

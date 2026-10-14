@@ -220,6 +220,7 @@ impl Run {
         if let Some(run) = Self::prepare(t, plan, scope, at)? {
             return Ok(run);
         }
+        journal::recovery_capacity(t, 1)?;
         let hash = plan.digest()?;
         t.execute("INSERT INTO operation(operation_id,kind,state,started_at,finished_at,detail) VALUES (?,?,'applying',?,NULL,?)",params![plan.operation_id,KIND,at,hash]).map_err(database)?;
         t.execute("INSERT INTO operation_event(operation_id,sequence,at,state_before,state_after,result,evidence) VALUES (?,1,?,'planned','applying','admitted',?)",params![plan.operation_id,at,encode(plan)?]).map_err(database)?;

@@ -6,11 +6,13 @@ pub mod contract;
 pub mod interruption;
 pub mod journal;
 pub mod readback;
+pub mod runtime;
+mod set;
 
 use std::{collections::BTreeMap, path::Path};
 
 use rusqlite::Connection;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
@@ -27,7 +29,8 @@ use crate::{
 
 const MAX_METADATA: usize = 8 * 1024 * 1024;
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Artifact {
     pub digest: String,
     pub size_bytes: usize,
@@ -35,7 +38,8 @@ pub struct Artifact {
 
 /// Metadata only. Payloads are re-read and verified individually at delivery.
 /// This is local evidence, not authentication or permission to publish.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Snapshot {
     pub passport: Value,
     pub passport_digest: String,
