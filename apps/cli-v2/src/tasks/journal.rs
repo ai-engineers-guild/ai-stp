@@ -247,3 +247,41 @@ pub(super) fn unsettled(connection: &Connection) -> Result<Vec<Row>> {
     }
     ids.iter().map(|id| load(connection, id)).collect()
 }
+
+/// Completed Python receipts remain readable after the in-place transfer.
+/// Their opaque execution payload is never interpreted as a native continuation.
+pub(super) fn legacy_view(connection: &Connection, id: &str) -> Result<Option<Value>> {
+    if connection
+        .query_row("PRAGMA user_version", [], |row| row.get::<_, u32>(0))
+        .map_err(database)?
+        != 54
+    {
+        return Ok(None);
+    }
+    let native: Option<Option<String>> = connection
+        .query_row(
+            "SELECT json_extract(payload_json,'$.format') FROM agent_task WHERE task_id=?",
+            [id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(database)?;
+    if native.is_none() || native.flatten().as_deref() == Some(FORMAT) {
+        return Ok(None);
+    }
+    let (revision,intent,state,goal,outcome,children):(i64,String,String,bool,Option<String>,String)=connection.query_row(
+        "SELECT revision,intent,state,goal_satisfied,outcome_json,child_operation_ids_json FROM agent_task WHERE task_id=?",[id],|row|Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?))).map_err(database)?;
+    if !matches!(state.as_str(), "completed" | "failed" | "cancelled")
+        || outcome.as_ref().is_some_and(|v| v.len() > 1024 * 1024)
+        || children.len() > 65536
+    {
+        return Err(invalid());
+    }
+    let outcome = outcome
+        .map(|body| canonical::parse(body.as_bytes()))
+        .transpose()?;
+    let children = canonical::parse(children.as_bytes())?;
+    let view = json!({"schema_version":1,"task_id":id,"revision":revision,"intent":intent,"state":state,"goal_satisfied":goal,"questions":[],"outcome":outcome,"child_operation_ids":children,"legacy_read_only":true});
+    VIEW.validate(&view)?;
+    Ok(Some(view))
+}

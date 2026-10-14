@@ -1,6 +1,6 @@
 ---
 description: "SPEC-011: CLI, machine help and agent skill."
-last_verified: "2026-09-16"
+last_verified: "2026-10-14"
 ---
 
 # SPEC-011: CLI, machine help, and agent skill
@@ -116,6 +116,19 @@ The CLI uses the system's secure storage for cloud credentials and user director
 ## Compatibility and migration
 
 Machine JSON, help and skill projection have versions. Unknown optional fields are ignored; the unknown major version of the schema is rejected. The version of the projection generator and the hash of the canonical skill are recorded, and the semantic loss blocks the trusted projection.
+
+The native `state migrate` service is an explicit writer transfer, separate from
+ordinary automatic schema upgrades. It binds the existing root, database and
+complete row generation, refuses unfinished legacy work, preserves original
+objects and device/account identity, and creates no database copy. Admission
+atomically stamps schema 54 with a durable operation before credential transfer;
+the Python schema-53 writer refuses that registry. Native commands refuse pending
+ownership until the retained plan completes credential readback and retirement.
+Exact replay resumes admitted work after interruption without changing harness
+configuration. Settled legacy tasks remain readable but cannot become native
+execution payloads. The executable registry owns its parameters; the
+code-adjacent CLI README and `scripts/verify_migration.py` own its detailed
+implemented boundary and integrated preservation/recovery proof.
 
 ## Acceptance criteria
 

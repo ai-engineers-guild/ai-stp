@@ -60,8 +60,15 @@ fn attributes(id: &str) -> HashMap<&str, &str> {
 }
 
 fn find(service: &Proxy<'_>, id: &str) -> Result<Option<OwnedObjectPath>> {
+    find_attributes(service, attributes(id))
+}
+
+fn find_attributes(
+    service: &Proxy<'_>,
+    selected: HashMap<&str, &str>,
+) -> Result<Option<OwnedObjectPath>> {
     let (mut unlocked, locked): (Vec<OwnedObjectPath>, Vec<OwnedObjectPath>) = service
-        .call("SearchItems", &(attributes(id),))
+        .call("SearchItems", &(selected,))
         .map_err(|_| unavailable())?;
     if !locked.is_empty() || unlocked.len() > 1 {
         return Err(unavailable());
@@ -80,9 +87,17 @@ fn session(service: &Proxy<'_>) -> Result<OwnedObjectPath> {
 }
 
 pub(super) fn read(id: &str) -> Result<Option<Zeroizing<Vec<u8>>>> {
+    read_attributes(attributes(id))
+}
+
+pub(super) fn read_legacy(id: &str) -> Result<Option<Zeroizing<Vec<u8>>>> {
+    read_attributes(HashMap::from([("service", "ai-stp"), ("username", id)]))
+}
+
+fn read_attributes(selected: HashMap<&str, &str>) -> Result<Option<Zeroizing<Vec<u8>>>> {
     let conn = connection()?;
     let service = service(&conn)?;
-    let Some(path) = find(&service, id)? else {
+    let Some(path) = find_attributes(&service, selected)? else {
         return Ok(None);
     };
     let item = proxy(&conn, path.as_str(), "org.freedesktop.Secret.Item")?;
@@ -159,9 +174,17 @@ pub(super) fn write(id: &str, value: &str, replace: bool) -> Result<()> {
 }
 
 pub(super) fn remove(id: &str) -> Result<()> {
+    remove_attributes(attributes(id))
+}
+
+pub(super) fn remove_legacy(id: &str) -> Result<()> {
+    remove_attributes(HashMap::from([("service", "ai-stp"), ("username", id)]))
+}
+
+fn remove_attributes(selected: HashMap<&str, &str>) -> Result<()> {
     let conn = connection()?;
     let service = service(&conn)?;
-    let Some(path) = find(&service, id)? else {
+    let Some(path) = find_attributes(&service, selected)? else {
         return Ok(());
     };
     let item = proxy(&conn, path.as_str(), "org.freedesktop.Secret.Item")?;

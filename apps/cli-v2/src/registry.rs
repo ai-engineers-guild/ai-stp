@@ -6,6 +6,7 @@ mod catalog;
 mod github;
 mod grants;
 mod local;
+mod migration;
 mod providers;
 mod publication;
 mod reports;
@@ -30,6 +31,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[derive(Clone, Copy)]
 enum Handler {
     Task(tasks::Handler),
+    Migration(migration::Handler),
     Account(account::Handler),
     Attestation(attestation::Handler),
     Grant(grants::Handler),
@@ -682,6 +684,7 @@ fn declarations() -> impl Iterator<Item = &'static Declaration> {
         .chain(providers::COMMANDS)
         .chain(selections::COMMANDS)
         .chain(account::COMMANDS)
+        .chain(migration::COMMANDS)
         .chain(grants::COMMANDS)
         .chain(github::COMMANDS)
         .chain(visibility::COMMANDS)
@@ -756,6 +759,7 @@ fn mutability(handler: Handler) -> &'static str {
         Handler::Selection(handler) => handler.mutability(),
         Handler::Provider(handler) => handler.mutability(),
         Handler::Account(handler) => handler.mutability(),
+        Handler::Migration(handler) => handler.mutability(),
         Handler::Grant(handler) => handler.mutability(),
         Handler::Github(handler) => handler.mutability(),
         Handler::Visibility(handler) => handler.mutability(),
@@ -841,6 +845,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::Local(handler) => local::dispatch(handler, leaf),
         Handler::Report(handler) => reports::dispatch(handler, leaf),
         Handler::Account(handler) => account::dispatch(handler, leaf),
+        Handler::Migration(handler) => migration::dispatch(handler, leaf),
         Handler::Grant(handler) => grants::dispatch(handler, leaf),
         Handler::Github(handler) => github::dispatch(handler, leaf),
         Handler::Visibility(handler) => visibility::dispatch(handler, leaf),
@@ -859,7 +864,8 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
             "state_access": "explicit_snapshot_and_isolated_authoring", "cache_access": "explicit_public_catalog_cache",
             "identity_access": "explicit_isolated_device",
             "managed_provider_version": crate::provider::managed::RELEASE,
-            "authoring_access": "identity_bound_local_plans", "readable_local_schema_versions": [snapshot::SCHEMA_VERSION]})),
+            "authoring_access": "identity_bound_local_plans", "readable_local_schema_versions": [snapshot::SCHEMA_VERSION, crate::store::PRODUCTION_SCHEMA],
+            "production_transfer": "explicit_in_place_plan", "snapshot_schema_versions": [snapshot::SCHEMA_VERSION]})),
         Handler::Help => help(
             leaf.get_one::<String>("path").map_or("", String::as_str),
             leaf.get_one::<String>("find").map_or("", String::as_str),

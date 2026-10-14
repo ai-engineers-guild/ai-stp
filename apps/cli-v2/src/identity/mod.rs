@@ -1,6 +1,8 @@
 //! Isolated offline identity. Public plans never contain key material or cloud claims.
 
+pub(crate) mod adoption;
 pub(crate) mod credentials;
+pub(crate) mod legacy;
 pub mod recovery;
 #[cfg(target_os = "linux")]
 mod secret_service;
@@ -83,7 +85,7 @@ impl Plan {
     fn validate(&self) -> Result<()> {
         self.credential_store.validate()?;
         if self.schema_version != 1
-            || self.action != "device.initialize"
+            || !matches!(self.action.as_str(), "device.initialize" | "device.adopt")
             || self.algorithm != "Ed25519"
             || !self.root.is_absolute()
             || !passport::stable_id(&self.operation_id, "operation")
@@ -308,9 +310,15 @@ fn load(directory: &OwnedDirectory, record: &Record, root: Dir) -> Result<Identi
     let key = Vault::new(directory,record.plan.credential_store)?.read_key(id)?
         .ok_or_else(||Failure::precondition("the device has a public record but its private key is missing; initialization will not replace it"))?;
     let retired = history
-        .entries
+        .baseline
         .iter()
-        .map(|entry| entry.plan.identity.device_id.clone())
+        .cloned()
+        .chain(
+            history
+                .entries
+                .iter()
+                .map(|entry| entry.plan.identity.device_id.clone()),
+        )
         .collect::<Vec<_>>();
     let public = report_for(
         id,
@@ -342,6 +350,7 @@ fn open(parent: &Dir, create: bool) -> Result<Option<OwnedDirectory>> {
 pub fn current(parent: &Path) -> Result<Option<Identity>> {
     let root =
         Dir::open_ambient_dir(parent, cap_std::ambient_authority()).map_err(|_| invalid())?;
+    crate::store::migration::ensure_ready(&root)?;
     let Some(directory) = open(&root, false)? else {
         return Ok(None);
     };
@@ -360,6 +369,7 @@ pub fn plan(parent: &Path, storage: Storage, at: &str) -> Result<Plan> {
     let (root, root_identity) = root(parent)?;
     let parent =
         Dir::open_ambient_dir(&root, cap_std::ambient_authority()).map_err(|_| invalid())?;
+    crate::store::migration::ensure_ready(&parent)?;
     if let Some(directory) = open(&parent, false)? {
         if record(&directory)?.is_some() {
             return Err(Failure::precondition(
@@ -403,12 +413,16 @@ pub fn read_plan(path: &Path) -> Result<Plan> {
 
 pub fn apply(plan: &Plan, expected_digest: &str, at: &str) -> Result<Identity> {
     plan.validate()?;
-    if !passport::timestamp(at) || plan.digest()? != expected_digest {
+    if plan.action != "device.initialize"
+        || !passport::timestamp(at)
+        || plan.digest()? != expected_digest
+    {
         return Err(invalid());
     }
     revalidate(plan)?;
     let root =
         Dir::open_ambient_dir(&plan.root, cap_std::ambient_authority()).map_err(|_| invalid())?;
+    crate::store::migration::ensure_ready(&root)?;
     if physical_root(&root)? != plan.root_identity {
         return Err(invalid());
     }

@@ -87,6 +87,8 @@ pub(crate) struct Entry {
 #[serde(deny_unknown_fields)]
 pub(crate) struct History {
     pub entries: Vec<Entry>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub baseline: Vec<String>,
 }
 
 impl Entry {
@@ -98,9 +100,15 @@ impl Entry {
     ) -> Result<Self> {
         let intent = plan.recovery.as_ref().ok_or_else(invalid)?;
         let mut retired = history
-            .entries
+            .baseline
             .iter()
-            .map(|e| e.plan.identity.device_id.clone())
+            .cloned()
+            .chain(
+                history
+                    .entries
+                    .iter()
+                    .map(|e| e.plan.identity.device_id.clone()),
+            )
             .collect::<Vec<_>>();
         retired.push(plan.identity.device_id.clone());
         Ok(Self {
@@ -127,10 +135,17 @@ impl History {
     }
 
     pub(super) fn read(directory: &OwnedDirectory, initial: &Record) -> Result<Self> {
-        let history = Self::raw(directory)?;
+        let mut history = Self::raw(directory)?;
+        let baseline = super::adoption::retired(&initial.device)?;
+        if history.entries.is_empty() && history.baseline.is_empty() {
+            history.baseline = baseline.clone();
+        }
+        if history.baseline != baseline {
+            return Err(invalid());
+        }
         let mut previous = None;
         let mut device = &initial.device;
-        let mut retired = Vec::new();
+        let mut retired = history.baseline.clone();
         let mut operations = BTreeSet::new();
         let mut completed_at = initial.plan.created_at.as_str();
         let mut binding: Option<&Entry> = None;

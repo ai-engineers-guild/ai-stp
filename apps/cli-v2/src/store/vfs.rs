@@ -89,13 +89,15 @@ pub(super) struct Scope {
     // including when initialization fails before SQLite takes the handle.
     _database_lock: file_guard::FileGuard<Arc<File>>,
     owned: OwnedDirectory,
+    data: Dir,
+    production: bool,
     directory_identity: Identity,
     observed: Mutex<BTreeMap<String, Identity>>,
 }
 
 impl Scope {
     pub(super) fn fence_unless(&self, marker: &[u8], newer: &[u8]) -> Result<()> {
-        if self.owned.read_file("owner", 256)?.as_deref() != Some(newer) {
+        if !self.production && self.owned.read_file("owner", 256)?.as_deref() != Some(newer) {
             self.fence(marker)?;
         }
         Ok(())
@@ -103,10 +105,13 @@ impl Scope {
     pub(super) fn fence(&self, marker: &[u8]) -> Result<()> {
         self.validate()
             .map_err(|_| Failure::precondition("the registry binding changed"))?;
-        self.owned.atomic("owner", marker)
+        if !self.production {
+            self.owned.atomic("owner", marker)?;
+        }
+        Ok(())
     }
 
-    pub(super) fn open(parent: Dir, owned: OwnedDirectory) -> Result<Arc<Self>> {
+    pub(super) fn open(parent: Dir, owned: OwnedDirectory, production: bool) -> Result<Arc<Self>> {
         let failure = || Failure::precondition("the registry file boundary is invalid");
         static REGISTERED: OnceLock<VfsResult<()>> = OnceLock::new();
         REGISTERED
@@ -122,12 +127,23 @@ impl Scope {
             })
             .as_ref()
             .map_err(|_| failure())?;
-        let before = inspect(&owned.directory, DATABASE)
+        let data = if production {
+            &parent
+        } else {
+            &owned.directory
+        }
+        .try_clone()
+        .map_err(|_| failure())?;
+        let database_name = if production {
+            "registry.sqlite"
+        } else {
+            DATABASE
+        };
+        let before = inspect(&data, database_name)
             .map_err(|_| failure())?
             .ok_or_else(failure)?;
-        let file = owned
-            .directory
-            .open_with(DATABASE, private_options().read(true))
+        let file = data
+            .open_with(database_name, private_options().read(true))
             .map_err(|_| failure())?
             .into_std();
         let metadata = Metadata::from_file(&file).map_err(|_| failure())?;
@@ -159,6 +175,8 @@ impl Scope {
             parent,
             _database_lock: database_lock,
             owned,
+            data,
+            production,
             directory_identity,
             database: Mutex::new(Some(file)),
             observed: Mutex::new(BTreeMap::from([(DATABASE.to_owned(), identity(&metadata))])),
@@ -176,11 +194,54 @@ impl Scope {
         Ok(scope)
     }
 
+    fn filename<'a>(&self, name: &'a str) -> &'a str {
+        if !self.production {
+            return name;
+        }
+        match name {
+            DATABASE => "registry.sqlite",
+            JOURNAL => "registry.sqlite-journal",
+            WAL => "registry.sqlite-wal",
+            SHM => "registry.sqlite-shm",
+            _ => name,
+        }
+    }
+
+    pub(super) fn database_identity(&self) -> Result<[String; 2]> {
+        self.validate()
+            .map_err(|_| Failure::precondition("the registry binding changed"))?;
+        let observed = self
+            .observed
+            .lock()
+            .map_err(|_| Failure::precondition("the registry binding changed"))?;
+        let (device, inode) = observed
+            .get(DATABASE)
+            .ok_or_else(|| Failure::precondition("the registry binding is absent"))?;
+        Ok([device.to_string(), inode.to_string()])
+    }
+
+    pub(super) fn publish_production(&self) -> Result<()> {
+        if !self.production {
+            return Err(Failure::precondition(
+                "the registry is not a production transfer",
+            ));
+        }
+        self.validate()
+            .map_err(|_| Failure::precondition("the registry binding changed"))?;
+        self.owned.atomic("owner", super::PRODUCTION_OWNER)
+    }
+
     pub(super) fn path(&self) -> String {
         format!("{}/{DATABASE}", self.id)
     }
 
     fn check(&self) -> io::Result<()> {
+        #[cfg(unix)]
+        if self.production
+            && cap_std::fs::MetadataExt::mode(&self.data.dir_metadata()?) & 0o077 != 0
+        {
+            return Err(refused());
+        }
         let named = self.parent.open_dir_nofollow(super::NAMESPACE)?;
         let metadata = named.dir_metadata()?;
         #[cfg(unix)]
@@ -196,7 +257,11 @@ impl Scope {
     pub(super) fn validate(&self) -> io::Result<()> {
         self.check()?;
         for (name, expected) in self.observed.lock().map_err(|_| refused())?.iter() {
-            if inspect(&self.owned.directory, name)?.as_ref().map(identity) != Some(*expected) {
+            if inspect(&self.data, self.filename(name))?
+                .as_ref()
+                .map(identity)
+                != Some(*expected)
+            {
                 return Err(refused());
             }
         }
@@ -205,7 +270,7 @@ impl Scope {
 
     fn inspect(&self, name: &str) -> io::Result<Option<Metadata>> {
         self.check()?;
-        let metadata = inspect(&self.owned.directory, name)?;
+        let metadata = inspect(&self.data, self.filename(name))?;
         let mut observed = self.observed.lock().map_err(|_| refused())?;
         match (observed.get(name), &metadata) {
             (Some(expected), Some(actual)) if *expected == identity(actual) => {}
@@ -222,7 +287,7 @@ impl Scope {
     }
 
     fn companion_header(&self, name: &str, expected: &Metadata) -> io::Result<()> {
-        let mut file = crate::files::open_regular(&self.owned.directory, name.as_ref())?;
+        let mut file = crate::files::open_regular(&self.data, self.filename(name).as_ref())?;
         let opened = file.metadata()?;
         if !valid(&opened) || identity(&opened) != identity(expected) {
             return Err(refused());
@@ -246,7 +311,9 @@ impl Scope {
 
     fn sync(&self) -> io::Result<()> {
         self.check()?;
-        self.owned.sync().map_err(|_| refused())
+        #[cfg(unix)]
+        self.data.open(".")?.sync_all()?;
+        Ok(())
     }
 }
 
@@ -346,7 +413,7 @@ impl Vfs for Confined {
                     CreateMode::None => {}
                 }
             }
-            Arc::new(sql(scope.owned.directory.open_with(name, &options))?.into_std())
+            Arc::new(sql(scope.data.open_with(scope.filename(name), &options))?.into_std())
         };
         let metadata = sql(Metadata::from_file(&file))?;
         if !valid(&metadata) || before.is_some_and(|id| id != identity(&metadata)) {
@@ -371,7 +438,7 @@ impl Vfs for Confined {
             return Err(vars::SQLITE_IOERR_DELETE);
         }
         if sql(scope.inspect(name))?.is_some() {
-            sql(scope.owned.directory.remove_file(name))?;
+            sql(scope.data.remove_file(scope.filename(name)))?;
             scope
                 .observed
                 .lock()

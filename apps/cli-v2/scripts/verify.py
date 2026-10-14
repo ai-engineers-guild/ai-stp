@@ -24,6 +24,7 @@ import verify_authoring
 import verify_catalog
 import verify_environment
 import verify_identity
+import verify_migration
 import verify_projects
 import verify_selection
 
@@ -106,6 +107,7 @@ def prove(binary: Path, root: Path) -> None:
     prove_scaffold(binary, home, root)
     prove_source_capture(binary, home, root)
     verify_identity.prove(binary, home, root, run)
+    verify_migration.prove(binary, home, root, run)
     verify_authoring.prove(binary, home, root, run)
     prove_objects(binary, home, root)
     verify_projects.prove(binary, home, root, run)

@@ -1,6 +1,6 @@
 ---
 description: "Develop the Rust CLI against explicit business and compatibility boundaries, with isolated previews and one verified default-runtime cutover."
-last_verified: "2026-10-10"
+last_verified: "2026-10-14"
 ---
 
 # ADR-0227: Rust CLI v2 migration boundary
@@ -71,7 +71,14 @@ confines journal/WAL access to that same directory. The connection retains both
 native ownership and standard SQLite-compatible exclusive locks until close.
 SQLite's exclusive WAL mode keeps the index in memory; no mmap, shared-memory
 adapter, disk temporary database or second native state writer is introduced.
-Schema 53 and ordinary SQLite file/recovery compatibility remain mandatory.
+Fresh preview registries retain schema 53. Explicit production transfer keeps
+the existing 51-table schema and file in place, then atomically stamps version
+54 with its admission receipt to fence previous schema-53 writers. Native
+ownership remains pending until the exact device/session credentials have been
+copied, read back and retired from their old slots. Ordinary native commands
+refuse pending transfer; the retained plan owns forward recovery. SQL schema
+comparison ignores only whitespace outside quoted literals and identifiers.
+Ordinary SQLite file/recovery compatibility remains mandatory.
 
 ### Compatibility and native dependencies
 
@@ -125,8 +132,8 @@ the acquisition slice before that service can install a provider.
   dependency decision, rather than a weakened trust rule.
 - Rust ports of contracts belong to their executable boundary. Python packages
   still consumed by API/worker remain supported; rewriting the backend is not
-  part of this migration. Existing Corporate CLI adapters remain in the
-  compatibility ledger without expanding or rewriting Corporate policy.
+  part of this migration. Corporate CLI adapters remain historical ledger
+  entries and are excluded from the native rebuild by the owner's current scope.
 
 ### State, concurrency and rollback
 

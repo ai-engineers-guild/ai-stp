@@ -258,6 +258,11 @@ fn selected(store: &Store, id: Option<&str>) -> Result<Row> {
 pub fn status(parent: &Path, id: Option<&str>) -> Result<Value> {
     let owner = runtime::owner(parent)?;
     let store = owner.planning()?;
+    if let Some(id) = id
+        && let Some(view) = journal::legacy_view(&store.connection, id)?
+    {
+        return Ok(view);
+    }
     selected(&store, id)?.view()
 }
 
@@ -282,6 +287,20 @@ pub fn advance(
     let owner = runtime::owner(parent)?;
     let (selected_id, key) = {
         let store = owner.planning()?;
+        if let Some(id) = id
+            && let Some(view) = journal::legacy_view(&store.connection, id)?
+        {
+            if view["revision"].as_i64() != Some(expected) {
+                return Err(Failure::new(
+                    ErrorKind::Conflict,
+                    "the task revision changed",
+                ));
+            }
+            if answer.is_some() {
+                return Err(Failure::input("the task no longer accepts answers"));
+            }
+            return Ok(view);
+        }
         let row = selected(&store, id)?;
         revision(&row, expected)?;
         if row.settled() {

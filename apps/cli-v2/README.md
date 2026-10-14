@@ -42,6 +42,46 @@ and production state transfer remain separate C6/C7 work.
 
 ## Build from source
 
+### Explicit production-state transfer
+
+`state migrate plan/apply/status` transfers an existing schema-53 installation
+in place. Select its exact state directory, existing credential backend and
+sign-in provider; the old session format does not retain the provider. Planning
+reads committed SQLite WAL state and public identity bindings. It refuses
+unfinished tasks, installation transactions, operations, project synchronization,
+pending selections, authorization and CLI updates. It creates no database copy.
+
+Apply binds the physical root, database inode, every original row and the
+public owner/device files. It drains ordinary SQLite connections before writing
+schema 54 and its admission receipt in one transaction. Schema 54 preserves all
+51 tables and their existing rows; the change fences Python's schema-53 writer.
+The native VFS retains the original `registry.sqlite` and its WAL beside it.
+Only SQL whitespace outside quoted literals/identifiers is normalized for
+schema comparison; constraints and defaults must still match.
+
+The transfer preserves the exact owner, device key, creation time, retired
+device IDs and optional authorized/revoked account session. It reads back native
+credential storage before retiring only the corresponding old credential slots.
+Public plans and receipts never contain secret values. Session preservation does
+not claim fresh server authorization. Ordinary native commands refuse while the
+transfer marker is pending; repeat the exact retained plan to finish recovery,
+including after its initial admission deadline. A failed pre-admission check
+allows a newly reviewed plan while the database remains at schema 53.
+
+Settled legacy task history remains readable; its opaque execution payload is
+never resumed as a native task. Existing immutable objects, installation records
+and recovery references are retained. No harness files are changed. Reverting
+the schema stamp or restoring an earlier registry is not a rollback path: use
+the compatible native engine and forward recovery against current state.
+
+The integrated `verify_migration.py` fixture uses the previous engine to create
+real WAL state and exercises contention, stale plans, credential-boundary
+interruption, exact replay, preservation and old-writer refusal. This explicit
+service does not itself replace an installed executable or enable automatic
+production discovery.
+
+### Build commands
+
 ```sh
 just cli-v2-check
 apps/cli-v2/target/release/ai-stp-v2 capabilities --json
@@ -127,7 +167,9 @@ shared `cli-task-input-author` schema; native install fields derive from
 embedded input schema without opening local state. `task start`, `answer`, `continue`, `status`,
 `cancel` and `list` use the existing task and continuation wire models. They
 require an explicit isolated state directory with an initialized native identity.
-There is no production task import or implicit current-task pointer.
+There is no implicit current-task pointer. Explicit production transfer retains
+settled historical task receipts as read-only records; it refuses unfinished
+legacy tasks instead of interpreting their execution payload as native work.
 
 The author service captures one bounded local directory and creates one private
 component version and one embedded setup version, both at `1.0`. Kind choices
