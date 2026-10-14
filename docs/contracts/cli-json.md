@@ -62,10 +62,20 @@ facts. Execute argv only when actor is cli and the required facts are resolved.
 Keep CLI task ids separate from execution-tool process handles. A stale revision
 requires reading current task state, not inventing a replacement idempotency key.
 
-Read error codes, exit classes and handling from `help --agent --json`. The
-native implementation currently uses success 0, input/not-found 2,
-precondition/conflict 4, unavailable 5 and internal error 70. Only dependency
-unavailability is marked retryable by the envelope renderer. Before retrying a
+## Exit codes
+
+Read error codes and handling from `help --agent --json`. The native executable
+and this table are compared by the release proof:
+
+| Code | Meaning |
+| --- | --- |
+| 0 | Success |
+| 2 | Invalid input or object not found |
+| 4 | Failed precondition or conflict |
+| 5 | Dependency unavailable |
+| 70 | Internal error |
+
+Only dependency unavailability is marked retryable by the envelope renderer. Before retrying a
 mutation after an uncertain transport result, inspect its retained status or
 resume the original admitted plan.
 

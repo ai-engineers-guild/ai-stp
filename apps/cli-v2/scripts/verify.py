@@ -85,6 +85,11 @@ def prove(binary: Path, root: Path) -> None:
     home.mkdir()
     help_data = run(binary, home, ["help", "--agent"])["data"]
     MachineHelp.model_validate(help_data)
+    contracts = Path(__file__).resolve().parents[3] / "docs/contracts"
+    exit_document = (contracts / "cli-json.md").read_text(encoding="utf-8")
+    section = exit_document.split("## Exit codes", 1)[1].split("\n## ", 1)[0]
+    documented_exits = {int(value) for value in re.findall(r"^\| (\d+) \|", section, re.MULTILINE)}
+    assert documented_exits == {0, *(row["exit_class"] for row in help_data["error_codes"])}
     # Installed agent guidance must describe this native command registry, not
     # the retained Python oracle. Check all locales against the actual process.
     skill = Path(__file__).resolve().parents[3] / "skills/canonical/ai-stp"
@@ -280,6 +285,20 @@ def prove_config(binary: Path, home: Path, root: Path) -> None:
         "sync.enabled",
     }
     assert all(item.source == "default" for item in defaults.values)
+    document = (Path(__file__).resolve().parents[3] / "docs/contracts/cli-config.md").read_text(
+        encoding="utf-8"
+    )
+    block = re.search(r"```yaml\n(.*?)```", document, re.DOTALL)
+    assert block is not None
+    documented = root / "documented-config.yaml"
+    documented.write_text(block.group(1), encoding="utf-8")
+    shown_defaults = ConfigReport.model_validate(
+        run(binary, home, ["config", "show", "--config", str(documented)])["data"]
+    )
+    assert {item.path: item.value for item in defaults.values} == {
+        item.path: item.value for item in shown_defaults.values
+    }
+    assert all(item.source == "config_file" for item in shown_defaults.values)
     config = root / "preview.yaml"
     content = "schema_version: 1\ncatalog:\n  enabled: false\nsync:\n  enabled: false\n"
     config.write_text(content, encoding="utf-8")

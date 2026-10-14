@@ -1,16 +1,5 @@
-"""Documents that own a machine fact, and the code that must match them.
+"""Shared model/document consistency; native CLI parity runs in verify.py."""
 
-`AGENTS.md` gives every normative fact exactly one owner, and for several the
-owner is a document rather than a model. That only means something if something
-checks: two lists that agree today and are checked by nobody are two lists that
-will disagree, and the document is what a reader trusts before the code exists
-for them.
-
-`cli-config.md` is held by `tests/contract/test_config_contract.py`. These are
-the other two.
-"""
-
-import re
 from pathlib import Path
 
 from ai_stp_contracts.identity import DeviceSummary
@@ -18,34 +7,10 @@ from ai_stp_foundation.errors import ERROR_CODES, VALID_EXIT_CLASSES
 
 CONTRACTS = Path(__file__).parents[2] / "docs" / "contracts"
 
-#: The success code. It is in the document's table and is not an error class,
-#: so it is excluded from the comparison rather than added to the registry.
-SUCCESS = 0
 
-
-def _documented_exit_codes() -> set[int]:
-    text = (CONTRACTS / "cli-json.md").read_text(encoding="utf-8")
-    section = text.split("## Exit codes", 1)[1].split("\n## ", 1)[0]
-    return {int(found) for found in re.findall(r"^\|\s*(\d+)\s*\|", section, re.MULTILINE)}
-
-
-def test_the_exit_classes_are_exactly_the_documented_ones() -> None:
-    # A code the CLI can return that the document does not list would be an exit
-    # status nobody agreed to, and callers match on these.
-    assert _documented_exit_codes() - {SUCCESS} == set(VALID_EXIT_CLASSES)
-
-
-def test_every_registered_error_maps_into_a_documented_class() -> None:
-    documented = _documented_exit_codes()
-    for code, entry in ERROR_CODES.items():
-        assert entry.exit_class in documented, code
-
-
-def test_the_document_lists_success_and_the_registry_does_not() -> None:
-    # Success is not an error, so it belongs in the table and not in the closed
-    # error registry. Stating it keeps the asymmetry deliberate.
-    assert SUCCESS in _documented_exit_codes()
-    assert SUCCESS not in VALID_EXIT_CLASSES
+def test_legacy_errors_remain_within_their_compatibility_classes() -> None:
+    assert {entry.exit_class for entry in ERROR_CODES.values()} == set(VALID_EXIT_CLASSES)
+    assert 0 not in VALID_EXIT_CLASSES
 
 
 #: Which fields each bullet of `device-passport.md` carries, in the order the
