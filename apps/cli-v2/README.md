@@ -405,7 +405,16 @@ Historical envelopes can appear in version history without becoming installable:
 exact-version materialization still requires a complete native passport. No
 artifact bytes are synchronized. The command journeys exercise a loopback HTTP
 service and real SQLite, including lost replies and local terminal replay. The
-real two-device API journey remains unfinished in #944.
+two-device API journey is reproducible with `just evidence-native-sync <binary>
+<sha256>` after `just cli-v2-build`. Set `AI_STP_TEST_DB_URL` to a PostgreSQL test
+service that permits creating disposable databases. The proof migrates one new
+database and drives the exact executable over TCP with two isolated native
+identities. It covers transfer, fast-forward, clean merge, explicit field conflict,
+lost committed reply with identical retry, revoked-device replacement with late
+acceptance, and terminal replay after logout. Only a test account and web session
+are seeded; native credentials and registries are created through CLI commands.
+The temporary database and device roots are removed afterward. This is actual API
+compatibility evidence, not deployed GitHub login or production writer cutover.
 
 After replacement and sign-in, `sync recover plan --state-dir --event-id` captures
 one pending request whose old device belongs to this installation's verified

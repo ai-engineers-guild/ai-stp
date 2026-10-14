@@ -64,8 +64,17 @@ release network or on a deployed environment being reachable.
 | `just evidence-contribution <tag>` | `#54`'s acceptance: one MCP component in each of its three native forms, and the refusal that is also an answer; each installed form is then removed again, and the owned-file form must leave the host file behind with the person's own key — the target's `config.toml` is seeded with that key before the install, so the removal has something to keep |
 | `just evidence-citations` | is every source link the harness catalogue cites still alive |
 | `just evidence-sync <home_a> <home_b>` | two devices, rewind, conflict and merge — needs a real browser login |
+| `just evidence-native-sync <binary> <sha256>` | the exact optimized Rust executable against the real API: two isolated devices, transfer, merge/conflict, lost reply, device replacement and logout replay; requires `AI_STP_TEST_DB_URL` and creates/removes its own migrated database, with a seeded test web session and no production credentials |
 | `just evidence-sync-hot-paths` | the private-sync denominators `#256` R05 names: ancestor walks, common-ancestor selection, page application and cold/warm task overhead, with real sqlite statement counts; `fixture` rows are setup cost, not verdicts |
 | `just evidence-publication <home>` | publication, grants, reports and owner reads — needs a real browser login |
+
+Build the native executable with `just cli-v2-build` before the native sync
+slice and pass its reviewed SHA-256. The PostgreSQL test service must allow
+creating disposable databases; the slice leaves existing databases untouched.
+It checks the executable digest before and after the journey and reports each
+observed scenario. This API proof does not replace a deployed browser-login
+check or the separate native SQLite proofs of malformed-page rollback,
+immutable-version closure, tombstones and explicit event abandonment.
 
 Use disposable authenticated homes for the sync slice. Each invocation creates
 a separate collision probe, fills its release-required declared metadata, and

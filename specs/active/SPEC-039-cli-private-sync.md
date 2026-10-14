@@ -71,9 +71,13 @@ together; the original request is unchanged. The `failed` outbox state contains
 local evidence tied to that completed plan, never a fabricated server receipt.
 A later authenticated stream can confirm the original event as accepted. A new
 push uses the new device and ordinary head preconditions without re-signing the
-retired request. Completed results replay after logout. The real two-device API
-journey remains unfinished; production writer cutover is not established by
-these proofs.
+retired request. Completed results replay after logout.
+`just evidence-native-sync <binary> <sha256>` drives two isolated native devices
+against the real API and a newly migrated disposable PostgreSQL database. It
+qualifies transfer, fast-forward, merge/conflict, identical retry after a lost
+committed reply, replaced-device recovery and replay after logout. A test web
+session approves the real device flow; native state is never injected. These
+proofs establish neither deployed GitHub login nor production writer cutover.
 
 ## Terms
 

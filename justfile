@@ -258,6 +258,15 @@ evidence-sync home_a home_b origin="https://ai-stp.aiguild.space" skip="":
         --home-b "{{ home_b }}" \
         {{ if skip == "" { "" } else { prepend("--skip-event ", skip) } }}
 
+# The service named by AI_STP_TEST_DB_URL hosts a newly created, disposable
+# database. The proof removes only that database and its temporary native roots.
+[arg('binary', help='optimized native executable built with cli-v2-build')]
+[arg('digest', help='reviewed SHA-256 of that executable')]
+[doc('Prove native two-device sync against the real API and isolated PostgreSQL')]
+[group('evidence')]
+evidence-native-sync binary digest:
+    {{ run }} python -m release_scripts.verify_native_sync --binary "{{ binary }}" --binary-sha256 "{{ digest }}"
+
 # Measures the private-sync hot paths `#256` R05 keeps explicit — ancestor
 # walks, common-ancestor selection, page application and cold/warm task
 # overhead — against real sqlite statement counts on the shipped functions.
