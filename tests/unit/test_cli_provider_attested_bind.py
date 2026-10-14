@@ -160,15 +160,15 @@ def _attest(monkeypatch: pytest.MonkeyPatch, order: list[str] | None = None) -> 
     monkeypatch.setattr(build_attestation, "verify", verify)
 
 
-def test_every_supported_harness_maps_to_one_opennetwork_attestation() -> None:
+def test_every_supported_harness_maps_to_one_current_component_attestation() -> None:
     policy = release.pinned_policy()
-    opennetwork = {
+    current = {
         name
         for name in policy.build_attestations
-        if name.startswith("github.com/NDDev-Technocracy-OpenNetwork/")
+        if name.startswith("github.com/NDDev-Technocracy-Archive/")
     }
     assert set(attested_bind.HARNESS_REPOSITORIES) == set(HARNESS_IDS)
-    assert set(attested_bind.HARNESS_REPOSITORIES.values()) == opennetwork
+    assert set(attested_bind.HARNESS_REPOSITORIES.values()) == current
 
 
 @pytest.mark.parametrize(
@@ -197,7 +197,13 @@ def test_artifact_url_contains_the_tag_not_a_floating_name() -> None:
 
 
 @pytest.mark.parametrize(
-    "owner", ["NDDev-Technocracy-OpenNetwork", "NDDev-OpenNetwork", "NDDev-Technocracy-Sandbox"]
+    "owner",
+    [
+        "NDDev-Technocracy-Archive",
+        "NDDev-Technocracy-OpenNetwork",
+        "NDDev-OpenNetwork",
+        "NDDev-Technocracy-Sandbox",
+    ],
 )
 def test_fetch_writes_a_closed_manifest_after_attestation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, owner: str
@@ -232,7 +238,7 @@ def test_fetch_writes_a_closed_manifest_after_attestation(
         github=_Github(),
         inspect=inspect,
     )
-    assert verified[0] == "NDDev-Technocracy-OpenNetwork/pi-setup-system"
+    assert verified[0] == "NDDev-Technocracy-Archive/pi-setup-system"
     assert verified[-1] == expected and len(verified) == len(set(verified))
     assert order == ["attest"] * len(verified) + ["inspect"]
     assert bound.repository == f"github.com/{expected}"
@@ -284,7 +290,7 @@ def test_fetch_never_inspects_without_a_pinned_attestation(
             harness="pi", tag="0.0.1", directory=tmp_path, github=_Github(), inspect=inspect
         )
     assert raised.value.code == code
-    assert len(attempted) == (3 if code == "AI_STP_PRECONDITION_FAILED" else 1)
+    assert len(attempted) == (4 if code == "AI_STP_PRECONDITION_FAILED" else 1)
     assert not (tmp_path / attested_bind.MANIFEST_NAME).exists()
 
 

@@ -269,3 +269,87 @@ repository = "NDDev-Technocracy-OpenNetwork/antigravity-setup-system"
 workflow = "publish-pypi.yml"
 environment = "pypi"
 verified_publisher = true
+
+[[build_attestations]]
+repository = "github.com/NDDev-Technocracy-Archive/claude-setup-system"
+signer_workflow = "NDDev-Technocracy-Archive/claude-setup-system/.github/workflows/release.yml"
+verified_publisher = true
+
+[[build_attestations]]
+repository = "github.com/NDDev-Technocracy-Archive/codex-setup-system"
+signer_workflow = "NDDev-Technocracy-Archive/codex-setup-system/.github/workflows/release.yml"
+verified_publisher = true
+
+[[build_attestations]]
+repository = "github.com/NDDev-Technocracy-Archive/cursor-setup-system"
+signer_workflow = "NDDev-Technocracy-Archive/cursor-setup-system/.github/workflows/release.yml"
+verified_publisher = true
+
+[[build_attestations]]
+repository = "github.com/NDDev-Technocracy-Archive/grok-setup-system"
+signer_workflow = "NDDev-Technocracy-Archive/grok-setup-system/.github/workflows/release.yml"
+verified_publisher = true
+
+[[build_attestations]]
+repository = "github.com/NDDev-Technocracy-Archive/pi-setup-system"
+signer_workflow = "NDDev-Technocracy-Archive/pi-setup-system/.github/workflows/release.yml"
+verified_publisher = true
+
+[[build_attestations]]
+repository = "github.com/NDDev-Technocracy-Archive/opencode-setup-system"
+signer_workflow = "NDDev-Technocracy-Archive/opencode-setup-system/.github/workflows/release.yml"
+verified_publisher = true
+
+[[build_attestations]]
+repository = "github.com/NDDev-Technocracy-Archive/antigravity-setup-system"
+signer_workflow = "NDDev-Technocracy-Archive/antigravity-setup-system/.github/workflows/release.yml"
+verified_publisher = true
+
+[[index_publishers]]
+pypi_project = "claude-setup-system"
+repository = "NDDev-Technocracy-Archive/claude-setup-system"
+workflow = "publish-pypi.yml"
+environment = "pypi"
+verified_publisher = true
+
+[[index_publishers]]
+pypi_project = "codex-setup-system"
+repository = "NDDev-Technocracy-Archive/codex-setup-system"
+workflow = "publish-pypi.yml"
+environment = "pypi"
+verified_publisher = true
+
+[[index_publishers]]
+pypi_project = "cursor-setup-system"
+repository = "NDDev-Technocracy-Archive/cursor-setup-system"
+workflow = "publish-pypi.yml"
+environment = "pypi"
+verified_publisher = true
+
+[[index_publishers]]
+pypi_project = "grok-setup-system"
+repository = "NDDev-Technocracy-Archive/grok-setup-system"
+workflow = "publish-pypi.yml"
+environment = "pypi"
+verified_publisher = true
+
+[[index_publishers]]
+pypi_project = "pi-setup-system"
+repository = "NDDev-Technocracy-Archive/pi-setup-system"
+workflow = "publish-pypi.yml"
+environment = "pypi"
+verified_publisher = true
+
+[[index_publishers]]
+pypi_project = "opencode-setup-system"
+repository = "NDDev-Technocracy-Archive/opencode-setup-system"
+workflow = "publish-pypi.yml"
+environment = "pypi"
+verified_publisher = true
+
+[[index_publishers]]
+pypi_project = "antigravity-setup-system"
+repository = "NDDev-Technocracy-Archive/antigravity-setup-system"
+workflow = "publish-pypi.yml"
+environment = "pypi"
+verified_publisher = true
