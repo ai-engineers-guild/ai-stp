@@ -19,7 +19,7 @@ use crate::{
 
 fn quiescent(connection: &rusqlite::Connection, at: &str) -> crate::error::Result<()> {
     let unfinished: bool = connection.query_row(
-        "SELECT EXISTS(SELECT 1 FROM operation WHERE finished_at IS NULL) OR EXISTS(SELECT 1 FROM proposal WHERE cancelled_at IS NULL AND confirmed_stable_id IS NULL AND expires_at>?) OR EXISTS(SELECT 1 FROM agent_task WHERE state IN ('planned','blocked','running'))",
+        "SELECT EXISTS(SELECT 1 FROM operation WHERE finished_at IS NULL AND kind!='sync.run') OR EXISTS(SELECT 1 FROM proposal WHERE cancelled_at IS NULL AND confirmed_stable_id IS NULL AND expires_at>?) OR EXISTS(SELECT 1 FROM agent_task WHERE state IN ('planned','blocked','running'))",
         [at], |row| row.get(0)).map_err(database)?;
     if unfinished {
         return Err(crate::error::Failure::precondition(
@@ -77,6 +77,11 @@ pub(super) fn selection(
     let owner_id = super::attachment::effective(&store.connection, device)?.account_id;
     let intent = Intent {
         device_id: format!("device_{}", ulid::Ulid::generate()),
+        interrupted_sync: crate::sync::interruption::capture(
+            &store.connection,
+            &state.plan,
+            account_id.as_deref(),
+        )?,
         account_id,
         owner_id,
         previous: device.recovery_tip()?,
@@ -136,7 +141,7 @@ pub(super) fn apply(plan: &Plan, at: &str) -> crate::error::Result<Value> {
             "the device recovery plan expired before admission",
         ));
     }
-    let store = Store::open_at(&root, true)?;
+    let mut store = Store::open_at(&root, true)?;
     let mut replacement = Replacement::open(plan)?;
     replacement.validate(plan)?;
     let retained = identity::recovery::pending(&replacement.directory)?;
@@ -145,6 +150,7 @@ pub(super) fn apply(plan: &Plan, at: &str) -> crate::error::Result<Value> {
     }
     if retained.is_none() {
         quiescent(&store.connection, at)?;
+        crate::sync::interruption::validate(&store.connection, plan)?;
     }
     let owner_id = match super::attachment::owner_binding(&store.connection)? {
         Some((original, account)) if replacement.knows_original(&original) => account,
@@ -177,6 +183,7 @@ pub(super) fn apply(plan: &Plan, at: &str) -> crate::error::Result<Value> {
     // These monotonic markers stay compatible if the process stops here.
     store.fence_retired_devices()?;
     journal.fence()?;
+    store.transaction(|t| crate::sync::interruption::apply(t, plan, &super::now_after(at)))?;
     replacement.admit(plan)?;
     replacement.replace(plan, &super::now_after(at))?;
     journal.retire()?;

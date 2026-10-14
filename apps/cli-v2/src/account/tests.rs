@@ -5,6 +5,8 @@ use super::*;
 mod access_tests;
 #[path = "attachment_tests.rs"]
 mod attachment_tests;
+#[path = "sync_recovery_tests.rs"]
+mod sync_recovery_tests;
 #[path = "sync_tests.rs"]
 mod sync_tests;
 use base64::engine::general_purpose::STANDARD;

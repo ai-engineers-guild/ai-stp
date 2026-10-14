@@ -189,7 +189,8 @@ fn known(t: &Transaction<'_>, scope: &Scope, event: &Event) -> Result<bool> {
     if direction == "push" {
         ledger::recorded(t, scope, &id)?;
     }
-    if direction == "push" && state == "pending" && id == event.event_id {
+    if direction == "push" && matches!(state.as_str(), "pending" | "failed") && id == event.event_id
+    {
         ledger::record_receipt(
             t,
             scope,

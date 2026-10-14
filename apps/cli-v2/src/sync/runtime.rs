@@ -3,7 +3,7 @@
 use super::{
     client::{self, Client},
     ledger::Scope,
-    push,
+    push, recovery,
     run::{self, Run},
 };
 use crate::{
@@ -20,6 +20,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub use super::interruption::Checkpoint;
+
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Request {
@@ -29,6 +31,9 @@ pub enum Request {
     Pull {
         page_size: u16,
         skip_event_ids: BTreeSet<String>,
+    },
+    Recover {
+        event_id: String,
     },
 }
 
@@ -40,11 +45,13 @@ pub struct Plan {
         serialize_with = "files::serialize_path",
         deserialize_with = "files::deserialize_path"
     )]
-    state_parent: PathBuf,
+    pub(super) state_parent: PathBuf,
     pub(super) account: Binding,
     pub(super) operation_id: String,
     request: Request,
     capture: Option<push::Capture>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) retirement: Option<recovery::Capture>,
     pub(super) frontier: String,
     pub(super) created_at: String,
     pub(super) expires_at: String,
@@ -61,6 +68,15 @@ impl Request {
                 if id.is_empty()
                     || id.len() > 128
                     || !id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+                {
+                    return Err(invalid());
+                }
+            }
+            Self::Recover { event_id } => {
+                if !(8..=128).contains(&event_id.len())
+                    || !event_id.bytes().all(|b| {
+                        b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'~' | b'-')
+                    })
                 {
                     return Err(invalid());
                 }
@@ -95,8 +111,19 @@ impl Plan {
             || !passport::stable_id(&self.operation_id, "operation")
             || authoring::expiry(&self.created_at)? != self.expires_at
             || matches!(self.request, Request::Push { .. }) != self.capture.is_some()
+            || matches!(self.request, Request::Recover { .. }) != self.retirement.is_some()
         {
             return Err(invalid());
+        }
+        if let (Request::Recover { event_id }, Some(retirement)) = (&self.request, &self.retirement)
+        {
+            let event = super::event::Event::push(&retirement.request, &self.account.account_id)?;
+            if event.event_id != *event_id
+                || retirement.replacement_device_id != self.account.device_id
+                || event.device_id == retirement.replacement_device_id
+            {
+                return Err(invalid());
+            }
         }
         let value = serde_json::to_value(self).map_err(|_| invalid())?;
         if canonical::bytes(&value)?.len() > 16 * 1024 * 1024 {
@@ -105,13 +132,20 @@ impl Plan {
         digest::canonical("ai-stp:plan:v1", &value)
     }
     pub(super) fn entity(&self) -> Option<String> {
-        self.capture.as_ref().map(|c| c.entity_id.clone())
+        self.capture
+            .as_ref()
+            .map(|c| c.entity_id.clone())
+            .or_else(|| {
+                self.retirement
+                    .as_ref()
+                    .and_then(|c| c.entity().map(str::to_owned))
+            })
     }
 
     pub(super) fn validate_local(
         &self,
         connection: &rusqlite::Connection,
-        owner: &authoring::Identity,
+        owner: &authoring::runtime::Owner,
         scope: &Scope,
         at: &str,
     ) -> Result<()> {
@@ -121,6 +155,13 @@ impl Plan {
         {
             return Err(Failure::precondition(
                 "the private push content changed after planning",
+            ));
+        }
+        if let (Request::Recover { event_id }, Some(expected)) = (&self.request, &self.retirement)
+            && recovery::capture(connection, scope, owner, event_id)? != *expected
+        {
+            return Err(Failure::precondition(
+                "the retired-device request changed after planning",
             ));
         }
         Ok(())
@@ -150,12 +191,24 @@ pub fn plan(
     scope.inspect(&store.connection)?;
     let capture = match &request {
         Request::Push { id } => Some(push::capture(&store.connection, &owner, id)?),
-        Request::Pull { .. } => None,
+        Request::Pull { .. } | Request::Recover { .. } => None,
+    };
+    let retirement = match &request {
+        Request::Recover { event_id } => Some(recovery::capture(
+            &store.connection,
+            &scope,
+            &owner,
+            event_id,
+        )?),
+        _ => None,
     };
     let frontier = run::frontier(
         &store.connection,
         &scope,
-        capture.as_ref().map(|c| c.entity_id.as_str()),
+        capture
+            .as_ref()
+            .map(|c| c.entity_id.as_str())
+            .or_else(|| retirement.as_ref().and_then(recovery::Capture::entity)),
     )?;
     let plan = Plan {
         schema_version: 1,
@@ -164,6 +217,7 @@ pub fn plan(
         operation_id: format!("operation_{}", ulid::Ulid::generate()),
         request,
         capture,
+        retirement,
         frontier,
         created_at: at.into(),
         expires_at: authoring::expiry(at)?,
@@ -223,6 +277,11 @@ pub fn apply(plan: &Plan, expected: &str, configuration: Option<&Path>, at: &str
             page_size,
             skip_event_ids,
         } => client.pull(*page_size, skip_event_ids)?,
+        Request::Recover { .. } => client.recover(
+            plan.retirement.as_ref().ok_or_else(invalid)?,
+            &plan.operation_id,
+            expected,
+        )?,
     };
     let run = client.run.as_mut().ok_or_else(invalid)?;
     if run.result.is_none() {

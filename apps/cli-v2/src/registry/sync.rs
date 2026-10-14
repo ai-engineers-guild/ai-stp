@@ -13,6 +13,7 @@ use std::{collections::BTreeSet, path::PathBuf};
 pub(super) enum Handler {
     Push,
     Pull,
+    Recover,
     Apply,
 }
 impl Handler {
@@ -61,13 +62,29 @@ pub(super) const COMMANDS: &[Declaration] = &[
         handler: super::Handler::Sync(Handler::Pull),
     },
     Declaration {
+        path: &["sync", "recover", "plan"],
+        summary: "Plan local retirement of one pending request from this installation's replaced device; preserve its bytes and unknown remote outcome.",
+        parameters: &[
+            STATE_DIR,
+            API,
+            CONFIG,
+            Parameter {
+                name: "event-id",
+                summary: "Exact pending event id reported by push; the original device must be in this installation's verified replacement history.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Sync(Handler::Recover),
+    },
+    Declaration {
         path: &["sync", "apply"],
         summary: "Apply an exact private sync plan, retaining requests and atomic page receipts; completed operations replay locally after logout.",
         parameters: &[
             CONFIG,
             Parameter {
                 name: "plan",
-                summary: "Exact JSON plan from sync push plan or sync pull plan.",
+                summary: "Exact JSON plan from sync push plan, sync pull plan, or sync recover plan.",
                 kind: ParameterType::Path,
                 required: true,
             },
@@ -117,6 +134,12 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                 .get_many::<String>("skip-event")
                 .map(|v| v.cloned().collect::<BTreeSet<_>>())
                 .unwrap_or_default(),
+        },
+        Handler::Recover => Request::Recover {
+            event_id: args
+                .get_one::<String>("event-id")
+                .ok_or_else(|| Failure::input("the pending sync event id is absent"))?
+                .clone(),
         },
         Handler::Apply => return Err(Failure::input("invalid sync command")),
     };

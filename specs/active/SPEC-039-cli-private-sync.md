@@ -62,9 +62,18 @@ The device projection includes only observed platform summary fields. Consent
 projection is limited to the authenticated account's retained scope/target
 record and preserves revocation. The graph is bounded to 16,384 revisions and a
 16 MiB capture. Loopback HTTP and real SQLite exercise these native command
-journeys. Explicit recovery of retired-device pending requests and the real
-two-device API journey remain unfinished; production writer cutover is not
-established by these proofs.
+journeys. Explicit account key replacement binds and interrupts unfinished sync
+commands while preserving their requests and unknown remote outcomes. After
+replacement and sign-in, `sync recover plan --event-id` and exact `sync apply`
+retire a pending request only when its device belongs to this installation's
+verified succession history. Local retirement and its command result commit
+together; the original request is unchanged. The `failed` outbox state contains
+local evidence tied to that completed plan, never a fabricated server receipt.
+A later authenticated stream can confirm the original event as accepted. A new
+push uses the new device and ordinary head preconditions without re-signing the
+retired request. Completed results replay after logout. The real two-device API
+journey remains unfinished; production writer cutover is not established by
+these proofs.
 
 ## Terms
 

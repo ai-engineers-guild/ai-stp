@@ -247,18 +247,26 @@ fn read(connection: &Connection, row: &rusqlite::Row<'_>, account: &str) -> Resu
         || local_revision_id != local_revision(connection, &event)?
         || !matches!(
             state.as_str(),
-            "pending" | "accepted" | "conflict" | "rejected" | "superseded"
+            "pending" | "accepted" | "conflict" | "rejected" | "superseded" | "failed"
         )
     {
         return Err(invalid());
     }
-    let receipt = receipt
+    let mut receipt = receipt
         .map(|body| canonical::parse(body.as_bytes()))
         .transpose()?;
     if direction == "pull" && (state != "accepted" || receipt.is_some()) {
         return Err(invalid());
     }
-    if let Some(receipt) = &receipt {
+    if state == "failed" {
+        super::recovery::validate(
+            connection,
+            account,
+            &request,
+            receipt.as_ref().ok_or_else(invalid)?,
+        )?;
+        receipt = None;
+    } else if let Some(receipt) = &receipt {
         validate_receipt(receipt, &event)?;
         if receipt["state"] != state {
             return Err(invalid());
@@ -414,6 +422,9 @@ pub fn record_receipt(transaction: &Transaction<'_>, scope: &Scope, receipt: &Va
     let held = recorded(transaction, scope, event_id)?;
     let event = Event::push(&held.request, &scope.account)?;
     validate_receipt(receipt, &event)?;
+    if held.state == "failed" && receipt["state"] != "accepted" {
+        return Err(invalid());
+    }
     if let Some(previous) = held.receipt {
         if previous != *receipt {
             return Err(conflict());
@@ -421,7 +432,7 @@ pub fn record_receipt(transaction: &Transaction<'_>, scope: &Scope, receipt: &Va
         return Ok(());
     }
     let changed = transaction.execute(
-        "UPDATE sync_event SET state=?,receipt_json=? WHERE account_id=? AND event_id=? AND direction='push' AND state='pending'",
+        "UPDATE sync_event SET state=?,receipt_json=? WHERE account_id=? AND event_id=? AND direction='push' AND state IN ('pending','failed')",
         params![receipt["state"].as_str().ok_or_else(invalid)?,encoded(receipt)?,scope.account,event_id],
     ).map_err(database)?;
     if changed != 1 {

@@ -252,8 +252,13 @@ device ID and binds the old key, exact account revision, physical root, storage,
 effective owner and previous recovery. Apply drains account and registry writers,
 persists the intent, creates a new key, records its public succession and removes
 only the retired key and account credential entries. It does not authenticate or
-transfer ownership. Finish or cancel outstanding operations, proposals and tasks
-before admission. Once admitted, the same intent resumes after expiry; it never
+transfer ownership. Finish or cancel outstanding installation/authoring operations,
+proposals and tasks before admission. Unfinished sync commands are captured by
+exact operation, plan and progress digests (at most 128) and finish with an explicit
+`interrupted` result when key replacement is admitted. Their retained requests
+stay unchanged and their remote outcome stays unknown. A changed checkpoint
+refuses admission; an interruption already committed by this recovery replays
+without touching its outbox. Once admitted, the same intent resumes after expiry; it never
 generates another key after recording the replacement. `account status` exposes
 the pending plan during interruption, while ordinary identity use refuses until
 recovery finishes. Completed recovery and initialization receipts replay exactly.
@@ -400,8 +405,24 @@ Historical envelopes can appear in version history without becoming installable:
 exact-version materialization still requires a complete native passport. No
 artifact bytes are synchronized. The command journeys exercise a loopback HTTP
 service and real SQLite, including lost replies and local terminal replay. The
-real two-device API journey and explicit recovery of requests signed by a retired
-device remain unfinished in #944; those requests are never silently re-signed.
+real two-device API journey remains unfinished in #944.
+
+After replacement and sign-in, `sync recover plan --state-dir --event-id` captures
+one pending request whose old device belongs to this installation's verified
+succession history. `sync apply` retires that local attempt atomically with its
+completed command result. Original request bytes, event/key and head precondition
+remain intact. The result says `retired_device` and `remote_outcome: unknown`;
+it does not claim that the server rejected or failed to apply the request.
+Current-device attempts and unrelated devices cannot use this recovery path.
+
+The existing outbox's `failed` state holds a local retirement reference, checked
+against the exact completed recovery plan; it is never interpreted as a server
+receipt. A later authenticated pull can confirm the original event as accepted.
+Otherwise a new explicit push uses the current device, unchanged local history
+and ordinary remote-head preconditions. It never overwrites or re-signs the old
+request. Completed interruption and retirement results replay locally even after
+logout. Keep a recovery-aware native executable: older readers reject populated
+sync interruption fields in identity history and unknown local retirement state.
 
 `grant list --state-dir` reads owned invitations and owned/received major-line
 access grants through fresh authentication of the same account and device.

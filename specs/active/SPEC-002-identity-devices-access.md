@@ -1,6 +1,6 @@
 ---
 description: "SPEC-002: Accounts, OAuth, devices, and access."
-last_verified: "2026-09-07"
+last_verified: "2026-10-14"
 ---
 
 # SPEC-002: Accounts, OAuth, Devices, and Access
@@ -77,8 +77,14 @@ defined by the [code-adjacent CLI contract](../../apps/cli-v2/README.md). Device
 authorization, signed refresh, logout and explicit revoked-key recovery do not
 transfer local authoring ownership or establish sync/publication support.
 Recovery preserves completed local history and exact retained access, removes the
-retired private key, and requires a new sign-in to the same account. Production state remains with the existing
-CLI until the verified migration checkpoint.
+retired private key, and requires a new sign-in to the same account. The exact
+recovery plan captures unfinished native sync command checkpoints and interrupts
+those commands without changing their retained requests or claiming a remote
+outcome. Other outstanding operations, proposals and tasks still block recovery.
+An interruption committed before process loss is replayed by the same admitted
+recovery; changed or omitted checkpoints refuse. Populated interruption fields
+in retained public succession require a compatible native reader. Production
+state remains with the existing CLI until the verified migration checkpoint.
 
 ## Acceptance criteria
 

@@ -116,8 +116,8 @@ impl Client {
         let event = Event::push(request, self.scope.account())?;
         if event.device_id != self.account.binding().device_id {
             return Err(Failure::precondition(
-                "the sync event belongs to another signing device",
-            ));
+                "the sync event belongs to another signing device; plan explicit recovery before another push",
+            ).with_details([("event_id".into(),event.event_id.into()),("next_command_path".into(),"sync recover plan".into())]));
         }
         let held = self.store.transaction(|t| {
             if let Some(run) = &self.run {
@@ -134,6 +134,11 @@ impl Client {
             }
             Ok(held)
         })?;
+        if held.state == "failed" {
+            return Err(Failure::precondition(
+                "a locally retired request cannot be delivered again",
+            ));
+        }
         if let Some(receipt) = held.receipt {
             return Ok(receipt);
         }
@@ -200,6 +205,29 @@ impl Client {
         self.account.revalidate()?;
         self.store
             .transaction(|t| super::push::capture(t, &self._owner, id))
+    }
+
+    pub(super) fn recover(
+        &mut self,
+        capture: &super::recovery::Capture,
+        operation_id: &str,
+        digest: &str,
+    ) -> Result<Value> {
+        self.account.revalidate()?;
+        let run = self.run.as_mut().ok_or_else(|| {
+            Failure::precondition("sync recovery requires an admitted exact command")
+        })?;
+        self.store.transaction(|t| {
+            run.check(t, &self.scope)?;
+            let result = super::recovery::retire(t, &self.scope, capture, operation_id, digest)?;
+            run.save(
+                t,
+                &self.scope,
+                Some(result.clone()),
+                &format!("{:.3}", jiff::Timestamp::now()),
+            )?;
+            Ok(result)
+        })
     }
 
     fn sent(&mut self, request: &Value, history: &mut super::push::History) -> Result<Value> {

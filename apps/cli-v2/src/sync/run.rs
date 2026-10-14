@@ -45,7 +45,7 @@ pub(super) fn frontier(
     if states.iter().any(|(s, _, _)| {
         !matches!(
             s.as_str(),
-            "accepted" | "pending" | "conflict" | "rejected" | "superseded"
+            "accepted" | "pending" | "conflict" | "rejected" | "superseded" | "failed"
         )
     }) {
         return Err(invalid());
@@ -103,6 +103,20 @@ pub(super) struct Run {
 }
 
 impl Run {
+    pub(super) fn admitted(connection: &Connection, id: &str) -> Result<Plan> {
+        let bytes: String = connection.query_row(
+            "SELECT CASE WHEN length(CAST(evidence AS BLOB))<=16777216 THEN evidence ELSE NULL END FROM operation_event WHERE operation_id=? AND sequence=1",
+            [id], |r| r.get(0),
+        ).map_err(database)?;
+        let plan: Plan =
+            serde_json::from_value(canonical::parse(bytes.as_bytes())?).map_err(|_| invalid())?;
+        if plan.operation_id != id {
+            return Err(invalid());
+        }
+        plan.digest()?;
+        Ok(plan)
+    }
+
     pub fn load(connection: &Connection, plan: &Plan) -> Result<Option<Self>> {
         let hash = plan.digest()?;
         let Some(state) = journal::state(connection, &plan.operation_id, KIND, &hash)? else {
