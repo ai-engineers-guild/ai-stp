@@ -227,7 +227,7 @@ requires-dist = [
 
 [[package]]
 name = "ai-stp-cli"
-version = "0.0.49"
+version = "0.0.50"
 source = { editable = "apps/cli" }
 dependencies = [
     { name = "click" },

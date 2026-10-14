@@ -48,13 +48,13 @@ _COMMIT: Final[re.Pattern[str]] = re.compile(r"^[0-9a-f]{40}$")
 #: Current transport locations. Historical signing identities remain in policy.
 HARNESS_REPOSITORIES: Final[Mapping[str, str]] = MappingProxyType(
     {
-        "claude-code": "github.com/NDDev-Technocracy-OpenNetwork/claude-setup-system",
-        "codex": "github.com/NDDev-Technocracy-OpenNetwork/codex-setup-system",
-        "pi": "github.com/NDDev-Technocracy-OpenNetwork/pi-setup-system",
-        "opencode": "github.com/NDDev-Technocracy-OpenNetwork/opencode-setup-system",
-        "grok-build": "github.com/NDDev-Technocracy-OpenNetwork/grok-setup-system",
-        "cursor": "github.com/NDDev-Technocracy-OpenNetwork/cursor-setup-system",
-        "antigravity": "github.com/NDDev-Technocracy-OpenNetwork/antigravity-setup-system",
+        "claude-code": "github.com/NDDev-Technocracy-Archive/claude-setup-system",
+        "codex": "github.com/NDDev-Technocracy-Archive/codex-setup-system",
+        "pi": "github.com/NDDev-Technocracy-Archive/pi-setup-system",
+        "opencode": "github.com/NDDev-Technocracy-Archive/opencode-setup-system",
+        "grok-build": "github.com/NDDev-Technocracy-Archive/grok-setup-system",
+        "cursor": "github.com/NDDev-Technocracy-Archive/cursor-setup-system",
+        "antigravity": "github.com/NDDev-Technocracy-Archive/antigravity-setup-system",
     }
 )
 
@@ -103,7 +103,7 @@ class ReleaseClient(Protocol):
 
 
 def repository_for_harness(harness: str) -> str:
-    """Return the pinned OpenNetwork repository for a supported harness."""
+    """Return the pinned component repository for a supported harness."""
     if harness not in HARNESS_IDS:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
@@ -116,7 +116,7 @@ def repository_for_harness(harness: str) -> str:
     if repository not in policy.build_attestations:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
-            "the named harness has no attested OpenNetwork repository",
+            "the named harness has no attested component repository",
             details={"harness": harness, "repository": repository},
             next_actions=["provider trust --json"],
         )
@@ -211,7 +211,7 @@ def fetch(
     github: ReleaseClient | None = None,
     inspect: Callable[[Path], protocol_v3.ProviderCapabilities] | None = None,
 ) -> BoundRelease:
-    """Download or bind one attested OpenNetwork artifact and write its manifest."""
+    """Download or bind one attested component artifact and write its manifest."""
     repository = repository_for_harness(harness)
     policy = release.pinned_policy()
     if attestation_bundle is not None:
@@ -332,6 +332,7 @@ def _verify_publisher(
     project = repository.rsplit("/", 1)[-1]
     candidates = (
         repository,
+        f"github.com/NDDev-Technocracy-OpenNetwork/{project}",
         f"github.com/NDDev-OpenNetwork/{project}",
         f"github.com/NDDev-Technocracy-Sandbox/{project}",
     )
@@ -433,7 +434,7 @@ def _owner_repo(repository: str) -> str:
     if not repository.startswith(_GITHUB_PREFIX):
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            "the named harness has no attested OpenNetwork repository",
+            "the named harness has no attested component repository",
             details={"repository": repository},
         )
     return repository.removeprefix(_GITHUB_PREFIX)

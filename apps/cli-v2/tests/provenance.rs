@@ -28,7 +28,11 @@ fn public_pypi_evidence_and_adversarial_variants() -> Result<(), Box<dyn Error>>
         accepted.source_commit,
         record["source_commit"].as_str().ok_or("commit")?
     );
-    for successor in ["NDDev-Technocracy-Sandbox", "NDDev-Technocracy-OpenNetwork"] {
+    for successor in [
+        "NDDev-Technocracy-Sandbox",
+        "NDDev-Technocracy-OpenNetwork",
+        "NDDev-Technocracy-Archive",
+    ] {
         let mut moved = expected.clone();
         moved.repository = moved.repository.replace("NDDev-OpenNetwork", successor);
         let accepted = provenance::verify_any(

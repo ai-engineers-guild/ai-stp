@@ -49,8 +49,9 @@ that run.
 
 The shipped policy marks `build_attestations` rules for
 `NDDev-OpenNetwork/*-setup-system`,
-`NDDev-Technocracy-Sandbox/*-setup-system` and
-`NDDev-Technocracy-OpenNetwork/*-setup-system` as `verified_publisher`. After successful
+`NDDev-Technocracy-Sandbox/*-setup-system`,
+`NDDev-Technocracy-OpenNetwork/*-setup-system` and
+`NDDev-Technocracy-Archive/*-setup-system` as `verified_publisher`. After successful
 GitHub attestation verification, the level becomes `verified_publisher`, not
 `build_attested`. A manifest whose `repository` matches these rules is verified
 through the attestation path; `provider-build-attestation` remains an explicit
@@ -61,7 +62,7 @@ The same seven providers are also pinned as `[[index_publishers]]` tables:
 `pypi_project`, PEP 740 `repository` (`owner/name`), `workflow`, `environment`,
 and `verified_publisher`. Automatic missing-provider acquisition uses the index
 under ADR-0171. An explicitly selected GitHub fetch remains available. Release metadata and
-artifact downloads use the current `NDDev-Technocracy-OpenNetwork` location.
+artifact downloads use the current `NDDev-Technocracy-Archive` location.
 Verification tries only locally pinned current and historical signing identities
 for that same component, binding the manifest to the identity that actually
 verifies. A redirect does not authorize a publisher, and a missing verifier or

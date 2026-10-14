@@ -674,7 +674,7 @@
   "the multi-root install stopped and needs recovery": "multi-root установка остановилась и требует восстановления",
   "the multi-root transaction is not in the required state": "multi-root транзакция находится не в требуемом состоянии",
   "the named embedded component is not in this setup": "названного встроенного компонента нет в этом сетапе",
-  "the named harness has no attested OpenNetwork repository": "у названного харнесса нет attested-репозитория OpenNetwork",
+  "the named harness has no attested component repository": "у названного харнесса нет attested-репозитория компонента",
   "the named harness has no pinned index publisher": "у названного харнесса нет закреплённого издателя индекса",
   "the native configuration changed after the import plan was reviewed": "нативная конфигурация изменилась после просмотра плана импорта",
   "the object is larger than the local store accepts": "объект больше, чем принимает локальное хранилище",
