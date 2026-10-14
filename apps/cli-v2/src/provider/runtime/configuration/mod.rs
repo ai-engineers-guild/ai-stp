@@ -10,6 +10,7 @@ mod project;
 #[cfg(test)]
 mod project_tests;
 mod reservations;
+pub(super) mod set;
 #[cfg(test)]
 mod tests;
 

@@ -11,7 +11,12 @@ use crate::{
     provider::{
         Info, artifact,
         plan::Observed,
-        runtime::{Runtime, execution::Configuration, platform, target::Target},
+        runtime::{
+            Runtime,
+            execution::{Configuration, Mode},
+            platform,
+            target::Target,
+        },
         trust,
     },
 };
@@ -42,7 +47,12 @@ fn observe(
     let status = runtime
         .launcher
         .status(executable, target, plan.target_scope)?;
-    let value = json!({"files":files,"status":target.response(&status, info)?});
+    let mut status = target.response(&status, info)?;
+    // Cancelling a prepared operation retires its journal without changing configuration.
+    let operational = status.as_object_mut().ok_or_else(invalid)?;
+    operational.remove("journal");
+    operational.remove("cleanup_state");
+    let value = json!({"files":files,"status":status});
     Ok(digest::sha256(
         &serde_json_canonicalizer::to_vec(&value).map_err(|_| invalid())?,
     ))
@@ -52,6 +62,15 @@ pub(in crate::provider::runtime) fn cancel(
     parent: &Path,
     bytes: &[u8],
     digest: &str,
+) -> Result<Value> {
+    execute(parent, bytes, digest, None)
+}
+
+pub(super) fn execute(
+    parent: &Path,
+    bytes: &[u8],
+    digest: &str,
+    authority: Option<&super::set::journal::Journal>,
 ) -> Result<Value> {
     let plan = Plan::parse(bytes, digest)?;
     if let Some(prior) = Journal::history(parent, &plan, digest)?
@@ -68,6 +87,7 @@ pub(in crate::provider::runtime) fn cancel(
     }
     target.disjoint(&state.directory()?)?;
     let journal = Journal::open(parent, &plan, digest)?;
+    super::set::authorize(parent, &plan, digest, Mode::Cancel, authority)?;
     if let Some(prior) = journal.read(&plan, digest)?
         && prior.state != "applying"
     {
@@ -117,7 +137,7 @@ pub(in crate::provider::runtime) fn cancel(
         &Configuration {
             plan: &plan.provider_plan,
             request: &request,
-            cancel: true,
+            mode: Mode::Cancel,
         },
         &[],
     )?;

@@ -1,6 +1,6 @@
 //! Exact attribution from serialized verified mutations; plans are not observations.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use rusqlite::{Connection, OptionalExtension};
 
@@ -11,15 +11,24 @@ use crate::{
 
 pub(super) const MAX_ROWS: usize = 100_000;
 
-pub(super) struct Installed {
+pub(crate) struct Installed {
     pub target: String,
     pub root: String,
     pub setup_id: String,
     pub version: String,
     pub native: bool,
+    #[cfg(target_os = "linux")]
+    pub native_roots: Vec<(String, crate::provider::configuration::plan::Identity)>,
 }
 
 pub(super) fn installed(connection: &Connection) -> Result<Vec<Installed>> {
+    installed_except(connection, None)
+}
+
+fn installed_except(connection: &Connection, excluded: Option<&str>) -> Result<Vec<Installed>> {
+    let members = aggregate_members(connection)?;
+    let parent = excluded.and_then(|id| members.get(id));
+    let mut operations = BTreeSet::new();
     let mut query = connection.prepare(
         "SELECT target,root,action,setup,version,detail,state,operation_id FROM ( \
          SELECT p.target_id AS target,coalesce(p.provider_target,'') AS root,p.action AS action, \
@@ -32,7 +41,7 @@ pub(super) fn installed(connection: &Connection) -> Result<Vec<Installed>> {
          SELECT '', '', o.kind, '', '', \
          CASE WHEN length(CAST(o.detail AS BLOB))<=?1 THEN o.detail ELSE NULL END, \
          o.state,o.operation_id,e.global_sequence FROM operation o JOIN operation_event e ON e.operation_id=o.operation_id AND e.state_after=o.state \
-         WHERE o.kind IN ('configuration.install','configuration.replace','configuration.remove') AND o.state IN ('applying','verified') \
+         WHERE o.kind IN ('configuration.install','configuration.replace','configuration.remove','configuration.set') AND o.state IN ('applying','verified') \
          ) ORDER BY ordering DESC LIMIT ?2"
     ).map_err(database)?;
     let mut seen = BTreeSet::new();
@@ -42,7 +51,7 @@ pub(super) fn installed(connection: &Connection) -> Result<Vec<Installed>> {
     let rows = query
         .query_map(
             [
-                crate::provider::configuration::record::LIMIT as i64,
+                crate::provider::configuration::set::RECORD_LIMIT as i64,
                 (MAX_ROWS + 1) as i64,
             ],
             |row| {
@@ -76,6 +85,16 @@ pub(super) fn installed(connection: &Connection) -> Result<Vec<Installed>> {
             state,
             operation_id,
         ) = row.map_err(database)?;
+        if !operations.insert(operation_id.clone())
+            || members.contains_key(&operation_id)
+            || excluded == Some(operation_id.as_str())
+            || parent == Some(&operation_id)
+        {
+            continue;
+        }
+        let mut group_roots = Vec::new();
+        #[cfg(target_os = "linux")]
+        let mut native_roots = Vec::new();
         let native = action.starts_with("configuration.");
         let harness = if native {
             let detail = detail.ok_or_else(super::invalid)?;
@@ -85,30 +104,68 @@ pub(super) fn installed(connection: &Connection) -> Result<Vec<Installed>> {
                     "the configuration history exceeds 128 MiB",
                 ));
             }
-            let (_, plan) =
-                crate::provider::configuration::record::Record::parse(&detail, &action, &state)?;
-            if plan.operation_id != operation_id {
-                return Err(super::invalid());
-            }
-            root.clone_from(&plan.target_path);
-            target = format!(
-                "{}:{}",
-                plan.project
+            if action == crate::provider::configuration::set::KIND {
+                let (_, plan) =
+                    crate::provider::configuration::set::Record::parse(&detail, &state)?;
+                if plan.operation_id != operation_id {
+                    return Err(super::invalid());
+                }
+                let first = plan.first()?;
+                root = plan
+                    .project
                     .as_ref()
-                    .map_or(plan.target_path.as_str(), |binding| binding
-                        .project_id
-                        .as_str()),
-                plan.harness_id
-            );
-            action = if state == "verified" && plan.operation()? != "remove" {
-                "install"
+                    .map_or(first.target_path.clone(), |p| p.root.clone());
+                target = format!(
+                    "{}:{}",
+                    plan.project
+                        .as_ref()
+                        .map_or(root.as_str(), |p| p.binding.project_id.as_str()),
+                    first.harness_id
+                );
+                action = if state == "verified" && first.operation()? != "remove" {
+                    "install"
+                } else {
+                    "remove"
+                }
+                .into();
+                setup_id = first.setup["stable_id"].as_str().unwrap_or("").into();
+                version = first.setup["version"].as_str().unwrap_or("").into();
+                for child in &plan.children {
+                    let child = child.parsed()?;
+                    group_roots.push(child.target_path.clone());
+                    #[cfg(target_os = "linux")]
+                    native_roots.push((child.target_path, child.target_identity));
+                }
+                first.harness_id
             } else {
-                "remove"
+                let (_, plan) = crate::provider::configuration::record::Record::parse(
+                    &detail, &action, &state,
+                )?;
+                if plan.operation_id != operation_id {
+                    return Err(super::invalid());
+                }
+                root.clone_from(&plan.target_path);
+                #[cfg(target_os = "linux")]
+                native_roots.push((plan.target_path.clone(), plan.target_identity.clone()));
+                target = format!(
+                    "{}:{}",
+                    plan.project
+                        .as_ref()
+                        .map_or(plan.target_path.as_str(), |binding| binding
+                            .project_id
+                            .as_str()),
+                    plan.harness_id
+                );
+                action = if state == "verified" && plan.operation()? != "remove" {
+                    "install"
+                } else {
+                    "remove"
+                }
+                .into();
+                setup_id = plan.setup["stable_id"].as_str().unwrap_or("").into();
+                version = plan.setup["version"].as_str().unwrap_or("").into();
+                plan.harness_id
             }
-            .into();
-            setup_id = plan.setup["stable_id"].as_str().unwrap_or("").into();
-            version = plan.setup["version"].as_str().unwrap_or("").into();
-            plan.harness_id
         } else {
             target
                 .split_once(':')
@@ -124,9 +181,15 @@ pub(super) fn installed(connection: &Connection) -> Result<Vec<Installed>> {
                 String::new()
             },
         );
-        let superseded = seen.contains(&key)
+        let superseded = group_roots
+            .iter()
+            .any(|root| seen.contains(&(harness.clone(), root.clone(), String::new())))
+            || seen.contains(&key)
             || unnamed.contains(&target)
             || (root.is_empty() && pairs.contains(&target));
+        for root in group_roots {
+            seen.insert((harness.clone(), root, String::new()));
+        }
         seen.insert(key);
         pairs.insert(target.clone());
         if root.is_empty() {
@@ -143,6 +206,8 @@ pub(super) fn installed(connection: &Connection) -> Result<Vec<Installed>> {
                 setup_id,
                 version,
                 native,
+                #[cfg(target_os = "linux")]
+                native_roots,
             });
         }
     }
@@ -185,4 +250,44 @@ pub(super) fn baseline(
         )
         .optional()
         .map_err(database)
+}
+
+/// Child receipts describe scope subsets. Only their parent can attest a complete setup.
+fn aggregate_members(connection: &Connection) -> Result<BTreeMap<String, String>> {
+    let mut query = connection.prepare("SELECT state,CASE WHEN length(CAST(detail AS BLOB))<=?1 THEN detail ELSE NULL END FROM operation WHERE kind='configuration.set' LIMIT ?2").map_err(database)?;
+    let mut rows = query
+        .query([
+            crate::provider::configuration::set::RECORD_LIMIT as i64,
+            (MAX_ROWS + 1) as i64,
+        ])
+        .map_err(database)?;
+    let mut members = BTreeMap::new();
+    let mut count = 0;
+    let mut bytes = 0usize;
+    while let Some(row) = rows.next().map_err(database)? {
+        count += 1;
+        let state: String = row.get(0).map_err(database)?;
+        let detail: Option<String> = row.get(1).map_err(database)?;
+        let detail = detail.ok_or_else(super::invalid)?;
+        bytes = bytes.saturating_add(detail.len());
+        if count > MAX_ROWS || bytes > 128 * 1024 * 1024 {
+            return Err(super::invalid());
+        }
+        let (_, plan) = crate::provider::configuration::set::Record::parse(&detail, &state)?;
+        for child in &plan.children {
+            if members
+                .insert(child.parsed()?.operation_id, plan.operation_id.clone())
+                .is_some()
+            {
+                return Err(super::invalid());
+            }
+        }
+    }
+    Ok(members)
+}
+
+/// Current installation relationships before one native operation or its parent.
+#[cfg(target_os = "linux")]
+pub(crate) fn installed_before(connection: &Connection, operation: &str) -> Result<Vec<Installed>> {
+    installed_except(connection, Some(operation))
 }

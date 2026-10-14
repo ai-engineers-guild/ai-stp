@@ -976,7 +976,13 @@ fn mcp_contributions(store: &mut Store, declarations: &[Value]) -> Result<(), Bo
 fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs()
 -> Result<(), Box<dyn Error>> {
     let root = tempfile::tempdir()?;
-    let mut store = Store::open(root.path(), true)?;
+    // Optional live-component evidence uses a freshly generated fixture registry,
+    // never a copy of the owner's state or a fabricated provider receipt.
+    let export_state = std::env::var_os("AI_STP_BUNDLE_PROOF_STATE").map(std::path::PathBuf::from);
+    if let Some(path) = &export_state {
+        std::fs::create_dir(path)?;
+    }
+    let mut store = Store::open(export_state.as_deref().unwrap_or(root.path()), true)?;
     let declarations: Vec<Value> =
         serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
     scopes::journey(&mut store, &declarations)?;

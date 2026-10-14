@@ -45,9 +45,26 @@ fn components(
     if graph["resolved"] != true {
         return Err(refused());
     }
+    components_from_nodes(
+        connection,
+        harness,
+        scope,
+        bindings,
+        graph["nodes"].as_array().ok_or_else(refused)?,
+    )
+}
+
+fn components_from_nodes(
+    connection: &Connection,
+    harness: &str,
+    scope: projection::Scope,
+    bindings: &[Value],
+    nodes: &[Value],
+) -> Result<Vec<Value>> {
+    let refused = || invalid("the package does not match its assigned exact setup members");
     let mut expected = Vec::new();
     let mut components = Vec::new();
-    for node in graph["nodes"].as_array().ok_or_else(refused)? {
+    for node in nodes {
         let document = exact(connection, node)?;
         if document["kind"] == "setup" {
             if document["harness_id"] != harness {
@@ -111,6 +128,19 @@ pub(crate) fn verify_payload_snapshot(
     files: &BTreeMap<String, File>,
     hosts: &super::Hosts,
 ) -> Result<()> {
+    let documents = components(connection, setup, harness, scope, bindings)?;
+    verify_files(connection, &documents, setup, harness, scope, files, hosts)
+}
+
+fn verify_files(
+    connection: &Connection,
+    documents: &[Value],
+    setup: &Value,
+    harness: &str,
+    scope: projection::Scope,
+    files: &BTreeMap<String, File>,
+    hosts: &super::Hosts,
+) -> Result<()> {
     let refused = || invalid("the package content differs from the complete selected setup");
     super::validate_inputs(setup, hosts)?;
     if files.len() > super::MAX_FILES {
@@ -122,10 +152,10 @@ pub(crate) fn verify_payload_snapshot(
         .collect();
     let mut paths = BTreeSet::new();
     let (mut projection_bytes, mut output_bytes) = (0, 0usize);
-    for component in components(connection, setup, harness, scope, bindings)? {
-        let id = text(&component, "stable_id")?;
+    for component in documents {
+        let id = text(component, "stable_id")?;
         let (_, projection) =
-            projection::adaptation(&component, harness, scope).ok_or_else(refused)?;
+            projection::adaptation(component, harness, scope).ok_or_else(refused)?;
         let declarations: BTreeMap<_, _> = projection["members"]
             .as_array()
             .ok_or_else(refused)?
@@ -134,7 +164,7 @@ pub(crate) fn verify_payload_snapshot(
             .collect::<Result<_>>()?;
         for mut member in super::projected(
             connection,
-            &component,
+            component,
             projection,
             harness,
             &mut projection_bytes,
@@ -165,6 +195,84 @@ pub(crate) fn verify_payload_snapshot(
     }
     if paths.len() != files.len() || !remaining_hosts.is_empty() {
         return Err(refused());
+    }
+    Ok(())
+}
+
+pub(crate) struct ScopedPayload<'a> {
+    pub bindings: &'a [Value],
+    pub files: &'a BTreeMap<String, File>,
+    pub hosts: &'a super::Hosts,
+}
+
+/// Verify the complete graph once, then every assigned package and cross-root
+/// logical conflict. A valid partial package cannot establish setup coverage.
+pub(crate) fn verify_scoped_payloads(
+    connection: &Connection,
+    setup: &Value,
+    harness: &str,
+    payloads: &BTreeMap<projection::Scope, ScopedPayload<'_>>,
+) -> Result<()> {
+    let refused = || invalid("the complete setup does not match its scoped packages");
+    let mut placements = BTreeMap::new();
+    let mut bytes = 0usize;
+    let mut count = 0usize;
+    for (scope, payload) in payloads {
+        for binding in payload.bindings {
+            if placements
+                .insert(text(binding, "stable_id")?.to_owned(), *scope)
+                .is_some()
+            {
+                return Err(refused());
+            }
+        }
+        count = count.checked_add(payload.files.len()).ok_or_else(refused)?;
+        for file in payload.files.values() {
+            bytes = bytes.checked_add(file.bytes.len()).ok_or_else(refused)?;
+        }
+    }
+    if count > super::MAX_FILES || bytes > super::MAX_BYTES {
+        return Err(refused());
+    }
+    let routed = super::scopes::route(
+        connection,
+        setup,
+        harness,
+        &payloads.keys().copied().collect(),
+        &placements,
+    )?;
+    let mut composition = super::composition::Composition::new(harness);
+    for document in &routed.documents {
+        if document["kind"] == "setup" {
+            continue;
+        }
+        let id = text(document, "stable_id")?;
+        let scope = *routed.assigned.get(id).ok_or_else(refused)?;
+        let (_, projection) =
+            projection::adaptation(document, harness, scope).ok_or_else(refused)?;
+        composition.include_constraints(document, projection, Some(scope))?;
+        for member in projection["members"].as_array().ok_or_else(refused)? {
+            composition.claim(id, &format!("{}/{}", scope.as_str(), text(member, "path")?))?;
+        }
+    }
+    composition.validate_declared_conflicts()?;
+    for (scope, payload) in payloads {
+        let documents = components_from_nodes(
+            connection,
+            harness,
+            *scope,
+            payload.bindings,
+            routed.selected.get(scope).ok_or_else(refused)?,
+        )?;
+        verify_files(
+            connection,
+            &documents,
+            setup,
+            harness,
+            *scope,
+            payload.files,
+            payload.hosts,
+        )?;
     }
     Ok(())
 }

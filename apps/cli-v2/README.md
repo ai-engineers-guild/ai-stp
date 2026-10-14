@@ -1058,7 +1058,7 @@ unfinished root cannot be declared disjoint. Cancellation remains available
 under its original component checks. The component owns cross-caller admission
 and file recovery; separate isolated state parents do not share native locks.
 
-The configuration namespace marker is v2. Its monotonic upgrade excludes new
+The configuration namespace marker is v3. Its monotonic upgrade excludes new
 old-writer admissions and drains existing target locks before publishing the
 marker, including old processes that have not yet recorded SQLite admission.
 Overlapping unfinished legacy operations refuse the upgrade while preserving
@@ -1066,8 +1066,8 @@ the old marker and recovery path. Old configuration writers refuse an upgraded
 namespace. Short namespace admission
 serialization ends after the durable reservation is verified; unrelated roots
 can execute concurrently. The existing bounded lock timeout remains retryable.
-Operation records, the SQLite schema, original plans and completed receipts stay
-unchanged. Recovery after this upgrade requires a v2-aware executable; rollback
+Single-root records, the SQLite schema, original plans and completed receipts stay
+unchanged. Recovery after this upgrade requires a v3-aware executable; rollback
 must retain current state and this reader rather than restoring old state.
 
 Pending application retains desired bundle bytes in private operation state;
@@ -1115,7 +1115,9 @@ exist. The component checks its own admission and refuses cancellation once
 staging or publication may have started, or original admitted observations changed.
 
 The CLI independently compares affected file bytes, modes and physical identities
-plus the public status before and after cancellation, bounded to 64 MiB. It never
+plus configuration-bearing public status before and after cancellation, bounded
+to 64 MiB. The operational `journal` and its derived `cleanup_state` are excluded
+from that unchanged-state fingerprint because successful cancellation retires them. It never
 opens the component's private ledger. A lost response or native terminal commit
 is recovered by repeating the same cancellation request; the component's durable
 receipt prevents a delayed apply from resurrecting it. Existing terminal results
@@ -1124,9 +1126,9 @@ target removal. Thus cancelling an already verified operation reports its origin
 verified result and does not undo it.
 
 Current-project and configured harness roots refuse direct application: their
-activation requires staged replacement and durable agent handoff. Multi-root
-coordination, active-target handoff and writable isolation outside Linux remain
-separate C4 work. This bounded configuration surface does not advertise a
+activation requires staged replacement and durable agent handoff.
+`configuration set` coordinates inactive roots; active-target handoff and writable
+isolation outside Linux remain separate C4 work. This bounded configuration surface does not advertise a
 completed task intent or production writer cutover.
 
 `program status --harness <id> [--executable <absolute-path>]` observes the
@@ -2310,9 +2312,46 @@ selected projection archives, output content and emitted archives.
 This library boundary performs no installation or publication. Its existing
 SQLite bundle proof covers mixed Codex instruction/skill scopes, cross-root
 identifier collisions, explicit ambiguous placement and preservation of unowned
-configuration fields. The executable `select bundle` and `configuration`
-commands remain single-root; durable multi-root coordination and active-root
-handoff remain separate incomplete migration boundaries.
+configuration fields. `configuration set` consumes complete scoped packages;
+`select bundle` still publishes one scope. Active-root handoff is a separate
+migration boundary.
+
+`configuration set plan --state-dir --request` accepts a closed JSON request
+with `harness_id`, optional `provider_version` and `project_root`, `operation`
+(`install`, `replace` or `remove`), and two or three `targets`, each containing
+`scope`, an existing absolute `path` and a `bundle` path for install/replace.
+The component release must be at least 0.0.94. Scopes are unique and roots must
+be physically disjoint from each other and the state parent. Every scoped
+package keeps the same complete setup identity. The registry graph, all assigned
+components, projection bytes, modes, owned contributions and cross-root logical
+conflicts are verified together. Removal carries no bundle.
+
+`configuration set apply|cancel|status --state-dir --plan --plan-digest` consumes
+the exact returned plan. Admission retains only desired package bytes and commits
+all child reservations and the parent journal in one SQLite transaction. The
+namespace v3 marker drains v1/v2 target locks before fencing older writers.
+Completed children remain reserved until their parent settles. A pending child
+cannot be applied or cancelled separately from its parent.
+
+All children must return authenticated unchanged-configuration preparation
+receipts before the parent enters publication. Preparation, ordered child
+results and the final receipt have durable checkpoints. Recovery uses the original
+plans and retained package bytes; it does not require source ZIPs. A child whose
+terminal receipt committed before a lost parent checkpoint is reconciled from
+that receipt. Every root is independently read back before final success.
+Cancellation is available before publication begins; afterwards the operation
+requires forward recovery. This is a recoverable sequence, with no promise of
+an atomic filesystem change across roots and no configuration backups.
+
+An optional registered project is independent of the configuration roots. Its
+exact current selection and physical root are bound at planning/admission. The
+selection becomes pending before publication and becomes installed only in the
+same SQLite transaction as the complete set receipt, if its selection and
+project revision still match. Child receipts never imply complete setup
+installation. Mutating a shared root invalidates the latest affected project
+installation; changing a superseded root preserves a newer installation at
+different roots. Status and settled replay use retained history without opening
+roots, package sources, providers or the network.
 
 `select bundle plan --state-dir --id --version --passport-digest --scope
 --provider-version --output [--target] [--access]` connects that compiler to authenticated

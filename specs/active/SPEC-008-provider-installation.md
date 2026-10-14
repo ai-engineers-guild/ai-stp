@@ -1,6 +1,6 @@
 ---
 description: "SPEC-008: Providers, installation and recovery."
-last_verified: "2026-10-12"
+last_verified: "2026-10-14"
 ---
 
 # SPEC-008: Providers, installation and recovery
@@ -34,11 +34,22 @@ establish installation of the full setup.
 Within one isolated Rust state parent, unfinished configuration operations
 reserve physical roots against identical and overlapping admissions, including
 after process exit. Disjoint roots remain concurrent after durable admission.
-The v2 configuration namespace fences older writers only after their target
+The v3 configuration namespace fences v1/v2 writers only after their target
 locks drain; an empty SQLite operation query alone does not prove quiescence.
 The transition preserves original plans and terminal receipts, and requires a
 compatible executable for subsequent recovery. This does not coordinate
-independent state parents or implement aggregate multi-root application.
+independent state parents.
+
+The native `configuration set` service binds one complete setup across two or
+three disjoint explicit scopes. Complete graph/source coverage precedes one
+transaction admitting every child and parent reservation. Authenticated component
+0.0.94 preparation must succeed at every root before any child publishes.
+Child checkpoints permit exact forward recovery; completed child roots remain
+reserved until the parent settles. Cancellation is allowed before publication,
+and settled history never reapplies a target. Only a verified parent may attribute
+a complete installed setup to its separately bound registered project. The
+code-adjacent contract owns the closed request, bounds and phase vocabulary.
+No cross-root filesystem atomicity or configuration backup is claimed.
 
 The Python and Rust status readers accept optional recorded
 `configuration_ownership` through kit 0.2.17. They distinguish unavailable

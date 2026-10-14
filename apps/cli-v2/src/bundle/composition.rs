@@ -121,11 +121,10 @@ impl Composition {
         self.include_at(document, scope, assessment, None)
     }
 
-    pub fn include_at(
+    pub fn include_constraints(
         &mut self,
         document: &Value,
         scope: &Value,
-        assessment: &Value,
         path_scope: Option<crate::projection::Scope>,
     ) -> Result<()> {
         let id = text(document, "stable_id")?;
@@ -231,6 +230,18 @@ impl Composition {
                 )?;
             }
         }
+        Ok(())
+    }
+
+    pub fn include_at(
+        &mut self,
+        document: &Value,
+        scope: &Value,
+        assessment: &Value,
+        path_scope: Option<crate::projection::Scope>,
+    ) -> Result<()> {
+        self.include_constraints(document, scope, path_scope)?;
+        let id = text(document, "stable_id")?;
         let report = assessment["assessments"]
             .as_array()
             .and_then(|items| items.iter().find(|item| item["stable_id"] == id))

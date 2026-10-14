@@ -212,14 +212,14 @@ pub(crate) fn compile_snapshot(
     })
 }
 
-struct Routed {
+pub(super) struct Routed {
     graph: Value,
-    documents: Vec<Value>,
-    assigned: BTreeMap<String, Scope>,
-    selected: BTreeMap<Scope, Vec<Value>>,
+    pub(super) documents: Vec<Value>,
+    pub(super) assigned: BTreeMap<String, Scope>,
+    pub(super) selected: BTreeMap<Scope, Vec<Value>>,
 }
 
-fn route(
+pub(super) fn route(
     connection: &Connection,
     setup: &Value,
     harness: &str,

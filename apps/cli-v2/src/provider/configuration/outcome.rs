@@ -7,6 +7,13 @@ use crate::{
 };
 use serde_json::{Value, json};
 
+pub(crate) fn preparation(plan: &Plan) -> Result<Value> {
+    Ok(json!({"state":"prepared", "operation_id":plan.operation_id,
+        "operation":plan.operation()?, "plan_digest":plan.provider_plan["plan_digest"],
+        "expected_target_digest":plan.provider_plan["plan"]["expected_target_digest"],
+        "configuration_changed":false}))
+}
+
 pub(crate) fn applied(bytes: &[u8], plan: &Plan) -> Result<Value> {
     let result = response(bytes)?;
     if !result["target_identity_digest"].as_str().is_some_and(hash) {
