@@ -15,6 +15,219 @@ const AT: &str = "2026-10-14T00:00:00.000Z";
 const EXPIRED: &str = "2026-10-15T00:00:00.000Z";
 
 #[test]
+fn durable_outbox_keeps_original_requests_receipts_and_origin() -> Result<(), Box<dyn Error>> {
+    use ai_stp_cli_v2::{
+        passport,
+        sync::{
+            event::Event,
+            ledger::{self, Scope},
+        },
+    };
+    let root = tempfile::tempdir()?;
+    let account = "account_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+    let other = "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
+    let scope = Scope::new(account, "https://sync.example.test")?;
+    let foreign = Scope::new(account, "https://other.example.test")?;
+    assert!(Scope::new(account, "http://sync.example.test").is_err());
+    assert!(Scope::new(account, "https://sync.example.test/prefix").is_err());
+    let mut store = Store::open(root.path(), true)?;
+    assert!(store.transaction(|t| scope.require(t)).is_err());
+    let interrupted: Result<(), Failure> = store.transaction(|t| {
+        scope.bind(t, AT)?;
+        Err(Failure::input("proof interruption"))
+    });
+    assert!(interrupted.is_err());
+    assert_eq!(counts(&mut store)?, [0, 0]);
+    store.transaction(|t| {
+        scope.bind(t, AT)?;
+        scope.bind(t, EXPIRED)?;
+        assert!(foreign.require(t).is_err());
+        assert!(foreign.bind(t, AT).is_err());
+        assert!(Scope::new(other, scope.origin())?.require(t).is_err());
+        Ok(())
+    })?;
+    assert_eq!(counts(&mut store)?, [0, 1]);
+    // A populated legacy ledger cannot silently adopt the current origin.
+    let interrupted: Result<(), Failure> = store.transaction(|t| {
+        t.execute(
+            "INSERT INTO sync_cursor(account_id,cursor,updated_at) VALUES (?,'position',?)",
+            rusqlite::params![other, AT],
+        )
+        .map_err(|_| Failure::input("proof cursor"))?;
+        Scope::new(other, scope.origin())?.bind(t, AT)
+    });
+    assert!(interrupted.is_err());
+    let events: Vec<Value> = serde_json::from_str(include_str!("fixtures/sync-events.json"))?;
+    store.transaction(|t| {
+        for request in &events {
+            let event = Event::push(request, account)?;
+            if event.passport_kind().is_some() {
+                assert!(ledger::retain(t, &scope, request).is_err());
+                revisions::commit(
+                    t,
+                    &event.passport()?,
+                    &event.device_id,
+                    None,
+                    Write::Received {
+                        account_id: account,
+                    },
+                )?;
+            }
+            let held = ledger::retain(t, &scope, request)?;
+            assert_eq!(held.request, *request);
+            assert_eq!(held.state, "pending");
+            assert_eq!(
+                held.local_revision_id.as_deref(),
+                request["payload"]["revision_id"].as_str()
+            );
+        }
+        Ok(())
+    })?;
+    drop(store);
+    let mut store = Store::open(root.path(), true)?;
+    let request = &events[0];
+    let event = Event::push(request, account)?;
+    store.transaction(|t| {
+        let held = ledger::pending(t, &scope, &event.entity_id)?
+            .ok_or_else(|| Failure::input("proof pending"))?;
+        assert_eq!(held.request, *request);
+        assert!(held.receipt.is_none());
+        let mut changed = request.clone();
+        changed["expected_head_revision_id"] = event.revision_id.clone().into();
+        assert!(ledger::retain(t, &scope, &changed).is_err());
+        changed = request.clone();
+        changed["idempotency_key"] = "same-event-different-key".into();
+        assert!(ledger::retain(t, &scope, &changed).is_err());
+        Ok(())
+    })?;
+    // A new generation must wait for the exact retained request to finish.
+    let mut next = request.clone();
+    next["event_id"] = "event_next_generation".into();
+    next["idempotency_key"] = "next-generation-key".into();
+    next["parent_revision_ids"] = json!([event.revision_id]);
+    next["expected_head_revision_id"] = event.revision_id.clone().into();
+    next["created_at"] = AT.into();
+    next["revision_id"] =
+        passport::revision_id(&serde_json::from_value::<Event>(next.clone())?.sealed())?.into();
+    store.transaction(|t| {
+        assert_eq!(ledger::retain(t, &scope, &next)?.request, *request);
+        Ok(())
+    })?;
+    let accepted = |request: &Value| {
+        json!({"schema_version":1,"event_id":request["event_id"],
+        "state":"accepted","revision_id":request["revision_id"],
+        "server_head_revision_id":request["revision_id"],"cursor":"push_cursor_must_not_skip_pull",
+        "conflict":null,"error_code":null,"conflicting_entity_id":null})
+    };
+    let receipt = accepted(request);
+    let mut forged = receipt.clone();
+    forged["revision_id"] = next["revision_id"].clone();
+    assert!(
+        store
+            .transaction(|t| ledger::record_receipt(t, &scope, &forged))
+            .is_err()
+    );
+    // A crash between receipt persistence and head advancement rolls both back.
+    store.transaction(|t| t.execute_batch("CREATE TEMP TRIGGER fail_sync BEFORE INSERT ON sync_remote_head BEGIN SELECT RAISE(ABORT,'interrupted'); END;")
+        .map_err(|_| Failure::input("proof trigger")))?;
+    assert!(
+        store
+            .transaction(|t| ledger::record_receipt(t, &scope, &receipt))
+            .is_err()
+    );
+    store.transaction(|t| {
+        assert!(ledger::pending(t, &scope, &event.entity_id)?.is_some());
+        t.execute_batch("DROP TRIGGER fail_sync").map_err(|_| Failure::input("proof trigger cleanup"))?;
+        ledger::record_receipt(t, &scope, &receipt)?;
+        ledger::record_receipt(t, &scope, &receipt)?;
+        assert!(ledger::pending(t, &scope, &event.entity_id)?.is_none());
+        assert_eq!(ledger::retain(t, &scope, request)?.state, "accepted");
+        assert_eq!(ledger::retain(t, &scope, &next)?.request, next);
+        ledger::record_receipt(t, &scope, &accepted(&next))?;
+        ledger::record_receipt(t, &scope, &receipt)?;
+        let head: String = t.query_row("SELECT remote_revision_id FROM sync_remote_head WHERE account_id=? AND entity_id=?",
+            rusqlite::params![account,event.entity_id], |r| r.get(0)).map_err(|_| Failure::input("proof head"))?;
+        assert_eq!(head, next["revision_id"]);
+        let cursors: i64 = t.query_row("SELECT count(*) FROM sync_cursor", [], |r| r.get(0))
+            .map_err(|_| Failure::input("proof cursors"))?;
+        assert_eq!(cursors, 0);
+        let mut replaced = receipt.clone();
+        replaced["cursor"] = "different_cursor".into();
+        assert!(ledger::record_receipt(t, &scope, &replaced).is_err());
+        Ok(())
+    })?;
+    // Simulate an old in-flight request completed after its child was pulled.
+    // Keeping the later head requires walking the retained remote ancestry.
+    store.transaction(|t| {
+        t.execute("UPDATE sync_event SET state='pending',receipt_json=NULL WHERE account_id=? AND event_id=?",
+            rusqlite::params![account,event.event_id]).map_err(|_| Failure::input("proof delayed receipt"))?;
+        ledger::record_receipt(t, &scope, &receipt)?;
+        let head: String = t.query_row("SELECT remote_revision_id FROM sync_remote_head WHERE account_id=? AND entity_id=?",
+            rusqlite::params![account,event.entity_id], |r| r.get(0)).map_err(|_| Failure::input("proof head"))?;
+        assert_eq!(head, next["revision_id"]);
+        Ok(())
+    })?;
+    // Retained evidence is checked on read; a transaction never adopts corruption.
+    let corrupted: Result<(), Failure> = store.transaction(|t| {
+        t.execute("UPDATE operation_event SET evidence='{}' WHERE operation_id IN (SELECT operation_id FROM operation WHERE kind='sync.origin')", [])
+            .map_err(|_| Failure::input("proof corruption"))?;
+        scope.require(t)
+    });
+    assert!(corrupted.is_err());
+    let corrupted: Result<(), Failure> = store.transaction(|t| {
+        t.execute(
+            "UPDATE sync_event SET local_revision_id=NULL WHERE account_id=? AND event_id=?",
+            rusqlite::params![account, event.event_id],
+        )
+        .map_err(|_| Failure::input("proof mapping corruption"))?;
+        ledger::retain(t, &scope, request).map(|_| ())
+    });
+    assert!(corrupted.is_err());
+    // The API's conflict context names an expected head, not necessarily the
+    // submitted revision. Retain that outcome without claiming acceptance.
+    let component = &events[1];
+    let mut candidate = component.clone();
+    candidate["event_id"] = "event_component_candidate".into();
+    candidate["idempotency_key"] = "component-candidate-key".into();
+    candidate["parent_revision_ids"] = json!([component["revision_id"]]);
+    candidate["expected_head_revision_id"] = component["revision_id"].clone();
+    candidate["revision_id"] =
+        passport::revision_id(&serde_json::from_value::<Event>(candidate.clone())?.sealed())?
+            .into();
+    let remote_head = format!("revision_{}", "f".repeat(64));
+    let conflict = json!({"schema_version":1,"event_id":candidate["event_id"],
+        "state":"conflict","revision_id":candidate["revision_id"],
+        "server_head_revision_id":remote_head,"cursor":null,
+        "conflict":{"schema_version":1,"client_head_revision_id":component["revision_id"],
+            "server_head_revision_id":remote_head,"common_ancestor_revision_id":null,
+            "affected_fields":["/facts/description"]},
+        "error_code":null,"conflicting_entity_id":null});
+    store.transaction(|t| {
+        ledger::record_receipt(t, &scope, &accepted(component))?;
+        ledger::retain(t, &scope, &candidate)?;
+        ledger::record_receipt(t, &scope, &conflict)?;
+        assert_eq!(ledger::retain(t, &scope, &candidate)?.state, "conflict");
+        let head: String = t
+            .query_row(
+                "SELECT remote_revision_id FROM sync_remote_head WHERE entity_id=?",
+                [component["entity_id"].as_str().unwrap_or("")],
+                |r| r.get(0),
+            )
+            .map_err(|_| Failure::input("proof conflict head"))?;
+        assert_eq!(head, component["revision_id"]);
+        Ok(())
+    })?;
+    drop(store);
+    let mut store = Store::open(root.path(), true)?;
+    store.transaction(|t| {
+        scope.require(t)?;
+        assert_eq!(ledger::retain(t, &scope, request)?.receipt, Some(receipt));
+        Ok(())
+    })?;
+    Ok(())
+}
+
+#[test]
 fn python_sealed_events_keep_account_content_and_payload_boundaries() -> Result<(), Box<dyn Error>>
 {
     use ai_stp_cli_v2::{digest, passport, sync::event::Event};

@@ -326,7 +326,7 @@ local identity. `local apply` rechecks the exact heads and candidate, then commi
 the two-parent revision and receipt together. Arrays are atomic; an absent key
 differs from JSON null. Components and setups never receive generic field merges.
 Completed merge receipts replay without rewinding later heads. Network push/pull
-and durable account/origin binding remain pending in #944.
+and its authenticated command integration remain pending in #944.
 
 The internal sync event reader validates all five existing wire kinds against
 generated schemas, verifies account and content bindings, and preserves original
@@ -335,6 +335,16 @@ errors contain field paths rather than excluded values. Version metadata require
 exact coordinates and, when present, a matching parentless snapshot. Missing
 legacy snapshots remain distinguishable from invalid null snapshots. These
 readers do not send requests or make versions or artifact bytes available.
+
+The internal outbox retains the complete validated request, including its original
+idempotency key and head precondition, before transport. An unfinished request
+wins over a newer payload for the same entity. Its account is bound to one exact
+origin by a checked operation receipt; a populated ledger without that evidence
+cannot adopt an origin. Passport mappings must match retained local content.
+Receipt and remote-head writes share one SQLite transaction, replay preserves
+later heads, and push receipts never advance the pull cursor. Authentication,
+consent checks, page application and HTTP orchestration remain pending; this
+storage layer alone grants no account authority.
 
 `grant list --state-dir` reads owned invitations and owned/received major-line
 access grants through fresh authentication of the same account and device.
