@@ -1,6 +1,6 @@
 ---
 description: "SPEC-039: CLI synchronization of the private registry between devices."
-last_verified: "2026-09-20"
+last_verified: "2026-10-14"
 ---
 
 # SPEC-039: CLI synchronization of the private registry
@@ -23,6 +23,61 @@ to `packages/contracts`; the server-side state machine is defined by `SPEC-025`.
 The scope excludes modifying the server ledger, synchronizing artifact bytes,
 the project passport/index, the full device passport, installation into a target,
 and automatic value selection during conflict resolution.
+
+The isolated Rust preview currently implements local `sync preview` and
+`sync merge plan`, applied through `local apply`. The plan binds the exact
+developer heads, current local owner, candidate, operation identity and validity
+interval. The revision and receipt share one transaction; replay returns the
+original result without moving later heads. Conflict reports expose JSON Pointers
+only. The graph walk validates at most 16,384 revisions per head.
+
+Its internal sync client now verifies the held account/device session, requires
+explicit sync enablement, and binds the local owner and durable ledger to the
+same account and origin. It retains exact requests before HTTP, records checked
+receipts afterward, and applies received pages with their cursor in one SQLite
+transaction. No network request holds a SQLite transaction. Named abandonment
+is durable and account-scoped; replay does not reactivate revoked consent or
+remove local tombstones. Foreign device summaries remain ledger data only.
+
+Native page application preserves original released snapshots and pending
+version coordinates without moving draft heads. Missing snapshot metadata blocks
+new version allocation; another writer cannot reuse an occupied number for
+different content. Historical metadata-only envelopes remain readable history,
+while materialization still validates a complete native immutable passport.
+Neither sync metadata nor consent grants artifact availability or trust.
+
+Rust `sync push plan` and `sync pull plan` now produce exact intents for
+`sync apply --plan --plan-digest`. New admission requires the unchanged account
+session, device, physical root, local capture and ledger position within a
+15-minute validity interval. Planning writes no registry records; origin binding
+and operation admission share one transaction. An interrupted command preserves
+its progress and original requests. A completed command returns its retained
+result locally after logout or expiry; pull completion and page data share the
+same transaction.
+
+Native push captures parents before children, released-version sidecars and
+original local tombstones. An uncertain event is settled before a newer closure;
+server-retained conflicting ancestors keep their mapping for later children.
+The device projection includes only observed platform summary fields. Consent
+projection is limited to the authenticated account's retained scope/target
+record and preserves revocation. The graph is bounded to 16,384 revisions and a
+16 MiB capture. Loopback HTTP and real SQLite exercise these native command
+journeys. Explicit account key replacement binds and interrupts unfinished sync
+commands while preserving their requests and unknown remote outcomes. After
+replacement and sign-in, `sync recover plan --event-id` and exact `sync apply`
+retire a pending request only when its device belongs to this installation's
+verified succession history. Local retirement and its command result commit
+together; the original request is unchanged. The `failed` outbox state contains
+local evidence tied to that completed plan, never a fabricated server receipt.
+A later authenticated stream can confirm the original event as accepted. A new
+push uses the new device and ordinary head preconditions without re-signing the
+retired request. Completed results replay after logout.
+`just evidence-native-sync <binary> <sha256>` drives two isolated native devices
+against the real API and a newly migrated disposable PostgreSQL database. It
+qualifies transfer, fast-forward, merge/conflict, identical retry after a lost
+committed reply, replaced-device recovery and replay after logout. A test web
+session approves the real device flow; native state is never injected. These
+proofs establish neither deployed GitHub login nor production writer cutover.
 
 ## Terms
 

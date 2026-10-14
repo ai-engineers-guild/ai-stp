@@ -10,7 +10,7 @@ last_verified: "2026-08-03"
 | Document | Description | Verified |
 | -------- | ----- | ------- |
 | [SPEC-001-product-contract.md](SPEC-001-product-contract.md) | SPEC-001: MVP product contract. | 2026-09-06 |
-| [SPEC-002-identity-devices-access.md](SPEC-002-identity-devices-access.md) | SPEC-002: Accounts, OAuth, devices, and access. | 2026-09-07 |
+| [SPEC-002-identity-devices-access.md](SPEC-002-identity-devices-access.md) | SPEC-002: Accounts, OAuth, devices, and access. | 2026-10-14 |
 | [SPEC-003-developer-passport.md](SPEC-003-developer-passport.md) | SPEC-003: Developer passport and public projection. | 2026-09-20 |
 | [SPEC-004-project-index-passport.md](SPEC-004-project-index-passport.md) | SPEC-004: Project index and passport. | 2026-09-26 |
 | [SPEC-005-registry-versioning.md](SPEC-005-registry-versioning.md) | SPEC-005: Registry, variants, and object versions. | 2026-09-24 |
@@ -47,7 +47,7 @@ last_verified: "2026-08-03"
 | [SPEC-036-machine-projection-route-and-documents.md](SPEC-036-machine-projection-route-and-documents.md) | SPEC-036: Addressable machine projection web and page machine documents. | 2026-09-18 |
 | [SPEC-037-catalog-navigation-and-onboarding.md](SPEC-037-catalog-navigation-and-onboarding.md) | SPEC-037: Compact catalog, owner/public navigation, and CLI onboarding. | 2026-09-18 |
 | [SPEC-038-cli-publication-access-reports.md](SPEC-038-cli-publication-access-reports.md) | SPEC-038: CLI client for publication, access rights, and reports. | 2026-09-07 |
-| [SPEC-039-cli-private-sync.md](SPEC-039-cli-private-sync.md) | SPEC-039: CLI synchronization of the private registry between devices. | 2026-09-20 |
+| [SPEC-039-cli-private-sync.md](SPEC-039-cli-private-sync.md) | SPEC-039: CLI synchronization of the private registry between devices. | 2026-10-14 |
 | [SPEC-040-setup-evaluation-profiles.md](SPEC-040-setup-evaluation-profiles.md) | SPEC-040: Local functional evaluation profiles for an exact setup. | 2026-09-06 |
 | [SPEC-041-component-scaffold-framework.md](SPEC-041-component-scaffold-framework.md) | SPEC-041: Versioned scaffold plans for a component's complete authoring catalog. | 2026-09-05 |
 | [SPEC-042-local-setup-store-ports.md](SPEC-042-local-setup-store-ports.md) | SPEC-042: Local versioned ports for controlled SX and APM import. | 2026-09-20 |

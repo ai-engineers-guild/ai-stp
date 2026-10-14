@@ -236,6 +236,7 @@ pub fn apply(path: &Path, expected_digest: &str) -> Result<Value> {
         "project.technology.record" => execute(plan, projects::technology::retained::apply),
         "passport.developer.record" => execute(plan, developer::apply),
         "passport.device.record" => execute(plan, device::apply),
+        "sync.merge" => execute(plan, crate::sync::merge::apply),
         "setup.compose" => execute(plan, setups::apply),
         "setup.passport.update" => execute(plan, setups::drafts::apply),
         "setup.version.release" => execute(plan, setups::releases::apply),

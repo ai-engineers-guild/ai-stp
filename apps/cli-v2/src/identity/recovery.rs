@@ -21,10 +21,23 @@ pub struct Intent {
     pub account_id: Option<String>,
     pub owner_id: String,
     pub previous: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub interrupted_sync: Vec<crate::sync::runtime::Checkpoint>,
 }
 
 impl Intent {
     pub(crate) fn validate(&self, original: &authoring::Identity) -> Result<()> {
+        if self.interrupted_sync.len() > 128
+            || self
+                .interrupted_sync
+                .windows(2)
+                .any(|v| v[0].operation_id >= v[1].operation_id)
+        {
+            return Err(invalid());
+        }
+        for checkpoint in &self.interrupted_sync {
+            checkpoint.validate()?;
+        }
         if !passport::stable_id(&self.device_id, "device")
             || self.device_id == original.device_id
             || self

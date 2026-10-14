@@ -42,7 +42,7 @@ else
     venv_bin="$work/venv/bin"; exe=""
 fi
 
-"$venv_bin/python$exe" -c 'import ai_stp_cli, ai_stp_foundation, ai_stp_passports, ai_stp_assurance, ai_stp_contracts, ai_stp_sources'
+"$venv_bin/python$exe" -c 'import ai_stp_cli, ai_stp_foundation, ai_stp_passports, ai_stp_assurance, ai_stp_contracts.sync_payload, ai_stp_sources'
 # SPEC-011 REQ-1118 and the hard invariant in AGENTS.md: ai_stp calls no
 # model interface and needs no model key. Checked against the resolved
 # closure a user actually installs, not against the declared list — a model

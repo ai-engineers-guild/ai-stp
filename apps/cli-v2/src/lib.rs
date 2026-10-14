@@ -28,6 +28,7 @@ pub mod selection;
 pub mod snapshot;
 pub mod sources;
 pub mod store;
+pub mod sync;
 pub mod tasks;
 mod wire;
 

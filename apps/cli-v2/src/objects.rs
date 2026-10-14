@@ -63,6 +63,22 @@ impl Objects<'_> {
     }
 
     pub fn exact_version(&self, id: &str, version: &str, expected: Option<&str>) -> Result<Value> {
+        let document = self.version_metadata(id, version, expected)?;
+        if document["version"] != version {
+            return Err(Failure::precondition(
+                "the retained historical version has metadata but no complete native immutable passport",
+            ));
+        }
+        passport::versions::validate_document(&document)?;
+        Ok(document)
+    }
+
+    pub(crate) fn version_metadata(
+        &self,
+        id: &str,
+        version: &str,
+        expected: Option<&str>,
+    ) -> Result<Value> {
         if (!passport::stable_id(id, "component") && !passport::stable_id(id, "setup"))
             || !passport::version_number(version)
         {
@@ -80,7 +96,7 @@ impl Objects<'_> {
             || minor < 0
             || version != format!("{major}.{minor}")
             || document["stable_id"] != id
-            || document["version"] != version
+            || document.get("version").is_some_and(|held| held != version)
             || digest::canonical("ai-stp:passport:v1", &document)? != held
             || expected.is_some_and(|expected| expected != held)
         {
@@ -89,7 +105,6 @@ impl Objects<'_> {
                 "an exact dependency disagrees with its recorded identity",
             ));
         }
-        passport::versions::validate_document(&document)?;
         Ok(document)
     }
 
@@ -217,7 +232,7 @@ impl Objects<'_> {
                 || !passport::timestamp(&created)
                 || version != format!("{major}.{minor}")
                 || document["stable_id"] != id
-                || document["version"] != version
+                || document.get("version").is_some_and(|held| held != &version)
                 || digest::canonical("ai-stp:passport:v1", &document)? != expected
             {
                 return Err(Failure::precondition(

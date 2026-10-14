@@ -23,6 +23,16 @@ pub enum Write<'a> {
     Immutable,
     /// An externally sealed version; retain its bytes and initialize only a missing head.
     Acquired,
+    /// An authenticated private-ledger revision preserves divergent local heads.
+    /// Its account may adopt an offline draft; immutable snapshots stay unchanged.
+    Received {
+        account_id: &'a str,
+    },
+    /// Exact private sync snapshot, including historical metadata-only versions.
+    /// Its entity must already exist; immutable snapshots never become draft heads.
+    ReceivedSnapshot {
+        account_id: &'a str,
+    },
 }
 
 pub fn seal(document: &Value) -> Result<Value> {
@@ -82,7 +92,10 @@ pub fn commit(
     if !passport::stable_id(device_id, "device") {
         return Err(Failure::input("a revision requires a device identity"));
     }
-    let document = if matches!(write, Write::Acquired) {
+    let document = if matches!(
+        write,
+        Write::Acquired | Write::Received { .. } | Write::ReceivedSnapshot { .. }
+    ) {
         passport::validate(document)?;
         document.clone()
     } else {
@@ -100,6 +113,16 @@ pub fn commit(
     let revision = text("revision_id")?;
     let kind = text("kind")?;
     let created = text("created_at")?;
+    if let Write::Received { account_id } | Write::ReceivedSnapshot { account_id } = &write
+        && (!passport::stable_id(account_id, "account")
+            || !passport::stable_id(text("owner_id")?, "account")
+            || (matches!(write, Write::Received { .. }) && document["visibility"] != "private")
+            || !matches!(kind, "developer" | "component" | "setup"))
+    {
+        return Err(Failure::precondition(
+            "the received private revision identity is invalid",
+        ));
+    }
     if kind == "setup" {
         setup_harness(&document)?;
     }
@@ -114,6 +137,8 @@ pub fn commit(
         held["owner_id"] == document["owner_id"]
             || matches!(&write,
             Write::Transfer { previous_owner, .. } if held["owner_id"] == *previous_owner)
+            || matches!(&write,
+            Write::Received { account_id } if document["owner_id"] == *account_id)
     };
     if let Some(held) = &existing {
         if held != kind || current_heads.is_empty() {
@@ -131,7 +156,12 @@ pub fn commit(
                     "a setup cannot change its harness after creation",
                 ));
             }
-            if held["stable_id"] != id || !owner_matches(&held) {
+            if held["stable_id"] != id
+                || (!matches!(
+                    write,
+                    Write::Received { .. } | Write::ReceivedSnapshot { .. }
+                ) && !owner_matches(&held))
+            {
                 return Err(Failure::precondition(
                     "a revision cannot change its entity owner",
                 ));
@@ -159,7 +189,10 @@ pub fn commit(
         }
         return Ok(held);
     }
-    if !matches!(write, Write::Transfer { .. }) {
+    if !matches!(
+        write,
+        Write::Transfer { .. } | Write::Received { .. } | Write::ReceivedSnapshot { .. }
+    ) {
         Objects {
             connection: transaction,
         }
@@ -185,7 +218,7 @@ pub fn commit(
                 ));
             }
         }
-        Write::Immutable => {
+        Write::Immutable | Write::ReceivedSnapshot { .. } => {
             if existing.is_none() || !parents.is_empty() {
                 return Err(Failure::precondition(
                     "an immutable snapshot requires an existing entity and no draft parents",
@@ -199,6 +232,7 @@ pub fn commit(
                 ));
             }
         }
+        Write::Received { .. } => {}
     }
     for parent in &parents {
         let held = Objects {
@@ -224,7 +258,22 @@ pub fn commit(
             )
             .map_err(database)?;
     }
-    if matches!(write, Write::Advance { .. } | Write::Transfer { .. })
+    if matches!(write, Write::Received { .. }) {
+        for parent in &parents {
+            transaction
+                .execute(
+                    "DELETE FROM head WHERE stable_id=? AND revision_id=?",
+                    params![id, parent],
+                )
+                .map_err(database)?;
+        }
+        transaction
+            .execute(
+                "INSERT INTO head(stable_id,revision_id) VALUES (?,?)",
+                params![id, revision],
+            )
+            .map_err(database)?;
+    } else if matches!(write, Write::Advance { .. } | Write::Transfer { .. })
         || (matches!(write, Write::Acquired) && existing.is_none())
     {
         transaction

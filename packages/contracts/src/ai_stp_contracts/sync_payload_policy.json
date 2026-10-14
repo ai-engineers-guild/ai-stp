@@ -1,0 +1,36 @@
+{
+  "forbidden_payload_kinds": ["DevicePassport", "ProjectIndex", "ProjectPassport", "device", "project"],
+  "forbidden_key_fragments": [
+    "absolute_path",
+    "api_key",
+    "artifact_bytes",
+    "authorization",
+    "backup",
+    "cookie",
+    "device_passport",
+    "env",
+    "environment",
+    "file_path",
+    "home_path",
+    "password",
+    "private_key",
+    "project_index",
+    "project_passport",
+    "secret",
+    "session",
+    "token"
+  ],
+  "required_env_key": "required_env",
+  "required_env_fields": [
+    "name",
+    "purpose"
+  ],
+  "max_required_env_entries": 128,
+  "requires_authorization_key": "requires_authorization",
+  "requires_authorization_values": [
+    "external_service",
+    "none",
+    "user_account"
+  ],
+  "absolute_path_pattern": "^(?:[A-Za-z]:[\\\\/]|/|\\\\\\\\)"
+}

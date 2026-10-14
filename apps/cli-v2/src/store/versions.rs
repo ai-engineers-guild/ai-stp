@@ -45,13 +45,25 @@ pub fn next(connection: &Connection, id: &str, increment: Increment) -> Result<S
             "only a component or setup has immutable versions",
         ));
     }
+    let pending: bool = connection
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sync_pending_version WHERE stable_id=?)",
+            [id],
+            |row| row.get(0),
+        )
+        .map_err(database)?;
+    if pending {
+        return Err(Failure::precondition(
+            "complete pending sync version metadata before allocating a new version",
+        ));
+    }
     let latest: Option<String> = connection.query_row(
         "SELECT version FROM object_version WHERE stable_id=? ORDER BY major DESC,minor DESC LIMIT 1",
         [id],|row|row.get(0)).optional().map_err(database)?;
     let Some(latest) = latest else {
         return Ok("1.0".into());
     };
-    Objects { connection }.exact_version(id, &latest, None)?;
+    Objects { connection }.version_metadata(id, &latest, None)?;
     let (major, minor) = coordinates(&latest)?;
     let overflow = || Failure::precondition("the version sequence is exhausted");
     let (major, minor) = match increment {
@@ -116,6 +128,15 @@ fn record_version(
         .ok_or_else(|| Failure::input("the version number is absent"))?;
     let (major, minor) = coordinates(version)?;
     let address = digest::canonical("ai-stp:passport:v1", &document)?;
+    let conflict: bool = transaction.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sync_pending_version WHERE stable_id=? AND version=? AND (passport_digest<>? OR revision_id<>?))",
+        params![id,version,address,document["revision_id"].as_str()],|row|row.get(0)).map_err(database)?;
+    if conflict {
+        return Err(Failure::new(
+            ErrorKind::Conflict,
+            "the immutable number is reserved by different pending sync metadata",
+        ));
+    }
     let existing: Option<String> = transaction
         .query_row(
             "SELECT created_at FROM object_version WHERE stable_id=? AND version=?",

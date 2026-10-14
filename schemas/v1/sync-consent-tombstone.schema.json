@@ -1,0 +1,56 @@
+{
+  "$defs": {
+    "ConsentScope": {
+      "enum": [
+        "publisher",
+        "object_major",
+        "task"
+      ],
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:sync-consent-tombstone",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The `unverified_consent` payload for a `tombstone` event.",
+  "properties": {
+    "revoked_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "scope": {
+      "$ref": "#/$defs/ConsentScope"
+    },
+    "target": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Target",
+      "type": "string"
+    }
+  },
+  "required": [
+    "revoked_at",
+    "schema_version",
+    "scope",
+    "target"
+  ],
+  "title": "ConsentTombstonePayload",
+  "type": "object"
+}

@@ -10,7 +10,11 @@ from typing import Final, cast
 
 from ai_stp_contracts.identity import DeviceSummary
 from ai_stp_contracts.sync import ConsentTombstonePayload, ConsentUpsertPayload
-from ai_stp_contracts.sync_payload import SyncPayloadRejection, check_sync_payload
+from ai_stp_contracts.sync_payload import (
+    FORBIDDEN_PAYLOAD_KINDS,
+    SyncPayloadRejection,
+    check_sync_payload,
+)
 from ai_stp_contracts.sync_versions import VersionBindingError, validate_payload
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
@@ -34,16 +38,6 @@ _ENTITY_PREFIX: Final[dict[str, str]] = {
     "setup_private": "setup",
     "unverified_consent": "account",
 }
-
-_FORBIDDEN_PAYLOAD_KINDS: Final[frozenset[str]] = frozenset(
-    {
-        "device",
-        "project",
-        "DevicePassport",
-        "ProjectPassport",
-        "ProjectIndex",
-    }
-)
 
 
 class SyncValidationError(ValueError):
@@ -118,7 +112,7 @@ def _scan_kinds(value: object) -> None:
     if isinstance(value, dict):
         for key, item in cast(dict[object, object], value).items():
             names_kind = isinstance(key, str) and key.lower() == "kind"
-            if names_kind and isinstance(item, str) and item in _FORBIDDEN_PAYLOAD_KINDS:
+            if names_kind and isinstance(item, str) and item in FORBIDDEN_PAYLOAD_KINDS:
                 raise SyncValidationError(f"forbidden payload kind: {item}")
             _scan_kinds(item)
         return
