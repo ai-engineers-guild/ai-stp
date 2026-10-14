@@ -2339,6 +2339,24 @@ harness at creation; every later draft and immutable version must preserve it,
 including agreement between the logical field and its fact when both are present.
 Production registry import remains a separate pending operation.
 
+The `publication::prepare` library reads exact immutable component/setup inputs
+in one local transaction without writing state or contacting the platform.
+It checks active objects, passport digests, overlay provenance, original content
+and every retained projection. Setup catalog members precede the setup in
+dependency order; verified embedded members stay inside its definition instead
+of becoming separate publications. The result retains at most 8 MiB of metadata,
+not a graph of artifact payloads. Delivery reads one declared artifact at a time
+and checks its digest and length again.
+
+An optional component directory must contain exactly the released files and
+modes; a single-file artifact compares its bytes and takes the inventory path
+from that directory. The directory never replaces the sealed artifact. The
+immutable passport and its visibility remain unchanged. Owner matching checks
+the sealed account, not historical attachment rights. This preparation establishes
+neither fresh authorization nor publication: network intent/recovery, account
+binding, catalog reuse and terminal readback remain pending under #950. No
+publication command is exposed by this internal preparation checkpoint.
+
 Private-directory failures include a fixed operation `stage` and, for I/O
 failures, an optional numeric `os_error`. Paths, file contents and raw OS error
 messages are excluded. The stage distinguishes lock contention, ownership
@@ -2651,6 +2669,7 @@ breakaway and never infers termination from PID disappearance alone.
 | `authoring/lifecycle.rs` | Planned local tombstones, retained history and verified replay |
 | `store/versions.rs` | Verified immutable coordinates, explicit major advancement and replay without draft movement |
 | `authoring/releases.rs`, `authoring/freezing.rs` | Planned component releases and deterministic native projection compilation |
+| `publication/` | Read-only exact publication inputs, embedded/catalog separation and bounded artifact delivery reads |
 | `authoring/forks.rs` | Exact private component copies with atomic lineage and replay |
 | `authoring/templates.rs` | Bounded portable template rendering with literal CommonMark code blocks |
 | `authoring/setups/` | Exact private setup composition, conservative requirement aggregation and atomic immutable registration |
