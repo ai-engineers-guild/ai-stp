@@ -27,8 +27,15 @@ Native author evidence uses `attestation plan`/`apply`/`status`, the same signed
 wire payload, and durable signed bytes before a new private-file export. Signing
 is an author declaration, not check execution or a verification badge. The
 shared Python verifier and actual publication worker consume the native output.
-This slice does not transfer production state ownership or port remaining
-connected-source workflows.
+Native report preview/confirmation retains exact requests in an owned private
+journal bound to the physical state root and account. Caller keys cannot change
+payloads; derived wire keys bind the exact body because the existing API does
+not compare payloads on idempotent replay. Admission precedes delivery; lost
+responses retry the original body and completed receipts replay locally after
+logout as historical observations. Native list reads return one bounded page
+and its opaque cursor. Status and unfinished delivery require fresh account
+verification; response extensions are withheld. This slice does not transfer
+production state ownership or introduce moderation authority.
 
 ## Terms
 

@@ -1,5 +1,7 @@
 //! Real HTTP and private files, including a lost single-use exchange response.
 
+#[path = "reports_tests.rs"]
+mod reports_tests;
 #[path = "visibility_tests.rs"]
 mod visibility_tests;
 
