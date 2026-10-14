@@ -616,6 +616,32 @@ attestation. Both verification axes and `target_write` remain false. A missing
 or unsuitable subtree refuses; no registry, credentials or component is created.
 Rate-limit refusals retain valid server retry timing and perform no automatic retry.
 
+Selected GitHub sources use the existing ai-stp account API:
+
+- `github status --state-dir [--api-url]` reads current source and administration
+  connection status, selected repositories and installation scopes. It exposes
+  the supported schema fields only and does not cache access authority.
+- `github source plan --state-dir --request [--api-url]` accepts at most 64 KiB
+  of closed JSON: `installation_id`, `repository_id`, a full lowercase 40-character
+  `commit`, canonical relative POSIX `subpath` (`.` selects the root), and an
+  explicit `idempotency_key` of 16–128 supported ASCII characters. Source strings
+  must already be NFC; ambiguous normalization, separators and traversal refuse.
+  The returned `plan` and `plan_digest` bind that exact request, account, device,
+  session, origin and physical state root for fifteen minutes. Planning makes
+  no source-preparation request.
+- `github source apply --plan --plan-digest` revalidates the original session
+  and sends one exact request. The server checks current selected-repository
+  access and retains the immutable source binding. The response contains its
+  opaque `source_binding_id`, content digest, byte count, inventory and visibility.
+  Supply that binding in the corresponding publication member's evidence.
+
+Keep the original request and key after a lost reply. After session refresh or
+plan expiry, explicitly plan that same request again; the server owns durable
+idempotent replay and still checks current source access. No second local source
+journal or offline authority is created. These commands do not accept GitHub
+tokens, authorize an App, change repository permissions, create passports or
+execute harnesses. The existing anonymous public fetch remains independent.
+
 `component source package fetch --ecosystem go --name <module> --version <version>`
 observes an exact Go module using only `proxy.golang.org` and `sum.golang.org`.
 The original module name and canonical `vX.Y.Z[-prerelease][+incompatible]` version

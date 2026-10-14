@@ -22,6 +22,13 @@ Issues [181](https://github.com/ai-engineers-guild/ai-stp/issues/181),
 Artifact authorization remains with SPEC-026 and SPEC-071. Client-side artifact
 encryption and general RBAC are separate work.
 
+The isolated Rust preview implements selected-source reads and preparation as
+`github status`, `github source plan` and `github source apply`. Its exact command
+contract is in [`apps/cli-v2/README.md`](../../apps/cli-v2/README.md). The native
+plan retains the original source request and idempotency key; the existing server
+owns the immutable binding and rechecks selected access on replay. This adapter
+does not add connector administration or transfer production state ownership.
+
 ## Terms
 
 A connector is one account's explicit GitHub App user authorization. An installation
