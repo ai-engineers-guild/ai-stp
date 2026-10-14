@@ -198,6 +198,66 @@ impl Api {
         }
     }
 
+    pub fn visibility(
+        &self,
+        route: &str,
+        body: Option<&[u8]>,
+        credential: &Secret,
+    ) -> Result<Reply<serde_json::Value>> {
+        let parts: Vec<_> = route.split('/').collect();
+        let valid = match parts.as_slice() {
+            [""] => body.is_some(),
+            [id] => body.is_none() && crate::passport::stable_id(id, "plan"),
+            [id, "confirm"] => body.is_some() && crate::passport::stable_id(id, "plan"),
+            _ => false,
+        };
+        if !valid || body.is_some_and(|bytes| bytes.len() > 65536) {
+            return Err(super::visibility::invalid());
+        }
+        let url = if route.is_empty() {
+            format!("{}/v1/access/visibility/plans", self.origin)
+        } else {
+            format!("{}/v1/access/visibility/plans/{route}", self.origin)
+        };
+        let authorization = Zeroizing::new(format!("Bearer {}", credential.0.as_str()));
+        let agent = self.agent.borrow();
+        let response = if let Some(body) = body {
+            agent
+                .post(&url)
+                .header("Accept", "application/json")
+                .header("Content-Type", "application/json")
+                .header("Accept-Encoding", "identity")
+                .header("X-AI-STP-Schema-Version", "1")
+                .header("Authorization", authorization.as_str())
+                .send(body)
+        } else {
+            agent
+                .get(&url)
+                .header("Accept", "application/json")
+                .header("Accept-Encoding", "identity")
+                .header("X-AI-STP-Schema-Version", "1")
+                .header("Authorization", authorization.as_str())
+                .call()
+        }
+        .map_err(|_| super::visibility::uncertain())?;
+        drop(agent);
+        let response = self
+            .response(response, crate::http::MAX_BODY)
+            .map_err(|failure| {
+                if matches!(failure.kind, ErrorKind::Unavailable) {
+                    super::visibility::uncertain()
+                } else {
+                    failure
+                }
+            })?;
+        match response {
+            Reply::Resource(bytes) => crate::wire::parse(&bytes)
+                .map(Reply::Resource)
+                .map_err(|_| super::visibility::uncertain()),
+            Reply::Refused(code) => Ok(Reply::Refused(code)),
+        }
+    }
+
     pub fn github(
         &self,
         body: Option<&[u8]>,
