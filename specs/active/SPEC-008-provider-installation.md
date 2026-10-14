@@ -46,7 +46,7 @@ installed-harness observation, access, mechanical eligibility, explicit scope
 placement and held physical target identities. Apply recompiles and revalidates
 before publishing one new directory; it does not write configuration.
 
-The native `configuration set` service binds one complete setup across two or
+The native `configuration set` service binds one complete setup across one to
 three disjoint explicit scopes. Its installed-harness observation must match
 before first admission; admitted recovery keeps its original operation without
 depending on the current executable. Complete graph/source coverage precedes one
@@ -57,7 +57,12 @@ reserved until the parent settles. Cancellation is allowed before publication,
 and settled history never reapplies a target. Only a verified parent may attribute
 a complete installed setup to its separately bound registered project. The
 code-adjacent contract owns the closed request, bounds and phase vocabulary.
-No cross-root filesystem atomicity or configuration backup is claimed.
+No cross-root filesystem atomicity or configuration backup is claimed. Native
+`task start --intent install` coordinates scoped compilation and complete-set
+execution through the same retained child plans. It releases registry connections
+before child services run and recovers completed children before recording the
+final task outcome. `task input-schema` owns machine discovery of the closed
+native input, including explicit roots and exact setup identity.
 
 The Python and Rust status readers accept optional recorded
 `configuration_ownership` through kit 0.2.17. They distinguish unavailable

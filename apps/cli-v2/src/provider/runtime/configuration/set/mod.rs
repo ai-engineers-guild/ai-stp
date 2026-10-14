@@ -57,7 +57,7 @@ pub(in crate::provider::runtime) fn plan(parent: &Path, bytes: &[u8]) -> Result<
     }
     let mut request: Request =
         serde_json::from_value(wire::parse(bytes)?).map_err(|_| invalid())?;
-    if !(2..=3).contains(&request.targets.len()) {
+    if !(1..=3).contains(&request.targets.len()) {
         return Err(invalid());
     }
     request.targets.sort_by_key(|root| root.scope);

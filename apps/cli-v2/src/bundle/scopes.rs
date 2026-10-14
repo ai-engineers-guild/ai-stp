@@ -48,9 +48,9 @@ pub(crate) fn compile_snapshot(
     hosts: &BTreeMap<Scope, Hosts>,
     placements: &BTreeMap<String, Scope>,
 ) -> Result<Compiled> {
-    if !(2..=3).contains(&hosts.len()) || placements.len() > 512 {
+    if !(1..=3).contains(&hosts.len()) || placements.len() > 512 {
         return Err(invalid(
-            "a complete multi-root bundle requires two or three explicit scopes",
+            "a complete multi-root bundle requires one to three explicit scopes",
         ));
     }
     let mut host_identities = BTreeMap::new();
@@ -227,9 +227,9 @@ pub(super) fn route(
     placements: &BTreeMap<String, Scope>,
 ) -> Result<Routed> {
     super::validate_inputs(setup, &Hosts::new())?;
-    if !(2..=3).contains(&scopes.len()) || placements.len() > 512 {
+    if !(1..=3).contains(&scopes.len()) || placements.len() > 512 {
         return Err(invalid(
-            "a complete multi-root bundle requires two or three explicit scopes",
+            "a complete multi-root bundle requires one to three explicit scopes",
         ));
     }
     let graph = graph::exact(connection, std::slice::from_ref(setup))?;

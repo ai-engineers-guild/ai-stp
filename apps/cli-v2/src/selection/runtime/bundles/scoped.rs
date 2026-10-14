@@ -103,7 +103,7 @@ fn package(bundle: &bundle::Bundle) -> Result<Package> {
 }
 
 fn open(inputs: &Inputs) -> Result<BTreeMap<Scope, hosts::Root>> {
-    if !(2..=3).contains(&inputs.targets.len())
+    if !(1..=3).contains(&inputs.targets.len())
         || inputs.placements.len() > 512
         || !inputs.state_parent.is_absolute()
         || !Path::new(&inputs.output).is_absolute()
@@ -202,10 +202,16 @@ fn compile<T>(
 }
 
 pub fn plan(parent: &Path, path: &Path) -> Result<Value> {
-    let request: Request = serde_json::from_value(crate::wire::parse(&files::read(path, LIMIT)?)?)
-        .map_err(|_| invalid())?;
+    plan_value(parent, crate::wire::parse(&files::read(path, LIMIT)?)?)
+}
+
+pub(crate) fn plan_value(parent: &Path, value: Value) -> Result<Value> {
+    if canonical::bytes(&value)?.len() as u64 > LIMIT {
+        return Err(invalid());
+    }
+    let request: Request = serde_json::from_value(value).map_err(|_| invalid())?;
     request.access.validate()?;
-    if !(2..=3).contains(&request.targets.len())
+    if !(1..=3).contains(&request.targets.len())
         || request.targets.values().any(|path| !path.is_absolute())
     {
         return Err(invalid());
@@ -279,8 +285,14 @@ pub fn plan(parent: &Path, path: &Path) -> Result<Value> {
 }
 
 pub fn apply(path: &Path, expected: &str) -> Result<Value> {
-    let plan: Plan = serde_json::from_value(crate::wire::parse(&files::read(path, LIMIT)?)?)
-        .map_err(|_| invalid())?;
+    apply_value(crate::wire::parse(&files::read(path, LIMIT)?)?, expected)
+}
+
+pub(crate) fn apply_value(document: Value, expected: &str) -> Result<Value> {
+    if canonical::bytes(&document)?.len() as u64 > LIMIT {
+        return Err(invalid());
+    }
+    let plan: Plan = serde_json::from_value(document).map_err(|_| invalid())?;
     if plan.schema_version != 1
         || plan.action != "selection.scoped_bundles"
         || plan.digest()? != expected

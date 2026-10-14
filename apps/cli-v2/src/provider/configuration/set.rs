@@ -88,7 +88,7 @@ impl Plan {
         if plan.schema_version != 1
             || plan.action != KIND
             || !passport::stable_id(&plan.operation_id, "operation")
-            || !(2..=3).contains(&plan.children.len())
+            || !(1..=3).contains(&plan.children.len())
             || !passport::timestamp(&plan.created_at)
             || !passport::timestamp(&plan.expires_at)
             || fingerprint(&plan.value()?)? != expected

@@ -26,7 +26,7 @@ use crate::{
 
 #[derive(Clone, Default, Deserialize, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub(super) struct Request {
+pub(crate) struct Request {
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     trust_pins: BTreeSet<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -84,7 +84,7 @@ impl Request {
         self.trust_pins.is_empty() && !self.account
     }
 
-    pub fn planned(plan: Option<&Plan>) -> Result<Self> {
+    pub(super) fn planned(plan: Option<&Plan>) -> Result<Self> {
         if let Some(plan) = plan {
             plan.validate()?;
             Ok(plan.request.clone())

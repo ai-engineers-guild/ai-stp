@@ -121,8 +121,10 @@ requires a consumer-compatible version/capability contract.
 
 ### Native author tasks
 
-`task intents` advertises `author` and derives its input fields from the shared
-`cli-task-input-author` schema. `task start`, `answer`, `continue`, `status`,
+`task intents` advertises `author` and `install`. Author fields derive from the
+shared `cli-task-input-author` schema; native install fields derive from
+`tasks/install.schema.json`. `task input-schema --intent` returns the exact
+embedded input schema without opening local state. `task start`, `answer`, `continue`, `status`,
 `cancel` and `list` use the existing task and continuation wire models. They
 require an explicit isolated state directory with an initialized native identity.
 There is no production task import or implicit current-task pointer.
@@ -168,7 +170,35 @@ tasks; settled original-owner history remains readable after attachment.
 `scripts/verify_tasks.py` exercise atomic rollback, receipt-loss recovery,
 cross-language passport/definition consumption, exact-revision conflicts,
 question continuations and historical replay. These proofs do not qualify the
-remaining task intents, multi-root installation or production cutover.
+installation execution or production cutover.
+
+`task start --intent install` accepts an exact setup `source`, `harness_id` and
+one to three explicit scope-to-path `targets`. Optional `operation` is `install`
+(default), `replace` or `remove`; removal omits the source. Optional
+`provider_version`, `harness_executable`, `placements`, `project_root` and
+`access` retain the existing compiler/coordinator meanings. The current scope
+requires complete facts; it neither selects a setup implicitly nor asks a
+sequence of installation questions. The closed schema is available through
+`task input-schema --intent install`.
+
+The task resolves its managed component once, stores compiler and configuration
+plans before their effects, and calls both services in-process. All requested
+roots use the same complete-set coordinator, including a single root. A private
+per-key lease survives between registry connections; the task never holds a
+SQLite connection while the compiler or provider opens its own registry. Task
+payloads are bounded to 48 MiB, input and terminal outcomes to 16 KiB. Journal
+encoding preserves exact filesystem spellings in child plans.
+
+A lost task completion write resumes the original configuration receipt without
+recompilation, source archives, or a current harness executable. Retried keys
+must retain their original intent and normalized facts. Status reads no target;
+settled history never reinstalls. Cancellation before configuration admission
+settles without target changes; an admitted preparation uses the coordinator's
+cancellation, and an operation already in publication requires forward recovery.
+A verified child settles the task as completed even when cancellation was
+requested after that child finished. The public component remains the sole
+configuration writer. Active-root handoff and production state transfer retain
+their existing separate gates.
 
 The implemented metadata, configuration and snapshot commands are offline.
 They do not discover production state, initialize a
@@ -2297,7 +2327,7 @@ invents a synthetic component to evade those restrictions. A real SQLite journey
 covers all 16 released profiles; the author/release/setup journey also compiles
 a transitive graph and proves byte stability after a later draft edit.
 
-The headless `bundle::scopes` compiler also accepts two or three explicitly
+The headless `bundle::scopes` compiler also accepts one to three explicitly
 requested scopes for one exact setup graph. Every component must have exactly
 one eligible declared placement among those scopes; ambiguity requires an
 explicit component-to-scope mapping. Unknown placements, uncovered components
@@ -2331,7 +2361,7 @@ handoff remains a separate migration boundary.
 
 `configuration set plan --state-dir --request` accepts a closed JSON request
 with `harness_id`, optional `provider_version`, `harness_executable` and `project_root`, `operation`
-(`install`, `replace` or `remove`), and two or three `targets`, each containing
+(`install`, `replace` or `remove`), and one to three `targets`, each containing
 `scope`, an existing absolute `path` and a `bundle` path for install/replace.
 The component release must be at least 0.0.94. Scopes are unique and roots must
 be physically disjoint from each other and the state parent. Every scoped
@@ -3008,7 +3038,7 @@ cannot moderate reports, transfer ownership or change verification.
 | `authoring/project_binding.rs` | Atomic portable project identity and complete adaptation refresh |
 | `authoring/runtime.rs` | Identity-bound local plans, closed operation dispatch and private registry reads |
 | `authoring/embedded.rs` | Exact directory-to-component/setup authoring with atomic private versions and replay |
-| `tasks/`, `registry/tasks.rs` | Durable native author tasks, closed input questions and executable continuations |
+| `tasks/`, `registry/tasks.rs` | Durable native author/install tasks, exact child checkpoints and executable continuations |
 | `authoring/bindings.rs` | Shared local source addresses, relocation and binding replacement |
 | `provenance.rs` | Offline PEP 740 cryptographic verification and publisher policy |
 
