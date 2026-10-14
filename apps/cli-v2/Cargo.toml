@@ -57,7 +57,7 @@ regex = { version = "=1.13.1", default-features = false, features = ["std"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 command-fds = "=0.3.3"
-rustix = { version = "=1.1.5", features = ["net", "process"] }
+rustix = { version = "=1.1.5", features = ["net", "process", "param"] }
 zbus = { version = "=5.19.0", default-features = false, features = ["async-io", "blocking-api"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]

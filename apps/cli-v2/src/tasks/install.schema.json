@@ -154,6 +154,14 @@
         }
       },
       "default": {}
+    },
+    "activation": {
+      "type": "string",
+      "enum": [
+        "inactive",
+        "handoff"
+      ],
+      "default": "inactive"
     }
   },
   "allOf": [

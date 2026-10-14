@@ -1,5 +1,6 @@
 //! Portable configuration plans and receipts, shared by execution and local history.
 
+pub(crate) mod activation;
 pub(crate) mod effects;
 pub(crate) mod outcome;
 pub(crate) mod plan;

@@ -62,7 +62,12 @@ No cross-root filesystem atomicity or configuration backup is claimed. Native
 execution through the same retained child plans. It releases registry connections
 before child services run and recovers completed children before recording the
 final task outcome. `task input-schema` owns machine discovery of the closed
-native input, including explicit roots and exact setup identity.
+native input, including explicit roots and exact setup identity. Linux `handoff`
+activation prepares all roots, waits for consumer exit, publishes through the
+original components and confirms from a new harness session. Durable
+`awaiting_exit` and `awaiting_restart` phases keep the task unsatisfied and roots
+reserved. Consumers remain stopped during publication; the CLI does not claim
+an operating-system lock against independently launched harnesses.
 
 The Python and Rust status readers accept optional recorded
 `configuration_ownership` through kit 0.2.17. They distinguish unavailable
@@ -174,7 +179,7 @@ The version of the contract is agreed upon before the operation. The old provide
 | `REQ-807` | Failure checks confirm pre-write backup and retention of unmanaged data. |
 | `REQ-808` | A status or ready to run error does not toggle the active pointer. |
 | `REQ-809` | The failure matrix checks all long-lived states of the result. |
-| `REQ-810` | A staged replacement and restart leave the previous target recoverable until the new environment is confirmed. |
+| `REQ-810` | Preparation leaves live configuration unchanged; publication waits for consumer exit, recovers forward, and completes only after verified files and a restarted consumer are observed. |
 | `REQ-811` | Benchmark signature and manifest checks reject unknown key, policy mismatch, modification of any signed field, exact executable bytes mismatch, and rollback; a correctly signed release outside the assigned list and approved bytes under someone else's `provider_id` are rejected by the code `release_not_pinned` before the first launch of the provider; trusted plan repeats the check before apply and atomically advances history only with `verified`. |
 | `REQ-812` | Fixtures for changing and revoking keys check overlap and blocking; recovery only accepts a separate confirmed plan for exact digest from verified history and does not reduce floor. |
 | `REQ-813` | The fixture of an existing target undergoes inspection, copy, cleaning, inventory, passport, verification and fixation without changing the target. |

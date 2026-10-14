@@ -1,6 +1,6 @@
 ---
 description: "Full-task authority executes without extra prompts; unverified stays labeled; active-target change is staged."
-last_verified: "2026-09-04"
+last_verified: "2026-10-14"
 ---
 
 # ADR-0150: Full-task authority does not re-prompt
@@ -49,7 +49,14 @@ Under an authorized full-task / full-auto profile:
   remains `unverified`. Authority is not verification.
 - Changing the running agent's active setup stages the new environment,
   records a handoff, switches, and confirms after restart. Partial in-place
-  mutation of the live target remains forbidden.
+  mutation of the live target remains forbidden. Native activation prepares the
+  desired payload through the public component, records observed consumer
+  identities, waits for their exit, publishes while quiescent, and confirms from
+  a new harness session after independent file verification. The component
+  remains the sole final writer. Consumers must remain stopped during publication;
+  process observations do not lock out independently launched external programs.
+  Interrupted publication recovers forward from desired state under ADR-0145;
+  no automatic configuration backup or snapshot is created.
 - Uncertainty triggers more code, tests or a reversible experiment, not a
   question whose only purpose is permission.
 

@@ -65,7 +65,7 @@ pub(super) fn execute(
         return Err(invalid());
     }
     target.disjoint(&state.directory()?)?;
-    require_inactive(&target)?;
+    super::set::inactive(&target, mode, authority)?;
     let mut journal = Journal::open(parent, &plan, digest)?;
     super::set::authorize(parent, &plan, digest, mode, authority)?;
     let prior = journal.read(&plan, digest)?;
@@ -154,6 +154,7 @@ pub(super) fn execute(
         journal.admit(&plan, digest)?;
     }
     journal.resume(&plan, digest)?;
+    super::set::inactive(&target, mode, authority)?;
     let response = runtime.launcher.configure(
         artifact.executable()?,
         &target,

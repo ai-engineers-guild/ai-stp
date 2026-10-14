@@ -19,6 +19,8 @@ use std::path::PathBuf;
 pub(super) enum Handler {
     SetPlan,
     SetApply,
+    SetPrepare,
+    SetConfirm,
     SetCancel,
     SetStatus,
     ProgramStatus,
@@ -35,6 +37,8 @@ impl Handler {
     pub(super) fn mutability(self) -> &'static str {
         match self {
             Self::SetApply
+            | Self::SetPrepare
+            | Self::SetConfirm
             | Self::SetCancel
             | Self::ConfigurationApply
             | Self::ConfigurationCancel => "apply",
@@ -84,7 +88,7 @@ const SCOPE: Parameter = Parameter {
 pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
         path: &["configuration", "set", "plan"],
-        summary: "Plan complete setup installation across two or three explicit, disjoint configuration roots.",
+        summary: "Plan complete setup installation across one to three explicit, disjoint configuration roots.",
         parameters: &[
             STATE_DIR,
             Parameter {
@@ -95,6 +99,46 @@ pub(super) const COMMANDS: &[Declaration] = &[
             },
         ],
         handler: super::Handler::Provider(Handler::SetPlan),
+    },
+    Declaration {
+        path: &["configuration", "set", "prepare"],
+        summary: "Stage all configuration roots and bind active consumers; publish no configuration until those sessions exit.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "plan",
+                summary: "Original complete configuration set plan JSON, at most 32 MiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Exact digest returned by configuration set plan.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Provider(Handler::SetPrepare),
+    },
+    Declaration {
+        path: &["configuration", "set", "confirm"],
+        summary: "Confirm verified configuration from the restarted harness session using its observed process identity.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "plan",
+                summary: "Original complete configuration set plan JSON, at most 32 MiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Exact digest returned by configuration set plan.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Provider(Handler::SetConfirm),
     },
     Declaration {
         path: &["configuration", "set", "apply"],
@@ -293,7 +337,12 @@ pub(super) const COMMANDS: &[Declaration] = &[
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     if matches!(
         handler,
-        Handler::SetPlan | Handler::SetApply | Handler::SetCancel | Handler::SetStatus
+        Handler::SetPlan
+            | Handler::SetApply
+            | Handler::SetPrepare
+            | Handler::SetConfirm
+            | Handler::SetCancel
+            | Handler::SetStatus
     ) {
         let parent = args
             .get_one::<PathBuf>("state-dir")
@@ -312,6 +361,8 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             .ok_or_else(|| Failure::input("the exact configuration set plan digest is required"))?;
         let action = match handler {
             Handler::SetApply => "apply",
+            Handler::SetPrepare => "prepare",
+            Handler::SetConfirm => "confirm",
             Handler::SetCancel => "cancel",
             _ => "status",
         };
@@ -359,6 +410,8 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         Handler::Network => Ok(runtime.report()),
         Handler::SetPlan
         | Handler::SetApply
+        | Handler::SetPrepare
+        | Handler::SetConfirm
         | Handler::SetCancel
         | Handler::SetStatus
         | Handler::ProgramStatus
@@ -439,6 +492,8 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                 }
                 Handler::SetPlan
                 | Handler::SetApply
+                | Handler::SetPrepare
+                | Handler::SetConfirm
                 | Handler::SetCancel
                 | Handler::SetStatus
                 | Handler::Network

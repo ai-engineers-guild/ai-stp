@@ -77,9 +77,9 @@ The pin is a choice, not authentication or installation eligibility.
 
 The existing `provider` command group is the expert interface inside this CLI.
 No separate setup-system command is required for implemented read, preparation,
-single-root configuration journeys. Harness executables remain user-managed.
-Multi-root coordination, active-agent handoff, other-OS isolation, native
-self-update and the production switch remain C4/C6/C7 work.
+single- and multi-root configuration journeys. Harness executables remain user-managed.
+Linux staged activation is available through complete-set handoff. Other-OS
+isolation, native self-update and the production switch remain C4/C6/C7 work.
 
 ## Contract
 
@@ -197,8 +197,11 @@ settles without target changes; an admitted preparation uses the coordinator's
 cancellation, and an operation already in publication requires forward recovery.
 A verified child settles the task as completed even when cancellation was
 requested after that child finished. The public component remains the sole
-configuration writer. Active-root handoff and production state transfer retain
-their existing separate gates.
+configuration writer. Optional `activation: "handoff"` stages all roots and returns
+a blocked task with a machine-readable `handoff`, without asking an installation
+question. Continue from an external shell after the old consumers exit, then
+continue from the restarted harness to confirm the verified files. The task stays
+unsatisfied until that final confirmation. Production state transfer remains separate.
 
 The implemented metadata, configuration and snapshot commands are offline.
 They do not discover production state, initialize a
@@ -1157,9 +1160,9 @@ verified result and does not undo it.
 
 Current-project and configured harness roots refuse direct application: their
 activation requires staged replacement and durable agent handoff.
-`configuration set` coordinates inactive roots; active-target handoff and writable
-isolation outside Linux remain separate C4 work. This bounded configuration surface does not advertise a
-completed task intent or production writer cutover.
+`configuration set prepare` provides the explicit Linux handoff described below;
+direct application retains the refusal. Writable isolation outside Linux and
+production writer cutover remain separate acceptance boundaries.
 
 `program status --harness <id> [--executable <absolute-path>]` observes the
 user-installed harness. Omission resolves the catalog's primary command in
@@ -2356,8 +2359,7 @@ all package digests, source and target identities to the original plan. It
 publishes `<scope>.zip` files together into one review directory using the shared
 non-replacing tree publisher. A matching retry returns `already_matches` after
 fresh revalidation. It creates no installation permission or target changes.
-`configuration set` consumes the resulting complete scoped packages. Active-root
-handoff remains a separate migration boundary.
+`configuration set` consumes the resulting complete scoped packages.
 
 `configuration set plan --state-dir --request` accepts a closed JSON request
 with `harness_id`, optional `provider_version`, `harness_executable` and `project_root`, `operation`
@@ -2389,6 +2391,33 @@ that receipt. Every root is independently read back before final success.
 Cancellation is available before publication begins; afterwards the operation
 requires forward recovery. This is a recoverable sequence, with no promise of
 an atomic filesystem change across roots and no configuration backups.
+
+`configuration set prepare` records a durable handoff and prepares all roots
+without publishing their configuration. The parent enters `awaiting_exit` after
+all component preparation receipts verify. The Linux observer records same-user
+consumer PIDs, start ticks, boot identities and harness IDs for overlapping roots.
+It reads only declared launcher entrypoints and root environment keys; process
+arguments and environment are not retained. Native executable names, declared
+aliases and known Node/Bun package entrypoints identify supported consumers.
+Unknown launchers must be stopped explicitly before activation.
+
+Apply requires the original sessions to have exited and a fresh observation with
+no supported consumer using any root. The same check runs before each component
+publication. The observed harness must still match before publication begins;
+a user update at that boundary requires cancellation and a new plan. Partial
+publication always recovers forward with its retained component and desired bytes.
+Keep consumers stopped until all roots verify: these checks do not prevent an
+independently launched external process from racing a filesystem write.
+
+After publication, the parent enters `awaiting_restart`; all roots stay reserved.
+`configuration set confirm` must be invoked from a newly started matching harness
+process with the target context. Its boot/start identity must postdate publication.
+The CLI verifies all final bytes and component status again, then commits the
+complete receipt and releases the reservations. This confirms a restarted consumer
+and exact configuration, not execution of every instruction or model behavior.
+The harness continues to own its program updates. No daemon, process termination,
+configuration snapshot or automatic backup is introduced. An external shell may
+perform the quiescent application; the new agent confirms through the same CLI.
 
 An optional registered project is independent of the configuration roots. Its
 exact current selection and physical root are bound at planning/admission. The

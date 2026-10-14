@@ -348,6 +348,7 @@ pub fn advance(
 pub(crate) fn continuations(parent: &Path, data: &Value) -> Vec<Value> {
     let (command, kind, actor, question) = match data["state"].as_str() {
         Some("planned" | "running") => ("continue", "advance", "cli", None),
+        Some("blocked") if data.get("handoff").is_some() => ("continue", "blocked", "cli", None),
         Some("blocked") => (
             "answer",
             "blocked",

@@ -94,6 +94,12 @@ pub(super) enum Plan {
 }
 
 impl Plan {
+    pub fn handoff(&self) -> Option<Value> {
+        match self {
+            Self::Install(plan) => plan.handoff(),
+            Self::Author(_) => None,
+        }
+    }
     pub fn digest(&self) -> Result<String> {
         match self {
             Self::Author(plan) => plan.digest(),

@@ -89,8 +89,11 @@ impl Row {
         }
     }
     pub fn view(&self) -> Result<Value> {
-        let view = json!({"schema_version":1,"task_id":self.id,"revision":self.revision,"intent":self.payload.input.intent(), "state":self.state,
+        let mut view = json!({"schema_version":1,"task_id":self.id,"revision":self.revision,"intent":self.payload.input.intent(), "state":self.state,
             "goal_satisfied":self.state=="completed","questions":self.questions()?,"outcome":self.outcome,"child_operation_ids":self.children()});
+        if let Some(handoff) = self.payload.plan.as_ref().and_then(Plan::handoff) {
+            view["handoff"] = handoff;
+        }
         VIEW.validate(&view)?;
         Ok(view)
     }

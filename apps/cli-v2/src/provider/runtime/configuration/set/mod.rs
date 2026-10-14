@@ -1,5 +1,6 @@
 //! Complete setup execution: reserve all roots, prepare all, then publish in order.
 
+mod activation;
 pub(super) mod journal;
 mod project;
 #[cfg(test)]
@@ -245,7 +246,7 @@ fn coverage(connection: &Connection, plan: &Plan, bytes: &[Option<Vec<u8>>]) -> 
     Ok(())
 }
 
-fn admit(journal: &journal::Journal, cancelling: bool) -> Result<Record> {
+fn admit(journal: &journal::Journal, cancelling: bool, staging: bool) -> Result<Record> {
     let plan = &journal.plan;
     if !cancelling {
         let observation = crate::program::observe(
@@ -259,7 +260,8 @@ fn admit(journal: &journal::Journal, cancelling: bool) -> Result<Record> {
         }
     }
     let parent = PathBuf::from(plan.first()?.state_parent);
-    let roots = roots(plan, !cancelling)?;
+    let roots = roots(plan, !cancelling && !staging)?;
+    let handoff = staging.then(|| activation::prepare(plan)).transpose()?;
     let namespace = journal.namespace.as_ref().ok_or_else(invalid)?;
     let mut held = Vec::new();
     let bundles = if cancelling {
@@ -315,6 +317,7 @@ fn admit(journal: &journal::Journal, cancelling: bool) -> Result<Record> {
         .into(),
         prepared: vec![None; plan.children.len()],
         results: vec![None; plan.children.len()],
+        handoff,
     };
     let mut store = journal.store()?;
     store.transaction(|connection| {
@@ -343,11 +346,23 @@ pub(in crate::provider::runtime) fn execute(
     digest: &str,
     action: &str,
 ) -> Result<Value> {
-    if !matches!(action, "apply" | "cancel" | "status") {
+    if !matches!(
+        action,
+        "apply" | "prepare" | "confirm" | "continue" | "cancel" | "status"
+    ) {
         return Err(invalid());
     }
     let plan = Plan::parse(bytes, digest)?;
     let prior = journal::Journal::history(parent, &plan, digest)?;
+    let action = if action == "continue" {
+        match prior.as_ref().map(|record| record.phase.as_str()) {
+            None | Some("preparing") => "prepare",
+            Some("awaiting_restart") => "confirm",
+            _ => "apply",
+        }
+    } else {
+        action
+    };
     if let Some(record) = &prior
         && (record.state() != "applying" || action == "status")
     {
@@ -360,19 +375,40 @@ pub(in crate::provider::runtime) fn execute(
     let mut journal = journal::Journal::open(parent, plan, digest)?;
     let mut record = match journal::Journal::history(parent, &journal.plan, digest)? {
         Some(record) => record,
-        None => admit(&journal, cancelling)?,
+        None if action == "confirm" => return Err(invalid()),
+        None => admit(&journal, cancelling, action == "prepare")?,
     };
     if record.state() != "applying" {
         return record.result(&journal.plan);
     }
-    if cancelling && record.phase == "applying" || !cancelling && record.phase == "cancelling" {
+    if cancelling && matches!(record.phase.as_str(), "applying" | "awaiting_restart")
+        || !cancelling && record.phase == "cancelling"
+    {
         return Err(invalid());
     }
-    if cancelling && record.phase == "preparing" {
+    if action == "prepare" && record.handoff.is_none() {
+        return Err(invalid());
+    }
+    if cancelling && matches!(record.phase.as_str(), "preparing" | "awaiting_exit") {
         record.phase = "cancelling".into();
         journal.save(&record)?;
     }
     journal.namespace.take();
+    if record.phase == "awaiting_restart" {
+        if action != "confirm" {
+            return record.result(&journal.plan);
+        }
+        let handoff = record.handoff.as_ref().ok_or_else(invalid)?;
+        let session = activation::confirm(&journal.plan, handoff)?;
+        verify(&journal.plan, &record)?;
+        record.handoff.as_mut().ok_or_else(invalid)?.confirmed = Some(session);
+        record.phase = "verified".into();
+        journal.save(&record)?;
+        return record.result(&journal.plan);
+    }
+    if action == "confirm" {
+        return Err(invalid());
+    }
     if record.phase == "preparing" {
         for (index, child) in journal.plan.children.iter().enumerate() {
             if record.prepared[index].is_none() {
@@ -386,6 +422,19 @@ pub(in crate::provider::runtime) fn execute(
                 )?);
                 journal.save(&record)?;
             }
+        }
+        if record.handoff.is_some() {
+            record.phase = "awaiting_exit".into();
+            journal.save(&record)?;
+        }
+    }
+    if action == "prepare" {
+        return record.result(&journal.plan);
+    }
+    if matches!(record.phase.as_str(), "preparing" | "awaiting_exit") {
+        if let Some(handoff) = &record.handoff {
+            activation::idle(&journal.plan, handoff)?;
+            check_program(&journal.plan)?;
         }
         record.phase = "applying".into();
         let mut store = journal.store()?;
@@ -415,9 +464,52 @@ pub(in crate::provider::runtime) fn execute(
     if !cancelling {
         verify(&journal.plan, &record)?;
     }
-    record.phase = if cancelling { "cancelled" } else { "verified" }.into();
+    record.phase = if cancelling {
+        "cancelled"
+    } else if let Some(handoff) = &mut record.handoff {
+        handoff.published = Some(activation::published()?);
+        "awaiting_restart"
+    } else {
+        "verified"
+    }
+    .into();
     journal.save(&record)?;
     record.result(&journal.plan)
+}
+
+fn check_program(plan: &Plan) -> Result<()> {
+    let observed = crate::program::observe(
+        &plan.first()?.harness_id,
+        plan.program.executable.as_deref().map(Path::new),
+    )?;
+    if observed["observation_digest"] != plan.program.observation_digest {
+        return Err(crate::error::Failure::precondition(
+            "the user-managed harness changed before activation; cancel the prepared operation and create a new plan",
+        ));
+    }
+    Ok(())
+}
+
+pub(super) fn inactive(
+    target: &Target,
+    mode: Mode,
+    authority: Option<&journal::Journal>,
+) -> Result<()> {
+    if let Some(authority) = authority {
+        let record =
+            journal::Journal::history(authority.state_path(), &authority.plan, &authority.digest)?
+                .ok_or_else(invalid)?;
+        if let Some(handoff) = &record.handoff {
+            if mode == Mode::Prepare && record.phase == "preparing" {
+                return Ok(());
+            }
+            if mode == Mode::Apply && record.phase == "applying" {
+                return activation::idle(&authority.plan, handoff);
+            }
+            return Err(invalid());
+        }
+    }
+    apply::require_inactive(target)
 }
 
 fn verify(plan: &Plan, record: &Record) -> Result<()> {

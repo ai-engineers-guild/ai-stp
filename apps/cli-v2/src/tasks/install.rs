@@ -47,6 +47,12 @@ fn version() -> u32 {
 fn install() -> String {
     "install".into()
 }
+fn inactive() -> String {
+    "inactive".into()
+}
+fn planning() -> String {
+    "planning".into()
+}
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -58,6 +64,8 @@ pub(super) struct Input {
     pub targets: BTreeMap<Scope, String>,
     #[serde(default = "install")]
     pub operation: String,
+    #[serde(default = "inactive")]
+    pub activation: String,
     pub project_root: Option<String>,
     #[serde(default)]
     pub placements: BTreeMap<String, Scope>,
@@ -84,6 +92,7 @@ impl Input {
         harnesses::definition(&self.harness_id)?;
         if self.schema_version != 1
             || self.harness_id == "undefined"
+            || !matches!(self.activation.as_str(), "inactive" | "handoff")
             || !(1..=3).contains(&self.targets.len())
             || self.targets.values().any(|path| !absolute(path))
             || !matches!(
@@ -162,6 +171,8 @@ pub(super) struct Checkpoint {
     provider_version: String,
     bundle: Option<Reviewed>,
     configuration: Option<Reviewed>,
+    #[serde(default = "planning")]
+    phase: String,
 }
 impl Checkpoint {
     pub fn digest(&self) -> Result<String> {
@@ -186,6 +197,12 @@ impl Checkpoint {
                 .as_ref()
                 .is_some_and(|version| version != &self.provider_version)
             || input.operation == "remove" && self.bundle.is_some()
+            || !matches!(
+                self.phase.as_str(),
+                "planning" | "awaiting_exit" | "awaiting_restart" | "verified" | "cancelled"
+            )
+            || matches!(self.phase.as_str(), "awaiting_exit" | "awaiting_restart")
+                && input.activation != "handoff"
         {
             return Err(invalid());
         }
@@ -245,6 +262,18 @@ impl Checkpoint {
             "state":"verified","verified":true,"operation":first.operation()?,"root_count":plan.children.len()}),
         )
     }
+    pub fn handoff(&self) -> Option<Value> {
+        let action = match self.phase.as_str() {
+            "awaiting_exit" => {
+                "Finish sessions using the staged roots, then continue from an external shell before starting the harness."
+            }
+            "awaiting_restart" => {
+                "Start the user-installed harness and continue this task from that new session to confirm activation."
+            }
+            _ => return None,
+        };
+        Some(json!({"state":self.phase,"required_action":action}))
+    }
 }
 
 fn save(owner: &Owner, row: &mut Row, checkpoint: Checkpoint) -> Result<()> {
@@ -275,6 +304,7 @@ pub(super) fn drain(
             provider_version: managed::version(input.provider_version.as_deref())?.into(),
             bundle: None,
             configuration: None,
+            phase: "planning".into(),
         },
         _ => return Err(invalid()),
     };
@@ -333,14 +363,23 @@ pub(super) fn drain(
         parent,
         &serde_json::to_vec(&held.plan).map_err(|_| invalid())?,
         &held.plan_digest,
-        if cancel { "cancel" } else { "apply" },
+        if cancel {
+            "cancel"
+        } else if input.activation == "handoff" {
+            "continue"
+        } else {
+            "apply"
+        },
     )?;
+    checkpoint.phase = result["state"].as_str().ok_or_else(invalid)?.into();
+    save(owner, &mut row, checkpoint.clone())?;
     let state = match result["state"].as_str() {
         Some("verified") => {
             row.outcome = Some(checkpoint.outcome()?);
             "completed"
         }
         Some("cancelled") => "cancelled",
+        Some("awaiting_exit" | "awaiting_restart") => "blocked",
         _ => return Err(invalid()),
     };
     super::save(&mut owner.open(false)?, &mut row, state)?;

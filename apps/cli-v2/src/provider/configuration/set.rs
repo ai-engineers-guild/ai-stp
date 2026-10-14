@@ -206,6 +206,8 @@ pub(crate) struct Record {
     pub phase: String,
     pub prepared: Vec<Option<Value>>,
     pub results: Vec<Option<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub handoff: Option<super::activation::Handoff>,
 }
 
 impl Record {
@@ -231,14 +233,37 @@ impl Record {
             || record.state() != state
             || !matches!(
                 record.phase.as_str(),
-                "preparing" | "applying" | "cancelling" | "verified" | "cancelled"
+                "preparing"
+                    | "awaiting_exit"
+                    | "applying"
+                    | "awaiting_restart"
+                    | "cancelling"
+                    | "verified"
+                    | "cancelled"
             )
             || record.prepared.len() != plan.children.len()
             || record.results.len() != plan.children.len()
         {
             return Err(invalid());
         }
-        let publishing = matches!(record.phase.as_str(), "applying" | "verified");
+        if let Some(handoff) = &record.handoff {
+            handoff.validate()?;
+            if handoff.published.is_some()
+                != matches!(record.phase.as_str(), "awaiting_restart" | "verified")
+                || handoff.confirmed.is_some() != (record.phase == "verified")
+                || handoff.confirmed.as_ref().is_some_and(|session| {
+                    session.harness_id != plan.children[0].plan["harness_id"]
+                })
+            {
+                return Err(invalid());
+            }
+        } else if matches!(record.phase.as_str(), "awaiting_exit" | "awaiting_restart") {
+            return Err(invalid());
+        }
+        let publishing = matches!(
+            record.phase.as_str(),
+            "awaiting_exit" | "applying" | "awaiting_restart" | "verified"
+        );
         let cancelling = matches!(record.phase.as_str(), "cancelling" | "cancelled");
         let mut pending = false;
         let mut preparation_pending = false;
@@ -255,7 +280,7 @@ impl Record {
                 preparation_pending = true;
             }
             if let Some(result) = &record.results[index] {
-                if pending || record.phase == "preparing" {
+                if pending || matches!(record.phase.as_str(), "preparing" | "awaiting_exit") {
                     return Err(invalid());
                 }
                 if cancelling {
@@ -267,7 +292,7 @@ impl Record {
                 pending = true;
             }
         }
-        if record.state() != "applying" && pending {
+        if (record.state() != "applying" || record.phase == "awaiting_restart") && pending {
             return Err(invalid());
         }
         Ok((record, plan))
@@ -282,7 +307,8 @@ impl Record {
             "provider_version":first.provider_version,"setup":first.setup,
             "project_id":plan.project.as_ref().map(|p| &p.binding.project_id),
             "children":self.results,"prepared":self.prepared.iter().map(Option::is_some).collect::<Vec<_>>(),
-            "complete":self.state() != "applying","cross_root_atomicity":false}),
+            "complete":self.state() != "applying","cross_root_atomicity":false,
+            "handoff":self.handoff,"configuration_verified":matches!(self.phase.as_str(),"awaiting_restart"|"verified")}),
         )
     }
 }

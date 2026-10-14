@@ -48,6 +48,9 @@ pub(in crate::provider::runtime::configuration) struct Journal {
 }
 
 impl Journal {
+    pub(super) fn state_path(&self) -> &Path {
+        self.state.path()
+    }
     pub(super) fn history(parent: &Path, plan: &Plan, digest: &str) -> Result<Option<Record>> {
         let first = plan.first()?;
         let state = Target::open(parent)?;
@@ -133,12 +136,24 @@ pub(super) fn write(
         if previous.state() != "applying"
             || !matches!(
                 (before, record.phase.as_str()),
-                ("preparing", "preparing" | "applying" | "cancelling")
-                    | ("applying", "applying" | "verified")
+                (
+                    "preparing",
+                    "preparing" | "awaiting_exit" | "applying" | "cancelling"
+                ) | ("awaiting_exit", "applying" | "cancelling")
+                    | ("applying", "applying" | "awaiting_restart" | "verified")
+                    | ("awaiting_restart", "verified")
                     | ("cancelling", "cancelling" | "cancelled")
             )
         {
             return Err(invalid());
+        }
+        match (&previous.handoff, &record.handoff) {
+            (None, None) => (),
+            (Some(old), Some(next))
+                if old.sessions == next.sessions
+                    && (old.published.is_none() || old.published == next.published)
+                    && (old.confirmed.is_none() || old.confirmed == next.confirmed) => {}
+            _ => return Err(invalid()),
         }
         for (old, next) in previous
             .prepared

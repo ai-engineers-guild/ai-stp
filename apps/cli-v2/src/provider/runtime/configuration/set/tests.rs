@@ -61,6 +61,7 @@ pub(in crate::provider::runtime::configuration) fn prove(
         )?);
     }
     let mut record = Record {
+        handoff: None,
         schema_version: 1,
         plan_digest: digest.clone(),
         plan: value,
@@ -262,6 +263,7 @@ fn attribution(parent: &Path, template: &Plan) -> std::result::Result<(), Box<dy
         let plan = Plan::parse(&serde_json::to_vec(&value)?, &digest)?;
         let group = journal::Journal::open(parent, plan, &digest)?;
         let mut record = Record {
+            handoff: None,
             schema_version: 1,
             plan_digest: digest.clone(),
             plan: value,
