@@ -1,6 +1,7 @@
 //! One command definition drives both the parser and its machine description.
 
 mod account;
+mod attestation;
 mod catalog;
 mod github;
 mod grants;
@@ -28,6 +29,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 enum Handler {
     Task(tasks::Handler),
     Account(account::Handler),
+    Attestation(attestation::Handler),
     Grant(grants::Handler),
     Github(github::Handler),
     Sync(sync::Handler),
@@ -680,6 +682,7 @@ fn declarations() -> impl Iterator<Item = &'static Declaration> {
         .chain(github::COMMANDS)
         .chain(sync::COMMANDS)
         .chain(publication::COMMANDS)
+        .chain(attestation::COMMANDS)
         .chain(tasks::COMMANDS)
 }
 
@@ -751,6 +754,7 @@ fn mutability(handler: Handler) -> &'static str {
         Handler::Github(handler) => handler.mutability(),
         Handler::Sync(handler) => handler.mutability(),
         Handler::Publication(handler) => handler.mutability(),
+        Handler::Attestation(handler) => handler.mutability(),
         Handler::Task(handler) => handler.mutability(),
         _ => "read",
     }
@@ -833,6 +837,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::Github(handler) => github::dispatch(handler, leaf),
         Handler::Sync(handler) => sync::dispatch(handler, leaf),
         Handler::Publication(handler) => publication::dispatch(handler, leaf),
+        Handler::Attestation(handler) => attestation::dispatch(handler, leaf),
         Handler::Provider(handler) => providers::dispatch(handler, leaf),
         Handler::Selection(handler) => selections::dispatch(handler, leaf),
         Handler::Version => Ok(json!({"schema_version": 1, "cli_version": VERSION,
