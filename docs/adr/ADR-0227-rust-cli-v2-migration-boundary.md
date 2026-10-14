@@ -88,6 +88,17 @@ different credential-store selection refuses. Legacy state is never an
 initialization target. Desktop consumes these same commands and renders native
 descriptors rather than maintaining legacy command fallbacks.
 
+### Native executable ownership
+
+A verified archive installs through `cli install plan/apply/status` into a
+private native-owned prefix. The plan binds the parent directory, old receipt,
+new binary digest, version and platform. Admission precedes atomic binary
+replacement; recovery reads back the exact bytes before publishing the receipt.
+Updates repeat that flow from the new extracted archive, without a downloader,
+automatic scheduler, privilege escalation or database rollback. Other installation
+owners (uv/pipx, system packages and desktop) are never overwritten. PATH changes
+and retiring an old owner remain explicit deployment operations.
+
 ### Compatibility and native dependencies
 
 The code-backed preview boundary is documented beside `apps/cli-v2`. It keeps

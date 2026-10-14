@@ -136,6 +136,11 @@ selected credential backend; metadata reads never initialize state. Existing
 legacy identity files require the explicit writer transfer above. Desktop
 consumes native descriptors and the account plan/apply/status boundary.
 
+Native archive installation uses `cli install plan/apply/status`, exact binary
+and parent-directory preconditions, an owned prefix and durable forward recovery.
+It does not overwrite another installer, downgrade versions, modify user state,
+create backups or run an automatic update scheduler.
+
 ## Acceptance criteria
 
 | Requirement | Executable verification method |

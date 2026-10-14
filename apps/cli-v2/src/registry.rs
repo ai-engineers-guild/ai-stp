@@ -3,6 +3,7 @@
 mod account;
 mod attestation;
 mod catalog;
+mod distribution;
 mod github;
 mod grants;
 mod local;
@@ -31,6 +32,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[derive(Clone, Copy)]
 enum Handler {
     Task(tasks::Handler),
+    Distribution(distribution::Handler),
     Migration(migration::Handler),
     Account(account::Handler),
     Attestation(attestation::Handler),
@@ -733,6 +735,7 @@ fn declarations() -> impl Iterator<Item = &'static Declaration> {
         .chain(publication::COMMANDS)
         .chain(attestation::COMMANDS)
         .chain(tasks::COMMANDS)
+        .chain(distribution::COMMANDS)
 }
 
 fn children(parent: Command, prefix: &[&str]) -> Command {
@@ -808,6 +811,7 @@ fn mutability(handler: Handler) -> &'static str {
         Handler::Publication(handler) => handler.mutability(),
         Handler::Attestation(handler) => handler.mutability(),
         Handler::Task(handler) => handler.mutability(),
+        Handler::Distribution(handler) => handler.mutability(),
         _ => "read",
     }
 }
@@ -899,6 +903,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
             },
         ),
         Handler::Task(handler) => tasks::dispatch(handler, leaf),
+        Handler::Distribution(handler) => distribution::dispatch(handler, leaf),
         Handler::Local(handler) => local::dispatch(handler, leaf),
         Handler::Report(handler) => reports::dispatch(handler, leaf),
         Handler::Account(handler) => account::dispatch(handler, leaf),

@@ -10,6 +10,7 @@ pub mod canonical;
 pub mod catalog;
 pub mod config;
 pub mod digest;
+pub mod distribution;
 pub mod environment;
 pub mod error;
 mod files;

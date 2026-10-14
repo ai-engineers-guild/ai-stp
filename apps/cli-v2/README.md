@@ -19,6 +19,24 @@ choose `file`, which is unencrypted and never an automatic fallback. Repeating
 initialization keeps the exact owner and key. Existing Python identity/database
 files require the migration procedure below; initialization cannot replace them.
 
+## Install or update the native executable
+
+Verify the release archive checksum and GitHub artifact attestation before
+executing it. From the extracted archive, `cli install plan --prefix <directory>`
+plans a dedicated native installation under an existing parent. Apply its exact
+JSON plan and digest with that same archive executable. The installer never
+modifies PATH, credentials, the registry or harness configuration. Add the
+reported executable directory to PATH, or create a user-owned command link.
+
+The prefix has a private ownership marker, a binary digest and a durable
+installation journal. A later archive uses the same plan/apply flow. It refuses
+package-manager, shared-bin and desktop prefixes and version downgrades. Remove
+a previous uv/pipx command through its owning package manager before exposing
+the native command; do not overwrite that owner's launcher. Pending operations
+are returned by `cli install status` and resume after binary replacement without
+restoring old application state. Windows replacement may require closing an
+existing CLI process before retrying. No background updater or backup is added.
+
 ## Preview distribution
 
 GitHub prereleases use tags `cli-v2-v<version>` and the version in `Cargo.toml`.
