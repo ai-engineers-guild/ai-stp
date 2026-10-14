@@ -54,6 +54,7 @@ fn shared_canonical_vectors_and_rejections() -> Result<(), Box<dyn Error>> {
 #[test]
 fn executable_metadata_and_refusals() -> Result<(), Box<dyn Error>> {
     let home = tempfile::tempdir()?;
+    let state = home.path().to_str().ok_or("state path")?;
     for (arguments, expected) in [
         (vec!["version", "--json"], 0),
         (vec!["--json", "capabilities"], 0),
@@ -62,6 +63,36 @@ fn executable_metadata_and_refusals() -> Result<(), Box<dyn Error>> {
         (vec!["snapshot", "inspect", "--json"], 2),
         (vec!["install", "--json"], 2),
         (vec!["help", "--path", "install", "--json"], 2),
+        (vec!["help", "--path", "sync push plan", "--json"], 0),
+        (vec!["help", "--path", "sync pull plan", "--json"], 0),
+        (vec!["help", "--path", "sync apply", "--json"], 0),
+        (
+            vec![
+                "sync",
+                "pull",
+                "plan",
+                "--state-dir",
+                state,
+                "--page-size",
+                "101",
+                "--json",
+            ],
+            2,
+        ),
+        (
+            vec![
+                "sync",
+                "push",
+                "plan",
+                "--state-dir",
+                state,
+                "--id",
+                "component_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+                "--json",
+            ],
+            4,
+        ),
+        (vec!["sync", "apply", "--json"], 2),
         (vec!["version", "--token=must-not-be-echoed", "--json"], 2),
     ] {
         let output = Command::new(env!("CARGO_BIN_EXE_ai-stp-v2"))

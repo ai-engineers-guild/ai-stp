@@ -127,28 +127,8 @@ impl Scope {
         if !passport::timestamp(at) {
             return Err(invalid());
         }
-        if self.recorded(transaction)? {
+        if self.inspect(transaction)? {
             return Ok(());
-        }
-        for table in [
-            "sync_event",
-            "sync_cursor",
-            "sync_pending_version",
-            "sync_remote_head",
-            "sync_abandoned_event",
-        ] {
-            let populated: bool = transaction
-                .query_row(
-                    &format!("SELECT EXISTS(SELECT 1 FROM {table} WHERE account_id=?)"),
-                    [&self.account],
-                    |row| row.get(0),
-                )
-                .map_err(database)?;
-            if populated {
-                return Err(Failure::precondition(
-                    "the existing private sync ledger has no retained origin binding",
-                ));
-            }
         }
         let plan = OriginPlan {
             schema_version: 1,
@@ -175,6 +155,34 @@ impl Scope {
             params![id, at, evidence],
         ).map_err(database)?;
         Ok(())
+    }
+
+    /// Planning may inspect a pristine ledger without creating its origin receipt.
+    pub(super) fn inspect(&self, connection: &Connection) -> Result<bool> {
+        if self.recorded(connection)? {
+            return Ok(true);
+        }
+        for table in [
+            "sync_event",
+            "sync_cursor",
+            "sync_pending_version",
+            "sync_remote_head",
+            "sync_abandoned_event",
+        ] {
+            let populated: bool = connection
+                .query_row(
+                    &format!("SELECT EXISTS(SELECT 1 FROM {table} WHERE account_id=?)"),
+                    [&self.account],
+                    |row| row.get(0),
+                )
+                .map_err(database)?;
+            if populated {
+                return Err(Failure::precondition(
+                    "the existing private sync ledger has no retained origin binding",
+                ));
+            }
+        }
+        Ok(false)
     }
 
     pub fn require(&self, connection: &Connection) -> Result<()> {
@@ -225,7 +233,12 @@ fn read(connection: &Connection, row: &rusqlite::Row<'_>, account: &str) -> Resu
         return Err(invalid());
     }
     let request = canonical::parse(request.as_bytes())?;
-    let event = Event::push(&request, account)?;
+    let direction: String = row.get(9).map_err(database)?;
+    let event = match direction.as_str() {
+        "push" => Event::push(&request, account)?,
+        "pull" => Event::stream(&request, account)?,
+        _ => return Err(invalid()),
+    };
     if event.event_id != row.get::<_, String>(4).map_err(database)?
         || event.revision_id != row.get::<_, String>(5).map_err(database)?
         || event.entity_id != row.get::<_, String>(6).map_err(database)?
@@ -242,12 +255,15 @@ fn read(connection: &Connection, row: &rusqlite::Row<'_>, account: &str) -> Resu
     let receipt = receipt
         .map(|body| canonical::parse(body.as_bytes()))
         .transpose()?;
+    if direction == "pull" && (state != "accepted" || receipt.is_some()) {
+        return Err(invalid());
+    }
     if let Some(receipt) = &receipt {
         validate_receipt(receipt, &event)?;
         if receipt["state"] != state {
             return Err(invalid());
         }
-    } else if state != "pending" {
+    } else if state != "pending" && direction != "pull" {
         return Err(invalid());
     }
     Ok(Pending {
@@ -261,8 +277,38 @@ fn read(connection: &Connection, row: &rusqlite::Row<'_>, account: &str) -> Resu
 // The size check executes in SQLite, before allocating an untrusted stored body.
 fn columns() -> String {
     format!(
-        "CASE WHEN length(CAST(request_json AS BLOB))<={MAX_BYTES} THEN request_json ELSE NULL END,state,local_revision_id,CASE WHEN receipt_json IS NULL OR length(CAST(receipt_json AS BLOB))<={MAX_BYTES} THEN receipt_json ELSE '' END,event_id,remote_revision_id,entity_id,sync_key,created_at"
+        "CASE WHEN length(CAST(request_json AS BLOB))<={MAX_BYTES} THEN request_json ELSE NULL END,state,local_revision_id,CASE WHEN receipt_json IS NULL OR length(CAST(receipt_json AS BLOB))<={MAX_BYTES} THEN receipt_json ELSE '' END,event_id,remote_revision_id,entity_id,sync_key,created_at,direction"
     )
+}
+
+/// One bounded read per entity, in retained order. The push walk builds its
+/// in-memory indexes from checked records instead of rescanning the SQL log for
+/// every ancestor. Stream records never become sendable requests.
+pub(super) fn history(
+    connection: &Connection,
+    scope: &Scope,
+    entity: &str,
+) -> Result<Vec<Pending>> {
+    scope.require(connection)?;
+    let mut query=connection.prepare(&format!(
+        "SELECT {} FROM sync_event WHERE account_id=? AND entity_id=? ORDER BY rowid LIMIT 16385",columns()
+    )).map_err(database)?;
+    let mut rows = query
+        .query(params![scope.account(), entity])
+        .map_err(database)?;
+    let mut result = Vec::new();
+    let mut bytes = 0usize;
+    while let Some(row) = rows.next().map_err(database)? {
+        let body: String = row.get(0).map_err(database)?;
+        bytes = bytes.checked_add(body.len()).ok_or_else(invalid)?;
+        if result.len() == 16384 || bytes > 64 * 1024 * 1024 {
+            return Err(Failure::precondition(
+                "the retained entity sync history exceeds its bound",
+            ));
+        }
+        result.push(read(connection, row, scope.account())?);
+    }
+    Ok(result)
 }
 
 pub fn pending(connection: &Connection, scope: &Scope, entity: &str) -> Result<Option<Pending>> {

@@ -46,10 +46,25 @@ different content. Historical metadata-only envelopes remain readable history,
 while materialization still validates a complete native immutable passport.
 Neither sync metadata nor consent grants artifact availability or trust.
 
-Rust push/pull command plans, parent-first event construction and the real
-two-device API journey remain unfinished. The network command requirements below
-describe production Python behavior; the native internal transport and SQLite
-proofs do not establish command completion or production writer cutover.
+Rust `sync push plan` and `sync pull plan` now produce exact intents for
+`sync apply --plan --plan-digest`. New admission requires the unchanged account
+session, device, physical root, local capture and ledger position within a
+15-minute validity interval. Planning writes no registry records; origin binding
+and operation admission share one transaction. An interrupted command preserves
+its progress and original requests. A completed command returns its retained
+result locally after logout or expiry; pull completion and page data share the
+same transaction.
+
+Native push captures parents before children, released-version sidecars and
+original local tombstones. An uncertain event is settled before a newer closure;
+server-retained conflicting ancestors keep their mapping for later children.
+The device projection includes only observed platform summary fields. Consent
+projection is limited to the authenticated account's retained scope/target
+record and preserves revocation. The graph is bounded to 16,384 revisions and a
+16 MiB capture. Loopback HTTP and real SQLite exercise these native command
+journeys. Explicit recovery of retired-device pending requests and the real
+two-device API journey remain unfinished; production writer cutover is not
+established by these proofs.
 
 ## Terms
 

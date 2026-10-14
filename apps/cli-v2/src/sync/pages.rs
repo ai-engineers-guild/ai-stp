@@ -58,6 +58,20 @@ pub fn apply(
     skip: &BTreeSet<String>,
     at: &str,
 ) -> Result<Value> {
+    store.transaction(|t| {
+        apply_transaction(t, scope, response, expected_cursor, page_size, skip, at)
+    })
+}
+
+pub(super) fn apply_transaction(
+    t: &Transaction<'_>,
+    scope: &Scope,
+    response: &Value,
+    expected_cursor: Option<&str>,
+    page_size: u16,
+    skip: &BTreeSet<String>,
+    at: &str,
+) -> Result<Value> {
     let request = network::Request::Pull {
         cursor: expected_cursor,
         page_size,
@@ -76,51 +90,65 @@ pub fn apply(
     {
         return Err(invalid());
     }
-    store.transaction(|t| {
-        if cursor(t, scope)?.as_deref() != expected_cursor {
-            return Err(Failure::new(ErrorKind::Conflict, "the sync pull position changed before page application"));
-        }
-        for id in skip {
-            t.execute("INSERT INTO sync_abandoned_event(account_id,event_id,abandoned_at) VALUES (?,?,?) ON CONFLICT(account_id,event_id) DO NOTHING",
+    if cursor(t, scope)?.as_deref() != expected_cursor {
+        return Err(Failure::new(
+            ErrorKind::Conflict,
+            "the sync pull position changed before page application",
+        ));
+    }
+    for id in skip {
+        t.execute("INSERT INTO sync_abandoned_event(account_id,event_id,abandoned_at) VALUES (?,?,?) ON CONFLICT(account_id,event_id) DO NOTHING",
                 params![scope.account(),id,at]).map_err(database)?;
-        }
-        let mut applied = 0;
-        let mut replayed = 0;
-        let mut skipped = Vec::new();
-        for raw in response["items"].as_array().ok_or_else(invalid)? {
-            let id = raw["event_id"].as_str().ok_or_else(invalid)?;
-            let abandoned: bool = t.query_row("SELECT EXISTS(SELECT 1 FROM sync_abandoned_event WHERE account_id=? AND event_id=?)",
+    }
+    let mut applied = 0;
+    let mut replayed = 0;
+    let mut skipped = Vec::new();
+    for raw in response["items"].as_array().ok_or_else(invalid)? {
+        let id = raw["event_id"].as_str().ok_or_else(invalid)?;
+        let abandoned: bool = t.query_row("SELECT EXISTS(SELECT 1 FROM sync_abandoned_event WHERE account_id=? AND event_id=?)",
                 params![scope.account(),id], |r|r.get(0)).map_err(database)?;
-            if abandoned {
-                skipped.push(id.to_owned());
-                continue;
-            }
-            let result = Event::stream(raw, scope.account()).and_then(|event| apply_event(t,scope,&event));
-            match result {
-                Ok(true) => replayed += 1,
-                Ok(false) => applied += 1,
-                Err(mut failure) => {
-                    failure.details.insert("event_id".into(), id.into());
-                    failure.details.insert("entity_id".into(), raw["entity_id"].clone());
-                    return Err(failure);
-                }
+        if abandoned {
+            skipped.push(id.to_owned());
+            continue;
+        }
+        let result =
+            Event::stream(raw, scope.account()).and_then(|event| apply_event(t, scope, &event));
+        match result {
+            Ok(true) => replayed += 1,
+            Ok(false) => applied += 1,
+            Err(mut failure) => {
+                failure.details.insert("event_id".into(), id.into());
+                failure
+                    .details
+                    .insert("entity_id".into(), raw["entity_id"].clone());
+                return Err(failure);
             }
         }
-        versions::reconcile(t,scope)?;
-        if response["page"]["next_cursor"].is_null() {
-            // A final/empty page must not reset a previously retained position.
-            t.execute("INSERT INTO sync_cursor(account_id,cursor,updated_at) VALUES (?,NULL,?) ON CONFLICT(account_id) DO UPDATE SET updated_at=excluded.updated_at",
+    }
+    versions::reconcile(t, scope)?;
+    if response["page"]["next_cursor"].is_null() {
+        // A final/empty page must not reset a previously retained position.
+        t.execute("INSERT INTO sync_cursor(account_id,cursor,updated_at) VALUES (?,NULL,?) ON CONFLICT(account_id) DO UPDATE SET updated_at=excluded.updated_at",
                 params![scope.account(),at]).map_err(database)?;
-        } else {
-            let next = response["page"]["next_cursor"].as_str().ok_or_else(invalid)?;
-            t.execute("INSERT INTO sync_cursor(account_id,cursor,updated_at) VALUES (?,?,?) ON CONFLICT(account_id) DO UPDATE SET cursor=excluded.cursor,updated_at=excluded.updated_at",
+    } else {
+        let next = response["page"]["next_cursor"]
+            .as_str()
+            .ok_or_else(invalid)?;
+        t.execute("INSERT INTO sync_cursor(account_id,cursor,updated_at) VALUES (?,?,?) ON CONFLICT(account_id) DO UPDATE SET cursor=excluded.cursor,updated_at=excluded.updated_at",
                 params![scope.account(),next,at]).map_err(database)?;
-        }
-        let pending: i64 = t.query_row("SELECT count(*) FROM sync_pending_version WHERE account_id=?",[scope.account()],|r|r.get(0)).map_err(database)?;
-        Ok(json!({"schema_version":1,"account_id":scope.account(),"api_origin":scope.origin(),
+    }
+    let pending: i64 = t
+        .query_row(
+            "SELECT count(*) FROM sync_pending_version WHERE account_id=?",
+            [scope.account()],
+            |r| r.get(0),
+        )
+        .map_err(database)?;
+    Ok(
+        json!({"schema_version":1,"account_id":scope.account(),"api_origin":scope.origin(),
             "applied":applied,"replayed":replayed,"skipped_event_ids":skipped,
-            "cursor":cursor(t,scope)?,"pending_version_count":pending}))
-    })
+            "cursor":cursor(t,scope)?,"pending_version_count":pending}),
+    )
 }
 
 fn known(t: &Transaction<'_>, scope: &Scope, event: &Event) -> Result<bool> {

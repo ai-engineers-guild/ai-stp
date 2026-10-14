@@ -311,8 +311,8 @@ Author contexts are rechecked after acquiring each registry connection. A proces
 that loaded the former owner cannot write after attachment. Exact completed
 authoring and selection receipts replay through a query-only connection; old
 unexecuted plans refuse. Fresh account login alone neither switches the attached
-owner nor reverses attachment. Private cloud sync and publication remain
-separate pending capabilities.
+owner nor reverses attachment. Private sync uses the explicit commands below;
+publication remains a separate pending capability.
 
 `sync preview` inspects private revision heads without network or credentials.
 Its explicit account ID scopes retained receipts without establishing authority.
@@ -325,8 +325,41 @@ revisions and validates the retained content and parent links.
 local identity. `local apply` rechecks the exact heads and candidate, then commits
 the two-parent revision and receipt together. Arrays are atomic; an absent key
 differs from JSON null. Components and setups never receive generic field merges.
-Completed merge receipts replay without rewinding later heads. The network
-command plans and parent-first push walk remain pending in #944.
+Completed merge receipts replay without rewinding later heads.
+
+`sync push plan --state-dir --id` captures one private head, its parent-first
+revision graph, immutable released-version metadata and any local deletion mark.
+`sync pull plan --state-dir` captures the current account cursor for one page;
+`--page-size` is 1–100 (default 100), and repeated `--skip-event` values explicitly
+abandon reviewed events for that account. Both commands require an authorized
+account and a configuration with `sync.enabled: true`; `--config` selects its file
+and optional `--api-url` must match the retained session origin. Planning verifies
+the account online but writes no registry records.
+
+`sync apply --plan --plan-digest` applies either exact plan. A new operation must
+start within 15 minutes, with the same account session, device, physical state
+root, local content and ledger position. Source and cursor changes refuse the
+plan before admission; a newly hashed file cannot invent outgoing content. The
+existing operation journal retains admission and progress alongside the outbox.
+An interrupted operation resumes only with its exact unchanged plan and session.
+A new plan can settle the original retained request after session refresh or a
+local edit. Completed operations return the saved result without network, enabled
+sync, or an active session, including after logout or plan expiry.
+
+Push sends ancestors before children and preserves their local-to-remote revision
+mapping. A server-retained conflict or superseded ancestor may parent a later
+revision; a rejected ancestor or unresolved terminal head stops the walk. An
+uncertain request is retried unchanged before a newer version closure is sent.
+Adding released metadata to the same draft uses the previously accepted remote
+revision as its parent. Tombstones retain their original local deletion time.
+Each walk is bounded to 16,384 revisions and a 16 MiB capture; one checked history
+read supplies the parent mappings.
+
+Device push emits only the native passport's observed platform summary, never
+its full facts or inventory. An empty detected-harness list makes no installation
+claim. Consent push selects only the authenticated account's retained record and
+uses its canonical scope/target identity; revocation stays a tombstone. These
+summaries do not install or update a harness and do not grant trust.
 
 The internal sync event reader validates all five existing wire kinds against
 generated schemas, verifies account and content bindings, and preserves original
@@ -354,7 +387,8 @@ reuses its bytes, key and head precondition. There is no automatic push retry.
 
 Page application rechecks the account, event order and unchanged opaque cursor,
 then commits events, version metadata, explicit skip decisions and the next
-cursor together. Any refusal rolls back the whole page. Replays retain later
+cursor and completed command result together. Any refusal rolls back the whole
+page. Replays retain later
 heads and revoked consent; received history does not remove local tombstones.
 Foreign device summaries never create a local device passport. Consent records
 remain account-scoped and confer no catalog verification or installation trust.
@@ -364,8 +398,10 @@ Missing snapshots retain pending immutable coordinates; unresolved metadata
 blocks new number allocation, and another writer cannot reassign those numbers.
 Historical envelopes can appear in version history without becoming installable:
 exact-version materialization still requires a complete native passport. No
-artifact bytes are synchronized. These are library capabilities; CLI push/pull
-plans, command integration and the real two-device API journey remain unfinished.
+artifact bytes are synchronized. The command journeys exercise a loopback HTTP
+service and real SQLite, including lost replies and local terminal replay. The
+real two-device API journey and explicit recovery of requests signed by a retired
+device remain unfinished in #944; those requests are never silently re-signed.
 
 `grant list --state-dir` reads owned invitations and owned/received major-line
 access grants through fresh authentication of the same account and device.
