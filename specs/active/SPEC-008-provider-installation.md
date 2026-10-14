@@ -11,7 +11,7 @@ last_verified: "2026-10-12"
 
 ## Scope
 
-Includes seven public setup managers `NDDev-OpenNetwork/*-setup-system` - one for each harness of the closed set `ADR-0120`: claude-code, codex, cursor, opencode, pi, grok-build and antigravity - release artifacts, common protocol, runtime lifecycle, external package, inactive target directory, plan, application, state, recovery and import of an existing native configuration.
+Includes seven public setup managers `NDDev-Technocracy-Archive/*-setup-system` - one for each harness of the closed set `ADR-0120`: claude-code, codex, cursor, opencode, pi, grok-build and antigravity - release artifacts, common protocol, runtime lifecycle, external package, inactive target directory, plan, application, state, recovery and import of an existing native configuration. Historical releases retain their separately pinned signing identities.
 
 The previous estate of providers has been removed (`ADR-0119`, `ADR-0120`). It remains in historical ADR as context and is not the source for a new object; the trust line is assigned `provider-policy.toml` to the family `*-setup-system`.
 

@@ -129,7 +129,7 @@ mod tests {
                 crate::provider::managed::version(None)?,
                 "linux/x86_64",
             )?;
-            assert_eq!(managed.publishers.len(), 3);
+            assert_eq!(managed.publishers.len(), 4);
             assert!(
                 managed
                     .publishers

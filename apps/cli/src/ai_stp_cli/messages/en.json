@@ -674,7 +674,7 @@
   "the multi-root install stopped and needs recovery": "the multi-root install stopped and needs recovery",
   "the multi-root transaction is not in the required state": "the multi-root transaction is not in the required state",
   "the named embedded component is not in this setup": "the named embedded component is not in this setup",
-  "the named harness has no attested OpenNetwork repository": "the named harness has no attested OpenNetwork repository",
+  "the named harness has no attested component repository": "the named harness has no attested component repository",
   "the named harness has no pinned index publisher": "the named harness has no pinned index publisher",
   "the native configuration changed after the import plan was reviewed": "the native configuration changed after the import plan was reviewed",
   "the object is larger than the local store accepts": "the object is larger than the local store accepts",

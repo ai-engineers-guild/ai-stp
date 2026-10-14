@@ -384,7 +384,13 @@ def test_record_mismatch_is_refused() -> None:
 
 
 @pytest.mark.parametrize(
-    "owner", ["NDDev-OpenNetwork", "NDDev-Technocracy-Sandbox", "NDDev-Technocracy-OpenNetwork"]
+    "owner",
+    [
+        "NDDev-OpenNetwork",
+        "NDDev-Technocracy-Sandbox",
+        "NDDev-Technocracy-OpenNetwork",
+        "NDDev-Technocracy-Archive",
+    ],
 )
 def test_fetch_verifies_before_provider_info(tmp_path: Path, owner: str) -> None:
     blob = _wheel_bytes()
