@@ -33,13 +33,13 @@ execution remains unavailable; Linux carries the complete installation and
 handoff proof. Harness binaries remain user/vendor managed. Corporate features,
 model interfaces, generic software managers and automatic backups are excluded.
 
-The remaining release sequence is mechanical: observe the affected exact-head
+The release workflow is: observe the affected exact-head
 gates, promote the work through `dev` to `main`, build/attest/publish the tag-bound
 archives, verify public download bytes, transfer the current workstation through
 the reviewed plan, expose its native command, deploy the canonical source and
 read back local/GitHub/server identities. Exact completion receipts belong to
 [#57](https://github.com/ai-engineers-guild/ai-stp/issues/57) and the release PR;
-this document does not turn an unpublished candidate into a released artifact.
+those records, rather than this procedure, determine whether a version is published.
 
 The backend and shared Python packages remain supported. `apps/cli` is a
 compatibility oracle for old-state fixtures, not a native runtime dependency.
