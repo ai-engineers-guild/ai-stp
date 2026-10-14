@@ -1,6 +1,8 @@
 //! Read-only context and capability differences over exact retained setup graphs.
 
 mod history;
+#[cfg(target_os = "linux")]
+pub(crate) use history::installed_before;
 mod price;
 pub mod radius;
 

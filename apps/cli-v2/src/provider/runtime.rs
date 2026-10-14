@@ -78,6 +78,30 @@ pub fn configuration_cancel(parent: &Path, bytes: &[u8], digest: &str) -> Result
     }
 }
 
+pub fn configuration_set_plan(parent: &Path, bytes: &[u8]) -> Result<Value> {
+    #[cfg(target_os = "linux")]
+    {
+        configuration::set::plan(parent, bytes)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (parent, bytes);
+        Err(unavailable())
+    }
+}
+
+pub fn configuration_set(parent: &Path, bytes: &[u8], digest: &str, action: &str) -> Result<Value> {
+    #[cfg(target_os = "linux")]
+    {
+        configuration::set::execute(parent, bytes, digest, action)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (parent, bytes, digest, action);
+        Err(unavailable())
+    }
+}
+
 pub struct Runtime {
     #[cfg(target_os = "linux")]
     launcher: linux::Launcher,

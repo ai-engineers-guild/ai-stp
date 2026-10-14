@@ -93,11 +93,11 @@ lists as links.
 ## Matching CLI commands
 
 ```text
-ai-stp link web --json
+ai-stp help --path registry --json
 ai-stp registry search --json
 ai-stp registry show --kind component --id <stable_id> --json
 ai-stp registry show --kind setup --id <stable_id> --json
-ai-stp owner objects --json
+ai-stp help --path account --json
 ```
 
 `link web` is what the page copies for the publisher target. `registry
@@ -105,7 +105,7 @@ search` with an author constraint is the CLI equivalent of the object
 lists. `owner objects` is **your** objects when signed in; it is not a
 way to dump someone else's private graph.
 
-There is no `ai-stp publisher` command.
+There is no `ai-stp help --path publication --json` command.
 
 ## Dead-ends
 

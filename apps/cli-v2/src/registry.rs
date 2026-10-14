@@ -3,9 +3,11 @@
 mod account;
 mod attestation;
 mod catalog;
+mod distribution;
 mod github;
 mod grants;
 mod local;
+mod migration;
 mod providers;
 mod publication;
 mod reports;
@@ -30,6 +32,8 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[derive(Clone, Copy)]
 enum Handler {
     Task(tasks::Handler),
+    Distribution(distribution::Handler),
+    Migration(migration::Handler),
     Account(account::Handler),
     Attestation(attestation::Handler),
     Grant(grants::Handler),
@@ -70,6 +74,9 @@ enum Handler {
     IdentityPlan,
     IdentityApply,
     IdentityShow,
+    Initialize,
+    StatePath,
+    Doctor,
 }
 
 #[derive(Clone, Copy)]
@@ -77,6 +84,7 @@ enum ParameterType {
     String,
     Boolean,
     Path,
+    StatePath,
     Paths,
     Strings,
     Choice(&'static [&'static str]),
@@ -91,10 +99,18 @@ struct Parameter {
 
 impl Parameter {
     fn argument(&self) -> Arg {
-        let argument = Arg::new(self.name)
+        let mut argument = Arg::new(self.name)
             .long(self.name)
             .help(self.summary)
             .required(self.required);
+        if matches!(self.kind, ParameterType::StatePath)
+            && self.required
+            && let Some(root) = crate::startup::state_root()
+        {
+            argument = argument
+                .required(false)
+                .default_value_os(root.into_os_string());
+        }
         match self.kind {
             ParameterType::Boolean => argument.action(ArgAction::SetTrue),
             ParameterType::String => argument.action(ArgAction::Set),
@@ -102,7 +118,9 @@ impl Parameter {
             ParameterType::Choice(values) => argument.value_parser(
                 clap::builder::PossibleValuesParser::new(values.iter().copied()),
             ),
-            ParameterType::Path => argument.value_parser(ValueParser::path_buf()),
+            ParameterType::Path | ParameterType::StatePath => {
+                argument.value_parser(ValueParser::path_buf())
+            }
             ParameterType::Paths => argument
                 .value_parser(ValueParser::path_buf())
                 .action(ArgAction::Append),
@@ -112,7 +130,7 @@ impl Parameter {
     fn descriptor(&self) -> Value {
         json!({"name": self.name, "kind": "option",
             "value_type": if matches!(self.kind, ParameterType::Boolean) { "boolean" } else { "string" },
-            "required": self.required, "repeatable": matches!(self.kind, ParameterType::Strings | ParameterType::Paths), "summary": self.summary,
+            "required": self.required && !matches!(self.kind, ParameterType::StatePath), "repeatable": matches!(self.kind, ParameterType::Strings | ParameterType::Paths), "summary": self.summary,
             "choices": match self.kind {ParameterType::Choice(values) => values, _ => &[]}})
     }
 }
@@ -133,7 +151,7 @@ const JSON: Parameter = Parameter {
 
 const CONFIG: Parameter = Parameter {
     name: "config",
-    summary: "Explicit YAML configuration file; omission uses preview defaults.",
+    summary: "Explicit YAML configuration file; omission uses native defaults.",
     kind: ParameterType::Path,
     required: false,
 };
@@ -187,8 +205,8 @@ const SOURCE_PATH: Parameter = Parameter {
 
 const STATE_DIR: Parameter = Parameter {
     name: "state-dir",
-    summary: "Existing parent directory for isolated native preview state.",
-    kind: ParameterType::Path,
+    summary: "State directory; defaults to AI_STP_STATE_DIR or $XDG_DATA_HOME/ai-stp ($HOME/.local/share/ai-stp). Existing Python state requires explicit migration.",
+    kind: ParameterType::StatePath,
     required: true,
 };
 
@@ -220,8 +238,34 @@ const PRIVATE: Parameter = Parameter {
 
 const COMMANDS: &[Declaration] = &[
     Declaration {
+        path: &["init"],
+        summary: "Initialize or resume a local identity in a private state directory; never replace existing credentials or migrate Python state implicitly.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "credential-store",
+                summary: "Explicit credential backend; no fallback. File is Unix-only and unencrypted.",
+                kind: ParameterType::Choice(&["os_keyring", "file"]),
+                required: true,
+            },
+        ],
+        handler: Handler::Initialize,
+    },
+    Declaration {
+        path: &["state", "path"],
+        summary: "Show the default state location without creating it.",
+        parameters: &[],
+        handler: Handler::StatePath,
+    },
+    Declaration {
+        path: &["doctor"],
+        summary: "Inspect local initialization and platform support without creating state or accessing credentials.",
+        parameters: &[STATE_DIR],
+        handler: Handler::Doctor,
+    },
+    Declaration {
         path: &["capabilities"],
-        summary: "List the capabilities implemented by this native preview.",
+        summary: "List implemented services and the current platform installation boundary.",
         parameters: &[],
         handler: Handler::Capabilities,
     },
@@ -682,6 +726,7 @@ fn declarations() -> impl Iterator<Item = &'static Declaration> {
         .chain(providers::COMMANDS)
         .chain(selections::COMMANDS)
         .chain(account::COMMANDS)
+        .chain(migration::COMMANDS)
         .chain(grants::COMMANDS)
         .chain(github::COMMANDS)
         .chain(visibility::COMMANDS)
@@ -690,6 +735,7 @@ fn declarations() -> impl Iterator<Item = &'static Declaration> {
         .chain(publication::COMMANDS)
         .chain(attestation::COMMANDS)
         .chain(tasks::COMMANDS)
+        .chain(distribution::COMMANDS)
 }
 
 fn children(parent: Command, prefix: &[&str]) -> Command {
@@ -721,8 +767,8 @@ fn children(parent: Command, prefix: &[&str]) -> Command {
 
 pub fn parser() -> Command {
     children(
-        Command::new("ai-stp-v2")
-            .about("Native ai-stp preview: only implemented commands are advertised.")
+        Command::new("ai-stp")
+            .about("Native ai-stp: only implemented commands are advertised.")
             .disable_help_subcommand(true)
             .arg(JSON.argument().global(true)),
         &[],
@@ -742,7 +788,7 @@ fn descriptors() -> Vec<Value> {
     declarations().map(|item| json!({
         "path": item.path, "summary": item.summary,
         "mutability": mutability(item.handler),
-        "confirmation": if mutability(item.handler) == "apply" && !matches!(item.handler, Handler::Task(_)) { "plan_digest" } else { "none" },
+        "confirmation": if mutability(item.handler) == "apply" && !matches!(item.handler, Handler::Task(_) | Handler::Initialize) { "plan_digest" } else { "none" },
         "parameters": item.parameters.iter().map(Parameter::descriptor).collect::<Vec<_>>(),
         "parameter_rules": [], "result_schema": null, "next_actions": []
     })).collect()
@@ -751,11 +797,12 @@ fn descriptors() -> Vec<Value> {
 fn mutability(handler: Handler) -> &'static str {
     match handler {
         Handler::ScaffoldPlan | Handler::IdentityPlan | Handler::CatalogAcquirePlan => "plan",
-        Handler::ScaffoldApply | Handler::IdentityApply => "apply",
+        Handler::ScaffoldApply | Handler::IdentityApply | Handler::Initialize => "apply",
         Handler::Local(handler) => handler.mutability(),
         Handler::Selection(handler) => handler.mutability(),
         Handler::Provider(handler) => handler.mutability(),
         Handler::Account(handler) => handler.mutability(),
+        Handler::Migration(handler) => handler.mutability(),
         Handler::Grant(handler) => handler.mutability(),
         Handler::Github(handler) => handler.mutability(),
         Handler::Visibility(handler) => handler.mutability(),
@@ -764,6 +811,7 @@ fn mutability(handler: Handler) -> &'static str {
         Handler::Publication(handler) => handler.mutability(),
         Handler::Attestation(handler) => handler.mutability(),
         Handler::Task(handler) => handler.mutability(),
+        Handler::Distribution(handler) => handler.mutability(),
         _ => "read",
     }
 }
@@ -837,10 +885,29 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         .find(|item| item.path == path)
         .ok_or_else(|| Failure::new(ErrorKind::Internal, "parsed command has no handler"))?;
     match declaration.handler {
+        Handler::StatePath => crate::startup::location(),
+        Handler::Doctor => Ok(crate::startup::doctor(
+            leaf.get_one::<std::path::PathBuf>("state-dir")
+                .ok_or_else(|| Failure::input("state directory is unavailable"))?,
+        )),
+        Handler::Initialize => crate::startup::initialize(
+            leaf.get_one::<std::path::PathBuf>("state-dir")
+                .ok_or_else(|| Failure::input("state directory is unavailable"))?,
+            match leaf
+                .get_one::<String>("credential-store")
+                .map(String::as_str)
+            {
+                Some("os_keyring") => identity::Storage::OsKeyring,
+                Some("file") => identity::Storage::File,
+                _ => return Err(Failure::input("credential store is required")),
+            },
+        ),
         Handler::Task(handler) => tasks::dispatch(handler, leaf),
+        Handler::Distribution(handler) => distribution::dispatch(handler, leaf),
         Handler::Local(handler) => local::dispatch(handler, leaf),
         Handler::Report(handler) => reports::dispatch(handler, leaf),
         Handler::Account(handler) => account::dispatch(handler, leaf),
+        Handler::Migration(handler) => migration::dispatch(handler, leaf),
         Handler::Grant(handler) => grants::dispatch(handler, leaf),
         Handler::Github(handler) => github::dispatch(handler, leaf),
         Handler::Visibility(handler) => visibility::dispatch(handler, leaf),
@@ -851,15 +918,19 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::Provider(handler) => providers::dispatch(handler, leaf),
         Handler::Selection(handler) => selections::dispatch(handler, leaf),
         Handler::Version => Ok(json!({"schema_version": 1, "cli_version": VERSION,
-            "wire_schema_version": 1, "runtime": "rust", "release_channel": "preview"})),
+            "wire_schema_version": 1, "runtime": "rust", "release_channel": "stable"})),
         Handler::Capabilities => Ok(json!({"schema_version": 1, "cli_version": VERSION,
-            "wire_schema_version": 1, "registry_digest": digest()?, "release_channel": "preview",
+            "wire_schema_version": 1, "registry_digest": digest()?, "release_channel": "stable",
             "command_paths": declarations().map(|item| item.path.join(" ")).collect::<Vec<_>>(),
-            "task_intents": crate::tasks::INTENTS, "supported_harnesses": [], "catalog_enabled": true, "sync_enabled": false,
-            "state_access": "explicit_snapshot_and_isolated_authoring", "cache_access": "explicit_public_catalog_cache",
-            "identity_access": "explicit_isolated_device",
+            "task_intents": crate::tasks::INTENTS, "supported_harnesses": if cfg!(target_os = "linux") { &config::HARNESSES[..] } else { &[] },
+            "configuration_installation": if cfg!(target_os = "linux") { "supported" } else { "unavailable" },
+            "native_authoring_harnesses": config::HARNESSES,
+            "runtime": "rust", "os": std::env::consts::OS, "architecture": std::env::consts::ARCH, "catalog_enabled": true, "sync_enabled": false,
+            "state_access": "native_registry_with_explicit_legacy_transfer", "cache_access": "explicit_public_catalog_cache",
+            "identity_access": "native_device",
             "managed_provider_version": crate::provider::managed::RELEASE,
-            "authoring_access": "identity_bound_local_plans", "readable_local_schema_versions": [snapshot::SCHEMA_VERSION]})),
+            "authoring_access": "identity_bound_local_plans", "readable_local_schema_versions": [snapshot::SCHEMA_VERSION, crate::store::PRODUCTION_SCHEMA],
+            "production_transfer": "explicit_in_place_plan", "snapshot_schema_versions": [snapshot::SCHEMA_VERSION]})),
         Handler::Help => help(
             leaf.get_one::<String>("path").map_or("", String::as_str),
             leaf.get_one::<String>("find").map_or("", String::as_str),

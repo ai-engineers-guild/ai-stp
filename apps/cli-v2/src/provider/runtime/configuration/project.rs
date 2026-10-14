@@ -94,3 +94,26 @@ pub(crate) fn admitting(connection: &Connection, plan: &Plan) -> Result<()> {
     }
     Ok(())
 }
+
+/// Invalidate the latest installed project relationship when any of its roots
+/// changes. Exclude the current operation and its aggregate so their pending
+/// rows cannot hide the installation whose configuration is being replaced.
+pub(super) fn invalidate_related(connection: &Connection, plan: &Plan) -> Result<()> {
+    for installed in crate::selection::impact::installed_before(connection, &plan.operation_id)? {
+        let Some((project, harness)) = installed.target.rsplit_once(':') else {
+            continue;
+        };
+        if harness != plan.harness_id || !crate::passport::stable_id(project, "project") {
+            continue;
+        }
+        if installed.native_roots.iter().any(|(root, identity)| {
+            identity == &plan.target_identity
+                || Path::new(root).starts_with(&plan.target_path)
+                || Path::new(&plan.target_path).starts_with(root)
+        }) {
+            connection.execute("UPDATE selected_version SET state='pending_install' WHERE project_id=? AND harness_id=?",
+                [project,harness]).map_err(database)?;
+        }
+    }
+    Ok(())
+}

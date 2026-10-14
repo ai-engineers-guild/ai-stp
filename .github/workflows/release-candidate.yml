@@ -27,6 +27,8 @@ concurrency:
 
 jobs:
   build:
+    # Retired: stable CLI releases use cli-release.yml and native archives.
+    if: ${{ false }}
     name: build-unpublished-candidate
     # Executes repository build code and receives no OIDC or attestation
     # authority. It must not share a host, user or filesystem with the job

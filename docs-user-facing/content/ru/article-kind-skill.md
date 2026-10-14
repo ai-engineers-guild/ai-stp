@@ -29,15 +29,15 @@ Skill отвечает на вопрос: **как агент должен де�
 
     CLI также поставляет один канонический Agent Skill, который учит агента
     управлять самим `ai-stp`. Этот объект ставится командой
-    [`ai-stp skill install`](https://ai-stp.aiguild.space/ru/docs/components), проверяется через
-    `ai-stp skill status` и снимается через `ai-stp skill remove`. Это
+    [`ai-stp help --path task --json`](https://ai-stp.aiguild.space/ru/docs/components), проверяется через
+    `ai-stp help --path task --json` и снимается через `ai-stp help --path task --json`. Это
     **не** компонент каталога, его **не** выбирают в сетап, и
-    `ai-stp component skill validate` — **не** этот установщик.
+    `ai-stp help --path component --json` — **не** этот установщик.
 
     | Объект | Семейство команд | Живёт в сетапе? |
     | --- | --- | --- |
     | Вид `skill` (эта страница) | `component …`, `select`, `install` | да |
-    | CLI Agent Skill | `ai-stp skill install` / `status` / `remove` | нет |
+    | CLI Agent Skill | `ai-stp help --path task --json` / `status` / `remove` | нет |
 
 ## Соседи
 
@@ -139,7 +139,7 @@ frontmatter на формат не проверяется: спецификац�
 Проверяйте форму установленного пакета, а не авторское дерево:
 
 ```bash
-ai-stp component skill validate --path ./playwright-checks/native --json
+ai-stp help --path component --json
 ```
 
 Команда только читает. Она называет каждое отклонение кодом `SKxxx`. Она
@@ -148,7 +148,7 @@ ai-stp component skill validate --path ./playwright-checks/native --json
 ## Стандарты и фреймворки
 
 - [Agent Skills Specification](https://agentskills.io/specification) —
-  независимый стандарт. `ai-stp component skill validate` реализует эту
+  независимый стандарт. `ai-stp help --path component --json` реализует эту
   границу, а не внутренний стиль дома.
 - Сканеры безопасности, которые используются при публикации, если
   доступны: [NVIDIA SkillSpector](https://github.com/NVIDIA/SkillSpector)
@@ -203,7 +203,7 @@ ai-stp task start --intent author --idempotency-key author-session-01 --json
 
 ```bash
 ai-stp component version list --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
+ai-stp help --path component --json
 ```
 
 `--major` открывает следующую мажорную линию. Мажорная линия — отдельная
@@ -247,29 +247,29 @@ workflow безвреден. Обязательные проверки, кото
 **Именно этот вид:**
 
 ```bash
-ai-stp component skill validate --path <directory> --json
+ai-stp help --path component --json
 ```
 
 **Не этот вид** — CLI Agent Skill (см.
 [Agent Skill CLI](https://ai-stp.aiguild.space/ru/docs/components)):
 
 ```bash
-ai-stp skill status --json
-ai-stp skill install --target <dir> --json
-ai-stp skill remove --target <dir> --json
+ai-stp help --path task --json
+ai-stp help --path task --json
+ai-stp help --path task --json
 ```
 
 **Автор, adopt, публикация:**
 
 ```bash
 ai-stp task start --intent author --idempotency-key author-session-01 --json
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 **Установить:**
 
 ```bash
-ai-stp task start --intent install --idempotency-key install-session-01 --json
+ai-stp task input-schema --intent install --json
 ```
 
 Expert-просмотр каталога:
@@ -314,7 +314,7 @@ Skill может быть и embedded-членом compose-манифеста. �
 - Линия доверия `experimental` без `consent allow`.
 - Харнесс не в списке совместимости компонента.
 - «Latest» или имя ветки вместо точных `X.Y` и commit.
-- Обращение с `ai-stp skill install` так, будто оно опубликовало этот
+- Обращение с `ai-stp help --path task --json` так, будто оно опубликовало этот
   компонент.
 - Обращение с `author_verified` как с `component_verified`.
 
@@ -332,7 +332,7 @@ Skill может быть и embedded-членом compose-манифеста. �
    в `metadata`.
 3. Добавляйте `scripts/`, `references/` и `assets/` только когда workflow
    без них не работает. Что они делают, объявите в паспорте.
-4. Запустите `ai-stp component skill validate --path <package> --json` и
+4. Запустите `ai-stp help --path component --json` и
    исправьте каждый код `SKxxx`.
 5. Закрепите точный публичный GitHub commit и подпуть. Секретов в дереве
    нет.

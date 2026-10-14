@@ -201,14 +201,15 @@ export function cmdTaskIntents(): Promise<CmdResult> {
 export function cmdTaskStart(
   intent: string,
   idemKey?: string,
+  inputPath?: string,
 ): Promise<CmdResult> {
   // One key per logical start: a timeout-and-retry hits the CLI's
-  // idempotency dedup instead of forking a duplicate task. `task start
-  // --input` is a file path on the CLI, not an inline blob — it is not
-  // exposed here (answers go through `task answer`).
+  // idempotency dedup instead of forking a duplicate task. The CLI reads
+  // and validates the input file; no request payload enters the IPC trace.
   return call("task_start", {
     intent,
     idemKey: idemKey ?? null,
+    inputPath: inputPath ?? null,
   });
 }
 

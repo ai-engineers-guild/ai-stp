@@ -146,12 +146,12 @@ The website copies only commands the CLI actually parses. The canonical
 templates are:
 
 ```text
-uv tool install ai-stp-cli
-ai-stp task start --intent account --idempotency-key account-session-01 --json
+ai-stp version --json
+ai-stp help --path account --json
 ai-stp registry search --json
 ai-stp registry show --kind component --id <stable_id> --json
 ai-stp registry version --kind component --id <stable_id> --version <x.y> --json
-ai-stp link web --json
+ai-stp help --path registry --json
 ```
 
 The full map is the [command map](../cli/commands.md). If this page and

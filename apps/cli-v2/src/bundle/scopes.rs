@@ -48,9 +48,9 @@ pub(crate) fn compile_snapshot(
     hosts: &BTreeMap<Scope, Hosts>,
     placements: &BTreeMap<String, Scope>,
 ) -> Result<Compiled> {
-    if !(2..=3).contains(&hosts.len()) || placements.len() > 512 {
+    if !(1..=3).contains(&hosts.len()) || placements.len() > 512 {
         return Err(invalid(
-            "a complete multi-root bundle requires two or three explicit scopes",
+            "a complete multi-root bundle requires one to three explicit scopes",
         ));
     }
     let mut host_identities = BTreeMap::new();
@@ -212,14 +212,14 @@ pub(crate) fn compile_snapshot(
     })
 }
 
-struct Routed {
+pub(super) struct Routed {
     graph: Value,
-    documents: Vec<Value>,
-    assigned: BTreeMap<String, Scope>,
-    selected: BTreeMap<Scope, Vec<Value>>,
+    pub(super) documents: Vec<Value>,
+    pub(super) assigned: BTreeMap<String, Scope>,
+    pub(super) selected: BTreeMap<Scope, Vec<Value>>,
 }
 
-fn route(
+pub(super) fn route(
     connection: &Connection,
     setup: &Value,
     harness: &str,
@@ -227,9 +227,9 @@ fn route(
     placements: &BTreeMap<String, Scope>,
 ) -> Result<Routed> {
     super::validate_inputs(setup, &Hosts::new())?;
-    if !(2..=3).contains(&scopes.len()) || placements.len() > 512 {
+    if !(1..=3).contains(&scopes.len()) || placements.len() > 512 {
         return Err(invalid(
-            "a complete multi-root bundle requires two or three explicit scopes",
+            "a complete multi-root bundle requires one to three explicit scopes",
         ));
     }
     let graph = graph::exact(connection, std::slice::from_ref(setup))?;
@@ -294,7 +294,7 @@ pub fn contribution_paths(
     store.transaction(|connection| paths(connection, setup, harness, scopes, placements))
 }
 
-fn paths(
+pub(crate) fn paths(
     connection: &Connection,
     setup: &Value,
     harness: &str,

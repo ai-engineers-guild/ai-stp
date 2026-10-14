@@ -9,7 +9,7 @@ tags: [release, cli]
 draft: false
 ---
 
-`ai-stp-cli` `0.0.15` is the launch line this note describes (published 2026-08-09); `ai-stp version --json` names the line you run. The command is `ai-stp`. Install it with `uv tool install ai-stp-cli`, then run `ai-stp doctor --json`. This note is for operators who need an honest map of what the line will and will not do, not a list of web feature flags.
+`ai-stp-cli` `0.0.15` is the launch line this note describes (published 2026-08-09); `ai-stp version --json` names the line you run. The command is `ai-stp`. Install it with `ai-stp version --json`, then run `ai-stp doctor --json`. This note is for operators who need an honest map of what the line will and will not do, not a list of web feature flags.
 
 ## Ready on this line
 
@@ -55,7 +55,7 @@ The public catalog, publisher pages, and this content hub are readable without s
 ## After you install
 
 ```bash
-uv tool install ai-stp-cli
+ai-stp version --json
 ai-stp doctor --json
 ai-stp version --json
 ```

@@ -134,7 +134,7 @@ fn executable_metadata_and_refusals() -> Result<(), Box<dyn Error>> {
         (vec!["sync", "apply", "--json"], 2),
         (vec!["version", "--token=must-not-be-echoed", "--json"], 2),
     ] {
-        let output = Command::new(env!("CARGO_BIN_EXE_ai-stp-v2"))
+        let output = Command::new(env!("CARGO_BIN_EXE_ai-stp"))
             .args(arguments)
             .env("HOME", home.path())
             .env("XDG_DATA_HOME", home.path())

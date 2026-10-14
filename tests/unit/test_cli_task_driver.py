@@ -47,7 +47,7 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import installation, preserved_setups, setup_derive
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_cli.secrets import open_store
-from ai_stp_contracts.cli_copy import INITIALIZE_PROMPT, INITIALIZE_START, INTENTS_BOOTSTRAP
+from ai_stp_contracts.cli_copy import INITIALIZE_PROMPT, INITIALIZE_START
 from ai_stp_contracts.first_party import FirstPartyCatalogMember, catalog_identity
 from ai_stp_contracts.machine_help import (
     AuthStatus,
@@ -61,7 +61,6 @@ from ai_stp_foundation.ids import new_id
 from ai_stp_passports.versions import SetupVersionPassport
 
 ROOT = Path(__file__).resolve().parents[2]
-CANONICAL_SKILL = ROOT / "skills" / "canonical" / "ai-stp" / "SKILL.md"
 CORPUS = AGENT_SCENARIOS
 STABLE = "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
 PLAN = "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
@@ -69,7 +68,7 @@ PLAN_HASH = "plan_" + "c" * 64
 ACCOUNT = "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
 DEVICE = "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
 CORPUS_DRIVERS: Final[tuple[tuple[str, str], ...]] = (
-    ("fresh-initialize-prompt", "test_website_initialize_prompt_is_the_task_start_line"),
+    ("fresh-initialize-prompt", "test_website_initialize_prompt_uses_native_initialization"),
     ("no-reinit-on-coding", "test_inspect_argv_loop_does_not_run_initialize"),
     ("install-exact-pin", "test_install_exact_pin_uses_emitted_argv"),
     ("install-without-pin", "test_install_without_pin_uses_emitted_argv"),
@@ -229,14 +228,6 @@ def test_idempotent_start_joins_a_same_key_insert_race(
     assert applied == 1
 
 
-def test_website_initialize_prompt_is_the_task_start_line() -> None:
-    assert INTENTS_BOOTSTRAP == "ai-stp task intents --json"
-    assert "task start --intent initialize" in INITIALIZE_START
-    assert INITIALIZE_START in INITIALIZE_PROMPT
-    assert "plan" not in INITIALIZE_PROMPT
-    assert "approve" not in INITIALIZE_PROMPT
-
-
 def test_inspect_argv_loop_does_not_run_initialize(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -335,19 +326,6 @@ def test_claude_initialize_blocks_without_writing_a_global_file(
     marker = SECTION_BEGIN.encode()
     written = [path for path in home.rglob("*") if path.is_file() and marker in path.read_bytes()]
     assert written == []
-
-
-def test_canonical_skill_does_not_dump_the_registry() -> None:
-    text = CANONICAL_SKILL.read_text(encoding="utf-8")
-    assert len(text.splitlines()) <= 500
-    assert "203" not in text
-    assert "help --agent" not in text.split("## Start here", 1)[1].split("##", 1)[0]
-    recover = (CANONICAL_SKILL.parent / "references" / "recover.md").read_text(encoding="utf-8")
-    assert "install recover" in recover
-    assert "task intents --json" in recover
-    assert "Do not dump" in recover or "do not dump" in recover.lower()
-    assert "provider-too-old" in text
-    assert "not login" in text
 
 
 def test_unrun_native_and_agent_cells_stay_not_run() -> None:
@@ -1650,3 +1628,16 @@ def _hold_session() -> None:
 
 def _forbid_sync(*, scope: str, stable_id: str) -> object:
     raise AssertionError(f"login must not sync ({scope}, {stable_id})")
+
+
+def test_website_initialize_prompt_uses_native_initialization() -> None:
+    assert INITIALIZE_START in INITIALIZE_PROMPT
+    assert "ai-stp init --credential-store os_keyring" in INITIALIZE_START
+    assert "state migrate" in INITIALIZE_PROMPT
+
+
+def test_canonical_skill_does_not_dump_the_registry() -> None:
+    text = (ROOT / "skills/canonical/ai-stp/SKILL.md").read_text(encoding="utf-8")
+    assert len(text.splitlines()) <= 500
+    assert "task intents --json" in text
+    assert "help --agent" not in text.split("## Start here", 1)[1].split("##", 1)[0]

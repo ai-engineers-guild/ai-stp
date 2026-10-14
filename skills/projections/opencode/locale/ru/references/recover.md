@@ -1,22 +1,3 @@
-# Recover
+# Recover original intent
 
-Намерения: timeout, частичная установка, зависшая операция.
-
-Первая команда: `ai-stp task intents --json`. Не выгружайте machine help.
-Не набирайте `ai-stp help` или `help --json`. Не набирайте `ai-stp capabilities`.
-Не изобретайте `task get` или `task status`.
-
-Если задача install ещё `planned`, `blocked` или `running`, продолжайте её.
-Не стартуйте второй intent `install`. Не выгружайте весь registry.
-
-Expert recovery после уже failed задачи: `ai-stp install recover` или
-`ai-stp install resume`, если CLI их назвал. Сначала установите фактический
-эффект. Не повторяйте `ai-stp install apply` «для синхронизации». Используйте
-recovery или resume, которые ещё предлагает envelope.
-
-Не набирайте `setup preserve recover`. Возврат сохранённого native setup —
-intent `switch`. `ai-stp install recover` или `ai-stp install resume` остаются
-expert recovery после already failed install, если CLI их назвал.
-
-Удержанный child `operation_…` на открытой задаче install возобновляется
-через continue, а не вторым start.
+Проверьте `ai-stp task list` или сохранённый status. Продолжайте исходные ID и revision; после неподтверждённого timeout не создавайте вторую install-задачу. Частичная публикация восстанавливается вперёд по исходному плану. Pending-планы аккаунта, миграции и установки CLI доступны через status. Старую базу поверх новых записей не восстанавливайте.

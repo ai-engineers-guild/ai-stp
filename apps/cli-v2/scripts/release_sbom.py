@@ -14,7 +14,7 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-NAME = "ai-stp-cli-v2.cdx.json"
+NAME = "ai-stp-cli.cdx.json"
 LIMIT = 4 * 1024 * 1024
 REGISTRY = "registry+https://github.com/rust-lang/crates.io-index"
 

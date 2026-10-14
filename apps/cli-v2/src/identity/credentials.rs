@@ -37,7 +37,7 @@ fn native_entry(name: &str) -> Result<keyring_core::Entry> {
 }
 
 #[cfg(target_os = "macos")]
-static KEYCHAIN_ACCESS: std::sync::Mutex<()> = std::sync::Mutex::new(());
+pub(super) static KEYCHAIN_ACCESS: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn native_read(id: &str) -> Result<Option<Zeroizing<Vec<u8>>>> {
     #[cfg(target_os = "linux")]
@@ -105,7 +105,7 @@ fn native_remove(id: &str) -> Result<()> {
 }
 
 #[cfg(target_os = "macos")]
-fn no_interaction()
+pub(super) fn no_interaction()
 -> Result<Option<security_framework::os::macos::keychain::KeychainUserInteractionLock>> {
     use security_framework::os::macos::keychain::SecKeychain;
     // Preserve an embedding caller's already-disabled setting. Our own keychain

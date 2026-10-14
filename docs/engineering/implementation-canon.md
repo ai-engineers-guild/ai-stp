@@ -46,11 +46,11 @@ Historical operation models remain readable without exposing mutation commands.
 
 | Surface | Code | Notes |
 | --- | --- | --- |
-| CLI task engine | `apps/cli/src/ai_stp_cli/application/`, SPEC-080 | Nine drained intents on `main` (incl. `technology`); code-backed |
-| CLI expert registry | `apps/cli/src/ai_stp_cli/commands/`, `registry.py` | Lazy command-family loading; machine help defines the registered leaves |
-| Rust CLI v2 | `apps/cli-v2`; ADR-0227; frozen C0 command ledger | C1–C2 native preview: metadata, explicit configuration/snapshot reads, bounded project evidence, public catalog/cache, declared environment prerequisites and native provenance verification. Its README owns the preview contract and its registry owns command help. Python remains the production CLI/state writer; ordered work belongs only to the roadmap |
-| Local registry / passports | `apps/cli/src/ai_stp_cli/local/`, `packages/passports` | code-backed |
-| Providers / install | `apps/cli/src/ai_stp_cli/provider/`, `provider-kit/v3` | kit `0.2.16`; explicit forward-recovery reader admission is code-backed; provider execution remains pending |
+| CLI task engine | `apps/cli-v2/src/tasks`; SPEC-080; ADR-0227 | Native author/install intents; legacy task rows remain readable after explicit state transfer |
+| CLI expert registry | `apps/cli-v2/src/registry.rs`, `src/registry/` | Executable native declarations own help and dispatch |
+| Rust CLI | `apps/cli-v2`; ADR-0227; native command registry | Production executable and state owner after explicit migration. Native archives, identity, catalog, authoring, selection, scoped provider installation and durable recovery; platform limits live in its README |
+| Local registry / passports | `apps/cli-v2/src/store/`, `authoring/`, `packages/passports` | Native state and immutable object contracts |
+| Providers / install | `apps/cli-v2/src/configuration/`, `provider-kit/v3` | Linux scoped provider execution and forward recovery; other platforms refuse execution |
 | API `/v1` | `apps/api/src/ai_stp_api/slices/`, `packages/contracts`, `schemas/v1` | code-backed |
 | Platform | `apps/platform/src/ai_stp_platform/` (content, legal, official_upstream, queue, safety, seo, storage) | code-backed |
 | Web | `apps/web/` | code-backed |

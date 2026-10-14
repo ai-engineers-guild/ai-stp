@@ -147,7 +147,7 @@ in that set are `plugin.json`, `.claude-plugin/plugin.json`,
 supported harness produces no components and reports
 `unsupported_manifest` once per collection.
 
-There is no `ai-stp component plugin validate`. Structural readiness is
+There is no `ai-stp help --path component --json`. Structural readiness is
 `component passport validate`. Kind-specific specification checking
 exists only for [`skill`](https://ai-stp.aiguild.space/en/docs/components).
 
@@ -215,7 +215,7 @@ strings are not `ai_stp` versions. `ai_stp` still mints immutable `X.Y`.
 
 ```bash
 ai-stp component version list --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
+ai-stp help --path component --json
 ```
 
 `--major` opens the next major line. A major line is a separate access
@@ -257,20 +257,20 @@ safety guarantee.
 Only commands that exist. Flags always from the CLI pages, and always
 `--json`. The executable is `ai-stp` (package `ai-stp-cli`). There is no
 `component inspect` and no `setup show`. The only kind-specific validate
-is `ai-stp component skill validate`.
+is `ai-stp help --path component --json`.
 
 **This kind, specifically:** there is no `component plugin validate`.
 Use passport validation. Nested skills may still be checked with:
 
 ```bash
-ai-stp component skill validate --path <directory-with-SKILL.md> --json
+ai-stp help --path component --json
 ```
 
 **Author, adopt, publish:**
 
 ```bash
 ai-stp task start --intent author --idempotency-key author-session-01 --json
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 If the path is also claimed as a skill directory:
@@ -278,13 +278,13 @@ If the path is also claimed as a skill directory:
 Expert recovery:
 
 ```text
-ai-stp component adopt --path <source_path> --kind plugin --json
+ai-stp help --path component --json
 ```
 
 **Install:**
 
 ```bash
-ai-stp task start --intent install --idempotency-key install-session-01 --json
+ai-stp task input-schema --intent install --json
 ```
 
 Expert catalog inspect:

@@ -10,12 +10,10 @@ name: desktop
 on:
   push:
     branches: [dev, main]
-    # The sidecar freezes the CLI wheel built from this tree with its locked
-    # dependency closure, so the app is also a function of the CLI, its
-    # workspace packages, and the lockfile.
+    # The sidecar is the optimized Rust CLI built from this source tree.
     paths:
       - "apps/desktop/**"
-      - "apps/cli/**"
+      - "apps/cli-v2/**"
       - "packages/**"
       - "uv.lock"
       - ".github/workflows/desktop.yml"
@@ -26,7 +24,7 @@ on:
   pull_request:
     paths:
       - "apps/desktop/**"
-      - "apps/cli/**"
+      - "apps/cli-v2/**"
       - "packages/**"
       - "uv.lock"
       - ".github/workflows/desktop.yml"
@@ -51,7 +49,7 @@ jobs:
   desktop:
     name: desktop-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -63,6 +61,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+      - name: Install the native CLI toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          toolchain="$(sed -n 's/^channel = "\(.*\)"/\1/p' apps/cli-v2/rust-toolchain.toml)"
+          test -n "${toolchain}"
+          rustup toolchain install "${toolchain}" --profile minimal \
+            --component clippy --component rustfmt
+          echo "RUSTUP_TOOLCHAIN=${toolchain}" >> "${GITHUB_ENV}"
       - name: Install pinned bun
         shell: bash
         run: |
@@ -99,7 +106,7 @@ jobs:
       - name: Stub sidecar for shell-crate checks
         shell: bash
         # tauri-build's build.rs verifies resource paths exist at compile
-        # time; the stub satisfies that before the real PyInstaller sidecar
+        # time; the stub satisfies that before the real Rust sidecar
         # is built below.
         run: bash apps/desktop/scripts/build-cli-sidecar.sh --stub
       - name: Shell crate tests
@@ -122,8 +129,8 @@ jobs:
       - name: Sidecar spawns under the app's filtered env
         shell: bash
         # CliRunner clears the child env and re-adds a passthrough set —
-        # the same path the installed app takes. On Windows the frozen
-        # CLI dies in its bootloader if TMP/TEMP/USERPROFILE are dropped.
+        # the same path the installed app takes. The probe verifies the Rust
+        # runtime, executable registry and native task input contract.
         # The script is shared with `just desktop-regress`.
         run: bash apps/desktop/scripts/test-bundled-sidecar.sh
       - name: Tauri build

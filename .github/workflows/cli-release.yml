@@ -1,9 +1,9 @@
-name: cli-v2-release
+name: cli-release
 
 on:
   pull_request:
     paths:
-      - .github/workflows/cli-v2-release.yml
+      - .github/workflows/cli-release.yml
       - apps/cli-v2/Cargo.toml
       - apps/cli-v2/Cargo.lock
       - apps/cli-v2/scripts/package_release.py
@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Exact Rust preview version (for example 0.1.0-preview.1)
+        description: Exact stable Rust version (for example 0.1.0)
         required: true
         type: string
 
@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: cli-v2-release-${{ github.ref }}
+  group: cli-release-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -34,15 +34,15 @@ jobs:
         include:
           - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
-            binary: ai-stp-v2
+            binary: ai-stp
             extension: tar.gz
           - os: macos-15
             target: aarch64-apple-darwin
-            binary: ai-stp-v2
+            binary: ai-stp
             extension: tar.gz
           - os: windows-2025
             target: x86_64-pc-windows-msvc
-            binary: ai-stp-v2.exe
+            binary: ai-stp.exe
             extension: zip
     env:
       CARGO_BUILD_JOBS: "2"
@@ -54,7 +54,7 @@ jobs:
           EXPECTED_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          test "${GITHUB_REF}" = "refs/tags/cli-v2-v${EXPECTED_VERSION}"
+          test "${GITHUB_REF}" = "refs/tags/cli-v${EXPECTED_VERSION}"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
@@ -95,7 +95,7 @@ jobs:
       - name: Build the native executable
         working-directory: apps/cli-v2
         shell: bash
-        run: python scripts/with_libclang.py cargo build --locked --release --bin ai-stp-v2
+        run: python scripts/with_libclang.py cargo build --locked --release --bin ai-stp
       - name: Package and verify the extracted executable outside checkout
         shell: bash
         env:
@@ -112,7 +112,7 @@ jobs:
             --binary "apps/cli-v2/target/release/${RELEASE_BINARY}" \
             --target "${RELEASE_TARGET}" --version "${RELEASE_VERSION}" \
             --revision "${GITHUB_SHA}" --output release-repeat
-          stem="ai-stp-cli-v2-${RELEASE_VERSION}-${RELEASE_TARGET}"
+          stem="ai-stp-cli-${RELEASE_VERSION}-${RELEASE_TARGET}"
           cmp "release/${stem}.${RELEASE_EXTENSION}" "release-repeat/${stem}.${RELEASE_EXTENSION}"
           python apps/cli-v2/scripts/package_release.py verify \
             --archive "release/${stem}.${RELEASE_EXTENSION}" \
@@ -129,7 +129,7 @@ jobs:
           compression-level: 0
 
   attest:
-    name: attest-preview-archives
+    name: attest-release-archives
     if: github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-24.04

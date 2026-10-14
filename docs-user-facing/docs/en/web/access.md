@@ -98,12 +98,12 @@ fields (`invitation_id`, `object_kind`, `stable_id`, `major`,
 
 ```bash
 ai-stp grant list --json
-ai-stp grant invite --json
-ai-stp grant direct --json
-ai-stp grant accept --json
-ai-stp grant invitation revoke --confirm --json
-ai-stp grant revoke --confirm --json
-ai-stp owner objects --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
 ```
 
 `grant list` is the twin of this page. `grant invite` is email.

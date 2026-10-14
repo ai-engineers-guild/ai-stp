@@ -8,14 +8,14 @@
 
 <p align="center">
   <a href="https://github.com/ai-engineers-guild/ai-stp/actions/workflows/check.yml"><img src="https://github.com/ai-engineers-guild/ai-stp/actions/workflows/check.yml/badge.svg?branch=main" alt="check"></a>
-  <a href="https://pypi.org/project/ai-stp-cli/"><img src="https://img.shields.io/pypi/v/ai-stp-cli" alt="PyPI"></a>
+  <a href="https://github.com/ai-engineers-guild/ai-stp/releases?q=cli-v"><img src="https://img.shields.io/badge/CLI-Rust-orange" alt="Rust CLI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License: AGPL-3.0"></a>
   <a href="https://ai-stp.aiguild.space"><img src="https://img.shields.io/badge/catalog-ai--stp.aiguild.space-black" alt="catalog"></a>
 </p>
 
-The command is `ai-stp`. The distribution on PyPI is `ai-stp-cli`. The primary
-consumer is the user's agent: every command returns one JSON envelope. `ai-stp`
-does not call a model API and does not require a model key.
+The command is `ai-stp`, a standalone Rust executable. The primary consumer is
+the user's agent: every command returns one JSON envelope. It needs no Python
+runtime or model key and does not call a model API.
 
 ## One setup, nine kinds, exact versions
 
@@ -52,26 +52,26 @@ grants.
 
 ## Install the CLI, then let the agent drive it
 
-```bash
-uv tool install ai-stp-cli
+Download the native archive for your platform from
+[GitHub Releases](https://github.com/ai-engineers-guild/ai-stp/releases?q=cli-v).
+Verify its checksum and build attestation, then follow the
+[native installation instructions](apps/cli-v2/README.md#install-and-update).
+For a fresh local identity:
+
+```sh
+ai-stp init --credential-store os_keyring --json
 ai-stp task intents --json
 ```
 
-<details>
-<summary>Next commands the agent should read from compact discovery</summary>
+Existing Python installations require the explicit in-place state transfer
+in the [CLI guide](apps/cli-v2/README.md#state-and-first-run). Their SQLite data
+and device key are preserved; the old writer is fenced. PyPI's historical
+`ai-stp-cli` wheel is not the current installation route.
 
-```bash
-ai-stp task intents --json
-ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json
-```
-
-`help --agent --json` is the full registry when a shipped intent is not enough.
-Do not dump it as a prelude.
-
-`ai-stp` is the executable. `ai-stp-cli` is the package name. Copying
-`uv tool install ai-stp` installs a distribution this project does not publish.
-
-</details>
+Use `task input-schema` for exact author/install inputs and
+`help --agent --json` for the implemented expert commands. Setup systems are
+installation components acquired by this CLI; no second setup-manager install
+is needed. Harness executables remain managed by the user and their vendors.
 
 ## Desktop application
 
@@ -84,38 +84,21 @@ Download the latest build from
 (bundles are unsigned; `SHA256SUMS` covers every artifact). Details and
 the boundary rules live in `apps/desktop/README.md` and ADR-0222.
 
-## Supported harnesses
+## Platform and harness support
 
-`full` — native surface and a provider route. `partial` — one of those. `—` — no
-native surface. The matrix is `ai-stp toolchain harness-capabilities`.
+The Rust CLI builds and runs in Linux x86-64, Apple Silicon macOS and Windows
+x86-64 CI. Isolated setup installation and active-session handoff are currently
+implemented on Linux; macOS and Windows return an explicit refusal for that
+boundary. `capabilities` reports the current platform rather than assuming that
+a successful binary build proves provider execution.
 
-| Harness | Status | instruction | skill | mcp | hook | command | agent | plugin | setting | cli |
-|---|---|---|---|---|---|---|---|---|---|---|
-| Claude Code | Beta | full | full | partial | full | full | full | partial | full | — |
-| Codex | Beta | full | partial | full | partial | full | full | — | full | — |
-| Grok Build | Beta | full | full | full | full | — | partial | full | full | — |
-| Pi | Beta | full | full | partial | — | full | — | full | full | — |
-| OpenCode | Beta | full | full | full | — | full | full | full | full | — |
-| Cursor | Beta | full | full | full | full | full | full | full | full | — |
-| Antigravity | Beta | partial | full | full | full | full | full | full | full | — |
+The managed installation components cover Claude Code, Codex, Grok Build, Pi,
+OpenCode, Cursor and Antigravity. `provider inspect` and mechanical selection
+checks determine the exact supported kinds and configuration surfaces for an
+operation. Unknown or incompatible surfaces refuse before publication.
 
-An unknown harness is `undefined`. Automatic install is refused.
-
-## Current direction: native Rust CLI
-
-The native `ai-stp-v2` preview is available for Linux x86-64, Apple Silicon
-macOS and Windows x86-64 in
-[GitHub Releases](https://github.com/ai-engineers-guild/ai-stp/releases?q=cli-v2-v).
-Archives include checksums and build provenance. The binary runs without Python
-and uses explicit isolated state. Its implemented capabilities, platform
-requirements and verification instructions live in
-[`apps/cli-v2/README.md`](apps/cli-v2/README.md).
-
-The production `ai-stp` executable remains the Python CLI until verified
-state ownership transfer (`ADR-0227`). Native configuration installation,
-connected account/sync/publication, automated updates and desktop distribution
-remain unfinished. Setup systems are ai-stp installation components with
-separate release repositories (`ADR-0228`).
+The [Rust CLI guide](apps/cli-v2/README.md) owns installation, migration,
+recovery and platform details. The executable registry owns command parameters.
 
 `main` is the protected release branch; work starts from `dev` and enters it by
 PR before promotion to `main`. For a new workstation, follow

@@ -722,7 +722,7 @@ cli-v2-build:
 # Existing envelope consumer, registry digest and live-WAL backup compatibility
 [group('cli-v2')]
 cli-v2-regress: cli-v2-build
-    {{ run }} python apps/cli-v2/scripts/verify.py apps/cli-v2/target/release/ai-stp-v2
+    {{ run }} python apps/cli-v2/scripts/verify.py apps/cli-v2/target/release/ai-stp
 
 # Native CLI boundary gate (also part of the repository gate)
 [group('cli-v2')]
@@ -735,7 +735,7 @@ cli-v2-check: cli-v2-static cli-v2-test cli-v2-build cli-v2-regress
 # real-sidecar spawn test. `desktop-build` writes `dist/` and a stub
 # sidecar because tauri-build and `generate_context!` read both at compile
 # time; the stub is written only when no sidecar exists, so a real
-# PyInstaller build is never replaced. `desktop-*` is deliberately outside
+# native build is never replaced. `desktop-*` is deliberately outside
 # `gen`/`check` — it needs Rust plus WebKitGTK system packages and is
 # covered in CI by desktop.yml, not check.yml — the same exclusion
 # `infra-*` has.
@@ -775,10 +775,9 @@ desktop-test: desktop-build
     cd apps/desktop/core && cargo test --locked
     cd apps/desktop/src-tauri && cargo test --locked
 
-# Freezes the real PyInstaller sidecar — several minutes, and it overwrites
-# the stub by design — then runs the same filtered-env spawn test
-# desktop.yml runs. `uvreq` because the freeze is `uv sync` plus a pinned
-# PyInstaller: the same version contract as every other `uv run` leg.
+# Builds the optimized Rust sidecar, replaces the generated stub, and runs
+# the same filtered-env resource probe as desktop.yml. Python is a build-time
+# driver only; the resource tree contains no interpreter.
 [doc('Build the real sidecar and spawn it under the filtered env')]
 [group('desktop')]
 desktop-regress: desktop-build

@@ -99,8 +99,8 @@ POST сайта.
 не здесь:
 
 ```bash
-ai-stp auth status --json
-ai-stp link web --json
+ai-stp help --path account --json
+ai-stp help --path registry --json
 ```
 
 `auth status` говорит, есть ли у устройства сессия аккаунта. HTML

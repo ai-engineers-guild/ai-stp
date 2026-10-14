@@ -28,14 +28,14 @@ Agent-компонент не является отдельным сетапом
 
     CLI также поставляет один канонический Agent Skill, который учит
     агента управлять самим `ai-stp`. Этот объект ставится командой
-    [`ai-stp skill install`](../cli/skill.md). Это **не** компонент
+    [`ai-stp help --path task --json`](../cli/skill.md). Это **не** компонент
     каталога и **не** этот вид.
 
     | Объект | Вид / семейство команд | Живёт в сетапе? |
     | --- | --- | --- |
     | Файл роли под `agents/` | вид `agent` (эта страница) | да |
     | `AGENTS.md` | [`instruction`](instruction.md) | да |
-    | CLI Agent Skill | `ai-stp skill install` / `status` / `remove` | нет |
+    | CLI Agent Skill | `ai-stp help --path task --json` / `status` / `remove` | нет |
 
 ## Соседи
 
@@ -118,7 +118,7 @@ ai-stp component scaffold apply \
 замену всех инструкций, секреты или право менять внешний мир без
 подтверждения.
 
-Команды `ai-stp component agent validate` нет. Структурная готовность —
+Команды `ai-stp help --path component --json` нет. Структурная готовность —
 `component passport validate`. Kind-specific проверка по спецификации
 есть только у [`skill`](skill.md).
 
@@ -177,7 +177,7 @@ ai-stp task start --intent author --idempotency-key author-session-01 --json
 
 ```bash
 ai-stp component version list --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
+ai-stp help --path component --json
 ```
 
 `--major` открывает следующую мажорную линию. Мажорная линия — отдельная
@@ -219,7 +219,7 @@ ai-stp component version release --id <stable_id> --json
 Только команды, которые существуют. Флаги всегда со страниц CLI и всегда
 `--json`. Исполняемый файл — `ai-stp` (пакет `ai-stp-cli`). Команд
 `component inspect` и `setup show` нет. Единственный kind-specific
-validate — `ai-stp component skill validate`.
+validate — `ai-stp help --path component --json`.
 
 **Именно этот вид:** команды `component agent validate` нет. Используйте
 проверку паспорта.
@@ -232,20 +232,20 @@ ai-stp component passport validate --id <stable_id> --json
 [Agent Skill CLI](../cli/skill.md)):
 
 ```bash
-ai-stp skill status --json
+ai-stp help --path task --json
 ```
 
 **Автор, adopt, публикация:**
 
 ```bash
 ai-stp task start --intent author --idempotency-key author-session-01 --json
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 **Установить:**
 
 ```bash
-ai-stp task start --intent install --idempotency-key install-session-01 --json
+ai-stp task input-schema --intent install --json
 ```
 
 Expert-просмотр каталога:
@@ -279,7 +279,7 @@ Agent может быть embedded-членом compose-манифеста. См
 ## Красные флаги
 
 - Обращение с `AGENTS.md` как с видом `agent`.
-- Обращение с `ai-stp skill install` так, будто оно опубликовало этот
+- Обращение с `ai-stp help --path task --json` так, будто оно опубликовало этот
   компонент.
 - Роль без ограничений, без ожидаемого результата и с каждым tool
   включённым.

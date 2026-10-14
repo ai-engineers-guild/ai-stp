@@ -115,7 +115,7 @@ Machine `/{locale}/ai/docs/…` — та же статья как Markdown. Эт
 
 ## Соответствующие команды CLI
 
-Команды `ai-stp docs` нет. Повседневное обнаружение:
+Команды `ai-stp help --path task --json` нет. Повседневное обнаружение:
 
 ```bash
 ai-stp task intents --json
@@ -134,7 +134,7 @@ ai-stp help --agent --json
 Канонические веб-ссылки из оболочки:
 
 ```bash
-ai-stp link web --json
+ai-stp help --path registry --json
 ```
 
 `link web` печатает round-trippable URL сайта. Он не открывает MkDocs

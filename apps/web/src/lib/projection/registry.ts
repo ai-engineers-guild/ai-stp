@@ -16,7 +16,7 @@ import { readPublisherProfile } from "@/lib/api/public-profile";
 import { readPublicLegalDocument } from "@/lib/api/public-legal";
 import { catalogQueryToRecord, parseCatalogSearchParams } from "@/lib/catalog-query";
 import { startCatalogResourceReads } from "@/lib/catalog-load";
-import { INSTALL_CLI } from "@/lib/cli-copy";
+import { CLI_RELEASES_URL } from "@/lib/cli-copy";
 import { loadDocsNav } from "@/lib/docs-nav";
 import { docsSource } from "@/lib/docs-source";
 import type { MachineDocument } from "@/lib/projection/machine-document";
@@ -105,7 +105,7 @@ const PUBLIC_ROUTES: MachineRoute[] = [
         title: t("title"),
         subtitle: t("subtitle"),
         browseCatalog: t("browseCatalog"),
-        installCommand: INSTALL_CLI,
+        releasesUrl: CLI_RELEASES_URL,
         installHeading: t("installHeading"),
       });
     },

@@ -1,29 +1,3 @@
-# Traps
+# Avoid false completion
 
-These distinctions are not encoded in command names, and getting them wrong can
-look like success.
-
-- Read harness availability from `surface`, `version_source`, and `diagnostic`,
-  not from the `version` string.
-- `state: available` with an empty `installations` means supported but not
-  installed. Do not call it installed.
-- An accepted local passport is provenance and owner consent, not publish-ready
-  or platform-verified.
-- `ready: true` on passport validation is local structural completeness of one
-  revision, not permission for a cloud write.
-- A provider release signature does not prove compatibility. Both release trust
-  and conformance are required.
-- Only the catalog command intended for offline closure supplies its bytes. An
-  object key is not authority to fetch.
-- `candidate_id` is not a Component id. The Component id appears only after
-  the `author` intent registers the directory. Do not type `component adopt`.
-- Call a GitHub origin exact only with `provenance.kind: github` and
-  `state: exact`. A cache directory name is not evidence.
-- `harness_id: null` is not assigned to a harness by the agent.
-- Browser device flow must complete through the real browser account. Follow
-  the account playbook; a locally fabricated session proves no user sign-in.
-  `provider-too-old` is not a device-code wait.
-- Do not construct web routes. Use `link web` for canonical links and
-  `cli_argv`.
-- `source: cache` is the past: show `checked_at` and do not present it as
-  current cloud state.
+Do not substitute an old Python command or task intent when native help omits it. A source candidate is not an adopted component; acquisition is not installation; queued publication is not catalog readback; build success is not provider execution support. Do not start login for a provider compatibility error. Resume retained intent instead of creating a superficially similar new operation.

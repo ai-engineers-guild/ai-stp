@@ -1,29 +1,7 @@
-"""Canonical CLI copy templates for web surfaces (docs/contracts/cli-copy-templates.md).
-
-`SPEC-037` `REQ-3706` asks for *exact* commands from *one* canonical source. Both
-halves had failed: a second copy lived in the web as TypeScript, and every
-template here rendered a command the parser refuses.
-
-`ai-stp registry show component_01ABC` has no flags, and `registry show` declares
-`--kind` and `--id` as required; `@{version}` was never a syntax the CLI parsed —
-an exact version is a separate command with its own `--version`. `component sync`,
-`setup sync` and `login` are not commands at all; the verbs are `task start
---intent author`, `setup import inspect` and `task start --intent account`.
-
-So a copy button handed the user something that could only fail. The templates
-below are checked by rendering them and putting them through the real parser, not
-by comparing two lists — see `tests/contract/test_cli_copy_templates.py`.
-
-An owner next step is a complete everyday argv. `task start --intent author`
-and `task start --intent install` need no path or secret, so the copied
-line is safe; a step that needs a root, a harness or a confirmation cannot
-be rendered without substituting something this contract forbids putting in
-a UI command.
-"""
+"""Native CLI commands and agent handoffs, projected to the web from one owner."""
 
 from __future__ import annotations
 
-import json
 import re
 from typing import Final, Literal
 
@@ -39,27 +17,23 @@ SELECT_IMPACT: Final = "ai-stp select impact --setup-id {stable_id} --setup-vers
 COMPONENT_NEXT_STEP: Final = (
     "ai-stp task start --intent author --idempotency-key author-session-01 --json"
 )
-SETUP_NEXT_STEP: Final = (
-    "ai-stp task start --intent install --idempotency-key install-session-01 --json"
+SETUP_NEXT_STEP: Final = COMPONENT_NEXT_STEP
+INSTALL_TASK_START: Final = (
+    "Use ai-stp to configure my installed harness with {stable_id}{version_label}. "
+    "Start with `ai-stp task intents --json`, inspect the exact object and gather "
+    "the local target, source and provider facts required by the install input schema. "
+    "Keep harness installation and updates under its own management."
 )
-INSTALL_TASK_START: Final = "ai-stp task start --intent install --idempotency-key {key} --json"
-INSTALL_SETUP_START: Final = (
-    "echo {input} | ai-stp task start --intent install --idempotency-key {key} --input - --json"
-)
-LOGIN: Final = "ai-stp task start --intent account --idempotency-key account-session-01 --json"
-INSTALL_CLI: Final = "uv tool install ai-stp-cli"
+INSTALL_SETUP_START: Final = INSTALL_TASK_START
+LOGIN: Final = "ai-stp account plan --action start --provider {provider} --json"
+CLI_RELEASES_URL: Final = "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.1.0"
 INTENTS_BOOTSTRAP: Final = "ai-stp task intents --json"
-INITIALIZE_START: Final = (
-    "ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json"
-)
+INITIALIZE_START: Final = "ai-stp init --credential-store os_keyring --json"
 INITIALIZE_PROMPT: Final = (
-    "After the CLI is installed, the coding agent runs first-run harness "
-    "discoverability by executing: " + INITIALIZE_START
+    "After installing the native CLI, initialize a new local identity with: "
+    + INITIALIZE_START
+    + ". Existing Python state requires explicit `ai-stp state migrate plan` and apply."
 )
-
-#: The distribution `uv` installs. `ai-stp` is the console script, not the
-#: package, and installing that name fetches something this project does not
-#: publish.
 DISTRIBUTION: Final = "ai-stp-cli"
 
 
@@ -89,44 +63,24 @@ def owner_setup_next_step() -> str:
 
 
 def install_start() -> str:
-    """Everyday catalog install. Same argv as the empty-state setup copy."""
-    return SETUP_NEXT_STEP
+    """First read-only step for an agent preparing an installation."""
+    return INTENTS_BOOTSTRAP
 
 
 def install_task_start(stable_id: str, version: str | None = None) -> str:
-    """Install argv whose session key names one object, not all installs.
-
-    `task start` replays the original request for a repeated idempotency key,
-    so a fixed key returns the *first* install's record when the user copies
-    the handoff for a second object. Deriving the key from the object
-    identity keeps repaste-retry resumable and gives every object its own
-    task. Ids are `setup_…` / `component_…` ULIDs and versions are `X.Y`,
-    which the key charset already allows.
-    """
-    key = _install_key(stable_id, version)
-    return INSTALL_TASK_START.format(key=key)
+    """Agent handoff: the browser cannot know local installation facts."""
+    if re.fullmatch(r"[A-Za-z0-9_]+", stable_id) is None:
+        raise ValueError("invalid catalog object identifier")
+    return INSTALL_TASK_START.format(
+        stable_id=stable_id, version_label=f" version {version}" if version else ""
+    )
 
 
 def install_setup_start(stable_id: str, version: str) -> str:
-    """Install argv that pins a setup in the durable task request itself.
-
-    The install intent's input schema binds `setup_id`/`setup_version`, so a
-    copied setup line feeds the pin through stdin instead of leaving the task
-    to ask. The request, not only the key, then names the object.
-    """
-    body = json.dumps({"setup_id": stable_id, "setup_version": version}, separators=(",", ":"))
-    return INSTALL_SETUP_START.format(input=f"'{body}'", key=_install_key(stable_id, version))
-
-
-def _install_key(stable_id: str, version: str | None = None) -> str:
-    """One session key per catalog object, inside the CLI key charset."""
-    key = f"install-{stable_id}" if version is None else f"install-{stable_id}-{version}"
-    if re.fullmatch(r"[A-Za-z0-9._~\-]{16,128}", key) is None:
-        raise ValueError(f"derived idempotency key violates the CLI charset: {key!r}")
-    return key
+    """An exact object pin in an agent prompt, never an incomplete install argv."""
+    return install_task_start(stable_id, version)
 
 
 def login(provider: OAuthProvider) -> str:
-    """Device sign-in through the account intent. Provider is a task question."""
-    del provider
-    return LOGIN
+    """Public plan only; the agent applies its exact digest and polls the session."""
+    return LOGIN.format(provider=provider)

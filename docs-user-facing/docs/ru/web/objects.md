@@ -57,7 +57,7 @@ description: "Частные и опубликованные объекты, к�
 
 ```bash
 ai-stp task start --intent author --idempotency-key author-session-01 --json
-ai-stp task start --intent install --idempotency-key install-session-01 --json
+ai-stp task input-schema --intent install --json
 ```
 
 Первый — повседневная регистрация. Второй — повседневная установка из каталога.
@@ -124,11 +124,11 @@ YouTube хочет id, не полный URL.
 ## Совпадающие команды CLI
 
 ```bash
-ai-stp owner objects --json
-ai-stp owner object show --json
-ai-stp owner version show --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
 ai-stp task start --intent author --idempotency-key author-session-01 --json
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 `owner objects` — список. `owner object show` — один объект и его

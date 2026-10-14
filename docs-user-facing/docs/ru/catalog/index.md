@@ -24,7 +24,7 @@ description: "Как читать публичный каталог ai_stp и ч
 Everyday-установка, когда кандидат уже есть:
 
 ```bash
-ai-stp task start --intent install --idempotency-key install-session-01 --json
+ai-stp task input-schema --intent install --json
 ```
 
 Expert-просмотр каталога (идентичность, не установка):
@@ -48,7 +48,7 @@ ai-stp registry search --kind component --query scanner --include-experimental -
 `--include-experimental` действует только на эту команду. Он не сохраняется и
 не является согласием на установку. Согласие — это
 [доверие и безопасность](../trust-and-safety/index.md) и
-`ai-stp consent allow`.
+`ai-stp help --path account --json`.
 
 ## Fetch и офлайн-кэш
 
@@ -59,9 +59,9 @@ Search и show могут ответить из кэша, если сеть не
 Чтобы закрепить точные опубликованные байты локально (expert recovery):
 
 ```text
-ai-stp registry fetch --kind component --id <stable_id> --version 1.0 --json
-ai-stp registry acquire --id <setup_id> --version 1.0 --json
-ai-stp registry acquire --id <setup_id> --version 1.0 --offline --json
+ai-stp help --path registry --json
+ai-stp help --path registry --json
+ai-stp help --path registry --json
 ```
 
 `fetch` пишет неизменяемые байты с адресацией по содержимому в локальный кэш.

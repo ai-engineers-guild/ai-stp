@@ -131,7 +131,7 @@ ai-stp component scaffold apply \
 Для `required_env` в паспорт записывайте имена и назначение, никогда
 значения. Секреты, токены и пароли в паспорт не попадают.
 
-Команды `ai-stp component mcp validate` нет. Структурная готовность —
+Команды `ai-stp help --path component --json` нет. Структурная готовность —
 `component passport validate`. Kind-specific проверка по спецификации
 есть только у [`skill`](skill.md).
 
@@ -202,7 +202,7 @@ adopt. Не adopt'ьте файл дважды под угаданными ви�
 
 ```bash
 ai-stp component version list --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
+ai-stp help --path component --json
 ```
 
 `--major` открывает следующую мажорную линию. Мажорная линия — отдельная
@@ -245,7 +245,7 @@ ai-stp component version release --id <stable_id> --json
 Только команды, которые существуют. Флаги всегда со страниц CLI и всегда
 `--json`. Исполняемый файл — `ai-stp` (пакет `ai-stp-cli`). Команд
 `component inspect` и `setup show` нет. Единственный kind-specific
-validate — `ai-stp component skill validate`.
+validate — `ai-stp help --path component --json`.
 
 **Именно этот вид:** команды `component mcp validate` нет. Используйте
 проверку паспорта.
@@ -258,7 +258,7 @@ ai-stp component passport validate --id <stable_id> --json
 
 ```bash
 ai-stp task start --intent author --idempotency-key author-session-01 --json
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 Когда находка также является файлом setting:
@@ -266,13 +266,13 @@ ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 Expert recovery:
 
 ```text
-ai-stp component adopt --path <source_path> --kind mcp --json
+ai-stp help --path component --json
 ```
 
 **Установить:**
 
 ```bash
-ai-stp task start --intent install --idempotency-key install-session-01 --json
+ai-stp task input-schema --intent install --json
 ```
 
 Expert-просмотр каталога:

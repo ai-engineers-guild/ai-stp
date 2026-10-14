@@ -107,8 +107,8 @@ and confirm that one. See [troubleshooting](../troubleshooting/index.md).
     sources, and ask a provider to apply — without an account.
 
     ```bash
-    ai-stp device init --json
-    ai-stp passport developer init --json
+    ai-stp help --path device --json
+    ai-stp help --path device --json
     ai-stp doctor --json
     ```
 
@@ -128,8 +128,8 @@ and confirm that one. See [troubleshooting](../troubleshooting/index.md).
     objects, and device binding to the cloud session.
 
     ```bash
-    ai-stp task start --intent account --idempotency-key account-session-01 --json
-    ai-stp auth status --json
+    ai-stp help --path account --json
+    ai-stp help --path account --json
     ```
 
 Local work stays local until you publish or sync. Anonymous catalog reads
@@ -144,7 +144,7 @@ when a trusted backend is present, and in an owner-only file otherwise.
 plaintext file is a keychain.
 
 ```bash
-ai-stp device init --json
+ai-stp help --path device --json
 ai-stp device show --json
 ```
 
@@ -160,7 +160,7 @@ pins the index, toolchain and config.
 ```text
 ai-stp project discover --root . --json
 ai-stp project index --root . --json
-ai-stp project passport --root . --json
+ai-stp help --path project --json
 ```
 
 A setup is installed into a project-harness pair. Status, diff, backups and

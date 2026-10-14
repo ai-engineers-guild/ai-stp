@@ -72,7 +72,7 @@ CLI лайков нет. Связанные чтения каталога:
 ai-stp registry show --kind component --id <stable_id> --json
 ai-stp registry show --kind setup --id <stable_id> --json
 ai-stp registry version --kind component --id <stable_id> --version <x.y> --json
-ai-stp link web --json
+ai-stp help --path registry --json
 ```
 
 Лайк — не пин. Если позже нужны байты, `registry fetch` или

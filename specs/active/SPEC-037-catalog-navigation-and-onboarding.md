@@ -51,14 +51,11 @@ passport editor, client-side authorization, recommendations, and hidden filters.
 - `REQ-3705`: An owner version with a public state displays `View public page`; a public
   object/version page displays `Manage this version` only to the authenticated
   owner. Private drafts use owner preview routes rather than public links.
-- `REQ-3706`: The catalog and owner pages provide a copy action for exact CLI commands
-  (`registry show` / `registry version` for a public object/version, the `install`
-  intent start as the everyday "Use via CLI" action, and an owner-appropriate next step)
-  and obtain the command template from a single canonical source. On an object page the
-  install handoff names that object: the session key is derived from the stable id (and
-  exact version where shown) so a second object's copied install never replays the first
-  object's task, and a setup page additionally pins `setup_id`/`setup_version` in the
-  task input. The UI does not promise browser installation.
+- `REQ-3706`: Catalog and owner pages copy commands or explicitly described
+  agent prompts from `ai_stp_contracts.cli_copy`. Inspection uses exact object
+  identifiers and versions. Installation is an agent prompt preserving those
+  pins, because local target/source/provider facts are unavailable to the web.
+  It must not emit an incomplete install command or promise browser installation.
 - `REQ-3707`: Empty owner objects/access/publications states explain that
   passports and setups are created through the CLI/agent, provide a copyable safe command and a link to
   the documentation. They do not display a nonexistent browser editing function.

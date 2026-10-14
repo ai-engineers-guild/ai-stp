@@ -61,6 +61,10 @@ impl std::ops::Deref for Owner {
 }
 
 impl Owner {
+    pub(crate) fn root_directory(&self) -> &cap_std::fs::Dir {
+        self.device.root_directory()
+    }
+
     fn checked(&self, store: Store) -> Result<Store> {
         self.device.revalidate()?;
         if crate::account::attachment::effective(&store.connection, &self.device)? != self.context {

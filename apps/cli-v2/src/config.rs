@@ -1,9 +1,6 @@
-//! Explicit preview configuration; no discovery, writes or credential access.
+//! Explicit network configuration; no discovery, writes or credential access.
 
-use std::{
-    collections::BTreeMap,
-    path::{Path, PathBuf},
-};
+use std::{collections::BTreeMap, path::Path};
 
 use serde_json::{Value, json};
 
@@ -27,50 +24,20 @@ const MAX_BYTES: u64 = 1024 * 1024;
 struct Field {
     name: String,
     default: Value,
-    is_path: bool,
 }
 
 fn fields() -> Vec<Field> {
-    let data = std::env::var_os("XDG_DATA_HOME")
-        .filter(|v| !v.is_empty())
-        .map(PathBuf::from)
-        .or_else(|| files::home().map(|p| p.join(".local/share")))
-        .unwrap_or_else(|| PathBuf::from(".local/share"));
-    let mut fields: Vec<_> = [
-        ("catalog.enabled", json!(true), false),
-        ("catalog.url", json!(CATALOG_URL), false),
-        ("sync.enabled", json!(false), false),
-        (
-            "registry.path",
-            json!(data.join("ai-stp-v2/registry.sqlite")),
-            true,
-        ),
-        ("search.result_limit", json!(20), false),
-        ("projects.discovery_roots", json!([]), true),
-        ("telemetry.enabled", json!(false), false),
-        (
-            "telemetry.url",
-            json!("https://telemetry.ai-stp.example"),
-            false,
-        ),
-        ("update.enabled", json!(true), false),
-        ("update.channel", json!("stable"), false),
-        ("update.check_ttl_hours", json!(24), false),
-        ("update.notifications", json!(true), false),
+    [
+        ("catalog.enabled", json!(true)),
+        ("catalog.url", json!(CATALOG_URL)),
+        ("sync.enabled", json!(false)),
     ]
     .into_iter()
-    .map(|(name, default, is_path)| Field {
+    .map(|(name, default)| Field {
         name: name.into(),
         default,
-        is_path,
     })
-    .collect();
-    fields.extend(HARNESSES.map(|name| Field {
-        name: format!("provider.paths.{name}"),
-        default: json!(""),
-        is_path: true,
-    }));
-    fields
+    .collect()
 }
 
 fn invalid() -> Failure {
@@ -87,10 +54,7 @@ fn validate(value: Value, field: &Field) -> Result<Value> {
             .is_some_and(|items| items.iter().all(Value::is_string)),
         _ => false,
     };
-    if !valid_type
-        || (field.name == "update.channel" && value != "stable" && value != "prerelease")
-        || (field.name == "update.check_ttl_hours" && value.as_i64().is_none_or(|v| v < 1))
-    {
+    if !valid_type {
         return Err(invalid());
     }
     Ok(value)
@@ -132,14 +96,6 @@ fn document(path: &Path) -> Result<Value> {
     Ok(if value.is_null() { json!({}) } else { value })
 }
 
-fn redacted(value: Value) -> Value {
-    match value {
-        Value::String(text) => json!(files::display(Path::new(&text))),
-        Value::Array(items) => Value::Array(items.into_iter().map(redacted).collect()),
-        other => other,
-    }
-}
-
 pub fn show(path: Option<&Path>, overrides: &[String]) -> Result<Value> {
     let fields = fields();
     let value = path.map(document).transpose()?.unwrap_or_else(|| json!({}));
@@ -174,11 +130,18 @@ pub fn show(path: Option<&Path>, overrides: &[String]) -> Result<Value> {
             .ok_or_else(invalid)?;
         supplied.insert(field.name.clone(), argument(text, field)?);
     }
-    let values: Vec<_> = fields.into_iter().map(|field| {
-        let (value, source) = if let Some(value) = supplied.remove(&field.name) { (value, "command_argument") }
-            else if let Some(value) = stored.remove(&field.name) { (value, "config_file") }
-            else { (field.default, "default") };
-        json!({"path": field.name, "value": if field.is_path {redacted(value)} else {value}, "source": source})
-    }).collect();
+    let values: Vec<_> = fields
+        .into_iter()
+        .map(|field| {
+            let (value, source) = if let Some(value) = supplied.remove(&field.name) {
+                (value, "command_argument")
+            } else if let Some(value) = stored.remove(&field.name) {
+                (value, "config_file")
+            } else {
+                (field.default, "default")
+            };
+            json!({"path": field.name, "value": value, "source": source})
+        })
+        .collect();
     Ok(json!({"schema_version": 1, "config_path": path.map(files::display), "values": values}))
 }

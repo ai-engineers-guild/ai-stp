@@ -69,7 +69,7 @@ There is no likes CLI. Related catalog reads:
 ai-stp registry show --kind component --id <stable_id> --json
 ai-stp registry show --kind setup --id <stable_id> --json
 ai-stp registry version --kind component --id <stable_id> --version <x.y> --json
-ai-stp link web --json
+ai-stp help --path registry --json
 ```
 
 A like is not a pin. If you need the bytes later, `registry fetch` or

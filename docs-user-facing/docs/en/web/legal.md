@@ -95,8 +95,8 @@ choices are a website POST.
 Signed-in privacy flags (profile visibility) are on Account, not here:
 
 ```bash
-ai-stp auth status --json
-ai-stp link web --json
+ai-stp help --path account --json
+ai-stp help --path registry --json
 ```
 
 `auth status` tells you whether the device has an account session. It

@@ -61,10 +61,14 @@ def prove(binary: Path, home: Path, root: Path, state: Path, run: Any) -> None:
 
     catalog = run(binary, home, ["task", "intents"])["data"]
     TaskIntentsCatalog.model_validate(catalog)
-    assert [row["name"] for row in catalog["intents"]] == ["author"]
+    assert [row["name"] for row in catalog["intents"]] == ["author", "install"]
     fields = {row["name"]: row for row in catalog["intents"][0]["input_fields"]}
     assert "codex" in fields["harness_id"]["choices"]
     assert "cli" not in fields["component_type"]["choices"]
+    install_schema = run(binary, home, ["task", "input-schema", "--intent", "install"])["data"]
+    assert install_schema["$id"] == "urn:ai-stp:schema:v1:cli-task-input-native-install"
+    assert install_schema["additionalProperties"] is False
+    assert install_schema["properties"]["targets"]["minProperties"] == 1
     before = counts()
     start("native-author-unsupported", {"harness_id": "codex", "component_type": "cli"}, 2)
     for invalid_key in ("short", "native author invalid", "x" * 129):
