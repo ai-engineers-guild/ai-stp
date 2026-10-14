@@ -9,6 +9,7 @@ mod local;
 mod providers;
 mod publication;
 mod reports;
+mod requests;
 mod selections;
 mod sync;
 mod tasks;
@@ -38,6 +39,7 @@ enum Handler {
     Publication(publication::Handler),
     Local(local::Handler),
     Report(reports::Handler),
+    Request(requests::Handler),
     Provider(providers::Handler),
     Selection(selections::Handler),
     Version,
@@ -683,6 +685,7 @@ fn declarations() -> impl Iterator<Item = &'static Declaration> {
         .chain(grants::COMMANDS)
         .chain(github::COMMANDS)
         .chain(visibility::COMMANDS)
+        .chain(requests::COMMANDS)
         .chain(sync::COMMANDS)
         .chain(publication::COMMANDS)
         .chain(attestation::COMMANDS)
@@ -756,6 +759,7 @@ fn mutability(handler: Handler) -> &'static str {
         Handler::Grant(handler) => handler.mutability(),
         Handler::Github(handler) => handler.mutability(),
         Handler::Visibility(handler) => handler.mutability(),
+        Handler::Request(handler) => handler.mutability(),
         Handler::Sync(handler) => handler.mutability(),
         Handler::Publication(handler) => handler.mutability(),
         Handler::Attestation(handler) => handler.mutability(),
@@ -840,6 +844,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::Grant(handler) => grants::dispatch(handler, leaf),
         Handler::Github(handler) => github::dispatch(handler, leaf),
         Handler::Visibility(handler) => visibility::dispatch(handler, leaf),
+        Handler::Request(handler) => requests::dispatch(handler, leaf),
         Handler::Sync(handler) => sync::dispatch(handler, leaf),
         Handler::Publication(handler) => publication::dispatch(handler, leaf),
         Handler::Attestation(handler) => attestation::dispatch(handler, leaf),

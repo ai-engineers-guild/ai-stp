@@ -7,6 +7,7 @@ pub mod grants;
 mod journal;
 mod model;
 mod recovery;
+pub mod reports;
 #[cfg(all(test, unix))]
 mod tests;
 mod transport;

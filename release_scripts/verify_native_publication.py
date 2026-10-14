@@ -34,6 +34,8 @@ from release_scripts._native_client import NativeClient
 from release_scripts._native_github import SelectedGitHub
 from release_scripts._native_github import connect as connect_github
 from release_scripts._native_github import prepare as prepare_github
+from release_scripts._native_reports import confirm as confirm_report
+from release_scripts._native_reports import prove as prove_reports
 from release_scripts._native_visibility import prove as prove_visibility
 from sqlalchemy import select
 from tests.support.api_settings import make_settings, make_test_auth
@@ -78,6 +80,7 @@ class _Server(http.server.ThreadingHTTPServer):
         self.visibility_confirms: list[dict[str, Any]] = []
         self.drop_create = False
         self.drop_source = False
+        self.drop_report = False
         self.sources: list[dict[str, Any]] = []
 
 
@@ -129,6 +132,12 @@ class _Bridge(http.server.BaseHTTPRequestHandler):
                     "status": response.status_code,
                 }
             )
+            if self.command == "POST" and self.path == "/v1/requests" and server.drop_report:
+                assert response.status_code in {200, 201}
+                server.drop_report = False
+                self.close_connection = True
+                self.connection.shutdown(socket.SHUT_RDWR)
+                return
             if self.command == "POST" and self.path == server.drop_visibility:
                 assert response.status_code in {200, 201}
                 server.drop_visibility = ""
@@ -449,6 +458,8 @@ class _Native(NativeClient):
         self.scenarios["public_group_preserves_private_passports"] = "passed"
         self.stage = "native_visibility"
         prove_visibility(self, root, server, gamma, public)
+        self.stage = "native_reports"
+        report_preview, report_result = prove_reports(self, root, server)
         unsafe = self.component(root, "review-unsafe", unsafe=True)
         refused = self.setup(root, "refused-review", [alpha, unsafe])
         self.stage = "real_safety_refusal"
@@ -475,6 +486,9 @@ class _Native(NativeClient):
         assert self.account(root, "logout")["outcome"] == "closed"
         before = len(server.requests)
         assert self.apply(root, prepared, ("publication", "apply")) == completed
+        report_history = confirm_report(self, root, report_preview)
+        assert report_history["historical"] and report_history["case"] == report_result["case"]
+        self.scenarios["report_history_after_logout_without_resubmission"] = "passed"
         status = self.invoke(
             root, "publication", "status", "--state-dir", root, "--operation-id", operation
         )

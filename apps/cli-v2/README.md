@@ -2855,6 +2855,40 @@ close/open transitions, refused private setup dependencies, loss after create
 and confirmation, refresh, stale plans, expiry and exact passport preservation.
 It uses isolated synthetic publications; no owner publication changes access.
 
+### Account report cases
+
+`report preview --state-dir --request [--api-url]` retains a bounded, exact
+request for the existing `/v1/requests` service. The request supplies one of its
+eight stable topics, the topic's fields and a caller `idempotency_key`. The CLI
+supplies `schema_version` and `diagnostics_previewed`. Optional diagnostics are
+explicit text of at most 4,000 UTF-8 bytes; absolute paths and secret-bearing
+assignments are refused. There is no automatic environment collection. Preview
+requires the retained account session but sends no HTTP request or report text.
+Server-side moderation and catalog validation remain authoritative.
+
+The preview shows the account, API origin, full outgoing request, identifier and
+digest. It preserves user-authored Unicode bytes. Its private journal binds the
+physical state root and account; repeating the caller key with changed content
+refuses. The wire idempotency key includes the exact request digest because the
+existing API replays by account/key without comparing message bytes. The CLI
+does not claim that the reporter response proves the message or diagnostics:
+those fields are intentionally absent from the server's reporter view.
+
+`report confirm --state-dir --plan-id --plan-digest --confirm` verifies the
+current account and retains delivery admission before sending the exact preview.
+After a lost response, repeat that same command: it needs no source request file
+and uses the same body and wire key. A refreshed session of the same account can
+resume delivery; an expired or different account cannot. Preview content has no
+automatic expiry or renewal. A completed receipt replays locally after logout
+and is explicitly historical; it neither re-submits nor claims current status.
+
+`report status --state-dir --case-id [--api-url]` reads the current reporter view.
+`report list --state-dir [--cursor] [--api-url]` reads at most 100 cases, exposing
+the next opaque cursor. It does not silently truncate or drain all history.
+Both use fresh account verification. Only the documented reporter fields are
+returned or retained; unknown response extensions are withheld. These commands
+cannot moderate reports, transfer ownership or change verification.
+
 ## Modules and proof
 
 | Owner | Responsibility |
@@ -2863,6 +2897,7 @@ It uses isolated synthetic publications; no owner publication changes access.
 | `lib.rs`, `error.rs` | Invocation and envelope/error boundary |
 | `registry.rs`, `registry/` | Executable command declarations, parsing and argument conversion |
 | `registry/reports.rs` | Read-only impact and reverse-reference command adapters |
+| `registry/requests.rs`, `account/reports.rs`, `account/reports/` | Account report previews, exact durable delivery and bounded reporter views |
 | `canonical.rs`, `digest.rs` | Strict NFC + RFC 8785 data and closed digest domains |
 | `config.rs`, `files.rs` | Explicit bounded configuration reads and path rendering |
 | `snapshot.rs`, `objects.rs` | Explicit backup inspection and verified local reads |
