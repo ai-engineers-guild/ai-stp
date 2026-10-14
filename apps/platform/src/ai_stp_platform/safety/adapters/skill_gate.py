@@ -70,7 +70,17 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
     for tool, argv in (
         (
             "skill-scanner",
-            ["skill-scanner", "scan", "{}", "--format", "json", "--use-behavioral"],
+            [
+                "skill-scanner",
+                "scan",
+                "{}",
+                "--format",
+                "json",
+                "--use-behavioral",
+                # Without a threshold the scanner exits zero even with findings.
+                "--fail-on-severity",
+                "high",
+            ],
         ),
     ):
         if which(tool) is None:

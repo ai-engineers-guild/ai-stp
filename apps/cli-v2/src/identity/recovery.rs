@@ -23,6 +23,8 @@ pub struct Intent {
     pub previous: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub interrupted_sync: Vec<crate::sync::runtime::Checkpoint>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub interrupted_publications: Vec<crate::publication::interruption::Checkpoint>,
 }
 
 impl Intent {
@@ -36,6 +38,17 @@ impl Intent {
             return Err(invalid());
         }
         for checkpoint in &self.interrupted_sync {
+            checkpoint.validate()?;
+        }
+        if self.interrupted_sync.len() + self.interrupted_publications.len() > 128
+            || self
+                .interrupted_publications
+                .windows(2)
+                .any(|v| v[0].operation_id >= v[1].operation_id)
+        {
+            return Err(invalid());
+        }
+        for checkpoint in &self.interrupted_publications {
             checkpoint.validate()?;
         }
         if !passport::stable_id(&self.device_id, "device")
@@ -415,6 +428,23 @@ impl Replacement {
 }
 
 impl Identity {
+    pub(crate) fn completed_recovery(
+        &self,
+        operation_id: &str,
+        digest: &str,
+    ) -> Result<&account::Plan> {
+        let entry = self
+            .history
+            .entries
+            .iter()
+            .find(|entry| entry.plan.operation_id == operation_id)
+            .ok_or_else(invalid)?;
+        if entry.plan.digest()? != digest {
+            return Err(invalid());
+        }
+        Ok(&entry.plan)
+    }
+
     pub(crate) fn recovery_binding(&self) -> Option<&Entry> {
         self.history.entries.last()
     }

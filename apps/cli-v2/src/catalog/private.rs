@@ -16,7 +16,7 @@ static VERSION: wire::Schema = wire::Schema::reader(include_str!(
     "../../../../schemas/v1/private-version-response.schema.json"
 ));
 
-pub(super) fn validate(kind: Kind, id: &str, version: &str, document: &Value) -> Result<()> {
+pub(crate) fn validate(kind: Kind, id: &str, version: &str, document: &Value) -> Result<()> {
     VERSION.validate(document)?;
     let passport = &document["passport"];
     passport::validate(passport)?;

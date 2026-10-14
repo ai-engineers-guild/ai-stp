@@ -65,6 +65,7 @@ release network or on a deployed environment being reachable.
 | `just evidence-citations` | is every source link the harness catalogue cites still alive |
 | `just evidence-sync <home_a> <home_b>` | two devices, rewind, conflict and merge — needs a real browser login |
 | `just evidence-native-sync <binary> <sha256>` | the exact optimized Rust executable against the real API: two isolated devices, transfer, merge/conflict, lost reply, device replacement and logout replay; requires `AI_STP_TEST_DB_URL` and creates/removes its own migrated database, with a seeded test web session and no production credentials |
+| `just evidence-native-publication <binary> <sha256>` | native authoring and component/setup publication through the real API, queue and worker, including lost-reply continuation, explicit public distribution, actual safety refusal and offline receipts; requires `AI_STP_TEST_DB_URL` and the pinned safety scanners on PATH; only the test account/web approval and S3 transport are fixtures |
 | `just evidence-sync-hot-paths` | the private-sync denominators `#256` R05 names: ancestor walks, common-ancestor selection, page application and cold/warm task overhead, with real sqlite statement counts; `fixture` rows are setup cost, not verdicts |
 | `just evidence-publication <home>` | publication, grants, reports and owner reads — needs a real browser login |
 
@@ -75,6 +76,17 @@ It checks the executable digest before and after the journey and reports each
 observed scenario. This API proof does not replace a deployed browser-login
 check or the separate native SQLite proofs of malformed-page rollback,
 immutable-version closure, tombstones and explicit event abandonment.
+
+The native publication slice also requires an optimized executable digest and
+creates/removes only its own migrated database and native roots. It creates all
+passports, plans and artifacts through native commands, uses the actual worker
+to produce validation and catalog outcomes, and substitutes an in-memory S3
+client. Its declared fixture source coordinates establish API completeness, not
+GitHub provenance. The real pinned `skill-scanner` must run for skill artifacts;
+enable `AI_STP_SAFETY_EXTERNAL_CLI=1` as in the worker image and keep scanner
+executables outside the sandbox's temporary mount. The slice does not downgrade
+safety profiles or inject passing verdicts. This
+proof does not establish deployed storage durability or production writer cutover.
 
 Use disposable authenticated homes for the sync slice. Each invocation creates
 a separate collision probe, fills its release-required declared metadata, and
