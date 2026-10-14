@@ -9,7 +9,6 @@ The Python CLI publication lane is retired. Both `release-candidate` and
 `publish-pypi` are disabled in code; the native CLI uses `cli-release.yml`.
 The procedure below documents the historical wheel provenance only.
 
-
 ## Candidate preparation
 
 On a clean exact SHA, `apps/cli/pyproject.toml` carries the public version.

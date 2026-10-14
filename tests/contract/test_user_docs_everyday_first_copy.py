@@ -5,12 +5,13 @@ from pathlib import Path
 
 
 def test_user_docs_do_not_start_retired_intents_or_install_python_cli() -> None:
-    stale = []
+    stale: list[str] = []
     for path in Path("docs-user-facing").rglob("*.md"):
         text = path.read_text(encoding="utf-8")
         if (
             re.search(
-                r"ai-stp task start --intent (initialize|account|publish|change|switch|inspect|technology)\b",
+                r"ai-stp task start --intent "
+                r"(initialize|account|publish|change|switch|inspect|technology)\b",
                 text,
             )
             or "uv tool install ai-stp-cli" in text
