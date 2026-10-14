@@ -128,8 +128,8 @@ ai-stp component source resolve --source https://github.com/example/repo --commi
 есть локально:
 
 ```bash
-ai-stp component source evidence show --id <stable_id> --version 1.0 --json
-ai-stp component source evidence refresh --id <stable_id> --version 1.0 --json
+ai-stp help --path component --json
+ai-stp help --path component --json
 ```
 
 ## Без секретов
@@ -154,10 +154,10 @@ ai-stp component source evidence refresh --id <stable_id> --version 1.0 --json
 **пакет** (каталог с `SKILL.md` в корне), а не всё авторское дерево:
 
 ```bash
-ai-stp component skill validate --path ./playwright-checks/source --json
+ai-stp help --path component --json
 ```
 
-Эта команда — не [`ai-stp skill install`](../cli/skill.md). Последняя
+Эта команда — не [`ai-stp help --path task --json`](../cli/skill.md). Последняя
 устанавливает собственный Agent Skill CLI.
 
 ## Из нативного дерева, которое уже есть

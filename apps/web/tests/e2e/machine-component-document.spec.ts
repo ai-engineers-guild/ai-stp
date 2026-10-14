@@ -17,7 +17,7 @@ const REQUIRED_FIELDS = [
   "author_verified:",
   "component_verified:",
   "dependencies:",
-  "ai-stp task start --intent install --idempotency-key install-component_01JQZK7B8N4M6P2R9T5V0X3YBE-1.0 --json",
+  "Use ai-stp to configure my installed harness with component_01JQZK7B8N4M6P2R9T5V0X3YBE version 1.0.",
   `ai-stp registry version --kind component --id ${stableId} --version 1.0`,
 ];
 

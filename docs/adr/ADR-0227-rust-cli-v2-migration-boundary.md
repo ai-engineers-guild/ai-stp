@@ -1,203 +1,111 @@
 ---
-description: "Develop the Rust CLI against explicit business and compatibility boundaries, with isolated previews and one verified default-runtime cutover."
-last_verified: "2026-10-10"
+description: "One native CLI engine, explicit legacy writer transfer, and owner-bound standalone release distribution."
+last_verified: "2026-10-14"
 ---
 
-# ADR-0227: Rust CLI v2 migration boundary
+# ADR-0227: Native CLI and production writer transfer
 
-Status: accepted. C1–C2 implement an isolated native preview; the production CLI
-and state writer remain Python.
+Status: accepted; implemented in `apps/cli-v2`.
 
-## Context
+## Context and decision
 
-The owner now authorizes a clean Rust implementation, `ai-stp-cli-v2`, and asks
-for business scope and checkpoints before translation. This supersedes the
-earlier deferral in [#57](https://github.com/ai-engineers-guild/ai-stp/issues/57).
-The shipped CLI remains Python 0.0.43. Its 245 registered commands, nine task
-intents, local schema 53, provider v3 integration and desktop consumer make a
-replacement wider than a parser or executable rewrite.
+The owner requested a clean Rust implementation and a controlled switch of the
+public `ai-stp` command. The historical 245-command Python inventory is reconciled
+by [business outcome](../engineering/cli-v2-scope.md), not translated module for
+module. Corporate workflows, harness executable management, automatic backups
+and model interfaces are excluded. The backend is not part of this rewrite.
 
-The [frozen baseline](../engineering/cli-v2-scope.md) records implemented
-capabilities. Existing Python packaging and update decisions continue to govern
-the shipped runtime until a verified native replacement exists. This ADR
-authorizes the migration architecture; it does not declare parity or rewrite
-active specifications ahead of code (ADR-0194).
+One Cargo package contains a headless library and a thin executable. Modules own
+business capabilities; expert commands and durable tasks call the same services
+in process. One executable registry owns parsing, machine help and capability
+reporting. Unsupported operations refuse explicitly. There is no Python fallback,
+generic plugin framework, background update service or second business engine.
 
-## Options
+Envelope v1, `/v1`, provider protocol v3 and canonical object identities remain
+compatible. The public executable is `ai-stp`; the internal package/directory
+name and durable namespace markers are preserved to avoid an unrelated storage
+migration. The old source remains a development compatibility oracle; it is not
+included in native distribution artifacts. Desktop bundles Rust and communicates
+only through the CLI machine contract (ADR-0222).
 
-1. Translate Python modules and their unit tests one for one. This preserves
-   incidental structure and duplicated orchestration without proving the
-   business contract. Rejected.
-2. Replace `ai-stp` immediately with a partial Rust CLI that dispatches missing
-   commands back to Python. This creates mixed state ownership, ambiguous
-   recovery and a misleading native-runtime claim. Rejected.
-3. Develop a separate native implementation in complete vertical slices,
-   reconcile every shipped capability, then perform one controlled default
-   cutover. Chosen. Preview users see only implemented capabilities and use
-   separate state; production keeps a complete supported engine throughout.
+## Installation components and platform boundary
 
-## Decision
+Public setup-system repositories release ai-stp installation components
+(ADR-0228). Their authenticated executables alone write final harness state.
+The managed release is resolved before planning; retained operations remain bound
+to their original exact component. Native verification enforces full publisher
+identity, signature, environment, digest, profile and protocol checks without a
+Python verification runtime. An unsupported object or platform is a refusal,
+not a weaker verification path.
 
-### Implementation and authority
+The CLI observes user-installed harness programs and binds their identities to
+compatibility checks, without owning their installation or updates (ADR-0232).
+Linux implements isolated provider execution, coordinated one-to-three-root
+configuration and staged active-consumer handoff. The owner accepts successful
+macOS/Windows CI for their release artifacts without requiring a new provider
+sandbox port. Their provider execution stays unavailable and is reported as such.
+Build success is not evidence for an unimplemented installer.
 
-- The future source owner is `apps/cli-v2`, with package name `ai-stp-cli-v2`
-  and preview executable `ai-stp-v2`. Create it with the first functioning
-  slice, not an empty scaffold. The eventual public executable remains
-  `ai-stp`; the product name does not change envelope or API schema versions.
-- Start with one Rust package: a headless library and a thin CLI binary.
-  Organize modules by business capability. Task and expert adapters call the
-  same application services in process. Introduce another crate only for an
-  evidenced ownership or dependency boundary, not one crate per Python package
-  or command family. Keep desktop's existing build independent.
-- One executable registry owns parsing, descriptors, help and capability
-  reporting. Register only implemented commands. A task intent is advertised
-  only when its advertised flow can reach a verified terminal result or a
-  precise refusal/recovery state. A frozen v1 ledger is never the v2 registry.
-- Preserve envelope v1, `/v1`, provider protocol v3 and canonical identities
-  unless a separate evidenced behavior change updates their actual owners.
-  No automatic Python business-logic fallback, model interface, new component
-  kind, extension framework or persistent daemon is introduced by this decision.
-- Public providers remain the sole native harness writers. Desktop remains a
-  process-contract consumer under ADR-0222, even though both programs use Rust;
-  it does not link the new domain library as a second engine.
+## State, credentials and recovery
 
-### Local state access
+State resolution is explicit `--state-dir`, then `AI_STP_STATE_DIR`, then the
+existing XDG data layout. Metadata/read commands create no state. Explicit `init`
+creates a private directory and uses the existing identity plan/apply journal;
+replay preserves the key and a changed credential backend refuses. Existing
+Python identity/database files require an explicit migration, never initialization
+as a second owner. Credentials stay in the selected native keyring or explicitly
+chosen Unix private-file backend, with no automatic fallback.
 
-Native registry SQLite I/O must remain relative to its held owned-directory
-capability. Validating an ambient pathname and then passing it to SQLite leaves
-a namespace substitution window; checking the pathname afterward cannot undo a
-foreign write. The safe Rust VFS bridge retains the checked main-file handle and
-confines journal/WAL access to that same directory. The connection retains both
-native ownership and standard SQLite-compatible exclusive locks until close.
-SQLite's exclusive WAL mode keeps the index in memory; no mmap, shared-memory
-adapter, disk temporary database or second native state writer is introduced.
-Schema 53 and ordinary SQLite file/recovery compatibility remain mandatory.
+`state migrate plan` binds physical root/database identity, complete row generation,
+owner/device/key, session metadata and the explicit original backend/provider.
+Unfinished legacy operations, tasks, installation/self-update journals and browser
+login refuse. Apply preserves the same database inode, all 51 tables and existing
+rows. Admission atomically stamps schema 54 and its operation to fence old
+schema-53 writers. Native ownership stays pending until the key/session have been
+copied, read back and retired from their old slots. Ordinary commands refuse
+pending ownership; the retained plan owns forward recovery after interruption.
+Completed migration replay preserves later native writes. Historical settled
+tasks remain readable without becoming native execution payloads.
 
-### Compatibility and native dependencies
+Fresh native registries keep the schema-53 data model. SQLite I/O remains
+relative to held directory/file capabilities through the safe VFS bridge. Native
+and standard SQLite-compatible exclusive locks last until connection close;
+WAL indices stay in memory and no disk temporary database is introduced. Schema
+comparison ignores only ASCII whitespace outside quoted literals/identifiers.
+Never use an immutable/main-file-only view as a live-WAL transfer source.
 
-The code-backed preview boundary is documented beside `apps/cli-v2`. It keeps
-envelope v1 and the machine-help shape. Its version/capability payloads are
-explicitly preview-specific: reporting a Python version or a supported harness
-before one exists would be false. No production payload schema URN is advertised
-for these responses. Their final consumer-compatible replacement remains a
-cutover requirement, not an implicit wire migration.
+No automatic database/configuration copy, snapshot or backup is created. Recovery
+uses the current state and retained intent. Older binaries must not restore a
+prior database over later configuration or registry changes. Active harness
+replacement is staged and confirmed from the restarted consumer (ADR-0150).
 
-C2 implements explicit configuration, verified local passport/version reads,
-project discovery/indexing and anonymous catalog reads. Project traversal uses
-held directory capabilities and excludes all symlinks, including internal
-aliases accepted by the Python indexer, to avoid raced credential reads.
-Catalog cache ownership is explicit and separate; offline provenance keeps the
-original observation time, and authoritative refusals cannot become stale
-successes. Historical wire passports keep their original fields and strings;
-published passport digests and complete adaptation identities remain distinct.
+## Native executable ownership
 
-The native `environment requirements` service verifies declared exact setup
-prerequisites and project binding without preparation. It exposes no production
-inspection schema or claim of observed harness/program readiness. The existing
-`environment inspect` calls provider status and toolchain planning; those
-observations are retained in C4 with the bounded execution lifecycle. This is
-staged coverage, not retirement of the production command.
+Stable archives bind the source commit, platform, binary, license and SBOM digests.
+A separate attestation job executes no repository code. Users verify release
+provenance before running the extracted executable. `cli install plan/apply/status`
+then installs it into a dedicated private native-owned prefix. The plan binds the
+parent identity, previous receipt and exact new binary/platform/version. A durable
+intent precedes atomic replacement; readback precedes its final receipt.
 
-The native PEP 740 verifier uses `sigstore-verify` from `sigstore/sigstore-rust`,
-with certificate, SCT and transparency verification enabled. Signed deployment
-environment is also required. The C1 oracle showed that `pypi-attestations`
-0.0.30 checks signed repository/workflow but ignores its environment argument;
-the shipped wrapper compares environment only with unsigned index metadata.
-Preserving that gap would contradict the pinned publisher rule. The preview
-therefore refuses a missing or mismatched signed environment. No production
-provider path changes in C1; authenticated trust-root refresh still belongs to
-the acquisition slice before that service can install a provider.
+Updates use that same flow from the new verified archive. The CLI does not
+replace a uv/pipx/system/desktop-owned launcher, change PATH, download background
+updates or downgrade a version. Retiring a previous installer and exposing the
+new command are explicit deployment operations. Interrupted replacement resumes
+without restoring user state; Windows can require old processes to exit first.
 
-- The command ledger starts with `retain` for every shipped leaf. Internal
-  simplification is encouraged; removing, merging or changing an observable
-  operation requires a recorded reason, consumer impact and replacement or
-  retirement evidence. Task coverage labels alone do not justify deletion.
-- Port project canonicalization, domain-separated hashes, validation and
-  exact-version semantics before relying on Rust-generated identities. Test
-  existing cross-language vectors; JSON key sorting alone is insufficient.
-- Prove native verification of the current provider channel early. The current
-  PyPI path uses a CLI-managed Python verifier. A Rust executable that still
-  needs that verifier has not met the complete native-runtime goal. Preserve
-  exact artifact, publisher, workflow and environment policy; a hash check or
-  parsed attestation is not cryptographic verification. Do not implement new
-  cryptography or silently change the default channel to resolve this gap.
-  Insufficient native verifier evidence blocks cutover and requires a revised
-  dependency decision, rather than a weakened trust rule.
-- Rust ports of contracts belong to their executable boundary. Python packages
-  still consumed by API/worker remain supported; rewriting the backend is not
-  part of this migration. Existing Corporate CLI adapters remain in the
-  compatibility ledger without expanding or rewriting Corporate policy.
+## Validation and consequences
 
-### State, concurrency and rollback
+The native gate covers canonical and envelope compatibility, real SQLite/WAL,
+bounded filesystem/process/HTTP behavior, refusal and recovery, and an optimized
+release build. Migration proof terminates a real process after admission and
+key transfer, resumes the same operation and verifies subsequent native writes.
+Archive tests distinguish a modeled publication checkpoint from an OS crash.
+Platform CI runs extracted artifacts outside the checkout without Python on PATH.
+Desktop verifies the actual bundled native executable under its filtered environment.
 
-- Previews use an explicit separate state root and temporary harness targets.
-  They do not auto-open production `registry.sqlite`, reuse production device
-  ownership or silently adopt active installations. Read compatibility uses
-  explicit verified input; never treat a raw copy of a live WAL database as a
-  consistent snapshot. Synthetic compatibility fixtures are ordinary test state.
-- Preserve schema 53 semantics initially. Do not combine the language port
-  with a new database design. Define the supported source-version window and
-  prove migration from it; refuse newer unknown schemas. The final transition
-  covers SQLite, journals, object files, backup references and credential-store
-  ownership together, without exporting secrets into migration receipts.
-- Before default cutover, quiesce legacy work, check the exact state generation,
-  prove recovery against the current state, and transfer writer ownership atomically. Legacy
-  binaries need an effective refusal/ownership guard before v2 can become the
-  writer; a guard understood only by v2 does not protect against an old v1.
-  No two active production engines write the same state.
-  Creating data/configuration backups or infrastructure/database snapshots
-  requires an explicit owner request and is not a cutover prerequisite.
-  Preserve existing recovery references and archives; do not delete them as
-  part of this policy change. Temporary build/activation state and canonical
-  Git history remain operational state.
-- A pre-cutover snapshot proves rollback only before later mutations. After
-  v2 changes harness or registry state, a binary rollback is allowed only when
-  the old engine can read the latest state and recovery journals. Otherwise
-  use a tested reverse conversion or forward repair. Never restore an old
-  database over newer harness state and discard intervening operations.
-- Installation and update respect the owning installer. A native updater must
-  not overwrite a `uv`, system-package or desktop-owned executable. Stage and
-  verify replacement outside the active prefix, bind the effect to a digest,
-  preserve recovery, and handle locked executables on Windows. An active
-  target still changes by durable handoff and restart (ADR-0150).
-
-### Proof and performance
-
-- Keep the new proof set small and organized around risk: canonical contract
-  vectors, real SQLite/filesystem scenarios, provider process boundaries,
-  interruption/recovery, and a few complete business journeys. Reuse fixture
-  corpora and actual API services. Do not port thousands of implementation-shaped
-  tests or impose a test-count/coverage quota. Existing required gates remain
-  effective until replacement evidence covers their responsibility.
-- Measure fresh release-build processes on comparable hosts, separating CLI
-  CPU/startup from provider and network latency. Record binary size, peak RSS,
-  output correctness and packaged execution. No speed claim comes from debug
-  builds, reduced functionality or a daemon hiding startup work.
-- `version`, static help and capability metadata must have a direct offline
-  path in v2 without credential migration, provider probing or opportunistic
-  network housekeeping. Preserve required heartbeat/usage policy through an
-  explicit bounded lifecycle design when that adapter is implemented; do not
-  accidentally remove delivery while optimizing a read.
-- Each completed slice updates its active spec from the implemented behavior,
-  regenerates affected contracts and records exact-SHA evidence.
-
-## Consequences
-
-There are temporarily two source implementations, but only one production
-writer. Preview distribution, state separation and capability honesty are
-required work, not optional documentation. Native provenance, credential access,
-installer ownership and rollback are first-class migration risks.
-
-The final switch retires the Python CLI only after all ledger rows have verified
-dispositions and the required packaged platform/desktop checks pass. Python
-server code and shared packages with other consumers are not removed merely
-because the CLI no longer imports them. Historical releases remain immutable.
-
-## Revisit conditions
-
-Revisit this decision when a native attestation verifier cannot preserve the
-current policy, a supported state version cannot migrate safely, a contract
-consumer needs an incompatible change, or measured evidence requires a package
-split. Record the concrete failing boundary and an alternative before expanding
-scope. A missed checkpoint does not authorize a Python fallback, a silent
-feature omission or a weaker trust line.
+Release performance is measured on optimized builds with an isolated home;
+command counts and debug timings are not acceptance evidence. Exact successful
+runs and deployed identities belong to the source PR and release. Preserve
+`main` and `dev`, promote verified same-repository heads, and never describe
+queued/skipped checks as successful qualification.

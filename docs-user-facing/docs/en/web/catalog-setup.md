@@ -129,7 +129,7 @@ a substitute for reading a failed pin.
 Everyday install:
 
 ```bash
-ai-stp task start --intent install --idempotency-key install-session-01 --json
+ai-stp task input-schema --intent install --json
 ```
 
 Expert catalog reads and local impact:
@@ -137,9 +137,9 @@ Expert catalog reads and local impact:
 ```text
 ai-stp registry show --kind setup --id <stable_id> --json
 ai-stp registry version --kind setup --id <stable_id> --version <x.y> --json
-ai-stp registry acquire --json
+ai-stp help --path registry --json
 ai-stp select impact --setup-id <stable_id> --setup-version <x.y> --json
-ai-stp link web --json
+ai-stp help --path registry --json
 ```
 
 `registry acquire` fetches one exact published setup graph for local

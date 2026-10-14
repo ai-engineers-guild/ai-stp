@@ -1,6 +1,6 @@
 ---
 description: "SPEC-011: CLI, machine help and agent skill."
-last_verified: "2026-09-16"
+last_verified: "2026-10-14"
 ---
 
 # SPEC-011: CLI, machine help, and agent skill
@@ -116,6 +116,30 @@ The CLI uses the system's secure storage for cloud credentials and user director
 ## Compatibility and migration
 
 Machine JSON, help and skill projection have versions. Unknown optional fields are ignored; the unknown major version of the schema is rejected. The version of the projection generator and the hash of the canonical skill are recorded, and the semantic loss blocks the trusted projection.
+
+The native `state migrate` service is an explicit writer transfer, separate from
+ordinary automatic schema upgrades. It binds the existing root, database and
+complete row generation, refuses unfinished legacy work, preserves original
+objects and device/account identity, and creates no database copy. Admission
+atomically stamps schema 54 with a durable operation before credential transfer;
+the Python schema-53 writer refuses that registry. Native commands refuse pending
+ownership until the retained plan completes credential readback and retirement.
+Exact replay resumes admitted work after interruption without changing harness
+configuration. Settled legacy tasks remain readable but cannot become native
+execution payloads. The executable registry owns its parameters; the
+code-adjacent CLI README and `scripts/verify_migration.py` own its detailed
+implemented boundary and integrated preservation/recovery proof.
+
+Native state-taking commands use an explicit path override or the CLI-owned
+default XDG data directory. `init` is an explicit idempotent mutation with a
+selected credential backend; metadata reads never initialize state. Existing
+legacy identity files require the explicit writer transfer above. Desktop
+consumes native descriptors and the account plan/apply/status boundary.
+
+Native archive installation uses `cli install plan/apply/status`, exact binary
+and parent-directory preconditions, an owned prefix and durable forward recovery.
+It does not overwrite another installer, downgrade versions, modify user state,
+create backups or run an automatic update scheduler.
 
 ## Acceptance criteria
 

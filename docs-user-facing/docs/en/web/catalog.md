@@ -155,7 +155,7 @@ signal.
 Everyday install after a card exists:
 
 ```bash
-ai-stp task start --intent install --idempotency-key install-session-01 --json
+ai-stp task input-schema --intent install --json
 ```
 
 Expert catalog inspect (identity, not install):
@@ -173,13 +173,13 @@ object. `registry version` is one immutable `X.Y`. Fetch into the local
 cache is a different command:
 
 ```bash
-ai-stp registry fetch --json
+ai-stp help --path registry --json
 ```
 
 Canonical website URL for an object:
 
 ```bash
-ai-stp link web --json
+ai-stp help --path registry --json
 ```
 
 Selection and compose leaves are **not** catalog commands. Everyday

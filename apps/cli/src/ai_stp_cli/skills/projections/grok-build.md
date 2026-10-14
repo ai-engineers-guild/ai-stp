@@ -1,7 +1,7 @@
 ---
 name: ai-stp
 description: >-
-  Operate the ai-stp CLI to prepare project environments across harnesses, preserve and restore existing setups, inspect, select, compose, install, recover, author, and publish AI harness setups and components. Use when the user asks to prepare a harness, install or repair a setup, manage passports, search the catalog, sign in to ai-stp, publish a component, or drive any `ai-stp` command — even if they say “NDDev”, “ai_stp”, or “the setup CLI” instead of the skill name. Do NOT use for calling a model API, editing a harness target by hand, writing a generic SKILL.md for some other product, or answering questions that do not involve this CLI.
+  Operate the native ai-stp CLI to author, select, install, recover and publish complete AI harness setups. Use when the user asks to prepare a harness, manage setup content or access the ai-stp catalog/account. Do NOT use for model API calls or editing harness targets directly.
 license: AGPL-3.0-or-later
 metadata:
   harness: "grok-build"
@@ -14,141 +14,63 @@ Native surface for this harness: Native marketplace, plugin, and Skill.
 
 # ai-stp
 
-Help the user's coding agent choose, install and maintain complete harness
-setups through the installed CLI. Finish the requested operation and report
-what was actually verified. The CLI owns acquisition, composition, backup,
-plan, approve, apply, verify, retries, and recovery.
+Use the installed Rust CLI as the only business engine. Setup systems are its
+installation components; harness executables remain user/vendor managed.
 
 ## Start here
 
-You are the coding agent. Run `ai-stp` yourself with your tools. Do not ask
-the human to paste or execute those commands. A printed command is not a completed operation.
-If the user is already signed in and this turn says not to run the CLI, do
-not type `ai-stp`. Do not start `account`.
+Run `ai-stp task intents --json` yourself. A printed command is not a completed operation.
+Choose an advertised intent only when it matches the requested outcome; otherwise
+resolve the relevant direct service through scoped machine help. Read the live
+input schema and parameters instead of inventing fields or using an old intent.
 
-1. Run `ai-stp task intents --json` and pick one shipped intent. If the
-   executable is missing, follow [bootstrap](references/bootstrap.md).
-2. Call `ai-stp task start` for that intent. The descriptor's `input_fields`
-   names every field `--input` accepts; `--input` is a JSON or YAML object
-   file or `-` for stdin. `schema show` resolves the full JSON Schema behind
-   an `input_schema` id when a field's shape is unclear, and a validation
-   refusal's `details.errors` names each rejected field with its issue.
-   `envelope.continuations[0].actor` is a JSON field, not the user's identity.
-   When that field is `cli`, execute `argv` with your tools. When it is
-   `human`, do not execute that `argv` as printed (the value is missing on
-   purpose). Answer immediately from the conversation through
-   `ai-stp task answer`: the id, revision and answer value are the task's
-   own, and your reply text is the value — never a file, never stdin. An
-   answer the task did not consume leaves it blocked. Waiting for a person
-   is not the job. When it is
-   `external`, show the payload once and stop. Do not execute that `argv`.
-   `provider-too-old` is not login: do not start `account`, do not loop
-   `task continue`. A device-code payload is shown once; later
-   `task continue` only after the browser, never in a tight loop.
-   Start already advanced the task. Do not insert
-   `task continue` when `actor` is `human` or when there are no continuations.
-   Do not invent `task info` or `task get`.
-   A lost task reference is recovered through `task list`: it returns only
-   tasks that have not settled, each with the id and revision a resume needs.
-   Wait for each `ai-stp` JSON envelope on stdout. Do not deliberately
-   background the CLI. If the shell tool yields a task handle, retrieve that
-   tool's completed output before the next CLI call. Its handle is not an
-   ai-stp task id. A timer or a shell status is not the CLI result. Do not
-   repeat a pending command or report success before reading its envelope.
-3. Stop when there are no continuations. If `error.details.state` is
-   `failed`, the task is settled; do not type `task get`. Report payload
-   verification, not envelope `ok` alone.
+Use one idempotency key per logical task. Start already advanced the task;
+inspect its goal/state and continuations before issuing another command.
+`continuations[].actor` is a JSON field. When that field is `cli`, execute its
+resolved argv with your tools. Human/agent questions may be answered from the
+conversation; request genuinely missing facts. External actions require their
+actual result. Never execute unresolved placeholders or bypass a refusal.
 
-Only `task intents --json` fixes CLI flags in this package. Other command
-paths describe a workflow; their executable arguments come from continuation
-`argv` or from machine help. Use machine JSON for subsequent calls.
+Wait for the tool's completed output before the next CLI call. Its handle is not
+an ai-stp task id. Do not deliberately background the CLI or report success
+before reading its envelope. After an unconfirmed effect, inspect retained status
+and resume the same intent. Do not invent `task info` or `task get`.
 
-Do not run `ai-stp doctor` or dump `ai-stp help` as a prelude to every
-request. Completing inspect is enough when the user asked what is wrong.
-
-## What is being installed
-
-| Object | Meaning |
-|---|---|
-| ai-stp CLI | This product; its own updater replaces its installed package |
-| Control Skill | These instructions, installed separately into the agent's harness |
-| Provider | Setup manager automatically acquired by the CLI when needed |
-| Harness program | The coding-agent executable; its installation prefix is separate from its configuration target |
-| Setup | One harness's exact versioned configuration and component graph |
-
-Installing a program does not install a setup. Downloading a setup does not
-apply it. Preparing or approving a plan does not prove an installed result.
+Only the bootstrap invocation fixes flags here. All other parameters and current
+choices come from machine help or validated continuations. No blanket doctor or
+full-help prelude is required. If the user is already signed in, do not create a
+new account session without a reason; honor an instruction not to run the CLI.
 
 ## Router
 
-Read one relevant playbook first. Consult [envelope](references/envelope.md)
-for response handling, [decisions](references/decisions.md) for task authority,
-and [traps](references/traps.md) when a returned state is ambiguous.
+Read only the reference relevant to the current operation.
 
-| User intent | Open |
-|---|---|
-| first run, missing CLI, identify the current project | [bootstrap](references/bootstrap.md) |
-| local settings and passports | [onboard](references/onboard.md) |
-| install a ready setup, update, preserve or restore configuration | [install](references/install.md) |
-| find an exact public or granted object | [catalog](references/catalog.md) |
-| build a setup from components, adapt it to a harness | [compose](references/compose.md) |
-| prepare a project or several harnesses | [environment](references/environment.md) |
-| discover local harnesses, projects or components | [inspect](references/inspect.md) |
-| compare selected and installed state, drift | [daily](references/daily.md) |
-| recover an interrupted or partial operation | [recover](references/recover.md) |
-| update ai-stp itself | [self-update](references/self-update.md) |
-| create, adopt, validate or publish content | [author](references/author.md) |
-| install a harness program or maintain a provider | [provider](references/provider.md) |
-| sign in, manage access or synchronize | [account](references/account.md) |
-| install or refresh this control Skill | [self](references/self.md) |
+- [First run](references/bootstrap.md)
+- [Local identity](references/onboard.md)
+- [Install a complete setup](references/install.md)
+- [Catalog and exact acquisition](references/catalog.md)
+- [Compose and select](references/compose.md)
+- [Environment requirements](references/environment.md)
+- [Inspect bounded sources](references/inspect.md)
+- [Read installed state](references/daily.md)
+- [Recover original intent](references/recover.md)
+- [Update the native CLI](references/self-update.md)
+- [Author and publish](references/author.md)
+- [Managed installation components](references/provider.md)
+- [Account, grants and sync](references/account.md)
+- [Control procedure](references/self.md)
+- [Machine results](references/envelope.md)
+- [Decisions](references/decisions.md)
+- [Avoid false completion](references/traps.md)
 
 ## Hard rules
 
-- Machine help owns supported commands, parameters, schemas and error handling.
-  Execute returned next actions only after resolving their actual inputs.
-  Prefer continuation `argv` over typing expert leaves.
-- Do not choreograph `install plan`, `install approve`, or `install apply`.
-  Do not type the install group with no leaf. The install intent drains those
-  in-process. Do not type `install transaction plan`.
-- Do not type `setup compose plan`, `setup compose apply`, `setup update apply`,
-  `component adopt`, `component scaffold`, `component publish`, or `config init`.
-  Use `change` to alter a saved setup and `author` / `publish` / `initialize`
-  for those journeys.
-- Do not type `setup restore plan` or `setup preserve plan`. Do not type
-  `setup preserve recover` or `setup preserved list`. Use `switch` to
-  return the last working user config. Never kill the caller. Never claim the
-  running session loaded new files.
-- Do not type `auth login`, `auth complete`, `auth logout`, `sync push`,
-  `sync pull`, `publication plan`, `publication confirm`, `setup publish plan`,
-  `setup publish confirm`, `select propose`,
-  `select confirm`, `select bundle`, `registry acquire`, `registry search`,
-  `registry show`, `registry fetch`, `registry version`,
-  `registry port inspect`, `registry port plan`, or `registry port discover`.
-  Use `account` to sign in or sync (login never uploads), `publish` for a
-  local object, and `install` for catalog bytes. Show a device-code
-  `actor=external` payload once, then later `task continue`.
-  `provider-too-old` is not a device code. Do not invent git provenance.
-  Do not type a `github.com` remote. Already signed in with no sign-in,
-  sign-out, or sync request: do not type
-  `ai-stp` and do not start `account`.
-- Do not type `ai-stp help` or `help --json`. Start at
-  `task intents --json`. The registry dump is expert recovery.
-- Do not type `ai-stp capabilities`. It lists every command path. Use the
-  `inspect` intent.
-- Do not type `provider network`. Empty `continuations` means stop and
-  report the typed error. When `error.details.state` is `failed`, the task
-  is settled; do not type `task get` or `task continue`.
-- Use CLI configuration and installation commands. The provider writes the
-  harness target; do not replace its work with manual native-file edits.
-- Keep exact setup/component versions, proposal and operation identifiers,
-  plan digests and preserved-setup references from real responses.
-- Default to `authoritative`. Under existing task authority, an `experimental`
-  choice stays explicitly labeled. Show `author_verified` and
-  `component_verified` independently.
-- Keep the control Skill available across setup changes. Change an active
-  environment through its staged handoff/restart path.
-- On an error or partial result, inspect the actual state and follow recovery.
-  A timeout is not proof that no effect occurred. A required browser sign-in
-  remains pending until it actually completes.
-- Finish with the installed identity, target status, remaining authorization
-  and the available recovery reference. Report any unverified part explicitly.
+- Machine help is the current capability contract. No Python command fallback.
+- Only the authenticated installation component writes a harness target.
+- Preserve exact versions, source digests, access checks and trust labels.
+- Never install, pin, remove or update a harness executable through ai-stp.
+- Do not create backups or snapshots without an explicit user request.
+- Stage changes to an active agent, then hand off and confirm after restart.
+- Credentials stay in the CLI credential store, never chat, logs or passports.
+- Apply already-authorized work after exact plan and precondition checks;
+  [decisions](references/decisions.md) owns the remaining authority boundaries.

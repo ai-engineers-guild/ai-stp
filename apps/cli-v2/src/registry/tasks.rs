@@ -7,7 +7,6 @@ use serde_json::{Value, json};
 
 use super::{Declaration, Parameter, ParameterType, STATE_DIR};
 use crate::{
-    canonical,
     error::{Failure, Result},
     files, tasks,
 };
@@ -15,6 +14,7 @@ use crate::{
 #[derive(Clone, Copy)]
 pub(super) enum Handler {
     Intents,
+    InputSchema,
     Start,
     Answer,
     Continue,
@@ -26,7 +26,7 @@ pub(super) enum Handler {
 impl Handler {
     pub fn mutability(self) -> &'static str {
         match self {
-            Self::Intents | Self::Status | Self::List => "read",
+            Self::Intents | Self::InputSchema | Self::Status | Self::List => "read",
             _ => "apply",
         }
     }
@@ -46,6 +46,17 @@ const REVISION: Parameter = Parameter {
 };
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["task", "input-schema"],
+        summary: "Read the exact embedded input schema for one implemented task intent without local state.",
+        parameters: &[Parameter {
+            name: "intent",
+            summary: "Implemented native task intent.",
+            kind: ParameterType::Choice(tasks::INTENTS),
+            required: true,
+        }],
+        handler: super::Handler::Task(Handler::InputSchema),
+    },
     Declaration {
         path: &["task", "intents"],
         summary: "List only completed native task services and their accepted input fields.",
@@ -114,7 +125,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
     },
     Declaration {
         path: &["task", "cancel"],
-        summary: "Cancel an unexecuted author task or reconcile an already committed child before returning its true state.",
+        summary: "Cancel before publication or recover the original committed outcome; partially published configuration requires forward recovery.",
         parameters: &[STATE_DIR, TASK, REVISION],
         handler: super::Handler::Task(Handler::Cancel),
     },
@@ -130,6 +141,12 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     if matches!(handler, Handler::Intents) {
         return tasks::intents();
     }
+    if matches!(handler, Handler::InputSchema) {
+        return tasks::input_schema(
+            args.get_one::<String>("intent")
+                .ok_or_else(|| Failure::input("intent is required"))?,
+        );
+    }
     let parent = args
         .get_one::<PathBuf>("state-dir")
         .ok_or_else(|| Failure::input("state directory is required"))?;
@@ -143,10 +160,13 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     };
     match handler {
         Handler::Intents => tasks::intents(),
+        Handler::InputSchema => tasks::input_schema(text("intent")?),
         Handler::Start => {
             let input = args
                 .get_one::<PathBuf>("input")
-                .map(|path| files::read(path, 16 * 1024).and_then(|bytes| canonical::parse(&bytes)))
+                .map(|path| {
+                    files::read(path, 16 * 1024).and_then(|bytes| crate::wire::parse(&bytes))
+                })
                 .transpose()?
                 .unwrap_or_else(|| json!({}));
             tasks::start(parent, text("intent")?, text("idempotency-key")?, input)

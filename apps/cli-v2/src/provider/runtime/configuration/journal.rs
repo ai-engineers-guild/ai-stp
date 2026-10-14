@@ -30,7 +30,7 @@ fn context(parent: &Path, plan: &Plan) -> Result<Target> {
     Ok(state)
 }
 
-fn read(connection: &Connection, plan: &Plan, digest: &str) -> Result<Option<Record>> {
+pub(super) fn read(connection: &Connection, plan: &Plan, digest: &str) -> Result<Option<Record>> {
     let row: Option<(String, String, String)> = connection
         .query_row(
             "SELECT kind,state,coalesce(detail,'') FROM operation WHERE operation_id=?",
@@ -77,6 +77,19 @@ impl Journal {
     fn open_namespace(parent: &Path, plan: &Plan, digest: &str, migrate: bool) -> Result<Self> {
         let state = context(parent, plan)?;
         let namespace = reservations::namespace(&state.directory()?, migrate)?;
+        let mut journal = Self::open_shared(parent, plan, digest, &namespace)?;
+        journal.namespace = Some(namespace);
+        Ok(journal)
+    }
+
+    pub fn open_shared(
+        parent: &Path,
+        plan: &Plan,
+        digest: &str,
+        namespace: &OwnedDirectory,
+    ) -> Result<Self> {
+        namespace.validate_lock()?;
+        let state = context(parent, plan)?;
         let target_key = reservations::target_key(plan);
         let target_lock = OwnedDirectory::open_at(
             &namespace.directory,
@@ -104,7 +117,7 @@ impl Journal {
             state,
             operation,
             _target_lock: target_lock,
-            namespace: Some(namespace),
+            namespace: None,
         })
     }
 
@@ -200,46 +213,23 @@ impl Journal {
     }
 
     fn write(&self, plan: &Plan, digest: &str, state: &str, result: Option<&Value>) -> Result<()> {
-        let detail = serde_json::to_string(&Record {
-            schema_version: 1,
-            plan_digest: digest.into(),
-            plan: plan.value()?,
-            state: state.into(),
-            result: result.cloned(),
-        })
-        .map_err(|_| invalid())?;
-        if detail.len() > RECORD_LIMIT {
-            return Err(invalid());
-        }
         let mut store = self.store(true)?;
-        let now = jiff::Timestamp::now().to_string();
-        store.transaction(|transaction| {
-            if state == "applying" { reservations::available(transaction, plan)?; }
-            if state == "applying" { super::project::admitting(transaction, plan)?; }
-            let previous = read(transaction, plan, digest)?;
-            let before = previous.as_ref().map_or("unseen", |record| record.state.as_str()).to_owned();
-            match (previous, result) {
-                (None, None) => { transaction.execute("INSERT INTO operation(operation_id,kind,state,started_at,detail) VALUES (?,?,?,?,?)",
-                    rusqlite::params![plan.operation_id,plan.action,state,now,detail]).map_err(database)?; }
-                (None, Some(_)) if state == "cancelled" => {
-                    transaction.execute("INSERT INTO operation(operation_id,kind,state,started_at,finished_at,detail) VALUES (?,?,?,?,?,?)",
-                        rusqlite::params![plan.operation_id,plan.action,state,now,now,detail]).map_err(database)?;
-                }
-                (Some(record), Some(_)) if record.state == "applying" => {
-                    transaction.execute("UPDATE operation SET state=?,detail=?,finished_at=? WHERE operation_id=?",
-                        rusqlite::params![state,detail,now,plan.operation_id]).map_err(database)?;
-                }
-                _ => return Err(invalid()),
-            }
-            if state == "verified" { super::project::completed(transaction, plan)?; }
-            let evidence = serde_json::to_string(&json!({"plan_digest":digest})).map_err(|_| invalid())?;
-            transaction.execute("INSERT INTO operation_event(operation_id,sequence,at,state_before,state_after,result,evidence,global_sequence) \
-                SELECT ?,coalesce((SELECT max(sequence) FROM operation_event WHERE operation_id=?),0)+1,?,?,?,?,?, \
-                coalesce((SELECT max(global_sequence) FROM operation_event),0)+1",
-                rusqlite::params![plan.operation_id,plan.operation_id,now,before,state,"accepted",evidence]).map_err(database)?;
-            Ok(())
-        })?;
+        store.transaction(|connection| write_record(connection, plan, digest, state, result))?;
         self.state.revalidate()
+    }
+
+    pub fn admit_at(
+        &self,
+        connection: &Connection,
+        namespace: &OwnedDirectory,
+        plan: &Plan,
+        digest: &str,
+    ) -> Result<()> {
+        namespace.validate_lock()?;
+        self.state.revalidate()?;
+        self.operation.validate_lock()?;
+        self._target_lock.validate_lock()?;
+        write_record(connection, plan, digest, "applying", None)
     }
 
     pub fn cleanup(&self) -> Result<()> {
@@ -266,4 +256,65 @@ impl Journal {
         }
         self.operation.sync()
     }
+}
+
+pub(super) fn write_record(
+    transaction: &Connection,
+    plan: &Plan,
+    digest: &str,
+    state: &str,
+    result: Option<&Value>,
+) -> Result<()> {
+    let detail = serde_json::to_string(&Record {
+        schema_version: 1,
+        plan_digest: digest.into(),
+        plan: plan.value()?,
+        state: state.into(),
+        result: result.cloned(),
+    })
+    .map_err(|_| invalid())?;
+    if detail.len() > RECORD_LIMIT {
+        return Err(invalid());
+    }
+    let now = jiff::Timestamp::now().to_string();
+    if state == "applying" {
+        reservations::available(transaction, plan)?;
+    }
+    if state == "applying" {
+        super::project::admitting(transaction, plan)?;
+    }
+    let previous = read(transaction, plan, digest)?;
+    let before = previous
+        .as_ref()
+        .map_or("unseen", |record| record.state.as_str())
+        .to_owned();
+    match (previous, result) {
+        (None, None) => {
+            transaction.execute("INSERT INTO operation(operation_id,kind,state,started_at,detail) VALUES (?,?,?,?,?)",
+                    rusqlite::params![plan.operation_id,plan.action,state,now,detail]).map_err(database)?;
+        }
+        (None, Some(_)) if state == "cancelled" => {
+            transaction.execute("INSERT INTO operation(operation_id,kind,state,started_at,finished_at,detail) VALUES (?,?,?,?,?,?)",
+                        rusqlite::params![plan.operation_id,plan.action,state,now,now,detail]).map_err(database)?;
+        }
+        (Some(record), Some(_)) if record.state == "applying" => {
+            transaction
+                .execute(
+                    "UPDATE operation SET state=?,detail=?,finished_at=? WHERE operation_id=?",
+                    rusqlite::params![state, detail, now, plan.operation_id],
+                )
+                .map_err(database)?;
+        }
+        _ => return Err(invalid()),
+    }
+    if state == "verified" {
+        crate::provider::runtime::configuration::project::invalidate_related(transaction, plan)?;
+        super::project::completed(transaction, plan)?;
+    }
+    let evidence = serde_json::to_string(&json!({"plan_digest":digest})).map_err(|_| invalid())?;
+    transaction.execute("INSERT INTO operation_event(operation_id,sequence,at,state_before,state_after,result,evidence,global_sequence) \
+                SELECT ?,coalesce((SELECT max(sequence) FROM operation_event WHERE operation_id=?),0)+1,?,?,?,?,?, \
+                coalesce((SELECT max(global_sequence) FROM operation_event),0)+1",
+                rusqlite::params![plan.operation_id,plan.operation_id,now,before,state,"accepted",evidence]).map_err(database)?;
+    Ok(())
 }

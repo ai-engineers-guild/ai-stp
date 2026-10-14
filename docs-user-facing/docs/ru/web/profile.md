@@ -89,9 +89,9 @@ Machine preview печатает баннер и поля проекции.
 Редактора профиля в CLI нет. Связанные чтения:
 
 ```bash
-ai-stp auth status --json
-ai-stp link web --json
-ai-stp owner objects --json
+ai-stp help --path account --json
+ai-stp help --path registry --json
+ai-stp help --path account --json
 ```
 
 `link web` может напечатать публичный URL издателя, когда известен

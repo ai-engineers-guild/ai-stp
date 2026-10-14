@@ -15,7 +15,12 @@ use crate::{
     provider::{
         artifact,
         plan::Observed,
-        runtime::{Runtime, TargetRequest, execution::Configuration, platform, target::Target},
+        runtime::{
+            Runtime, TargetRequest,
+            execution::{Configuration, Mode},
+            platform,
+            target::Target,
+        },
         trust,
     },
 };
@@ -26,6 +31,20 @@ pub(in crate::provider::runtime) fn apply(
     digest: &str,
     bundle_path: Option<&Path>,
 ) -> Result<Value> {
+    execute(parent, bytes, digest, bundle_path, Mode::Apply, None)
+}
+
+pub(super) fn execute(
+    parent: &Path,
+    bytes: &[u8],
+    digest: &str,
+    bundle_path: Option<&Path>,
+    mode: Mode,
+    authority: Option<&super::set::journal::Journal>,
+) -> Result<Value> {
+    if mode == Mode::Cancel {
+        return Err(invalid());
+    }
     let plan = Plan::parse(bytes, digest)?;
     let prior = Journal::history(parent, &plan, digest)?;
     if let Some(prior) = &prior
@@ -46,8 +65,9 @@ pub(in crate::provider::runtime) fn apply(
         return Err(invalid());
     }
     target.disjoint(&state.directory()?)?;
-    require_inactive(&target)?;
+    super::set::inactive(&target, mode, authority)?;
     let mut journal = Journal::open(parent, &plan, digest)?;
+    super::set::authorize(parent, &plan, digest, mode, authority)?;
     let prior = journal.read(&plan, digest)?;
     if let Some(prior) = &prior
         && prior.state != "applying"
@@ -134,16 +154,39 @@ pub(in crate::provider::runtime) fn apply(
         journal.admit(&plan, digest)?;
     }
     journal.resume(&plan, digest)?;
+    super::set::inactive(&target, mode, authority)?;
     let response = runtime.launcher.configure(
         artifact.executable()?,
         &target,
         &Configuration {
             plan: &plan.provider_plan,
             request: &request,
-            cancel: false,
+            mode,
         },
         &bundle_bytes,
     )?;
+    if mode == Mode::Prepare {
+        let expected = outcome::preparation(&plan)?;
+        if crate::provider::plan::response(&response)? != expected {
+            return Err(invalid());
+        }
+        effects::verify(&target, &plan.effects, false)?;
+        let status = runtime
+            .launcher
+            .status(artifact.executable()?, &target, plan.target_scope)?;
+        let status = target.response(&status, &info)?;
+        if status["journal"]
+            != serde_json::json!({"phase":"prepared",
+            "operation_id":plan.operation_id,"operation":plan.operation()?})
+            || status["configuration_ownership"] != plan.status_before["configuration_ownership"]
+        {
+            return Err(invalid());
+        }
+        artifact.executable()?;
+        target.revalidate()?;
+        state.revalidate()?;
+        return Ok(expected);
+    }
     let provider = outcome::applied(&response, &plan)?;
     effects::verify(&target, &plan.effects, true)?;
     let status = runtime
@@ -158,7 +201,7 @@ pub(in crate::provider::runtime) fn apply(
     Ok(result)
 }
 
-fn require_inactive(target: &Target) -> Result<()> {
+pub(super) fn require_inactive(target: &Target) -> Result<()> {
     let refused = || {
         Failure::precondition(
             "the current project or configured harness root requires staged replacement and agent handoff",

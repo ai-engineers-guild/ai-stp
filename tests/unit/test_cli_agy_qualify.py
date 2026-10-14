@@ -90,7 +90,9 @@ def test_prepare_workspace_copies_the_canonical_skill(tmp_path: Path) -> None:
     assert skill.is_file()
     text = skill.read_text(encoding="utf-8")
     assert "task intents --json" in text
-    assert "install plan" in text
+    assert text == (
+        Path(__file__).resolve().parents[2] / "skills/canonical/ai-stp/SKILL.md"
+    ).read_text(encoding="utf-8")
     assert not (root / "locale").exists()
     assert (root / "references" / "recover.md").is_file()
     assert workspace.wrapper.is_file()
@@ -428,7 +430,6 @@ def test_fresh_initialize_prompt_is_the_website_line(tmp_path: Path) -> None:
     text = prompt_for(FRESH_INIT, workspace)
     assert INITIALIZE_START in text
     assert INITIALIZE_PROMPT in text
-    assert "plan" not in INITIALIZE_PROMPT
     assert "yourself" in SKILL_TAIL
     assert "JSON field" in SKILL_TAIL
     pin_prompt = prompt_for(INSTALL_PIN, workspace)

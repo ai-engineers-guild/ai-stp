@@ -1,10 +1,12 @@
 //! Portable configuration plans and receipts, shared by execution and local history.
 
+pub(crate) mod activation;
 pub(crate) mod effects;
 pub(crate) mod outcome;
 pub(crate) mod plan;
 pub(crate) mod project;
 pub(crate) mod record;
+pub(crate) mod set;
 
 pub(crate) fn invalid() -> crate::error::Failure {
     crate::error::Failure::precondition(

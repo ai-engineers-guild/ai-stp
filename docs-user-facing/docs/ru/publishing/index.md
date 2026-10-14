@@ -23,9 +23,9 @@ commit и подпутём. После публикации версия неи�
 Повседневный путь:
 
 ```bash
-ai-stp task start --intent account --idempotency-key account-session-01 --json
+ai-stp help --path account --json
 ai-stp task start --intent author --idempotency-key author-session-01 --json
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 Leaves `plan` / `status` / `confirm` ниже — expert recovery, если план уже
@@ -33,8 +33,8 @@ Leaves `plan` / `status` / `confirm` ниже — expert recovery, если пл
 
 ## Предусловия
 
-1. Есть локальная идентичность устройства: `ai-stp device init --json`.
-2. Вы вошли на том же устройстве: `ai-stp auth status --json`.
+1. Есть локальная идентичность устройства: `ai-stp help --path device --json`.
+2. Вы вошли на том же устройстве: `ai-stp help --path account --json`.
 3. Объект принят, паспорт проходит validate, локально выпущен `X.Y`.
 4. Публичный источник — точный GitHub commit. Ветки и короткие SHA
    отклоняются.
@@ -45,7 +45,7 @@ Expert recovery:
 ```bash
 ai-stp component passport validate --id <stable_id> --json
 ai-stp component version list --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
+ai-stp help --path component --json
 ```
 
 `--major` открывает следующую мажорную линию вместо следующего минора.
@@ -58,7 +58,7 @@ ai-stp component version release --id <stable_id> --json
 существующий путь отклоняется.
 
 ```bash
-ai-stp attestation sign \
+ai-stp help --path attestation --json
   --id <stable_id> \
   --version 1.0 \
   --check-id <check_id> \
@@ -82,7 +82,7 @@ ai-stp attestation sign \
 Повседневный путь:
 
 ```bash
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 Expert leaves, если план уже открыт. Подтвердите **точный** hash, который вам
@@ -98,7 +98,7 @@ ai-stp publication plan \
 
 ai-stp publication status --plan-id <plan_id> --json
 
-ai-stp publication confirm \
+ai-stp help --path publication --json
   --plan-id <plan_id> \
   --plan-hash <plan_hash> \
   --confirm \
@@ -117,7 +117,7 @@ Expert recovery:
 публикации:
 
 ```text
-ai-stp component publish \
+ai-stp help --path component --json
   --from-setup <setup_id> \
   --setup-version 1.0 \
   --component-id <component_id> \
@@ -134,9 +134,9 @@ ai-stp component publish \
 сетапа. Уже публичные участники перечисляются и не планируются заново.
 
 ```text
-ai-stp setup publish plan --id <setup_id> --version 1.0 --json
+ai-stp help --path setup --json
 
-ai-stp setup publish confirm --set-digest <set_digest> --confirm --json
+ai-stp help --path setup --json
 ```
 
 Confirm идёт по участникам в порядке набора: сначала компоненты, затем сетап.

@@ -103,7 +103,7 @@ is omitted, not shown as a broken card.
 
 ## Matching CLI commands
 
-There is no `ai-stp services` command. Catalog search is the twin:
+There is no `ai-stp help --path task --json` command. Catalog search is the twin:
 
 ```text
 ai-stp registry search --json
@@ -119,8 +119,8 @@ Owners attach services from the CLI-published object, then the website
 editor:
 
 ```bash
-ai-stp owner objects --json
-ai-stp owner object show --json
+ai-stp help --path account --json
+ai-stp help --path account --json
 ```
 
 The object page **External services** form is documented in

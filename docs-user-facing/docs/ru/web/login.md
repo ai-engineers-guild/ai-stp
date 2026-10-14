@@ -61,7 +61,7 @@ description: "OAuth, вход с устройства и соответству�
 | Подзаголовок | Войдите через поддерживаемого провайдера. Сессия хранится в защищённой HttpOnly cookie. | — |
 | Google | Войти через Google | `/v1/auth/google/login?client=web&return_to=…` |
 | GitHub | Войти через GitHub | `/v1/auth/github/login?client=web&return_to=…` |
-| Копия CLI | Войти с устройства через CLI | `ai-stp task start --intent account --idempotency-key account-session-01 --json` |
+| Копия CLI | Войти с устройства через CLI | `ai-stp help --path account --json` |
 
 В mock/e2e кнопки POST в mock-действие вместо API. `?debug=1` с
 моками добавляет дополнительные симуляторы ошибки/отмены. Этот гейт
@@ -94,19 +94,19 @@ account start как блок кода и ссылка на каталог.
 Повседневный вход — intent `account`:
 
 ```bash
-ai-stp task start --intent account --idempotency-key account-session-01 --json
+ai-stp help --path account --json
 ```
 
 Expert leaves (`auth login` / `complete` / `logout`) — если незавершённый
 device code уже есть:
 
 ```text
-ai-stp auth login --provider github --json
-ai-stp auth login --provider google --json
-ai-stp auth complete --json
-ai-stp auth status --json
-ai-stp auth logout --json
-ai-stp link web --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path registry --json
 ```
 
 `--provider` обязателен и закрыт значениями `github` и `google`.
@@ -116,13 +116,13 @@ local-only, authenticated, expired или revoked. `auth logout`
 завершает облачную сессию и сохраняет локальные данные. `link web`
 печатает канонический URL сайта.
 
-Команды `ai-stp auth device` нет. Сайт копирует account start, не
+Команды `ai-stp help --path account --json` нет. Сайт копирует account start, не
 выдуманный leaf. Следуйте CLI.
 
 Идентичность устройства на машине отдельна:
 
 ```bash
-ai-stp device init --json
+ai-stp help --path device --json
 ai-stp device show --json
 ```
 
@@ -139,7 +139,7 @@ ai-stp device show --json
 | Сессия истекла | устаревшая cookie | войти; `returnTo` сохранён |
 | Нужен вход на device-login | нет браузерной сессии | войдите, код сохраняется |
 | Неизвестный код | опечатка | введите заново; не добавляйте пробелы |
-| Код истёк / уже использован | продолжите ту же account-задачу | `ai-stp task start --intent account --idempotency-key account-session-01 --json` |
+| Код истёк / уже использован | продолжите ту же account-задачу | `ai-stp help --path account --json` |
 | Отправили на онбординг | новый аккаунт | примите две редакции |
 | Конфликт при привязке | этот Google/GitHub на другом аккаунте | сначала отвяжите там; слияния нет |
 

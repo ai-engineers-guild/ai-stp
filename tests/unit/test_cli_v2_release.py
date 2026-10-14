@@ -25,7 +25,7 @@ def _load(name: str) -> Any:
 
 sbom = _load("release_sbom")
 packaging = _load("package_release")
-VERSION = "0.1.0-preview.2"
+VERSION = "0.1.0"
 REVISION = "a" * 40
 TARGET = "x86_64-unknown-linux-gnu"
 
@@ -115,14 +115,14 @@ def test_archive_refuses_missing_or_changed_sbom_before_execution(
     windows: bool,
 ) -> None:
     metadata, lock = _inventory()
-    binary = "ai-stp-v2.exe" if windows else "ai-stp-v2"
+    binary = "ai-stp.exe" if windows else "ai-stp"
     target = "x86_64-pc-windows-msvc" if windows else TARGET
     files = {binary: b"binary", "LICENSE": b"license", sbom.NAME: _build(metadata, lock, target)}
     manifest = {
         "schema_version": 2,
-        "package": "ai-stp-cli-v2",
+        "package": "ai-stp-cli",
         "version": VERSION,
-        "release_channel": "preview",
+        "release_channel": "stable",
         "source_commit": REVISION,
         "target": target,
         "binary": binary,

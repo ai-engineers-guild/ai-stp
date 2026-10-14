@@ -8,12 +8,12 @@
 
 <p align="center">
   <a href="https://github.com/ai-engineers-guild/ai-stp/actions/workflows/check.yml"><img src="https://github.com/ai-engineers-guild/ai-stp/actions/workflows/check.yml/badge.svg?branch=main" alt="check"></a>
-  <a href="https://pypi.org/project/ai-stp-cli/"><img src="https://img.shields.io/pypi/v/ai-stp-cli" alt="PyPI"></a>
+  <a href="https://github.com/ai-engineers-guild/ai-stp/releases?q=cli-v"><img src="https://img.shields.io/badge/CLI-Rust-orange" alt="Rust CLI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License: AGPL-3.0"></a>
   <a href="https://ai-stp.aiguild.space"><img src="https://img.shields.io/badge/catalog-ai--stp.aiguild.space-black" alt="catalog"></a>
 </p>
 
-Команда — `ai-stp`. Дистрибутив на PyPI — `ai-stp-cli`. Первичный потребитель —
+Команда — `ai-stp`, самостоятельный бинарник на Rust без Python. Первичный потребитель —
 агент пользователя: каждая команда отвечает одним JSON-конвертом. `ai-stp` не
 вызывает API модели и не требует ключа модели.
 
@@ -53,26 +53,24 @@ JSON-конверт. CLI не пишет нативные файлы харне�
 
 ## Поставьте CLI, дальше ведёт агент
 
-```bash
-uv tool install ai-stp-cli
+Скачайте Rust-архив для своей платформы из
+[GitHub Releases](https://github.com/ai-engineers-guild/ai-stp/releases?q=cli-v),
+проверьте checksum и attestation и выполните
+[инструкцию установки](apps/cli-v2/README.md#install-and-update).
+
+```sh
+ai-stp init --credential-store os_keyring --json
 ai-stp task intents --json
 ```
 
-<details>
-<summary>Следующие команды агент берёт из компактного списка intent</summary>
+Для существующей Python-установки используйте явный перенос состояния из
+[руководства CLI](apps/cli-v2/README.md#state-and-first-run): база остаётся на месте,
+ключ устройства сохраняется, старый писатель блокируется. Исторический пакет
+PyPI `ai-stp-cli` больше не является актуальным способом установки.
 
-```bash
-ai-stp task intents --json
-ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json
-```
-
-`help --agent --json` — полный реестр, когда shipped intent недостаточно.
-Не дампьте его как прелюдию.
-
-`ai-stp` — имя исполняемого файла. `ai-stp-cli` — имя пакета. Команда
-`uv tool install ai-stp` ставит дистрибутив, который этот проект не публикует.
-
-</details>
+`task input-schema` описывает входы author/install, `help --agent --json` —
+реальные команды. Сетап-системы входят в ai-stp как установочные компоненты.
+Исполняемые файлы харнессов пользователь и их поставщики обслуживают сами.
 
 ## Настольное приложение
 
@@ -85,40 +83,19 @@ ai-stp task start --intent initialize --idempotency-key initialize-session-01 --
 (пакеты не подписаны; `SHA256SUMS` покрывает каждый артефакт). Детали и
 правила границ — в `apps/desktop/README.md` и ADR-0222.
 
-## Поддерживаемые харнессы
+## Поддержка платформ и харнессов
 
-`полностью` — нативная поверхность и маршрут провайдера. `частично` — одно из
-двух. `—` — нативной поверхности нет. Матрица — `ai-stp toolchain
-harness-capabilities`.
+Сборки Rust CLI проверяются CI на Linux x86-64, Apple Silicon macOS и Windows
+x86-64. Изолированная установка сетапов и передача активной сессии реализованы
+на Linux. На macOS и Windows эта операция возвращает явный отказ; успешная
+сборка не означает поддержку установщика. Точную границу показывает `capabilities`.
 
-| Харнесс | Статус | instruction | skill | mcp | hook | command | agent | plugin | setting | cli |
-|---|---|---|---|---|---|---|---|---|---|---|
-| Claude Code | Бета | полностью | полностью | частично | полностью | полностью | полностью | частично | полностью | — |
-| Codex | Бета | полностью | частично | полностью | частично | полностью | полностью | — | полностью | — |
-| Grok Build | Бета | полностью | полностью | полностью | полностью | — | частично | полностью | полностью | — |
-| Pi | Бета | полностью | полностью | частично | — | полностью | — | полностью | полностью | — |
-| OpenCode | Бета | полностью | полностью | полностью | — | полностью | полностью | полностью | полностью | — |
-| Cursor | Бета | полностью | полностью | полностью | полностью | полностью | полностью | полностью | полностью | — |
-| Antigravity | Бета | частично | полностью | полностью | полностью | полностью | полностью | полностью | полностью | — |
+Установочные компоненты охватывают Claude Code, Codex, Grok Build, Pi, OpenCode,
+Cursor и Antigravity. `provider inspect` и проверки совместимости определяют
+доступные виды и поверхности для конкретной операции.
 
-Неизвестный харнесс — `undefined`. Автоматическая установка для него
-отказывается.
-
-## Текущее направление: нативный CLI на Rust
-
-Нативный preview `ai-stp-v2` для Linux x86-64, macOS на Apple Silicon и
-Windows x86-64 доступен в
-[GitHub Releases](https://github.com/ai-engineers-guild/ai-stp/releases?q=cli-v2-v).
-Архивы сопровождаются контрольными суммами и подтверждением происхождения
-сборки. Бинарник работает без Python и использует явно выбранное отдельное
-состояние. Реализованные возможности, требования к платформам и порядок
-проверки описаны в [`apps/cli-v2/README.md`](apps/cli-v2/README.md).
-
-Основным исполняемым файлом `ai-stp` остаётся Python CLI до проверенного
-переноса владения состоянием (`ADR-0227`). Нативная установка конфигураций,
-подключение аккаунта, синхронизация и публикация, автоматические обновления
-и desktop-дистрибуция ещё не завершены. Setup-системы входят в ai-stp как
-компоненты установки с отдельными репозиториями релизов (`ADR-0228`).
+Актуальное [руководство Rust CLI](apps/cli-v2/README.md) описывает установку,
+перенос состояния и восстановление. Параметры команд принадлежат реестру CLI.
 
 `main` — защищённая релизная ветка; разработка начинается от `dev`, изменения
 входят в неё через PR и затем продвигаются в `main`. Для работы на новом ПК

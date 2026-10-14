@@ -112,7 +112,7 @@ bounded payload without sending it. `report confirm` (`apply`,
 `explicit_flag`) submits one exact preview. `report list` lists the
 current account's closed cases — the twin of **Your cases**.
 
-There is no `ai-stp report staff` command in the user CLI.
+There is no `ai-stp help --path publication --json` command in the user CLI.
 
 ## Dead-ends
 

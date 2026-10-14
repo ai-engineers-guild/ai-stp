@@ -160,7 +160,7 @@ Both-режим показывает **сначала сетапы, затем �
 Everyday-установка, когда карточка уже есть:
 
 ```bash
-ai-stp task start --intent install --idempotency-key install-session-01 --json
+ai-stp task input-schema --intent install --json
 ```
 
 Expert-просмотр каталога (идентичность, не установка):
@@ -178,13 +178,13 @@ ai-stp registry version --kind setup --id <stable_id> --version <x.y> --json
 другая команда:
 
 ```bash
-ai-stp registry fetch --json
+ai-stp help --path registry --json
 ```
 
 Канонический URL сайта для объекта:
 
 ```bash
-ai-stp link web --json
+ai-stp help --path registry --json
 ```
 
 Листья select и compose — **не** команды каталога. Everyday-установка

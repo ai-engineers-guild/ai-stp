@@ -12,7 +12,14 @@ use crate::{digest, error::Result};
 pub(super) struct Configuration<'a> {
     pub plan: &'a Value,
     pub request: &'a crate::provider::plan::Request,
-    pub cancel: bool,
+    pub mode: Mode,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum Mode {
+    Apply,
+    Prepare,
+    Cancel,
 }
 
 impl Configuration<'_> {
@@ -47,8 +54,10 @@ impl Configuration<'_> {
             digest::sha256(component).into(),
         ];
         command.extend(linux::bundle_arguments(self.request));
-        if self.cancel {
-            command.push("--cancel".into());
+        match self.mode {
+            Mode::Apply => (),
+            Mode::Prepare => command.push("--prepare".into()),
+            Mode::Cancel => command.push("--cancel".into()),
         }
         // Apply derives scope from the sealed plan, never a second argv claim.
         Ok(command)

@@ -83,8 +83,8 @@ Shared `.agents/skills` belong to no single harness and come back with
 After apply, confirm with:
 
 ```bash
-ai-stp target status --project <id> --harness <id> --json
-ai-stp target diff --project <id> --harness <id> --json
+ai-stp help --path configuration --json
+ai-stp help --path configuration --json
 ```
 
 ## Official harness documentation
@@ -110,15 +110,15 @@ uses one.
 ## Choosing a target
 
 1. Run `ai-stp doctor --json`.
-2. Check which harness was detected: `ai-stp toolchain harnesses --json`.
+2. Check which harness was detected: `ai-stp help --path program --json`.
 3. Open the setup or component in the catalog.
 4. Compare harness support and the trust line.
 5. Read the provider plan before applying.
 
 ```bash
 ai-stp doctor --json
-ai-stp toolchain harnesses --json
-ai-stp toolchain harness-capabilities --json
+ai-stp help --path program --json
+ai-stp help --path program --json
 ```
 
 !!! tip "For the MVP"

@@ -17,7 +17,7 @@ Memory, rules, parameters, and auxiliary tools are content of `instruction`,
 
 The executable is `ai-stp` (package `ai-stp-cli`). Always pass `--json`.
 There is no `component inspect` and no `setup show`. The only kind-specific
-validate is `ai-stp component skill validate`.
+validate is `ai-stp help --path component --json`.
 
 ## Nine chapters
 
@@ -42,7 +42,7 @@ per page.
 
 Name collisions that the chapters spell out:
 
-- kind `skill` versus the CLI Agent Skill (`ai-stp skill install`);
+- kind `skill` versus the CLI Agent Skill (`ai-stp help --path task --json`);
 - kind `plugin` versus a marketplace;
 - MCP **server** versus plugin `.mcp.json` **client config**;
 - `AGENTS.md` (instruction) versus kind `agent`.
@@ -115,7 +115,7 @@ Typical local path:
 
 ```bash
 ai-stp task start --intent author --idempotency-key author-session-01 --json
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 Shared `.agents/skills` are returned once, with `harness_id=null`. An MCP
@@ -137,7 +137,7 @@ compatibility constraints apply before any reasoning by the agent.
 
 Discovery coverage differs by harness and kind. The bounded layout matrix
 and `layout_source` live in each kind chapter and in
-`ai-stp toolchain harness-capabilities --json`.
+`ai-stp help --path program --json`.
 
 | Harness | Declared kinds (bounded matrix) |
 | --- | --- |

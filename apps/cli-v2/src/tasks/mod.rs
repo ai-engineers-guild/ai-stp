@@ -1,7 +1,10 @@
 //! Durable agent tasks call native services in-process and retain exact child plans.
 
+mod claim;
 mod input;
+mod install;
 mod journal;
+mod service;
 #[cfg(test)]
 mod tests;
 
@@ -16,7 +19,7 @@ use crate::{
 };
 use journal::Row;
 
-pub const INTENTS: &[&str] = &["author"];
+pub const INTENTS: &[&str] = &["author", "install"];
 
 fn valid_key(key: &str) -> Result<()> {
     if !(16..=128).contains(&key.len())
@@ -38,8 +41,19 @@ fn moment() -> String {
 pub fn intents() -> Result<Value> {
     Ok(
         json!({"schema_version":1,"cli_version":crate::registry::VERSION,"registry_digest":crate::registry::digest()?,
-        "intents":[input::descriptor()?]}),
+        "intents":[input::descriptor()?,install::descriptor()?]}),
     )
+}
+
+pub fn input_schema(intent: &str) -> Result<Value> {
+    match intent {
+        "author" => serde_json::from_str(include_str!(
+            "../../../../schemas/v1/cli-task-input-author.schema.json"
+        ))
+        .map_err(|_| Failure::precondition("the embedded author schema is invalid")),
+        "install" => install::schema(),
+        _ => Err(Failure::input("this native task intent is unavailable")),
+    }
 }
 
 fn current(row: &Row, owner: &runtime::Owner) -> Result<()> {
@@ -126,14 +140,15 @@ fn drain_inner(store: &mut Store, mut row: Row) -> Result<Value> {
             &moment(),
         )?;
         row.payload.plan_digest = Some(plan.digest()?);
-        row.payload.plan = Some(plan);
+        row.payload.plan = Some(service::Plan::Author(plan));
         save(store, &mut row, "running")?;
     }
     let plan = row
         .payload
         .plan
         .as_ref()
-        .ok_or_else(|| Failure::precondition("the task child plan is absent"))?;
+        .ok_or_else(|| Failure::precondition("the task child plan is absent"))?
+        .author()?;
     let expected = row
         .payload
         .plan_digest
@@ -156,16 +171,18 @@ fn drain_inner(store: &mut Store, mut row: Row) -> Result<Value> {
 }
 
 pub fn start(parent: &Path, intent: &str, key: &str, value: Value) -> Result<Value> {
-    if intent != "author" {
-        return Err(Failure::input("this task intent has not been implemented"));
-    }
     valid_key(key)?;
-    let input = input::Input::stored(value)?;
+    let input = service::Input::stored(intent, value)?;
     let request = journal::encode(&input.value()?)?;
     let owner = runtime::owner(parent)?;
     {
         let store = owner.planning()?;
         if let Some(row) = journal::key(&store.connection, key)? {
+            if row.payload.input.intent() != intent {
+                return Err(Failure::input(
+                    "the idempotency key belongs to another task intent",
+                ));
+            }
             original(&row, &request)?;
             if row.settled() {
                 return history(&row, &owner);
@@ -173,18 +190,54 @@ pub fn start(parent: &Path, intent: &str, key: &str, value: Value) -> Result<Val
         }
     }
     input.admit()?;
+    let claim = claim::Claim::open(parent, &owner, key)?;
     let mut store = owner.open(true)?;
     if let Some(row) = journal::key(&store.connection, key)? {
+        if row.payload.input.intent() != intent {
+            return Err(Failure::input(
+                "the idempotency key belongs to another task intent",
+            ));
+        }
         original(&row, &request)?;
         if row.settled() {
             return history(&row, &owner);
         }
         current(&row, &owner)?;
-        return drain(&mut store, row);
+        drop(store);
+        return execute(parent, &owner, &claim, row, false);
     }
     let row = Row::new(input, (*owner).clone(), key, &moment())?;
     store.transaction(|t| journal::save(t, &row, None))?;
-    drain(&mut store, row)
+    drop(store);
+    execute(parent, &owner, &claim, row, false)
+}
+
+fn execute(
+    parent: &Path,
+    owner: &runtime::Owner,
+    claim: &claim::Claim,
+    row: Row,
+    cancel: bool,
+) -> Result<Value> {
+    claim.output()?;
+    if matches!(row.payload.input, service::Input::Install(_)) {
+        let id = row.id.clone();
+        install::drain(parent, claim.output()?, owner, row, cancel).map_err(|failure| {
+            let mut details = vec![("task_id".into(), id.clone().into())];
+            if let Ok(store) = owner.planning()
+                && let Ok(current) = journal::load(&store.connection, &id)
+            {
+                details.extend([
+                    ("revision".into(), current.revision.into()),
+                    ("task_state".into(), current.state.clone().into()),
+                    ("child_operation_ids".into(), json!(current.children())),
+                ]);
+            }
+            failure.with_details(details)
+        })
+    } else {
+        drain(&mut owner.open(false)?, row)
+    }
 }
 
 fn selected(store: &Store, id: Option<&str>) -> Result<Row> {
@@ -205,6 +258,11 @@ fn selected(store: &Store, id: Option<&str>) -> Result<Row> {
 pub fn status(parent: &Path, id: Option<&str>) -> Result<Value> {
     let owner = runtime::owner(parent)?;
     let store = owner.planning()?;
+    if let Some(id) = id
+        && let Some(view) = journal::legacy_view(&store.connection, id)?
+    {
+        return Ok(view);
+    }
     selected(&store, id)?.view()
 }
 
@@ -212,8 +270,8 @@ pub fn list(parent: &Path) -> Result<Value> {
     let owner = runtime::owner(parent)?;
     let store = owner.planning()?;
     let rows = journal::unsettled(&store.connection)?;
-    let tasks=rows.iter().map(|row| Ok(json!({"task_id":row.id,"revision":row.revision,"intent":"author","state":row.state,
-        "harness_id":row.payload.input.harness(),"project_root":"","scope":"global",
+    let tasks=rows.iter().map(|row| Ok(json!({"task_id":row.id,"revision":row.revision,"intent":row.payload.input.intent(),"state":row.state,
+        "harness_id":row.payload.input.harness(),"project_root":row.payload.input.project(),"scope":row.payload.input.scope(),
         "open_question_ids":row.questions()?.iter().map(|q|q["question_id"].clone()).collect::<Vec<_>>(),"updated_at":row.updated})))
         .collect::<Result<Vec<_>>>()?;
     Ok(json!({"schema_version":1,"tasks":tasks}))
@@ -227,8 +285,22 @@ pub fn advance(
     cancel: bool,
 ) -> Result<Value> {
     let owner = runtime::owner(parent)?;
-    let selected_id = {
+    let (selected_id, key) = {
         let store = owner.planning()?;
+        if let Some(id) = id
+            && let Some(view) = journal::legacy_view(&store.connection, id)?
+        {
+            if view["revision"].as_i64() != Some(expected) {
+                return Err(Failure::new(
+                    ErrorKind::Conflict,
+                    "the task revision changed",
+                ));
+            }
+            if answer.is_some() {
+                return Err(Failure::input("the task no longer accepts answers"));
+            }
+            return Ok(view);
+        }
         let row = selected(&store, id)?;
         revision(&row, expected)?;
         if row.settled() {
@@ -237,17 +309,28 @@ pub fn advance(
             }
             return history(&row, &owner);
         }
-        row.id
+        (row.id, row.key)
     };
+    let claim = claim::Claim::open(parent, &owner, &key)?;
     let mut store = owner.open(false)?;
     let mut row = journal::load(&store.connection, &selected_id)?;
     revision(&row, expected)?;
     current(&row, &owner)?;
+    if matches!(row.payload.input, service::Input::Install(_)) {
+        if answer.is_some() {
+            return Err(Failure::input(
+                "the exact install task has no pending question",
+            ));
+        }
+        drop(store);
+        return execute(parent, &owner, &claim, row, cancel);
+    }
     if cancel {
         if row.settled() {
             return row.view();
         }
         if let Some(plan) = &row.payload.plan {
+            let plan = plan.author()?;
             match crate::store::journal::state(
                 &store.connection,
                 &plan.operation_id,
@@ -284,6 +367,7 @@ pub fn advance(
 pub(crate) fn continuations(parent: &Path, data: &Value) -> Vec<Value> {
     let (command, kind, actor, question) = match data["state"].as_str() {
         Some("planned" | "running") => ("continue", "advance", "cli", None),
+        Some("blocked") if data.get("handoff").is_some() => ("continue", "blocked", "cli", None),
         Some("blocked") => (
             "answer",
             "blocked",

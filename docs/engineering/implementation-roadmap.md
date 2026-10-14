@@ -13,177 +13,38 @@ closing records are history in
 [implementation-roadmap-history.md](../archive/implementation-roadmap-history.md):
 true as of their dates, not a queue to replay.
 
-## Current program: Rust CLI v2
+## Current program: native Rust release
 
-The owner's October 8 instruction activates
-[#57](https://github.com/ai-engineers-guild/ai-stp/issues/57), superseding its
-earlier rewrite deferral. The objective is a complete native CLI with explicit
-business scope, a small risk-based proof set and a controlled production switch.
-The Python CLI remains the production engine. C0 froze migration evidence;
-C1 establishes the isolated native preview under `apps/cli-v2`, without transferring
-production state ownership. Its code-adjacent README owns the preview contract;
-command details come from the executable registry, not copied specifications.
+`apps/cli-v2` now builds the public `ai-stp` executable at version 0.1.0.
+The [CLI guide](../../apps/cli-v2/README.md) owns current behavior and platform
+limits; [scope reconciliation](cli-v2-scope.md) records the disposition of the
+historical Python command families. That inventory is not a new task queue.
 
-The [business scope and frozen ledger](cli-v2-scope.md) account for all 245
-registered commands and nine intents at `7220c991`. They explain compatibility
-risks, measured startup cost and the native provenance gap.
-[ADR-0227](../adr/ADR-0227-rust-cli-v2-migration-boundary.md) owns isolation,
-authority, state transfer and rollback. Existing implemented surfaces below
-remain implemented; the following rows describe their Rust replacement.
+Implemented completion work includes deterministic scoped compilation,
+one-to-three-root configuration, durable author/install tasks, active Linux
+handoff, native account/sync/publication, authenticated setup components, archive
+installation/update, a native desktop sidecar and explicit in-place writer transfer.
+The transfer preserves current rows and credentials, fences the old writer and
+recovers after real process termination. The installer owns only its dedicated
+prefix and never restores an old database or overwrites another installer.
 
-| Checkpoint | Concrete result | Evidence required before advancing | State |
-|---|---|---|---|
-| C0 — scope and decisions | Complete command-to-business ledger, current behavior versus intended changes, architecture boundary and ordered migration plan | Verify every descriptor/handler/classification against the baseline revision; documentation gate, existing status contracts and final diff review | Recorded by [#717](https://github.com/ai-engineers-guild/ai-stp/issues/717); exact-SHA integration results belong to the issue/PR |
-| C1 — native boundary proof | One Rust package with offline metadata, explicit schema-53 snapshot inspection, strict canonical data and native PEP 740 verification | Existing vectors and envelope/help consumers; all 51 tables from a real live-WAL backup; exact digest and newer-schema refusals; real PyPI artifact and eight negative mutations; three-OS CI and release-build measurements | Implemented; final integration and dated evidence tracked by [#718](https://github.com/ai-engineers-guild/ai-stp/issues/718) |
-| C2 — useful read path | Explicit configuration and verified local passport/version reads, bounded project discovery/indexing, public catalog reads/cache and exact declared environment prerequisites | Shared consumer/canonical/Markdown vectors, real schema-53 snapshots/files/TCP, historical wire identity, refusal and cache bounds; actual API readback, three-OS CI and comparable release-build measurements | Verified and deployed; integration, measurements and dated evidence in [#734](https://github.com/ai-engineers-guild/ai-stp/issues/734) |
-| C3 — authoring and selection | Rust adoption/scaffolding, immutable revisions/import/export, graph validation, mechanical eligibility and deterministic bundle compilation | Author → exact-version selection → bundle journey; canonical/descriptor/schema parity; refusal of invalid graphs, escaping paths, secrets and stale evidence | In progress in [#736](https://github.com/ai-engineers-guild/ai-stp/issues/736). Implemented: isolated identity; bounded source discovery/acquisition and project evidence; owned authoring, immutable versions and setup graphs; conservative native adaptation/materialization; local impact reports; durable selection; mechanical graph assessment; deterministic bundles and planned publication with observed contribution hosts. The [CLI contract](../../apps/cli-v2/README.md) owns supported formats, loader identities and acceptance limits. Remaining: reconcile business outcomes against C0, qualify other harness/kind producers and transformations, and complete task orchestration. User-installed harness observations supply version eligibility and bind proposal, confirmation and bundle plans (ADR-0232, [#886](https://github.com/ai-engineers-guild/ai-stp/issues/886)). Explicit project installation attribution is implemented and accepted through the native Claude Code author-to-install service journey. Exact private setup acquisition and account-authorized selection with independent exact trust pins are implemented in C5; the remaining connected flows still depend on C5 |
-| C4 — provider execution and recovery | Observed environment inspection, Rust trusted configuration-component lifecycle, single- and multi-root installation, explicit recovery/switching and durable task flows for completed services | First one real provider on temporary targets, then all seven declared profiles; bounded process execution, interrupted apply, idempotent retry, rollback and active-environment handoff. Advertise only completed task intents | Native authenticated component acquisition and exact configuration observation/planning are implemented. Harness executable lifecycle is excluded by ADR-0232. Single-root configuration plan/apply now binds package/passport identity, physical state, exact effects and public ownership; the component is its only writer. Independent file/mode/status verification, durable desired-only recovery and historical replay passed against all seven 0.0.91 components. Actual owner death during partial writes and recovery without the source ZIP passed; retained contribution fields, large integers and modes are preserved. The managed default is 0.0.94. Evidence and exact source/artifact identities belong to [#764](https://github.com/ai-engineers-guild/ai-stp/issues/764). Exact configuration cancellation requires the original authenticated component 0.0.92 or newer and independent unchanged-state readback; 43 real Codex/Cursor calls passed against released 0.0.92 bytes. Remaining: multi-root recovery, staged active-agent handoff, other-OS provider isolation and completed task flows. Windows process lifetime alone is not provider isolation |
-| C5 — connected capabilities | Rust account/device/grants, private sync and conflict handling, publication/readback, technology mappings, assurance/reporting | Real CLI↔API journeys, revocation/retry/restart, explicit visibility decisions, exact provenance and terminal readback | Isolated Ed25519 identity and explicit secret storage are implemented. Native account plan/apply/status, bounded device authorization, signed refresh and offline-safe logout are implemented in [#859](https://github.com/ai-engineers-guild/ai-stp/issues/859); the real-TCP/private-file recovery proof passed. Explicit local-owner attachment is implemented through an exact account/head/version plan, fresh same-device authentication and one SQLite transaction; older preview writers are fenced while immutable versions and historical receipts remain readable. Explicit private version reads and mixed public/private graph acquisition are implemented in [#876](https://github.com/ai-engineers-guild/ai-stp/issues/876), with account/origin-scoped cache, exact session binding, fresh same-device authorization and atomic local import. The deployed GitHub-provider device flow, signed refresh and browser-initiated revocation are qualified with the published Rust executable and an existing authenticated browser; dated evidence belongs to #859. Explicit revoked-key recovery and interrupted replacement are implemented; ownership, exact retained access and completed history remain stable. Native grant list and exact plan/apply now cover direct grants, invitation create/accept/withdrawal and revision-bound revocation; [#931](https://github.com/ai-engineers-guild/ai-stp/issues/931) owns qualification of the full API journey and preserved request identity on retry. Remote receipts stay API-owned, and grant management does not confer local trust or ownership. Exact private graph selection, reports, proposal/confirmation and bundle publication now use fresh per-member catalog access independently of explicit trust pins; [#937](https://github.com/ai-engineers-guild/ai-stp/issues/937) owns qualification, session binding and offline completed-selection replay. Native private push/pull, exact-request retry, local developer conflict inspection/clean merge and replaced-device recovery are implemented in [#944](https://github.com/ai-engineers-guild/ai-stp/issues/944). The optimized two-device API journey is reproducible through `just evidence-native-sync`; its test web session does not establish deployed GitHub login. Private/public publication and exact terminal readback are accepted in [#950](https://github.com/ai-engineers-guild/ai-stp/issues/950), native author attestation in [#954](https://github.com/ai-engineers-guild/ai-stp/issues/954), and selected GitHub source preparation in [#957](https://github.com/ai-engineers-guild/ai-stp/issues/957). Explicit distribution visibility is implemented in [#963](https://github.com/ai-engineers-guild/ai-stp/issues/963), with exact request/session binding and historical terminal replay. `just evidence-native-publication` owns the combined isolated API/worker acceptance. Account report preview, exact durable delivery and bounded status/list reads are implemented in [#971](https://github.com/ai-engineers-guild/ai-stp/issues/971), with qualification tracked there. Remaining: reconcile any unported non-corporate assurance/reporting outcomes against actual callers. Organization-only technology mappings, Corporate adapters, heartbeat and usage are excluded by the owner’s current scope. Authentication alone does not transfer local objects or production ownership |
-| C6 — native distribution and consumers | Owner-aware native install/update/recovery, attested artifacts/SBOM and a packaged Rust desktop sidecar | Exact-artifact Linux x86_64, Windows x86_64 and macOS arm64 execution; filtered desktop child environment, correct sidecar selection, installer coexistence, interruption/rollback and current-state recovery | Standalone optimized preview archives are published for all three platforms with exact-tag provenance and verified public download bytes; release evidence is tracked by [#57](https://github.com/ai-engineers-guild/ai-stp/issues/57). Published schema-2 preview archives bind a deterministic target-filtered Cargo dependency SBOM to the executable and source; the release workflow compares repeated packaging. This inventory explicitly excludes OS/compiler internals. Automated installation/update/recovery and the Rust desktop sidecar remain pending |
-| C7 — controlled cutover and retirement | Transfer production writer ownership, switch the default executable, retire superseded Python CLI code/tests and reconcile all docs/memories | Every ledger row has a verified disposition; no unsupported pending task/state; tested quiescence/current-state recovery/ownership transfer; rollback after v2 mutations uses current compatible state or proved conversion; local/GitHub/deployed identities agree | Planned |
+The owner accepts macOS/Windows CI for the first stable archives. Their provider
+execution remains unavailable; Linux carries the complete installation and
+handoff proof. Harness binaries remain user/vendor managed. Corporate features,
+model interfaces, generic software managers and automatic backups are excluded.
 
-C2 separates declared requirements from executable environment observations:
-`environment requirements` reads exact snapshot identities and variable names;
-production `environment inspect` also observes user-installed harness versions and toolchain
-requirements, so its observed-program completion is explicitly owned by C4.
-C2 is a preview read path, not disposition of every production inspection leaf.
-Project link/unlink commands require server-authored plans and authenticated
-responses in the current implementation; C5 owns those connected mutations.
-Their local cache is not an offline link authority. Collection addresses retain
-the existing CLI's syntax-only contract; no collection acquisition handler exists
-in that baseline. C3 migrates its concrete Nori/skill-lock metadata ports rather
-than inventing a remote collection protocol. C3 owns local project
-registration and durable project-to-setup selection; C4 supplies real device
-and provider observations to its eligibility engine before command exposure.
-Native device refresh records only runtime platform and CLI version with exact
-head revalidation and unchanged-observation retention. Native version queries now supply user-installed harness evidence to selection;
-unknown versions remain explicit and cannot satisfy version constraints. An offline
-device key or platform passport does not establish an installed harness or executable authority.
-Project indexing intentionally refuses all symlinks, including internal aliases,
-and catalog cache access requires an explicit isolated directory. Historical
-public passports retain their original omitted fields and published digest.
+The release workflow is: observe the affected exact-head
+gates, promote the work through `dev` to `main`, build/attest/publish the tag-bound
+archives, verify public download bytes, transfer the current workstation through
+the reviewed plan, expose its native command, deploy the canonical source and
+read back local/GitHub/server identities. Exact completion receipts belong to
+[#57](https://github.com/ai-engineers-guild/ai-stp/issues/57) and the release PR;
+those records, rather than this procedure, determine whether a version is published.
 
-### One product, separate component repositories
-
-The October 10 owner instruction makes setup systems managed ai-stp installation
-components ([ADR-0228](../adr/ADR-0228-setup-systems-are-ai-stp-components.md),
-[#798](https://github.com/ai-engineers-guild/ai-stp/issues/798)). Keep the source
-workspace and seven public release repositories. Native request boundaries now
-resolve an omitted provider version from one exact build pin; plans and receipts
-retain their original resolved identity. Authentication and provider-only target
-writes remain mandatory.
-
-The coordinated component release 0.0.94 passed source/render gates, all seven
-public repositories' platform checks, immutable publication and isolated
-released-consumer readback. New native plans default to that exact component;
-older configuration plans retain their original release. All seven components
-passed authenticated install/replace/remove and historical replay with exact
-file/mode verification on temporary Linux targets. Both explicit GitHub and
-PyPI acquisition bind the same executable to its Archive publisher and source.
-The bundled authoring surfaces were refreshed from those authenticated releases;
-all 16 profiles retain their previous digests and routes.
-
-Component 0.0.94 adds durable preparation before configuration publication.
-Published Codex preparation, cancellation, source-loss recovery and old-writer
-refusal are qualified. Consumer multi-root orchestration remains unfinished in
-[#903](https://github.com/ai-engineers-guild/ai-stp/issues/903); the new default
-does not advertise aggregate execution. Issues #764, #798 and #975 own exact
-source, artifact and operational evidence. Base forward configuration execution
-requires 0.0.91; exact cancellation requires 0.0.92. Harness program mutation
-commands and their evidence runner are retired by ADR-0232. The published Python
-CLI remains the production writer until the controlled C7 cutover.
-
-Execute the remaining integration in this order:
-
-The shared embedded producer now derives IDs for the implemented native Markdown
-and MCP readers from exact mapped files. The native corpus covers harness-specific
-names, aliases, visibility, YAML dialects and MCP credential refusals; all 19
-remaining identity routes pass real Rust acquisition, SQLite and offline replay.
-The Codex mixed setup additionally passes owned authoring. This resolves the
-producer gap in [#752](https://github.com/ai-engineers-guild/ai-stp/issues/752).
-Retained definitions are not rewritten and both acquired verification flags remain
-false. Artifact publication and the broader migration gates remain separate.
-
-1. Reconcile C3 business coverage alongside C4, including remaining harness
-   formats, credential handling and native transformations. Embedded source
-   release qualification must retain strict Rust verification and immutable
-   published definitions. Verify the connected
-   author-to-install journey as its remaining services become available;
-   command counts and isolated installation proofs are not acceptance.
-2. Complete task integration around the single-root configuration service.
-   Harness version observation is read-only under ADR-0232; harness executable
-   installation/update/removal is outside scope. Registered-project attribution
-   and exact configuration cancellation are implemented. The native `author`
-   task now calls the embedded authoring service in-process and retains exact
-   child plans in the existing task journal ([#895](https://github.com/ai-engineers-guild/ai-stp/issues/895)).
-   Atomic object writes, lost-receipt recovery, question continuations and
-   account-owner boundaries have local executable proofs. Complete the
-   author-to-install task journey; a confirmed selection alone is not an
-   installed configuration.
-3. Complete multi-root recovery, staged active-agent replacement, durable handoff
-   and restart, and provider isolation on the other supported operating systems.
-   Preserve component-only content writes, physical bindings and the explicit
-   no-backup policy throughout these operations.
-4. Deliver connected services (C5), coordinated attested component distribution,
-   automated native installation, self-update and desktop consumption (C6).
-   Native preview archives are published with a tag-bound build, isolated
-   extracted-binary proof, separate provenance job and verified public download
-   bytes; exact release evidence belongs to #57.
-   Generate component repository
-   entry documentation from its source renderer; keep compatibility commands
-   until their callers have verified replacements.
-5. Transfer production ownership once, retire superseded CLI paths, reconcile
-   documentation/memories and read back local/GitHub/deployed identities (C7).
-
-### Checkpoint execution rules
-
-Maintain only current code-adjacent contracts, generated command reference and
-this ordered plan for v2. Do not copy the Python documentation/ADR tree into the
-new package or add placeholder modules. C0's ledger is frozen migration evidence
-until reconciliation at C7, not a second capability registry.
-
-C1 verified the native signature dependency, but does not expose acquisition:
-C4 has authenticated TUF refresh; acquisition must use it and apply the
-signed-environment policy before installation. C5 must explicitly transfer credential ownership:
-v1 uses service `ai-stp`, per-device `device-key.<device_id>`, shared
-`cloud-credentials`/`pending-authorization`, and owner-only file fallback with
-promotion side effects. C1 never opens that store. C6 must distinguish uv-tool,
-pipx, dedicated-venv, shared/system and source ownership; the v1 updater journal
-is keyed by interpreter prefix outside that prefix. A native preview must not
-replace an installer-owned Python entry point or silently lose its journal.
-
-1. Open a concrete checkpoint issue with owned paths and an exact starting SHA.
-   Trace the affected current handlers, contract models and consumers before
-   choosing a Rust API. Recheck primary upstream sources for the dependencies
-   and failure boundary being changed; record what is observed and unresolved.
-2. Resolve the business outcome first. For each changed ledger row, record
-   `retain`, an evidenced replacement, or an evidenced retirement with consumer
-   impact. Preserve exact pins, trust axes, provider authority, machine
-   compatibility and recoverability; simplify internal structure freely.
-3. Deliver small complete slices, with atomic commits and a draft PR into
-   `dev`. Add only dependencies needed by that slice. Use a single package
-   until a real boundary requires another. No placeholder handlers, fabricated
-   success, automatic Python fallback or broad speculative abstraction.
-4. Run the affected real-I/O/contract checks. Record failures as failures; fix
-   or narrow the slice before promotion. A negative native feasibility result
-   is useful evidence but does not complete C1 or authorize the final switch.
-   Local isolated Rust work may continue while that dependency is resolved.
-5. Rewrite affected active specs from the implemented behavior, regenerate
-   owned artifacts, reconcile the command ledger and review the complete diff.
-   Re-run current integration gates on the final SHA. Promote `dev` to `main`
-   through the normal PR flow and synchronize local/remote history. Publish a
-   preview/release only when its own artifact checks have actually passed.
-6. After each wave, recheck working tree, remote refs, capability registry,
-   state ownership, affected consumer behavior and relevant upstream guidance.
-   Recheck production identity/health when promotion changes the deployed
-   source. Update this plan and the checkpoint issue with the observed receipt.
-
-The first code checkpoint must expose the hard native boundaries early rather
-than spending the migration translating easy commands first. Full CLI scope
-includes current Corporate client adapters; Corporate service implementation and
-colleague policy remain outside this program. The backend rewrite (#59), an
-extensible component-kind model (#58), and provider repository rewrites are not
-implicitly activated by the Rust CLI decision.
+The backend and shared Python packages remain supported. `apps/cli` is a
+compatibility oracle for old-state fixtures, not a native runtime dependency.
+The historical wheel release lane is retired. Earlier C0–C7 planning and preview
+qualification remain in canonical Git history rather than duplicated active plans.
 
 ## October 7–8 audit outcome
 
@@ -308,7 +169,7 @@ and the issues it links) and setup-systems #316.
 | Local-first CLI | SQLite registry, passports/revisions, discovery/adoption, selection, bundle, install/status/diff/update/rollback/recovery, machine help, and canonical Skill |
 | Platform | `/v1`, PostgreSQL, object storage, queue, authentication/devices, sync, publication, grants/reports, public catalog, article, and SEO projections |
 | Web | Landing, catalog/detail, account/device/owner surfaces, content hub, machine projections, and a three-OS test matrix |
-| Providers | Seven public ai-stp installation components use protocol v3 and implement explicit forward configuration recovery and public ownership observations. The native managed default is owned by `apps/cli-v2/src/provider/managed.rs`; exact accepted public releases and their runtime evidence are tracked in [#764](https://github.com/ai-engineers-guild/ai-stp/issues/764). Single-root Linux configuration execution and original-operation recovery are implemented; coordinated targets, active-agent handoff and production cutover remain separate acceptance boundaries. A component release does not establish complete native CLI installation or launch readiness. |
+| Providers | Seven public ai-stp installation components use protocol v3 and implement explicit forward configuration recovery and public ownership observations. The native managed default is owned by `apps/cli-v2/src/provider/managed.rs`; exact accepted public releases and their runtime evidence are tracked in [#764](https://github.com/ai-engineers-guild/ai-stp/issues/764). Linux single-/multi-root execution, original-operation recovery and staged consumer handoff are implemented; release activation is recorded by its exact deployment receipt. A component release does not establish complete native CLI installation or launch readiness. |
 | Release | The Python `ai-stp-cli` distribution is published on PyPI with a matching immutable GitHub tag and release artifacts (SBOM, manifest, `SHA256SUMS`); exact accepted release identities belong to the dated publication receipts. Automatic provider acquisition uses PyPI with the CLI-managed verifier (`ADR-0171`); explicit GitHub acquisition retains its attestation policy. Self-update of the CLI wheel is `SPEC-072` / `ADR-0170`. The source version in `apps/cli/pyproject.toml`, package publication and installed PATH identity are separate observations. |
 | Desktop | `ai-stp-desktop` 0.0.8: a Tauri 2 shell over the CLI machine contract with a frozen CLI sidecar (`ADR-0222`); deb, rpm and AppImage for Linux, an aarch64 dmg, and an exe and msi for Windows, unsigned. |
 | Catalog | The canonical first-party corpus models seven harness families and four postures. Identity projection, exact target assurance, and normal-path publication/readback evidence are implemented in the current platform closeout for `#146`/`#155`. |
@@ -346,13 +207,13 @@ closed or forbade. Those findings are not re-opened here:
 | Authoring freeze (SCA-004) | Done: `setup-scaffold/5` points nested members at `projections/<harness>` with `managed_paths`; compose and `component version release` refuse `TODO(ai-stp-scaffold):` markers and freeze a content-addressed `ComponentAdaptation` on the exact provider surface. |
 | Setup export (SCA-003) | Done: `setup export` writes a separate `ai-stp-setup-export/1` review tree whose manifest binds the recorded passport, definition, and every exported file; it mutates neither authoring nor harness state. |
 | Control-plane Skill package (`#97`) | Done: `skill install` writes `SKILL.md` plus `references/` for every harness; projections carry the procedure; Russian is a generated locale; machine help still owns flags (`ADR-0149`). |
-| Rust CLI rewrite | Activated by the October 8 owner instruction and ADR-0227; the C0–C7 program above replaces the earlier deferral. Python remains the production engine until the controlled cutover. |
+| Rust CLI rewrite | Activated by the October 8 owner instruction and ADR-0227; the C0–C7 program above replaces the earlier deferral. The public native executable is `ai-stp`; existing state transfers explicitly. |
 | Further component kinds | Separate backlog. The ninth `cli` kind already exists under `ADR-0155`; its existence does not prove runtime lifecycle completion. Historical experiments are not current evidence. |
 
 ## Explicitly out of scope for this pass
 
 Corporate backend implementation and its proposals remain owned by the colleague's
-workstream; existing CLI adapters are retained in the Rust compatibility scope.
+workstream; historical corporate CLI adapters are excluded from the native release scope.
 GitLab integration and SAML sign-in already ship in production;
 they are not unimplemented backlog. New product scope is evaluated
 against current code and requires the applicable specification and ADR.

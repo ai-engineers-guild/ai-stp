@@ -1,6 +1,7 @@
 //! Explicit isolated account sessions. Authentication does not transfer local ownership.
 
 pub(crate) mod access;
+pub(crate) mod adoption;
 pub(crate) mod attachment;
 pub mod github;
 pub mod grants;
@@ -397,7 +398,7 @@ fn execute(
 ) -> Result<(Session, Outcome)> {
     let api = Api::new(&plan.origin)?;
     match plan.action {
-        Action::Attach | Action::Recover => Err(invalid()),
+        Action::Attach | Action::Recover | Action::Import => Err(invalid()),
         Action::Start => {
             // Preserve the first attempt's deadline across idempotent start retries.
             if at >= after(requested_at, 1800)?.as_str() {

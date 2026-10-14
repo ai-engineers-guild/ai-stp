@@ -30,15 +30,15 @@ harness?" (`plugin`).
 
     The CLI also ships one canonical Agent Skill that teaches an agent how to
     drive `ai-stp` itself. That object is installed with
-    [`ai-stp skill install`](https://ai-stp.aiguild.space/en/docs/components), inspected with
-    `ai-stp skill status`, and removed with `ai-stp skill remove`. It is
+    [`ai-stp help --path task --json`](https://ai-stp.aiguild.space/en/docs/components), inspected with
+    `ai-stp help --path task --json`, and removed with `ai-stp help --path task --json`. It is
     **not** a catalog component, it is **not** selected into a setup, and
-    `ai-stp component skill validate` is **not** that installer.
+    `ai-stp help --path component --json` is **not** that installer.
 
     | Object | Command family | Lives in a setup? |
     | --- | --- | --- |
     | Kind `skill` (this page) | `component …`, `select`, `install` | yes |
-    | CLI Agent Skill | `ai-stp skill install` / `status` / `remove` | no |
+    | CLI Agent Skill | `ai-stp help --path task --json` / `status` / `remove` | no |
 
 ## Neighbours
 
@@ -140,7 +140,7 @@ format constraints.
 Validate the installed package shape, not the authoring tree:
 
 ```bash
-ai-stp component skill validate --path ./playwright-checks/native --json
+ai-stp help --path component --json
 ```
 
 The command is read-only. It names every deviation with a `SKxxx` code. It
@@ -149,7 +149,7 @@ does not adopt, publish, or write a target.
 ## Standards and frameworks
 
 - [Agent Skills Specification](https://agentskills.io/specification) — the
-  independent standard. `ai-stp component skill validate` implements that
+  independent standard. `ai-stp help --path component --json` implements that
   boundary, not a house style.
 - Safety scanners used when available during publication:
   [NVIDIA SkillSpector](https://github.com/NVIDIA/SkillSpector) and
@@ -205,7 +205,7 @@ Updating a skill inside a setup is a new setup version.
 
 ```bash
 ai-stp component version list --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
+ai-stp help --path component --json
 ```
 
 `--major` opens the next major line. A major line is a separate access
@@ -246,28 +246,28 @@ Only commands that exist. Flags from continuation `argv`; start at
 **This kind, specifically:**
 
 ```bash
-ai-stp component skill validate --path <directory> --json
+ai-stp help --path component --json
 ```
 
 **Not this kind** — CLI Agent Skill (see [Agent Skill CLI](https://ai-stp.aiguild.space/en/docs/components)):
 
 ```bash
-ai-stp skill status --json
-ai-stp skill install --target <dir> --json
-ai-stp skill remove --target <dir> --json
+ai-stp help --path task --json
+ai-stp help --path task --json
+ai-stp help --path task --json
 ```
 
 **Author, adopt, publish:**
 
 ```bash
 ai-stp task start --intent author --idempotency-key author-session-01 --json
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 **Install:**
 
 ```bash
-ai-stp task start --intent install --idempotency-key install-session-01 --json
+ai-stp task input-schema --intent install --json
 ```
 
 Expert catalog inspect:
@@ -312,7 +312,7 @@ A skill can also be an embedded member of a compose manifest. See
 - `experimental` trust line without `consent allow`.
 - Harness not in the component's compatibility list.
 - "Latest" or a branch name instead of an exact `X.Y` and commit.
-- Treating `ai-stp skill install` as if it published this component.
+- Treating `ai-stp help --path task --json` as if it published this component.
 - Treating `author_verified` as `component_verified`.
 
 ??? question "Can a skill be used without publishing it"
@@ -329,7 +329,7 @@ A skill can also be an embedded member of a compose manifest. See
    `metadata`.
 3. Add `scripts/`, `references/`, and `assets/` only when the workflow
    needs them. Declare what they do in the passport.
-4. Run `ai-stp component skill validate --path <package> --json` and fix
+4. Run `ai-stp help --path component --json` and fix
    every `SKxxx` code.
 5. Pin an exact public GitHub commit and subpath. No secrets in the tree.
 6. Register the directory through

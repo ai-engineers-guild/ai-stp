@@ -47,7 +47,7 @@ The registry ships 142 commands. The help-center map groups them; machine help i
 - apply: `install plan` / `approve` / `apply` / recover, `provider`, `target`;
 - account: `sync`, `grant`, `owner`, `report`.
 
-There is no `component inspect`, no `setup show`, and no `ai-stp contact`. Flags are not copied into articles: they move with the installed CLI.
+There is no `component inspect`, no `setup show`, and no `ai-stp help --path task --json`. Flags are not copied into articles: they move with the installed CLI.
 
 ## Limits that remain
 
@@ -69,7 +69,7 @@ ai-stp doctor --json
 ai-stp help --agent --json
 ```
 
-`cli_version` must be `0.0.15` for this log to apply. If machine help names a flag this article does not, follow the binary. If an article names a command this registry does not ship — there is no `component inspect`, no `setup show`, no `ai-stp contact` — the article is wrong.
+`cli_version` must be `0.0.15` for this log to apply. If machine help names a flag this article does not, follow the binary. If an article names a command this registry does not ship — there is no `component inspect`, no `setup show`, no `ai-stp help --path task --json` — the article is wrong.
 
 The website changelog type in the content hub is this document. A MkDocs theme bump or a web deploy profile is not a new CLI line. Staff URLs are not a user surface and do not belong in this log.
 

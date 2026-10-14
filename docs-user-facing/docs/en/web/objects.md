@@ -57,7 +57,7 @@ Two copy blocks:
 
 ```bash
 ai-stp task start --intent author --idempotency-key author-session-01 --json
-ai-stp task start --intent install --idempotency-key install-session-01 --json
+ai-stp task input-schema --intent install --json
 ```
 
 The first is everyday registration. The second is everyday catalog install.
@@ -123,11 +123,11 @@ YouTube wants the id, not a full URL.
 ## Matching CLI commands
 
 ```bash
-ai-stp owner objects --json
-ai-stp owner object show --json
-ai-stp owner version show --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
 ai-stp task start --intent author --idempotency-key author-session-01 --json
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 `owner objects` is the list. `owner object show` is one object and its

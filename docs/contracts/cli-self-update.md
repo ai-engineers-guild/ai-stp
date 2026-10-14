@@ -1,97 +1,35 @@
 ---
-description: "Machine boundary for ai-stp CLI self-update: commands, plan fields, journal states."
-last_verified: "2026-09-08"
+description: "Native archive-owned CLI installation and forward update recovery."
+last_verified: "2026-10-14"
 ---
 
-# CLI self-update
+# CLI installation and updates
 
-Requirements owner: `SPEC-072`. Decision: `ADR-0170`. Field list for
-notifications and channel: `cli-config.md`. Error codes: the foundation
-registry.
+ADR-0227 supersedes the Python wheel updater for the native distribution.
+`apps/cli-v2/src/distribution.rs` owns `cli install plan`, `apply` and `status`.
+The same flow installs or updates a verified native archive. It does not download
+releases, mutate PATH, run another package manager or manage a harness executable.
 
-This document names the machine surface. It does not restate PEP 440 or the
-PyPI Index API.
+Run the new executable outside the intended dedicated prefix. Its plan binds the
+physical parent, current release receipt, old/new binary digests, version and
+platform. Unowned/shared prefixes, external drift and downgrades are rejected.
+Apply takes the exact saved plan and digest, revalidates preconditions and
+persists admission before atomic binary replacement. Binary readback precedes
+publication of the final release and receipt records.
 
-## Commands
+Status exposes a pending plan for forward recovery. An admitted plan survives
+expiry; after binary publication recovery does not require the original archive
+path. A completed replay verifies the retained result. Windows may require the
+old executable process to exit before replacement can proceed.
 
-| Command | Mutability | Result schema |
-|---|---|---|
-| `update check` | read | `urn:ai-stp:schema:v1:cli-self-update-check` |
-| `update plan` | plan | `urn:ai-stp:schema:v1:cli-self-update-plan` |
-| `update apply` | apply, confirmation `plan_digest` | `urn:ai-stp:schema:v1:cli-self-update-result` |
-| `update status` | read | `urn:ai-stp:schema:v1:cli-self-update-status` |
-| `update recover` | apply | `urn:ai-stp:schema:v1:cli-self-update-result` |
-| `update rollback` | apply, confirmation `plan_digest` | `urn:ai-stp:schema:v1:cli-self-update-result` |
+The prefix contains only its ownership marker, lock, binary and bounded operation
+records. Application state and credentials are independent. Retire a previous
+uv/pipx launcher through its owner before exposing the native command. Existing
+Python state transfers separately through `state migrate plan/apply/status`.
+There are no update-notice checks, automatic backups, wheel rollback or implicit
+registry restoration in the native updater.
 
-`expected-plan-digest` on apply/rollback is the digest returned by the matching
-plan. Recover continues the journalled plan and does not take a new digest from
-the caller.
-
-## Install methods
-
-`uv_tool` | `pipx` | `pip_venv` | `shared_environment` | `system_environment` | `source_managed`
-
-`INSTALLER` inside dist-info is not sufficient to distinguish `uv tool` from
-`uv pip`. Detection uses receipt, install root and executable identity.
-
-## Check states
-
-`current` | `available` | `unknown` | `stale` | `unsupported` | `source_managed`
-
-`available` requires the candidate to be present on both the JSON API and the
-install-visible Simple Index with matching filename and sha256.
-
-## Journal states
-
-`idle` | `planned` | `downloaded` | `applying` | `pending` | `verified` |
-`recovery_required` | `rolled_back` | `failed`
-
-`pending` means a standalone standard-library helper is continuing outside the
-replaced Python prefix, on every supported OS. The helper takes the same update
-lock after the initiating process releases it; it owns installer execution and
-new-process verification. A pending response acknowledges handoff only. `verified` is the
-only successful replacement. Recovery reconciles the installed target before
-repeating an installer. Replaying a verified replacement returns `unchanged`.
-A new plan never overwrites an active or recoverable journal. Rollback journals
-retain their direction through failures; recovery resumes that same rollback.
-Rollback digests bind the retained wheel receipt, and bytes are rehashed before
-installation. A changed or unobservable version cannot report `rolled_back`.
-Rollback also binds the configured registry path into the continuation and reads
-its SQLite schema without migrating it. The hash-verified retained wheel's
-`ai_stp_cli/local/database.py` declares the supported ceiling: an integer
-`SCHEMA_VERSION` or the final version in its ordered literal `MIGRATIONS` tuple.
-The declaration is parsed without executing wheel code; an unknown declaration
-cannot establish compatibility. A newer registry refuses replacement; the
-helper repeats the check before invoking the installer and before recording
-success. Backups are retained, not rewound implicitly.
-SQLite backups use the online backup API to include committed WAL content.
-
-## Local files
-
-All under `${XDG_DATA_HOME}/ai-stp/self-update/installations/<prefix-sha256>/`,
-where the installation key hashes the resolved interpreter prefix, separate from the registry
-SQLite file, secrets and telemetry. The check cache may be written by an
-otherwise read-only invocation. Plans, staged wheels and rollback wheels are
-owner-only.
-
-## Notifications
-
-TTY human mode uses the existing `warning:` stdout channel. Machine mode puts
-the same sentence in `warnings` and adds `update plan --json` to `next_actions`.
-The updater never writes a second JSON object or reads stdin.
-
-The notice cache is matched to installation, version and channel. Startup checks
-share one deadline across index calls. A backoff suppresses subsequent startup
-checks, and a notification is emitted once per candidate digest. Explicit checks
-can refresh the index; offline checks use only matching stored facts.
-
-Downloads are written to a private temporary file and renamed only after the full
-planned size arrives. Interrupted download bytes never occupy the staged wheel
-name. Only HTTPS index/artifact endpoints are used and redirects are not followed.
-Apply rechecks the exact target against current index metadata, not a new latest.
-
-Plans bind the owning installer's non-secret environment roots in
-`installer_environment`. Only UV_TOOL_DIR, UV_TOOL_BIN_DIR, PIPX_HOME and
-PIPX_BIN_DIR may be supplied there. The uv installer also pins the current base
-interpreter. Continuation files are private, checksum-bound and retained beside
-the installation journal so recovery does not depend on the replaced package.
+[Native installation reference](../../apps/cli-v2/README.md) describes archive
+verification, platform support and the exact command sequence. Published release
+assets bind their source commit, target, checksums, manifest and SBOM, with GitHub
+artifact attestation from `.github/workflows/cli-release.yml`.

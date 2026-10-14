@@ -14,95 +14,49 @@ an expert-only vocabulary.
 
 ## Scope
 
-Includes the application-service boundary, the five-class inventory of
-every declared command, the declared `task` lifecycle, compact intent
-discovery, continuation transport, `--input`, and the rule that the task
-engine must not reach another command through a nested process. Envelope
-truth for unmet mutating goals is owned by `SPEC-011` `REQ-1132` and
-`SPEC-058` `REQ-5809`; this specification names that those services are the
-shared owner, including single-root `install apply` and `install resume`.
+The native task lifecycle and its direct-service boundary are in scope.
 
-Closed intent names are `inspect`, `initialize`, `install`, `change`,
-`switch`, `author`, `account`, `publish`, and `technology`. The `TaskIntent`
-schema enum grows only when that intent is drained. `task intents` lists
-shipped intents only. Unshipped names are refused at `task start`.
+### Native production boundary
 
-The production Python CLI's drained intents are `inspect`, `initialize`, `install`, `change`,
-`author`, `switch`, `account`, `publish`, and `technology`. `inspect` drains
-`doctor` and slim orientation through `application.inspect`. `initialize` writes
-the active harness user-global instruction section through the provider optional
-operation `patch_instruction_region`; until a provider declares that
-operation the task stays blocked, and `antigravity` completes with the
-catalog limitation `no_global_instruction`. `install` drains
-`application.install` plan, task-authority approve, and apply in-process;
-omitted pins become one justified first-party `baseline` pin for the harness,
-not a catalog quiz. If no justified pin exists, one `setup-ref` question. `change`
-drains a member add or remove on a saved setup into a **new** setup identity,
-records `fork_origin` and `related_setup_ids` to the source, and then installs
-the derived pin. The source setup id is not overwritten. A member set that
-already matches is a no-op identity (no mint) and still installs that pin.
-Replays of the same owner and delta reuse the derived id. Embedded members retain
-their sealed passport, snapshot and artifact in the derived definition; a change
-does not promote them into independently published catalog components. `author` registers one
-directory as one embedded component and one new setup identity; kinds come from
-`COMPONENT_TYPES` filtered by native surfaces; drafts are not saved-setup
-mutations and are not installed. `switch` restores the last user
-`preserved_setup` for the target, never an upstream catalog pin; it captures
-current drift as a leftover, restores through the provider, then blocks on
-`reload-session`. It never kills the caller and never claims `session_loaded`.
-`account` drains device-code login, logout, and explicit sync. Login POSTs auth
-only and never uploads. `AI_STP_AUTHORIZATION_PENDING` re-blocks with
-`actor=external`; declined and expired fail the task. `publish` reuses the
-no-binding publication plan (`source_binding_id` absent, filesystem provenance,
-private default). Confirming a plan is not a readable catalog result unless
-plan `state` is `published`. `technology` drains `application.technology`,
-which delegates every action to `application.project_technology`: `unmapped`
-scans a project root and lists the coordinates the effective mapping cannot
-resolve — locally, plus the organization's server-side queue when
-`organization_id` is named and a session exists; `publish-mapping` writes one
-immutable organization snapshot from an explicit entries document or the
-bundled seed table; `resolve` executes a decision list against the review
-queue through one derived snapshot. A missing `action` blocks on an external
-question recommending `unmapped`. B2B/enterprise surfaces and estate-release
-F10/R05 are excluded. The Rust migration is governed by ADR-0227 and the current
-implementation roadmap; its implemented task boundary is recorded below.
+The executable command registry in `apps/cli-v2` is authoritative. Native
+`task intents` advertises `author` and `install`. Other supported business
+operations use their direct, scoped services; there is no requirement to add
+an intent alias for every service. Corporate tasks are outside this release.
 
-### Native preview boundary
+Author takes an absolute directory, harness, kind, name and license; missing
+facts produce one literal question at a time. It creates or reuses an immutable
+component and embedded setup through shared in-process authoring services.
+It does not write a target or install a harness executable.
 
-The isolated Rust CLI advertises only `author`. Its seven task commands reuse
-the existing `cli-task`, `cli-task-list`, `cli-task-intents` and author input
-models. The executable registry owns its command metadata. Native tasks call
-`authoring::embedded` in-process and store a closed native payload in the existing
-schema-53 `agent_task` table; they do not interpret production Python task payloads.
+Install requires a complete bounded JSON input file matching the live
+`task input-schema --intent install` result. The input pins setup identity,
+provider, sources and one to three scope roots. The task prepares all roots,
+checkpoints child plans and executes the same configuration coordinator used
+by direct commands. Recovery uses retained admitted sources and receipts.
+The browser cannot fabricate the local inputs; catalog copy is an agent prompt.
 
-Author consumes an absolute directory, harness, supported kind, portable name
-and license. Missing facts produce one literal human answer at a time. Source
-capture, native readers and shared passport/definition validation determine
-acceptance. New authoring uses bundled surfaces qualified against the managed
-component release, preserving the shared historical catalog. Kind, namespace,
-projection and size must fit that surface before object writes; unsupported
-standalone `cli` files are not offered. This compatibility check is offline and
-does not establish object verification. It creates one private component and one embedded setup at immutable
-version `1.0`, or reuses the exact retained pair. The registry owner, source
-digest and mapped projection facts determine identities. No target or harness
-executable changes are part of authoring.
+Start binds the idempotency key to normalized input. Answer, continue and
+cancel check the current task revision. Status/list are read-only. A settled
+replay preserves later changes; an interrupted child is reconciled from its
+receipt. Legacy settled tasks remain readable after explicit migration and
+cannot be reinterpreted as native executable payloads.
 
-Start binds a valid idempotency key to the original normalized input; answer,
-continue and cancel require the current revision. The task checkpoints its
-exact child plan before the single transaction that writes both objects and the
-child receipt. A failed completion write can resume from that receipt without
-source access. A precondition failure retains the unfinished task and reports
-its current revision and child identities; cancellation of a committed child
-reconciles completion. Changed or expired unexecuted plans require a fresh task.
-Status/list do not advance effects. Settled replay uses query-only state, including
-original-owner history after explicit attachment. Attachment refuses unfinished
-tasks. Existing overlap constraints serialize the same harness/global binding.
+Account, sync, publication, identity, selection and installation plans retain
+their exact digest/precondition boundaries. Harness executables remain user
+managed. Active changes require the staged handoff and restart contract; only
+Linux provider execution is available in this release.
 
-Native acceptance is exercised by `apps/cli-v2/tests/releases.rs`,
-`src/tasks/tests.rs`, `src/account/attachment_tests.rs` and
-`scripts/verify_tasks.py` under the CLI package. The broader production task
-requirements below remain migration work where the native registry does not yet
-advertise a corresponding service; an author task is not author-to-install acceptance.
+Executable evidence lives in `src/tasks/tests.rs`, `scripts/verify_tasks.py`,
+configuration tests and the real install/handoff evidence runners. ADR-0227
+owns the cutover and `docs/engineering/cli-v2-scope.md` records command disposition.
+
+## Retained Python compatibility reference
+
+The remaining terms, numbered requirements and evidence below describe the
+retained Python oracle and historical task payloads. They are not the native
+command surface, a Rust backlog, or authority to reintroduce retired intents,
+backups, harness management or corporate functions. The native contract above
+supersedes their command choreography.
 
 ## Terms
 

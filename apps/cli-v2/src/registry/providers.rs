@@ -17,6 +17,12 @@ use std::path::PathBuf;
 
 #[derive(Clone, Copy)]
 pub(super) enum Handler {
+    SetPlan,
+    SetApply,
+    SetPrepare,
+    SetConfirm,
+    SetCancel,
+    SetStatus,
     ProgramStatus,
     Network,
     Inspect,
@@ -30,9 +36,18 @@ pub(super) enum Handler {
 impl Handler {
     pub(super) fn mutability(self) -> &'static str {
         match self {
-            Self::ConfigurationApply | Self::ConfigurationCancel => "apply",
-            Self::Plan | Self::ConfigurationPlan => "plan",
-            Self::Network | Self::Inspect | Self::Status | Self::ProgramStatus => "read",
+            Self::SetApply
+            | Self::SetPrepare
+            | Self::SetConfirm
+            | Self::SetCancel
+            | Self::ConfigurationApply
+            | Self::ConfigurationCancel => "apply",
+            Self::SetPlan | Self::Plan | Self::ConfigurationPlan => "plan",
+            Self::SetStatus
+            | Self::Network
+            | Self::Inspect
+            | Self::Status
+            | Self::ProgramStatus => "read",
         }
     }
 }
@@ -71,6 +86,120 @@ const SCOPE: Parameter = Parameter {
 };
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["configuration", "set", "plan"],
+        summary: "Plan complete setup installation across one to three explicit, disjoint configuration roots.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "request",
+                summary: "Closed JSON: harness_id, optional provider_version/project_root, operation, targets [{scope,path,bundle?}]; at most 32 KiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Provider(Handler::SetPlan),
+    },
+    Declaration {
+        path: &["configuration", "set", "prepare"],
+        summary: "Stage all configuration roots and bind active consumers; publish no configuration until those sessions exit.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "plan",
+                summary: "Original complete configuration set plan JSON, at most 32 MiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Exact digest returned by configuration set plan.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Provider(Handler::SetPrepare),
+    },
+    Declaration {
+        path: &["configuration", "set", "confirm"],
+        summary: "Confirm verified configuration from the restarted harness session using its observed process identity.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "plan",
+                summary: "Original complete configuration set plan JSON, at most 32 MiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Exact digest returned by configuration set plan.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Provider(Handler::SetConfirm),
+    },
+    Declaration {
+        path: &["configuration", "set", "apply"],
+        summary: "Prepare every root before ordered publication; resume from durable complete-set checkpoints.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "plan",
+                summary: "Original complete configuration set plan JSON, at most 32 MiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Exact digest returned by configuration set plan.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Provider(Handler::SetApply),
+    },
+    Declaration {
+        path: &["configuration", "set", "cancel"],
+        summary: "Cancel all roots before publication has begun; partial publication requires forward recovery.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "plan",
+                summary: "Original complete configuration set plan JSON, at most 32 MiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Exact digest returned by configuration set plan.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Provider(Handler::SetCancel),
+    },
+    Declaration {
+        path: &["configuration", "set", "status"],
+        summary: "Read the exact complete-set journal without opening targets, providers or the network.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "plan",
+                summary: "Original complete configuration set plan JSON, at most 32 MiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Exact digest returned by configuration set plan.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Provider(Handler::SetStatus),
+    },
     Declaration {
         path: &["program", "status"],
         summary: "Observe the user-installed harness version; never install, update or remove the executable.",
@@ -206,6 +335,44 @@ pub(super) const COMMANDS: &[Declaration] = &[
 ];
 
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
+    if matches!(
+        handler,
+        Handler::SetPlan
+            | Handler::SetApply
+            | Handler::SetPrepare
+            | Handler::SetConfirm
+            | Handler::SetCancel
+            | Handler::SetStatus
+    ) {
+        let parent = args
+            .get_one::<PathBuf>("state-dir")
+            .ok_or_else(|| Failure::input("the explicit state parent is required"))?;
+        if matches!(handler, Handler::SetPlan) {
+            let path = args
+                .get_one::<PathBuf>("request")
+                .ok_or_else(|| Failure::input("the configuration set request is required"))?;
+            return runtime::configuration_set_plan(parent, &files::read(path, 32 * 1024)?);
+        }
+        let path = args
+            .get_one::<PathBuf>("plan")
+            .ok_or_else(|| Failure::input("the original configuration set plan is required"))?;
+        let digest = args
+            .get_one::<String>("plan-digest")
+            .ok_or_else(|| Failure::input("the exact configuration set plan digest is required"))?;
+        let action = match handler {
+            Handler::SetApply => "apply",
+            Handler::SetPrepare => "prepare",
+            Handler::SetConfirm => "confirm",
+            Handler::SetCancel => "cancel",
+            _ => "status",
+        };
+        return runtime::configuration_set(
+            parent,
+            &files::read(path, runtime::CONFIGURATION_PLAN_BYTES as u64)?,
+            digest,
+            action,
+        );
+    }
     if matches!(handler, Handler::ProgramStatus) {
         return crate::program::observe(
             args.get_one::<String>("harness")
@@ -241,7 +408,15 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     let runtime = Runtime::observe()?;
     match handler {
         Handler::Network => Ok(runtime.report()),
-        Handler::ProgramStatus | Handler::ConfigurationApply | Handler::ConfigurationCancel => {
+        Handler::SetPlan
+        | Handler::SetApply
+        | Handler::SetPrepare
+        | Handler::SetConfirm
+        | Handler::SetCancel
+        | Handler::SetStatus
+        | Handler::ProgramStatus
+        | Handler::ConfigurationApply
+        | Handler::ConfigurationCancel => {
             Err(Failure::input("the installation command is invalid"))
         }
         Handler::Inspect | Handler::ConfigurationPlan | Handler::Status | Handler::Plan => {
@@ -315,7 +490,13 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                         runtime.plan(&context, &request, &bundle)
                     }
                 }
-                Handler::Network
+                Handler::SetPlan
+                | Handler::SetApply
+                | Handler::SetPrepare
+                | Handler::SetConfirm
+                | Handler::SetCancel
+                | Handler::SetStatus
+                | Handler::Network
                 | Handler::ProgramStatus
                 | Handler::ConfigurationApply
                 | Handler::ConfigurationCancel => {

@@ -82,9 +82,9 @@ Human / Machine: machine Onboarding — заголовок и абзац. Гал
 Онбординга в CLI нет. После шлюза:
 
 ```bash
-ai-stp auth status --json
-ai-stp task start --intent account --idempotency-key account-session-01 --json
-ai-stp device init --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path device --json
 ```
 
 `auth status` должен уйти с ожидающей связи, когда принятие на сайте

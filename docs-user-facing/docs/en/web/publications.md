@@ -78,17 +78,17 @@ human-only.
 ## Matching CLI commands
 
 ```bash
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 Expert leaves matching this page (status/confirm of an already-built plan):
 
 ```text
 ai-stp publication status --plan-id <plan_id> --json
-ai-stp publication confirm --plan-id <plan_id> --plan-hash <plan_hash> --confirm --json
-ai-stp attestation sign --json
-ai-stp owner version show --json
-ai-stp link web --json
+ai-stp help --path publication --json
+ai-stp help --path attestation --json
+ai-stp help --path account --json
+ai-stp help --path registry --json
 ```
 
 `publication plan` (`plan`) creates the immutable server plan for one
@@ -101,8 +101,8 @@ the button on this page. `attestation sign` (`apply`,
 Expert setup-publication leaves (a reviewed pin set, then the setup):
 
 ```text
-ai-stp setup publish plan --json
-ai-stp setup publish confirm --json
+ai-stp help --path setup --json
+ai-stp help --path setup --json
 ```
 
 Those confirm a reviewed set: pinned components, then the setup. See

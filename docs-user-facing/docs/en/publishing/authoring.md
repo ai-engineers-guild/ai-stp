@@ -127,8 +127,8 @@ content digest; that comes from the later import/adopt path.
 Refresh archived GitHub evidence only after the version exists locally:
 
 ```bash
-ai-stp component source evidence show --id <stable_id> --version 1.0 --json
-ai-stp component source evidence refresh --id <stable_id> --version 1.0 --json
+ai-stp help --path component --json
+ai-stp help --path component --json
 ```
 
 ## No secrets
@@ -154,10 +154,10 @@ the **package** (the directory with `SKILL.md` at its root), not the whole
 authoring tree:
 
 ```bash
-ai-stp component skill validate --path ./playwright-checks/source --json
+ai-stp help --path component --json
 ```
 
-That command is not [`ai-stp skill install`](../cli/skill.md). The latter
+That command is not [`ai-stp help --path task --json`](../cli/skill.md). The latter
 installs the CLI's own Agent Skill.
 
 ## From a native tree you already have

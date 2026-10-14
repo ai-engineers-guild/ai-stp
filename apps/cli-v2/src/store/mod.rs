@@ -1,7 +1,8 @@
-//! Explicit preview state. A fresh schema-53 bootstrap keeps the rollback format
-//! without replaying historical migrations or opening the production registry.
+//! Confined native state: isolated schema 53 or explicitly transferred schema 54.
+//! Production transfer preserves its original registry file and data model.
 
 pub(crate) mod journal;
+pub(crate) mod migration;
 pub mod revisions;
 pub mod versions;
 mod vfs;
@@ -21,6 +22,9 @@ const NAMESPACE: &str = "ai-stp-v2-state";
 const OWNER: &[u8] = b"ai-stp-cli-v2 local registry v1\n";
 const ATTACHED_OWNER: &[u8] = b"ai-stp-cli-v2 local registry v2\n";
 const RECOVERED_OWNER: &[u8] = b"ai-stp-cli-v2 local registry v3\n";
+const PRODUCTION_OWNER: &[u8] = b"ai-stp native production registry v1\n";
+const TRANSFER_OWNER: &[u8] = b"ai-stp native production transfer v1\n";
+pub(crate) const PRODUCTION_SCHEMA: u32 = 54;
 const BOOTSTRAP: &str = include_str!("schema.sql");
 type Schema = Vec<(String, String, String, String)>;
 
@@ -39,10 +43,16 @@ pub(crate) fn database(error: rusqlite::Error) -> Failure {
         Some(rusqlite::ErrorCode::ConstraintViolation) => ErrorKind::Conflict,
         _ => ErrorKind::Precondition,
     };
-    Failure::new(
+    let failure = Failure::new(
         kind,
         "the local registry transaction could not be completed",
-    )
+    );
+    match error {
+        rusqlite::Error::SqliteFailure(code, _) => {
+            failure.with_details([("sqlite_code".into(), code.extended_code.into())])
+        }
+        _ => failure,
+    }
 }
 
 fn schema(connection: &Connection) -> Result<Schema> {
@@ -51,11 +61,47 @@ fn schema(connection: &Connection) -> Result<Schema> {
     ).map_err(database)?;
     query
         .query_map([], |row| {
-            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                schema_sql(&row.get::<_, String>(3)?),
+            ))
         })
         .map_err(database)?
         .collect::<std::result::Result<_, _>>()
         .map_err(database)
+}
+
+// Historical migrations and the native bootstrap retain different indentation.
+// Ignore only whitespace outside quoted literals/identifiers, without rewriting
+// the user's schema. Constraints, defaults and token boundaries stay exact.
+fn schema_sql(sql: &str) -> String {
+    let mut normalized = String::with_capacity(sql.len());
+    let mut quote = None;
+    let mut space = false;
+    for character in sql.chars() {
+        if let Some(end) = quote {
+            normalized.push(character);
+            if character == end {
+                quote = None;
+            }
+        } else if character.is_ascii_whitespace() {
+            space = true;
+        } else {
+            if space && !normalized.is_empty() {
+                normalized.push(' ');
+            }
+            space = false;
+            normalized.push(character);
+            quote = match character {
+                '\'' | '"' | '`' => Some(character),
+                '[' => Some(']'),
+                _ => None,
+            };
+        }
+    }
+    normalized
 }
 
 fn expected_schema() -> Result<&'static Schema> {
@@ -132,11 +178,20 @@ impl Store {
     }
 
     fn open_existing(parent: Dir, create: bool, planning: bool) -> Result<Self> {
+        Self::open_mode(parent, create, planning, false)
+    }
+
+    fn open_mode(parent: Dir, create: bool, planning: bool, transfer: bool) -> Result<Self> {
         let directory = OwnedDirectory::open_compatible(
             &parent,
             NAMESPACE,
-            OWNER,
-            &[ATTACHED_OWNER, RECOVERED_OWNER],
+            if transfer { TRANSFER_OWNER } else { OWNER },
+            &[
+                ATTACHED_OWNER,
+                RECOVERED_OWNER,
+                TRANSFER_OWNER,
+                PRODUCTION_OWNER,
+            ],
             create,
         )?
         .ok_or_else(|| {
@@ -145,7 +200,26 @@ impl Store {
                 "the explicit preview registry does not exist",
             )
         })?;
-        if let Err(error) = directory.directory.symlink_metadata("registry.sqlite3") {
+        let marker = directory
+            .read_file("owner", 256)?
+            .ok_or_else(|| Failure::precondition("the registry owner is absent"))?;
+        let production = marker == PRODUCTION_OWNER || marker == TRANSFER_OWNER;
+        if marker == TRANSFER_OWNER && !transfer || transfer && !production {
+            return Err(Failure::precondition(
+                "resume the admitted production state transfer before opening this registry",
+            ));
+        }
+        let data = if production {
+            &parent
+        } else {
+            &directory.directory
+        };
+        let database_name = if production {
+            "registry.sqlite"
+        } else {
+            "registry.sqlite3"
+        };
+        if let Err(error) = data.symlink_metadata(database_name) {
             if error.kind() != std::io::ErrorKind::NotFound
                 || directory
                     .directory
@@ -168,11 +242,8 @@ impl Store {
                 ));
             }
         }
-        if create {
-            match directory
-                .directory
-                .open_with("registry.sqlite3", private_options().create_new(true))
-            {
+        if create && !production {
+            match data.open_with(database_name, private_options().create_new(true)) {
                 Ok(file) => {
                     file.sync_all().map_err(|_| {
                         Failure::precondition("the registry file could not be persisted")
@@ -187,7 +258,7 @@ impl Store {
                 }
             }
         }
-        let scope = vfs::Scope::open(parent, directory)?;
+        let scope = vfs::Scope::open(parent, directory, production)?;
         let mut connection = Connection::open_with_flags_and_vfs(
             scope.path(),
             OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
@@ -222,7 +293,7 @@ impl Store {
         let version: u32 = connection
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .map_err(database)?;
-        if version == 0 && schema(&connection)?.is_empty() {
+        if !production && version == 0 && schema(&connection)?.is_empty() {
             if !create {
                 return Err(Failure::new(
                     ErrorKind::NotFound,
@@ -237,7 +308,11 @@ impl Store {
                 .pragma_update(None, "user_version", SCHEMA_VERSION)
                 .map_err(database)?;
             transaction.commit().map_err(database)?;
-        } else if version != SCHEMA_VERSION {
+        } else if if production {
+            version != PRODUCTION_SCHEMA && !(transfer && version == SCHEMA_VERSION)
+        } else {
+            version != SCHEMA_VERSION
+        } {
             return Err(Failure::precondition(
                 "the local registry schema is unsupported",
             ));

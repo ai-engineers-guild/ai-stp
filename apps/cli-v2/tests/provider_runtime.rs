@@ -72,7 +72,7 @@ printf provider-ran
             .args([
                 "/run/provider",
                 "--ro-bind",
-                env!("CARGO_BIN_EXE_ai-stp-v2"),
+                env!("CARGO_BIN_EXE_ai-stp"),
                 "/run/entry",
             ])
             .arg(if read_only { "--ro-bind" } else { "--bind" })
@@ -158,7 +158,7 @@ printf provider-ran
 #[test]
 fn network_observation_is_measured_or_explicitly_unavailable() -> Result<(), Box<dyn Error>> {
     let home = tempfile::tempdir()?;
-    let output = Command::new(env!("CARGO_BIN_EXE_ai-stp-v2"))
+    let output = Command::new(env!("CARGO_BIN_EXE_ai-stp"))
         .args(["provider", "network", "--json"])
         .env("PATH", "")
         .env("HOME", home.path())
@@ -208,7 +208,7 @@ fn private_probe_reaches_real_listeners_and_rejects_invalid_inputs() -> Result<(
     udp.set_read_timeout(Some(Duration::from_secs(1)))?;
     let nonce = "01M4G0A87QK78WG7SGXXDD2CJ3";
     let invoke = |args: &[&str]| {
-        Command::new(env!("CARGO_BIN_EXE_ai-stp-v2"))
+        Command::new(env!("CARGO_BIN_EXE_ai-stp"))
             .arg("--internal-provider-network-probe")
             .args(args)
             .env_clear()
@@ -258,7 +258,7 @@ fn private_probe_reaches_real_listeners_and_rejects_invalid_inputs() -> Result<(
         ],
         vec!["--ai-stp-provider-worker", "secret-argument", "extra"],
     ] {
-        let output = Command::new(env!("CARGO_BIN_EXE_ai-stp-v2"))
+        let output = Command::new(env!("CARGO_BIN_EXE_ai-stp"))
             .args(args)
             .env_clear()
             .output()?;

@@ -47,7 +47,7 @@ CLI — рабочая поверхность. Он обнаруживает н�
 - apply: `install plan` / `approve` / `apply` / recover, `provider`, `target`;
 - аккаунт: `sync`, `grant`, `owner`, `report`.
 
-Нет `component inspect`, нет `setup show`, нет `ai-stp contact`. Флаги в статьи не копируются: они едут с установленным CLI.
+Нет `component inspect`, нет `setup show`, нет `ai-stp help --path task --json`. Флаги в статьи не копируются: они едут с установленным CLI.
 
 ## Какие пределы остаются
 
@@ -69,7 +69,7 @@ ai-stp doctor --json
 ai-stp help --agent --json
 ```
 
-`cli_version` должен быть `0.0.15`, иначе журнал про другую линейку. Если машинная справка называет флаг, которого нет в статье, следуйте бинарнику. Если статья называет команду, которой нет в реестре — нет `component inspect`, нет `setup show`, нет `ai-stp contact` — статья неверна.
+`cli_version` должен быть `0.0.15`, иначе журнал про другую линейку. Если машинная справка называет флаг, которого нет в статье, следуйте бинарнику. Если статья называет команду, которой нет в реестре — нет `component inspect`, нет `setup show`, нет `ai-stp help --path task --json` — статья неверна.
 
 Тип changelog в хабе материалов — этот документ. Смена темы MkDocs или web deploy profile — не новая линейка CLI. Staff URL — не пользовательская поверхность и в этот журнал не входят.
 

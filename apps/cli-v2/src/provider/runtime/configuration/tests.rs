@@ -91,6 +91,7 @@ fn removal_binds_physical_parents_and_replays_history_without_the_target()
     let bytes = serde_json::to_vec(&document)?;
     let plan = Plan::parse(&bytes, &digest)?;
     overlapping_admissions(&plan)?;
+    set::tests::prove(&plan)?;
     assert!(Plan::parse(&bytes, &hash).is_err());
     let mut ambiguous = document.clone();
     ambiguous["project"] = Value::Null;

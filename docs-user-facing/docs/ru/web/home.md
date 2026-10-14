@@ -27,7 +27,7 @@ description: "Лендинг: установка CLI и вход в катало
 Главная нужна, чтобы:
 
 - прочитать продуктовую фразу: реестр сетапов, а не свалка скиллов;
-- скопировать `uv tool install ai-stp-cli` буквально;
+- скопировать `ai-stp version --json` буквально;
 - открыть каталог;
 - открыть Вход, если сессии нет.
 
@@ -52,7 +52,7 @@ description: "Лендинг: установка CLI и вход в катало
 | Подзаголовок | Находить, проверять, ставить и зарабатывать на ИИ-компонентах. | короткий питч |
 | Основная кнопка | Открыть каталог | ведёт на `/{locale}/catalog` |
 | Вторичная кнопка | Войти | ведёт на `/{locale}/login`; скрыта после входа |
-| Панель установки | Установка CLI | копирует `uv tool install ai-stp-cli` |
+| Панель установки | Установка CLI | копирует `ai-stp version --json` |
 | Копирование | Копировать / Скопировано | пишет эту строку в буфер |
 | Предварительные требования | `uv`, `python>=3.12` | чего ожидает команда |
 
@@ -84,8 +84,8 @@ OpenAPI API.
 Поставьте CLI, затем стартуйте first-run discoverability:
 
 ```bash
-uv tool install ai-stp-cli
-ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json
+ai-stp version --json
+ai-stp help --path init --json
 ```
 
 Expert inspect установленного бинарника:
@@ -106,8 +106,8 @@ ai-stp registry search --json
 создаются в CLI, не на этой странице:
 
 ```bash
-ai-stp device init --json
-ai-stp passport developer init --json
+ai-stp help --path device --json
+ai-stp help --path device --json
 ```
 
 Эти команды описаны в [Устройство](../cli/device.md) и
@@ -137,7 +137,7 @@ ai-stp passport developer init --json
 выбирается и применяется в CLI:
 
 ```text
-копия с Главной → uv tool install ai-stp-cli
+копия с Главной → ai-stp version --json
                 → task intents --json
                 → task start --intent initialize|install|…
                 → follow continuations
@@ -162,6 +162,6 @@ ai-stp passport developer init --json
 - [Харнессы](../harnesses.md) — то, что Главная за вас не определяет.
 
 !!! warning "Не выдумывайте строку установки"
-    Строка на карточке — `uv tool install ai-stp-cli`. Смена имени
+    Строка на карточке — `ai-stp version --json`. Смена имени
     дистрибутива, pip extra или обёртка в curl one-liner — это другой
     продукт.

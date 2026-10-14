@@ -22,12 +22,14 @@ pub(super) enum Handler {
     Session,
     BundlePlan,
     BundleApply,
+    ScopedPlan,
+    ScopedApply,
 }
 
 impl Handler {
     pub(super) fn mutability(self) -> &'static str {
         match self {
-            Self::Apply | Self::BundleApply => "apply",
+            Self::Apply | Self::BundleApply | Self::ScopedApply => "apply",
             Self::Show | Self::Session => "read",
             _ => "plan",
         }
@@ -49,6 +51,39 @@ const ACCESS: Parameter = Parameter {
 };
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["select", "bundle", "scoped", "plan"],
+        summary: "Plan the complete scoped setup from one qualified graph, observed harness and disjoint targets; publish nothing.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "request",
+                summary: "Closed JSON with exact setup source, targets by scope, output, optional placements, provider_version, harness_executable and access; at most 256 KiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Selection(Handler::ScopedPlan),
+    },
+    Declaration {
+        path: &["select", "bundle", "scoped", "apply"],
+        summary: "Recheck the complete scoped graph and publish all scope archives into one new directory without writing harness configuration.",
+        parameters: &[
+            Parameter {
+                name: "plan",
+                summary: "Closed JSON from select bundle scoped plan, at most 256 KiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Exact digest binding the complete graph, scopes, roots, provider, harness observation and output.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Selection(Handler::ScopedApply),
+    },
     Declaration {
         path: &["select", "session"],
         summary: "Read a bounded page of open proposals and the recorded current selection for one project and harness, without network or credentials.",
@@ -252,6 +287,12 @@ fn scope(args: &ArgMatches) -> Result<Scope> {
 
 pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     match handler {
+        Handler::ScopedPlan => {
+            bundles::scoped::plan(path(args, "state-dir")?, path(args, "request")?)
+        }
+        Handler::ScopedApply => {
+            bundles::scoped::apply(path(args, "plan")?, text(args, "plan-digest")?)
+        }
         Handler::Session => {
             let limit = args
                 .get_one::<String>("limit")

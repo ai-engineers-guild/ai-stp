@@ -104,7 +104,7 @@ CLI хаба материалов нет. Каталог и справка ос�
 ```text
 ai-stp registry search --json
 ai-stp task intents --json
-ai-stp link web --json
+ai-stp help --path registry --json
 ```
 
 `link web` может напечатать канонический URL сайта, когда цель —

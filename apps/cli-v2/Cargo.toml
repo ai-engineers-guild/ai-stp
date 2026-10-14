@@ -1,6 +1,6 @@
 [package]
 name = "ai-stp-cli-v2"
-version = "0.1.0-preview.14"
+version = "0.1.0"
 edition = "2024"
 rust-version = "1.99"
 publish = false
@@ -8,7 +8,7 @@ license = "AGPL-3.0-or-later"
 description = "Native ai-stp CLI engine"
 
 [[bin]]
-name = "ai-stp-v2"
+name = "ai-stp"
 path = "src/main.rs"
 
 [dependencies]
@@ -20,7 +20,7 @@ cap-fs-ext = "=4.0.3"
 file-guard = "=0.2.0"
 # HTTP response pacing owns date parsing; remove with that transport boundary.
 httpdate = "=1.0.3"
-clap = { version = "=4.6.7", default-features = false, features = ["std", "help", "usage", "error-context"] }
+clap = { version = "=4.6.7", default-features = false, features = ["std", "string", "help", "usage", "error-context"] }
 jiff = { version = "=0.2.38", default-features = false, features = ["std"] }
 jsonschema = { version = "=0.58.6", default-features = false }
 jsonc-parser = { version = "=0.34.0", default-features = false, features = ["cst"] }
@@ -57,7 +57,7 @@ regex = { version = "=1.13.1", default-features = false, features = ["std"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 command-fds = "=0.3.3"
-rustix = { version = "=1.1.5", features = ["net", "process"] }
+rustix = { version = "=1.1.5", features = ["net", "process", "param"] }
 zbus = { version = "=5.19.0", default-features = false, features = ["async-io", "blocking-api"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -78,6 +78,10 @@ windows-native-keyring-store = "=1.1.0"
 
 [dev-dependencies]
 tempfile = "=3.27.0"
+
+# Keep real-binary installer tests within the same bounded archive size as releases.
+[profile.dev]
+debug = 1
 
 [profile.release]
 lto = "thin"

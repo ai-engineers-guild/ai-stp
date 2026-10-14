@@ -68,7 +68,7 @@ setup refuses while a required pin is private. A recipient grant cannot create
 or confirm a visibility plan.
 
 The Python CLI uses `publication visibility plan`, `status`, `confirm`. The isolated
-Rust CLI uses `plan`, `status`, `apply`; its [code-adjacent contract](../../apps/cli-v2/README.md#explicit-distribution-visibility)
+Rust CLI uses `plan`, `status`, `apply`; its [code-adjacent contract](../../apps/cli-v2/README.md#business-services)
 owns exact local plan/session binding and retry behavior. Visibility is always
 explicit. Confirmation requires an explicit flag and exact hash. The CLI neither
 rewrites local versions nor substitutes ordinary public publication for a missing

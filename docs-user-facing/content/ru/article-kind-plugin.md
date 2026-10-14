@@ -144,7 +144,7 @@ Adopt каталога требует манифест из закрытого �
 поддерживаемого харнесса, компонентов не даёт и один раз на коллекцию
 сообщает `unsupported_manifest`.
 
-Команды `ai-stp component plugin validate` нет. Структурная готовность —
+Команды `ai-stp help --path component --json` нет. Структурная готовность —
 `component passport validate`. Kind-specific проверка по спецификации
 есть только у [`skill`](https://ai-stp.aiguild.space/ru/docs/components).
 
@@ -211,7 +211,7 @@ ai-stp task start --intent author --idempotency-key author-session-01 --json
 
 ```bash
 ai-stp component version list --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
+ai-stp help --path component --json
 ```
 
 `--major` открывает следующую мажорную линию. Мажорная линия — отдельная
@@ -256,20 +256,20 @@ plugin безвреден. Обязательные проверки, котор
 Только команды, которые существуют. Флаги всегда со страниц CLI и всегда
 `--json`. Исполняемый файл — `ai-stp` (пакет `ai-stp-cli`). Команд
 `component inspect` и `setup show` нет. Единственный kind-specific
-validate — `ai-stp component skill validate`.
+validate — `ai-stp help --path component --json`.
 
 **Именно этот вид:** команды `component plugin validate` нет. Используйте
 проверку паспорта. Вложенные skills всё равно можно проверить так:
 
 ```bash
-ai-stp component skill validate --path <directory-with-SKILL.md> --json
+ai-stp help --path component --json
 ```
 
 **Автор, adopt, публикация:**
 
 ```bash
 ai-stp task start --intent author --idempotency-key author-session-01 --json
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 Если путь также заявлен как каталог skill:
@@ -277,13 +277,13 @@ ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 Expert recovery:
 
 ```text
-ai-stp component adopt --path <source_path> --kind plugin --json
+ai-stp help --path component --json
 ```
 
 **Установить:**
 
 ```bash
-ai-stp task start --intent install --idempotency-key install-session-01 --json
+ai-stp task input-schema --intent install --json
 ```
 
 Expert-просмотр каталога:

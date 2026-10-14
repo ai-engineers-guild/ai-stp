@@ -10,6 +10,7 @@ use crate::{authoring, digest, error::Result, files, identity, passport};
 #[derive(Clone, Copy, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum Action {
+    Import,
     Start,
     Poll,
     Refresh,

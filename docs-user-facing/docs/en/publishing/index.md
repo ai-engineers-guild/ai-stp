@@ -22,9 +22,9 @@ not bind bytes or confirm a plan hash.
 Everyday:
 
 ```bash
-ai-stp task start --intent account --idempotency-key account-session-01 --json
+ai-stp help --path account --json
 ai-stp task start --intent author --idempotency-key author-session-01 --json
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 The plan / status / confirm leaves below are expert recovery when a plan is
@@ -32,8 +32,8 @@ already open.
 
 ## Preconditions
 
-1. Local device identity exists: `ai-stp device init --json`.
-2. You are signed in on that same device: `ai-stp auth status --json`.
+1. Local device identity exists: `ai-stp help --path device --json`.
+2. You are signed in on that same device: `ai-stp help --path account --json`.
 3. The object is adopted, its passport validates, and an `X.Y` has been
    released locally.
 4. The public source is an exact GitHub commit. Branches and short SHAs fail
@@ -46,7 +46,7 @@ Expert recovery:
 ```bash
 ai-stp component passport validate --id <stable_id> --json
 ai-stp component version list --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
+ai-stp help --path component --json
 ```
 
 `--major` opens the next major line instead of the next minor. A major line
@@ -59,7 +59,7 @@ device key **before** planning publication. The file is new; an existing
 path is refused.
 
 ```bash
-ai-stp attestation sign \
+ai-stp help --path attestation --json
   --id <stable_id> \
   --version 1.0 \
   --check-id <check_id> \
@@ -83,7 +83,7 @@ ai-stp attestation sign \
 Everyday:
 
 ```bash
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 Expert leaves if a plan is already open. Confirm the **exact** hash you were
@@ -98,7 +98,7 @@ ai-stp publication plan \
 
 ai-stp publication status --plan-id <plan_id> --json
 
-ai-stp publication confirm \
+ai-stp help --path publication --json
   --plan-id <plan_id> \
   --plan-hash <plan_hash> \
   --confirm \
@@ -116,7 +116,7 @@ A component that exists only inside a setup can be lifted into the ordinary
 publication plan:
 
 ```text
-ai-stp component publish \
+ai-stp help --path component --json
   --from-setup <setup_id> \
   --setup-version 1.0 \
   --component-id <component_id> \
@@ -133,9 +133,9 @@ A setup cannot become public before its exact pins. `setup publish` is a
 members are listed and not replanned.
 
 ```text
-ai-stp setup publish plan --id <setup_id> --version 1.0 --json
+ai-stp help --path setup --json
 
-ai-stp setup publish confirm --set-digest <set_digest> --confirm --json
+ai-stp help --path setup --json
 ```
 
 Confirm walks members in set order: components first, then the setup. A

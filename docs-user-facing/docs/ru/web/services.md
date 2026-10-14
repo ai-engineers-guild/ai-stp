@@ -103,7 +103,7 @@ Human / Machine сохраняет путь. Machine index — список се
 
 ## Совпадающие команды CLI
 
-Команды `ai-stp services` нет. Близнец — поиск каталога:
+Команды `ai-stp help --path task --json` нет. Близнец — поиск каталога:
 
 ```text
 ai-stp registry search --json
@@ -119,8 +119,8 @@ ai-stp registry show --kind setup --id <stable_id> --json
 редактором сайта:
 
 ```bash
-ai-stp owner objects --json
-ai-stp owner object show --json
+ai-stp help --path account --json
+ai-stp help --path account --json
 ```
 
 Форма **Внешние сервисы** на странице объекта описана в

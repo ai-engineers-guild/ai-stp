@@ -77,9 +77,9 @@ The checkboxes are human-only.
 There is no onboarding CLI. After you pass the gate:
 
 ```bash
-ai-stp auth status --json
-ai-stp task start --intent account --idempotency-key account-session-01 --json
-ai-stp device init --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path device --json
 ```
 
 `auth status` should move off a pending relationship once the website

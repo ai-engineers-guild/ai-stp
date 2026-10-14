@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests;
 
-mod access;
+pub(crate) mod access;
 pub mod bundles;
 pub mod matrix;
 mod program;

@@ -84,7 +84,7 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
     ),
     "cli-v2-test": ("cargo test --locked",),
     "cli-v2-build": ("cargo build --locked --release --bins --examples",),
-    "cli-v2-regress": ("apps/cli-v2/scripts/verify.py apps/cli-v2/target/release/ai-stp-v2",),
+    "cli-v2-regress": ("apps/cli-v2/scripts/verify.py apps/cli-v2/target/release/ai-stp",),
     "security": ("bun run audit", "scan_lockfile.sh"),
     "web-build": ("AI_STP_WEB_PROFILE=public_saas bun run build",),
     "web-storybook": ("build-storybook",),

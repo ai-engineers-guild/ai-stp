@@ -1,17 +1,17 @@
 ---
 description: "SPEC-008: Providers, installation and recovery."
-last_verified: "2026-10-12"
+last_verified: "2026-10-14"
 ---
 
 # SPEC-008: Providers, installation and recovery
 
 ## Purpose
 
-`ai_stp` transfers the verified package to the only public provider of the selected harness. The provider securely manages the runtime, target directory, backup, application, startup, and recovery.
+`ai_stp` transfers the verified package to the public installation component of the selected harness. That component alone writes configuration and owns its application and recovery. The harness executable is user-managed; ai-stp observes its installed version and never installs or updates it. Native operations retain desired payloads for forward recovery and do not create configuration backups.
 
 ## Scope
 
-Includes seven public setup managers `NDDev-Technocracy-Archive/*-setup-system` - one for each harness of the closed set `ADR-0120`: claude-code, codex, cursor, opencode, pi, grok-build and antigravity - release artifacts, common protocol, runtime lifecycle, external package, inactive target directory, plan, application, state, recovery and import of an existing native configuration. Historical releases retain their separately pinned signing identities.
+Includes seven public setup managers `NDDev-Technocracy-Archive/*-setup-system` - one for each harness of the closed set `ADR-0120`: claude-code, codex, cursor, opencode, pi, grok-build and antigravity - release artifacts, common protocol, external configuration packages, inactive target directories, plans, application, state, recovery and import of existing native configuration. Historical releases retain their separately pinned signing identities.
 
 The previous estate of providers has been removed (`ADR-0119`, `ADR-0120`). It remains in historical ADR as context and is not the source for a new object; the trust line is assigned `provider-policy.toml` to the family `*-setup-system`.
 
@@ -34,11 +34,40 @@ establish installation of the full setup.
 Within one isolated Rust state parent, unfinished configuration operations
 reserve physical roots against identical and overlapping admissions, including
 after process exit. Disjoint roots remain concurrent after durable admission.
-The v2 configuration namespace fences older writers only after their target
+The v3 configuration namespace fences v1/v2 writers only after their target
 locks drain; an empty SQLite operation query alone does not prove quiescence.
 The transition preserves original plans and terminal receipts, and requires a
 compatible executable for subsequent recovery. This does not coordinate
-independent state parents or implement aggregate multi-root application.
+independent state parents.
+
+The native `select bundle scoped` service plans and publishes all packages from
+one exact setup graph. It binds authenticated provider capabilities, actual
+installed-harness observation, access, mechanical eligibility, explicit scope
+placement and held physical target identities. Apply recompiles and revalidates
+before publishing one new directory; it does not write configuration.
+
+The native `configuration set` service binds one complete setup across one to
+three disjoint explicit scopes. Its installed-harness observation must match
+before first admission; admitted recovery keeps its original operation without
+depending on the current executable. Complete graph/source coverage precedes one
+transaction admitting every child and parent reservation. Authenticated component
+0.0.94 preparation must succeed at every root before any child publishes.
+Child checkpoints permit exact forward recovery; completed child roots remain
+reserved until the parent settles. Cancellation is allowed before publication,
+and settled history never reapplies a target. Only a verified parent may attribute
+a complete installed setup to its separately bound registered project. The
+code-adjacent contract owns the closed request, bounds and phase vocabulary.
+No cross-root filesystem atomicity or configuration backup is claimed. Native
+`task start --intent install` coordinates scoped compilation and complete-set
+execution through the same retained child plans. It releases registry connections
+before child services run and recovers completed children before recording the
+final task outcome. `task input-schema` owns machine discovery of the closed
+native input, including explicit roots and exact setup identity. Linux `handoff`
+activation prepares all roots, waits for consumer exit, publishes through the
+original components and confirms from a new harness session. Durable
+`awaiting_exit` and `awaiting_restart` phases keep the task unsatisfied and roots
+reserved. Consumers remain stopped during publication; the CLI does not claim
+an operating-system lock against independently launched harnesses.
 
 The Python and Rust status readers accept optional recorded
 `configuration_ownership` through kit 0.2.17. They distinguish unavailable
@@ -150,7 +179,7 @@ The version of the contract is agreed upon before the operation. The old provide
 | `REQ-807` | Failure checks confirm pre-write backup and retention of unmanaged data. |
 | `REQ-808` | A status or ready to run error does not toggle the active pointer. |
 | `REQ-809` | The failure matrix checks all long-lived states of the result. |
-| `REQ-810` | A staged replacement and restart leave the previous target recoverable until the new environment is confirmed. |
+| `REQ-810` | Preparation leaves live configuration unchanged; publication waits for consumer exit, recovers forward, and completes only after verified files and a restarted consumer are observed. |
 | `REQ-811` | Benchmark signature and manifest checks reject unknown key, policy mismatch, modification of any signed field, exact executable bytes mismatch, and rollback; a correctly signed release outside the assigned list and approved bytes under someone else's `provider_id` are rejected by the code `release_not_pinned` before the first launch of the provider; trusted plan repeats the check before apply and atomically advances history only with `verified`. |
 | `REQ-812` | Fixtures for changing and revoking keys check overlap and blocking; recovery only accepts a separate confirmed plan for exact digest from verified history and does not reduce floor. |
 | `REQ-813` | The fixture of an existing target undergoes inspection, copy, cleaning, inventory, passport, verification and fixation without changing the target. |

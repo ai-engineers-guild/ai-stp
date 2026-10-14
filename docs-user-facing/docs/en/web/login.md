@@ -61,7 +61,7 @@ Sign-in does **not**:
 | Subtitle | Sign in with a supported provider. Session state is stored in a secure HttpOnly cookie. | — |
 | Google | Continue with Google | `/v1/auth/google/login?client=web&return_to=…` |
 | GitHub | Continue with GitHub | `/v1/auth/github/login?client=web&return_to=…` |
-| CLI copy | Sign in a device from the CLI | `ai-stp task start --intent account --idempotency-key account-session-01 --json` |
+| CLI copy | Sign in a device from the CLI | `ai-stp help --path account --json` |
 
 In mock/e2e the buttons POST to a mock action instead of the API.
 `?debug=1` with mocks adds extra error/cancel simulators. That gate is
@@ -93,19 +93,19 @@ account start as a code block, and a catalog link.
 Everyday sign-in is the account intent:
 
 ```bash
-ai-stp task start --intent account --idempotency-key account-session-01 --json
+ai-stp help --path account --json
 ```
 
 Expert leaves (`auth login` / `complete` / `logout`) stay for a pending
 device code already held:
 
 ```text
-ai-stp auth login --provider github --json
-ai-stp auth login --provider google --json
-ai-stp auth complete --json
-ai-stp auth status --json
-ai-stp auth logout --json
-ai-stp link web --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path account --json
+ai-stp help --path registry --json
 ```
 
 `--provider` is required and closed to `github` and `google`.
@@ -115,13 +115,13 @@ local-only, authenticated, expired, or revoked. `auth logout` ends the
 cloud session and keeps local data. `link web` prints a canonical
 website URL.
 
-There is no `ai-stp auth device` command. The website copies the
+There is no `ai-stp help --path account --json` command. The website copies the
 account start, not a fake leaf. Follow the CLI.
 
 Device identity on the machine is separate:
 
 ```bash
-ai-stp device init --json
+ai-stp help --path device --json
 ai-stp device show --json
 ```
 
@@ -138,7 +138,7 @@ device. You usually need both, in that order, on a new install.
 | Session expired | stale cookie | sign in; `returnTo` is kept |
 | Need sign-in on device-login | no browser session | sign in, code is preserved |
 | Unknown code | typo | retype; do not add spaces |
-| Code expired / already used | continue the same account task | `ai-stp task start --intent account --idempotency-key account-session-01 --json` |
+| Code expired / already used | continue the same account task | `ai-stp help --path account --json` |
 | Sent to onboarding | new account | accept the two revisions |
 | Conflict on link | that Google/GitHub is on another account | unlink there first; no merge |
 

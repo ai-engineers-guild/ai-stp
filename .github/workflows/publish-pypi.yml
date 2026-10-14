@@ -49,6 +49,8 @@ concurrency:
 
 jobs:
   publish:
+    # Retired: stable CLI releases use cli-release.yml and native archives.
+    if: ${{ false }}
     name: publish-ai-stp-${{ inputs.package }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
