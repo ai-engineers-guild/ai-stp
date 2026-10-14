@@ -92,6 +92,28 @@ def prove(binary: Path, home: Path, root: Path, run: Any) -> None:
     def invoke(arguments: list[str], status: int = 0) -> dict[str, Any]:
         return run(binary, home, arguments, status)
 
+    if os.name == "nt":
+        # File credentials cannot prove owner-only access on Windows. Exercise
+        # the refusal instead of silently selecting the runner's real keyring.
+        invoke(
+            [
+                "state",
+                "migrate",
+                "plan",
+                "--state-dir",
+                str(state),
+                "--credential-store",
+                "file",
+                "--provider",
+                "github",
+            ],
+            4,
+        )
+        with closing(sqlite3.connect(database)) as connection:
+            assert connection.execute("PRAGMA user_version").fetchone() == (53,)
+        assert not (state / "ai-stp-v2-identity").exists()
+        return
+
     def plan() -> dict[str, Any]:
         return invoke(
             [
