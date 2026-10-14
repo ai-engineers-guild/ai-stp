@@ -1,5 +1,6 @@
 //! Bounded input and display paths shared by read services.
 
+pub(crate) mod document;
 mod owned;
 pub(crate) mod tree;
 pub(crate) use owned::{OwnedDirectory, private_options};

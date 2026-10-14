@@ -3,6 +3,7 @@
 pub mod account;
 mod archive;
 pub mod artifacts;
+pub mod attestation;
 pub mod authoring;
 pub mod bundle;
 pub mod canonical;
