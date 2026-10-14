@@ -70,6 +70,61 @@ struct ErrorEnvelope {
 }
 
 impl Api {
+    pub fn reports(
+        &self,
+        id: Option<&str>,
+        cursor: Option<&str>,
+        body: Option<&[u8]>,
+        credential: &Secret,
+    ) -> Result<Reply<serde_json::Value>> {
+        use super::reports::{invalid, uncertain};
+        if id.is_some_and(|id| !crate::passport::stable_id(id, "report"))
+            || cursor.is_some_and(|cursor| !super::reports::contract::cursor(cursor))
+            || id.is_some() && (cursor.is_some() || body.is_some())
+            || body.is_some() && cursor.is_some()
+            || body.is_some_and(|body| body.len() > 65536)
+        {
+            return Err(invalid());
+        }
+        let path = id.map_or_else(|| "requests".to_owned(), |id| format!("requests/{id}"));
+        let mut url =
+            url::Url::parse(&format!("{}/v1/{path}", self.origin)).map_err(|_| invalid())?;
+        if id.is_none() && body.is_none() {
+            url.query_pairs_mut().append_pair("page_size", "100");
+            if let Some(cursor) = cursor {
+                url.query_pairs_mut().append_pair("cursor", cursor);
+            }
+        }
+        let authorization = Zeroizing::new(format!("Bearer {}", credential.0.as_str()));
+        let agent = self.agent.borrow();
+        let response = if let Some(body) = body {
+            agent
+                .post(url.as_str())
+                .header("Accept", "application/json")
+                .header("Content-Type", "application/json")
+                .header("Accept-Encoding", "identity")
+                .header("X-AI-STP-Schema-Version", "1")
+                .header("Authorization", authorization.as_str())
+                .send(body)
+        } else {
+            agent
+                .get(url.as_str())
+                .header("Accept", "application/json")
+                .header("Accept-Encoding", "identity")
+                .header("X-AI-STP-Schema-Version", "1")
+                .header("Authorization", authorization.as_str())
+                .call()
+        }
+        .map_err(|_| uncertain())?;
+        drop(agent);
+        match self.response(response, 262144)? {
+            Reply::Resource(bytes) => crate::wire::parse(&bytes)
+                .map(Reply::Resource)
+                .map_err(|_| uncertain()),
+            Reply::Refused(code) => Ok(Reply::Refused(code)),
+        }
+    }
+
     pub fn me(&self, credential: &Secret) -> Result<Reply<Account>> {
         let authorization = Zeroizing::new(format!("Bearer {}", credential.0.as_str()));
         let agent = self.agent.borrow();
