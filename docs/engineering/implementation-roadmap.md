@@ -155,7 +155,7 @@ and the issues it links) and setup-systems #316.
   Windows x86_64 and macOS arm64; the other three pairs remain `not_verified`
   and do not delay beta. Native binaries are specific to their platform.
 - Package classifiers do not prove qualification. Evidence binds the exact
-  candidate artifacts; a Python-version install matrix and provider native
+  candidate artifacts; native CLI execution and provider sandbox
   qualification answer different questions. Older passing matrices do not
   qualify a new candidate, and the owner exclusions above remain explicit.
 - The agent chooses the engineering path within the task. Digest, rollback,
@@ -166,12 +166,12 @@ and the issues it links) and setup-systems #316.
 
 | Area | Observable state |
 |---|---|
-| Local-first CLI | SQLite registry, passports/revisions, discovery/adoption, selection, bundle, install/status/diff/update/rollback/recovery, machine help, and canonical Skill |
+| Local-first CLI | Rust executable registry, SQLite state, passports/revisions, authoring, discovery, selection, bundles, account/sync/publication, scoped configuration, durable tasks and forward recovery. The native guide and registry own supported commands; old Python names are not a parity requirement. |
 | Platform | `/v1`, PostgreSQL, object storage, queue, authentication/devices, sync, publication, grants/reports, public catalog, article, and SEO projections |
 | Web | Landing, catalog/detail, account/device/owner surfaces, content hub, machine projections, and a three-OS test matrix |
 | Providers | Seven public ai-stp installation components use protocol v3 and implement explicit forward configuration recovery and public ownership observations. The native managed default is owned by `apps/cli-v2/src/provider/managed.rs`; exact accepted public releases and their runtime evidence are tracked in [#764](https://github.com/ai-engineers-guild/ai-stp/issues/764). Linux single-/multi-root execution, original-operation recovery and staged consumer handoff are implemented; release activation is recorded by its exact deployment receipt. A component release does not establish complete native CLI installation or launch readiness. |
-| Release | The Python `ai-stp-cli` distribution is published on PyPI with a matching immutable GitHub tag and release artifacts (SBOM, manifest, `SHA256SUMS`); exact accepted release identities belong to the dated publication receipts. Automatic provider acquisition uses PyPI with the CLI-managed verifier (`ADR-0171`); explicit GitHub acquisition retains its attestation policy. Self-update of the CLI wheel is `SPEC-072` / `ADR-0170`. The source version in `apps/cli/pyproject.toml`, package publication and installed PATH identity are separate observations. |
-| Desktop | `ai-stp-desktop` 0.0.8: a Tauri 2 shell over the CLI machine contract with a frozen CLI sidecar (`ADR-0222`); deb, rpm and AppImage for Linux, an aarch64 dmg, and an exe and msi for Windows, unsigned. |
+| Release | Optimized native archives, per-archive checksums, source/target manifest, CycloneDX SBOM and GitHub attestations from the exact `cli-v*` tag. Archive-owned installation/update is explicit; there is no background updater. Python wheel publication is retired. Setup-component acquisition still uses authenticated PyPI by default and explicit GitHub provenance. Publication and installed PATH identity require separate readback. |
+| Desktop | The Tauri shell consumes the Rust CLI process contract; its build packages the native executable and digest manifest without a Python runtime. The published desktop 0.0.8 bundles remain unchanged historical artifacts with their original frozen sidecar. A CLI release is not a new desktop release; desktop bundles remain unsigned. |
 | Catalog | The canonical first-party corpus models seven harness families and four postures. Identity projection, exact target assurance, and normal-path publication/readback evidence are implemented in the current platform closeout for `#146`/`#155`. |
 | OBT support tiers | All seven harnesses are `beta` (`SUPPORT_TIERS`, `SPEC-033` REQ-3315). `primary` remains a valid later GA label with no current members |
 
@@ -196,7 +196,7 @@ closed or forbade. Those findings are not re-opened here:
 | Finding | Disposition |
 |---|---|
 | Protect `ai-stp/main` (GOV-001) | ADR-0180 restores protected `main`, promotion checks, and administrator bypass with zero mandatory approvals (default later moved to `main`; see the ADR amendment). |
-| Six-package publication (REL-002) | Superseded by `ADR-0146`: one public `ai-stp-cli` wheel. Historical six-package artifacts stay immutable. |
+| Six-package publication (REL-002) | Historically replaced by the single wheel under `ADR-0146`; the standard CLI now ships native archives. Historical Python artifacts stay immutable and their publication lane is retired. |
 | Provider-owned multi-root commit (LAY-002) | Superseded by `ADR-0145` / SPEC-058: the consumer owns a recoverable transaction over unchanged provider v3 (one target). |
 | PyPI as the default provider channel (PYP-002) | Implemented by `ADR-0171`: automatic acquisition uses PyPI with a CLI-owned verifier; GitHub is explicit. Three primary platform pairs are required; the other three remain `not_verified`. Current default selection does not qualify an unexercised platform. |
 | Public provider disclosure (PUB-001/002) | Owned by the provider estate, not this consumer. Public documentation remains self-contained. |
@@ -207,7 +207,7 @@ closed or forbade. Those findings are not re-opened here:
 | Authoring freeze (SCA-004) | Done: `setup-scaffold/5` points nested members at `projections/<harness>` with `managed_paths`; compose and `component version release` refuse `TODO(ai-stp-scaffold):` markers and freeze a content-addressed `ComponentAdaptation` on the exact provider surface. |
 | Setup export (SCA-003) | Done: `setup export` writes a separate `ai-stp-setup-export/1` review tree whose manifest binds the recorded passport, definition, and every exported file; it mutates neither authoring nor harness state. |
 | Control-plane Skill package (`#97`) | Done: `skill install` writes `SKILL.md` plus `references/` for every harness; projections carry the procedure; Russian is a generated locale; machine help still owns flags (`ADR-0149`). |
-| Rust CLI rewrite | Activated by the October 8 owner instruction and ADR-0227; the C0–C7 program above replaces the earlier deferral. The public native executable is `ai-stp`; existing state transfers explicitly. |
+| Rust CLI rewrite | Implemented under ADR-0227 and the owner-approved platform boundary. The public native executable is `ai-stp`; existing state transfers explicitly. Exact stable release and cutover receipts belong to #57. |
 | Further component kinds | Separate backlog. The ninth `cli` kind already exists under `ADR-0155`; its existence does not prove runtime lifecycle completion. Historical experiments are not current evidence. |
 
 ## Explicitly out of scope for this pass
