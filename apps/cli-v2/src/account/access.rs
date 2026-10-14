@@ -194,6 +194,22 @@ impl Access {
         }
     }
 
+    pub(super) fn github(&self, body: Option<&[u8]>) -> Result<serde_json::Value> {
+        self.revalidate()?;
+        if !self.verified || self.offline {
+            return Err(refused("account_origin_or_authorization_mismatch"));
+        }
+        let Session::Authorized { access_token, .. } = &self.state.session else {
+            return Err(refused("account_required"));
+        };
+        let reply = self.api.github(body, access_token)?;
+        self.revalidate()?;
+        match reply {
+            Reply::Resource(value) => Ok(value),
+            Reply::Refused(code) => Err(super::github::refusal(code)),
+        }
+    }
+
     pub(crate) fn sync(
         &self,
         request: &crate::sync::network::Request<'_>,

@@ -198,6 +198,55 @@ impl Api {
         }
     }
 
+    pub fn github(
+        &self,
+        body: Option<&[u8]>,
+        credential: &Secret,
+    ) -> Result<Reply<serde_json::Value>> {
+        use super::github::uncertain;
+        if body.is_some_and(|value| value.len() > 65536) {
+            return Err(Failure::input(
+                "the selected-source request exceeds its byte limit",
+            ));
+        }
+        let authorization = Zeroizing::new(format!("Bearer {}", credential.0.as_str()));
+        let agent = self.agent.borrow();
+        let response = if let Some(body) = body {
+            agent
+                .post(format!("{}/v1/connectors/github/sources", self.origin))
+                .header("Accept", "application/json")
+                .header("Content-Type", "application/json")
+                .header("Accept-Encoding", "identity")
+                .header("X-AI-STP-Schema-Version", "1")
+                .header("Authorization", authorization.as_str())
+                .send(body)
+        } else {
+            agent
+                .get(format!("{}/v1/connectors/github", self.origin))
+                .header("Accept", "application/json")
+                .header("Accept-Encoding", "identity")
+                .header("X-AI-STP-Schema-Version", "1")
+                .header("Authorization", authorization.as_str())
+                .call()
+        }
+        .map_err(|_| uncertain())?;
+        drop(agent);
+        match self
+            .response(response, crate::http::MAX_BODY)
+            .map_err(|failure| {
+                if matches!(failure.kind, ErrorKind::Unavailable) {
+                    uncertain()
+                } else {
+                    failure
+                }
+            })? {
+            Reply::Resource(bytes) => crate::wire::parse(&bytes)
+                .map(Reply::Resource)
+                .map_err(|_| uncertain()),
+            Reply::Refused(code) => Ok(Reply::Refused(code)),
+        }
+    }
+
     pub fn sync(
         &self,
         request: &crate::sync::network::Request<'_>,
