@@ -30,6 +30,7 @@ pub mod registry;
 pub mod selection;
 pub mod snapshot;
 pub mod sources;
+pub mod startup;
 pub mod store;
 pub mod sync;
 pub mod tasks;

@@ -39,7 +39,7 @@ pub enum Storage {
 }
 
 impl Storage {
-    fn validate(self) -> Result<()> {
+    pub(crate) fn validate(self) -> Result<()> {
         if self == Self::File && !cfg!(unix) {
             return Err(Failure::precondition(
                 "the file credential backend requires Unix owner-only permissions; select os_keyring on this platform",

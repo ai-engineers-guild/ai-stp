@@ -80,6 +80,14 @@ refuse pending transfer; the retained plan owns forward recovery. SQL schema
 comparison ignores only whitespace outside quoted literals and identifiers.
 Ordinary SQLite file/recovery compatibility remains mandatory.
 
+The native process owns default-state resolution: explicit `--state-dir`, then
+`AI_STP_STATE_DIR`, then the existing XDG data layout. Metadata and read commands
+do not bootstrap directories. Explicit `init` composes directory creation and
+the existing exact identity plan/apply journal; replay preserves the key and a
+different credential-store selection refuses. Legacy state is never an
+initialization target. Desktop consumes these same commands and renders native
+descriptors rather than maintaining legacy command fallbacks.
+
 ### Compatibility and native dependencies
 
 The code-backed preview boundary is documented beside `apps/cli-v2`. It keeps

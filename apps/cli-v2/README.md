@@ -7,6 +7,18 @@ harness versions without managing their executables. On Linux it plans, applies
 and recovers configuration installation, replacement and removal on an inactive
 single root through authenticated setup components.
 
+## Local initialization
+
+State-taking commands default to `AI_STP_STATE_DIR`, or `$XDG_DATA_HOME/ai-stp`
+(`$HOME/.local/share/ai-stp` when XDG is absent), preserving the previous
+cross-platform layout. An explicit `--state-dir` overrides that location.
+`state path`, `doctor`, metadata and other reads never create state. The explicit
+`init --credential-store os_keyring` command creates a private directory and
+initializes or resumes its journaled local identity. Unix users may explicitly
+choose `file`, which is unencrypted and never an automatic fallback. Repeating
+initialization keeps the exact owner and key. Existing Python identity/database
+files require the migration procedure below; initialization cannot replace them.
+
 ## Preview distribution
 
 GitHub prereleases use tags `cli-v2-v<version>` and the version in `Cargo.toml`.

@@ -47,7 +47,7 @@ export default function TasksPage() {
       <header>
         <h1 className="page-title">Tasks</h1>
         <p className="text-sm text-muted-foreground">
-          Long-running journeys (install, switch, sync) with durable status and recovery.
+          Native authoring and installation with durable status and recovery.
         </p>
       </header>
 

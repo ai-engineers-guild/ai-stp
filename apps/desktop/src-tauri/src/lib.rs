@@ -249,6 +249,107 @@ fn new_idem_key(prefix: &str) -> String {
     format!("{prefix}-{nanos:x}")
 }
 
+/// Public plans only. Credentials remain exclusively inside the CLI process.
+struct PublicPlanFile(PathBuf);
+impl PublicPlanFile {
+    fn write(plan: &serde_json::Value) -> Result<Self, String> {
+        use std::io::Write;
+        let bytes = serde_json::to_vec(plan).map_err(|_| "invalid public plan")?;
+        if bytes.len() > 65536 {
+            return Err("public plan exceeds 64 KiB".into());
+        }
+        let path =
+            std::env::temp_dir().join(format!("{}.json", new_idem_key("ai-stp-desktop-plan")));
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        let mut file = options
+            .open(&path)
+            .map_err(|_| "cannot create public plan file")?;
+        let owned = Self(path);
+        file.write_all(&bytes)
+            .and_then(|()| file.sync_all())
+            .map_err(|_| "cannot persist public plan file")?;
+        Ok(owned)
+    }
+}
+impl Drop for PublicPlanFile {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
+}
+
+fn account_action(state: &AppState, action: &str, provider: Option<&str>) -> CmdResult {
+    let _mutation = match state.mutation_lock.lock() {
+        Ok(lock) => lock,
+        Err(_) => return CmdResult::failed("DESKTOP_TRANSPORT", "mutation lock poisoned"),
+    };
+    let current = run_cli(state, &argv("account status"));
+    if !current.ok {
+        return current;
+    }
+    let pending = current
+        .data
+        .as_ref()
+        .and_then(|data| data.get("pending_operation"))
+        .filter(|value| !value.is_null());
+    let reviewed = if let Some(pending) = pending {
+        if pending["plan"]["action"] != action
+            || provider.is_some_and(|provider| pending["plan"]["provider"] != provider)
+        {
+            return CmdResult::failed(
+                "DESKTOP_PENDING_OPERATION",
+                "Resume the pending account action shown in account status before starting another action",
+            );
+        }
+        pending.clone()
+    } else {
+        let mut arguments = argv("account plan");
+        arguments.extend(["--action".into(), action.into()]);
+        if let Some(provider) = provider {
+            arguments.extend(["--provider".into(), provider.into()]);
+        }
+        let result = run_cli(state, &arguments);
+        if !result.ok {
+            return result;
+        }
+        match result.data {
+            Some(data) => data,
+            None => return CmdResult::failed("DESKTOP_TRANSPORT", "account plan returned no data"),
+        }
+    };
+    let Some(digest) = reviewed["plan_digest"].as_str() else {
+        return CmdResult::failed("DESKTOP_TRANSPORT", "account plan returned no digest");
+    };
+    let file = match PublicPlanFile::write(&reviewed["plan"]) {
+        Ok(file) => file,
+        Err(error) => return CmdResult::failed("DESKTOP_TRANSPORT", error),
+    };
+    let applied = run_cli_within(
+        state,
+        &[
+            "account".into(),
+            "apply".into(),
+            "--plan".into(),
+            file.0.to_string_lossy().into_owned(),
+            "--plan-digest".into(),
+            digest.into(),
+        ],
+        Some(ai_stp_desktop_core::MUTATING_TIMEOUT),
+    );
+    if !applied.ok {
+        return applied;
+    }
+    let mut status = run_cli(state, &argv("account status"));
+    status.warnings.extend(applied.warnings);
+    status.operation_id = applied.operation_id;
+    status
+}
+
 // ---------------------------------------------------------------- commands
 
 #[tauri::command]
@@ -484,14 +585,9 @@ async fn auth_login(
     provider: String,
 ) -> Result<CmdResult, String> {
     let st = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        run_cli_mutating(
-            &st,
-            &["auth".into(), "login".into(), "--provider".into(), provider],
-        )
-    })
-    .await
-    .map_err(|e| e.to_string())
+    tauri::async_runtime::spawn_blocking(move || account_action(&st, "start", Some(&provider)))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -501,11 +597,10 @@ async fn auth_complete(
 ) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let mut a = argv("auth complete");
         if wait {
-            a.push("--wait".into());
+            return CmdResult::failed("DESKTOP_USAGE", "Use bounded polling without wait");
         }
-        run_cli_mutating(&st, &a)
+        account_action(&st, "poll", None)
     })
     .await
     .map_err(|e| e.to_string())
@@ -514,7 +609,7 @@ async fn auth_complete(
 #[tauri::command]
 async fn auth_status(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, String> {
     let st = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || run_cli(&st, &argv("auth status")))
+    tauri::async_runtime::spawn_blocking(move || run_cli(&st, &argv("account status")))
         .await
         .map_err(|e| e.to_string())
 }
@@ -522,7 +617,7 @@ async fn auth_status(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult
 #[tauri::command]
 async fn auth_logout(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, String> {
     let st = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || run_cli_mutating(&st, &argv("auth logout")))
+    tauri::async_runtime::spawn_blocking(move || account_action(&st, "logout", None))
         .await
         .map_err(|e| e.to_string())
 }
@@ -605,6 +700,7 @@ async fn task_start(
     state: tauri::State<'_, Arc<AppState>>,
     intent: String,
     idem_key: Option<String>,
+    input_path: Option<String>,
 ) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
@@ -614,12 +710,8 @@ async fn task_start(
         let key = idem_key
             .filter(|k| !k.is_empty())
             .unwrap_or_else(|| new_idem_key("desktop"));
-        // `--input` is deliberately not exposed here: the CLI reads it as a
-        // JSON/YAML file path or `-` for stdin, and this runner's stdin is
-        // sealed — an inline blob would arrive as a path that cannot exist.
-        // Wizard answers go through `task answer`, the channel the engine
-        // actually reads.
-        let a = vec![
+        // The CLI owns file reading, size limits and intent-schema validation.
+        let mut a = vec![
             "task".into(),
             "start".into(),
             "--intent".into(),
@@ -627,6 +719,9 @@ async fn task_start(
             "--idempotency-key".into(),
             key,
         ];
+        if let Some(path) = input_path.filter(|path| !path.is_empty()) {
+            a.extend(["--input".into(), path]);
+        }
         run_cli_mutating(&st, &a)
     })
     .await
@@ -861,7 +956,8 @@ mod tests {
         }
         let st = AppState::new(None);
         let reg = st.command_registry().expect("machine help parses");
-        assert!(reg.all_descriptors().len() > 200);
+        assert!(reg.descriptor("task input-schema").is_some());
+        assert!(reg.descriptor("configuration set apply").is_some());
         assert!(!reg.registry_digest.is_empty());
         // digest-keyed cache: second call returns the same registry
         assert_eq!(
@@ -877,7 +973,9 @@ mod tests {
         }
         let st = AppState::new(None);
         let reg = st.command_registry().unwrap();
-        let desc = reg.descriptor("install apply").expect("descriptor");
+        let desc = reg
+            .descriptor("configuration set apply")
+            .expect("descriptor");
         assert_eq!(desc.mutability, "apply");
         // the read gate hard-refuses anything that isn't mutability=read
         assert_ne!(desc.mutability, "read");

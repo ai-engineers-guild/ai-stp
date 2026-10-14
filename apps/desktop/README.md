@@ -26,12 +26,21 @@ holds user credentials.
   `transport.ts` choke point; replies are typed `CmdResult`. Pages:
   Overview (CLI health/doctor/device), Account (device-code sign-in),
   Catalog (registry search/detail via CLI), Tasks (intents + status
-  polling), Install (task-engine journeys: questions → continuations →
-  gated apply), Discovery (native component/harness discovery joined to
-  the registry by stable_id), Targets (status/backups/diff/rollback
-  preview + stopped transaction recovery), Commands (live machine-help browser),
+  polling), Install (native author/install tasks with explicit input files,
+  questions and recovery), Discovery and Targets (forms from live native
+  descriptors), Commands (implemented read/plan/apply operations),
   Debug (IPC trace, resolved engine, envelope inspector, diagnostic
-  bundle), Settings (scope selector: All is read-only aggregation).
+  bundle), Settings (explicit initialization, migration and local configuration).
+
+The default state location belongs to the CLI. A fresh installation uses
+Settings → `init` with an explicitly selected credential store. Existing Python
+state requires `state migrate plan` and its exact apply digest; the desktop does
+not create a replacement identity. Account actions compose `account plan` and
+`account apply`, resume the retained pending plan and read `account status`.
+Public temporary plan files contain no credentials and are removed after use.
+Installation input must satisfy the live `task input-schema`; Start authorizes
+that input, so it may execute immediately. The UI has no invented fallback
+intent, provider or harness list and no legacy backup/rollback controls.
 
 ## Design system
 

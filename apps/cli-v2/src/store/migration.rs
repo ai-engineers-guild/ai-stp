@@ -290,7 +290,20 @@ pub(crate) fn ensure_ready(parent: &Dir) -> Result<()> {
     use std::io::Read;
     let namespace = match parent.open_dir_nofollow(super::NAMESPACE) {
         Ok(directory) => directory,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            for name in ["registry.sqlite", "owner.json", "device.json"] {
+                match parent.symlink_metadata(name) {
+                    Ok(_) => {
+                        return Err(Failure::precondition(
+                            "existing Python state requires an explicit state migrate plan; initialization would create a different owner",
+                        ));
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(_) => return Err(invalid()),
+                }
+            }
+            return Ok(());
+        }
         Err(_) => return Err(invalid()),
     };
     let file = files::open_regular(&namespace, Path::new("owner")).map_err(|_| invalid())?;

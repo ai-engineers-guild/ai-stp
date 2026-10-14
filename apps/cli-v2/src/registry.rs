@@ -72,6 +72,9 @@ enum Handler {
     IdentityPlan,
     IdentityApply,
     IdentityShow,
+    Initialize,
+    StatePath,
+    Doctor,
 }
 
 #[derive(Clone, Copy)]
@@ -79,6 +82,7 @@ enum ParameterType {
     String,
     Boolean,
     Path,
+    StatePath,
     Paths,
     Strings,
     Choice(&'static [&'static str]),
@@ -93,10 +97,18 @@ struct Parameter {
 
 impl Parameter {
     fn argument(&self) -> Arg {
-        let argument = Arg::new(self.name)
+        let mut argument = Arg::new(self.name)
             .long(self.name)
             .help(self.summary)
             .required(self.required);
+        if matches!(self.kind, ParameterType::StatePath)
+            && self.required
+            && let Some(root) = crate::startup::state_root()
+        {
+            argument = argument
+                .required(false)
+                .default_value_os(root.into_os_string());
+        }
         match self.kind {
             ParameterType::Boolean => argument.action(ArgAction::SetTrue),
             ParameterType::String => argument.action(ArgAction::Set),
@@ -104,7 +116,9 @@ impl Parameter {
             ParameterType::Choice(values) => argument.value_parser(
                 clap::builder::PossibleValuesParser::new(values.iter().copied()),
             ),
-            ParameterType::Path => argument.value_parser(ValueParser::path_buf()),
+            ParameterType::Path | ParameterType::StatePath => {
+                argument.value_parser(ValueParser::path_buf())
+            }
             ParameterType::Paths => argument
                 .value_parser(ValueParser::path_buf())
                 .action(ArgAction::Append),
@@ -114,7 +128,7 @@ impl Parameter {
     fn descriptor(&self) -> Value {
         json!({"name": self.name, "kind": "option",
             "value_type": if matches!(self.kind, ParameterType::Boolean) { "boolean" } else { "string" },
-            "required": self.required, "repeatable": matches!(self.kind, ParameterType::Strings | ParameterType::Paths), "summary": self.summary,
+            "required": self.required && !matches!(self.kind, ParameterType::StatePath), "repeatable": matches!(self.kind, ParameterType::Strings | ParameterType::Paths), "summary": self.summary,
             "choices": match self.kind {ParameterType::Choice(values) => values, _ => &[]}})
     }
 }
@@ -189,8 +203,8 @@ const SOURCE_PATH: Parameter = Parameter {
 
 const STATE_DIR: Parameter = Parameter {
     name: "state-dir",
-    summary: "Existing parent directory for isolated native preview state.",
-    kind: ParameterType::Path,
+    summary: "State directory; defaults to AI_STP_STATE_DIR or $XDG_DATA_HOME/ai-stp ($HOME/.local/share/ai-stp). Existing Python state requires explicit migration.",
+    kind: ParameterType::StatePath,
     required: true,
 };
 
@@ -221,6 +235,32 @@ const PRIVATE: Parameter = Parameter {
 };
 
 const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["init"],
+        summary: "Initialize or resume a local identity in a private state directory; never replace existing credentials or migrate Python state implicitly.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "credential-store",
+                summary: "Explicit credential backend; no fallback. File is Unix-only and unencrypted.",
+                kind: ParameterType::Choice(&["os_keyring", "file"]),
+                required: true,
+            },
+        ],
+        handler: Handler::Initialize,
+    },
+    Declaration {
+        path: &["state", "path"],
+        summary: "Show the default state location without creating it.",
+        parameters: &[],
+        handler: Handler::StatePath,
+    },
+    Declaration {
+        path: &["doctor"],
+        summary: "Inspect local initialization and platform support without creating state or accessing credentials.",
+        parameters: &[STATE_DIR],
+        handler: Handler::Doctor,
+    },
     Declaration {
         path: &["capabilities"],
         summary: "List the capabilities implemented by this native preview.",
@@ -745,7 +785,7 @@ fn descriptors() -> Vec<Value> {
     declarations().map(|item| json!({
         "path": item.path, "summary": item.summary,
         "mutability": mutability(item.handler),
-        "confirmation": if mutability(item.handler) == "apply" && !matches!(item.handler, Handler::Task(_)) { "plan_digest" } else { "none" },
+        "confirmation": if mutability(item.handler) == "apply" && !matches!(item.handler, Handler::Task(_) | Handler::Initialize) { "plan_digest" } else { "none" },
         "parameters": item.parameters.iter().map(Parameter::descriptor).collect::<Vec<_>>(),
         "parameter_rules": [], "result_schema": null, "next_actions": []
     })).collect()
@@ -754,7 +794,7 @@ fn descriptors() -> Vec<Value> {
 fn mutability(handler: Handler) -> &'static str {
     match handler {
         Handler::ScaffoldPlan | Handler::IdentityPlan | Handler::CatalogAcquirePlan => "plan",
-        Handler::ScaffoldApply | Handler::IdentityApply => "apply",
+        Handler::ScaffoldApply | Handler::IdentityApply | Handler::Initialize => "apply",
         Handler::Local(handler) => handler.mutability(),
         Handler::Selection(handler) => handler.mutability(),
         Handler::Provider(handler) => handler.mutability(),
@@ -841,6 +881,23 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         .find(|item| item.path == path)
         .ok_or_else(|| Failure::new(ErrorKind::Internal, "parsed command has no handler"))?;
     match declaration.handler {
+        Handler::StatePath => crate::startup::location(),
+        Handler::Doctor => Ok(crate::startup::doctor(
+            leaf.get_one::<std::path::PathBuf>("state-dir")
+                .ok_or_else(|| Failure::input("state directory is unavailable"))?,
+        )),
+        Handler::Initialize => crate::startup::initialize(
+            leaf.get_one::<std::path::PathBuf>("state-dir")
+                .ok_or_else(|| Failure::input("state directory is unavailable"))?,
+            match leaf
+                .get_one::<String>("credential-store")
+                .map(String::as_str)
+            {
+                Some("os_keyring") => identity::Storage::OsKeyring,
+                Some("file") => identity::Storage::File,
+                _ => return Err(Failure::input("credential store is required")),
+            },
+        ),
         Handler::Task(handler) => tasks::dispatch(handler, leaf),
         Handler::Local(handler) => local::dispatch(handler, leaf),
         Handler::Report(handler) => reports::dispatch(handler, leaf),

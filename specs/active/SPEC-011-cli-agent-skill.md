@@ -130,6 +130,12 @@ execution payloads. The executable registry owns its parameters; the
 code-adjacent CLI README and `scripts/verify_migration.py` own its detailed
 implemented boundary and integrated preservation/recovery proof.
 
+Native state-taking commands use an explicit path override or the CLI-owned
+default XDG data directory. `init` is an explicit idempotent mutation with a
+selected credential backend; metadata reads never initialize state. Existing
+legacy identity files require the explicit writer transfer above. Desktop
+consumes native descriptors and the account plan/apply/status boundary.
+
 ## Acceptance criteria
 
 | Requirement | Executable verification method |
