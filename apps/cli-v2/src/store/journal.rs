@@ -1,9 +1,23 @@
 //! Operation receipts bind the operation identity, kind and exact planned effect.
 
-use rusqlite::{Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, Transaction};
 
 use super::database;
 use crate::error::{ErrorKind, Failure, Result};
+
+/// Keep every admitted remote intent within the device-replacement receipt's
+/// existing bound. Check only new admissions: retained work can still settle.
+pub(crate) fn recovery_capacity(t: &Transaction<'_>, additional: i64) -> Result<()> {
+    let pending: i64 = t.query_row(
+        "SELECT count(*) FROM operation WHERE kind IN ('sync.run','publication.run','publication.set') AND finished_at IS NULL",
+        [], |r| r.get(0)).map_err(database)?;
+    if !(1..=2).contains(&additional) || pending > 128 - additional {
+        return Err(Failure::precondition(
+            "finish an outstanding operation before admitting another recoverable remote intent",
+        ));
+    }
+    Ok(())
+}
 
 /// Admission to historical, query-only replay. Each domain still validates its
 /// exact digest or retained plan in its own receipt format before returning.

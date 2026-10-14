@@ -1,6 +1,6 @@
 ---
 description: "SPEC-038: CLI client for publication, access rights, and reports."
-last_verified: "2026-09-07"
+last_verified: "2026-10-14"
 ---
 
 # SPEC-038: CLI Client for Publication, Access Rights, and Reports
@@ -14,6 +14,17 @@ The authenticated CLI guides the agent through the Phase 8 server-side workflows
 This includes commands for creating, reading, and confirming a publication plan, followed by reads of owner objects, grants, and report cases. It includes explicit confirmation, idempotent retries, and recovery from a lost response by reading server state.
 
 This excludes the server-side state machine, background jobs, PostgreSQL, moderation, the web interface, modification of a local passport during publication, and sending artifact bytes to a route that accepts only a passport.
+
+The requirements below describe the production Python client. The isolated Rust
+preview follows ADR-0227; its implemented command and state contract lives in
+[`apps/cli-v2/README.md`](../../apps/cli-v2/README.md). Native publication uses one
+retained component/setup group with exact `plan`/`apply`, current-session
+`resume plan`, local journal `status`, and read-only `reconcile` after device
+replacement. Local status and completed receipt replay also work after logout;
+they are historical evidence, not current catalog access. The optimized
+CLI/API/worker proof is `just evidence-native-publication <binary> <sha256>`.
+This slice does not transfer production state ownership or port the remaining
+attestation-generation and connected-source workflows.
 
 ## Terms
 

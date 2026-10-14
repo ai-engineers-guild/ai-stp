@@ -51,7 +51,7 @@ impl Kind {
             Self::Setup => "setup",
         }
     }
-    fn route(self) -> &'static str {
+    pub(crate) fn route(self) -> &'static str {
         match self {
             Self::Component => "components",
             Self::Setup => "setups",
@@ -251,7 +251,12 @@ impl<'a> Reader<'a> {
     }
 }
 
-fn validate(kind: Kind, id: &str, version: Option<&str>, document: &Value) -> Result<()> {
+pub(crate) fn validate(
+    kind: Kind,
+    id: &str,
+    version: Option<&str>,
+    document: &Value,
+) -> Result<()> {
     kind.schema(version.is_some()).validate(document)?;
     if document["visibility"] == "private" || document["distribution_visibility"] == "private" {
         return Err(invalid());

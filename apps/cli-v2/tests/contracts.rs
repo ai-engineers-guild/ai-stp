@@ -67,6 +67,31 @@ fn executable_metadata_and_refusals() -> Result<(), Box<dyn Error>> {
         (vec!["help", "--path", "sync pull plan", "--json"], 0),
         (vec!["help", "--path", "sync apply", "--json"], 0),
         (vec!["help", "--path", "sync recover plan", "--json"], 0),
+        (vec!["help", "--path", "publication plan", "--json"], 0),
+        (
+            vec!["help", "--path", "publication resume plan", "--json"],
+            0,
+        ),
+        (vec!["help", "--path", "publication apply", "--json"], 0),
+        (vec!["help", "--path", "publication status", "--json"], 0),
+        (vec!["help", "--path", "publication reconcile", "--json"], 0),
+        (vec!["publication", "apply", "--json"], 2),
+        (
+            vec!["publication", "status", "--state-dir", state, "--json"],
+            4,
+        ),
+        (
+            vec![
+                "publication",
+                "status",
+                "--state-dir",
+                state,
+                "--operation-id",
+                "bad",
+                "--json",
+            ],
+            2,
+        ),
         (
             vec![
                 "sync",

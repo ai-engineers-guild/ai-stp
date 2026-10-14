@@ -252,6 +252,59 @@ impl Api {
         }
     }
 
+    pub fn publication(
+        &self,
+        request: &crate::publication::client::Request<'_>,
+        credential: &Secret,
+    ) -> Result<Reply<serde_json::Value>> {
+        use crate::publication::client::{Request, uncertain};
+        let url = request.url(&self.origin)?;
+        let authorization = Zeroizing::new(format!("Bearer {}", credential.0.as_str()));
+        let body = match request {
+            Request::Create(create) => Some(Zeroizing::new(create.bytes()?)),
+            Request::Confirm { body, .. } => Some(Zeroizing::new(crate::canonical::bytes(body)?)),
+            _ => None,
+        };
+        let agent = self.agent.borrow();
+        let response = match request {
+            Request::Create(_) | Request::Confirm { .. } => agent
+                .post(&url)
+                .header("Accept", "application/json")
+                .header("Content-Type", "application/json")
+                .header("Accept-Encoding", "identity")
+                .header("X-AI-STP-Schema-Version", "1")
+                .header("Authorization", authorization.as_str())
+                .send(body.as_deref().ok_or_else(uncertain)?.as_slice()),
+            Request::Bind { payload, .. } => agent
+                .put(&url)
+                .header("Accept", "application/json")
+                .header("Content-Type", "application/octet-stream")
+                .header("Accept-Encoding", "identity")
+                .header("X-AI-STP-Schema-Version", "1")
+                .header("Authorization", authorization.as_str())
+                .send(*payload),
+            Request::Status(_) => agent
+                .get(&url)
+                .header("Accept", "application/json")
+                .header("Accept-Encoding", "identity")
+                .header("X-AI-STP-Schema-Version", "1")
+                .header("Authorization", authorization.as_str())
+                .call(),
+        }
+        .map_err(|_| uncertain())?;
+        drop(agent);
+        // A malformed reply cannot establish whether a write was committed.
+        match self
+            .response(response, http::MAX_BODY)
+            .map_err(|_| uncertain())?
+        {
+            Reply::Resource(bytes) => crate::wire::parse(&bytes)
+                .map(Reply::Resource)
+                .map_err(|_| uncertain()),
+            Reply::Refused(code) => Ok(Reply::Refused(code)),
+        }
+    }
+
     fn response(
         &self,
         mut response: ureq::http::Response<ureq::Body>,
@@ -293,6 +346,22 @@ impl Api {
             )),
         }
     }
+}
+
+pub(super) fn publication_refusal(code: Code) -> Failure {
+    let (kind, reason) = match code {
+        Code::Conflict => (ErrorKind::Conflict, "request_conflict"),
+        Code::Invalid => (ErrorKind::Input, "request_rejected"),
+        Code::SlowDown => (ErrorKind::Unavailable, "rate_limited"),
+        Code::NotFound => (ErrorKind::NotFound, "publication_not_found"),
+        Code::Revoked => (ErrorKind::Precondition, "device_revoked"),
+        Code::Unauthorized | Code::Expired => (ErrorKind::Precondition, "account_required"),
+        Code::Forbidden => (ErrorKind::Precondition, "permission_denied"),
+        Code::Precondition => (ErrorKind::Precondition, "publication_precondition_changed"),
+        _ => (ErrorKind::Precondition, "remote_refusal"),
+    };
+    Failure::new(kind, "the publication API refused the request")
+        .with_details([("reason".into(), reason.into())])
 }
 
 pub(super) fn sync_refusal(code: Code) -> Failure {

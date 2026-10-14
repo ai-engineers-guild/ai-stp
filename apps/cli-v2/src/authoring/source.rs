@@ -363,7 +363,7 @@ pub fn capture(path: &Path) -> Result<Captured> {
 }
 
 /// Authoring projects own metadata above source/, so no native manifest is implied.
-pub(super) fn project(root: &Path) -> Result<Vec<Member>> {
+pub(crate) fn project(root: &Path) -> Result<Vec<Member>> {
     let metadata = root.symlink_metadata().map_err(|_| invalid())?;
     if !metadata.is_dir() || metadata.file_type().is_symlink() {
         return Err(invalid());

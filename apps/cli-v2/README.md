@@ -253,12 +253,15 @@ effective owner and previous recovery. Apply drains account and registry writers
 persists the intent, creates a new key, records its public succession and removes
 only the retired key and account credential entries. It does not authenticate or
 transfer ownership. Finish or cancel outstanding installation/authoring operations,
-proposals and tasks before admission. Unfinished sync commands are captured by
-exact operation, plan and progress digests (at most 128) and finish with an explicit
+proposals and tasks before admission. Unfinished sync commands, publication
+groups and object attempts are captured by exact operation, intent and progress digests (at most
+128 combined) and finish with an explicit
 `interrupted` result when key replacement is admitted. Their retained requests
 stay unchanged and their remote outcome stays unknown. A changed checkpoint
 refuses admission; an interruption already committed by this recovery replays
-without touching its outbox. Once admitted, the same intent resumes after expiry; it never
+without changing its retained delivery state. Publication requests and confirmation
+keys remain readable even if creation or confirmation had no received response.
+Once admitted, the same intent resumes after expiry; it never
 generates another key after recording the replacement. `account status` exposes
 the pending plan during interruption, while ordinary identity use refuses until
 recovery finishes. Completed recovery and initialization receipts replay exactly.
@@ -2339,6 +2342,129 @@ harness at creation; every later draft and immutable version must preserve it,
 including agreement between the logical field and its fact when both are present.
 Production registry import remains a separate pending operation.
 
+The `publication::prepare` library reads exact immutable component/setup inputs
+in one local transaction without writing state or contacting the platform.
+It checks active objects, passport digests, overlay provenance, original content
+and every retained projection. Setup catalog members precede the setup in
+dependency order; verified embedded members stay inside its definition instead
+of becoming separate publications. The result retains at most 8 MiB of metadata,
+not a graph of artifact payloads. Delivery reads one declared artifact at a time
+and checks its digest and length again.
+
+An optional component directory must contain exactly the released files and
+modes; a single-file artifact compares its bytes and takes the inventory path
+from that directory. The directory never replaces the sealed artifact. The
+immutable passport and its visibility remain unchanged. Owner matching checks
+the sealed account, not historical attachment rights. This preparation establishes
+neither fresh authorization nor publication.
+
+The internal `publication::contract` and `publication::client` boundaries use
+the generated publication schemas and the existing account credential owner.
+Distribution defaults to private; explicit public distribution never rewrites
+the immutable passport. Component requests require sealed source coordinates or
+an explicit source binding. Supplied attestations must match the exact artifact,
+passport, policy, account and device, with valid signatures and no duplicates.
+Each exchange freshly verifies the account and revalidates the physical root.
+Responses must retain the original object, actor, device, visibility, inventory,
+policy, source bindings and, after creation, plan ID, hash and expiry.
+
+`publication::journal::Attempt` admits the exact request and confirmation key
+in the existing operation journal before the first remote write. SQLite
+transactions finish before HTTP. Lost replies retain the original intent;
+continuation reads a known plan or repeats the same creation key, uploads only
+declared original/projection bytes and uses the original confirmation key.
+Queued work remains unfinished. A published plan settles only after fresh,
+exact public or authenticated private catalog readback. Author verification and
+component verification remain independent. A terminal receipt can be read
+locally without an account session or network access.
+
+Device replacement captures each unfinished attempt's original intent and exact
+journal position. Its local execution stops with `interrupted` and
+`remote_outcome: unknown`; its last remote plan and original request remain
+unchanged. After same-account sign-in, `Attempt::reconcile` freshly reads a known
+plan and the exact catalog version. A lost creation response leaves the remote
+plan unknown; an absent catalog entry does not prove the request was rejected.
+The service sends no old-device writes and does not create a replacement intent.
+Observations remain separate from the immutable interruption receipt, including
+after another device replacement. Populated `interrupted_publications` recovery
+history requires a compatible native reader; older readers refuse it. Empty
+history omits the field and preserves previous intent digests.
+
+`publication::runtime::{plan,resume,apply,reconcile}` owns one component or the
+complete setup publication group. Planning captures every exact local member
+before remote writes, with one distribution visibility (private by default) and
+optional source bindings/attestations keyed by member ID. Exact fresh catalog
+versions are reused, including accessible foreign components. Evidence for an
+already-readable version is refused rather than silently discarded. Embedded
+members remain inside the setup definition.
+
+A request for public distribution refuses an existing private version during
+planning and before apply writes. Republishing does not change that version's
+visibility; widening access requires the separate explicit visibility operation.
+
+The group intent retains all original child requests before delivery starts.
+Its confirmation binds the current account/session, device, physical root and
+exact group/child journal position. A stale confirmation refuses without new
+writes. `resume` produces a fresh confirmation of that same intent after partial
+progress or session refresh; it does not regenerate request or confirmation keys.
+Admission rechecks that another group has not occupied the same target. The
+existing operation journal stores group confirmations separately from child
+delivery, without a schema migration or a transaction spanning HTTP.
+
+Apply revalidates the complete local graph and fresh access to reused versions,
+then advances components before the setup. It stops at the first asynchronous
+dependency or refusal. Accepted child effects remain durable; a refused group
+retains the accepted prefix's catalog observations. Published completion requires
+exact fresh catalog evidence for every member, while historical terminal replay
+requires neither a session nor network access. A child readback obtained during
+this execution is reused without an immediate duplicate HTTP read.
+
+Device replacement stops the group and its active child together. Read-only
+group reconciliation checks completed replacement ancestry and reports fresh
+remote observations separately from historical receipts. Set interruption
+checkpoints carry `kind: set`; older readers refuse populated set history. The
+field is omitted for existing per-object checkpoints, preserving their digests.
+New group admission requires room for the group and its active child. Every new
+sync or publication admission enforces the combined 128-operation recovery
+bound; already-admitted work can still settle when that bound is reached.
+
+The executable exposes this boundary through five commands:
+
+- `publication plan --state-dir --request [--api-url]` reads a closed JSON request
+  (at most 16 MiB) with `stable_id`, `version`, optional `visibility` (defaults to
+  `private`), optional `component_root`, and optional `evidence` keyed by member
+  ID. Each evidence entry accepts `source_binding_id`, `gitlab_source_binding_id`
+  and supplied `attestations`. The result contains `plan` and `plan_digest`.
+- `publication apply --plan --plan-digest` applies that exact plan. Failures after
+  digest validation retain an `operation_id` for continuation. An existing
+  competing group's identifier takes precedence over the unadmitted plan's ID.
+- `publication status --state-dir [--operation-id]` reads only the local journal.
+  Without an ID it lists unfinished groups; with an ID it returns that group's
+  saved result and per-member progress, including retained refusal evidence.
+  It works after logout, without local
+  source files or network, and does not claim fresh catalog access.
+- `publication resume plan --state-dir --operation-id [--api-url]` prepares a new
+  confirmation of the retained intent after partial progress or session refresh.
+  The original plan file is not required. Its result uses the same apply command.
+- `publication reconcile --state-dir --operation-id [--api-url]` obtains fresh
+  read-only evidence after completed device replacement and same-account sign-in.
+
+`just evidence-native-publication <binary> <sha256>` exercises these commands
+against the actual API, isolated PostgreSQL and worker. It covers lost-create
+reply/session-refresh continuation, private/public group readback, real safety
+refusal and offline history. Only account/web approval and in-memory S3 transport
+are fixtures; the worker produces its own validation and catalog records. The
+declared fixture source coordinates do not prove GitHub provenance. Pinned
+scanners must be available with `AI_STP_SAFETY_EXTERNAL_CLI=1`; high/critical
+skill findings must produce a failing scanner exit. This evidence does not
+establish deployed storage durability or production writer cutover.
+
+The real TCP/SQLite proofs
+cover exact inputs, lost replies, group ordering, current-session continuation,
+private member reuse, partial refusal, device replacement and previous-reader
+acceptance/refusal. Their controlled HTTP server does not establish actual worker
+acceptance.
+
 Private-directory failures include a fixed operation `stage` and, for I/O
 failures, an optional numeric `os_error`. Paths, file contents and raw OS error
 messages are excluded. The stage distinguishes lock contention, ownership
@@ -2651,6 +2777,7 @@ breakaway and never infers termination from PID disappearance alone.
 | `authoring/lifecycle.rs` | Planned local tombstones, retained history and verified replay |
 | `store/versions.rs` | Verified immutable coordinates, explicit major advancement and replay without draft movement |
 | `authoring/releases.rs`, `authoring/freezing.rs` | Planned component releases and deterministic native projection compilation |
+| `publication/` | Exact inputs, authenticated transport, durable per-object delivery and catalog readback |
 | `authoring/forks.rs` | Exact private component copies with atomic lineage and replay |
 | `authoring/templates.rs` | Bounded portable template rendering with literal CommonMark code blocks |
 | `authoring/setups/` | Exact private setup composition, conservative requirement aggregation and atomic immutable registration |

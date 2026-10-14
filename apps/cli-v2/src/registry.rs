@@ -5,6 +5,7 @@ mod catalog;
 mod grants;
 mod local;
 mod providers;
+mod publication;
 mod reports;
 mod selections;
 mod sync;
@@ -28,6 +29,7 @@ enum Handler {
     Account(account::Handler),
     Grant(grants::Handler),
     Sync(sync::Handler),
+    Publication(publication::Handler),
     Local(local::Handler),
     Report(reports::Handler),
     Provider(providers::Handler),
@@ -674,6 +676,7 @@ fn declarations() -> impl Iterator<Item = &'static Declaration> {
         .chain(account::COMMANDS)
         .chain(grants::COMMANDS)
         .chain(sync::COMMANDS)
+        .chain(publication::COMMANDS)
         .chain(tasks::COMMANDS)
 }
 
@@ -743,6 +746,7 @@ fn mutability(handler: Handler) -> &'static str {
         Handler::Account(handler) => handler.mutability(),
         Handler::Grant(handler) => handler.mutability(),
         Handler::Sync(handler) => handler.mutability(),
+        Handler::Publication(handler) => handler.mutability(),
         Handler::Task(handler) => handler.mutability(),
         _ => "read",
     }
@@ -823,6 +827,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::Account(handler) => account::dispatch(handler, leaf),
         Handler::Grant(handler) => grants::dispatch(handler, leaf),
         Handler::Sync(handler) => sync::dispatch(handler, leaf),
+        Handler::Publication(handler) => publication::dispatch(handler, leaf),
         Handler::Provider(handler) => providers::dispatch(handler, leaf),
         Handler::Selection(handler) => selections::dispatch(handler, leaf),
         Handler::Version => Ok(json!({"schema_version": 1, "cli_version": VERSION,
