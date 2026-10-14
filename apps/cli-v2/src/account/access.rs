@@ -233,13 +233,29 @@ impl Access {
         }
     }
 
-    pub(crate) fn publication_registry(&self) -> Result<crate::store::Store> {
+    pub(crate) fn sign_attestation(&self, record: &serde_json::Value) -> Result<[u8; 64]> {
+        self.revalidate()?;
+        if !self.verified
+            || self.offline
+            || record["account_id"] != self.binding.account_id
+            || record["device_id"] != self.binding.device_id
+        {
+            return Err(refused("attestation_authorization_changed"));
+        }
+        let signature = self
+            .identity
+            .sign(crate::attestation::contract::hash(record)?.as_bytes())?;
+        self.revalidate()?;
+        Ok(signature)
+    }
+
+    pub(crate) fn owned_registry(&self) -> Result<crate::store::Store> {
         self.revalidate()?;
         let store = crate::store::Store::open_at(self.identity.root_directory(), false)?;
         let owner = super::attachment::effective(&store.connection, &self.identity)?;
         if owner.account_id != self.binding.account_id || owner.device_id != self.binding.device_id
         {
-            return Err(refused("publication_owner_not_attached"));
+            return Err(refused("registry_owner_not_attached"));
         }
         self.revalidate()?;
         Ok(store)

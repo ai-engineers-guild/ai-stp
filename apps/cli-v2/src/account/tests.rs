@@ -5,6 +5,8 @@ use super::*;
 mod access_tests;
 #[path = "attachment_tests.rs"]
 mod attachment_tests;
+#[path = "attestation_tests.rs"]
+mod attestation_tests;
 #[path = "publication_recovery_tests.rs"]
 mod publication_recovery_tests;
 #[path = "publication_set_tests.rs"]

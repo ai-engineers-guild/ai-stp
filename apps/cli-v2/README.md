@@ -2449,10 +2449,47 @@ The executable exposes this boundary through five commands:
 - `publication reconcile --state-dir --operation-id [--api-url]` obtains fresh
   read-only evidence after completed device replacement and same-account sign-in.
 
+Author evidence uses the same generated `AuthorAttestation` schema and signature
+payload as the Python/API consumer. The native commands are:
+
+- `attestation plan --state-dir --request --output [--api-url]` reads a closed
+  JSON request (at most 256 KiB) containing `stable_id`, `version` and `evidence`.
+  Evidence contains `check_id`, `policy_version`, optional `tool_versions`,
+  `harness_id`, `harness_version`, `provider_version`, nonempty unique
+  `test_case_ids`, `result` (`passed` or `failed`) and `attested_at`. Optional
+  adaptation, projection, scope, provider-profile, OS and architecture selectors
+  must match the immutable component; setup evidence accepts only matching
+  harness/OS/architecture coordinates. Version strings describe the declared
+  execution; they never request harness installation or updates. The output
+  parent must already exist, and the final file must be absent.
+- `attestation apply --plan --plan-digest` revalidates the original session,
+  device, physical state/output roots and exact released subject before signing.
+  Plans expire after fifteen minutes. The device signs the existing domain
+  digest string. The signed record is retained in the existing operation journal
+  before a private staged file is published without replacement; no schema
+  migration is involved. Repeating an interrupted export uses those retained
+  bytes without signing again, including after logout. A completed replay reads
+  its receipt and does not recreate a subsequently removed file. Failures after
+  digest validation include the original `operation_id`.
+- `attestation status --state-dir --operation-id` reads that retained record and
+  its `signed` or `completed` state without authentication or network access.
+
+New signing/export currently requires Unix owner-only file permissions. Windows
+refuses before signing or writing until a native ACL boundary is qualified;
+copying Unix mode bits would not establish equivalent protection. Local status
+and completed historical receipts remain readable.
+
+The request is the author's declaration of an executed check. These commands do
+not execute that check or alter verification flags. They export a bounded JSON
+record, not secrets or raw diagnostics. Supply the returned `attestation` in the
+corresponding publication member's `evidence.attestations` array. Server policy
+and signature checks still decide whether to accept the evidence.
+
 `just evidence-native-publication <binary> <sha256>` exercises these commands
 against the actual API, isolated PostgreSQL and worker. It covers lost-create
 reply/session-refresh continuation, private/public group readback, real safety
-refusal and offline history. Only account/web approval and in-memory S3 transport
+refusal, native component/setup author signatures checked by the shared Python
+consumer, actual API acceptance and offline history. Only account/web approval and in-memory S3 transport
 are fixtures; the worker produces its own validation and catalog records. The
 declared fixture source coordinates do not prove GitHub provenance. Pinned
 scanners must be available with `AI_STP_SAFETY_EXTERNAL_CLI=1`; high/critical

@@ -2,8 +2,6 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use base64::{Engine, engine::general_purpose::STANDARD};
-use ed25519_dalek::{Signature, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -22,9 +20,6 @@ static CREATE: Schema = Schema::new(include_str!(
 ));
 static RESPONSE: Schema = Schema::new(include_str!(
     "../../../../schemas/v1/publication-plan-response.schema.json"
-));
-static ATTESTATION: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/publication-author-attestation.schema.json"
 ));
 static CONFIRM: Schema = Schema::new(include_str!(
     "../../../../schemas/v1/publication-confirm-request.schema.json"
@@ -267,69 +262,12 @@ impl Create {
     }
 }
 
-/// Python signs the domain digest string after model defaults, including the
-/// component reference's null variant, but omitting null target selectors.
 fn attestations(request: &Value, account: &Binding) -> Result<()> {
-    let records = request["attestations"].as_array().ok_or_else(invalid)?;
-    if records.is_empty() {
-        return Ok(());
-    }
-    let public: [u8; 32] = STANDARD
-        .decode(&account.public_key)
-        .map_err(|_| invalid())?
-        .try_into()
-        .map_err(|_| invalid())?;
-    let public = VerifyingKey::from_bytes(&public).map_err(|_| invalid())?;
-    let passport_digest = digest::canonical("ai-stp:passport:v1", &request["passport"])?;
     let mut seen = BTreeSet::new();
-    for record in records {
-        if canonical::bytes(record)?.len() > 256 * 1024 {
-            return Err(invalid());
-        }
-        ATTESTATION.validate(record)?;
-        let subject = &record["subject"];
-        if record["object_digest"] != request["content_digest"]
-            || record["policy_version"] != request["policy_version"]
-            || subject["stable_id"] != request["stable_id"]
-            || subject["version"] != request["version"]
-            || subject["passport_digest"] != passport_digest
-            || !subject["variant_id"].is_null()
-            || record["account_id"] != account.account_id
-            || record["device_id"] != account.device_id
-        {
-            return Err(invalid());
-        }
-        let signature = STANDARD
-            .decode(text(record, "signature")?)
-            .map_err(|_| invalid())?;
-        let signature = Signature::from_slice(&signature).map_err(|_| invalid())?;
-        let mut payload = record.clone();
-        let fields = payload.as_object_mut().ok_or_else(invalid)?;
-        fields.remove("signature");
-        fields.entry("schema_version").or_insert(1.into());
-        fields.entry("tool_versions").or_insert(json!({}));
-        for key in [
-            "adaptation_id",
-            "projection_digest",
-            "scope",
-            "provider_profile_digest",
-            "os",
-            "arch",
-        ] {
-            if fields.get(key).is_none_or(Value::is_null) {
-                fields.remove(key);
-            }
-        }
-        if request["object_kind"] == "component" {
-            payload["subject"]
-                .as_object_mut()
-                .ok_or_else(invalid)?
-                .entry("variant_id")
-                .or_insert(Value::Null);
-        }
-        let hash = digest::canonical("ai-stp:attestation:v1", &payload)?;
-        if !seen.insert(hash.clone()) || public.verify_strict(hash.as_bytes(), &signature).is_err()
-        {
+    for record in request["attestations"].as_array().ok_or_else(invalid)? {
+        let hash = crate::attestation::contract::verify(record, &account.public_key)?;
+        crate::attestation::contract::bind(record, &request["passport"], account)?;
+        if record["policy_version"] != request["policy_version"] || !seen.insert(hash) {
             return Err(invalid());
         }
     }

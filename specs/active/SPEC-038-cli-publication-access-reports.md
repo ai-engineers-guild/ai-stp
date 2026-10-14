@@ -23,8 +23,12 @@ retained component/setup group with exact `plan`/`apply`, current-session
 replacement. Local status and completed receipt replay also work after logout;
 they are historical evidence, not current catalog access. The optimized
 CLI/API/worker proof is `just evidence-native-publication <binary> <sha256>`.
-This slice does not transfer production state ownership or port the remaining
-attestation-generation and connected-source workflows.
+Native author evidence uses `attestation plan`/`apply`/`status`, the same signed
+wire payload, and durable signed bytes before a new private-file export. Signing
+is an author declaration, not check execution or a verification badge. The
+shared Python verifier and actual publication worker consume the native output.
+This slice does not transfer production state ownership or port remaining
+connected-source workflows.
 
 ## Terms
 

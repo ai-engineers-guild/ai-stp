@@ -112,7 +112,7 @@ fn mkdir(parent: &Dir, name: &str) -> Result<Dir> {
     Ok(child)
 }
 
-fn sync(directory: &Dir) -> Result<()> {
+pub(super) fn sync(directory: &Dir) -> Result<()> {
     let _ = directory;
     #[cfg(unix)]
     directory
@@ -235,11 +235,11 @@ fn fill<T: AsRef<[u8]>>(directory: &Dir, plan: &Tree<'_, T>) -> Result<()> {
     Ok(())
 }
 
-fn rename_new(stage: &Dir, parent: &Dir, leaf: &Path) -> Result<()> {
+pub(super) fn rename_new(stage: &Dir, source: &str, parent: &Dir, leaf: &Path) -> Result<()> {
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     rustix::fs::renameat_with(
         stage,
-        "tree",
+        source,
         parent,
         leaf,
         rustix::fs::RenameFlags::NOREPLACE,
@@ -252,7 +252,7 @@ fn rename_new(stage: &Dir, parent: &Dir, leaf: &Path) -> Result<()> {
         let from =
             winx::file::get_file_path(&stage.try_clone().map_err(|_| refused())?.into_std_file())
                 .map_err(|_| refused())?
-                .join("tree");
+                .join(source);
         let to =
             winx::file::get_file_path(&parent.try_clone().map_err(|_| refused())?.into_std_file())
                 .map_err(|_| refused())?
@@ -281,7 +281,7 @@ fn owner(purpose: &Purpose, digest: &str) -> Vec<u8> {
     format!("ai-stp-{}/1\n{digest}\n", purpose.label()).into_bytes()
 }
 
-fn clean(parent: &Dir, name: &str, stage: OwnedDirectory) {
+pub(super) fn clean(parent: &Dir, name: &str, stage: OwnedDirectory) {
     // Never recursively remove a stage: an unknown entry preserves the whole tree.
     if stage.directory.entries().is_ok_and(|mut entries| {
         entries.all(|e| e.is_ok_and(|e| matches!(e.file_name().to_str(), Some("owner" | "lock"))))
@@ -353,7 +353,7 @@ pub(crate) fn publish<T: AsRef<[u8]>>(plan: &Tree<'_, T>, digest: &str) -> Resul
     if destination(output)? != (plan.output.to_owned(), plan.parent_identity.clone()) {
         return Err(refused());
     }
-    rename_new(&stage.directory, &parent, &leaf)?;
+    rename_new(&stage.directory, "tree", &parent, &leaf)?;
     stage.sync()?;
     sync(&parent)?;
     clean(&parent, &name, stage);
@@ -372,12 +372,51 @@ mod tests {
         let stage = mkdir(&parent, "stage")?;
         mkdir(&stage, "tree")?;
         mkdir(&parent, "destination")?;
-        assert!(rename_new(&stage, &parent, Path::new("destination")).is_err());
+        assert!(rename_new(&stage, "tree", &parent, Path::new("destination")).is_err());
         parent.remove_dir("destination")?;
         parent.write("destination", b"keep")?;
-        assert!(rename_new(&stage, &parent, Path::new("destination")).is_err());
+        assert!(rename_new(&stage, "tree", &parent, Path::new("destination")).is_err());
         assert_eq!(parent.read("destination")?, b"keep");
         assert!(stage.is_dir("tree"));
+        stage.write("record", b"signed")?;
+        assert!(rename_new(&stage, "record", &parent, Path::new("destination")).is_err());
+        assert_eq!(parent.read("destination")?, b"keep");
+        let (output, identity) = destination(&temporary.path().join("signed.json"))?;
+        let hash = crate::digest::bytes("ai-stp:plan:v1", b"document fixture")?;
+        if !cfg!(unix) {
+            assert!(crate::files::document::publish(&output, &identity, b"signed", &hash).is_err());
+            assert!(!Path::new(&output).exists());
+            return Ok(());
+        }
+
+        assert!(!crate::files::document::publish(
+            &output, &identity, b"signed", &hash
+        )?);
+        assert!(!crate::files::document::publish(
+            &output, &identity, b"signed", &hash
+        )?);
+        assert!(crate::files::document::publish(&output, &identity, b"changed", &hash).is_err());
+        std::fs::hard_link(&output, temporary.path().join("alias.json"))?;
+        assert!(crate::files::document::publish(&output, &identity, b"signed", &hash).is_err());
+        std::fs::remove_file(temporary.path().join("alias.json"))?;
+        #[cfg(unix)]
+        {
+            std::fs::rename(&output, temporary.path().join("retained.json"))?;
+            std::os::unix::fs::symlink("retained.json", &output)?;
+            assert!(crate::files::document::publish(&output, &identity, b"signed", &hash).is_err());
+            assert_eq!(
+                std::fs::read(temporary.path().join("retained.json"))?,
+                b"signed"
+            );
+        }
+        let parent_path = temporary.path().join("output-parent");
+        std::fs::create_dir(&parent_path)?;
+        let (output, identity) = destination(&parent_path.join("record.json"))?;
+        std::fs::rename(&parent_path, temporary.path().join("moved-parent"))?;
+        std::fs::create_dir(&parent_path)?;
+        assert!(crate::files::document::publish(&output, &identity, b"signed", &hash).is_err());
+        assert!(!Path::new(&output).exists());
+
         Ok(())
     }
 }
