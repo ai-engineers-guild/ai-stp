@@ -19,7 +19,9 @@ describe("native CLI handoffs", () => {
     expect(() => installTaskStart("bad id")).toThrow();
   });
   it("uses native archives and provider-specific account plans", () => {
-    expect(CLI_RELEASES_URL).toBe("https://github.com/ai-engineers-guild/ai-stp/releases/latest");
+    expect(CLI_RELEASES_URL).toBe(
+      "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.1.0",
+    );
     expect(login("github")).toBe("ai-stp account plan --action start --provider github --json");
     expect(login("google")).toContain("--provider google");
   });

@@ -147,6 +147,10 @@ def prove(binary: Path, root: Path) -> None:
     assert bool(capabilities["supported_harnesses"]) == (sys.platform == "linux")
     assert capabilities["release_channel"] == "stable"
     assert run(binary, home, ["version"])["data"]["runtime"] == "rust"
+    assert (
+        "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v"
+        + capabilities["cli_version"]
+    ) == cli_copy.CLI_RELEASES_URL
     run(binary, home, ["unknown"], 2)
     prove_config(binary, home, root)
     prove_template(binary, home, root)

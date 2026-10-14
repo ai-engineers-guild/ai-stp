@@ -24,7 +24,7 @@ browser cannot supply those facts and never emits an incomplete install argv.
 Local paths, credentials and access tokens are never interpolated by the web.
 Harness installation and updates remain owned by the harness and its user.
 
-The landing links to the latest native GitHub Release. Its notes own archive
+The landing links to the version-bound native GitHub Release. Its notes own archive
 verification and installation for Linux, macOS and Windows. There is no Python
 runtime prerequisite. Provider execution is currently Linux-only; the other
 platforms expose their supported native operations without claiming installation.

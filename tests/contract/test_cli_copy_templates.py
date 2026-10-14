@@ -18,7 +18,7 @@ def test_catalog_handoff_preserves_pin_without_inventing_local_install_facts() -
 
 def test_distribution_is_native_and_account_provider_is_explicit() -> None:
     assert (
-        cli_copy.CLI_RELEASES_URL == "https://github.com/ai-engineers-guild/ai-stp/releases/latest"
+        cli_copy.CLI_RELEASES_URL == "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.1.0"
     )
     assert cli_copy.login("github") != cli_copy.login("google")
     assert "--provider github" in cli_copy.login("github")

@@ -5,7 +5,7 @@ description: "Выбрать путь первого запуска для че�
 
 # Быстрый старт
 
-Скачайте нативный архив вашей ОС из [последнего релиза](https://github.com/ai-engineers-guild/ai-stp/releases/latest).
+Скачайте нативный архив вашей ОС из [последнего релиза](https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.1.0).
 Проверьте контрольную сумму и аттестацию GitHub, затем выполните шаги установки из релиза.
 Python не нужен. Провайдеры выполняются на Linux; macOS и Windows поддерживают
 остальные нативные операции, указанные в capabilities.
