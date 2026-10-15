@@ -57,7 +57,6 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
         "-m ai_stp_contracts.web_projections --check",
         "-m ai_stp_contracts.technology_seed --check",
         "release_scripts/provider_kit.py --check provider-kit/v3",
-        "release_scripts/verifier_requirements.py --check",
         "release_scripts/first_party_corpus_digests.py --check",
         "release_scripts/safety_requirements.py --check",
         "-m release_scripts.update_component_fixture --check",
@@ -74,16 +73,15 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
         "coverage report --precision=2",
         "COVERAGE_CORE: sysmon",
     ),
-    "back-resource": ("tests/contract/test_cli_resource_lifecycle.py",),
     "back-build": ("uv build --all-packages",),
     "back-regress": ("clean_install_regress.sh",),
-    "cli-v2-static": (
+    "cli-static": (
         "cargo fmt --check",
         "cargo clippy --locked --all-targets -- -D warnings",
     ),
-    "cli-v2-test": ("cargo test --locked",),
-    "cli-v2-build": ("cargo build --locked --release --bins --examples",),
-    "cli-v2-regress": ("apps/cli-v2/scripts/verify.py apps/cli-v2/target/release/ai-stp",),
+    "cli-test": ("cargo test --locked",),
+    "cli-build": ("cargo build --locked --release --bins --examples",),
+    "cli-regress": ("apps/cli/scripts/verify.py apps/cli/target/release/ai-stp",),
     "security": ("bun run audit", "scan_lockfile.sh"),
     "web-build": ("AI_STP_WEB_PROFILE=public_saas bun run build",),
     "web-storybook": ("build-storybook",),
@@ -194,7 +192,7 @@ def test_every_recipe_leaf_of_just_check_appears_in_the_gate() -> None:
 def test_the_parser_sees_the_shape_it_claims_to_see() -> None:
     """A gate nobody has watched fail is a gate of unknown shape."""
     graph = _dependencies()
-    assert graph["check"] == ("docs-check", "back-check", "cli-v2-check", "web-check", "security")
+    assert graph["check"] == ("docs-check", "back-check", "cli-check", "web-check", "security")
     assert "back-test" in _expand(["back-check"])
     assert _expand(["security"]) == {"security"}
 
@@ -239,7 +237,9 @@ def test_cli_and_web_tests_run_on_three_os_and_backend_stays_on_linux() -> None:
     for name in ("cli", "web-unit", "web-e2e", "web-profiles"):
         assert set(jobs[name]["strategy"]["matrix"]["os"]) == three, name
     assert jobs["tests"]["runs-on"] == "ubuntu-latest"
-    assert jobs["cli"]["strategy"]["matrix"]["suite"] == ["unit", "contract", "process"]
+    native = "\n".join(step.get("run", "") for step in jobs["cli"]["steps"])
+    assert "cargo test --locked" in native
+    assert "--package ai-stp-cli " not in native
     assert "-n 8" in "\n".join(
         step["run"] for step in jobs["tests"]["steps"] if isinstance(step.get("run"), str)
     )

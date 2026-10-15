@@ -4,7 +4,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/../../.." && pwd)"
-cli_root="${repo_root}/apps/cli-v2"
+cli_root="${repo_root}/apps/cli"
 out_dir="${repo_root}/apps/desktop/src-tauri/sidecar/cli"
 triple="$(cd "${cli_root}" && rustc -vV | sed -n 's/^host: //p')"
 case "${triple}" in

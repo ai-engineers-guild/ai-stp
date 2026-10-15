@@ -4,7 +4,7 @@ The [justfile](../justfile) owns local commands. Use `just --list` and
 `just --show <recipe>` for the current inventory and dependency graph.
 `docs_scripts/bootstrap_just.py` owns the tool pin; keep `minimum-version` aligned.
 
-Recipe prefixes identify their owner: `docs`, `back`, `cli-v2`, `web`, `desktop`
+Recipe prefixes identify their owner: `docs`, `back`, `cli`, `web`, `desktop`
 and `infra`. `-gen` writes generated sources; `-static` checks drift; `-test`,
 `-build` and `-regress` exercise the implementation; `-check` composes dependencies.
 Keep executable logic in scripts and recipe bodies POSIX. Each recipe line runs

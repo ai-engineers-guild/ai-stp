@@ -5,7 +5,7 @@ last_verified: "2026-10-15"
 
 # ai-stp reference
 
-Start with the [Rust CLI guide](../apps/cli-v2/README.md). Query
+Start with the [Rust CLI guide](../apps/cli/README.md). Query
 `ai-stp help --agent --json` for commands and `task input-schema` for task inputs.
 Code, generated schemas and behavioral tests define the implementation.
 

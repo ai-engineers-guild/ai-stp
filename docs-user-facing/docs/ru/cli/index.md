@@ -28,6 +28,6 @@ ai-stp task input-schema --intent install --json
 находятся в выбранном хранилище. Каталог состояния выбирается через `--state-dir`,
 `AI_STP_STATE_DIR` или каталог данных XDG. Это данные пользователя, а не кэш.
 
-[Нативное руководство](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli-v2/README.md)
+[Нативное руководство](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli/README.md)
 описывает установку, перенос состояния и ограничения платформ.
 [Работа агента](../quickstart/agent.md) описывает выполнение задач.

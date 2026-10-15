@@ -1755,7 +1755,7 @@ def main() -> None:
     parser.add_argument("--check", action="store_true")
     arguments = parser.parse_args()
     target = (
-        Path(__file__).resolve().parents[4] / "apps/cli-v2/src/projects/technology/coordinates.json"
+        Path(__file__).resolve().parents[4] / "apps/cli/src/projects/technology/coordinates.json"
     )
     document = {
         "version": SEED_COORDINATES_VERSION,

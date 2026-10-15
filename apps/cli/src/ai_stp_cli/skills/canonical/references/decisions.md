@@ -1,3 +1,0 @@
-# Decisions
-
-The user's task defines authority. Local reversible work proceeds within that scope. `mutability` and `confirmation` are independent: `read` observes, `plan` binds intent, `apply` executes authorized effects. `confirmation: none` is not consent; `plan_digest` binds bytes, not a person. Use the returned digest; do not compute a substitute. A separate user decision is required for changing visibility or access of an existing object, linking someone else's account or new credentials, elevating system privileges, or deleting data without recovery. No fresh question is required for already-authorized publication, Git promotion or deployment. Preconditions, digests and idempotency are mechanical, not questions. Do not bypass a failed machine constraint.

@@ -45,7 +45,6 @@ WORKDIR /app
 COPY --chown=appuser:appuser pyproject.toml uv.lock ./
 COPY --chown=appuser:appuser packages ./packages
 COPY --chown=appuser:appuser apps/api ./apps/api
-COPY --chown=appuser:appuser apps/cli ./apps/cli
 COPY --chown=appuser:appuser apps/platform ./apps/platform
 COPY --chown=appuser:appuser apps/worker ./apps/worker
 COPY --chown=appuser:appuser docs-user-facing/legal ./docs-user-facing/legal

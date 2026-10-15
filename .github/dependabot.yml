@@ -21,13 +21,13 @@
 version: 2
 updates:
   - package-ecosystem: cargo
-    directory: /apps/cli-v2
+    directory: /apps/cli
     target-branch: dev
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
     commit-message:
-      prefix: "chore(cli-v2)"
+      prefix: "chore(cli)"
     cooldown:
       default-days: 7
       semver-major-days: 14

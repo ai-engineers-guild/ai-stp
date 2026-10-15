@@ -30,7 +30,7 @@
       "projection_kind": "native_files",
       "repository_url": "https://github.com/ai-engineers-guild/ai-stp",
       "tracked_ref": "main",
-      "component_subpath": "apps/cli/src/ai_stp_cli/skills/canonical",
+      "component_subpath": "skills/canonical/ai-stp",
       "ecosystem": null,
       "package_name": null,
       "package_version": null,

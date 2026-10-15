@@ -13,7 +13,7 @@ on:
     # The sidecar is the optimized Rust CLI built from this source tree.
     paths:
       - "apps/desktop/**"
-      - "apps/cli-v2/**"
+      - "apps/cli/**"
       - "packages/**"
       - "uv.lock"
       - ".github/workflows/desktop.yml"
@@ -24,7 +24,7 @@ on:
   pull_request:
     paths:
       - "apps/desktop/**"
-      - "apps/cli-v2/**"
+      - "apps/cli/**"
       - "packages/**"
       - "uv.lock"
       - ".github/workflows/desktop.yml"
@@ -65,7 +65,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          toolchain="$(sed -n 's/^channel = "\(.*\)"/\1/p' apps/cli-v2/rust-toolchain.toml)"
+          toolchain="$(sed -n 's/^channel = "\(.*\)"/\1/p' apps/cli/rust-toolchain.toml)"
           test -n "${toolchain}"
           rustup toolchain install "${toolchain}" --profile minimal \
             --component clippy --component rustfmt
