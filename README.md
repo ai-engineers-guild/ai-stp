@@ -11,7 +11,7 @@ public catalog; the CLI remains the engine.
 ## Start
 
 Download a native archive, verify its checksum and GitHub attestation, and follow
-[installation and state setup](apps/cli-v2/README.md#install-and-update).
+[installation and state setup](apps/cli/README.md#install-and-update).
 
 ```sh
 ai-stp init --credential-store os_keyring --json
@@ -20,8 +20,9 @@ ai-stp help --agent --json
 ```
 
 Existing Python state requires the explicit in-place transfer described in the
-[CLI guide](apps/cli-v2/README.md#state-and-first-run). Historical PyPI wheels are
-not the current installation route.
+[CLI guide](apps/cli/README.md#state-and-first-run). Historical PyPI wheels are
+not the current installation route. The retired implementation is preserved on
+[`legacy/python-cli`](https://github.com/ai-engineers-guild/ai-stp/tree/legacy/python-cli).
 
 ## Boundaries
 
@@ -38,7 +39,7 @@ what the running platform supports.
 
 ## Reference
 
-- [Rust CLI](apps/cli-v2/README.md): install, state, services and recovery.
+- [Rust CLI](apps/cli/README.md): install, state, services and recovery.
 - [Documentation](docs/index.md): machine contracts and server operations.
 - [Development](CONTRIBUTING.md) and [working rules](AGENTS.md).
 - [Desktop shell](apps/desktop/README.md): another client of the CLI contract.

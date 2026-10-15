@@ -6,7 +6,7 @@ last_verified: "2026-10-15"
 # Database migration
 
 The server uses Alembic migrations in `migrations/`; the native CLI owns its local
-SQLite migration in `apps/cli-v2/src/migration`. These are separate state stores.
+SQLite migration in `apps/cli/src/migration`. These are separate state stores.
 
 Use the normal deployment procedure for server upgrades. Read the current revision,
 review the pending chain and run affected schema migration tests before deployment.
@@ -26,4 +26,4 @@ a retained database volume as cache. Verify `/v1/system/version`, migration stat
 and application readiness after the deployment settles.
 
 For existing local CLI state, use the explicit plan/apply transfer in the
-[Rust CLI guide](../../../apps/cli-v2/README.md#state-and-first-run).
+[Rust CLI guide](../../../apps/cli/README.md#state-and-first-run).

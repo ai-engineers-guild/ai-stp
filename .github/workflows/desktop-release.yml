@@ -90,7 +90,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          toolchain="$(sed -n 's/^channel = "\(.*\)"/\1/p' apps/cli-v2/rust-toolchain.toml)"
+          toolchain="$(sed -n 's/^channel = "\(.*\)"/\1/p' apps/cli/rust-toolchain.toml)"
           test -n "${toolchain}"
           rustup toolchain install "${toolchain}" --profile minimal \
             --component clippy --component rustfmt

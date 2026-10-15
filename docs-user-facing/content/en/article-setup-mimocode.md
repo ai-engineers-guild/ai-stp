@@ -42,7 +42,7 @@ Until then, do not copy the whole user home into MiMoCode or install a discovere
 ## Links
 
 - [NDDev OpenNetwork organization](https://github.com/NDDev-OpenNetwork)
-- [ai-stp public setup-system contract](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli-v2/README.md#setup-components-and-installation)
+- [ai-stp public setup-system contract](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli/README.md#setup-components-and-installation)
 
 ## Trust boundary
 

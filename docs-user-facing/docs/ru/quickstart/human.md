@@ -27,4 +27,4 @@ ai-stp init --credential-store os_keyring --json
 ai-stp task intents --json
 ```
 
-[Работа агента](agent.md). [Перенос состояния и установка](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli-v2/README.md).
+[Работа агента](agent.md). [Перенос состояния и установка](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli/README.md).

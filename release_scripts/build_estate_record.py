@@ -30,7 +30,7 @@ from ai_stp_contracts.estate_release import (
 )
 from ai_stp_foundation.canonical import JsonValue, canonize
 
-POLICY = Path("apps/cli/src/ai_stp_cli/provider/provider-policy.toml")
+POLICY = Path("apps/cli/src/provider/artifact/provider-policy.toml")
 CONSUMER_REPOSITORY: Final[str] = "ai-engineers-guild/ai-stp"
 _SUMS = re.compile(r"^([0-9a-f]{64})\s+(\S+)$")
 _PROVIDER = re.compile(r"^([^:=]+)[=:]([^@]+)@([0-9a-f]{40})$")
@@ -76,7 +76,9 @@ def distributions_from_checksums(
     for filename, digest in sorted(checksums.items()):
         if "ai_stp_cli-" not in filename and "ai-stp-cli-" not in filename:
             continue
-        if not (filename.endswith(".whl") or filename.endswith(".tar.gz")):
+        if not (
+            filename.endswith(".whl") or filename.endswith(".tar.gz") or filename.endswith(".zip")
+        ):
             continue
         found.append(
             EstateDistribution(
@@ -87,7 +89,7 @@ def distributions_from_checksums(
             )
         )
     if not found:
-        raise SystemExit("SHA256SUMS names no ai-stp-cli wheel or sdist")
+        raise SystemExit("SHA256SUMS names no ai-stp-cli archive")
     return found
 
 

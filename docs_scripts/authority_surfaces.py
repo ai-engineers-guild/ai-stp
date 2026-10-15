@@ -94,7 +94,7 @@ def inventory(root: Path = ROOT) -> tuple[Path, ...]:
     """Every agent-facing surface this check owns, in a stable order."""
     required = (
         root / "AGENTS.md",
-        root / "apps" / "cli-v2" / "README.md",
+        root / "apps" / "cli" / "README.md",
         root / ".claude" / "CLAUDE.md",
         root / "skills" / "canonical" / "ai-stp" / "SKILL.md",
         root / "skills" / "canonical" / "ai-stp" / "references" / "decisions.md",
@@ -102,7 +102,6 @@ def inventory(root: Path = ROOT) -> tuple[Path, ...]:
     globs = (
         "skills/canonical/ai-stp/**/*.md",
         "skills/projections/**/*.md",
-        "apps/cli/src/ai_stp_cli/skills/**/*.md",
         "packages/contracts/src/ai_stp_contracts/first_party/v1/*instruction*.md",
     )
     found: set[Path] = set()

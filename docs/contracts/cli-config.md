@@ -5,7 +5,7 @@ last_verified: "2026-10-14"
 
 # Native CLI configuration
 
-`apps/cli-v2/src/config.rs` owns the accepted fields. The native CLI reads an
+`apps/cli/src/config.rs` owns the accepted fields. The native CLI reads an
 explicit YAML file when `--config` is supplied; otherwise it uses these defaults:
 
 ```yaml
@@ -35,5 +35,3 @@ use the migration plan/apply boundary. No command silently adopts another owner.
 Harness programs are observed through `program status`, never managed by config.
 Provider releases, source pins and target roots belong to exact operation plans.
 Secrets belong to the selected credential store and are not configuration fields.
-The older Python configuration schema remains part of its compatibility oracle,
-not the native field set.

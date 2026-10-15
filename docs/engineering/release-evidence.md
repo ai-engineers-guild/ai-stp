@@ -10,11 +10,11 @@ are `cli-v<version>` and must match Cargo metadata. The release owns archives,
 checksums, manifests, SBOM and attestations; its exact source PR and workflow runs
 own qualification evidence. Do not duplicate release receipts in documentation.
 
-`just cli-v2-check` exercises native formatting, Clippy, tests, optimized build and
+`just cli-check` exercises native formatting, Clippy, tests, optimized build and
 real JSON/SQLite regression. CI runs on Linux, macOS and Windows. Archive proof
 uses the extracted executable outside the checkout with an isolated home and PATH.
 A compiled platform is not evidence for unsupported provider execution; the
-[CLI guide](../../apps/cli-v2/README.md#release-and-supported-platforms) states limits.
+[CLI guide](../../apps/cli/README.md#release-and-supported-platforms) states limits.
 
 `just --list` lists optional `evidence-*` recipes for deployed account, catalog,
 publication, configuration and provider operations. Inspect the recipe before use:

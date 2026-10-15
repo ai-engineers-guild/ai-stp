@@ -27,4 +27,4 @@ ai-stp init --credential-store os_keyring --json
 ai-stp task intents --json
 ```
 
-[Agent workflow](agent.md). [Migration and installation reference](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli-v2/README.md).
+[Agent workflow](agent.md). [Migration and installation reference](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli/README.md).

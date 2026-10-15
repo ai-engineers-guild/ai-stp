@@ -1,59 +1,10 @@
-"""Isolation every test in this repository gets, whether it asks for it or not.
-
-`#73` requires that tests never touch the developer's real credential store, and
-a rule that each test must remember is a rule that will be forgotten once. So
-the isolation is automatic and repository-wide: a test has to work to reach the
-real keyring, rather than work to avoid it.
-
-Two things are redirected. The XDG directories point into a per-test temporary
-tree, so nothing reads or writes the developer's configuration, device identity
-or registry. And credential-store detection answers "no operating system store",
-so the file tier is used and the real Secret Service, Keychain or Credential
-Locker is never opened. A test that wants the other tier injects a fake — see
-`tests/unit/test_cli_secrets.py`.
-"""
+"""Isolate server and shared-contract tests from user state and telemetry."""
 
 import os
-import sys
 from collections.abc import Iterator
 from pathlib import Path
-from types import ModuleType
 
 import pytest
-
-
-def _in_memory_keyring() -> tuple[ModuleType, ModuleType]:
-    """A stand-in for the `keyring` library that never leaves the process."""
-    errors = ModuleType("keyring.errors")
-
-    class PasswordDeleteError(Exception):
-        pass
-
-    errors.PasswordDeleteError = PasswordDeleteError  # pyright: ignore[reportAttributeAccessIssue]
-
-    held: dict[tuple[str, str], str] = {}
-
-    def get_password(service: str, name: str) -> str | None:
-        return held.get((service, name))
-
-    def set_password(service: str, name: str, value: str) -> None:
-        held[(service, name)] = value
-
-    def delete_password(service: str, name: str) -> None:
-        if (service, name) not in held:
-            raise PasswordDeleteError(name)
-        del held[(service, name)]
-
-    class _Untrusted:
-        """Detection must not accept this, so the file tier stays the default."""
-
-    module = ModuleType("keyring")
-    module.get_password = get_password  # pyright: ignore[reportAttributeAccessIssue]
-    module.set_password = set_password  # pyright: ignore[reportAttributeAccessIssue]
-    module.delete_password = delete_password  # pyright: ignore[reportAttributeAccessIssue]
-    module.get_keyring = _Untrusted  # pyright: ignore[reportAttributeAccessIssue]
-    module.errors = errors  # pyright: ignore[reportAttributeAccessIssue]
-    return module, errors
 
 
 @pytest.fixture(autouse=True)
@@ -94,31 +45,6 @@ def no_telemetry_egress(monkeypatch: pytest.MonkeyPatch) -> None:
     exercised at all, and they replace the transport rather than the guard.
     """
     monkeypatch.setenv("AI_STP_TELEMETRY_SUPPRESS", "1")
-
-
-@pytest.fixture(autouse=True)
-def no_real_credential_store(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Never open the machine's actual credential store.
-
-    Patched at the detection point rather than by unsetting a bus address: an
-    environment variable is one platform's mechanism, and this has to hold on
-    macOS and Windows too, where nothing in the environment governs it.
-
-    Detection alone is not enough, and that gap was not theoretical. A test that
-    fakes `selected_backend` gets a real `KeyringStore`, whose methods import the
-    real library — so `just test-code` wrote `ai-stp/thing` into the developer's
-    GNOME keyring, and an earlier manual run replaced their `device-key`. The XDG
-    variables cannot prevent this: the operating system store belongs to the
-    user, not to a home directory. So the library itself is replaced too, and a
-    test now has to work to reach the real store rather than work to avoid it.
-    """
-    module, errors = _in_memory_keyring()
-    monkeypatch.setitem(sys.modules, "keyring", module)
-    monkeypatch.setitem(sys.modules, "keyring.errors", errors)
-    monkeypatch.setattr("ai_stp_cli.secrets.selected_backend", lambda: None)
-    # A developer shell may pin the file tier for real work; tests select the
-    # store deliberately and must not inherit that pin.
-    monkeypatch.delenv("AI_STP_FORCE_FILE_CREDENTIAL_STORE", raising=False)
 
 
 def _permission_denial_is_unconstructible() -> str | None:

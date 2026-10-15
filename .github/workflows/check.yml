@@ -34,8 +34,8 @@ env:
   BUN_VERSION: "1.4.2"
 
 jobs:
-  cli-v2:
-    name: cli-v2-${{ matrix.os }}
+  cli:
+    name: cli-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     # A cold Windows build takes about 25 minutes before the consumer proof.
     timeout-minutes: 45
@@ -58,7 +58,7 @@ jobs:
           set -euo pipefail
           bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
           echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
-      - name: Prepare the Python contract oracle
+      - name: Prepare shared wire-contract validators
         shell: bash
         run: |
           set -euo pipefail
@@ -66,27 +66,27 @@ jobs:
           test -n "${python_path}"
           {
             echo "UV_PYTHON=${python_path}"
-            echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-cli-v2"
+            echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-cli"
             echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
           } >> "${GITHUB_ENV}"
-      - name: Install the Python contract oracle
+      - name: Install shared wire-contract validators
         shell: bash
-        # The published CLI wheel bundles its shared contract modules; a lone
-        # editable CLI install intentionally leaves them in sibling packages.
-        run: uv sync --locked --package ai-stp-cli --no-default-groups --no-editable
+        run: >-
+          uv sync --locked --package ai-stp-contracts
+          --package ai-stp-sources --no-default-groups
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         id: native-cache
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            apps/cli-v2/target
-          key: cli-v2-${{ runner.os }}-${{ hashFiles('apps/cli-v2/Cargo.*', 'apps/cli-v2/*.toml') }}
+            apps/cli/target
+          key: cli-${{ runner.os }}-${{ hashFiles('apps/cli/Cargo.*', 'apps/cli/*.toml') }}
           # A package-version bump should retain reusable dependencies. Cargo
           # revalidates the restored build; every check below still runs.
-          restore-keys: cli-v2-${{ runner.os }}-
+          restore-keys: cli-${{ runner.os }}-
       - name: Native boundary checks
-        working-directory: apps/cli-v2
+        working-directory: apps/cli
         shell: bash
         run: |
           set -euo pipefail
@@ -97,7 +97,7 @@ jobs:
       - name: Existing consumers and real SQLite backup
         shell: bash
         run: |
-          uv run --no-sync python apps/cli-v2/scripts/verify.py apps/cli-v2/target/release/ai-stp
+          uv run --no-sync python apps/cli/scripts/verify.py apps/cli/target/release/ai-stp
       - name: Cache the successful native build
         if: steps.native-cache.outputs.cache-hit != 'true'
         # Cache availability must not prevent or invalidate the checks above.
@@ -108,7 +108,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            apps/cli-v2/target
+            apps/cli/target
           key: ${{ steps.native-cache.outputs.cache-primary-key }}
 
   docs:
@@ -241,7 +241,6 @@ jobs:
           uv run --locked python -m ai_stp_contracts.web_projections --check
           uv run --locked python -m ai_stp_contracts.technology_seed --check
           uv run --locked python release_scripts/provider_kit.py --check provider-kit/v3
-          uv run --locked python release_scripts/verifier_requirements.py --check
           uv run --locked python release_scripts/first_party_corpus_digests.py --check
           uv run --locked python release_scripts/safety_requirements.py --check
           uv run --locked python -m release_scripts.update_component_fixture --check
@@ -274,24 +273,8 @@ jobs:
             extra: tests/unit/api
           - shard: unit
             extra: tests/unit --ignore=tests/unit/platform --ignore=tests/unit/api
-          # `tests/contract` is three jobs because one file holds most of it.
-          # Measured with eight processes: `test_cli_process.py` alone is 107s,
-          # `test_offline_closure.py` with `test_installation_restart.py` is
-          # 65s, and everything else together is 23s. Left whole the shard runs
-          # for as long as the sum, and it was the second-longest job in the
-          # gate.
-          - shard: contract-process
-            extra: tests/contract/test_cli_process.py
-          - shard: contract-lifecycle
-            extra: >-
-              tests/contract/test_offline_closure.py
-              tests/contract/test_installation_restart.py
           - shard: contract
-            extra: >-
-              tests/contract
-              --ignore=tests/contract/test_cli_process.py
-              --ignore=tests/contract/test_offline_closure.py
-              --ignore=tests/contract/test_installation_restart.py
+            extra: tests/contract
           - shard: property
             extra: tests/property
     services:
@@ -364,12 +347,6 @@ jobs:
           uv sync --locked --group dev
           uv run --locked pytest -n 8 --dist=load \
             ${{ matrix.extra }}
-          if [ "${{ matrix.shard }}" = "contract" ]; then
-            uv run --locked pytest --no-cov -q \
-              -W error::ResourceWarning \
-              -W error::pytest.PytestUnraisableExceptionWarning \
-              tests/contract/test_cli_resource_lifecycle.py
-          fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-${{ matrix.shard }}
@@ -426,7 +403,6 @@ jobs:
           uv run --locked coverage combine \
             .coverage.api .coverage.integration .coverage.scenario \
             .coverage.unit-platform .coverage.unit-api .coverage.unit \
-            .coverage.contract-process .coverage.contract-lifecycle \
             .coverage.contract .coverage.property
           uv run --locked coverage report --precision=2
 
@@ -689,96 +665,3 @@ jobs:
           cd apps/web
           bun install --frozen-lockfile
           bun run test:feature-profiles
-
-  cli:
-    name: cli-${{ matrix.suite }} (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    # Measured rather than guessed. The macOS leg reached 78% of this selection
-    # in thirty minutes and was cut off mid-run — no failure, no hang, simply a
-    # slower machine than the Linux one that finishes the same work in seven.
-    # The distribution below should bring it well under this, and the ceiling is
-    # what stops a genuine hang from occupying a runner for an hour.
-    timeout-minutes: 45
-    # The helper above is a bash script, and the Windows runner defaults to
-    # PowerShell. Bash is present on all three images.
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        # Process tests spawn real CLI subprocesses and dominated the macOS
-        # contract tail. They get their own runner; the rest of contract and
-        # the unit tree keep theirs (ADR-0116).
-        suite: [unit, contract, process]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Isolate this job's Python environment
-        run: |
-          set -euo pipefail
-          python_path="$(python -c 'import sys; print(sys.executable)')"
-          test -n "${python_path}"
-          {
-            echo "UV_PYTHON=${python_path}"
-            echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/cli-${{ matrix.os }}-${{ matrix.suite }}"
-            echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
-          } >> "${GITHUB_ENV}"
-      # `uv sync` resolves and downloads the same locked dependencies on every
-      # job of every run. Keyed by the lock, so a hit is exact and a change to
-      # the lock misses on purpose.
-      #
-      # The path is `UV_CACHE_DIR` and not `~/.cache/uv`, which is where uv
-      # puts its cache on Linux alone: Windows uses `%LOCALAPPDATA%\uv\cache`,
-      # so the cached path did not exist there and `actions/cache` skipped the
-      # save with a warning nobody read. Every Windows job had been resolving
-      # and downloading the whole dependency set from scratch.
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: ${{ runner.temp }}/uv-cache
-          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
-          restore-keys: ${{ runner.os }}-uv-
-      - name: Install pinned uv
-        run: |
-          set -euo pipefail
-          bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
-          echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
-      # The database-backed platform tests and the wheel regression are Linux
-      # jobs above. What runs here is the part that has to behave identically on
-      # three operating systems: discovery, passports, selection and the CLI
-      # surface, which read a real filesystem and resolve real executables.
-      # The pytest flags are the contract of this leg: `-vv` because addopts
-      # already carries `-q` and a single `-v` cancels out; `faulthandler_timeout`
-      # names the hanging test instead of ending mid-line, which is how three
-      # CI runs died on their own timeout without saying why.
-      - name: Run the cross-platform surface
-        # The live AppContainer probe shares this runner with the unit suite.
-        # Match its four CPU cores without extending the probe's fixed budget.
-        env:
-          CLI_TEST_WORKERS: ${{ runner.os == 'Windows' && matrix.suite == 'unit' && '4' || '8' }}
-        run: |
-          set -euo pipefail
-          source .github/scripts/provider-safe-path.sh
-          ai_stp_use_provider_safe_path
-          uv sync --locked --group dev
-          case "${{ matrix.suite }}" in
-            unit) extra="tests/unit --ignore=tests/unit/platform --ignore=tests/unit/api" ;;
-            contract) extra="tests/contract --ignore=tests/contract/test_cli_process.py" ;;
-            process) extra="tests/contract/test_cli_process.py" ;;
-            *) echo "unknown suite ${{ matrix.suite }}" >&2; exit 1 ;;
-          esac
-          # shellcheck disable=SC2086
-          # `--durations` because this leg is 245s on Windows against 47s on
-          # macOS for the same selection, and nothing in the log says where it
-          # goes. A list of the slowest tests separates "a few tests are slow
-          # on this filesystem" from "xdist workers cost more to start
-          # than the suite costs to run", which need opposite fixes.
-          uv run --locked pytest -n "${CLI_TEST_WORKERS}" --dist=load --no-cov -vv \
-            -o faulthandler_timeout=300 --durations=15 \
-            ${extra}
