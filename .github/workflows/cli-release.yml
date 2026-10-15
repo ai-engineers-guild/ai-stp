@@ -122,7 +122,7 @@ jobs:
             --revision "${GITHUB_SHA}" --install-directory "${RUNNER_TEMP}/ai-stp-rust-install"
           uv run --no-sync python apps/cli/scripts/verify.py \
             "${RUNNER_TEMP}/ai-stp-rust-install/${RELEASE_BINARY}"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: ai-stp-rust-${{ matrix.target }}-${{ github.sha }}
           path: release/
