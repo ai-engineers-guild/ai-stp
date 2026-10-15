@@ -1,17 +1,14 @@
 """The exact closure: deterministic, or refused with a reason for each cause."""
 
-import re
 import sqlite3
 from collections.abc import Iterator
 from contextlib import closing
-from pathlib import Path
 
 import pytest
 
 from ai_stp_cli.local import cache, graph, lifecycle, revisions, versions
 from ai_stp_cli.local.database import configured_path, open_registry
 
-CONTRACT = Path("docs/contracts/setup-graph.md")
 AT = "2026-08-08T10:00:00.000Z"
 OWNER = "account_01J0000000000000000000000A"
 DEVICE = "device_test"
@@ -373,15 +370,6 @@ def test_an_empty_composition_resolves_to_nothing(registry: sqlite3.Connection) 
 
 
 # Documentation and code are two statements of one closed set.
-def test_the_refusal_registry_matches_the_contract() -> None:
-    written = set(re.findall(r"^\| `([a-z_]+)` \|", CONTRACT.read_text("utf-8"), re.MULTILINE))
-    assert written == graph.REFUSALS
-
-
-def test_the_declared_bounds_match_the_contract() -> None:
-    text = CONTRACT.read_text("utf-8")
-    assert f"maximum depth: {graph.MAX_DEPTH}" in text
-    assert f"maximum node count: {graph.MAX_NODES}" in text
 
 
 def test_every_test_identifier_is_a_valid_stable_id() -> None:

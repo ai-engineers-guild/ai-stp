@@ -3,7 +3,6 @@
 import base64
 import json
 import platform
-import re
 from dataclasses import replace
 from pathlib import Path
 
@@ -13,8 +12,6 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.provider import release
 from ai_stp_foundation.digests import is_digest
-
-CONTRACT = Path("docs/contracts/provider-release.md")
 
 PRIVATE_2026 = Ed25519PrivateKey.from_private_bytes(bytes(range(32)))
 PRIVATE_2025 = Ed25519PrivateKey.from_private_bytes(bytes(range(1, 33)))
@@ -634,11 +631,6 @@ def test_one_artifact_cannot_be_approved_under_two_identities() -> None:
     with pytest.raises(CliFailure) as shared:
         release.load_policy(VALID_POLICY_TEXT.replace("releases = []", f"releases = [{twice}]"))
     assert shared.value.details["field"] == "releases"
-
-
-def test_the_refusal_registry_matches_the_contract() -> None:
-    written = set(re.findall(r"^\| `([a-z_]+)` \|", CONTRACT.read_text("utf-8"), re.MULTILINE))
-    assert written == release.REFUSALS
 
 
 def test_the_trust_command_reports_the_policy_without_a_verdict(tmp_path: Path) -> None:

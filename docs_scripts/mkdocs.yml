@@ -1,22 +1,14 @@
 # The config lives beside the scripts rather than at the root: paths below are
 # relative to this file. Run it through just so the -f flag is not forgotten.
-# Placeholders are quoted because otherwise YAML reads {{ as the start of a map.
 
-site_name: "{{PROJECT_NAME}}"
-site_description: "{{ONE_SENTENCE_ABOUT_PURPOSE}}"
-repo_url: https://github.com/{{OWNER}}/{{REPO}}
+site_name: ai-stp
+site_description: Current Rust CLI and server reference.
+repo_url: https://github.com/ai-engineers-guild/ai-stp
 edit_uri: edit/main/docs/
 
 docs_dir: ../docs
 site_dir: ../.site
 
-# The prototype index is published as a Markdown page: the same-named HTML
-# remains the source artifact and must not compete for the same route.
-exclude_docs: |
-  references/prototypes/index.html
-
-# specs are not included in the site: they are working artifacts, not reader
-# documentation.
 
 theme:
   name: material
@@ -96,7 +88,7 @@ validation:
     omitted_files: warn
     not_found: warn
   links:
-    # Documents intentionally link to AGENTS.md, SECURITY.md, and specs/, which
+    # Documents intentionally link to AGENTS.md and SECURITY.md, which
     # are not part of the site. These links are valid when reading the repository,
     # which is the primary consumption path for agents. docs_lint.py checks link
     # integrity across the full tree.

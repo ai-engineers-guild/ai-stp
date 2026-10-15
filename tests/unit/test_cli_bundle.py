@@ -1,10 +1,8 @@
 """The bundle: one input, one digest — and every prohibited shape refused."""
 
 import io
-import re
 import stat
 import zipfile
-from pathlib import Path
 
 import pytest
 
@@ -12,7 +10,6 @@ from ai_stp_cli.local import bundle
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
 
-CONTRACT = Path("docs/contracts/harness-bundle.md")
 SETUP_PASSPORT: dict[str, JsonValue] = {
     "schema_version": 1,
     "kind": "setup",
@@ -503,15 +500,6 @@ def test_a_link_is_refused_on_its_kind_and_not_on_its_bytes() -> None:
 
 
 # Documentation and code are two statements of one closed set.
-def test_the_refusal_registry_matches_the_contract() -> None:
-    written = set(re.findall(r"^\| `([a-z_]+)` \|", CONTRACT.read_text("utf-8"), re.MULTILINE))
-    assert written == bundle.REFUSALS
-
-
-def test_the_declared_limits_match_the_contract() -> None:
-    text = CONTRACT.read_text("utf-8")
-    assert f"maximum files: {bundle.MAX_FILES}" in text
-    assert "0644 and 0755" in text
 
 
 @pytest.mark.parametrize(

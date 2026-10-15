@@ -1,9 +1,7 @@
-# Section order in site navigation.
 nav:
   - index.md
-  - product
   - architecture
+  - contracts
   - engineering
   - operations
-  - documentation
-  - adr
+  - product

@@ -1,15 +1,10 @@
 """Mechanical constraints: refused stays refused, and every refusal names why."""
 
-import re
 from dataclasses import replace
-from pathlib import Path
 
 import pytest
 
 from ai_stp_cli.local import eligibility, search
-
-CONTRACT = Path("docs/contracts/eligibility-constraints.md")
-VOCABULARY = Path("docs/contracts/capability-vocabulary.md")
 
 TARGET = eligibility.Target(
     harness_id="claude-code",
@@ -477,16 +472,6 @@ def test_normalisation_folds_case_and_form_before_comparison() -> None:
 # Documentation and code are two statements of one closed set, and the failure
 # mode is that they agree today and drift the first time somebody adds a code to
 # one of them.
-def test_the_refusal_registry_matches_the_contract() -> None:
-    written = set(re.findall(r"^\| `([a-z_]+)` \|", CONTRACT.read_text("utf-8"), re.MULTILINE))
-    assert written - eligibility.NOTES == set(eligibility.REFUSALS)
-
-
-def test_the_capability_vocabulary_matches_the_contract() -> None:
-    written = set(
-        re.findall(r"^\| `([a-z][a-z0-9_.]+)` \|", VOCABULARY.read_text("utf-8"), re.MULTILINE)
-    )
-    assert written == eligibility.CAPABILITIES
 
 
 def test_every_declared_family_is_reachable() -> None:

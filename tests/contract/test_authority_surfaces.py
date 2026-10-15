@@ -15,16 +15,11 @@ def test_the_inventory_covers_the_required_agent_surfaces() -> None:
     held = {path.relative_to(ROOT).as_posix() for path in authority_surfaces.inventory(ROOT)}
     for relative in (
         "AGENTS.md",
+        "apps/cli-v2/README.md",
         ".claude/CLAUDE.md",
         "skills/canonical/ai-stp/SKILL.md",
         "skills/canonical/ai-stp/references/decisions.md",
         "skills/canonical/ai-stp/references/compose.md",
-        "docs/agent/interaction-policy.md",
-        "docs/agent/integration-skill.md",
-        "docs/agent/machine-help.md",
-        "specs/active/SPEC-011-cli-agent-skill.md",
-        "specs/active/SPEC-001-product-contract.md",
-        "docs/engineering/testing.md",
     ):
         assert relative in held, relative
     assert any("first_party" in path and path.endswith(".md") for path in held)
