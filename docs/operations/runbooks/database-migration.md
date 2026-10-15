@@ -6,7 +6,7 @@ last_verified: "2026-10-15"
 # Database migration
 
 The server uses Alembic migrations in `migrations/`; the native CLI owns its local
-SQLite migration in `apps/cli/src/migration`. These are separate state stores.
+SQLite migration in `apps/cli/src/migration.rs`. These are separate state stores.
 
 Use the normal deployment procedure for server upgrades. Read the current revision,
 review the pending chain and run affected schema migration tests before deployment.

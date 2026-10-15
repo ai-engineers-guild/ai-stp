@@ -28,7 +28,9 @@ def fixture() -> None:
         path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         path.write_bytes(base64.b64decode(encoded, validate=True))
         path.chmod(0o600)
-    database = sqlite3.connect(state / "registry.sqlite", autocommit=True)
+    path = state / "registry.sqlite"
+    database = sqlite3.connect(path, autocommit=True)
+    path.chmod(0o600)
     database.execute("PRAGMA journal_mode=WAL")
     database.execute("PRAGMA wal_autocheckpoint=0")
     database.executescript((root / "src/store/schema.sql").read_text(encoding="utf-8"))

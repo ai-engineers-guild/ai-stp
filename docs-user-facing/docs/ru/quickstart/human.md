@@ -5,7 +5,7 @@ description: "Установить ai_stp CLI, проверить окружен
 
 # Быстрый старт для человека
 
-Скачайте нативный архив вашей ОС из [последнего релиза](https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.1.0).
+Скачайте нативный архив вашей ОС из [последнего релиза](https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.1.1).
 Проверьте контрольную сумму и аттестацию GitHub, затем выполните шаги установки из релиза.
 Python не нужен. Провайдеры выполняются на Linux; macOS и Windows поддерживают
 остальные нативные операции, указанные в capabilities.
