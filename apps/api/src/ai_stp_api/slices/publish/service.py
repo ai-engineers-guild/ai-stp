@@ -30,7 +30,7 @@ from ai_stp_platform.artifact_bind import (
 )
 from ai_stp_platform.github_client import GitHubClient, GitHubError
 from ai_stp_platform.github_models import GitHubSourceBinding
-from ai_stp_platform.github_sources import authorize_binding, bound_source
+from ai_stp_platform.github_sources import authorize_binding, bound_source, source_matches_passport
 from ai_stp_platform.gitlab_client import GitLabClient, GitLabError
 from ai_stp_platform.gitlab_models import GitLabSourceBinding
 from ai_stp_platform.gitlab_sources import (
@@ -160,14 +160,8 @@ async def create_plan(
         )
         if binding is None or binding.account_id != ctx.account_id:
             raise GitHubError("source_binding_unavailable", status=404)
-        artifact = body.passport.get("artifact")
-        if (
-            body.object_kind != "component"
-            or body.passport.get("source") is not None
-            or binding.content_digest != body.content_digest
-            or not isinstance(artifact, dict)
-            or cast(dict[str, object], artifact).get("size_bytes") != binding.size_bytes
-            or list(body.artifact_inventory) != binding.inventory
+        if body.object_kind != "component" or not source_matches_passport(
+            binding, body.passport, body.content_digest, body.artifact_inventory
         ):
             raise GitHubError("source_binding_mismatch", status=412)
         if settings is None:

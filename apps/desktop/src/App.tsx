@@ -63,7 +63,8 @@ export default function App() {
     void refreshAuth();
   }, [refreshCli, refreshAuth]);
 
-  const signedIn = auth?.state === "authenticated";
+  const session = auth?.session as Record<string, unknown> | undefined;
+  const signedIn = session?.state === "authorized" && session.access_expired !== true;
   const failures = log.filter((e) => e.ok === false || e.ok === null).length;
 
   function toggleTheme() {

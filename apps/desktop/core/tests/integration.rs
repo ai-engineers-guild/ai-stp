@@ -645,26 +645,25 @@ fn passthrough_env_lists_temp_and_profile_keys() {
     }
 }
 
-/// The field signature of the real bug: the PyInstaller bootloader prints
-/// its PYI error on stderr and exits -1/255 without an envelope — the
-/// runner must surface it as NoEnvelope carrying the stderr text.
+/// A loader failure before CLI initialization remains a transport error,
+/// including its bounded stderr, instead of becoming a fabricated envelope.
 #[cfg(unix)]
 #[test]
-fn pyi_temp_failure_surfaces_as_no_envelope_with_stderr() {
+fn loader_failure_surfaces_as_no_envelope_with_stderr() {
     let (dir, exe) = fake_cli(
-        "#!/bin/sh\necho '[PYI-12345:ERROR] Could not create temporary directory!' >&2\nexit 255",
+        "#!/bin/sh\necho 'error while loading shared libraries: required-library.so' >&2\nexit 255",
     );
     match run_fake(&exe, 30_000) {
         Err(RunError::NoEnvelope { exit, stderr }) => {
             assert_eq!(exit, Some(255));
-            assert!(stderr.contains("Could not create temporary directory"));
+            assert!(stderr.contains("error while loading shared libraries"));
         }
         other => panic!("expected NoEnvelope, got {other:?}"),
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// Spawn the real PyInstaller sidecar through the full `CliRunner::run`
+/// Spawn the real Rust sidecar through the full `CliRunner::run`
 /// path — including `env_clear` + the passthrough whitelist. CI sets
 /// `AI_STP_SIDECAR_EXE` right after building the sidecar, so this is a
 /// faithful repro of the installed-app spawn on every OS. Inert without
@@ -683,12 +682,27 @@ fn bundled_sidecar_spawns_under_runner_env() {
         .run(&["version".to_string()])
         .expect("sidecar spawn under runner env");
     assert!(env.ok, "sidecar failed: {:?}", env.error);
-    // `version` only proves the bootloader ran; `doctor` walks the lazily
-    // loaded surface (nacl→_cffi_backend, secrets store, registry open)
-    // whose missing hidden imports have killed past frozen builds. HOME is
-    // in PASSTHROUGH_ENV, so the probe reaches a real per-user state dir.
-    let env = runner
-        .run(&["doctor".to_string()])
-        .expect("sidecar doctor under runner env");
-    assert!(env.ok, "sidecar doctor failed: {:?}", env.error);
+    assert_eq!(env.data.as_ref().unwrap()["runtime"], "rust");
+    let capabilities = runner.run(&["capabilities".to_string()]).unwrap();
+    let help = runner
+        .run(&["help".to_string(), "--agent".to_string()])
+        .unwrap();
+    assert!(capabilities.ok && help.ok);
+    let capabilities = capabilities.data.unwrap();
+    let help = help.data.unwrap();
+    assert_eq!(capabilities["registry_digest"], help["registry_digest"]);
+    let help: MachineHelp = serde_json::from_value(help).unwrap();
+    let registry = CommandRegistry::from_help(&help);
+    assert!(registry.descriptor("configuration set prepare").is_some());
+    assert!(registry.descriptor("task input-schema").is_some());
+    let schema = runner
+        .run(&[
+            "task".into(),
+            "input-schema".into(),
+            "--intent".into(),
+            "install".into(),
+        ])
+        .unwrap();
+    assert!(schema.ok);
+    assert_eq!(schema.data.unwrap()["additionalProperties"], false);
 }

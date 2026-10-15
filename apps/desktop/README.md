@@ -1,7 +1,7 @@
 # ai-stp-desktop
 
 Tauri 2 shell + React/Vite UI over the `ai-stp` CLI machine contract
-(ADR-0222). The CLI is the only engine: this app spawns `ai-stp … --json`,
+through the native process contract. The CLI is the only engine: this app spawns `ai-stp … --json`,
 parses the single JSON envelope, and renders it. It never writes harness
 files, never touches `registry.sqlite`, never invokes providers, and never
 holds user credentials.
@@ -26,12 +26,21 @@ holds user credentials.
   `transport.ts` choke point; replies are typed `CmdResult`. Pages:
   Overview (CLI health/doctor/device), Account (device-code sign-in),
   Catalog (registry search/detail via CLI), Tasks (intents + status
-  polling), Install (task-engine journeys: questions → continuations →
-  gated apply), Discovery (native component/harness discovery joined to
-  the registry by stable_id), Targets (status/backups/diff/rollback
-  preview + stopped transaction recovery), Commands (live machine-help browser),
+  polling), Install (native author/install tasks with explicit input files,
+  questions and recovery), Discovery and Targets (forms from live native
+  descriptors), Commands (implemented read/plan/apply operations),
   Debug (IPC trace, resolved engine, envelope inspector, diagnostic
-  bundle), Settings (scope selector: All is read-only aggregation).
+  bundle), Settings (explicit initialization, migration and local configuration).
+
+The default state location belongs to the CLI. A fresh installation uses
+Settings → `init` with an explicitly selected credential store. Existing Python
+state requires `state migrate plan` and its exact apply digest; the desktop does
+not create a replacement identity. Account actions compose `account plan` and
+`account apply`, resume the retained pending plan and read `account status`.
+Public temporary plan files contain no credentials and are removed after use.
+Installation input must satisfy the live `task input-schema`; Start authorizes
+that input, so it may execute immediately. The UI has no invented fallback
+intent, provider or harness list and no legacy backup/rollback controls.
 
 ## Design system
 
@@ -68,8 +77,7 @@ cd src-tauri && cargo check && cargo build
 
 From the repository root, `just desktop-check` runs the same group CI
 runs: frontend tsc/vitest/build, fmt+clippy+tests for both crates, and a
-`desktop-regress` leg that freezes the real PyInstaller sidecar — that
-freeze takes several minutes — and spawns it under the app's filtered
+`desktop-regress` leg that builds the optimized Rust sidecar and spawns it under the app's filtered
 environment. `just desktop-gen` formats both crates. The `--stub` sidecar
 these recipes install is a dev-only placeholder that answers
 `version --json`; it is never written over a real build.
@@ -101,28 +109,25 @@ release. Bundles are unsigned — signing/notarization is a separate track.
 
 ## Requirements
 
-Release bundles carry the CLI inside: `scripts/build-cli-sidecar.sh`
-builds the `ai-stp-cli` wheel, installs it into a fresh environment with the
-hash-checked, locked closure of the dependencies it declares — what
-`pip install ai-stp-cli` gets, nothing from the server or dev groups — and
-freezes that with PyInstaller `--onedir` into
-`src-tauri/sidecar/cli/`. Tauri `bundle.resources` installs the complete
-executable and `_internal` tree under the platform resource directory's
-`cli/` folder. The shell uses Tauri's resource resolver for Linux packages,
-AppImage, macOS and Windows. No extraction is needed on each CLI call and
-no separate CLI install is required. The executable remains named
-`ai-stp-desktop-cli`; it does not occupy `/usr/bin/ai-stp`.
-For development, resolution
-falls back to a configured path and then PATH
-(`uv tool install ai-stp-cli`); a pinned path that is missing is an
-error, not a silent fallback.
+Release bundles carry the Rust CLI inside. `scripts/build-cli-sidecar.sh`
+builds the locked optimized native package, verifies its machine protocol and
+packages one `ai-stp-desktop-cli` executable plus its digest-bound `sidecar.json`.
+Tauri installs those resources under `cli/`; the shell uses the platform resource
+resolver. There is no interpreter, runtime extraction or separate CLI installation.
+The sidecar name does not occupy the standalone `ai-stp` entrypoint. The packaged
+resource probe verifies the actual extracted binary and runs it through the app's
+filtered environment.
+
+Development resolution falls back to a configured path and then PATH. A configured
+path that is missing fails explicitly. `--stub` remains a compile-time development
+placeholder and never replaces a real sidecar.
 
 ## Deliberate boundaries
 
 - Signed/notarized bundles — needs signing certificates and notarization
   credentials; `SHA256SUMS` in each release covers integrity until then.
 - Catalog traffic stays in the CLI, including private acquisitions and
-  credentials, as required by ADR-0222.
+  credentials, as required by the CLI process boundary.
 - Per-target mutation parallelism — mutations serialize on one mutex
   because the CLI journal is global state; targeted parallelism would
   not make journal writes any safer.

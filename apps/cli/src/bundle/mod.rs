@@ -1,0 +1,399 @@
+//! Deterministic provider packages from exact local versions and explicit evidence.
+
+mod composition;
+pub mod coverage;
+pub(crate) mod hosts;
+mod package;
+pub mod reports;
+pub mod scopes;
+
+use std::collections::BTreeMap;
+
+use rusqlite::Connection;
+use serde_json::{Value, json};
+
+use crate::{
+    artifacts::Member,
+    canonical, digest,
+    error::{Failure, Result},
+    objects::Objects,
+    passport, projection,
+    provider::Info,
+    selection::eligibility::{self, Evidence, Target},
+    store::{Store, revisions},
+};
+
+const MAX_FILES: usize = 2000;
+const MAX_FILE_BYTES: usize = 4 * 1024 * 1024;
+const MAX_BYTES: usize = 64 * 1024 * 1024;
+
+/// Exact observed host bytes, or an explicitly observed absence. Missing keys
+/// mean unknown, never an empty configuration. The compiler checks credentials
+/// in the assembled output. The runtime must revalidate host identity before
+/// provider execution.
+pub type Hosts = BTreeMap<String, Option<Vec<u8>>>;
+
+pub struct Bundle {
+    pub manifest: Value,
+    pub archive: Vec<u8>,
+    pub artifact_digest: String,
+    pub assessment: Value,
+}
+
+struct File {
+    member: Member,
+    owner: String,
+    contribution: Option<Value>,
+}
+
+fn invalid(message: &str) -> Failure {
+    Failure::precondition(message)
+}
+
+fn text<'a>(value: &'a Value, field: &str) -> Result<&'a str> {
+    value[field]
+        .as_str()
+        .ok_or_else(|| invalid("an exact bundle input is incomplete"))
+}
+
+fn exact(connection: &Connection, reference: &Value) -> Result<Value> {
+    Objects { connection }.exact_version(
+        text(reference, "stable_id")?,
+        text(reference, "version")?,
+        Some(text(reference, "passport_digest")?),
+    )
+}
+
+/// This reads one consistent database snapshot and returns no partial package.
+/// It neither stores a plan nor authorizes execution against a harness target.
+pub fn compile(
+    store: &mut Store,
+    setup: &Value,
+    target: &Target,
+    evidence: &BTreeMap<String, Evidence>,
+    provider: &Info,
+    hosts: &Hosts,
+) -> Result<Bundle> {
+    store.transaction(|connection| {
+        compile_snapshot(connection, setup, target, evidence, provider, hosts)
+    })
+}
+
+pub(crate) fn compile_snapshot(
+    connection: &Connection,
+    setup: &Value,
+    target: &Target,
+    evidence: &BTreeMap<String, Evidence>,
+    provider: &Info,
+    hosts: &Hosts,
+) -> Result<Bundle> {
+    let host_identities = validate_inputs(setup, hosts)?;
+    let assessment = eligibility::assess_connection(
+        connection,
+        std::slice::from_ref(setup),
+        target,
+        evidence,
+        Some(provider),
+    )?;
+    let nodes = assessment["graph"]["nodes"]
+        .as_array()
+        .ok_or_else(|| invalid("graph nodes are missing"))?
+        .clone();
+    compile_qualified(
+        connection,
+        setup,
+        target,
+        provider,
+        hosts,
+        Qualified { assessment, nodes },
+        host_identities,
+    )
+}
+
+struct Qualified {
+    assessment: Value,
+    nodes: Vec<Value>,
+}
+
+fn validate_inputs(setup: &Value, hosts: &Hosts) -> Result<BTreeMap<String, Option<String>>> {
+    if !passport::stable_id(text(setup, "stable_id")?, "setup")
+        || setup.as_object().is_none_or(|fields| fields.len() != 3)
+        || canonical::bytes(setup)?.len() > 4096
+    {
+        return Err(invalid("a bundle requires one exact setup version"));
+    }
+    let mut host_bytes = 0usize;
+    let mut host_identities = BTreeMap::new();
+    for (path, bytes) in hosts {
+        let size = bytes.as_ref().map_or(0, Vec::len);
+        host_bytes = host_bytes
+            .checked_add(size)
+            .ok_or_else(|| invalid("host inputs exceed their bounds"))?;
+        if hosts.len() > MAX_FILES
+            || !crate::artifacts::safe_path(path)
+            || size > MAX_FILE_BYTES
+            || host_bytes > MAX_BYTES
+        {
+            return Err(invalid("host inputs exceed their path or size bounds"));
+        }
+        host_identities.insert(
+            path.clone(),
+            bytes.as_ref().map(|bytes| digest::sha256(bytes)),
+        );
+    }
+    Ok(host_identities)
+}
+
+fn compile_qualified(
+    connection: &Connection,
+    setup: &Value,
+    target: &Target,
+    provider: &Info,
+    hosts: &Hosts,
+    qualified: Qualified,
+    host_identities: BTreeMap<String, Option<String>>,
+) -> Result<Bundle> {
+    let Qualified { assessment, nodes } = qualified;
+    if assessment["admissible"] != true {
+        return Err(
+            invalid("the exact setup graph is not mechanically admissible")
+                .with_details([("eligibility".into(), assessment)]),
+        );
+    }
+    let document = exact(connection, setup)?;
+    let setup_bytes = revisions::read_content(connection, text(&document["artifact"], "digest")?)?;
+    if document["artifact"]["size_bytes"] != setup_bytes.len() {
+        return Err(invalid(
+            "the setup artifact size does not match its passport",
+        ));
+    }
+    drop(setup_bytes);
+    let mut composition = composition::Composition::new(&target.harness_id);
+    let mut files = Vec::new();
+    let mut bindings = Vec::new();
+    let mut remaining_hosts: BTreeMap<_, _> = hosts
+        .iter()
+        .map(|(path, bytes)| (path.as_str(), bytes.as_deref()))
+        .collect();
+    let mut projection_bytes = 0u64;
+    let mut output_bytes = 0usize;
+    for node in &nodes {
+        let component = exact(connection, node)?;
+        if component["kind"] == "setup" {
+            continue;
+        }
+        let id = text(&component, "stable_id")?;
+        let (adaptation, scope) =
+            projection::adaptation(&component, &target.harness_id, target.scope)
+                .ok_or_else(|| invalid("an exact scope adaptation disappeared"))?;
+        let members = projected(
+            connection,
+            &component,
+            scope,
+            &target.harness_id,
+            &mut projection_bytes,
+        )?;
+        let declared = scope["members"]
+            .as_array()
+            .ok_or_else(|| invalid("projection members are missing"))?;
+        composition.include(&component, scope, &assessment)?;
+        let declared: BTreeMap<_, _> = declared
+            .iter()
+            .map(|value| Ok((text(value, "path")?, value)))
+            .collect::<Result<_>>()?;
+        let mut member_paths = Vec::new();
+        for mut member in members {
+            let declaration = declared
+                .get(member.path.as_str())
+                .ok_or_else(|| invalid("a projection file has no declaration"))?;
+            composition.claim(id, &member.path)?;
+            let host = if declaration["ownership"] == "contribution" {
+                remaining_hosts.remove(member.path.as_str())
+            } else {
+                None
+            };
+            let contribution = assemble(&mut member, declaration, &target.harness_id, host)?;
+            output_bytes = output_bytes
+                .checked_add(member.bytes.len())
+                .ok_or_else(|| invalid("bundle files exceed their bounds"))?;
+            if files.len() >= MAX_FILES
+                || output_bytes > MAX_BYTES
+                || member.bytes.len() > MAX_FILE_BYTES
+            {
+                return Err(invalid("bundle files exceed their count or byte bounds"));
+            }
+            member_paths.push(member.path.clone());
+            files.push(File {
+                member,
+                owner: id.into(),
+                contribution,
+            });
+        }
+        member_paths.sort();
+        bindings.push(json!({"stable_id":id,"version":component["version"],
+            "passport_digest":node["passport_digest"],"adaptation_id":adaptation["adaptation_id"],
+            "projection_artifact":scope["projection_artifact"],"provider_component_kind":scope["provider_component_kind"],
+            "projection_kind":scope["projection_kind"],"member_paths":member_paths}));
+    }
+    if bindings.is_empty() {
+        return Err(invalid(
+            "the declared empty setup has no installable bundle under provider protocol v3",
+        ));
+    }
+    if !remaining_hosts.is_empty() {
+        return Err(invalid(
+            "host inputs must cover exactly the configuration contributions",
+        ));
+    }
+    composition.validate(&files)?;
+    let profile = provider
+        .profile(target.scope)
+        .ok_or_else(|| invalid("provider profile missing"))?;
+    if files.len() as u64 > profile["max_files"].as_u64().unwrap_or(0)
+        || output_bytes as u64 > profile["max_bytes"].as_u64().unwrap_or(0)
+    {
+        return Err(invalid(
+            "the whole bundle exceeds the selected provider profile limits",
+        ));
+    }
+    files.sort_by(|a, b| a.member.path.cmp(&b.member.path));
+    bindings.sort_by(|a, b| a["stable_id"].as_str().cmp(&b["stable_id"].as_str()));
+    let input = json!({"setup":setup,"target":target,"provider_digest":digest::sha256(&canonical::bytes(provider.document())?),
+        "hosts":host_identities,"assessment":assessment});
+    let input_digest = digest::canonical("ai-stp:plan:v1", &input)?;
+    let (manifest, archive) = package::build(
+        &document,
+        target,
+        profile,
+        &input_digest,
+        bindings,
+        &files,
+        composition,
+    )?;
+    Ok(Bundle {
+        artifact_digest: digest::sha256(&archive),
+        manifest,
+        archive,
+        assessment,
+    })
+}
+
+/// Use the same native assembly for emitted packages and project attribution.
+fn assemble(
+    member: &mut Member,
+    declaration: &Value,
+    harness: &str,
+    host: Option<Option<&[u8]>>,
+) -> Result<Option<Value>> {
+    if declaration["ownership"] != "contribution" {
+        return Ok(None);
+    }
+    let host = host.ok_or_else(|| {
+        invalid("a configuration contribution needs exact observed host bytes or absence")
+    })?;
+    let format = crate::authoring::contribution::Format::for_path(&member.path)?;
+    let parser = if format == crate::authoring::contribution::Format::Toml {
+        "toml/1"
+    } else {
+        "json/1"
+    };
+    if declaration["parser_id"] != parser {
+        return Err(invalid(
+            "the configuration parser does not match its host format",
+        ));
+    }
+    let key = text(declaration, "ownership_key")?;
+    let contribution = json!({"parser_id":parser,"ownership_key":key,
+        "host_digest":host.map(digest::sha256)});
+    member.bytes = crate::authoring::contribution::assemble(format, host, key, &member.bytes)?;
+    crate::authoring::native_identity::verify_configuration_credentials(
+        harness,
+        &member.path,
+        &member.bytes,
+    )?;
+    Ok(Some(contribution))
+}
+
+/// A valid retained projection can still be unrepresentable in bundle v2.
+fn surface_refusal(scope: &Value) -> Result<Option<&'static str>> {
+    if scope["required_surface"]["bundle_format"] != "ai-stp-bundle/2" {
+        return Ok(Some(
+            "Native bundle compilation requires adaptation-bound format v2.",
+        ));
+    }
+    let members = scope["members"]
+        .as_array()
+        .ok_or_else(|| invalid("projection members are missing"))?;
+    if members.is_empty() || members.iter().any(|member| member["object_type"] != "file") {
+        return Ok(Some(
+            "Bundle v2 requires a file for every component and cannot preserve explicit directory members.",
+        ));
+    }
+    Ok(None)
+}
+
+/// Shared projection verification for reports and emitted packages.
+fn projected(
+    connection: &Connection,
+    component: &Value,
+    scope: &Value,
+    harness: &str,
+    projection_bytes: &mut u64,
+) -> Result<Vec<Member>> {
+    if let Some(reason) = surface_refusal(scope)? {
+        return Err(invalid(reason));
+    }
+    // Bound aggregate allocation before loading any selected projection.
+    *projection_bytes = projection_bytes
+        .checked_add(
+            scope["projection_artifact"]["size_bytes"]
+                .as_u64()
+                .ok_or_else(|| invalid("projection size missing"))?,
+        )
+        .ok_or_else(|| invalid("projection inputs exceed their bounds"))?;
+    if *projection_bytes > (2 * MAX_BYTES) as u64 {
+        return Err(invalid("the selected projection archives exceed 128 MiB"));
+    }
+    let payload =
+        revisions::read_content(connection, text(&scope["projection_artifact"], "digest")?)?;
+    let members = projection::artifact::verify(scope, &payload)?;
+    drop(payload);
+    let declared = scope["members"]
+        .as_array()
+        .ok_or_else(|| invalid("projection members are missing"))?;
+    crate::authoring::native_identity::verify_files(
+        text(component, "component_type")?,
+        harness,
+        declared,
+        &members,
+    )?;
+    if members.iter().any(|member| {
+        secret(&member.path)
+            || member.bytes.len() > MAX_FILE_BYTES
+            || !matches!(member.mode, 0o644 | 0o755)
+    }) {
+        return Err(invalid(
+            "a bundle file violates its credential, size or mode boundary",
+        ));
+    }
+    Ok(members)
+}
+
+/// The public provider's credential filename boundary; no content inspection.
+fn secret(path: &str) -> bool {
+    let name = path.rsplit('/').next().unwrap_or("");
+    [
+        ".env",
+        ".netrc",
+        ".npmrc",
+        "credentials",
+        "id_rsa",
+        "id_ed25519",
+        ".pgpass",
+    ]
+    .contains(&name)
+        || name.starts_with(".env.")
+        || [".pem", ".key", ".p12", ".pfx", ".keystore"]
+            .iter()
+            .any(|suffix| name.ends_with(suffix))
+}

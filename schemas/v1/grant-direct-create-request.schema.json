@@ -24,6 +24,34 @@
   "additionalProperties": false,
   "description": "POST /v1/grants/direct body with an explicit recipient identifier kind.",
   "properties": {
+    "expected_grant_id": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 8,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Expected Grant Id"
+    },
+    "expected_revision": {
+      "anyOf": [
+        {
+          "maximum": 2147483646,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Expected Revision"
+    },
     "idempotency_key": {
       "$ref": "#/$defs/IdempotencyKey"
     },
@@ -32,6 +60,19 @@
       "minimum": 0,
       "title": "Major",
       "type": "integer"
+    },
+    "mutation_contract": {
+      "anyOf": [
+        {
+          "const": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Mutation Contract"
     },
     "object_kind": {
       "$ref": "#/$defs/ObjectKind"

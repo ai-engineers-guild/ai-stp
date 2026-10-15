@@ -1,10 +1,10 @@
 # Desktop release: builds real OS bundles for the exact tag and publishes
-# them to a GitHub Release. Mirrors release-candidate/publish-pypi: the run
+# them to a GitHub Release. The run
 # must sit on the tag it claims, the version inside tauri.conf.json must
 # equal the tag, and every artifact is checksummed before upload.
 #
 # Tags use the `desktop-v*` namespace so desktop releases do not collide
-# with `v*` CLI releases. Bundles are unsigned — signing needs a notarizing
+# with `cli-v*` CLI releases. Bundles are unsigned — signing needs a notarizing
 # certificate that does not exist yet; the release notes say so plainly.
 name: desktop-release
 
@@ -86,6 +86,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+      - name: Install the native CLI toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          toolchain="$(sed -n 's/^channel = "\(.*\)"/\1/p' apps/cli/rust-toolchain.toml)"
+          test -n "${toolchain}"
+          rustup toolchain install "${toolchain}" --profile minimal \
+            --component clippy --component rustfmt
+          echo "RUSTUP_TOOLCHAIN=${toolchain}" >> "${GITHUB_ENV}"
       - name: Install pinned bun
         shell: bash
         run: |
@@ -120,7 +129,7 @@ jobs:
       - name: Stub sidecar for shell-crate checks
         shell: bash
         # tauri-build's build.rs verifies resource paths exist at compile
-        # time; the stub satisfies that before the real PyInstaller sidecar
+        # time; the stub satisfies that before the real Rust sidecar
         # is built below.
         run: bash apps/desktop/scripts/build-cli-sidecar.sh --stub
       - name: Shell crate tests
@@ -143,8 +152,8 @@ jobs:
       - name: Sidecar spawns under the app's filtered env
         shell: bash
         # CliRunner clears the child env and re-adds a passthrough set —
-        # the same path the installed app takes. On Windows the frozen
-        # CLI dies in its bootloader if TMP/TEMP/USERPROFILE are dropped.
+        # the same path the installed app takes. The resource probe checks
+        # the Rust runtime, executable registry and native task input schema.
         # The script is shared with `just desktop-regress`.
         run: bash apps/desktop/scripts/test-bundled-sidecar.sh
       - name: Tauri build
@@ -155,7 +164,7 @@ jobs:
         shell: bash
         run: uv run --locked python apps/desktop/scripts/test-packaged-sidecar.py
       - name: Upload release bundles
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: desktop-release-${{ inputs.version }}-${{ matrix.os }}
           path: |
@@ -177,7 +186,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           pattern: desktop-release-${{ inputs.version }}-*
           merge-multiple: true
@@ -215,8 +224,8 @@ jobs:
           set -euo pipefail
           cat > "${RUNNER_TEMP}/NOTES.md" <<'NOTES'
           Desktop application over the ai-stp CLI (ADR-0222). The CLI is
-          bundled inside the app as `ai-stp-desktop-cli` (PyInstaller
-          directory via `bundle.resources`) — no separate install is
+          bundled inside the app as the optimized Rust `ai-stp-desktop-cli`
+          with a digest manifest via `bundle.resources` — no separate install is
           needed; a configured path or PATH `ai-stp` still works in
           development.
 

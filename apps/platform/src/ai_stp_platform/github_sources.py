@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from typing import cast
 
 from sqlalchemy import select
@@ -24,6 +25,50 @@ def request_digest(value: object) -> str:
     return digest_bytes("ai-stp:github-request:v1", canonize(cast(JsonValue, value)))
 
 
+def source_matches_passport(
+    binding: GitHubSourceBinding,
+    passport: Mapping[str, object],
+    content_digest: str,
+    inventory: Sequence[str],
+) -> bool:
+    """Bind original bytes, independently of the component's packaged projections."""
+    artifact = passport.get("artifact")
+    if (
+        passport.get("kind") != "component"
+        or passport.get("source") is not None
+        or not isinstance(artifact, dict)
+    ):
+        return False
+    artifact = cast(dict[str, object], artifact)
+    if artifact.get("digest") != content_digest:
+        return False
+    if content_digest == binding.content_digest:
+        return (
+            artifact.get("size_bytes") == binding.size_bytes
+            and list(inventory) == binding.inventory
+        )
+    adaptations = passport.get("adaptations")
+    if not isinstance(adaptations, list) or not adaptations:
+        return False
+    expected = {"digest": binding.content_digest, "size_bytes": binding.size_bytes}
+    primary_is_projection = False
+    for item in cast(list[object], adaptations):
+        if not isinstance(item, dict):
+            return False
+        adaptation = cast(dict[str, object], item)
+        if adaptation.get("source_artifact") != expected:
+            return False
+        scopes = adaptation.get("scope_adaptations")
+        if not isinstance(scopes, list) or not scopes:
+            return False
+        for scope in cast(list[object], scopes):
+            if not isinstance(scope, dict):
+                return False
+            if cast(dict[str, object], scope).get("projection_artifact") == artifact:
+                primary_is_projection = True
+    return primary_is_projection
+
+
 async def bound_source(db: AsyncSession, plan: PublicationPlan) -> GitHubSourceBinding | None:
     if not getattr(plan, "source_binding_id", None):
         return None
@@ -36,15 +81,12 @@ async def bound_source(db: AsyncSession, plan: PublicationPlan) -> GitHubSourceB
     if binding is None:
         raise GitHubError("source_binding_mismatch", status=412)
     passport_hash = digest_bytes("ai-stp:passport:v1", canonize(cast(JsonValue, plan.passport)))
-    artifact = plan.passport.get("artifact")
     if (
         binding.account_id != plan.actor_account_id
-        or binding.content_digest != plan.content_digest
         or binding.passport_digest != passport_hash
-        or plan.passport.get("source") is not None
-        or not isinstance(artifact, dict)
-        or cast(dict[str, object], artifact).get("size_bytes") != binding.size_bytes
-        or list(plan.artifact_inventory) != binding.inventory
+        or not source_matches_passport(
+            binding, plan.passport, plan.content_digest, plan.artifact_inventory
+        )
     ):
         raise GitHubError("source_binding_mismatch", status=412)
     return binding

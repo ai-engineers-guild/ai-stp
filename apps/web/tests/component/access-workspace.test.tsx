@@ -32,6 +32,7 @@ vi.mock("@/lib/entity-action-query", () => ({
   ),
 }));
 const refresh = vi.fn();
+const idempotencyKey = "88abdcde-5013-40ae-a319-bcd11b0a07fb";
 
 vi.mock("@/lib/i18n/navigation", () => ({
   useRouter: () => ({ refresh }),
@@ -80,16 +81,46 @@ const labels = {
 describe("AccessWorkspace direct grants", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(idempotencyKey);
   });
 
   it.each([
-    ["github_username", "GitHub username", "octocat"],
-    ["user_id", "User ID", "account_01JQZK7B8N4M6P2R9T5V0X3Y70"],
+    ["github_username", "GitHub username", "octocat", undefined],
+    ["user_id", "User ID", "account_01JQZK7B8N4M6P2R9T5V0X3Y70", undefined],
+    ["github_username", "GitHub username", " @OctoCat ", 2],
+    ["user_id", "User ID", "account_01JQZK7B8N4M6P2R9T5V0X3Y70", 2],
   ] as const)(
     "submits a %s recipient as a direct grant",
-    async (recipientKind, label, recipient) => {
+    async (recipientKind, label, recipient, revision) => {
       const user = userEvent.setup({ skipHover: true });
-      render(<AccessWorkspace users={[]} csrfToken="csrf" labels={labels} />);
+      render(
+        <AccessWorkspace
+          users={[]}
+          csrfToken="csrf"
+          labels={labels}
+          observedGrants={
+            revision === undefined
+              ? []
+              : [
+                  {
+                    schema_version: 1,
+                    grant_id: "grant_01",
+                    revision,
+                    object_kind: "component",
+                    stable_id: "component_test",
+                    major: 1,
+                    grantee_account_id: "account_01JQZK7B8N4M6P2R9T5V0X3Y70",
+                    owner_account_id: "account_owner",
+                    state: "revoked",
+                    created_at: "2026-10-13T00:00:00Z",
+                    revoked_at: "2026-10-13T01:00:00Z",
+                    recipient_kind: "github_username",
+                    recipient: "octocat",
+                  },
+                ]
+          }
+        />,
+      );
 
       await user.selectOptions(screen.getByLabelText("Recipient identifier"), recipientKind);
       await user.type(screen.getByLabelText(label), recipient);
@@ -104,6 +135,9 @@ describe("AccessWorkspace direct grants", () => {
           major: 1,
           recipientKind,
           recipient,
+          expectedGrantId: revision === undefined ? undefined : "grant_01",
+          expectedRevision: revision,
+          idempotencyKey,
         });
       });
       expect(createInvitationAction).not.toHaveBeenCalled();
@@ -111,56 +145,66 @@ describe("AccessWorkspace direct grants", () => {
     },
   );
 
-  it("shows a user card and keeps user actions in the menu", async () => {
-    const user = userEvent.setup({ skipHover: true });
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: { writeText },
-    });
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-
-    render(
-      <AccessWorkspace
-        users={[
-          {
-            grantId: "grant_01",
-            accountId: "account_01",
-            displayName: "Ada Lovelace",
-            avatarUrl: null,
-          },
-        ]}
-        csrfToken="csrf"
-        labels={labels}
-      />,
-    );
-
-    expect(screen.getByRole("link", { name: /Ada Lovelace/ })).toHaveAttribute(
-      "href",
-      "/en/publishers/account_01",
-    );
-    await user.click(screen.getByRole("button", { name: "More actions" }));
-    await screen.findByRole("menuitem", { name: "Revoke" });
-    expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
-      "copyAndShare",
-      "Revoke",
-      "Report user",
-    ]);
-    await user.click(screen.getByRole("menuitem", { name: "copyAndShare" }));
-    await user.click(screen.getByRole("menuitem", { name: "Copy ID" }));
-    expect(writeText).toHaveBeenCalledWith("grant_01");
-    await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Revoke" }));
-    await user.click(screen.getByRole("button", { name: "Revoke access" }));
-    await waitFor(() => {
-      expect(revokeGrantAction).toHaveBeenCalledWith({
-        csrfToken: "csrf",
-        grantId: "grant_01",
-        reason: "",
+  it.each(["outgoing", "incoming"])(
+    "shows %s grant actions with bound revisions",
+    async (direction) => {
+      const user = userEvent.setup({ skipHover: true });
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: { writeText },
       });
-    });
-    expect(confirmSpy).not.toHaveBeenCalled();
-  });
+      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+      const grant = (revision: number) => ({
+        grantId: "grant_01",
+        revision,
+        accountId: "account_01",
+        displayName: "Ada Lovelace",
+        avatarUrl: null,
+      });
+      const workspace = (revision: number) => (
+        <AccessWorkspace
+          users={direction === "outgoing" ? [grant(revision)] : []}
+          incomingUsers={direction === "incoming" ? [grant(revision)] : []}
+          incomingLabel="Received access"
+          csrfToken="csrf"
+          labels={labels}
+        />
+      );
+      const { rerender } = render(workspace(7));
+
+      expect(screen.getByRole("link", { name: /Ada Lovelace/ })).toHaveAttribute(
+        "href",
+        "/en/publishers/account_01",
+      );
+      await user.click(screen.getByRole("button", { name: "More actions" }));
+      await screen.findByRole("menuitem", { name: "Revoke" });
+      expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+        "copyAndShare",
+        "Revoke",
+        "Report user",
+      ]);
+      await user.click(screen.getByRole("menuitem", { name: "copyAndShare" }));
+      await user.click(screen.getByRole("menuitem", { name: "Copy ID" }));
+      expect(writeText).toHaveBeenCalledWith("grant_01");
+      await user.click(screen.getByRole("button", { name: "More actions" }));
+      await user.click(screen.getByRole("menuitem", { name: "Revoke" }));
+      // A refresh while the confirmation is open cannot widen the approved intent.
+      rerender(workspace(9));
+      await user.click(screen.getByRole("button", { name: "Revoke access" }));
+      await waitFor(() => {
+        expect(revokeGrantAction).toHaveBeenCalledWith({
+          csrfToken: "csrf",
+          grantId: "grant_01",
+          reason: "",
+          expectedRevision: 7,
+          idempotencyKey,
+        });
+      });
+      expect(confirmSpy).not.toHaveBeenCalled();
+    },
+  );
 });
 
 it("keeps received grants separate and follows their read-only server menu", async () => {
@@ -185,6 +229,7 @@ it("keeps received grants separate and follows their read-only server menu", asy
       incomingUsers={[
         {
           grantId: "received_grant",
+          revision: null,
           accountId: "author_1",
           displayName: "Author",
           avatarUrl: null,

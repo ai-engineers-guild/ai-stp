@@ -1,16 +1,15 @@
 import { useEffect, useState } from "react";
-import { cmdMachineHelp, cmdRunRead, type CmdResult } from "../transport";
+import { cliApplyConfirmed, cliPlan, cmdMachineHelp, cmdRunRead, type CmdResult } from "../transport";
 import { Json, ResultMeta, Spinner } from "../components/Result";
 
 interface Param {
   name: string;
-  kind?: string; // "option" | "argument"
+  summary?: string;
   value_type?: string;
   required?: boolean;
   repeatable?: boolean;
   choices?: string[];
 }
-
 interface Descriptor {
   path: string[];
   summary: string;
@@ -19,93 +18,79 @@ interface Descriptor {
   parameters?: Param[];
 }
 
-/** The CLI's command surface, rendered from `help --agent --json` — the app
- *  discovers operations instead of hard-coding them. Read-only commands can
- *  be executed directly; mutations are shown but gated. */
-export default function RegistryPage() {
+/** A process-contract client: fields, choices and effect gates come from the CLI. */
+export default function RegistryPage({ title = "Commands", prefixes = [] }: { title?: string; prefixes?: string[] }) {
   const [help, setHelp] = useState<CmdResult | null>(null);
   const [filter, setFilter] = useState("");
+  const [selected, setSelected] = useState<Descriptor | null>(null);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [flags, setFlags] = useState<string[]>([]);
+  const [confirmed, setConfirmed] = useState(false);
   const [result, setResult] = useState<CmdResult | null>(null);
   const [busy, setBusy] = useState(false);
+  useEffect(() => { void cmdMachineHelp().then(setHelp); }, []);
+  const commands = (help?.data?.commands ?? []) as Descriptor[];
+  const shown = commands.filter((command) => {
+    const path = command.path.join(" ");
+    return (!prefixes.length || prefixes.some((prefix) => path === prefix || path.startsWith(`${prefix} `)))
+      && (!filter || `${path} ${command.summary}`.toLowerCase().includes(filter.toLowerCase()));
+  });
+  const missing = selected?.parameters?.some((parameter) => parameter.required
+    && (parameter.value_type === "boolean" ? !flags.includes(parameter.name) : !values[parameter.name]?.trim()));
 
-  useEffect(() => {
-    void (async () => setHelp(await cmdMachineHelp()))();
-  }, []);
-
-  const commands = (((help?.data ?? {}) as Record<string, unknown>).commands ?? []) as Descriptor[];
-  const shown = commands.filter(
-    (c) =>
-      !filter ||
-      c.path.join(" ").includes(filter) ||
-      c.summary.toLowerCase().includes(filter.toLowerCase()),
-  );
-
-  async function runRead(path: string) {
+  async function run() {
+    if (!selected) return;
     setBusy(true);
-    setResult(await cmdRunRead(path));
-    setBusy(false);
+    try {
+      const scalar: Record<string, string> = {};
+      const repeated: Record<string, string[]> = {};
+      for (const parameter of selected.parameters ?? []) {
+        const value = values[parameter.name];
+        if (!value) continue;
+        if (parameter.repeatable) repeated[parameter.name] = value.split("\n").filter(Boolean);
+        else scalar[parameter.name] = value;
+      }
+      const path = selected.path.join(" ");
+      setResult(await (selected.mutability === "read" ? cmdRunRead(path, scalar, flags, repeated)
+        : selected.mutability === "plan" ? cliPlan(path, scalar, flags, repeated)
+          : cliApplyConfirmed(path, scalar, flags, confirmed, repeated)));
+    } finally { setBusy(false); }
   }
 
-  return (
-    <div className="space-y-5">
-      <header>
-        <h1 className="page-title">Command registry</h1>
-        <p className="text-sm text-muted-foreground">
-          Everything the CLI exposes, generated from machine help. Read commands are runnable; mutations require the dedicated flows.
-        </p>
-      </header>
-
-      <input
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-        placeholder="Filter commands…"
-        className="w-72 rounded-lg border border-input bg-transparent px-3 py-1.5 text-sm"
-      />
-
-      {!help && <Spinner />}
-      {help && !help.ok && <ResultMeta r={help} />}
-
-      <ul className="divide-y divide-border card text-sm">
-        {shown.map((c, i) => {
-          const path = c.path.join(" ");
-          const mutColor =
-            c.mutability === "read"
-              ? "bg-success/15 text-success"
-              : c.mutability === "apply" || c.mutability === "destructive"
-                ? "bg-destructive/15 text-destructive"
-                : "bg-warning/15 text-warning";
-          return (
-            <li key={i} className="flex items-center gap-3 px-4 py-2">
-              <span className={`w-24 shrink-0 rounded px-1.5 py-0.5 text-center text-[10px] font-semibold ${mutColor}`}>
-                {c.mutability}
-              </span>
-              <span className="w-56 shrink-0 font-mono text-xs">{path}</span>
-              <span className="flex-1 truncate text-xs text-muted-foreground">{c.summary}</span>
-              {c.confirmation === "plan_digest" && (
-                <span className="rounded bg-destructive/10 px-1.5 text-[10px] text-destructive">digest</span>
-              )}
-              {c.mutability === "read" ? (
-                <button
-                  onClick={() => void runRead(path)}
-                  disabled={busy}
-                  className="btn-outline"
-                >
-                  run
-                </button>
-              ) : (
-                <span className="px-2 text-[10px] text-muted-foreground">gated</span>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-
-      {result && (
-        <section className="space-y-2">
-          <ResultMeta r={result} />
-          {result.data && <Json v={result.data} />}
-        </section>
-      )}
-    </div>
-  );
+  return <div className="space-y-5">
+    <header><h1 className="page-title">{title}</h1>
+      <p className="text-sm text-muted-foreground">Operations and accepted inputs come from the connected Rust CLI.</p></header>
+    <input aria-label="Filter commands" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter commands…" className="input w-full" />
+    {!help && <Spinner />}
+    {help && !help.ok && <ResultMeta r={help} />}
+    <ul className="card divide-y divide-border text-sm">
+      {shown.map((command) => <li key={command.path.join(" ")}>
+        <button className="w-full p-3 text-left hover:bg-accent" disabled={busy} onClick={() => {
+          setSelected(command); setValues({}); setFlags([]); setConfirmed(false); setResult(null);
+        }}><span className="font-mono">{command.path.join(" ")}</span>
+          <span className="ml-3 text-xs text-muted-foreground">{command.mutability}</span>
+          <p className="mt-1 text-xs text-muted-foreground">{command.summary}</p></button>
+      </li>)}
+    </ul>
+    {selected && <section className="card space-y-3 p-4">
+      <h2 className="section-title">{selected.path.join(" ")}</h2>
+      {(selected.parameters ?? []).map((parameter) => <label className="block space-y-1 text-sm" key={parameter.name}>
+        <span>{parameter.name}{parameter.required ? " *" : ""}</span>
+        {parameter.value_type === "boolean" ? <input className="ml-2" type="checkbox" checked={flags.includes(parameter.name)} onChange={(event) => {
+          setFlags((current) => event.target.checked ? [...current, parameter.name] : current.filter((name) => name !== parameter.name)); setConfirmed(false);
+        }} /> : parameter.choices?.length ? <select className="input block w-full" value={values[parameter.name] ?? ""} onChange={(event) => {
+          setValues((current) => ({ ...current, [parameter.name]: event.target.value })); setConfirmed(false);
+        }}><option value="">{parameter.required ? "Choose…" : "Default"}</option>{parameter.choices.map((choice) => <option key={choice}>{choice}</option>)}</select>
+          : <textarea className="input block w-full font-mono" rows={parameter.repeatable ? 3 : 1} value={values[parameter.name] ?? ""} onChange={(event) => {
+            setValues((current) => ({ ...current, [parameter.name]: event.target.value })); setConfirmed(false);
+          }} />}
+        <p className="text-xs text-muted-foreground">{parameter.summary}{parameter.repeatable ? " One value per line." : ""}</p>
+      </label>)}
+      {selected.mutability === "apply" && <label className="flex gap-2 text-sm"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
+        I authorize this operation with the inputs and plan digest shown above.</label>}
+      <button className="btn-primary" onClick={() => void run()} disabled={busy || missing || (selected.mutability === "apply" && !confirmed)}>Run {selected.mutability}</button>
+    </section>}
+    {busy && <Spinner />}
+    {result && <section className="space-y-2"><ResultMeta r={result} />{result.data && <Json v={result.data} />}</section>}
+  </div>;
 }

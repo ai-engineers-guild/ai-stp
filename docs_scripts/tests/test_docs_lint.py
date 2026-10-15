@@ -178,47 +178,6 @@ class BacktickedDocumentTests(unittest.TestCase):
         self.assertEqual(self._issues("```text\n`docs/absent.md`\n```"), [])
 
 
-class AdrIdentityTests(unittest.TestCase):
-    def _issues(self, documents: dict[str, str]) -> list[str]:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            base = root / "docs" / "adr"
-            base.mkdir(parents=True)
-            for name, heading in documents.items():
-                (base / name).write_text(DOCUMENT.format(body=heading), encoding="utf-8")
-            linter = Linter(template_mode=False, max_age=10_000, root=root)
-            linter.check_adr_identities()
-            return [issue.code for issue in linter.issues]
-
-    def test_duplicate_number_is_rejected(self) -> None:
-        self.assertEqual(
-            self._issues(
-                {
-                    "ADR-0042-first.md": "# ADR-0042: First decision",
-                    "ADR-0042-second.md": "# ADR-0042: Second decision",
-                }
-            ),
-            ["AD002"],
-        )
-
-    def test_heading_must_match_file_identity(self) -> None:
-        self.assertEqual(
-            self._issues({"ADR-0042-first.md": "# ADR-0043: First decision"}),
-            ["AD004"],
-        )
-
-    def test_unique_matching_identities_pass(self) -> None:
-        self.assertEqual(
-            self._issues(
-                {
-                    "ADR-0042-first.md": "# ADR-0042: First decision",
-                    "ADR-0043-second.md": "# ADR-0043: Second decision",
-                }
-            ),
-            [],
-        )
-
-
 class IndexSyncTests(unittest.TestCase):
     """The content table is generated, so a stale row is an error, not an edit.
 

@@ -1,163 +1,49 @@
-<p align="center">
-  <strong>English</strong> · <a href="README.ru.md">Русский</a>
-</p>
+# ai-stp
 
-<p align="center">
-  <img src="assets/readme/en/hero.svg" width="640" alt="ai-stp: select, verify and install a complete setup through your agent.">
-</p>
+[Русский](README.ru.md) · [Catalog](https://ai-stp.aiguild.space) ·
+[CLI releases](https://github.com/ai-engineers-guild/ai-stp/releases?q=cli-v)
 
-<p align="center">
-  <a href="https://github.com/ai-engineers-guild/ai-stp/actions/workflows/check.yml"><img src="https://github.com/ai-engineers-guild/ai-stp/actions/workflows/check.yml/badge.svg?branch=main" alt="check"></a>
-  <a href="https://pypi.org/project/ai-stp-cli/"><img src="https://img.shields.io/pypi/v/ai-stp-cli" alt="PyPI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License: AGPL-3.0"></a>
-  <a href="https://ai-stp.aiguild.space"><img src="https://img.shields.io/badge/catalog-ai--stp.aiguild.space-black" alt="catalog"></a>
-</p>
+ai-stp is a Rust CLI for creating, validating, selecting and installing complete
+AI harness configurations. The primary consumer is your coding agent. Local work
+needs no account, Python runtime or model key. The web provides accounts and the
+public catalog; the CLI remains the engine.
 
-The command is `ai-stp`. The distribution on PyPI is `ai-stp-cli`. The primary
-consumer is the user's agent: every command returns one JSON envelope. `ai-stp`
-does not call a model API and does not require a model key.
+## Start
 
-## One setup, nine kinds, exact versions
+Download a native archive, verify its checksum and GitHub attestation, and follow
+[installation and state setup](apps/cli/README.md#install-and-update).
 
-<p align="center">
-  <img src="assets/readme/shared/kinds.svg" width="640" alt="Nine kinds: instruction, skill, mcp, hook, command, agent, plugin, setting, cli.">
-</p>
-
-A **setup** belongs to one harness from creation. The closed kinds are
-`instruction`, `skill`, `mcp`, `hook`, `command`, `agent`, `plugin`, `setting`,
-`cli`. `command` is a named slash invocation; `cli` is a standalone executable.
-Memory and rules are content of those kinds, not extra kinds. A published
-version pins exact component versions and is immutable.
-
-## CLI assembles, the provider writes
-
-The CLI and the agent select, validate, and bundle. Every command is one JSON
-envelope. The CLI does not write the harness's native files. The web owns the
-account and the public catalog; it does not assemble or install a setup. Only
-the harness provider writes native state.
-
-<p align="center">
-  <img src="assets/readme/shared/workflow.svg" width="640" alt="Eight kinds pin into one setup for one harness. The CLI validates and bundles. Only the provider writes native files.">
-</p>
-
-Trust is origin, version, and consent. Compatibility — graph, target, and
-policy — must decide before apply. A published version is an immutable digest
-bound to object version, policy, and device. Sync continues from the last
-confirmed cursor. Author verification is origin, not a safety verdict on the
-bytes. `author_verified` and `component_verified` are independent.
-
-Local work needs no account. The public catalog is readable anonymously. Google
-or GitHub sign-in unlocks private objects, sync, publication, devices, and
-grants.
-
-## Install the CLI, then let the agent drive it
-
-```bash
-uv tool install ai-stp-cli
+```sh
+ai-stp init --credential-store os_keyring --json
 ai-stp task intents --json
+ai-stp help --agent --json
 ```
 
-<details>
-<summary>Next commands the agent should read from compact discovery</summary>
+Existing Python state requires the explicit in-place transfer described in the
+[CLI guide](apps/cli/README.md#state-and-first-run). Historical PyPI wheels are
+not the current installation route. The retired implementation is preserved on
+[`legacy/python-cli`](https://github.com/ai-engineers-guild/ai-stp/tree/legacy/python-cli).
 
-```bash
-ai-stp task intents --json
-ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json
-```
+## Boundaries
 
-`help --agent --json` is the full registry when a shipped intent is not enough.
-Do not dump it as a prelude.
+A setup belongs to one harness and pins immutable component versions. The CLI
+validates the graph and assembles a bundle; the harness installation component
+writes native configuration. Setup systems are integrated components with separate
+repositories, acquired by the CLI. Harness executables are managed by their users
+and vendors; ai-stp only observes the installed program.
 
-`ai-stp` is the executable. `ai-stp-cli` is the package name. Copying
-`uv tool install ai-stp` installs a distribution this project does not publish.
+Linux x86-64, Apple Silicon macOS and Windows x86-64 are exercised in CI. Isolated
+setup installation and active-agent handoff currently work on Linux; the other
+platforms explicitly refuse that boundary. `ai-stp capabilities --json` reports
+what the running platform supports.
 
-</details>
+## Reference
 
-## Desktop application
+- [Rust CLI](apps/cli/README.md): install, state, services and recovery.
+- [Documentation](docs/index.md): machine contracts and server operations.
+- [Development](CONTRIBUTING.md) and [working rules](AGENTS.md).
+- [Desktop shell](apps/desktop/README.md): another client of the CLI contract.
+- [Security reporting](SECURITY.md) and [code of conduct](CODE_OF_CONDUCT.md).
 
-`apps/desktop` is `ai-stp-desktop`, a Tauri 2 desktop shell over the
-same CLI machine contract — catalog, task-engine journeys, targets, and
-recovery in a native window for Linux, macOS, and Windows. Release
-bundles embed the CLI as a sidecar, so no separate install is required.
-Download the latest build from
-[GitHub Releases](https://github.com/ai-engineers-guild/ai-stp/releases?q=desktop)
-(bundles are unsigned; `SHA256SUMS` covers every artifact). Details and
-the boundary rules live in `apps/desktop/README.md` and ADR-0222.
-
-## Supported harnesses
-
-`full` — native surface and a provider route. `partial` — one of those. `—` — no
-native surface. The matrix is `ai-stp toolchain harness-capabilities`.
-
-| Harness | Status | instruction | skill | mcp | hook | command | agent | plugin | setting | cli |
-|---|---|---|---|---|---|---|---|---|---|---|
-| Claude Code | Beta | full | full | partial | full | full | full | partial | full | — |
-| Codex | Beta | full | partial | full | partial | full | full | — | full | — |
-| Grok Build | Beta | full | full | full | full | — | partial | full | full | — |
-| Pi | Beta | full | full | partial | — | full | — | full | full | — |
-| OpenCode | Beta | full | full | full | — | full | full | full | full | — |
-| Cursor | Beta | full | full | full | full | full | full | full | full | — |
-| Antigravity | Beta | partial | full | full | full | full | full | full | full | — |
-
-An unknown harness is `undefined`. Automatic install is refused.
-
-## Current direction: native Rust CLI
-
-The native `ai-stp-v2` preview is available for Linux x86-64, Apple Silicon
-macOS and Windows x86-64 in
-[GitHub Releases](https://github.com/ai-engineers-guild/ai-stp/releases?q=cli-v2-v).
-Archives include checksums and build provenance. The binary runs without Python
-and uses explicit isolated state. Its implemented capabilities, platform
-requirements and verification instructions live in
-[`apps/cli-v2/README.md`](apps/cli-v2/README.md).
-
-The production `ai-stp` executable remains the Python CLI until verified
-state ownership transfer (`ADR-0227`). Native configuration installation,
-connected account/sync/publication, automated updates and desktop distribution
-remain unfinished. Setup systems are ai-stp installation components with
-separate release repositories (`ADR-0228`).
-
-`main` is the protected release branch; work starts from `dev` and enters it by
-PR before promotion to `main`. For a new workstation, follow
-[CONTRIBUTING.md](CONTRIBUTING.md#development-on-a-new-workstation).
-
-Phase status belongs to
-[`docs/engineering/implementation-roadmap.md`](docs/engineering/implementation-roadmap.md):
-read that file when you need the current evidence, not a summary here.
-
-<details>
-<summary>Contributing</summary>
-
-- [CONTRIBUTING.md](CONTRIBUTING.md): how changes enter this repository.
-- [SECURITY.md](SECURITY.md): how to report a vulnerability.
-- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md): expectations for participation.
-- [AGENTS.md](AGENTS.md): rules for people and agents. Read before any repository change.
-
-</details>
-
-<details>
-<summary>Documentation</summary>
-
-- [docs/index.md](docs/index.md): map of product, architecture, contract, engineering, and operations documentation.
-- [docs/product/vision.md](docs/product/vision.md): the problem, users, value, and positioning of ai_stp.
-- [docs/product/scope.md](docs/product/scope.md): required MVP capabilities, harness statuses, and explicit exclusions.
-- [docs/architecture/overview.md](docs/architecture/overview.md): overall data flow and the boundaries of the local and server environments.
-- [specs/index.md](specs/index.md): versioned requirements that the code must satisfy.
-- User docs: [English](https://ai-stp.aiguild.space/en/docs) · [Русский](https://ai-stp.aiguild.space/ru/docs)
-
-</details>
-
-<details>
-<summary>License</summary>
-
-AGPL-3.0-or-later. Network use of the platform is covered: if `ai-stp` is
-offered as a service, the source of the modified version stays available to
-those users.
-
-The catalog belongs to the guild. Public harness installation components
-retain their separate repositories and licenses.
-
-Components and setups published by users are independent works licensed by
-their authors; the platform license does not apply to them.
-
-</details>
+AGPL-3.0-or-later; see [LICENSE](LICENSE). User-published configurations and public
+installation components retain their own licenses.

@@ -28,7 +28,7 @@ MiMoCode may have its own native structure, but this repository has no approved 
 
 ## How it relates to ai-stp
 
-ai-stp can store a description and a link to an external project, but it must not present MiMoCode as a verified setup. For the seven supported harnesses, the CLI discovers components, creates passports, checks the graph, assembles an exact plan, and delegates writes to the matching NDDev provider. For MiMoCode, only a safe read-only overview is available for now.
+ai-stp help --path task --json
 
 ## What would be needed to add it
 
@@ -42,7 +42,7 @@ Until then, do not copy the whole user home into MiMoCode or install a discovere
 ## Links
 
 - [NDDev OpenNetwork organization](https://github.com/NDDev-OpenNetwork)
-- [ai-stp public setup-system contract](https://github.com/NDDev-OpenNetwork/ai-stp/blob/main/specs/active/SPEC-008-provider-installation.md)
+- [ai-stp public setup-system contract](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli/README.md#setup-components-and-installation)
 
 ## Trust boundary
 

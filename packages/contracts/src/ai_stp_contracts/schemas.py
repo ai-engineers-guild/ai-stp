@@ -525,6 +525,8 @@ from ai_stp_contracts.store_ports import (
     StorePortInspection,
 )
 from ai_stp_contracts.sync import (
+    ConsentTombstonePayload,
+    ConsentUpsertPayload,
     SyncConflictInfo,
     SyncEvent,
     SyncEventReceipt,
@@ -1174,6 +1176,10 @@ EXPORTED_MODELS: Final[dict[str, ExportedSchema]] = {
     **ASSURANCE_STACK_MODELS,
     **CONTRACT_MODELS,
     "catalog-author-option": CatalogAuthorOption,
+    # SyncEvent.payload is an opaque JSON object in the HTTP contract. These
+    # schemas describe its existing kind-specific validation, not HTTP models.
+    "sync-consent-upsert": ConsentUpsertPayload,
+    "sync-consent-tombstone": ConsentTombstonePayload,
 }
 
 

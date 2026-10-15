@@ -1,0 +1,320 @@
+//! Exact native admission and terminal receipts; only desired bundle bytes are retained.
+
+use rusqlite::{Connection, OptionalExtension};
+use serde_json::{Value, json};
+use std::path::Path;
+
+use super::{identity, invalid, outcome, plan::Plan, reservations};
+use crate::{
+    error::{ErrorKind, Result},
+    files::OwnedDirectory,
+    provider::runtime::target::Target,
+    store::{Store, database},
+};
+
+use crate::provider::configuration::record::{LIMIT as RECORD_LIMIT, Record};
+
+pub(super) struct Journal {
+    state: Target,
+    operation: OwnedDirectory,
+    _target_lock: OwnedDirectory,
+    namespace: Option<OwnedDirectory>,
+}
+
+fn context(parent: &Path, plan: &Plan) -> Result<Target> {
+    let state = Target::open(parent)?;
+    if state.path().to_str() != Some(&plan.state_parent) || identity(&state)? != plan.state_identity
+    {
+        return Err(invalid());
+    }
+    Ok(state)
+}
+
+pub(super) fn read(connection: &Connection, plan: &Plan, digest: &str) -> Result<Option<Record>> {
+    let row: Option<(String, String, String)> = connection
+        .query_row(
+            "SELECT kind,state,coalesce(detail,'') FROM operation WHERE operation_id=?",
+            [&plan.operation_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()
+        .map_err(database)?;
+    let Some((kind, state, detail)) = row else {
+        return Ok(None);
+    };
+    let (record, held) = Record::parse(&detail, &kind, &state)?;
+    if record.plan_digest != digest || held.value()? != plan.value()? {
+        return Err(invalid());
+    }
+    Ok(Some(record))
+}
+
+impl Journal {
+    pub fn history(parent: &Path, plan: &Plan, digest: &str) -> Result<Option<Record>> {
+        let state = context(parent, plan)?;
+        let store = Store::planning(state.path())?;
+        let record = read(&store.connection, plan, digest)?;
+        state.revalidate()?;
+        Ok(record)
+    }
+
+    pub fn open(parent: &Path, plan: &Plan, digest: &str) -> Result<Self> {
+        Self::open_namespace(parent, plan, digest, true)
+    }
+
+    pub fn cleanup_history(parent: &Path, plan: &Plan, digest: &str) -> Result<()> {
+        // Historical replay cannot depend on other unfinished targets or
+        // migrate a live writer namespace. Only this operation's private
+        // retained payload is retired, under the original target/operation locks.
+        let journal = Self::open_namespace(parent, plan, digest, false)?;
+        let record = journal.read(plan, digest)?.ok_or_else(invalid)?;
+        if record.state == "applying" {
+            return Err(invalid());
+        }
+        journal.cleanup()
+    }
+
+    fn open_namespace(parent: &Path, plan: &Plan, digest: &str, migrate: bool) -> Result<Self> {
+        let state = context(parent, plan)?;
+        let namespace = reservations::namespace(&state.directory()?, migrate)?;
+        let mut journal = Self::open_shared(parent, plan, digest, &namespace)?;
+        journal.namespace = Some(namespace);
+        Ok(journal)
+    }
+
+    pub fn open_shared(
+        parent: &Path,
+        plan: &Plan,
+        digest: &str,
+        namespace: &OwnedDirectory,
+    ) -> Result<Self> {
+        namespace.validate_lock()?;
+        let state = context(parent, plan)?;
+        let target_key = reservations::target_key(plan);
+        let target_lock = OwnedDirectory::open_at(
+            &namespace.directory,
+            &format!(
+                "target-{}",
+                target_key.strip_prefix("sha256:").ok_or_else(invalid)?
+            ),
+            &reservations::target_owner(&target_key),
+            true,
+        )?
+        .ok_or_else(invalid)?;
+        let owner = format!(
+            "ai-stp:configuration-operation/v1\n{}\n{digest}\n",
+            plan.operation_id
+        );
+        let operation = OwnedDirectory::open_at(
+            &namespace.directory,
+            &plan.operation_id,
+            owner.as_bytes(),
+            true,
+        )?
+        .ok_or_else(invalid)?;
+        state.revalidate()?;
+        Ok(Self {
+            state,
+            operation,
+            _target_lock: target_lock,
+            namespace: None,
+        })
+    }
+
+    fn store(&self, create: bool) -> Result<Store> {
+        self.state.revalidate()?;
+        self.operation.validate_lock()?;
+        self._target_lock.validate_lock()?;
+        if let Some(namespace) = &self.namespace {
+            namespace.validate_lock()?;
+        }
+        Store::open(self.state.path(), create)
+    }
+
+    pub fn read(&self, plan: &Plan, digest: &str) -> Result<Option<Record>> {
+        let store = match self.store(false) {
+            Err(error) if matches!(error.kind, ErrorKind::NotFound) => return Ok(None),
+            result => result?,
+        };
+        let record = read(&store.connection, plan, digest)?;
+        self.state.revalidate()?;
+        Ok(record)
+    }
+
+    pub fn payload(&self, plan: &Plan, supplied: Option<&[u8]>, admitted: bool) -> Result<Vec<u8>> {
+        self.state.revalidate()?;
+        self.operation.validate_lock()?;
+        let created = plan.created_at.parse().map_err(|_| invalid())?;
+        let request = plan.request(created)?;
+        if request.bundle.is_none() {
+            if supplied.is_some() {
+                return Err(invalid());
+            }
+            return Ok(Vec::new());
+        }
+        if let Some(bytes) = supplied {
+            request.check_bundle(bytes, created)?;
+        }
+        if let Some(bytes) = self.operation.read_file("bundle.zip", 64 * 1024 * 1024)? {
+            request.check_bundle(&bytes, created)?;
+            return Ok(bytes);
+        }
+        if admitted {
+            return Err(invalid());
+        }
+        let bytes = supplied.ok_or_else(invalid)?;
+        self.operation.atomic("bundle.zip", bytes)?;
+        let bytes = self
+            .operation
+            .read_file("bundle.zip", 64 * 1024 * 1024)?
+            .ok_or_else(invalid)?;
+        request.check_bundle(&bytes, created)?;
+        Ok(bytes)
+    }
+
+    pub fn admit(&self, plan: &Plan, digest: &str) -> Result<()> {
+        self.namespace
+            .as_ref()
+            .ok_or_else(invalid)?
+            .validate_lock()?;
+        self.write(plan, digest, "applying", None)
+    }
+
+    /// Release short admission serialization only after durable reservation.
+    /// Unrelated roots can then execute concurrently; overlapping roots cannot
+    /// enter until the existing operation has a verified terminal receipt.
+    pub fn resume(&mut self, plan: &Plan, digest: &str) -> Result<()> {
+        self.namespace
+            .as_ref()
+            .ok_or_else(invalid)?
+            .validate_lock()?;
+        let store = self.store(false)?;
+        let record = read(&store.connection, plan, digest)?.ok_or_else(invalid)?;
+        if record.state != "applying" {
+            return Err(invalid());
+        }
+        reservations::available(&store.connection, plan)?;
+        drop(store);
+        self.state.revalidate()?;
+        self.namespace.take();
+        Ok(())
+    }
+
+    pub fn complete(&self, plan: &Plan, digest: &str, result: &Value) -> Result<()> {
+        outcome::validate(result, plan, digest)?;
+        self.write(plan, digest, "verified", Some(result))?;
+        self.cleanup()
+    }
+
+    pub fn cancel(&self, plan: &Plan, digest: &str, result: &Value) -> Result<()> {
+        outcome::validate_cancellation(result, plan, digest)?;
+        self.write(plan, digest, "cancelled", Some(result))?;
+        self.cleanup()
+    }
+
+    fn write(&self, plan: &Plan, digest: &str, state: &str, result: Option<&Value>) -> Result<()> {
+        let mut store = self.store(true)?;
+        store.transaction(|connection| write_record(connection, plan, digest, state, result))?;
+        self.state.revalidate()
+    }
+
+    pub fn admit_at(
+        &self,
+        connection: &Connection,
+        namespace: &OwnedDirectory,
+        plan: &Plan,
+        digest: &str,
+    ) -> Result<()> {
+        namespace.validate_lock()?;
+        self.state.revalidate()?;
+        self.operation.validate_lock()?;
+        self._target_lock.validate_lock()?;
+        write_record(connection, plan, digest, "applying", None)
+    }
+
+    pub fn cleanup(&self) -> Result<()> {
+        self.state.revalidate()?;
+        self.operation.validate_lock()?;
+        for entry in self.operation.directory.entries().map_err(|_| invalid())? {
+            let entry = entry.map_err(|_| invalid())?;
+            let name = entry.file_name();
+            let name = name.to_str().ok_or_else(invalid)?;
+            if matches!(name, "lock" | "owner") {
+                continue;
+            }
+            if name != "bundle.zip"
+                && !name
+                    .strip_prefix(".tmp-")
+                    .is_some_and(|suffix| suffix.parse::<ulid::Ulid>().is_ok())
+            {
+                return Err(invalid());
+            }
+            self.operation
+                .directory
+                .remove_file(name)
+                .map_err(|_| invalid())?;
+        }
+        self.operation.sync()
+    }
+}
+
+pub(super) fn write_record(
+    transaction: &Connection,
+    plan: &Plan,
+    digest: &str,
+    state: &str,
+    result: Option<&Value>,
+) -> Result<()> {
+    let detail = serde_json::to_string(&Record {
+        schema_version: 1,
+        plan_digest: digest.into(),
+        plan: plan.value()?,
+        state: state.into(),
+        result: result.cloned(),
+    })
+    .map_err(|_| invalid())?;
+    if detail.len() > RECORD_LIMIT {
+        return Err(invalid());
+    }
+    let now = jiff::Timestamp::now().to_string();
+    if state == "applying" {
+        reservations::available(transaction, plan)?;
+    }
+    if state == "applying" {
+        super::project::admitting(transaction, plan)?;
+    }
+    let previous = read(transaction, plan, digest)?;
+    let before = previous
+        .as_ref()
+        .map_or("unseen", |record| record.state.as_str())
+        .to_owned();
+    match (previous, result) {
+        (None, None) => {
+            transaction.execute("INSERT INTO operation(operation_id,kind,state,started_at,detail) VALUES (?,?,?,?,?)",
+                    rusqlite::params![plan.operation_id,plan.action,state,now,detail]).map_err(database)?;
+        }
+        (None, Some(_)) if state == "cancelled" => {
+            transaction.execute("INSERT INTO operation(operation_id,kind,state,started_at,finished_at,detail) VALUES (?,?,?,?,?,?)",
+                        rusqlite::params![plan.operation_id,plan.action,state,now,now,detail]).map_err(database)?;
+        }
+        (Some(record), Some(_)) if record.state == "applying" => {
+            transaction
+                .execute(
+                    "UPDATE operation SET state=?,detail=?,finished_at=? WHERE operation_id=?",
+                    rusqlite::params![state, detail, now, plan.operation_id],
+                )
+                .map_err(database)?;
+        }
+        _ => return Err(invalid()),
+    }
+    if state == "verified" {
+        crate::provider::runtime::configuration::project::invalidate_related(transaction, plan)?;
+        super::project::completed(transaction, plan)?;
+    }
+    let evidence = serde_json::to_string(&json!({"plan_digest":digest})).map_err(|_| invalid())?;
+    transaction.execute("INSERT INTO operation_event(operation_id,sequence,at,state_before,state_after,result,evidence,global_sequence) \
+                SELECT ?,coalesce((SELECT max(sequence) FROM operation_event WHERE operation_id=?),0)+1,?,?,?,?,?, \
+                coalesce((SELECT max(global_sequence) FROM operation_event),0)+1",
+                rusqlite::params![plan.operation_id,plan.operation_id,now,before,state,"accepted",evidence]).map_err(database)?;
+    Ok(())
+}

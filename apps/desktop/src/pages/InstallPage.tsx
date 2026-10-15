@@ -41,17 +41,6 @@ interface TaskView {
 // Fallback only: the live list comes from `task intents`, which publishes
 // the same closed set `task start --intent` enforces. A CLI that cannot
 // answer gets this — which is why it stays a constant.
-const FALLBACK_INTENTS = [
-  "install",
-  "change",
-  "switch",
-  "initialize",
-  "inspect",
-  "author",
-  "account",
-  "publish",
-  "technology",
-];
 
 /** Task-engine wizard: the CLI asks questions, we render them, the engine
  *  decides the next step. The app never guesses the flow — `questions[]`,
@@ -59,7 +48,9 @@ const FALLBACK_INTENTS = [
 export default function InstallPage() {
   const [params] = useSearchParams();
   const [intent, setIntent] = useState(params.get("intent") ?? "install");
-  const [intents, setIntents] = useState<string[]>(FALLBACK_INTENTS);
+  const [intents, setIntents] = useState<string[]>([]);
+  const [inputPath, setInputPath] = useState("");
+  const [inputSchema, setInputSchema] = useState<CmdResult | null>(null);
   const [task, setTask] = useState<TaskView | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [continuations, setContinuations] = useState<CliContinuation[]>([]);
@@ -110,7 +101,7 @@ export default function InstallPage() {
       setAnswers({});
       const key = startKey ?? `desktop-${Date.now().toString(36)}`;
       setStartKey(key);
-      const r = await cmdTaskStart(intent, key);
+      const r = await cmdTaskStart(intent, key, inputPath.trim());
       setLastResult(r);
       setContinuations(r.continuations);
       if (r.ok) setTask(view(r));
@@ -239,8 +230,8 @@ export default function InstallPage() {
       <header>
         <h1 className="page-title">Install &amp; flows</h1>
         <p className="page-sub">
-          The task engine drives every journey: it asks, you answer, it plans,
-          you approve the digest, it applies. Nothing is written before that approval.
+          Start authoring or installation with explicit inputs. Starting authorizes
+          the requested operation; the CLI validates, journals and applies it.
         </p>
       </header>
 
@@ -265,7 +256,16 @@ export default function InstallPage() {
               </button>
             ))}
           </div>
-          <button onClick={() => void start()} disabled={busy} className="btn-primary">
+          <label className="block space-y-1 text-sm">Task input JSON file
+            <input className="input block w-full font-mono" value={inputPath} onChange={(event) => {
+              setInputPath(event.target.value); setStartKey(null);
+            }} placeholder="Absolute path to the task input file" />
+          </label>
+          <button className="btn-outline" disabled={!intents.includes(intent)} onClick={() => {
+            void cmdRunRead("task input-schema", { intent }).then(setInputSchema);
+          }}>Show accepted input</button>
+          {inputSchema && <><ResultMeta r={inputSchema} />{inputSchema.data && <Json v={inputSchema.data} />}</>}
+          <button onClick={() => void start()} disabled={busy || !intents.includes(intent) || (intent === "install" && !inputPath.trim())} className="btn-primary">
             <Play size={14} /> Start
           </button>
         </section>

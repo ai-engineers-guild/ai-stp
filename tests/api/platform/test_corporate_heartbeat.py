@@ -15,8 +15,8 @@ from typing import Any
 
 import pytest
 import pytest_asyncio
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from httpx import ASGITransport, AsyncClient
-from nacl.signing import SigningKey
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from tests.support.api_settings import make_settings
@@ -36,7 +36,7 @@ from ai_stp_platform.telemetry_policy_models import TelemetryPolicy, TelemetryRe
 from ai_stp_platform.tenant_scope import set_tenant_scope
 
 pytestmark = pytest.mark.platform
-_DEVICE_KEYS: dict[str, SigningKey] = {}
+_DEVICE_KEYS: dict[str, Ed25519PrivateKey] = {}
 
 
 def _now() -> datetime:
@@ -62,11 +62,11 @@ async def _account_with_device(
 ) -> tuple[str, str, str]:
     async with sessionmaker() as db:
         account = Account(id=new_id("account"), status="active")
-        signer = SigningKey.generate()
+        signer = Ed25519PrivateKey.generate()
         device = Device(
             id=new_id("device"),
             account_id=account.id,
-            public_key=base64.b64encode(bytes(signer.verify_key)).decode("ascii"),
+            public_key=base64.b64encode(signer.public_key().public_bytes_raw()).decode("ascii"),
             state="active",
         )
         db.add_all([account, device])
@@ -120,7 +120,7 @@ async def _put(
     signer = _DEVICE_KEYS.get(device_id)
     if signer is not None:
         report = InstallationHeartbeatRequest.model_validate(json)
-        signature = signer.sign(heartbeat_signature_message(path.split("/")[4], report)).signature
+        signature = signer.sign(heartbeat_signature_message(path.split("/")[4], report))
         json = {**json, "signature": base64.urlsafe_b64encode(signature).rstrip(b"=").decode()}
     return await client.put(path, json=json, headers=headers)
 
@@ -140,7 +140,7 @@ async def test_device_can_renew_session_with_its_key(
         headers={"Authorization": f"Bearer {token}"},
     )
     assert denied.status_code == 400
-    signature = _DEVICE_KEYS[device_id].sign(device_refresh_message(request)).signature
+    signature = _DEVICE_KEYS[device_id].sign(device_refresh_message(request))
     signed = request.model_copy(
         update={"signature": base64.urlsafe_b64encode(signature).rstrip(b"=").decode()}
     )
@@ -451,7 +451,7 @@ async def test_heartbeat_boundary_rejects_unsigned_stale_and_wrong_org(
 
     signer = _DEVICE_KEYS[device_id]
     report = InstallationHeartbeatRequest.model_validate(_payload(account_id, device_id))
-    foreign_signature = signer.sign(heartbeat_signature_message("org_other", report)).signature
+    foreign_signature = signer.sign(heartbeat_signature_message("org_other", report))
     foreign = await client.put(
         path,
         json={

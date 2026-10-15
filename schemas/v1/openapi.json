@@ -53,6 +53,19 @@
               }
             ]
           },
+          "revision": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Revision"
+          },
           "revoked_at": {
             "anyOf": [
               {
@@ -949,7 +962,7 @@
           "adaptation_id": {
             "anyOf": [
               {
-                "maxLength": 64,
+                "maxLength": 75,
                 "minLength": 1,
                 "type": "string"
               },
@@ -14835,8 +14848,30 @@
           "display_name": {
             "$ref": "#/components/schemas/DisplayName"
           },
+          "expected_account_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccountId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "public_key": {
             "$ref": "#/components/schemas/PublicKey"
+          },
+          "revoked_public_key": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicKey"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "schema_version": {
             "const": 1,
@@ -14917,6 +14952,34 @@
         "additionalProperties": false,
         "description": "POST /v1/grants/direct body with an explicit recipient identifier kind.",
         "properties": {
+          "expected_grant_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 8,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expected Grant Id"
+          },
+          "expected_revision": {
+            "anyOf": [
+              {
+                "maximum": 2147483646,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expected Revision"
+          },
           "idempotency_key": {
             "$ref": "#/components/schemas/IdempotencyKey"
           },
@@ -14925,6 +14988,19 @@
             "minimum": 0,
             "title": "Major",
             "type": "integer"
+          },
+          "mutation_contract": {
+            "anyOf": [
+              {
+                "const": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mutation Contract"
           },
           "object_kind": {
             "$ref": "#/components/schemas/ObjectKind"
@@ -18082,6 +18158,19 @@
           "idempotency_key": {
             "$ref": "#/components/schemas/IdempotencyKey"
           },
+          "mutation_contract": {
+            "anyOf": [
+              {
+                "const": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mutation Contract"
+          },
           "schema_version": {
             "const": 1,
             "default": 1,
@@ -18114,6 +18203,19 @@
             "minimum": 0,
             "title": "Major",
             "type": "integer"
+          },
+          "mutation_contract": {
+            "anyOf": [
+              {
+                "const": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mutation Contract"
           },
           "object_kind": {
             "$ref": "#/components/schemas/ObjectKind"
@@ -18241,8 +18343,35 @@
         "additionalProperties": false,
         "description": "Revoke invitation or grant with an optional reason.",
         "properties": {
+          "expected_revision": {
+            "anyOf": [
+              {
+                "maximum": 2147483646,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expected Revision"
+          },
           "idempotency_key": {
             "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "mutation_contract": {
+            "anyOf": [
+              {
+                "const": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mutation Contract"
           },
           "reason": {
             "default": "",

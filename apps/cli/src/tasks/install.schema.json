@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ai-stp:schema:v1:cli-task-input-native-install",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "harness_id",
+    "targets"
+  ],
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stable_id",
+        "version",
+        "passport_digest"
+      ],
+      "properties": {
+        "stable_id": {
+          "type": "string",
+          "pattern": "^setup_[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+        },
+        "passport_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      }
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1
+    },
+    "harness_id": {
+      "type": "string",
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity"
+      ]
+    },
+    "source": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/source"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "targets": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 3,
+      "propertyNames": {
+        "enum": [
+          "global",
+          "user_root",
+          "project"
+        ]
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      }
+    },
+    "operation": {
+      "type": "string",
+      "enum": [
+        "install",
+        "replace",
+        "remove"
+      ],
+      "default": "install"
+    },
+    "project_root": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "placements": {
+      "type": "object",
+      "maxProperties": 512,
+      "propertyNames": {
+        "pattern": "^component_[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+      },
+      "additionalProperties": {
+        "enum": [
+          "global",
+          "user_root",
+          "project"
+        ]
+      },
+      "default": {}
+    },
+    "provider_version": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "harness_executable": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "access": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "trust_pins": {
+          "type": "array",
+          "maxItems": 512,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          }
+        },
+        "account": {
+          "type": "boolean"
+        }
+      },
+      "default": {}
+    },
+    "activation": {
+      "type": "string",
+      "enum": [
+        "inactive",
+        "handoff"
+      ],
+      "default": "inactive"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "operation"
+        ],
+        "properties": {
+          "operation": {
+            "const": "remove"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "source": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "required": [
+          "source"
+        ],
+        "properties": {
+          "source": {
+            "$ref": "#/$defs/source"
+          }
+        }
+      }
+    }
+  ]
+}

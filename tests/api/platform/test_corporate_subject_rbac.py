@@ -535,7 +535,7 @@ async def test_solo_private_grant_is_read_only_and_revocation_removes_visibility
     revoked = await client.post(
         f"/v1/grants/{grant_id}/revoke",
         headers=author_auth,
-        json={"idempotency_key": str(uuid.uuid4())},
+        json={"idempotency_key": str(uuid.uuid4()), "expected_revision": 1},
     )
     assert revoked.status_code == 200, revoked.text
     hidden = await client.post(

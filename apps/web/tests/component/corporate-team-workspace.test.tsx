@@ -73,13 +73,14 @@ describe("corporate resource actions", () => {
     await user.click(await screen.findByRole("menuitem", { name: "Edit" }));
     await user.click(screen.getByRole("button", { name: messages.corporate.update }));
     await screen.findByText("Conflict");
-    await user.click(screen.getByRole("button", { name: messages.corporate.update }));
+    await user.click(await screen.findByRole("button", { name: messages.corporate.update }));
     await waitFor(() => {
       expect(corporateMutation).toHaveBeenCalledTimes(2);
     });
     expect(vi.mocked(corporateMutation).mock.calls[1]?.[0].body).toEqual(
       vi.mocked(corporateMutation).mock.calls[0]?.[0].body,
     );
+    await screen.findByRole("button", { name: messages.corporate.update });
     await user.clear(screen.getByLabelText(messages.corporate.permissions));
     await user.type(screen.getByLabelText(messages.corporate.permissions), "team.write");
     await user.click(screen.getByRole("button", { name: messages.corporate.update }));
@@ -105,8 +106,9 @@ describe("corporate resource actions", () => {
     await user.click(screen.getByRole("button", { name: messages.corporate.update }));
     await screen.findByText(messages.common.apiUnavailable);
     expect(screen.getByLabelText(messages.corporate.permissions)).toHaveValue("team.write");
-    expect(screen.getByRole("button", { name: messages.corporate.update })).toBeEnabled();
-    await user.click(screen.getByRole("button", { name: messages.corporate.update }));
+    const retry = await screen.findByRole("button", { name: messages.corporate.update });
+    expect(retry).toBeEnabled();
+    await user.click(retry);
     await screen.findByText("Conflict");
     expect(vi.mocked(corporateMutation).mock.calls[1]?.[0].body).toEqual(
       vi.mocked(corporateMutation).mock.calls[0]?.[0].body,

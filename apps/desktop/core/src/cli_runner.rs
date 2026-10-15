@@ -32,16 +32,9 @@ const DRAIN_GRACE: Duration = Duration::from_secs(5);
 
 /// Env vars inherited by the spawned CLI when present in the parent env.
 ///
-/// The Windows entries are load-bearing for the PyInstaller onefile
-/// sidecar: its bootloader resolves the `_MEI` extraction dir through
-/// `GetTempPathW` (`TMP` → `TEMP` → `USERPROFILE` → the Windows
-/// directory). Stripping all three drops extraction into `C:\Windows`,
-/// which a non-elevated user cannot write — the binary then dies before
-/// the CLI runs with `[PYI-*:ERROR] Could not create temporary
-/// directory!`. The AppData/HOME entries keep Python's profile and
-/// `expanduser`/`Path.home()` resolution working inside the frozen CLI,
-/// and the proxy/CA entries keep registry/auth traffic working behind
-/// corporate proxies.
+/// Profile and temporary-directory entries retain the native CLI's platform
+/// path resolution after `env_clear`. Proxy and CA entries preserve explicit
+/// network configuration for account and catalog requests.
 #[doc(hidden)]
 pub const PASSTHROUGH_ENV: &[&str] = &[
     "PATH",
@@ -286,9 +279,8 @@ impl CliRunner {
         #[cfg(unix)]
         {
             use std::os::unix::process::CommandExt;
-            // Own process group so a timeout can kill the whole tree: the
-            // PyInstaller onefile bootloader forks the real CLI, and
-            // `Child::kill` alone would orphan the in-flight mutation.
+            // Own a process group so timeout cleanup includes descendants
+            // launched by the CLI instead of abandoning an in-flight operation.
             cmd.process_group(0);
         }
         #[cfg(windows)]
@@ -453,9 +445,7 @@ mod tests {
             .next_back()
     }
 
-    /// The Windows-bundle regression: TMP/TEMP/USERPROFILE/TMPDIR must be
-    /// carried through `env_clear` or the PyInstaller bootloader falls
-    /// back to an unwritable `C:\Windows` `_MEI` dir.
+    /// Native profile and temporary paths survive the filtered environment.
     #[test]
     fn child_env_carries_temp_and_profile_keys() {
         let snapshot = vars(&[

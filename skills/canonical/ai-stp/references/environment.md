@@ -1,19 +1,3 @@
-# Environment
+# Environment requirements
 
-User intents: configure this project, prepare several harnesses, install the
-programs and tools needed by selected setups.
-
-Start the `install` intent once per harness setup. Do not type
-`environment plan`, `environment inspect`, `install transaction plan`,
-`install transaction approve`, or `install transaction apply`. Multi-root
-coordination is expert recovery:
-follow [recover](recover.md) when an aggregate already exists.
-
-Inspect the project with the `inspect` intent first only when the user asked
-what is wrong. Keep each setup attached to its own harness. Program evidence,
-authorization, and verified native configuration are separate facts.
-
-Shared executable versions remain separate from a harness's native snapshot.
-Returning one setup never authorizes deleting a shared tool or another
-project's runtime. Remaining toolchain and harness-program leaves stay in
-machine help.
+Read `ai-stp environment requirements` and inspect the user-installed executable with `ai-stp program status`. Resolve prerequisites inside the user-authorized scope. ai-stp does not install, pin or update harness binaries. Platform capability refusal is final; do not bypass provider isolation with a direct executable launch.

@@ -4,7 +4,7 @@
 
 Do not disclose vulnerability details in a public issue. Use GitHub Private Vulnerability Reporting on this repository's **Security** tab.
 
-Reports about published catalog objects are submitted through the product and create a private moderation case under `SPEC-016`; moderators escalate a case showing signs of a vulnerability into this private process without disclosing details.
+Reports about published catalog objects are submitted through the product and create a private moderation case; moderators escalate a case showing signs of a vulnerability into this private process without disclosing details.
 
 Include the affected version or commit, minimal reproduction steps, expected and actual behavior, potential impact, and safe evidence without real secrets.
 
@@ -26,7 +26,7 @@ Path traversal and unsafe extraction, replacement through symbolic or hard links
 
 ## Three independent axes
 
-The agent execution profile within the harness, isolation of validation-tool execution, and integrity of the mutating operation are three independent axes under `ADR-0017`. The `full-auto` profile applies only to the first axis and does not waive authorization, artifact validation, planning, backup, atomicity, or recovery.
+The agent execution profile within the harness, isolation of validation-tool execution, and integrity of the mutating operation are three independent axes. The `full-auto` profile applies only to the first axis and does not waive authorization, artifact validation, planning, atomicity, or recovery.
 
 ## Mandatory protections
 

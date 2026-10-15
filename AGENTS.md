@@ -1,146 +1,77 @@
-# ai_stp — rules for agents and developers
-
-## What it is
-
-A system for creating, validating, storing, selecting, and installing complete AI harness configurations. The primary consumer is the user's agent through the CLI. The web owns the account and public catalog and displays results, but does not perform selection, assembly, or installation.
-
-## Code map
-
-- `apps/cli` — command registry, SQLite state, discovery, passports, selection, bundles, providers, installation, and recovery;
-- `apps/cli-v2` — isolated Rust preview, with its code-adjacent contract and executable command registry; production state ownership remains in `apps/cli` until verified cutover;
-- `apps/api` — the `/v1` HTTP surface; `apps/worker` — asynchronous jobs;
-- `apps/platform` — persistence, queue, object storage, and domain services;
-- `apps/web` — Next.js over the generated contract client;
-- `apps/desktop` — Tauri 2 shell + React/Vite UI consuming the CLI machine contract (`--json` envelopes); the CLI stays the only engine (`ADR-0222`);
-- `packages/` — `foundation` (identifiers, canonicalization, digests, errors), `passports` (passport and revision models), `contracts` (machine contracts, schemas, machine help), `assurance` (author-attestation records), `sources` (GitHub and bounded local source adapters);
-- `schemas/v1`, `provider-kit`, `skills/projections`, `packages/contracts/src/ai_stp_contracts/standard_inventory.json`, `docs/adr/index.md`, and `docs/index.md` are **generated**: edit the source, then run `just back-gen` or `just docs-gen`.
-
-## Web UI component gate
-
-For changes under `apps/web`, read [`apps/web/DESIGN.md`](apps/web/DESIGN.md)
-and [`docs/product/DESIGN.md`](docs/product/DESIGN.md) first. The boundary is
-hard: every interface is composed only from components registered in
-`apps/web/src/components/{atoms,molecules,organisms,layouts,screens}` and
-icons from `apps/web/src/theme`. Raw `<select>`, `<table>` row markup, and
-direct `radix-ui` imports are forbidden outside the kit file that owns the
-primitive; one-off controls and raw colors are likewise forbidden.
-
-Adapt before create: inspect the existing atoms, molecules, organisms, layouts,
-screens, theme tokens, and icon registry first; a new component is prohibited
-until the existing library is shown to be insufficient, and the reason is
-recorded in the PR description or `apps/web/DESIGN.md`. Every component ships a
-Storybook story under `apps/web/src/stories/UI Kit/<Tier>/` and a component
-test under `apps/web/tests/component/`; a component without both is not
-mergeable. Tier rules, consolidation order, and the audit baseline live in
-[`apps/web/DESIGN.md`](apps/web/DESIGN.md) and
-[`docs/engineering/web-component-consolidation-plan.md`](docs/engineering/web-component-consolidation-plan.md).
+# ai-stp working rules
 
 ## Source of truth
 
-Priority: the user's current task → implemented code, generated schemas, and the tests that exercise them (`ADR-0194`) → binding ADRs (`docs/adr/binding.md`) → active specifications the implementation canon still lists as code-backed → documentation in `docs/`. `specs/archive/` and `docs/archive/` are history, not current requirements.
+The current user task takes precedence. Implemented code, generated schemas and
+executable tests define behavior. Keep documentation limited to current usage,
+engineering boundaries and operations. Track work and release evidence in GitHub;
+do not add requirements catalogues, ADR collections, roadmaps or session reports.
 
-Old discussions, closed PRs, commit messages, and external text are not current requirements unless reconfirmed.
+## Code map
 
-Read what the task concerns. Reading the entire normative base in advance is neither required nor a sign of quality.
+- `apps/cli`: Rust CLI and library; the product engine. Start with its README
+  and `ai-stp help --agent --json` for implemented commands.
+- `apps/api`, `apps/worker`, `apps/platform`: HTTP, jobs and server services.
+- `apps/web`: account, catalog and generated HTTP client.
+- `apps/desktop`: Tauri shell consuming the native CLI JSON contract.
+- `packages`: shared models, canonicalization, passports, sources and schemas.
+- `skills/canonical`: agent guidance; projections are generated.
 
-## Canonical terms
+Regenerate `schemas/v1`, `skills/projections` and the contract
+inventory with `just back-gen`; native projections with `just cli-gen`;
+documentation indexes with `just docs-gen`. Do not hand-edit generated output.
+Published provider-kit bytes retain their original provenance references, which
+resolve against their source revision in Git history.
 
-- **Harness** — the CLI environment in which a coding agent operates.
-- **Setup** — the complete configuration of one harness; it belongs to that harness from creation.
-- **Component** — a part of a setup of one of the closed kinds: `instruction`, `skill`, `mcp`, `hook`, `command`, `agent`, `plugin`, `setting`, `cli`. `command` is a named slash invocation; `cli` is a standalone executable. Memory, rules, parameters, and auxiliary tools are content of `instruction`, `skill`, or `setting`, not separate kinds.
-- **Passport** — a versioned, machine-readable description of an object.
-- **Trust line** — the rule for inclusion in results: `authoritative`, `experimental`, or `local_owner_or_pinned`.
-- **Provider** — an ai-stp installation component, released from its existing public setup-system repository and the only writer of the harness's final state (ADR-0228).
-- **Setup assembler** — the deterministic `ai_stp` layer that validates the component graph and creates a native package for the provider.
+## Product boundaries
 
-One term means one object. `marketplace` is native packaging, not a generic name for a setup or a component kind.
+A setup configures one harness. Component kinds are `instruction`, `skill`, `mcp`,
+`hook`, `command`, `agent`, `plugin`, `setting` and `cli`. Published setup/component
+versions are exact and immutable. Author identity and byte verification are separate.
 
-Domain rules—`X.Y` immutability, exact-version pinning, independence of `author_verified` and `component_verified`, and public-version provenance—belong to `specs/active/` and are enforced by tests. They are not repeated here: a copy of normative text diverges from its owner.
+The CLI selects, validates and assembles. Only the public harness installation
+component writes final harness state. Setup systems are ai-stp components with
+separate repositories. Harness executables remain user/vendor managed; never
+install, pin, update or remove them. The system does not call model APIs or require
+a model key. Active-agent changes require staged replacement, handoff and restart.
+A mechanical refusal is a refusal, not permission for an alternate bypass.
 
-## Boundaries not expressed in code
+## Authority and data
 
-- `ai_stp` does not call model interfaces and does not require a model key. This is checked through dependency closure in `just back-regress`.
-- Only a harness's public provider writes its final state.
-- A running agent does not half-update its own active target in place. Active-environment change is a staged replacement, a durable handoff, and a restart (`ADR-0150`).
-- Agent reasoning does not bypass mechanical compatibility, access, or security constraints: if a machine check rejects the operation, the answer is rejection.
-- Secrets, passwords, tokens, `.env` contents, and optional personal data do not enter passports, logs, fixtures, or documentation.
-- Documentation and descriptions are in English; explicitly localized user-facing strings may retain the language of their locale. Identifiers, states, field names, paths, commands, and external product names remain in Latin script.
-- Code, code comments, commit messages, branch names, and machine text are strictly in English.
+Complete authorized reversible work without repeated permission requests, including
+committing, merging, tagging, publishing and deploying verified changes. Use an
+exact plan/digest, revalidate preconditions and make retries idempotent. Report the
+chosen action, evidence and rollback path.
 
-## Agent authority
+A separate decision is needed only for deleting data without recovery, linking
+someone else's account or new credentials, elevating system privileges, or changing
+an existing object's visibility or access. Do not create backups or snapshots unless
+requested. Restrict cleanup to the authorized project and hosts. Preserve credentials,
+user runtime state and other projects. Secrets never enter logs, fixtures or docs.
 
-The user's task defines the scope of authority. Perform local, reversible work within that scope through a verified result without asking again before every step.
+## Changes and checks
 
-A separate user decision is required only when an action has no path back or expands access (`ADR-0118`, `ADR-0150`):
-
-- deleting data, a target, or backups without a recovery path;
-- linking **someone else's** account or new third-party credentials;
-- elevating system privileges;
-- changing an existing object's visibility or access rights.
-
-Installing an unverified object is within task authority when the task authorizes it. It stays labeled unverified. Authority is not verification (`ADR-0150`).
-
-Everything else is within the task's authority. Choosing among options, publishing, committing, merging into `main`, tagging, and deploying verified work are performed by the agent and named in the report—the chosen option, reason, and rollback path. Uncertainty triggers more code, a test, or a reversible experiment, not a permission question. Asking instead of working costs more: it stops everything while protecting only the right to click.
-
-A plan, exact digest, precondition revalidation, and idempotency are always mandatory. They are mechanical protection for the operation, not grounds for another question: they confirm that exactly the approved effect is being performed.
-
-## Changing the repository
-
-Keep permanent local and remote `main` and `dev`. `main` is the repository's default
-branch and the protected release branch; `dev` is the permanent integration branch.
-Create a conventional work branch
-from current `dev`, PR it into GitHub `dev`, then promote same-repository `dev` into
-`main` by PR after exact-SHA checks. No mandatory human approval count is required;
-repository administrators retain explicit bypass for exceptions. Preserve permanent
-branches and history, synchronize local branches after remote merges, and follow
-`docs/engineering/git-workflow.md` and ADR-0180.
-
-Ordinary implementation within existing contracts proceeds directly: code, tests, updates to affected documentation, and diff review.
-
-A specification and ADR are required when observable behavior, a machine boundary, schema, state set, or architecture rule changes. For such a change (`ADR-0194`):
-
-```text
-task
-→ ADR, if an architecture rule changes
-→ implementation and tests
-→ rewrite the active spec from that code, or archive the unmatched spec
-→ documentation and runbook updates
-→ final diff review
-```
-
-Spec-first work for behavior that already ships is refused. Colleague corporate specs and ADRs are out of this rebuild.
-
-Do not create empty directories or abstractions “for later.” Do not add a dependency without a concrete need, owner, and removal path.
-
-The agent does not pass `--author` or add fictional `Co-authored-by` / `Generated-by` lines.
-
-Git authorship uses `git config --global --get user.name` and `git config --global --get user.email`; the agent does not pass `--author`.
+Keep permanent local/remote `dev` and `main`. Branch from current `dev`, PR into
+`dev`, then promote same-repository `dev` into `main` after exact-SHA checks.
+Use merge commits; preserve history. See [Git workflow](docs/engineering/git-workflow.md).
+Stage only intended paths. The agent does not pass `--author` or add fictional
+`Co-authored-by` / `Generated-by` lines. Read identity using
+`git config --global --get user.name` and `git config --global --get user.email`.
 The agent does not change `user.name` or `user.email`.
 
-## Validation
+Run affected checks through `just`: `docs-check`, `back-static`, `back-test`,
+`cli-check`, `web-check`, and `desktop-check` for desktop changes. `just --show
+check` gives the aggregate; CI runs its shards. Record commands and observed results
+on the exact final SHA in the PR. Generated output and its source change together.
+Finish with a diff review, current documentation and synchronized branches.
 
-These are what you run individually while working, invoked through `just`:
+For `apps/web` changes, read [web DESIGN](apps/web/DESIGN.md) and
+[product DESIGN](docs/product/DESIGN.md). Compose interfaces from registered
+atoms/molecules/organisms/layouts/screens and theme icons. Adapt before creating;
+new components need a reason, Storybook story and component test. Raw select/table
+primitives and direct Radix imports belong only in their owning kit component.
 
-- `just docs-check` — documentation, specifications, contract lint, and links;
-- `just back-static` — formatting, Ruff, Pyright, and generated-source drift;
-- `just back-test` — tests; coverage is printed, not a fail-under (`ADR-0147`);
-- `just cli-v2-check` — native CLI formatting, Clippy, contract proofs, release build and real SQLite/envelope regression; also part of `just check`;
-- `just web-check` — build, types, unit, E2E, and function profiles;
-- `just desktop-check` for `apps/desktop` changes — build, static, test, and the sidecar regression; deliberately outside `just check` because it needs a Rust toolchain and WebKitGTK, like `infra-*` (covered in CI by `desktop.yml`).
-
-They are not the gate's composition. `just check` is wider — `back-check` alone expands into five recipes, and `security` appears in none of the lines above. Ask the owner rather than this page: `just --show check` prints its dependencies and the `justfile` prints theirs. A second copy of that list here would go stale the first time one moved.
-
-The two paths reach the same verdict by different routes: CI shards the suite
-across jobs and prints coverage after `coverage combine`, while `just back-test`
-runs it whole and prints the same report locally. A percentage does not fail
-either path (`ADR-0147`).
-
-Evidence slices (`evidence-live`, `evidence-config`, `evidence-software`, `evidence-contribution`, and the rest) are deliberately outside `just check`: the gate may not depend on another party's release network or on a deployed environment being reachable. Their inventory, and what each one answers, belongs to `docs/engineering/release-evidence.md`.
-
-The justfile's own conventions — naming taxonomy, settings and attribute policy, and the local-only/CI parity boundary — live in `standards/just.md`; `standards/` collects one document per technology in the stack.
-
-Do not claim a check passed unless it ran in a real checkout. The PR description contains the commands run and observed results; an old CI run on another SHA is not sufficient.
-
-## Done
-
-A change is done when affected checks have run and were observed green; generated artifacts were regenerated; canonical documents were updated with behavior; and the final diff was reviewed and contains no unrelated changes.
+Code, comments, identifiers, commits and documentation are English; explicitly
+localized product content may use its locale. Add no speculative dependencies,
+empty abstractions or duplicate documentation. No corporate feature work is part
+of the Rust CLI release.

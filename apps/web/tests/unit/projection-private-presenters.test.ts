@@ -79,9 +79,7 @@ describe("private machine documents (REQ-3611, REQ-3612, REQ-3627)", () => {
       "en",
     );
 
-    expect(text).toContain(
-      "ai-stp task start --intent account --idempotency-key account-session-01 --json",
-    );
+    expect(text).toContain("ai-stp account plan --action start --provider github --json");
     expect(text).toContain("device_01H");
     expect(text).toContain("device_type: cli");
     expect(text).toContain("state: active");
@@ -388,9 +386,7 @@ describe("private machine documents (REQ-3611, REQ-3612, REQ-3627)", () => {
       }),
       "en",
     );
-    expect(text).toContain(
-      "ai-stp task start --intent account --idempotency-key account-session-01 --json",
-    );
+    expect(text).toContain("ai-stp account plan --action start --provider github --json");
     expect(text).not.toMatch(/<img|avatar|image\//i);
   });
 });

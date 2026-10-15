@@ -1,7 +1,7 @@
 import { listPublishedContent } from "@/lib/api/content";
 import { machineDocumentToText } from "@/lib/projection/document-text";
 import { presentLanding, presentPlatformContext } from "@/lib/projection/presenters";
-import { INSTALL_CLI } from "@/lib/cli-copy";
+import { CLI_RELEASES_URL } from "@/lib/cli-copy";
 import { getEnv } from "@/lib/env";
 import { presentContentIndex } from "@/lib/content/presenter";
 import { isFeatureEnabled } from "@/lib/features/gate";
@@ -18,7 +18,7 @@ export async function GET() {
     title: "The AI setup registry, not just a skill catalog",
     subtitle: "Find, verify, install, and earn on AI components.",
     browseCatalog: "Browse catalog",
-    installCommand: INSTALL_CLI,
+    releasesUrl: CLI_RELEASES_URL,
     installHeading: "Install the CLI",
     docsHref,
   });

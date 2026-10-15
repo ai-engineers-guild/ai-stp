@@ -15,7 +15,7 @@ from ai_stp_contracts.web_projections import (
 def test_cli_copy_projection_contains_the_canonical_distribution() -> None:
     rendered = render_cli_copy()
     assert cli_copy.DISTRIBUTION in rendered
-    assert cli_copy.INSTALL_CLI in rendered
+    assert cli_copy.CLI_RELEASES_URL in rendered
     assert cli_copy.REGISTRY_SHOW in rendered
     assert "ai-stp use" not in rendered
     assert "@{version}" not in rendered

@@ -1,139 +1,29 @@
 ---
-description: "Required release evidence for the CLI, platform, and providers."
-last_verified: "2026-10-04"
+description: "Where native release and deployment evidence is produced and verified."
+last_verified: "2026-10-15"
 ---
 
 # Release evidence
 
-## Common record
+The native release workflow is `.github/workflows/cli-release.yml`. Stable tags
+are `cli-v<version>` and must match Cargo metadata. The release owns archives,
+checksums, manifests, SBOM and attestations; its exact source PR and workflow runs
+own qualification evidence. Do not duplicate release receipts in documentation.
 
-Every release records the repository, ref and SHA, version, artifact hash and provenance, schema versions, exact commands and results, skipped checks, final diff, working-tree state, migration, rollback, and known limitations.
+`just cli-check` exercises native formatting, Clippy, tests, optimized build and
+real JSON/SQLite regression. CI runs on Linux, macOS and Windows. Archive proof
+uses the extracted executable outside the checkout with an isolated home and PATH.
+A compiled platform is not evidence for unsupported provider execution; the
+[CLI guide](../../apps/cli/README.md#release-and-supported-platforms) states limits.
 
-An old CI run on a different SHA is not evidence. A skipped line receives `not_verified`, not success.
+`just --list` lists optional `evidence-*` recipes for deployed account, catalog,
+publication, configuration and provider operations. Inspect the recipe before use:
+connected evidence may require a signed-in state and explicit write authority.
+A skipped or unavailable scenario remains unverified. These recipes are outside
+`just check` because a third-party network or deployed service may be unavailable.
 
-## CLI
-
-A clean installation using the published command, Python 3.12 and 3.14 on Linux
-x86_64, an offline path, removal and reinstallation, reference JSON, and verification
-that no secrets are present are required. The CLI surface is proven on Linux,
-macOS, and Windows (`ADR-0113`). The provider half of `ADR-0062` remains: a
-provider platform that was not exercised is not called supported.
-
-The Python candidate is one `ai-stp-cli` wheel and sdist: first-party modules
-ship inside that wheel, metadata has no `Requires-Dist` for former internal
-`ai-stp-*` projects, and the artifact is reproduced byte-for-byte with package
-metadata, LICENSE, a deterministic CycloneDX SBOM, `release-manifest.json`,
-`SHA256SUMS`, and provenance for the exact SHA (`ADR-0146`). A dirty candidate,
-skipped attestation, or a workflow that exists but has not run successfully
-receives `not_verified`.
-
-Installation evidence records the PEP 610 provenance of that CLI wheel as a
-direct source and proves the bundled modules are present as modules, not extra
-distributions. `--find-links` without a direct binding is insufficient: a
-matching version might resolve from the public index. The check runs machine
-commands outside the source tree and confirms removal of the program. Each row
-of the Python matrix must use a job-local `UV_PROJECT_ENVIRONMENT` and verify
-the actual Python version from the installed CLI's response; one persistent
-`.venv` is not evidence for two versions. The publication procedure lives in
-[`docs/operations/runbooks/pypi-release.md`](../operations/runbooks/pypi-release.md).
-
-## Platform
-
-PostgreSQL migrations, user isolation, object authorization, RustFS operation, job idempotency, mixed API versions, administrator audit, backup, and restore are required.
-
-## Provider
-
-The exact public source, release artifact and manifest, trust policy, signature, hash, rollback protection, public checks, closed conformance verification, malicious packages, no-change plan, apply, launch, status, and restore are required.
-
-All **seven** `NDDev-OpenNetwork/*-setup-system` providers are in scope, each
-release carrying six native binaries and `SHA256SUMS`. A platform that was not
-exercised is not called supported.
-
-### The evidence slices, and who invokes each
-
-A script nobody can run is not a check. Every slice below has a recipe, and the
-recipe is where a reader learns the slice exists; none of them enters
-`just check`, because the repository gate may not depend on another party's
-release network or on a deployed environment being reachable.
-
-| recipe | question it answers |
-|---|---|
-| `just evidence-live` | the deployed catalogue, anonymously, with no credential |
-| `just evidence-providers <tag>` | does the projection table still agree with the providers **as released** |
-| `just evidence-software <tag>` | can a consumer drive a released provider through `harness install/status/update/remove`; pass `acquire=1` to omit provider paths and prove transparent attested acquisition plus reuse |
-| `just evidence-config <tag>` | can a native surface be captured, installed into a target, observed and removed again — one row per harness; `from_import=1` captures the whole root through `setup import` instead of `component adopt`, and both paths must end in the same observed target; `scope=project` seeds the indexed workspace instead of the harness home and installs with `--scope project`, and `scope=user_root` seeds the shared `~/.agents/skills` and installs with `--scope user_root`, each for the harnesses whose released provider declares a rule at that scope |
-| `just evidence-contribution <tag>` | `#54`'s acceptance: one MCP component in each of its three native forms, and the refusal that is also an answer; each installed form is then removed again, and the owned-file form must leave the host file behind with the person's own key — the target's `config.toml` is seeded with that key before the install, so the removal has something to keep |
-| `just evidence-citations` | is every source link the harness catalogue cites still alive |
-| `just evidence-sync <home_a> <home_b>` | two devices, rewind, conflict and merge — needs a real browser login |
-| `just evidence-sync-hot-paths` | the private-sync denominators `#256` R05 names: ancestor walks, common-ancestor selection, page application and cold/warm task overhead, with real sqlite statement counts; `fixture` rows are setup cost, not verdicts |
-| `just evidence-publication <home>` | publication, grants, reports and owner reads — needs a real browser login |
-
-Use disposable authenticated homes for the sync slice. Each invocation creates
-a separate collision probe, fills its release-required declared metadata, and
-adopts its native source on both devices so each has the bytes needed to
-release offline. Only device A's probe identity is pushed; the peer's auxiliary
-adoption remains local. Earlier probe files and versions are preserved.
-The expected immutable collision
-leaves device B's conflicting release intact and refuses its incoming page;
-that device is retained as evidence, not silently reset for another run.
-
-The publication slice retains its exact plan and confirmation hash before
-confirming. Repeating an interrupted run resumes that plan, including while its
-publication job is queued; an uncertain confirmation or a rate-limited status
-read does not create another attempt. A later operator invocation can retry a
-terminal failed, cancelled or stale attempt. A successful repeat needs only a
-fresh status read. Grant invitations require an explicitly named recipient.
-A requested publication that remains unverified returns a nonzero result;
-undriven grant and report scenarios remain explicit without failing read-only evidence.
-
-`software-evidence` and `config-evidence` are the two workflows that run their
-slice on the three required native legs (`ubuntu-24.04`, `macos-15`,
-`windows-2025`). Linux arm64, macOS x86_64 and Windows arm64 are not_verified
-and do not delay this beta (ADR-0172). They are
-`workflow_dispatch` only and take the exact provider tag as input. Their
-package-only environment installs the CLI with `--no-editable` in both `uv sync`
-and `uv run`: only the wheel bundles the first-party modules (`ADR-0146`),
-and an editable CLI without sibling workspace projects cannot start.
-`software-evidence` takes `transparent_acquisition` to make `harness install`
-acquire and remember the attested release while every later lifecycle command
-omits `--provider` and `--provider-manifest`; the report verifies that the
-managed release retained the requested exact tag. `config-evidence` also takes
-`from_import` to drive the import capture path.
-
-## Desktop
-
-A desktop release proves that the shell over the CLI contract builds and runs
-on all three OSes: each `desktop-release` bundle leg rebuilds the frontend and
-both Rust crates, freezes the CLI into the PyInstaller sidecar through
-`apps/desktop/scripts/build-cli-sidecar.sh` — from the built `ai-stp-cli`
-wheel and the locked closure of its declared dependencies, the set a PyPI
-install gets, and smoke-checking the frozen binary's `version --json` and
-`doctor --json` before it is embedded — and runs
-`apps/desktop/scripts/test-bundled-sidecar.sh`, the spawn test under the app's
-filtered environment, so a bundled CLI that cannot start on a real OS does not
-ship. After `tauri build`, `just desktop-bundle-test` probes the resource tree
-from an extracted Linux deb, the macOS app, or an administratively extracted
-Windows MSI, without installing the app. `SHA256SUMS` covers every published
-artifact.
-
-It does not prove code integrity by signature — the bundles are unsigned
-(`SHA256SUMS` is the integrity record), the CI never launches the installed
-application window, and there is no updater: upgrading is a fresh install.
-Those remain human checks on the released bundles.
-
-## Full-beta catalog and qualification
-
-The current corpus inventory and its immutable publication procedure belong to
-[first-party-corpus.md](first-party-corpus.md). Every exact launch reference must
-resolve to the recorded bytes through the public catalog. Historical MVP subsets
-are not the scope of this full beta.
-
-Qualification follows [SPEC-061](../../specs/active/SPEC-061-estate-release-qualification.md)
-and [ADR-0172](../adr/ADR-0172-beta-qualification-on-three-primary-platforms.md).
-All seven harnesses remain in scope. Only the three optional platform pairs are
-not_verified without delaying this beta. The active implementation and evidence
-work is tracked in [implementation-roadmap.md](implementation-roadmap.md).
-
-## Blocking conditions
-
-A release is blocked by an unresolved priority-one finding, an outdated pinned provider version, a missing source artifact, a schema-documentation mismatch, a dependency vulnerability above the approved threshold, or missing recovery instructions.
+For deployment, match `/v1/system/version` and settled host markers to the exact
+qualified source SHA, then verify the serving source. See the
+[deployment runbook](../operations/runbooks/deploy.md). Local state migration and
+credential continuity require their own observed receipts; a successful version
+command alone does not prove them.

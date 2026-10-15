@@ -24,6 +24,7 @@ dependencies = [
     "ai-stp-passports==0.0.16",
     "ai-stp-contracts==0.0.16",
     "packaging>=24",
+    "pathspec>=1.1.1,<2",
     "pyyaml>=6",
     "pydantic>=2.9",
 ]

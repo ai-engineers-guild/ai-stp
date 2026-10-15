@@ -32,7 +32,7 @@ Command отвечает на вопрос: **какую проверяемую 
     Исполняемый файл `ai-stp` (пакет `ai-stp-cli`) имеет собственные
     группы команд — `component`, `select`, `install` и остальные. Они
     описаны в [CLI](https://ai-stp.aiguild.space/ru/docs/components). Это не компоненты каталога, их не
-    выбирают в сетап, и команды `ai-stp component command validate` нет.
+    выбирают в сетап, и команды `ai-stp help --path component --json` нет.
 
     Codex называет эту поверхность **command/prompt**. Discovery всё равно
     сообщает вид `command`.
@@ -117,7 +117,7 @@ ai-stp component scaffold apply \
 
 `--language` для command — `none`. Вид декларативный.
 
-Команды `ai-stp component command validate` нет. Структурная готовность —
+Команды `ai-stp help --path component --json` нет. Структурная готовность —
 `component passport validate`. Kind-specific проверка по спецификации
 есть только у [`skill`](https://ai-stp.aiguild.space/ru/docs/components).
 
@@ -181,7 +181,7 @@ command внутри сетапа — новая версия сетапа.
 
 ```bash
 ai-stp component version list --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
+ai-stp help --path component --json
 ```
 
 `--major` открывает следующую мажорную линию. Мажорная линия — отдельная
@@ -222,7 +222,7 @@ shortcut безвреден. Обязательные проверки, кото
 Только команды, которые существуют. Флаги всегда со страниц CLI и всегда
 `--json`. Исполняемый файл — `ai-stp` (пакет `ai-stp-cli`). Команд
 `component inspect` и `setup show` нет. Единственный kind-specific
-validate — `ai-stp component skill validate`.
+validate — `ai-stp help --path component --json`.
 
 **Именно этот вид:** команды `component command validate` нет.
 Используйте проверку паспорта.
@@ -241,13 +241,13 @@ ai-stp task intents --json
 
 ```bash
 ai-stp task start --intent author --idempotency-key author-session-01 --json
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 **Установить:**
 
 ```bash
-ai-stp task start --intent install --idempotency-key install-session-01 --json
+ai-stp task input-schema --intent install --json
 ```
 
 Expert-просмотр каталога:

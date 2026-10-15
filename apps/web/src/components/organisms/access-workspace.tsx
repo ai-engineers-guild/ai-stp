@@ -20,16 +20,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/atoms/dialog";
-import {
-  createDirectGrantAction,
-  createInvitationAction,
-  revokeGrantAction,
-} from "@/actions/grants";
+import * as grantActions from "@/actions/grants";
 import { Link, useRouter } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";
+import { grantPreconditions, type GrantRecipientInput } from "@/lib/grant-preconditions";
+
+import type { AccessGrantResponse } from "@/lib/api/generated/types.gen";
 
 export type AccessUser = {
   grantId: string;
+  revision: number | null;
   accountId: string;
   displayName: string | null;
   avatarUrl: string | null;
@@ -69,6 +69,7 @@ type AccessWorkspaceProps = {
   users: readonly AccessUser[];
   incomingUsers?: readonly AccessUser[];
   incomingLabel?: string;
+  observedGrants?: readonly AccessGrantResponse[] | undefined;
   csrfToken: string;
   labels: Labels;
   initialObjectKind?: "component" | "setup" | undefined;
@@ -122,13 +123,7 @@ function InviteForm({
   initialObjectKind?: "component" | "setup" | undefined;
   initialStableId?: string | undefined;
   initialMajor?: number | undefined;
-  onCreate: (input: {
-    recipientKind: "verified_email" | "github_username" | "user_id";
-    recipient: string;
-    kind: "component" | "setup";
-    stableId: string;
-    major: number;
-  }) => void;
+  onCreate: (input: GrantRecipientInput) => void;
 }) {
   const [recipient, setRecipient] = useState("");
   const [recipientKind, setRecipientKind] = useState<
@@ -320,6 +315,7 @@ export function AccessWorkspace({
   users,
   incomingUsers = [],
   incomingLabel,
+  observedGrants = [],
   csrfToken,
   labels,
   initialObjectKind,
@@ -331,7 +327,11 @@ export function AccessWorkspace({
   const [pending, startTransition] = useTransition();
   const [operationId, setOperationId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<{
+    grantId: string;
+    revision: number | null;
+    idempotencyKey: string;
+  } | null>(null);
 
   function run(task: () => Promise<{ operationId: string | null }>) {
     setError(null);
@@ -348,9 +348,17 @@ export function AccessWorkspace({
 
   function confirmRevoke() {
     if (!revokeTarget) return;
-    const grantId = revokeTarget;
+    const { grantId, revision, idempotencyKey } = revokeTarget;
     setRevokeTarget(null);
-    run(() => revokeGrantAction({ csrfToken, grantId, reason: "" }));
+    run(() =>
+      grantActions.revokeGrantAction({
+        csrfToken,
+        grantId,
+        reason: "",
+        expectedRevision: revision,
+        idempotencyKey,
+      }),
+    );
   }
 
   return (
@@ -363,63 +371,61 @@ export function AccessWorkspace({
           initialStableId={initialStableId}
           initialMajor={initialMajor}
           onCreate={(input) => {
+            const preconditions = grantPreconditions(observedGrants, input);
             run(() =>
               input.recipientKind === "verified_email"
-                ? createInvitationAction({
+                ? grantActions.createInvitationAction({
                     csrfToken,
                     objectKind: input.kind,
                     stableId: input.stableId,
                     major: input.major,
                     recipientEmail: input.recipient,
                   })
-                : createDirectGrantAction({
+                : grantActions.createDirectGrantAction({
                     csrfToken,
                     objectKind: input.kind,
                     stableId: input.stableId,
                     major: input.major,
                     recipientKind: input.recipientKind,
                     recipient: input.recipient,
+                    ...preconditions,
                   }),
             );
           }}
         />
       ) : null}
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-medium tracking-tight">{labels.peopleWithAccess}</h2>
-        {users.length === 0 ? (
-          <p className="text-muted-foreground text-sm">{labels.emptyPeople}</p>
-        ) : (
-          <ul className="border-border rounded-lg border">
-            {users.map((user) => (
-              <AccessUserRow
-                key={user.grantId}
-                user={user}
-                labels={labels}
-                pending={pending}
-                onRevoke={setRevokeTarget}
-              />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {incomingUsers.length ? (
-        <section className="space-y-3">
-          <h2 className="text-lg font-medium tracking-tight">{incomingLabel}</h2>
-          <ul className="border-border rounded-lg border">
-            {incomingUsers.map((user) => (
-              <AccessUserRow
-                key={user.grantId}
-                user={user}
-                labels={labels}
-                pending={pending}
-                onRevoke={setRevokeTarget}
-              />
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      {[
+        { key: "outgoing", label: labels.peopleWithAccess, entries: users },
+        { key: "incoming", label: incomingLabel, entries: incomingUsers },
+      ]
+        .filter((group) => group.key === "outgoing" || group.entries.length > 0)
+        .map((group) => (
+          <section key={group.key} className="space-y-3">
+            <h2 className="text-lg font-medium tracking-tight">{group.label}</h2>
+            {group.entries.length === 0 ? (
+              <p className="text-muted-foreground text-sm">{labels.emptyPeople}</p>
+            ) : (
+              <ul className="border-border rounded-lg border">
+                {group.entries.map((user) => (
+                  <AccessUserRow
+                    key={user.grantId}
+                    user={user}
+                    labels={labels}
+                    pending={pending}
+                    onRevoke={(grantId) => {
+                      setRevokeTarget({
+                        grantId,
+                        revision: user.revision,
+                        idempotencyKey: crypto.randomUUID(),
+                      });
+                    }}
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
+        ))}
 
       <div className="mx-auto max-w-lg space-y-2">
         <MutationReference label={labels.referenceId} operationId={operationId} />

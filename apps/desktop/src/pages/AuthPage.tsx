@@ -13,25 +13,20 @@ import { Json, ResultMeta, Spinner } from "../components/Result";
 import { useApp } from "../store";
 
 // Display labels for known providers; the *set* comes live from the
-// `auth login --provider` descriptor choices — an unknown id renders
+// `account plan --provider` descriptor choices — an unknown id renders
 // under its own name rather than hiding.
 const PROVIDER_LABELS: Record<string, string> = {
   google: "Google",
   github: "GitHub",
-  authentik: "Authentik",
-  keycloak: "Keycloak",
-  gitlab: "GitLab",
-  saml: "SAML SSO",
 };
-const FALLBACK_PROVIDERS = Object.keys(PROVIDER_LABELS);
 
 /** Device-code sign-in driven entirely by the CLI. The app displays the
  *  user code and opens the verification URL; tokens are stored by the CLI
  *  in the OS keyring — they never enter this process. */
 export default function AuthPage() {
   const { auth, refreshAuth } = useApp();
-  const [provider, setProvider] = useState("google");
-  const [providers, setProviders] = useState<string[]>(FALLBACK_PROVIDERS);
+  const [provider, setProvider] = useState("github");
+  const [providers, setProviders] = useState<string[]>([]);
   const [flow, setFlow] = useState<CmdResult | null>(null);
   const [status, setStatus] = useState<CmdResult | null>(null);
   const [waiting, setWaiting] = useState(false);
@@ -44,7 +39,7 @@ export default function AuthPage() {
   useEffect(() => {
     void refreshAuth();
     void cmdMachineHelp().then((r) => {
-      const choices = descriptorChoices(r, "auth login", "provider");
+      const choices = descriptorChoices(r, "account plan", "provider");
       if (choices) {
         setProviders(choices);
         setProvider((p) => (choices.includes(p) ? p : choices[0]));
@@ -55,12 +50,12 @@ export default function AuthPage() {
     };
   }, [refreshAuth]);
 
-  const loginData = (flow?.data ?? {}) as Record<string, unknown>;
+  const loginData = (flow?.data?.session ?? auth?.session ?? {}) as Record<string, unknown>;
   const userCode = String(loginData.user_code ?? "");
   const verificationUrl = String(
     loginData.verification_uri_complete ?? loginData.verification_uri ?? "",
   );
-  const expiresIn = Number(loginData.expires_in ?? 0);
+  const expiresIn = Math.max(0, (Date.parse(String(loginData.expires_at ?? "")) - Date.now()) / 1000) || 0;
 
   async function startLogin() {
     setStarting(true);
@@ -89,24 +84,31 @@ export default function AuthPage() {
     // Opening the browser is asynchronous too: cancellation or unmount
     // during that await must not start a new poller afterwards.
     if (pollGen.current !== gen) return;
-    // Poll without --wait: the CLI's blocking wait can outlive the runner's
-    // bounded deadline, which would surface as a false "unconfirmed" kill.
-    // The loop mirrors `cloud/login.py::poll` exactly — the same bounds
-    // (interval clamped to [1, 30] s, deadline min(expires_in, 900 s),
-    // five consecutive transient failures) — while every classification
-    // still comes from the CLI's own exchange call.
-    const interval = Math.min(Math.max(Number(loginData.interval) || 4, 1), 30);
+    // The CLI owns pacing and classification. This bounded UI loop only
+    // schedules the next request and stops when the page is closed.
+    let interval = Math.min(Math.max(Number(loginData.interval) || 4, 1), 30);
+    let nextPoll = Date.parse(String(loginData.next_poll_at ?? ""));
     const deadline =
       Date.now() + Math.min(expiresIn > 0 ? expiresIn : 900, 900) * 1000;
     let transientFailures = 0;
     let res: CmdResult | null = null;
     try {
       while (Date.now() < deadline && pollGen.current === gen) {
+        if (Number.isFinite(nextPoll) && nextPoll > Date.now()) {
+          await new Promise((resolve) => setTimeout(resolve, Math.min(nextPoll - Date.now(), 30000)));
+        }
+        if (pollGen.current !== gen) break;
         res = await cmdAuthComplete(false);
-        if (res.ok) break;
+        const session = res.data?.session as Record<string, unknown> | undefined;
+        if (session) {
+          interval = Math.max(1, Number(session.interval) || interval);
+          nextPoll = Date.parse(String(session.next_poll_at ?? ""));
+        }
+        if (res.ok && session?.state !== "pending") break;
+        if (res.ok) { transientFailures = 0; }
         // PENDING keeps polling; a rate limit or another retryable failure
         // is a wait, not a refusal — anything else is a decision.
-        if (res.error_code === "AI_STP_AUTHORIZATION_PENDING") {
+        else if (res.error_code === "AI_STP_AUTHORIZATION_PENDING") {
           transientFailures = 0;
         } else if (res.error_code === "AI_STP_RATE_LIMITED" || res.error_retryable === true) {
           if (++transientFailures >= 5) break;
@@ -127,8 +129,9 @@ export default function AuthPage() {
     await refreshAuth();
   }
 
-  // Closed state set from the CLI: authenticated | expired | revoked | local_only.
-  const authenticated = auth?.state === "authenticated";
+  // Cached authorization is not a claim of current network verification.
+  const session = auth?.session as Record<string, unknown> | undefined;
+  const authenticated = session?.state === "authorized" && session.access_expired !== true;
 
   return (
     <div className="space-y-5">
@@ -168,7 +171,7 @@ export default function AuthPage() {
           </div>
           <button
             onClick={() => void startLogin()}
-            disabled={starting || waiting}
+            disabled={starting || waiting || !providers.includes(provider)}
             className="btn-primary"
           >
             {starting ? "Starting…" : "Start sign-in"}
@@ -176,9 +179,9 @@ export default function AuthPage() {
         </section>
       )}
 
-      {flow && (
+      {(flow || userCode) && (
         <section className="space-y-3 rounded-xl border border-sky-500/30 bg-sky-500/5 p-4">
-          <ResultMeta r={flow} />
+          {flow && <ResultMeta r={flow} />}
           {userCode && (
             <>
               <p className="text-sm">Enter this code on the verification page:</p>

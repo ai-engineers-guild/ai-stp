@@ -1,6 +1,6 @@
 ---
-description: "Step-by-step recovery for critical CLI and platform operations."
-last_verified: "2026-08-03"
+description: "Procedures for the running server."
+last_verified: "2026-10-15"
 ---
 
 # Runbooks
@@ -9,31 +9,10 @@ last_verified: "2026-08-03"
 
 | Document | Description | Verified |
 | -------- | ----- | ------- |
-| [author-verification.md](author-verification.md) | Runbook: granting and revoking author_verified. | 2026-08-22 |
-| [bootstrap.md](bootstrap.md) | Runbook: bootstrap. | 2026-08-03 |
-| [corporate-bootstrap.md](corporate-bootstrap.md) | Create the one initial corporate organization and superadmin safely. | 2026-09-12 |
-| [corporate-dashboards.md](corporate-dashboards.md) | Operate and troubleshoot Corporate Hub health dashboards. | 2026-09-23 |
-| [database-migration.md](database-migration.md) | Runbook: database migration. | 2026-10-05 |
-| [deploy.md](deploy.md) | Runbook: reproducible deployment with a web tier, backups, and rollback. | 2026-10-07 |
-| [external-catalog-requests.md](external-catalog-requests.md) | Review and apply service and country request cases without an HTTP administration API. | 2026-09-04 |
-| [first-party-launch-publication.md](first-party-launch-publication.md) | Runbook: publishing the first-party launch corpus through the standard pipeline. | 2026-08-25 |
-| [github-repository-metrics.md](github-repository-metrics.md) | Runbook: best-effort GitHub stars cache for the public catalog. | 2026-09-03 |
-| [gitlab-discovery.md](gitlab-discovery.md) | Operate per-tenant GitLab discovery and retained provider observations. | 2026-09-22 |
-| [installation-recovery.md](installation-recovery.md) | Runbook: installation recovery. | 2026-08-03 |
-| [local-oidc-sso.md](local-oidc-sso.md) | Runbook: standing up local authentik and Keycloak and verifying corporate OIDC SSO end to end. | 2026-09-29 |
-| [official-upstream-components.md](official-upstream-components.md) | Runbook: operator-managed official GitHub and package upstream component snapshots. | 2026-10-07 |
-| [platform-evidence.md](platform-evidence.md) | Native platform evidence for the exact CLI candidate without publish or deploy authority. | 2026-09-29 |
-| [provider-lifecycle.md](provider-lifecycle.md) | Discovery, version checking, updating, and reinstalling a setup-system provider. | 2026-09-04 |
-| [provider-update.md](provider-update.md) | Runbook: provider update. | 2026-08-28 |
-| [publish-recovery.md](publish-recovery.md) | Runbook: publish recovery. | 2026-09-24 |
-| [pypi-release.md](pypi-release.md) | Build, verify, publish, yank, and recover a Python release. | 2026-10-07 |
-| [report-triage.md](report-triage.md) | Runbook: report case triage. | 2026-08-04 |
-| [safety-scan.md](safety-scan.md) | Runbook: platform safety scan for publication validation. | 2026-10-04 |
-| [saml-sso.md](saml-sso.md) | Operate SAML 2.0 corporate SSO: configuration, certificate rotation, logout, linking, organization restriction, and failure triage. | 2026-10-06 |
+| [author-verification.md](author-verification.md) | Staff authorization and the meaning of author verification. | 2026-10-15 |
+| [database-migration.md](database-migration.md) | Server schema upgrades and local CLI migration boundaries. | 2026-10-15 |
+| [deploy.md](deploy.md) | Exact-source deployment, settlement and verification. | 2026-10-15 |
+| [safety-scan.md](safety-scan.md) | Worker scanner ownership and handling of unavailable evidence. | 2026-10-15 |
 | [security-incident.md](security-incident.md) | Runbook: security incident. | 2026-08-03 |
-| [seo-publication.md](seo-publication.md) | Runbook: server SEO revisions, sitemap, and optional LiteLLM enrichment. | 2026-08-29 |
-| [sync-conflict.md](sync-conflict.md) | Runbook: sync conflict. | 2026-08-03 |
-| [uninstall-purge.md](uninstall-purge.md) | Runbook: uninstall purge. | 2026-08-03 |
-| [web-feature-profiles.md](web-feature-profiles.md) | Building, verifying, and rolling back web deployment profiles. | 2026-10-05 |
 
 <!-- END CONTENTS -->

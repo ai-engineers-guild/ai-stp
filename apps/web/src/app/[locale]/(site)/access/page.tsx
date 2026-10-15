@@ -102,6 +102,7 @@ export default async function AccessPage({ params, searchParams }: PageProps) {
         users={users}
         incomingUsers={incomingUsers}
         incomingLabel={t("receivedAccess")}
+        observedGrants={grants.grants}
         csrfToken={csrf}
         labels={{
           create: t("createInvitation"),
@@ -150,6 +151,7 @@ function grantUser(
   const accountId = received ? item.owner_account_id : item.grantee_account_id;
   return {
     grantId: item.grant_id,
+    revision: item.revision ?? null,
     objectKind: item.object_kind,
     stableId: item.stable_id,
     major: item.major,

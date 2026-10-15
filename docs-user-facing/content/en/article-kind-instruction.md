@@ -42,7 +42,7 @@ It does not answer "how should the agent do this class of task?"
     | --- | --- | --- |
     | `AGENTS.md` / `CLAUDE.md` / rules text | `instruction` | yes |
     | A named role under `agents/` | `agent` | yes |
-    | CLI Agent Skill (`ai-stp skill …`) | not this kind | no |
+    | CLI Agent Skill (`ai-stp help --path task --json`) | not this kind | no |
 
 ## Neighbours
 
@@ -129,7 +129,7 @@ closed-set manifest (`SKILL.md`, `AGENTS.md`, `plugin.json`,
 `pyproject.toml`). A single file in a file-shaped layout — including
 `AGENTS.md` — is the component; it needs no extra wrapper.
 
-There is no `ai-stp component instruction validate`. Structural readiness
+There is no `ai-stp help --path component --json`. Structural readiness
 is `component passport validate`. Kind-specific specification checking
 exists only for [`skill`](https://ai-stp.aiguild.space/en/docs/components).
 
@@ -194,7 +194,7 @@ Updating an instruction inside a setup is a new setup version.
 
 ```bash
 ai-stp component version list --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
+ai-stp help --path component --json
 ```
 
 `--major` opens the next major line. A major line is a separate access
@@ -234,7 +234,7 @@ safety guarantee.
 Only commands that exist. Flags always from the CLI pages, and always
 `--json`. The executable is `ai-stp` (package `ai-stp-cli`). There is no
 `component inspect` and no `setup show`. The only kind-specific validate
-is `ai-stp component skill validate`.
+is `ai-stp help --path component --json`.
 
 **This kind, specifically:** there is no `component instruction
 validate`. Use passport validation.
@@ -247,7 +247,7 @@ ai-stp component passport validate --id <stable_id> --json
 
 ```bash
 ai-stp task start --intent author --idempotency-key author-session-01 --json
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 If discovery reported the path under more than one harness or kind:
@@ -255,13 +255,13 @@ If discovery reported the path under more than one harness or kind:
 Expert recovery:
 
 ```text
-ai-stp component adopt --path <source_path> --harness portable --kind instruction --json
+ai-stp help --path component --json
 ```
 
 **Install:**
 
 ```bash
-ai-stp task start --intent install --idempotency-key install-session-01 --json
+ai-stp task input-schema --intent install --json
 ```
 
 Expert catalog inspect:

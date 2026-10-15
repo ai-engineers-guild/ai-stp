@@ -1816,7 +1816,12 @@ def test_a_scanner_that_actually_reports_something_still_fails(
     monkeypatch.setattr(
         skill_gate,
         "run_cli",
-        lambda argv, cwd, timeout: (1, '{"risk":"critical"}', "", 10),
+        lambda argv, cwd, timeout: (
+            1 if argv[-2:] == ["--fail-on-severity", "high"] else 0,
+            '{"risk":"critical"}',
+            "",
+            10,
+        ),
     )
     package = tmp_path / "skills" / "demo"
     package.mkdir(parents=True)
@@ -2028,6 +2033,8 @@ def test_skill_scanner_enables_behavioral_data_flow(
             "--format",
             "json",
             "--use-behavioral",
+            "--fail-on-severity",
+            "high",
         ]
     ]
 

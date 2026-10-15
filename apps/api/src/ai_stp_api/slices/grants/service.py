@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ai_stp_api.audit import emit_audit
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
+from ai_stp_api.slices.grants import operations
 from ai_stp_contracts.grants import (
     AccessGrantResponse,
     DirectGrantCreateRequest,
@@ -25,6 +26,7 @@ from ai_stp_contracts.grants import (
     GrantRevokeRequest,
     GrantRevokeResponse,
 )
+from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.ids import new_id, stable_id_pattern
 from ai_stp_platform.grant_identity_models import (
     GrantRecipientReference,
@@ -141,6 +143,7 @@ def grant_to_wire(
         grantee_account_id=row.grantee_account_id,
         owner_account_id=row.owner_account_id,
         state=row.state,  # type: ignore[arg-type]
+        revision=row.revision,
         created_at=_ts(row.created_at),
         revoked_at=_ts(row.revoked_at) if row.revoked_at else None,
         recipient_kind=reference.identifier_kind if reference else None,  # type: ignore[arg-type]
@@ -162,10 +165,49 @@ async def create_direct_grant(
     ctx: AuthContext,
     body: DirectGrantCreateRequest,
 ) -> AccessGrantResponse:
-    """Create an active grant after resolving an explicit stable identity."""
+    """Replay the original intent without undoing a later revocation."""
     issuer_scope = await _issuer_scope(
         db, account_id=ctx.account_id, object_kind=body.object_kind, stable_id=body.stable_id
     )
+    recipient = (
+        normalize_github_username(body.recipient)
+        if body.recipient_kind == "github_username"
+        else body.recipient.strip()
+    )
+    body = body.model_copy(update={"recipient": recipient})
+    digest, receipt = await operations.lookup(
+        db,
+        ctx.account_id,
+        body.idempotency_key,
+        "direct",
+        cast(
+            JsonValue,
+            body.model_dump(mode="json", exclude={"idempotency_key", "mutation_contract"}),
+        ),
+    )
+    if receipt is not None:
+        grant = await db.get(AccessGrant, receipt.grant_id)
+        if grant is None:
+            raise ApiError(ErrorCategory.NOT_FOUND, "grant not found")
+        return grant_to_wire(grant, await db.get(GrantRecipientReference, grant.id))
+    result = await _create_direct_grant(db, ctx=ctx, body=body, issuer_scope=issuer_scope)
+    await operations.complete(
+        db, ctx.account_id, body.idempotency_key, "direct", digest, result.grant_id
+    )
+    return result
+
+
+def _revision(grant: AccessGrant, expected: int | None) -> None:
+    if expected is None or expected != grant.revision or grant.revision >= 2_147_483_647:
+        raise ApiError(
+            ErrorCategory.PRECONDITION,
+            "read the grant and explicitly bind its current revision before changing access",
+        )
+
+
+async def _create_direct_grant(
+    db: AsyncSession, *, ctx: AuthContext, body: DirectGrantCreateRequest, issuer_scope: str
+) -> AccessGrantResponse:
     if body.recipient_kind == "github_username":
         recipient = normalize_github_username(body.recipient)
         grantee_account_id = await db.scalar(
@@ -186,7 +228,9 @@ async def create_direct_grant(
     if grantee_account_id is None:
         raise ApiError(ErrorCategory.NOT_FOUND, "recipient not found")
     existing = await db.scalar(
-        select(AccessGrant).where(
+        select(AccessGrant)
+        .with_for_update()
+        .where(
             AccessGrant.object_kind == body.object_kind,
             AccessGrant.stable_id == body.stable_id,
             AccessGrant.major == body.major,
@@ -194,7 +238,16 @@ async def create_direct_grant(
         )
     )
     if existing is not None:
+        if (
+            body.expected_revision is not None
+            or body.expected_grant_id is not None
+            or existing.state == "revoked"
+        ):
+            if body.expected_grant_id != existing.id:
+                raise ApiError(ErrorCategory.PRECONDITION, "the expected grant identity changed")
+            _revision(existing, body.expected_revision)
         if existing.state == "revoked":
+            existing.revision += 1
             existing.state = "active"
             existing.revoked_at = None
             await emit_audit(
@@ -208,6 +261,8 @@ async def create_direct_grant(
             await db.flush()
         reference = await db.get(GrantRecipientReference, existing.id)
         return grant_to_wire(existing, reference)
+    if body.expected_revision is not None or body.expected_grant_id is not None:
+        raise ApiError(ErrorCategory.PRECONDITION, "the expected grant no longer exists")
     grant_id = new_id("grant")
     # `ON CONFLICT DO NOTHING` never raises on the race: a concurrent create
     # for the same target and grantee commits first, this insert skips, and
@@ -471,6 +526,12 @@ async def accept_invitation(
     if invitation.state == "accepted" and invitation.accepted_grant_id:
         grant = await db.get(AccessGrant, invitation.accepted_grant_id)
         if grant is not None:
+            # A completed retry still needs the original recipient and proof;
+            # the invitation identifier alone must not disclose grant metadata.
+            if grant.grantee_account_id != ctx.account_id:
+                raise ApiError(ErrorCategory.NOT_FOUND, "invitation not found")
+            if hash_token(body.token) != invitation.token_hash:
+                raise ApiError(ErrorCategory.VALIDATION, "invitation token invalid")
             return grant_to_wire(grant)
     if invitation.state != "pending":
         raise ApiError(ErrorCategory.CONFLICT, f"invitation is {invitation.state}")
@@ -633,7 +694,20 @@ async def revoke_grant(
     grant_id: str,
     body: GrantRevokeRequest,
 ) -> GrantRevokeResponse:
-    grant = await db.get(AccessGrant, grant_id)
+    digest, receipt = await operations.lookup(
+        db,
+        ctx.account_id,
+        body.idempotency_key,
+        "revoke",
+        cast(
+            JsonValue,
+            {
+                "grant_id": grant_id,
+                **body.model_dump(mode="json", exclude={"idempotency_key", "mutation_contract"}),
+            },
+        ),
+    )
+    grant = await db.get(AccessGrant, grant_id, with_for_update=True, populate_existing=True)
     if grant is None or not await may_withdraw(
         db,
         account_id=ctx.account_id,
@@ -642,8 +716,12 @@ async def revoke_grant(
         stable_id=grant.stable_id,
     ):
         raise ApiError(ErrorCategory.NOT_FOUND, "grant not found")
+    if receipt is not None:
+        return GrantRevokeResponse(schema_version=1, revoked=True, local_bytes_retained=True)
+    _revision(grant, body.expected_revision)
     if grant.state == "active":
         grant.state = "revoked"
+        grant.revision += 1
         grant.revoked_at = datetime.now(UTC)
         await emit_audit(
             db,
@@ -655,4 +733,5 @@ async def revoke_grant(
             payload={"local_bytes_retained": True},
         )
         await db.flush()
+    await operations.complete(db, ctx.account_id, body.idempotency_key, "revoke", digest, grant.id)
     return GrantRevokeResponse(schema_version=1, revoked=True, local_bytes_retained=True)

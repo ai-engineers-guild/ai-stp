@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "standard_family": "ai-stp-standard/1",
-  "contract_digest": "sha256:a986a56676be6d830a1f668c1e169c7ce8706fb96fd0db6814aa0e883c663035",
+  "contract_digest": "sha256:4c760699aa3f642ccdb5eb5f752c221df80f562af3e3df03f7bb013f3ca6da3e",
   "axes": [
     {
       "name": "standard_family",
@@ -707,6 +707,14 @@
     {
       "axis": "exported_schema",
       "identity": "urn:ai-stp:schema:v1:setup-version-passport"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:sync-consent-tombstone"
+    },
+    {
+      "axis": "exported_schema",
+      "identity": "urn:ai-stp:schema:v1:sync-consent-upsert"
     },
     {
       "axis": "http_api",

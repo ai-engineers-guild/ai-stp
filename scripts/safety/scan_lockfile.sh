@@ -50,12 +50,11 @@ cd "${REPO_ROOT}"
 scanner="${tmp}/osv-scanner"
 # Every committed lockfile is weighed: Python, the web app, docs tooling,
 # the desktop app and both of its Rust crates, the native CLI, the vendored
-# provider-verifier env, and the worker-safety venv. Every scan runs even
+# worker-safety venv. Every scan runs even
 # when one trips -- set -e would otherwise hide every later file behind
 # the first advisory, which is how GHSA-42vr-xj54-vc7v appeared only after
 # the urllib3 bump merged. `requirements.lock` needs the
-# `requirements.txt:` name override; `verifier-requirements.txt` parses
-# natively because the name still contains `requirements`.
+# `requirements.txt:` name override.
 status=0
 for lockfile in \
   uv.lock \
@@ -64,8 +63,7 @@ for lockfile in \
   apps/desktop/bun.lock \
   apps/desktop/core/Cargo.lock \
   apps/desktop/src-tauri/Cargo.lock \
-  apps/cli-v2/Cargo.lock \
-  apps/cli/src/ai_stp_cli/provider/verifier-requirements.txt \
+  apps/cli/Cargo.lock \
   requirements.txt:scripts/safety/requirements.lock; do
   "${scanner}" scan source "--lockfile=${lockfile}" || status=1
 done

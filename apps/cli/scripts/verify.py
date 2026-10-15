@@ -1,0 +1,512 @@
+"""Published wire-contract, real-process and schema-53 migration proofs.
+
+Shared server models validate envelopes; the retired CLI is never installed.
+Every child runs with an empty PATH and an isolated, initially empty home.
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import hashlib
+import json
+import os
+import re
+import shlex
+import sqlite3
+import statistics
+import subprocess
+import sys
+import tempfile
+import time
+from contextlib import closing
+from pathlib import Path
+from typing import Any
+
+import verify_catalog
+import verify_identity
+import verify_migration
+
+from ai_stp_contracts import cli_copy
+from ai_stp_contracts.cli.registry import MachineHelp
+from ai_stp_contracts.cli.runtime import ConfigReport
+from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.digests import digest_bytes, digest_canonical
+from ai_stp_foundation.envelope import ErrorEnvelope, SuccessEnvelope
+from ai_stp_sources.definition import unpack_component_tree
+from ai_stp_sources.files import files_digest
+from ai_stp_sources.models import SourceSnapshot
+from ai_stp_sources.resolve import validate_frozen_snapshot
+
+
+def run(binary: Path, home: Path, args: list[str], expected: int = 0) -> dict[str, Any]:
+    environment = {
+        # Python normalizes Windows environment keys to uppercase. Winsock needs
+        # SYSTEMROOT even when the child needs neither PATH nor user state.
+        name: value
+        for name, value in os.environ.items()
+        if name.upper() in {"SYSTEMROOT", "WINDIR"}
+    }
+    environment.update(
+        PATH="",
+        HOME=str(home),
+        USERPROFILE=str(home),
+        XDG_DATA_HOME=str(home),
+        XDG_CONFIG_HOME=str(home),
+        XDG_CACHE_HOME=str(home),
+    )
+    result = subprocess.run(
+        [str(binary), *args, "--json"],
+        capture_output=True,
+        check=False,
+        timeout=15,
+        env=environment,
+    )
+    assert result.returncode == expected, (
+        args,
+        result.stdout.decode(errors="replace"),
+        result.stderr.decode(errors="replace"),
+    )
+    assert not result.stderr, result.stderr
+    model = SuccessEnvelope if expected == 0 else ErrorEnvelope
+    envelope = model.model_validate_json(result.stdout)
+    return envelope.model_dump(mode="json")
+
+
+def prove(binary: Path, root: Path) -> None:
+    home = root / "home"
+    home.mkdir()
+    help_data = run(binary, home, ["help", "--agent"])["data"]
+    MachineHelp.model_validate(help_data)
+    contracts = Path(__file__).resolve().parents[3] / "docs/contracts"
+    exit_document = (contracts / "cli-json.md").read_text(encoding="utf-8")
+    section = exit_document.split("## Exit codes", 1)[1].split("\n## ", 1)[0]
+    documented_exits = {int(value) for value in re.findall(r"^\| (\d+) \|", section, re.MULTILINE)}
+    assert documented_exits == {0, *(row["exit_class"] for row in help_data["error_codes"])}
+    # Check installed agent guidance against the executable registry in every locale.
+    skill = Path(__file__).resolve().parents[3] / "skills/canonical/ai-stp"
+    for document in skill.rglob("*.md"):
+        for invocation in re.findall(r"`(ai-stp [^`\n]+)`", document.read_text(encoding="utf-8")):
+            arguments = shlex.split(invocation)[1:]
+            matches = [
+                row for row in help_data["commands"] if arguments[: len(row["path"])] == row["path"]
+            ]
+            assert matches, (document, invocation)
+            command = max(matches, key=lambda row: len(row["path"]))
+            allowed = {
+                "--" + item["name"]
+                for item in [*help_data["global_options"], *command["parameters"]]
+            }
+            assert all(
+                argument.split("=", 1)[0] in allowed
+                for argument in arguments
+                if argument.startswith("--")
+            ), (document, invocation)
+    # Public web commands must fit the shipped native registry, including required flags.
+    sample = "setup_01KZWSHE3V0T8KVJYFEKWJV63Z"
+    for invocation in (
+        cli_copy.registry_show("setup", sample),
+        cli_copy.registry_version("setup", sample, "1.0"),
+        cli_copy.select_impact(sample, "1.0"),
+        cli_copy.owner_component_next_step(),
+        cli_copy.owner_setup_next_step(),
+        cli_copy.install_start(),
+        cli_copy.login("github"),
+        cli_copy.login("google"),
+        cli_copy.INITIALIZE_START,
+    ):
+        arguments = shlex.split(invocation)[1:]
+        command = next(
+            row for row in help_data["commands"] if arguments[: len(row["path"])] == row["path"]
+        )
+        passed = {value[2:] for value in arguments if value.startswith("--")}
+        required = {item["name"] for item in command["parameters"] if item["required"]}
+        allowed = {item["name"] for item in [*help_data["global_options"], *command["parameters"]]}
+        assert required <= passed <= allowed, invocation
+    # Harness executables belong to the user; configuration remains the writer.
+    assert [row["path"] for row in help_data["commands"] if row["path"][0] == "program"] == [
+        ["program", "status"]
+    ]
+    assert not any(row["path"][:2] == ["provider", "software"] for row in help_data["commands"])
+    registry: JsonValue = {
+        "commands": help_data["commands"],
+        "global_options": help_data["global_options"],
+        "error_codes": [
+            {key: row[key] for key in ("code", "exit_class", "handling")}
+            for row in help_data["error_codes"]
+        ],
+    }
+    digest = digest_canonical("ai-stp:cli-registry:v1", registry)
+    capabilities = run(binary, home, ["capabilities"])["data"]
+    assert capabilities["registry_digest"] == help_data["registry_digest"] == digest
+    assert capabilities["command_paths"] == [" ".join(row["path"]) for row in help_data["commands"]]
+    assert capabilities["task_intents"] == ["author", "install"]
+    assert bool(capabilities["supported_harnesses"]) == (sys.platform == "linux")
+    assert capabilities["release_channel"] == "stable"
+    assert run(binary, home, ["version"])["data"]["runtime"] == "rust"
+    assert (
+        "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v"
+        + capabilities["cli_version"]
+    ) == cli_copy.CLI_RELEASES_URL
+    run(binary, home, ["unknown"], 2)
+    prove_config(binary, home, root)
+    prove_template(binary, home, root)
+    prove_scaffold(binary, home, root)
+    prove_source_capture(binary, home, root)
+    verify_identity.prove(binary, home, root, run)
+    verify_migration.prove(binary, home, root, run)
+    verify_catalog.prove(binary, home, root, run)
+
+    live = root / "live.sqlite"
+    backup = root / "backup.sqlite"
+    source = sqlite3.connect(live, autocommit=True)
+    source.execute("PRAGMA journal_mode=WAL")
+    bootstrap = Path(__file__).resolve().parents[1] / "src/store/schema.sql"
+    source.executescript(bootstrap.read_text(encoding="utf-8"))
+    try:
+        source.execute("PRAGMA wal_autocheckpoint=0")
+        source.execute(
+            "INSERT INTO entity(stable_id, kind, created_at) VALUES (?, ?, ?)",
+            ("component_01ARZ3NDEKTSV4RRFFQ69G5FAV", "component", "2026-01-01T00:00:00Z"),
+        )
+        # Keep the live WAL open: copying only its main file would miss the row.
+        assert Path(str(live) + "-wal").stat().st_size > 0
+        with closing(sqlite3.connect(backup)) as destination:
+            source.backup(destination)
+            destination.execute("PRAGMA journal_mode=DELETE")
+        expected_counts = {
+            row[0]: source.execute(
+                'SELECT count(*) FROM "' + row[0].replace('"', '""') + '"'
+            ).fetchone()[0]
+            for row in source.execute(
+                "SELECT name FROM sqlite_schema WHERE type='table' "
+                "AND name NOT LIKE 'sqlite_%' ORDER BY name"
+            )
+        }
+        before = {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in root.iterdir()
+            if path.is_file()
+        }
+        snapshot_digest = "sha256:" + before[backup.name]
+        data = run(
+            binary,
+            home,
+            ["snapshot", "inspect", "--snapshot", str(backup), "--sha256", snapshot_digest],
+        )["data"]
+        assert data["row_counts"] == expected_counts
+        assert data["row_counts"]["entity"] == 1 and data["table_count"] == 51
+        assert data["local_schema_version"] == 53 and data["read_only"] is True
+        assert tuple(map(int, data["sqlite_version"].split("."))) >= (3, 53, 2)
+        run(
+            binary,
+            home,
+            ["snapshot", "inspect", "--snapshot", str(backup), "--sha256", "sha256:" + "0" * 64],
+            4,
+        )
+        run(
+            binary,
+            home,
+            [
+                "snapshot",
+                "inspect",
+                "--snapshot",
+                str(live),
+                "--sha256",
+                "sha256:" + before[live.name],
+            ],
+            4,
+        )
+        after = {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in root.iterdir()
+            if path.is_file()
+        }
+        assert before == after, "native reads changed database bytes or created sidecars"
+    finally:
+        source.close()
+    with closing(sqlite3.connect(backup)) as newer:
+        newer.execute("PRAGMA user_version=54")
+    newer_digest = "sha256:" + hashlib.sha256(backup.read_bytes()).hexdigest()
+    run(
+        binary,
+        home,
+        ["snapshot", "inspect", "--snapshot", str(backup), "--sha256", newer_digest],
+        4,
+    )
+    assert not list(home.iterdir()), "metadata created persistent state"
+    print(
+        json.dumps(
+            {
+                "registry_digest": digest,
+                "snapshot_tables": 51,
+                "sqlite_version": data["sqlite_version"],
+                "result": "passed",
+            }
+        )
+    )
+
+
+def prove_config(binary: Path, home: Path, root: Path) -> None:
+    defaults = ConfigReport.model_validate(run(binary, home, ["config", "show"])["data"])
+    assert defaults.config_path is None
+    assert {item.path for item in defaults.values} == {
+        "catalog.enabled",
+        "catalog.url",
+        "sync.enabled",
+    }
+    assert all(item.source == "default" for item in defaults.values)
+    document = (Path(__file__).resolve().parents[3] / "docs/contracts/cli-config.md").read_text(
+        encoding="utf-8"
+    )
+    block = re.search(r"```yaml\n(.*?)```", document, re.DOTALL)
+    assert block is not None
+    documented = root / "documented-config.yaml"
+    documented.write_text(block.group(1), encoding="utf-8")
+    shown_defaults = ConfigReport.model_validate(
+        run(binary, home, ["config", "show", "--config", str(documented)])["data"]
+    )
+    assert {item.path: item.value for item in defaults.values} == {
+        item.path: item.value for item in shown_defaults.values
+    }
+    assert all(item.source == "config_file" for item in shown_defaults.values)
+    config = root / "preview.yaml"
+    content = "schema_version: 1\ncatalog:\n  enabled: false\nsync:\n  enabled: false\n"
+    config.write_text(content, encoding="utf-8")
+    shown = ConfigReport.model_validate(
+        run(
+            binary,
+            home,
+            ["config", "show", "--config", str(config), "--set", "sync.enabled=true"],
+        )["data"]
+    )
+    values = {item.path: item for item in shown.values}
+    assert values["catalog.enabled"].value is False
+    assert values["catalog.enabled"].source == "config_file"
+    assert values["sync.enabled"].value is True
+    assert values["sync.enabled"].source == "command_argument"
+    assert config.read_text(encoding="utf-8") == content
+    ConfigReport.model_validate(
+        run(binary, home, ["config", "validate", "--config", str(config)])["data"]
+    )
+    for malformed in (
+        "schema_version: 2\n",
+        "catalog:\n  enabled: definitely-not-a-boolean\n",
+        "catalog:\n  enabled: true\n  enabled: false\n",
+        "password: must-not-be-echoed\n",
+        "provider:\n  paths:\n    codex: /tmp/provider\n",
+        "---\n{}\n---\n{}\n",
+        "catalog: !include secrets.yaml\n",
+        "update:\n  check_ttl_hours: 0\n",
+    ):
+        config.write_text(malformed, encoding="utf-8")
+        answer = run(binary, home, ["config", "validate", "--config", str(config)], 2)
+        assert "must-not-be-echoed" not in json.dumps(answer)
+    config.unlink()
+    run(binary, home, ["config", "show", "--config", str(config)], 2)
+
+
+def prove_scaffold(binary: Path, home: Path, root: Path) -> None:
+    from ai_stp_contracts.authoring import ComponentTemplateDescriptor
+    from ai_stp_contracts.component_passport import ComponentPassportPatch
+
+    folder = root / "scaffold"
+    folder.mkdir()
+    pairs = [(kind, "none") for kind in ("instruction", "skill", "command", "agent")]
+    pairs.extend(
+        ("cli", language)
+        for language in ("python", "typescript", "javascript", "rust", "go", "dart-flutter")
+    )
+    for kind, language in pairs:
+        output = folder / f"{kind}-{language}"
+        response = run(
+            binary,
+            home,
+            [
+                "component",
+                "scaffold",
+                "plan",
+                "--type",
+                kind,
+                "--language",
+                language,
+                "--name",
+                "safe-component",
+                "--output",
+                str(output),
+            ],
+        )["data"]
+        plan = response["plan"]
+        expected = response["plan_digest"]
+        assert digest_canonical("ai-stp:scaffold-plan:v1", plan) == expected
+        assert not output.exists()
+        ComponentTemplateDescriptor.model_validate_json(plan["files"][".ai-stp-template.json"])
+        ComponentPassportPatch.model_validate_json(plan["files"]["component-passport.json"])
+        path = folder / f"{kind}-{language}.plan.json"
+        path.write_text(json.dumps(plan), encoding="utf-8")
+        apply = ["component", "scaffold", "apply", "--plan", str(path), "--plan-digest", expected]
+        result = run(binary, home, apply)["data"]
+        assert result["outcome"] == "created" and result["publication_ready"] is False
+        assert result["staging_cleanup_pending"] is False
+        assert result["files_written"] == len(plan["files"]) == 4
+        for name, content in plan["files"].items():
+            assert (output / name).read_bytes() == content.encode()
+        assert run(binary, home, apply)["data"]["outcome"] == "already_matches"
+        assert not any(output.rglob("README.md"))
+        assert not (output / ".git").exists()
+        assert not (output / "eval-profile.json").exists()
+        assert not list(folder.glob(".ai-stp-scaffold-*"))
+        inspect = ["component", "source", "inspect", "--root", str(output)]
+        captured = run(binary, home, inspect)["data"]
+        assert captured["source_ready"] is False
+        assert captured["execution"] == "not_run" and captured["publication"] == "not_assessed"
+        assert {item["code"] for item in captured["issues"]} == {
+            "description_incomplete",
+            "scaffold_marker",
+        }
+        assert len(captured["files"]) == 1
+        patch = json.loads((output / "component-passport.json").read_bytes())
+        patch["description"] = "A bounded implementation for local review."
+        (output / "component-passport.json").write_text(json.dumps(patch), encoding="utf-8")
+        described = run(binary, home, inspect)["data"]
+        assert described["source_ready"] is False
+        assert described["source_digest"] == captured["source_digest"]
+        assert described["snapshot_digest"] != captured["snapshot_digest"]
+        assert [item["code"] for item in described["issues"]] == ["scaffold_marker"]
+    assert not list(home.iterdir())
+
+
+def prove_template(binary: Path, home: Path, root: Path) -> None:
+    from ai_stp_contracts.cli.components import ComponentTemplateView
+
+    template = root / "template.md"
+    source = "# {{component_name}}\n\nRoot: {{component_root}}\n"
+    template.write_bytes(source.replace("\n", "\r\n").encode())
+    arguments = [
+        "component",
+        "template",
+        "render",
+        "--template",
+        str(template),
+        "--name",
+        "review-kit",
+        "--component-root",
+        "skills/review-kit",
+        "--harness",
+    ]
+    for harness in (
+        "antigravity",
+        "claude-code",
+        "codex",
+        "cursor",
+        "grok-build",
+        "opencode",
+        "pi",
+    ):
+        actual = ComponentTemplateView.model_validate(
+            run(binary, home, [*arguments, harness])["data"]
+        )
+        assert actual.content == "# review-kit\n\nRoot: skills/review-kit\n"
+        assert actual.placeholders == ["component_name", "component_root"]
+        assert actual.source_digest == "sha256:" + hashlib.sha256(source.encode()).hexdigest()
+        assert (
+            actual.rendered_digest
+            == "sha256:" + hashlib.sha256(actual.content.encode()).hexdigest()
+        )
+    # CommonMark owns code boundaries, including a longer outer fence, quote
+    # containers, indentation and valid fences that continue to end of input.
+    for literal in (
+        "````text\n```\n{{unknown}}\n````\n",
+        "> ```text\n> {{unknown}}\n> ```\n",
+        "    {{unknown}}\n",
+        "```text\n{{unknown}}\n",
+    ):
+        template.write_text("Before {{component_name}}.\n\n" + literal, encoding="utf-8")
+        actual = ComponentTemplateView.model_validate(
+            run(binary, home, [*arguments, "codex"])["data"]
+        )
+        assert actual.content == "Before review-kit.\n\n" + literal
+        assert actual.placeholders == ["component_name"]
+    for malformed in (
+        "{{unknown}}\n",
+        "{{component_name\n",
+        "{{/harness}}\n",
+        "{{#harness:codex,codex}}\nx\n{{/harness}}\n",
+        "{{#harness:codex}}\n{{#harness:pi}}\n",
+        "{{#harness:undefined}}\nx\n{{/harness}}\n",
+        "{{#harness:codex}}\n",
+        "x" * (64 * 1024 + 1),
+    ):
+        template.write_text(malformed, encoding="utf-8")
+        run(binary, home, [*arguments, "codex"], 2)
+    template.write_text("{{component_root}}\n" * 300, encoding="utf-8")
+    expanded_arguments = arguments.copy()
+    expanded_arguments[expanded_arguments.index("--component-root") + 1] = "segment/" * 40 + "leaf"
+    run(binary, home, [*expanded_arguments, "codex"], 2)
+    assert list(home.iterdir()) == []
+
+
+def prove_source_capture(binary: Path, home: Path, root: Path) -> None:
+    source = root / "external-source"
+    source.mkdir()
+    payload = "Original e\u0301 source bytes.\n".encode()
+    (source / "note.txt").write_bytes(payload)
+    args = ["component", "source", "capture", "--root", str(root), "--path", source.name]
+    result = run(binary, home, args)["data"]
+    assert result == run(binary, home, args)["data"]
+    encoded = result["artifact"]["bytes_b64"]
+    artifact = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
+    assert result["artifact"]["digest"] == digest_bytes("ai-stp:artifact:v1", artifact)
+    assert result["artifact"]["size_bytes"] == len(artifact)
+    files = unpack_component_tree(artifact)
+    assert files == {"note.txt": payload}
+    snapshot = dict(result["snapshot"])
+    assert snapshot.pop("file_paths") == sorted(files)
+    model = SourceSnapshot.model_validate({**snapshot, "files": files})
+    validate_frozen_snapshot(model)
+    assert model.exact_identity == model.component_digest == files_digest(files)
+    assert not model.author_verified and not model.component_verified and not model.target_write
+    assert result["filesystem_accessed"] and not result["network_accessed"]
+    assert str(root) not in json.dumps(result)
+    assert (source / "note.txt").read_bytes() == payload
+    assert list(source.iterdir()) == [source / "note.txt"]
+
+
+def benchmark(binary: Path, root: Path) -> None:
+    samples: list[float] = []
+    for _ in range(50):
+        started = time.perf_counter_ns()
+        run(binary, root, ["version"])
+        samples.append((time.perf_counter_ns() - started) / 1_000_000)
+    print(
+        json.dumps(
+            {
+                "command": "version --json",
+                "processes": len(samples),
+                "median_ms": statistics.median(samples),
+                "p95_ms": sorted(samples)[47],
+                "binary_bytes": binary.stat().st_size,
+                "python_on_child_path": False,
+            }
+        )
+    )
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("binary", type=Path)
+    parser.add_argument("--benchmark", action="store_true")
+    args = parser.parse_args()
+    binary = (args.binary.with_suffix(".exe") if os.name == "nt" else args.binary).resolve(
+        strict=True
+    )
+    with tempfile.TemporaryDirectory(prefix="ai-stp-native-proof-") as temporary:
+        root = Path(temporary)
+        if args.benchmark:
+            benchmark(binary, root)
+        else:
+            prove(binary, root)
+
+
+if __name__ == "__main__":
+    main()

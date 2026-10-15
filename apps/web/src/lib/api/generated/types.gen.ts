@@ -29,6 +29,10 @@ export type AccessGrantResponse = {
    */
   recipient: string | null;
   recipient_kind: DirectRecipientKind | null;
+  /**
+   * Revision
+   */
+  revision?: number | null;
   revoked_at: Timestamp | null;
   /**
    * Schema Version
@@ -7408,7 +7412,9 @@ export type DeviceTokenRequest = {
   device_code: DeviceCode;
   device_id: DeviceId;
   display_name: DisplayName;
+  expected_account_id?: AccountId | null;
   public_key: PublicKey;
+  revoked_public_key?: PublicKey | null;
   /**
    * Schema Version
    */
@@ -7460,11 +7466,23 @@ export type DigestValue = string;
  * POST /v1/grants/direct body with an explicit recipient identifier kind.
  */
 export type DirectGrantCreateRequest = {
+  /**
+   * Expected Grant Id
+   */
+  expected_grant_id?: string | null;
+  /**
+   * Expected Revision
+   */
+  expected_revision?: number | null;
   idempotency_key: IdempotencyKey;
   /**
    * Major
    */
   major: number;
+  /**
+   * Mutation Contract
+   */
+  mutation_contract?: 1 | null;
   object_kind: ObjectKind;
   /**
    * Recipient
@@ -8962,6 +8980,10 @@ export type GitSource = {
 export type GrantAcceptRequest = {
   idempotency_key: IdempotencyKey;
   /**
+   * Mutation Contract
+   */
+  mutation_contract?: 1 | null;
+  /**
    * Schema Version
    */
   schema_version?: 1;
@@ -8982,6 +9004,10 @@ export type GrantInvitationCreateRequest = {
    * Major
    */
   major: number;
+  /**
+   * Mutation Contract
+   */
+  mutation_contract?: 1 | null;
   object_kind: ObjectKind;
   /**
    * Recipient Email
@@ -9057,7 +9083,15 @@ export type GrantListResponse = {
  * Revoke invitation or grant with an optional reason.
  */
 export type GrantRevokeRequest = {
+  /**
+   * Expected Revision
+   */
+  expected_revision?: number | null;
   idempotency_key: IdempotencyKey;
+  /**
+   * Mutation Contract
+   */
+  mutation_contract?: 1 | null;
   /**
    * Reason
    */

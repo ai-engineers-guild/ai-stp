@@ -6,6 +6,7 @@ import io
 import json
 import os
 import tarfile
+from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any, cast
@@ -27,8 +28,14 @@ from ai_stp_platform.github_authority import (
     selected_installations,
 )
 from ai_stp_platform.github_client import GitHubClient, GitHubError
-from ai_stp_platform.github_models import GitHubActionPlan, GitHubAuthorizationFlow, GitHubConnector
+from ai_stp_platform.github_models import (
+    GitHubActionPlan,
+    GitHubAuthorizationFlow,
+    GitHubConnector,
+    GitHubSourceBinding,
+)
 from ai_stp_platform.github_settings import GitHubConnectorSettings
+from ai_stp_platform.github_sources import source_matches_passport
 from ai_stp_sources.definition import pack_component_tree
 from ai_stp_sources.errors import SourceError
 from ai_stp_sources.git import resolve_git
@@ -38,6 +45,50 @@ pytestmark = pytest.mark.platform
 ACCOUNT = "account_01ARZ3NDEKTSV4RRFFQ69G5FAV"
 DEVICE = "device_01ARZ3NDEKTSV4RRFFQ69G5FAV"
 COMMIT = "a" * 40
+
+
+def test_source_binding_requires_the_whole_source_graph_or_exact_legacy_artifact() -> None:
+    binding = GitHubSourceBinding(
+        content_digest="sha256:" + "a" * 64, size_bytes=502, inventory=["SKILL.md"]
+    )
+    source = {"digest": binding.content_digest, "size_bytes": binding.size_bytes}
+    projection_digest = "sha256:" + "b" * 64
+    projection = {"digest": projection_digest, "size_bytes": 247}
+    passport: dict[str, Any] = {
+        "kind": "component",
+        "source": None,
+        "artifact": projection,
+        "adaptations": [
+            {"source_artifact": source, "scope_adaptations": [{"projection_artifact": projection}]},
+            {"source_artifact": source, "scope_adaptations": [{"projection_artifact": projection}]},
+        ],
+    }
+    inventory = ["skills/review/SKILL.md"]
+    assert source_matches_passport(binding, passport, projection_digest, inventory)
+    for missing in [None, {}, {**source, "size_bytes": 503}, projection]:
+        wrong = deepcopy(passport)
+        wrong["adaptations"][1]["source_artifact"] = missing
+        assert not source_matches_passport(binding, wrong, projection_digest, inventory)
+    invalid_passports: list[dict[str, object]] = [
+        {"adaptations": []},
+        {"kind": "setup"},
+        {"source": {"repository": "https://github.com/example/synthetic"}},
+        {"artifact": {**projection, "size_bytes": 248}},
+    ]
+    for changes in invalid_passports:
+        assert not source_matches_passport(
+            binding, {**passport, **changes}, projection_digest, inventory
+        )
+    assert not source_matches_passport(binding, passport, binding.content_digest, inventory)
+    legacy: dict[str, object] = {**passport, "artifact": source, "adaptations": []}
+    assert source_matches_passport(binding, legacy, binding.content_digest, ["SKILL.md"])
+    assert not source_matches_passport(binding, legacy, binding.content_digest, inventory)
+    assert not source_matches_passport(
+        binding,
+        {**legacy, "artifact": {**source, "size_bytes": 503}},
+        binding.content_digest,
+        ["SKILL.md"],
+    )
 
 
 def config() -> GitHubConnectorSettings:

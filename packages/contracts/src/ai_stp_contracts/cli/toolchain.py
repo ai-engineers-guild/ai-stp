@@ -1,5 +1,7 @@
-"""Harness programs, managed CLI programs, tool installations and the
-toolchain survey.
+"""Toolchain observations and retained harness lifecycle wire models.
+
+ADR-0232 removes harness mutation commands. The legacy program models remain
+available to decode historical receipts without changing their stored schema.
 """
 
 from typing import Annotated, Literal

@@ -49,6 +49,7 @@ from ai_stp_sources.errors import (
     SourceError,
 )
 from ai_stp_sources.models import SourceSnapshot
+from ai_stp_sources.native_identity import identities
 from ai_stp_sources.resolve import validate_frozen_snapshot
 
 DEFINITION_V1: Final[str] = "ai-stp-setup-definition/1"
@@ -362,6 +363,9 @@ def _projection(draft: EmbeddedDraft) -> tuple[bytes, JsonValue]:
         path: content
         for path, (_source_name, content) in zip(draft.managed_paths, source_files, strict=True)
     }
+    if len(contents) != len(source_files):
+        raise SourceError(INVALID_SOURCE, "embedded managed paths must be unique")
+    native_ids = identities(draft.harness_id, draft.component_type, contents)
     members: list[JsonValue] = [
         {
             "path": path,
@@ -371,7 +375,7 @@ def _projection(draft: EmbeddedDraft) -> tuple[bytes, JsonValue]:
                 "digest": digest_bytes(ARTIFACT_DIGEST_DOMAIN, content),
                 "size_bytes": len(content),
             },
-            "native_ids": [],
+            "native_ids": cast(JsonValue, native_ids.get(path, [])),
             "content_format": "application/octet-stream",
             "parser_id": None,
             "ownership": "whole",

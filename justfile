@@ -7,9 +7,9 @@
 # the same operations narrowed to one group.
 #
 # A group is a check's owner, and the prefix is mandatory:
-#   docs-*    — the documentation basis (specs, ADRs, docs/, MkDocs);
+#   docs-*    — current documentation and MkDocs;
 #   back-*    — Python: packages/, apps/api, apps/platform, apps/cli, tests/;
-#   cli-v2-*  — apps/cli-v2 (native CLI and its boundary proofs);
+#   cli-*  — apps/cli (native CLI and its boundary proofs);
 #   web-*     — apps/web;
 #   desktop-* — apps/desktop (UI + core + src-tauri crates);
 #   infra-*   — Docker images, Compose stacks and the host-side deploy chain.
@@ -120,11 +120,11 @@ hooks:
 
 # Everything that writes. The resulting diff is reviewed by hand.
 [group('gate')]
-gen: docs-gen back-gen web-gen cli-v2-gen
+gen: docs-gen back-gen web-gen cli-gen
 
 # Everything that reads.
 [group('gate')]
-check: docs-check back-check cli-v2-check web-check security
+check: docs-check back-check cli-check web-check security
 
 # Fast gate for the local commit hook: source-level documentation checks, their
 # validator unit tests, and static Python analysis. Full documentation builds,
@@ -198,212 +198,21 @@ safety-benchmark *args:
 safety-corpus *args:
     {{ run }} python scripts/safety/run_adversarial_corpus.py {{ args }}
 
-# Builds, but does not publish, the public ai-stp-cli candidate. The working
-# tree must be clean; a dirty tree is only for local characterization with
-# explicit `--allow-dirty` and is never release evidence.
-[doc('Build the public ai-stp-cli candidate without publishing')]
-[group('release')]
-release-candidate:
-    {{ uvreq }}
-    uv run --locked python release_scripts/build_candidate.py --replace
-
-# Installs the current candidate's ai-stp-cli wheel outside checkout, runs
-# the CLI, and removes the tool. The public index is used only for third-party
-# dependencies.
-[doc('Install the candidate wheel outside checkout, run it, remove it')]
-[group('release')]
-release-candidate-install:
-    uv run --locked python -m release_scripts.verify_candidate_install \
-        dist/release-candidate \
-        --expected-sha "$(git rev-parse HEAD)"
-
-# Verifies the anonymous slice (`#85`) against the deployed environment.
-#
-# Changes nothing and authenticates with nothing: an anonymous slice has to prove
-# itself without credentials, and a script that cannot hold one cannot leak one.
-# Not part of `just check` — the repository gate may not depend on an external
-# environment, or that environment being unreachable reads as a red build here.
-[arg('origin', help='deployment origin')]
-[arg('commit', help='expected deployed commit')]
-[doc('Verify the anonymous slice against the deployed environment')]
+# The service named by AI_STP_TEST_DB_URL hosts a newly created, disposable
+# database. The proof removes only that database and its temporary native roots.
+[arg('binary', help='optimized native executable built with cli-build')]
+[arg('digest', help='reviewed SHA-256 of that executable')]
+[doc('Prove native two-device sync against the real API and isolated PostgreSQL')]
 [group('evidence')]
-evidence-live origin="https://ai-stp.aiguild.space" commit="":
-    uv run --locked python -m release_scripts.verify_live_slice \
-        --origin "{{ origin }}" \
-        {{ if commit == "" { "" } else { "--expected-commit " + commit } }}
+evidence-native-sync binary digest:
+    {{ run }} python -m release_scripts.verify_native_sync --binary "{{ binary }}" --binary-sha256 "{{ digest }}"
 
-# Verifies the two-device synchronisation slice (#180) against the deployed
-# environment. Both homes must already be signed in: the device-code flow needs a
-# person, and a script able to mint a session would be proving the wrong path.
-#
-# Different `HOME` values do NOT create two devices. The OS credential store
-# belongs to the OS user, not the home directory, so `HOME=… ai-stp auth status`
-# answers `authenticated` from the shared keyring and both "devices" turn out to
-# be one. Each login must use `AI_STP_FORCE_FILE_CREDENTIAL_STORE=1`, or the
-# slice proves something other than what it claims.
-#
-# `skip` is a space-separated list of exact event ids that no client can apply to
-# this account's history. The operator names them: a slice that guessed what to
-# skip would go green on the strength of what it never read.
-[arg('skip', help='event ids no client may apply')]
-[arg('home_a', help='first signed-in home')]
-[arg('home_b', help='second signed-in home')]
-[arg('origin', help='deployment origin')]
-[doc('Verify the two-device synchronisation slice on the deployment')]
+[arg('binary', help='optimized native executable built with cli-build')]
+[arg('digest', help='reviewed SHA-256 of that executable')]
+[doc('Prove native publication against the real API, isolated PostgreSQL and worker safety')]
 [group('evidence')]
-evidence-sync home_a home_b origin="https://ai-stp.aiguild.space" skip="":
-    uv run --locked python -m release_scripts.verify_sync_slice \
-        --origin "{{ origin }}" \
-        --home-a "{{ home_a }}" \
-        --home-b "{{ home_b }}" \
-        {{ if skip == "" { "" } else { prepend("--skip-event ", skip) } }}
-
-# Measures the private-sync hot paths `#256` R05 keeps explicit — ancestor
-# walks, common-ancestor selection, page application and cold/warm task
-# overhead — against real sqlite statement counts on the shipped functions.
-# A `fixture` row is setup cost, never a verdict, and nothing here rewrites
-# the measured path. Outside `just check`: a denominator is evidence, not a
-# gate, and the script existed with no recipe since it landed.
-[arg('args', help='extra measurement arguments, e.g. --out record.json')]
-[doc('Measure the private-sync hot paths named by #256 R05')]
-[group('evidence')]
-evidence-sync-hot-paths *args:
-    uv run --locked python -m release_scripts.measure_sync_hot_paths {{ args }}
-
-# Proves this repository's projection table still agrees with the seven
-# providers **as released** — on the bytes `provider fetch` serves.
-#
-# Not in `just check` for the same reason as the other slices: the gate may
-# not depend on somebody else's tags, or a release being unreachable reads as
-# red code here.
-#
-# It exists because on 2026-08-27 both of our tables named a cursor surface
-# the product does not read, and the check comparing them passed — they were
-# wrong identically. Only the provider's declaration settled it, and no check
-# compared against the **release**: the test-suite analog reads the local
-# build tree, that is, whatever a person last compiled.
-#
-# Requires `GH_CONFIG_DIR`: the slice isolates `HOME`, and `provider fetch`
-# calls `gh`, which in isolation finds no configuration and reports missing
-# release metadata — not the cause.
-[arg('tag', help='provider release tag')]
-[arg('harness', help='limit to one harness')]
-[doc('Prove projections agree with the released provider bytes')]
-[group('evidence')]
-evidence-providers tag harness="":
-    GH_CONFIG_DIR="${GH_CONFIG_DIR:-${APPDATA:+$APPDATA/GitHub CLI}}"; \
-    GH_CONFIG_DIR="${GH_CONFIG_DIR:-$HOME/.config/gh}" \
-    uv run --locked python -m release_scripts.verify_provider_slice \
-        --tag "{{ tag }}" \
-        {{ if harness == "" { "" } else { prepend("--harness ", harness) } }}
-
-# Drives every non-global provider profile through a mutating disposable-target
-# lifecycle with a consumer-produced adaptation-bound bundle v2. This is local
-# source evidence before release; `evidence-providers` remains the released-byte
-# proof after attestation and publication.
-[arg('setup_systems_root', help='checkout of the private setup-systems source')]
-[doc('Drive every provider profile through a mutating lifecycle')]
-[group('evidence')]
-evidence-provider-scopes setup_systems_root:
-    uv run --locked python -m release_scripts.verify_scoped_provider_slice \
-        --setup-systems-root "{{ setup_systems_root }}"
-
-# The second half of the same question: `evidence-providers` proves the
-# contract and the bytes, while this slice drives each released provider
-# through the **consumer** path — `harness install/status/update/remove`
-# calls of `ai-stp` itself.
-#
-# These are different questions and they fail for different reasons. Every
-# integration defect in this estate lived exactly between consumer and
-# provider: argv the provider did not expect; a status read differently; a
-# record that did not survive the sandbox; a postcondition taken from the
-# wrong subject. None of them is visible to a slice that asks the provider
-# directly.
-#
-# One line per harness, an outcome out of five, and a missing line is an
-# error, not zero refusals. `GH_CONFIG_DIR` is needed for the same reason as
-# its neighbour.
-[arg('tag', help='provider release tag')]
-[arg('harness', help='limit to one harness')]
-[arg('acquire', help='non-empty to auto-acquire artifacts')]
-[doc('Drive released providers through the consumer install path')]
-[group('evidence')]
-evidence-software tag harness="" acquire="":
-    GH_CONFIG_DIR="${GH_CONFIG_DIR:-${APPDATA:+$APPDATA/GitHub CLI}}"; \
-    GH_CONFIG_DIR="${GH_CONFIG_DIR:-$HOME/.config/gh}" \
-    uv run --locked python -m release_scripts.verify_software_slice \
-        --tag "{{ tag }}" \
-        {{ if harness == "" { "" } else { prepend("--harness ", harness) } }} \
-        {{ if acquire == "" { "" } else { "--acquire" } }}
-
-# The third question of the same pair, and the only one about
-# **configuration**. `evidence-providers` asks the contract,
-# `evidence-software` the program, and this drives each harness's native
-# surface through the full arc: seed → adopt → release → propose → confirm →
-# plan → approve → apply → target observation → removal plan → apply → the
-# target is clean again.
-#
-# It exists because before it the end-to-end property — "capture a machine's
-# configuration and put it on the next one" — was measured by hand and only
-# on linux/x86_64. The verdict is taken from the target, not from the
-# provider's answer.
-#
-# Not in `just check` for the same reason as the neighbours: the gate may not
-# depend on somebody else's release. `GH_CONFIG_DIR` is needed by
-# `provider fetch`.
-[arg('tag', help='provider release tag')]
-[arg('scope', help='limit to one scope')]
-[arg('harness', help='limit to one harness')]
-[arg('from_import', help='non-empty to seed from an import')]
-[doc('Drive each harness through the full configuration arc')]
-[group('evidence')]
-evidence-config tag harness="" from_import="" scope="":
-    GH_CONFIG_DIR="${GH_CONFIG_DIR:-${APPDATA:+$APPDATA/GitHub CLI}}"; \
-    GH_CONFIG_DIR="${GH_CONFIG_DIR:-$HOME/.config/gh}" \
-    uv run --locked python -m release_scripts.verify_config_slice \
-        --tag "{{ tag }}" \
-        {{ if harness == "" { "" } else { prepend("--harness ", harness) } }} \
-        {{ if from_import == "" { "" } else { "--from-import" } }} \
-        {{ if scope == "" { "" } else { "--scope " + scope } }}
-
-# Acceptance of `#54`: one MCP component in three native forms — a key in
-# somebody else's settings file, its own file, and a product that has no such
-# kind at all.
-#
-# The script existed since 2026-08-31 and was called from nowhere: no recipe,
-# no workflow step, no line in a document. The first real run found three
-# defects in it — adoption from an arbitrary directory, a version adopt does
-# not return, and a claude-code control going green on somebody else's
-# refusal.
-[arg('tag', help='provider release tag')]
-[doc('Acceptance of #54: one MCP component in three native forms')]
-[group('evidence')]
-evidence-contribution tag:
-    GH_CONFIG_DIR="${GH_CONFIG_DIR:-${APPDATA:+$APPDATA/GitHub CLI}}"; \
-    GH_CONFIG_DIR="${GH_CONFIG_DIR:-$HOME/.config/gh}" \
-    uv run --locked python -m release_scripts.verify_contribution_slice \
-        --tag "{{ tag }}"
-
-# Asks the source whether the first-party corpus drifted from what is
-# published. The corpus's forty objects are bound to `passport_digest` and
-# immutable under `REQ-2606` — that is, protected from being **changed**, and
-# by nothing from having been **wrong**. They cannot be re-derived locally:
-# their content lives in seven outside repositories.
-#
-# The difference between the two protections is not theoretical: on 2026-08-29
-# the corpus carried seven setups out of twenty-eight published, under a role
-# name no source carries — and every digest agreed the whole time (`#461`).
-#
-# The recipe exists because before it only somebody who could type the script
-# path could do this. It reports and never refuses, and is not in
-# `just check`: the repository gate may not depend on somebody else's
-# network.
-[arg('args', help='extra corpus builder arguments')]
-[doc('Report first-party corpus drift against published sources')]
-[group('evidence')]
-corpus-drift *args:
-    uv run --locked python release_scripts/build_first_party_corpus.py --drift \
-        --out packages/contracts/src/ai_stp_contracts/first_party/v1 {{ args }}
+evidence-native-publication binary digest:
+    {{ run }} python -m release_scripts.verify_native_publication --binary "{{ binary }}" --binary-sha256 "{{ digest }}"
 
 # Fetches every link a harness-catalog row stands on and names the dead ones.
 # Nothing in the repository opens a link, so a stale one is found by a person
@@ -448,7 +257,6 @@ docs-gen:
 [group('docs')]
 docs-static:
     {{ py }} {{ scripts }}/docs_lint.py
-    {{ py }} {{ scripts }}/spec_lint.py
     {{ py }} {{ scripts }}/contract_lint.py
     {{ py }} {{ scripts }}/run_markdownlint.py
     {{ py }} -m yamllint -c {{ scripts }}/.yamllint.yml .
@@ -510,7 +318,6 @@ back-gen:
     {{ run }} python -m ai_stp_contracts.web_projections
     {{ run }} python -m ai_stp_contracts.technology_seed
     {{ run }} python release_scripts/provider_kit.py provider-kit/v3
-    {{ run }} python release_scripts/verifier_requirements.py
     {{ run }} python release_scripts/first_party_corpus_digests.py
     {{ py }} {{ scripts }}/skill_projections.py
 
@@ -525,7 +332,6 @@ back-static:
     {{ run }} python -m ai_stp_contracts.web_projections --check
     {{ run }} python -m ai_stp_contracts.technology_seed --check
     {{ run }} python release_scripts/provider_kit.py --check provider-kit/v3
-    {{ run }} python release_scripts/verifier_requirements.py --check
     {{ run }} python release_scripts/first_party_corpus_digests.py --check
     {{ run }} python release_scripts/safety_requirements.py --check
     {{ run }} python -m release_scripts.update_component_fixture --check
@@ -560,31 +366,6 @@ back-durations:
     {{ run }} python -m pytest -n 0 --no-cov -q \
         --store-durations --durations-path .test_durations
 
-# SQLite emits its direct ResourceWarning only on Python 3.13+ finalization.
-# Run the focused long-lived CLI lifecycle with both warning forms as errors;
-# the broad suite also owns platform logging handlers, whose lifecycle belongs
-# to the platform track and must not weaken this CLI-specific acceptance gate.
-[doc('CLI lifecycle under ResourceWarning-as-error')]
-[group('back')]
-back-resource:
-    {{ run }} python -m pytest --no-cov -q \
-        -W error::ResourceWarning \
-        -W error::pytest.PytestUnraisableExceptionWarning \
-        tests/contract/test_cli_resource_lifecycle.py
-
-# The cross-platform CLI surface, split the way the CI matrix consumes it.
-# The flags are part of the contract and live here, not in the workflow YAML:
-# `-vv` because addopts already carries `-q` and a single `-v` cancels out;
-# `faulthandler_timeout` names the hanging test instead of ending mid-line,
-# which is how three CI runs died on their own timeout without saying why.
-# Local runs on one OS exercise the same invocation the three-OS matrix runs.
-[arg('suite', help='test suite directory under tests/: unit, contract, process')]
-[group('back')]
-back-cli-suite suite:
-    {{ run }} python -m pytest "tests/{{ suite }}" --no-cov -vv \
-        -o faulthandler_timeout=300 {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{ test_dist }} \
-        {{ if suite == "unit" { "--ignore=tests/unit/platform --ignore=tests/unit/api" } else { "" } }}
-
 # The directory is cleaned before building: a wheel of a yanked version left
 # over from a previous run would otherwise be available to the installer
 # through --find-links and substitute itself for the new one.
@@ -595,17 +376,8 @@ back-build:
     {{ run }} python -c "import shutil; shutil.rmtree('dist', ignore_errors=True)"
     uv build --all-packages --out-dir dist -q
 
-# Installs the built wheels and runs the CLI two ways. The body lives in
-# release_scripts/clean_install_regress.sh: both this recipe and the CI gate
-# call it, so a clean install cannot diverge between the local and the CI
-# path. The working environment carries the docs and dev group dependencies,
-# so an undeclared package dependency is invisible in it and only shows for
-# whoever installed the wheel: an unimported-by-declaration yaml import in
-# apps/cli already slipped through that way once.
-# Windows PATH `bash` is frequently WSL, which cannot run this checkout.
-# `run_bash.py` locates Git-for-Windows bash (or PATH bash on POSIX) so the
-# same recipe body is the local path; CI still calls the shell script itself.
-[doc('Install built wheels and run the CLI in a clean environment')]
+# Check server wheel dependency closure outside the source checkout.
+[doc('Install server wheels in a clean environment')]
 [group('back')]
 back-regress:
     @just back-build
@@ -613,7 +385,7 @@ back-regress:
 
 [doc('The backend aggregate')]
 [group('back')]
-back-check: back-static back-test back-resource back-build back-regress
+back-check: back-static back-test back-build back-regress
 
 # --- web ----------------------------------------------------------------
 
@@ -710,37 +482,37 @@ web-feature-profiles:
 [group('web')]
 web-check: web-build web-storybook web-static web-test web-regress web-feature-profiles
 
-# --- cli-v2 ----------------------------------------------------------------
+# --- cli ----------------------------------------------------------------
 
 # Format native sources explicitly; checks never rewrite them
-[group('cli-v2')]
-cli-v2-gen:
-    cd apps/cli-v2 && cargo fmt
+[group('cli')]
+cli-gen:
+    cd apps/cli && cargo fmt
 
 # Native formatting and compiler diagnostics, including evidence examples
-[group('cli-v2')]
-cli-v2-static:
-    cd apps/cli-v2 && cargo fmt --check
-    cd apps/cli-v2 && python3 scripts/with_libclang.py cargo clippy --locked --all-targets -- -D warnings
+[group('cli')]
+cli-static:
+    cd apps/cli && cargo fmt --check
+    cd apps/cli && python3 scripts/with_libclang.py cargo clippy --locked --all-targets -- -D warnings
 
 # Canonical vectors, real binary behavior and adversarial signed provenance
-[group('cli-v2')]
-cli-v2-test:
-    cd apps/cli-v2 && python3 scripts/with_libclang.py cargo test --locked
+[group('cli')]
+cli-test:
+    cd apps/cli && python3 scripts/with_libclang.py cargo test --locked
 
 # Optimized native executable and explicit provider evidence runner
-[group('cli-v2')]
-cli-v2-build:
-    cd apps/cli-v2 && python3 scripts/with_libclang.py cargo build --locked --release --bins --examples
+[group('cli')]
+cli-build:
+    cd apps/cli && python3 scripts/with_libclang.py cargo build --locked --release --bins --examples
 
 # Existing envelope consumer, registry digest and live-WAL backup compatibility
-[group('cli-v2')]
-cli-v2-regress: cli-v2-build
-    {{ run }} python apps/cli-v2/scripts/verify.py apps/cli-v2/target/release/ai-stp-v2
+[group('cli')]
+cli-regress: cli-build
+    {{ run }} python apps/cli/scripts/verify.py apps/cli/target/release/ai-stp
 
 # Native CLI boundary gate (also part of the repository gate)
-[group('cli-v2')]
-cli-v2-check: cli-v2-static cli-v2-test cli-v2-build cli-v2-regress
+[group('cli')]
+cli-check: cli-static cli-test cli-build cli-regress
 
 # --- desktop ---------------------------------------------------------------
 
@@ -749,7 +521,7 @@ cli-v2-check: cli-v2-static cli-v2-test cli-v2-build cli-v2-regress
 # real-sidecar spawn test. `desktop-build` writes `dist/` and a stub
 # sidecar because tauri-build and `generate_context!` read both at compile
 # time; the stub is written only when no sidecar exists, so a real
-# PyInstaller build is never replaced. `desktop-*` is deliberately outside
+# native build is never replaced. `desktop-*` is deliberately outside
 # `gen`/`check` — it needs Rust plus WebKitGTK system packages and is
 # covered in CI by desktop.yml, not check.yml — the same exclusion
 # `infra-*` has.
@@ -789,10 +561,9 @@ desktop-test: desktop-build
     cd apps/desktop/core && cargo test --locked
     cd apps/desktop/src-tauri && cargo test --locked
 
-# Freezes the real PyInstaller sidecar — several minutes, and it overwrites
-# the stub by design — then runs the same filtered-env spawn test
-# desktop.yml runs. `uvreq` because the freeze is `uv sync` plus a pinned
-# PyInstaller: the same version contract as every other `uv run` leg.
+# Builds the optimized Rust sidecar, replaces the generated stub, and runs
+# the same filtered-env resource probe as desktop.yml. Python is a build-time
+# driver only; the resource tree contains no interpreter.
 [doc('Build the real sidecar and spawn it under the filtered env')]
 [group('desktop')]
 desktop-regress: desktop-build

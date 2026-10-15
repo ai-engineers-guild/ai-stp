@@ -127,7 +127,7 @@ Put in the artifact only values that may be stored:
 For `required_env`, record names and purposes in the passport, never
 values.
 
-There is no `ai-stp component setting validate`. Structural readiness is
+There is no `ai-stp help --path component --json`. Structural readiness is
 `component passport validate`. Kind-specific specification checking
 exists only for [`skill`](https://ai-stp.aiguild.space/en/docs/components).
 
@@ -181,7 +181,7 @@ If the same path answers to more than one kind, name `--kind` on adopt.
 Expert recovery:
 
 ```text
-ai-stp component adopt --path <source_path> --kind setting --json
+ai-stp help --path component --json
 ```
 
 ## Versions are `X.Y`, not SemVer
@@ -192,7 +192,7 @@ version. Updating a setting inside a setup is a new setup version.
 
 ```bash
 ai-stp component version list --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
+ai-stp help --path component --json
 ```
 
 `--major` opens the next major line. A major line is a separate access
@@ -232,7 +232,7 @@ safety guarantee.
 Only commands that exist. Flags always from the CLI pages, and always
 `--json`. The executable is `ai-stp` (package `ai-stp-cli`). There is no
 `component inspect` and no `setup show`. The only kind-specific validate
-is `ai-stp component skill validate`.
+is `ai-stp help --path component --json`.
 
 **This kind, specifically:** there is no `component setting validate`.
 Use passport validation.
@@ -245,13 +245,13 @@ ai-stp component passport validate --id <stable_id> --json
 
 ```bash
 ai-stp task start --intent author --idempotency-key author-session-01 --json
-ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+ai-stp help --path publication --json
 ```
 
 **Install:**
 
 ```bash
-ai-stp task start --intent install --idempotency-key install-session-01 --json
+ai-stp task input-schema --intent install --json
 ```
 
 Expert catalog inspect:

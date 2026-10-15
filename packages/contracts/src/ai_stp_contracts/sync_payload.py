@@ -1,80 +1,43 @@
-"""What a private sync payload may carry (SPEC-025, docs/contracts/sync-event.md).
+"""Private-sync payload exclusions shared by Python services and the native CLI.
 
-This policy has two enforcers and therefore needs one owner. The client refuses
-before it opens a socket, because a secret that left the machine has already
-left it; the server refuses again, because a client is not an authority about
-its own payload. Both refusals are the same rule, and a rule stated twice is a
-rule that will diverge.
-
-It already had. Both sides carried a byte-identical fragment list, and only the
-client grew the `required_env` carve-out — so a complete canonical passport
-passed the half that was optional and was rejected by the half that decides.
-
-The list is fragments, not field names, and matches anywhere inside a key. That
-is deliberate — `github_token`, `oauth_secret` and `api_key_value` are all
-caught without enumerating them — and it is also why `required_env` needs an
-explicit carve-out rather than a narrower fragment: the canonical field cannot
-represent a value at all (`EnvVarRequirement` is `name` and `purpose`, frozen
-and closed), so its safety is a property of the type, not of its name.
-
-The same collision reached `requires_authorization`, a closed three-value
-enum, through the fragment `authorization` — and that one rejected every object
-in the launch corpus, not an edge case. Two collisions in a closed passport are
-the mechanism showing its limit: a name blacklist over a typed document refuses
-fields whose type already makes them safe. Replacing it with schema-driven
-validation is the real answer and a decision with an owner; until then each
-collision is admitted by checking its shape, and `_DECLARED_SAFE` is the list of
-them, so the cost stays visible instead of being spread through the walker.
-
-`session`, `backup` and `environment` still forbid any key containing them. No
-canonical passport field collides with those today — the corpus test is what
-says so, rather than a reading.
+The packaged JSON resource owns the constants. Safe declarations are admitted by
+shape; rejection reports a field path, never the excluded value.
 """
 
+import json
 import re
 from collections.abc import Callable
-from typing import Final, cast
+from importlib.resources import files
+from typing import Final, TypedDict, cast
 
-#: Fragments that make a key forbidden wherever they appear inside it.
-FORBIDDEN_KEY_FRAGMENTS: Final[frozenset[str]] = frozenset(
-    {
-        "password",
-        "secret",
-        "token",
-        "private_key",
-        "api_key",
-        "authorization",
-        "cookie",
-        "session",
-        "env",
-        "environment",
-        "absolute_path",
-        "home_path",
-        "file_path",
-        "backup",
-        "artifact_bytes",
-        "project_index",
-        "project_passport",
-        "device_passport",
-    }
+
+class _Policy(TypedDict):
+    forbidden_payload_kinds: list[str]
+    forbidden_key_fragments: list[str]
+    required_env_key: str
+    required_env_fields: list[str]
+    max_required_env_entries: int
+    requires_authorization_key: str
+    requires_authorization_values: list[str]
+    absolute_path_pattern: str
+
+
+_POLICY: Final[_Policy] = cast(
+    _Policy,
+    json.loads(
+        files("ai_stp_contracts").joinpath("sync_payload_policy.json").read_text(encoding="utf-8")
+    ),
 )
-
-#: Canonical passport fields whose names collide with a fragment and whose types
-#: cannot carry what the fragment is there to stop. Each is admitted by checking
-#: its shape, never by trusting its name: `required_env` would be caught by
-#: `env`, `requires_authorization` by `authorization`.
-REQUIRED_ENV_KEY: Final[str] = "required_env"
-REQUIRED_ENV_FIELDS: Final[frozenset[str]] = frozenset({"name", "purpose"})
-MAX_REQUIRED_ENV_ENTRIES: Final[int] = 128
-
-REQUIRES_AUTHORIZATION_KEY: Final[str] = "requires_authorization"
+FORBIDDEN_KEY_FRAGMENTS: Final[frozenset[str]] = frozenset(_POLICY["forbidden_key_fragments"])
+FORBIDDEN_PAYLOAD_KINDS: Final[frozenset[str]] = frozenset(_POLICY["forbidden_payload_kinds"])
+REQUIRED_ENV_KEY: Final[str] = _POLICY["required_env_key"]
+REQUIRED_ENV_FIELDS: Final[frozenset[str]] = frozenset(_POLICY["required_env_fields"])
+MAX_REQUIRED_ENV_ENTRIES: Final[int] = _POLICY["max_required_env_entries"]
+REQUIRES_AUTHORIZATION_KEY: Final[str] = _POLICY["requires_authorization_key"]
 REQUIRES_AUTHORIZATION_VALUES: Final[frozenset[str]] = frozenset(
-    {"none", "user_account", "external_service"}
+    _POLICY["requires_authorization_values"]
 )
-
-#: POSIX, Windows drive and UNC roots. A path that starts at a root describes
-#: this machine and means nothing on another one.
-ABSOLUTE_PATH_PATTERN: Final[str] = r"^(?:[A-Za-z]:[\\/]|/|\\\\)"
+ABSOLUTE_PATH_PATTERN: Final[str] = _POLICY["absolute_path_pattern"]
 _ABSOLUTE_PATH: Final[re.Pattern[str]] = re.compile(ABSOLUTE_PATH_PATTERN)
 
 

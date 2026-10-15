@@ -142,7 +142,7 @@ def test_real_hub_builds_without_drafts() -> None:
     assert ("article", "kind-skill") in identities
     assert ("article", "internal-draft") not in identities
     assert ("article", "safe-setup") not in identities
-    assert types == {"article", "blog_post", "changelog", "release_notes"}
+    assert types == {"article", "blog_post"}
     assert snapshot.commit == COMMIT
     assert snapshot.entries
 
