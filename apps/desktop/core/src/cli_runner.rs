@@ -1,6 +1,6 @@
 //! Spawn `ai-stp` with `--json`, capture exactly one envelope.
 //!
-//! Rules (ADR-0222):
+//! Rules:
 //! - the executable is resolved by bundled path → explicit config → PATH,
 //!   in that order — never a bare-name lookup in untrusted dirs;
 //! - `--json` is always appended (it is a global option);
@@ -49,6 +49,8 @@ pub const PASSTHROUGH_ENV: &[&str] = &[
     "XDG_DATA_HOME",
     "XDG_CACHE_HOME",
     "XDG_RUNTIME_DIR",
+    // Secret Service connects through the user's existing session bus.
+    "DBUS_SESSION_BUS_ADDRESS",
     "SSH_AUTH_SOCK",
     "SSH_AGENT_PID",
     "GPG_AGENT_INFO",
@@ -120,8 +122,7 @@ fn child_env(
     }
     // The child's temp chain must never be empty: on Windows `GetTempPathW`
     // degrades to the unwritable Windows directory when TMP/TEMP/
-    // USERPROFILE are all absent, and the frozen CLI dies in its
-    // bootloader. Inherited-but-nonexistent temp paths are just as
+    // USERPROFILE are all absent, and native subprocesses cannot create temporary state. Inherited-but-nonexistent temp paths are just as
     // broken, so only a value naming a real directory counts.
     let usable_temp = ["TMPDIR", "TMP", "TEMP"]
         .iter()
@@ -353,9 +354,7 @@ impl CliRunner {
     }
 }
 
-/// Kill the child's whole process tree. The onefile bootloader is a parent
-/// process: reaping only the direct child would leave the real CLI
-/// running a mutation we just declared unconfirmed.
+/// Kill the child and provider descendants together after an unconfirmed timeout.
 fn kill_tree(child: &mut Child) {
     #[cfg(unix)]
     {
@@ -385,7 +384,7 @@ fn kill_tree(child: &mut Child) {
     }
     #[cfg(windows)]
     {
-        // /T kills the tree (bootloader + extracted CLI), /F forces.
+        // /T kills the CLI and provider process tree; /F forces.
         use std::os::windows::process::CommandExt;
         let _ = Command::new("taskkill")
             .args(["/PID", &child.id().to_string(), "/T", "/F"])
@@ -454,12 +453,17 @@ mod tests {
             ("USERPROFILE", "C:\\Users\\u"),
             ("TMPDIR", "/tmp"),
             ("HOME", "/home/u"),
+            ("DBUS_SESSION_BUS_ADDRESS", "unix:path=/run/user/1000/bus"),
             ("SHOULD_NOT_LEAK", "x"),
         ]);
         let env = child_env(&snapshot, Path::new("/tmp"), &[]);
         for k in ["TMP", "TEMP", "USERPROFILE", "TMPDIR", "HOME"] {
             assert!(last(&env, k).is_some(), "missing {k}");
         }
+        assert_eq!(
+            last(&env, "DBUS_SESSION_BUS_ADDRESS").as_deref(),
+            Some("unix:path=/run/user/1000/bus")
+        );
         assert!(last(&env, "SHOULD_NOT_LEAK").is_none());
     }
 
