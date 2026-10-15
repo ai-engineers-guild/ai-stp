@@ -363,10 +363,9 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
     resolve: async ({ segments }) => {
       const technologyId = segments[2];
       if (!technologyId) return null;
-      const objects = await getTranslations("objects");
       const technology = await getTranslations("technology");
       return presentPage({
-        title: objects("editPresentation"),
+        title: technology("editTechnology"),
         links: [[technology("backToTechnologies"), `/corporate/technologies/${technologyId}`]],
       });
     },

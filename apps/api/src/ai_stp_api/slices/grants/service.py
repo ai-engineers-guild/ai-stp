@@ -636,7 +636,7 @@ async def accept_invitation(
     return grant_to_wire(grant)
 
 
-async def _may_withdraw(
+async def may_withdraw(
     db: AsyncSession,
     *,
     account_id: str,
@@ -664,7 +664,7 @@ async def revoke_invitation(
     body: GrantRevokeRequest,
 ) -> GrantRevokeResponse:
     invitation = await db.get(GrantInvitation, invitation_id)
-    if invitation is None or not await _may_withdraw(
+    if invitation is None or not await may_withdraw(
         db,
         account_id=ctx.account_id,
         issuer_account_id=invitation.owner_account_id,
@@ -708,7 +708,7 @@ async def revoke_grant(
         ),
     )
     grant = await db.get(AccessGrant, grant_id, with_for_update=True, populate_existing=True)
-    if grant is None or not await _may_withdraw(
+    if grant is None or not await may_withdraw(
         db,
         account_id=ctx.account_id,
         issuer_account_id=grant.owner_account_id,

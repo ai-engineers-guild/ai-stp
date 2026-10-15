@@ -10,6 +10,7 @@ import type {
   ComponentDetail,
   ComponentListResponse,
   ComponentVersionResponse,
+  PrivateVersionResponse,
   SetupDetail,
   SetupListResponse,
   SetupVersionResponse,
@@ -273,6 +274,35 @@ export async function readComponentVersion(
   return sessionToken
     ? catalogPrivateGet<ComponentVersionResponse>(path, sessionToken)
     : publicApiGet<ComponentVersionResponse>(path);
+}
+
+/** Read private passports only through their authorized envelope. */
+export async function readLatestComponentVersion(
+  stableId: ComponentId,
+  version: VersionId,
+  sessionToken?: string | null,
+): Promise<
+  | ComponentVersionResponse
+  | (PrivateVersionResponse & {
+      passport: ComponentVersionResponse["passport"];
+    })
+  | null
+> {
+  try {
+    return await readComponentVersion(stableId, version, sessionToken);
+  } catch (error) {
+    if (sessionToken && error instanceof ApiError && error.status === 404) {
+      try {
+        return await catalogPrivateGet(
+          `/v1/catalog/components/${stableId}/versions/${version}/private`,
+          sessionToken,
+        );
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
 }
 
 export async function isAuthorizedPrivateComponentVersion(

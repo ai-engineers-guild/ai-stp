@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
-import { Menu, MenuTrigger, MenuContent, MenuItem } from "@/components/atoms/menu";
+import { MenuItem, Menu, MenuTrigger, MenuContent } from "@/components/atoms/menu";
+import { EntityActionItems } from "@/components/organisms/entity-action-items";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/atoms/dialog";
 import { Link } from "@/lib/i18n/navigation";
 import { Icon, type IconName } from "@/theme";
@@ -90,24 +91,31 @@ function LandscapeAreaCard({
       <header>
         <Icon name={icon} />
         <h3>{group.name}</h3>
-        <Menu>
-          <MenuTrigger asChild>
-            <Button size="icon" variant="ghost" className="size-7" aria-label={w("areaActions")}>
-              <Icon name="more" size="sm" />
-            </Button>
-          </MenuTrigger>
-          <MenuContent>
-            <MenuItem onSelect={expandAll}>{w("expandAll")}</MenuItem>
-            <MenuItem onSelect={collapseAll}>{w("collapseAll")}</MenuItem>
-            {group.areaId && (
-              <MenuItem asChild>
-                <Link href={`/corporate/technologies?area_ids=${group.areaId}`}>
-                  {w("openTechnologies")}
-                </Link>
-              </MenuItem>
-            )}
-          </MenuContent>
-        </Menu>
+        {group.areaId ? (
+          <Menu>
+            <MenuTrigger asChild>
+              <Button size="icon" variant="ghost" className="size-7" aria-label={w("areaActions")}>
+                <Icon name="more" size="sm" />
+              </Button>
+            </MenuTrigger>
+            <MenuContent>
+              <EntityActionItems
+                subject={{ kind: "area", id: group.areaId, view: "landscape" }}
+                entries={{
+                  expand_all: <MenuItem onSelect={expandAll}>{w("expandAll")}</MenuItem>,
+                  collapse_all: <MenuItem onSelect={collapseAll}>{w("collapseAll")}</MenuItem>,
+                  open_technologies: (
+                    <MenuItem asChild>
+                      <Link href={`/corporate/technologies?area_ids=${group.areaId}`}>
+                        {w("openTechnologies")}
+                      </Link>
+                    </MenuItem>
+                  ),
+                }}
+              />
+            </MenuContent>
+          </Menu>
+        ) : null}
       </header>
       {!group.categories.length && (
         <p className="text-muted-foreground text-xs">{w("emptyArea")}</p>

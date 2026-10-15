@@ -5,7 +5,7 @@ import {
 } from "@/components/organisms/context-budget-panel";
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { Badge } from "@/components/atoms/badge";
 import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
@@ -59,6 +59,13 @@ export default async function ComponentVersionPage({ params }: PageProps) {
   const componentId = tryAsComponentId(stableId);
   if (!componentId) notFound();
   const token = await sessionCookieValue();
+  if (version === "latest") {
+    const detail = await readComponent(componentId, token).catch((error: unknown) => {
+      if (error instanceof ApiError && error.status === 404) notFound();
+      throw error;
+    });
+    redirect(`/${locale}/catalog/components/${stableId}/versions/${detail.summary.latest_version}`);
+  }
 
   let response;
   try {

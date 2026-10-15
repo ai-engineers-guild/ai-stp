@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   corporateCatalogVersionsAction,
+  corporateAssignmentRevisionAction,
   corporateSubjectSearchAction,
   type CorporateAssignContext,
   type CorporateAssignSubjectKind,
@@ -71,6 +72,7 @@ export function CorporateAssignDialog({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const loaded = useRef(false);
+  const receipts = useRef(new Map<string, { key: string; saved: boolean; revision?: number }>());
 
   async function load() {
     const { organizationId, csrfToken } = context;
@@ -105,6 +107,7 @@ export function CorporateAssignDialog({
   function handleOpenChange(next: boolean) {
     if (!next) {
       loaded.current = false;
+      receipts.current.clear();
       setSelected(EMPTY_SELECTION);
       setVersion("latest");
       setMessage(null);
@@ -123,6 +126,34 @@ export function CorporateAssignDialog({
     let lastError = "";
     for (const kind of SUBJECT_KINDS) {
       for (const subjectId of selected[kind]) {
+        const effect = JSON.stringify([kind, subjectId, objectKind, stableId, version]);
+        let receipt = receipts.current.get(effect);
+        if (!receipt) {
+          receipt = { key: crypto.randomUUID(), saved: false };
+          receipts.current.set(effect, receipt);
+        }
+        if (receipt.saved) {
+          saved += 1;
+          continue;
+        }
+        const revision =
+          receipt.revision !== undefined
+            ? { ok: true as const, revision: receipt.revision }
+            : await corporateAssignmentRevisionAction({
+                organizationId: context.organizationId,
+                kind,
+                subjectId,
+                objectKind,
+                stableId,
+                version: version === "latest" ? null : version,
+                csrfToken: context.csrfToken,
+              });
+        if (!revision.ok) {
+          failed += 1;
+          lastError = revision.message;
+          continue;
+        }
+        receipt.revision = revision.revision;
         const result = await corporateMutation({
           organizationId: context.organizationId,
           csrfToken: context.csrfToken,
@@ -137,27 +168,29 @@ export function CorporateAssignDialog({
             selector: version === "latest" ? "latest" : "exact",
             version: version === "latest" ? null : version,
             state: "current",
-            expected_revision: 0,
+            expected_revision: revision.revision,
             authorization_revision: context.authorizationRevision,
-            idempotency_key: crypto.randomUUID(),
+            idempotency_key: receipt.key,
           },
         });
-        if (result.ok) saved += 1;
-        else {
+        if (result.ok) {
+          saved += 1;
+          receipt.saved = true;
+        } else {
           failed += 1;
-          lastError = result.message;
+          lastError = `${options[kind].find((option) => option.value === subjectId)?.label ?? subjectId}: ${result.message}`;
         }
       }
     }
     setBusy(false);
     if (failed === 0) {
-      onOpenChange(false);
+      handleOpenChange(false);
       router.refresh();
       return;
     }
     setMessage(
       saved > 0
-        ? h.assignPartial.replace("{saved}", String(saved)).replace("{failed}", String(failed))
+        ? `${h.assignPartial.replace("{saved}", String(saved)).replace("{failed}", String(failed))} ${lastError}`
         : lastError || h.assignFailed,
     );
     router.refresh();

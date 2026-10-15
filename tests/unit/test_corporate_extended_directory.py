@@ -11,7 +11,7 @@ from tests.unit.test_corporate_directory import (
 )
 
 from ai_stp_api.session import AuthContext
-from ai_stp_api.slices.corporate import directory, overview
+from ai_stp_api.slices.corporate import directory, overview, subject_access
 from ai_stp_contracts.corporate import CorporateOrganization, CorporateOverview
 from ai_stp_contracts.corporate_directory import (
     CorporateDirectoryFacets,
@@ -146,6 +146,8 @@ async def test_extended_projection_authorizes_names_before_facets(
 
     monkeypatch.setattr(directory, "corporate_effective_permissions", effective)
     monkeypatch.setattr(directory, "bulk_effective_permissions", bulk)
+    menu_actions = AsyncMock(return_value=[])
+    monkeypatch.setattr(subject_access, "subject_available_actions", menu_actions)
     technologies = [
         SimpleNamespace(
             id=identity,
@@ -196,6 +198,9 @@ async def test_extended_projection_authorizes_names_before_facets(
         request_id=None,
     )
     assert result.total == 1
+    assert [call.kwargs["subject_id"] for call in menu_actions.await_args_list] == [
+        result.items[0].id
+    ]
     assert "state" not in result.items[0].model_dump()
     assert [item.id for item in result.items[0].teams] == [team.id]
     assert [item.id for item in result.items[0].projects] == [project.id]

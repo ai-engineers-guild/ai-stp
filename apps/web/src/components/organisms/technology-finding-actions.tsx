@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/atoms/button";
 import { Menu, MenuTrigger, MenuContent, MenuItem } from "@/components/atoms/menu";
+import { EntityActionItems } from "@/components/organisms/entity-action-items";
 import { Icon } from "@/theme";
 import type { TechnologyView } from "@/lib/api/generated/types.gen";
 import type { Row, TechnologyReviewState } from "@/lib/technology-review-state";
@@ -10,7 +11,6 @@ export function TechnologyFindingActionsMenu({
   state,
   row,
   technology,
-  dependency,
   openCreate,
 }: {
   state: TechnologyReviewState;
@@ -19,7 +19,7 @@ export function TechnologyFindingActionsMenu({
   dependency: boolean;
   openCreate: (kind: "technology" | "category") => void;
 }) {
-  const { mutation, canUpdate, w, setEvidence, setEdit, apply } = state;
+  const { mutation, w, setEvidence, setEdit, apply } = state;
   return (
     <Menu>
       <MenuTrigger asChild>
@@ -28,25 +28,35 @@ export function TechnologyFindingActionsMenu({
         </Button>
       </MenuTrigger>
       <MenuContent>
-        <MenuItem
-          onSelect={() => {
-            setEvidence(row);
+        <EntityActionItems
+          subject={{
+            kind: "finding",
+            id: row.scan.scan_id,
+            organization_id: state.authority.organizationId,
+            finding_kind: row.kind,
+            coordinate: row.coordinate,
+            usage_context: row.context,
           }}
-        >
-          {w("evidence")}
-        </MenuItem>
-        {canUpdate && (
-          <>
-            {technology && (
+          entries={{
+            evidence: (
               <MenuItem
                 onSelect={() => {
-                  setEdit(technology);
+                  setEvidence(row);
+                }}
+              >
+                {w("evidence")}
+              </MenuItem>
+            ),
+            edit_technology: (
+              <MenuItem
+                onSelect={() => {
+                  if (technology) setEdit(technology);
                 }}
               >
                 {w("editTechnology")}
               </MenuItem>
-            )}
-            {dependency ? (
+            ),
+            make_technology: (
               <MenuItem
                 disabled={mutation.busy}
                 onSelect={() => {
@@ -56,27 +66,28 @@ export function TechnologyFindingActionsMenu({
               >
                 {w("makeTechnology")}
               </MenuItem>
-            ) : (
-              <>
-                <MenuItem
-                  onSelect={() => {
-                    openCreate("technology");
-                  }}
-                >
-                  {w("createTechnology")}
-                </MenuItem>
-                <MenuItem
-                  disabled={mutation.busy}
-                  onSelect={() => {
-                    apply([row], "dependency");
-                  }}
-                >
-                  {w("moveToDependencies")}
-                </MenuItem>
-              </>
-            )}
-          </>
-        )}
+            ),
+            create_technology: (
+              <MenuItem
+                onSelect={() => {
+                  openCreate("technology");
+                }}
+              >
+                {w("createTechnology")}
+              </MenuItem>
+            ),
+            move_to_dependencies: (
+              <MenuItem
+                disabled={mutation.busy}
+                onSelect={() => {
+                  apply([row], "dependency");
+                }}
+              >
+                {w("moveToDependencies")}
+              </MenuItem>
+            ),
+          }}
+        />
       </MenuContent>
     </Menu>
   );

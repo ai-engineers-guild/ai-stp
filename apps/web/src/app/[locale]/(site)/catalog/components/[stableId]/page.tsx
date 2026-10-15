@@ -38,7 +38,7 @@ import {
   readComponent,
   readComponentContextBudget,
   readComponentGithubMetadata,
-  readComponentVersion,
+  readLatestComponentVersion,
 } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import {
@@ -129,7 +129,7 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
     getTranslations("common"),
     getTranslations("cli"),
     readSeoProfile("component", stableId, locale),
-    readLatestComponentVersion(stableId, summary.latest_version, token),
+    readLatestComponentVersion(componentId, versionId, token),
     isAuthorizedPrivateComponentVersion(componentId, versionId, token),
     token ? readCorporateContext(token).catch(() => null) : Promise.resolve(null),
     token ? readOwnerObjectActions(token, "component", stableId) : Promise.resolve(null),
@@ -189,7 +189,7 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
   );
 
   return (
-    <article className="mx-auto max-w-6xl min-w-0 space-y-8 overflow-x-clip">
+    <article className="mx-auto w-full max-w-screen-2xl min-w-0 space-y-8 overflow-x-clip">
       {seo ? <SeoJsonLd jsonLd={seo.profile.json_ld} /> : null}
       <HistoryBackButton label={t("backToCatalog")} fallback={backHref} />
 
@@ -379,18 +379,6 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
               publicLabel={t("public")}
               privateLabel={t("private")}
             />
-            <CliCopyBlock
-              command={cliCommand}
-              title={tCli("inspectTitle")}
-              description={tCli("inspectBody")}
-              copyLabel={tCli("copy")}
-              copiedLabel={tCli("copied")}
-              errorLabel={tCli("copyError")}
-              docsLabel={tCli("docs")}
-              visibility={isPrivate ? "private" : "public"}
-              publicLabel={t("public")}
-              privateLabel={t("private")}
-            />
             <ObjectVersionHistory
               title={t("versionHistory")}
               note={t("versionGapNote")}
@@ -420,20 +408,6 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
       />
     </article>
   );
-}
-
-async function readLatestComponentVersion(
-  stableId: string,
-  version: string,
-  sessionToken?: string | null,
-) {
-  const componentId = tryAsComponentId(stableId);
-  if (!componentId) return null;
-  try {
-    return await readComponentVersion(componentId, asVersionId(version), sessionToken);
-  } catch {
-    return null;
-  }
 }
 
 async function readAuthor(accountId: string) {

@@ -186,7 +186,7 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
   );
 
   return (
-    <article className="mx-auto max-w-6xl min-w-0 space-y-8 overflow-x-clip">
+    <article className="mx-auto w-full max-w-screen-2xl min-w-0 space-y-8 overflow-x-clip">
       {seo ? <SeoJsonLd jsonLd={seo.profile.json_ld} /> : null}
       <HistoryBackButton label={t("backToCatalog")} fallback={backHref} />
 
@@ -378,18 +378,6 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
               command={installSetupStart(summary.stable_id, summary.latest_version)}
               title={tCli("useTitle")}
               description={tCli("useBody")}
-              copyLabel={tCli("copy")}
-              copiedLabel={tCli("copied")}
-              errorLabel={tCli("copyError")}
-              docsLabel={tCli("docs")}
-              visibility="public"
-              publicLabel={t("public")}
-              privateLabel={t("private")}
-            />
-            <CliCopyBlock
-              command={cliCommand}
-              title={tCli("inspectTitle")}
-              description={tCli("inspectBody")}
               copyLabel={tCli("copy")}
               copiedLabel={tCli("copied")}
               errorLabel={tCli("copyError")}

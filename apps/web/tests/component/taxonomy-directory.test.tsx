@@ -1,3 +1,5 @@
+import { entityMenuResult, publicActions } from "../entity-menu-fixture";
+import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
 import { NextIntlClientProvider } from "next-intl";
 import userEvent from "@testing-library/user-event";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
@@ -80,3 +82,20 @@ it("opens the create and edit dialogs and links to the detail page", async () =>
   dialog = screen.getByRole("dialog");
   expect(within(dialog).getByRole("textbox", { name: /Name/ })).toHaveValue("Server applications");
 });
+
+vi.mock("@/lib/entity-action-query", () => ({
+  queryEntityActionMenu: vi.fn((subject: EntityActionSubject) =>
+    Promise.resolve(
+      entityMenuResult(
+        subject,
+        [...publicActions.slice(0, -1), "edit", "delete", "report"],
+        `/corporate/categories/${subject.id}`,
+      ),
+    ),
+  ),
+}));
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ refresh: vi.fn(), back: vi.fn(), replace: vi.fn() }),
+}));

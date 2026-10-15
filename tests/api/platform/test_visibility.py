@@ -110,6 +110,10 @@ async def test_owner_closes_and_reopens_exact_version_without_resealing(
         public = await client.get(version_path)
         if visibility == "private":
             assert public.status_code == CATEGORY_STATUS[ErrorCategory.NOT_FOUND]
+            authenticated_public = await client.get(version_path, headers=headers)
+            assert authenticated_public.status_code == CATEGORY_STATUS[ErrorCategory.NOT_FOUND]
+            foreign_private = await client.get(f"{version_path}/private", headers=outsider_headers)
+            assert foreign_private.status_code == CATEGORY_STATUS[ErrorCategory.NOT_FOUND]
             private = await client.get(f"{version_path}/private", headers=headers)
             assert private.status_code == 200, private.text
             response = CliPrivateVersionResponse.model_validate(private.json())

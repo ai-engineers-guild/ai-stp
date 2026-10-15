@@ -20,6 +20,7 @@ import { componentVersionResponse, setupVersionResponse } from "@/mocks/passport
 
 import { mapHttpError, ApiError } from "./errors";
 import { profileHandlers } from "./mock-profile";
+import { entityActionFixture } from "./mock-entity-actions";
 import { corporateHandlers } from "./mock-corporate";
 import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
 import { readMockPresentation, workspaceHandlers } from "./mock-workspace";
@@ -897,6 +898,8 @@ export function mockFetch(
 ): MockResult {
   const auth = readAuth(init?.headers);
   const body = parseMockBody(init?.body);
+  const entityMenus = entityActionFixture(method, path, Boolean(auth), body);
+  if (entityMenus) return entityMenus;
   const complaint = complaintHandler(method, path, body);
   if (complaint) return complaint;
   const legal = legalDocumentHandler(method, path, init?.query);

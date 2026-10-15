@@ -31,7 +31,6 @@ export function CorporateEntityDetail({
   state,
   meta,
   rail,
-  adminMenu,
 }: {
   presentation: CorporatePresentation | null;
   description: string;
@@ -43,7 +42,6 @@ export function CorporateEntityDetail({
   /** Extra header marks beside the state badge (e.g. a member's job title). */
   meta?: ReactNode;
   rail?: ReactNode;
-  adminMenu?: ReactNode;
 }) {
   const t = useTranslations("account");
   const h = useTranslations("hub");
@@ -63,12 +61,7 @@ export function CorporateEntityDetail({
         ...(resource === "members"
           ? []
           : ([[catalog("components"), presentation.components]] as const)),
-        ...(resource === "members"
-          ? []
-          : ([
-              [h("projects"), presentation.projects],
-              [h("teamLeads"), presentation.leads],
-            ] as const)),
+        ...(resource === "members" ? [] : ([[h("projects"), presentation.projects]] as const)),
       ]
     : [];
   return (
@@ -94,8 +87,6 @@ export function CorporateEntityDetail({
         menu={
           <EntityDetailMenu
             moreLabel={access("more")}
-            editLabel={objects("editPresentation")}
-            editHref={presentation?.can_edit ? `${detailHref}/edit` : undefined}
             entityId={resourceId}
             shareHref={detailHref}
             copyIdLabel={h("copyId")}
@@ -103,7 +94,6 @@ export function CorporateEntityDetail({
             shareLabel={h("share")}
             reportLabel={h("report")}
             reportTarget={`corporate:${canonicalResource}:${resourceId}`}
-            adminItems={adminMenu}
           />
         }
       />
@@ -153,6 +143,8 @@ export function CorporateEntityDetail({
                     projects: h("projects"),
                     technologies: h("technologies"),
                     categories: h("categories"),
+                    areas: h("areas"),
+                    job_titles: corporate("jobTitles"),
                     teamLeads: h("teamLeads"),
                     team: h("team"),
                     employee: h("employee"),
@@ -262,41 +254,48 @@ function CorporateIdentityRail({
   emptyLabel: string;
   children?: ReactNode;
 }) {
+  const people = useTranslations("people");
   const subjects =
-    resource === "teams" || resource === "members"
+    resource === "members"
       ? (presentation?.leads ?? [])
-      : presentation?.owner
-        ? [presentation.owner]
-        : [];
+      : resource === "teams"
+        ? (presentation?.leads ?? [])
+        : presentation?.owner
+          ? [presentation.owner]
+          : [];
   const subjectLabel =
     resource === "projects"
       ? ownerLabel
       : resource === "technologies"
         ? operationalOwnerLabel
-        : teamLeadsLabel;
+        : resource === "members" && subjects.some((ref) => ref.kind === "team")
+          ? people("teamLeadIn")
+          : teamLeadsLabel;
   return (
     <>
       {presentation ? (
         <>
-          <section className="border-border bg-card rounded-lg border p-5">
-            <h2 className="text-sm font-medium">{subjectLabel}</h2>
-            {subjects.length ? (
-              <ul className="divide-border mt-2 divide-y">
-                {subjects.map((ref) => (
-                  <li key={`${ref.kind}:${ref.id}`}>
-                    <Link
-                      href={corporateReferenceHref(ref)}
-                      className="inline-flex min-h-11 items-center font-medium underline underline-offset-4"
-                    >
-                      {ref.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-muted-foreground mt-2 text-sm">{emptyLabel}</p>
-            )}
-          </section>
+          {resource !== "members" || subjects.length ? (
+            <section className="border-border bg-card rounded-lg border p-5">
+              <h2 className="text-sm font-medium">{subjectLabel}</h2>
+              {subjects.length ? (
+                <ul className="divide-border mt-2 divide-y">
+                  {subjects.map((ref) => (
+                    <li key={`${ref.kind}:${ref.id}`}>
+                      <Link
+                        href={corporateReferenceHref(ref)}
+                        className="inline-flex min-h-11 items-center font-medium underline underline-offset-4"
+                      >
+                        {ref.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted-foreground mt-2 text-sm">{emptyLabel}</p>
+              )}
+            </section>
+          ) : null}
           {presentation.links.length ? (
             <ul className="border-border bg-card space-y-2 rounded-lg border p-5">
               {presentation.links.map((link) => (

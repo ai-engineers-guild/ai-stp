@@ -315,7 +315,7 @@ _BLOCKED_CONTENT = re.compile(
 )
 
 
-def validate_public_text(value: str, *, allow_empty: bool = False) -> str:
+def validate_public_text(value: str, *, allow_empty: bool = False, markdown: bool = False) -> str:
     """Normalize and validate user-authored public text without reflecting it."""
 
     if not isinstance(value, str):  # pyright: ignore[reportUnnecessaryIsInstance]
@@ -327,7 +327,8 @@ def validate_public_text(value: str, *, allow_empty: bool = False) -> str:
         raise ValueError("text must be valid UTF-8") from error
     # Public descriptions may contain Markdown punctuation and emoji. Keep the
     # two actual trust-boundary checks here: no raw HTML and no executable URI.
-    if _RAW_HTML.search(normalized):
+    html_checked = re.sub(r"(?i)<br\s*/?>", "", normalized) if markdown else normalized
+    if _RAW_HTML.search(html_checked):
         raise ValueError("text contains raw HTML")
     if _UNSAFE_URI.search(normalized):
         raise ValueError("text contains an unsafe URI")

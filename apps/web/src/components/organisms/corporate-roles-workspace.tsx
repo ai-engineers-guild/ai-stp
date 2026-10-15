@@ -1,12 +1,13 @@
 /* eslint-disable max-lines-per-function, max-lines */
 "use client";
 
+import { useRequestedEntityAction } from "@/lib/use-requested-entity-action";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/atoms/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/atoms/dialog";
-import { CatalogChoiceMenu } from "@/components/molecules/catalog-choice-menu";
+import { EntityDetailMenu } from "@/components/organisms/entity-detail-menu";
 import { FormDialog } from "@/components/molecules/form-dialog";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
 import {
@@ -144,7 +145,9 @@ export function CorporateRolesWorkspace({
         (!kind || (BUILT_IN_ROLES.has(role.name) ? "system" : "custom") === kind) &&
         roleTitle(role.name, t).toLowerCase().includes(query.toLowerCase()),
     );
-  const selected = roles.find((role) => role.name === filters.get("role")) ?? visibleRoles[0];
+  const selected =
+    roles.find((role) => role.name === (filters.get("entity") || filters.get("role"))) ??
+    visibleRoles[0];
   const scopeName = (kind: string, id: string) =>
     context.teams.find((team) => team.team_id === id)?.name ??
     context.projects.find((project) => project.project_id === id)?.name ??
@@ -163,6 +166,8 @@ export function CorporateRolesWorkspace({
   const roleDescription = (role: CorporateRoleView) =>
     t(`roleDescriptions.${BUILT_IN_ROLES.has(role.name) ? role.name : "custom"}`);
   const selectRole = (role: CorporateRoleView) => {
+    filters.update("entity", "");
+    filters.update("action", "");
     filters.update("role", role.name);
   };
   const openAssign = (role: CorporateRoleView) => {
@@ -192,58 +197,56 @@ export function CorporateRolesWorkspace({
     );
     setMessage(null);
   };
-  const roleChoices = (role: CorporateRoleView) => {
-    const system = BUILT_IN_ROLES.has(role.name);
-    return [
-      ...(can("binding.create")
-        ? [
-            {
-              label: c("assignEmployees"),
-              icon: "team" as IconName,
-              onSelect: () => {
-                openAssign(role);
-              },
-            },
-          ]
-        : []),
-      ...(!system && can("role.update")
-        ? [
-            {
-              label: t("editRole"),
-              icon: "edit" as IconName,
-              onSelect: () => {
-                selectRole(role);
-                setEditor("edit");
-              },
-            },
-          ]
-        : []),
-      ...(can("role.create")
-        ? [
-            {
-              label: t("duplicateRole"),
-              icon: "copy" as IconName,
-              onSelect: () => {
-                selectRole(role);
-                setEditor("duplicate");
-              },
-            },
-          ]
-        : []),
-      ...(!system && can("role.delete")
-        ? [
-            {
-              label: c("delete"),
-              icon: "alert" as IconName,
-              separatorBefore: true,
-              onSelect: () => {
-                openDelete(role);
-              },
-            },
-          ]
-        : []),
-    ];
-  };
+  const roleChoices = (role: CorporateRoleView) => [
+    {
+      actionId: "assign_members",
+      label: c("assignEmployees"),
+      icon: "team" as IconName,
+      onSelect: () => {
+        openAssign(role);
+      },
+    },
+    {
+      actionId: "edit",
+      label: t("editRole"),
+      icon: "edit" as IconName,
+      onSelect: () => {
+        selectRole(role);
+        setEditor("edit");
+      },
+    },
+    {
+      actionId: "duplicate",
+      label: t("duplicateRole"),
+      icon: "copy" as IconName,
+      onSelect: () => {
+        selectRole(role);
+        setEditor("duplicate");
+      },
+    },
+    {
+      actionId: "delete",
+      label: c("delete"),
+      icon: "alert" as IconName,
+      onSelect: () => {
+        openDelete(role);
+      },
+    },
+  ];
+  const requestedRole = roles.find((role) => role.name === filters.get("entity"));
+  useRequestedEntityAction(
+    requestedRole
+      ? { kind: "role", id: requestedRole.name, organization_id: organizationId }
+      : null,
+    filters.get("action"),
+    () => {
+      if (!requestedRole) return;
+      const action = filters.get("action");
+      if (action === "delete") openDelete(requestedRole);
+      if (action === "assign_members") openAssign(requestedRole);
+      if (action === "edit" || action === "duplicate") setEditor(action);
+    },
+  );
   return (
     <div className="min-w-0 space-y-4" data-ui="roles-workspace">
       <div className="flex flex-wrap items-center gap-3">
@@ -292,12 +295,10 @@ export function CorporateRolesWorkspace({
                 </span>
               </button>
               <div className="mt-2 mr-1 shrink-0">
-                <CatalogChoiceMenu
-                  label={t("openDetails", { name: roleTitle(role.name, t) })}
-                  icon="more"
-                  variant="ghost"
-                  align="end"
-                  options={roleChoices(role)}
+                <EntityDetailMenu
+                  subject={{ kind: "role", id: role.name, organization_id: organizationId }}
+                  moreLabel={t("openDetails", { name: roleTitle(role.name, t) })}
+                  choices={roleChoices(role)}
                 />
               </div>
             </div>

@@ -1,13 +1,16 @@
 import type { CorporateCatalogAssignment } from "@/lib/api/generated/types.gen";
 import type { OwnerCardItem } from "@/components/organisms/object-card";
 
-export function assignmentCardItem(item: CorporateCatalogAssignment): OwnerCardItem {
+export function assignmentCardItem(
+  item: CorporateCatalogAssignment,
+  summary?: OwnerCardItem["catalog_item"],
+): OwnerCardItem {
   return {
     schema_version: 1,
     author_verified: false,
     component_verified: false,
-    catalog_item: null,
-    latest_version: item.version,
+    catalog_item: summary ?? null,
+    latest_version: summary?.latest_version ?? item.version,
     lifecycle_state: "active",
     name: item.display_name ?? item.stable_id,
     object_kind: item.object_kind,

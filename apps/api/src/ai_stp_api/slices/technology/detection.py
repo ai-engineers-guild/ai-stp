@@ -15,6 +15,7 @@ from ai_stp_api.slices.technology.service import (
     mutation_effect,
     write_technology,
 )
+from ai_stp_contracts.corporate import CorporateDeleteResult
 from ai_stp_contracts.technology import (
     TechnologyFindingReviewRequest,
     TechnologyFindingReviewResult,
@@ -24,6 +25,7 @@ from ai_stp_contracts.technology import (
     TechnologyMappingSummary,
     TechnologyMappingView,
     TechnologyMetadata,
+    TechnologyMutation,
     TechnologyObservation,
     TechnologyScanDetail,
     TechnologyScanFinding,
@@ -80,6 +82,7 @@ from ai_stp_platform.technology_models import (
     TechnologyCoordinateMapping,
     TechnologyFindingReview,
     TechnologyScan,
+    TechnologyScanDeletion,
     TechnologyUnmappedCoordinate,
 )
 from ai_stp_platform.technology_scan_merge import merge_scan_facts
@@ -863,7 +866,14 @@ async def list_scans(
         for project in project_ids
         if await _can_read_scan_project(db, ctx, organization_id, project)
     }
-    for scan_id in scans.keys() | jobs_by_scan.keys():
+    deleted = set(
+        await db.scalars(
+            select(TechnologyScanDeletion.id).where(
+                TechnologyScanDeletion.organization_id == organization_id
+            )
+        )
+    )
+    for scan_id in (scans.keys() | jobs_by_scan.keys()) - deleted:
         scan, job = scans.get(scan_id), jobs_by_scan.get(scan_id)
         project = scan.project_id if scan else str(job.payload.get("project_id")) if job else ""
         if project not in allowed:
@@ -1079,6 +1089,8 @@ async def _scan_projection(
 ) -> _ScanProjection:
     """The one authorized load every scan-detail surface shares."""
     await authorize(db, ctx=ctx, organization_id=organization_id, permission="landscape.read")
+    if await db.get(TechnologyScanDeletion, (organization_id, scan_id)) is not None:
+        raise ApiError(ErrorCategory.NOT_FOUND, "scan was removed from the journal")
     scan = await db.get(TechnologyScan, (organization_id, scan_id))
     job = await db.scalar(
         select(Job).where(
@@ -1498,3 +1510,57 @@ async def _projects_with_coordinates(
         ):
             projects.add(scan.project_id)
     return projects
+
+
+async def delete_scan(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    scan_id: str,
+    payload: TechnologyMutation,
+    request_id: str | None,
+) -> CorporateDeleteResult:
+    """Hide a completed journal entry while retaining immutable detector evidence."""
+    operation = "technology.scan.delete"
+    _, receipt = await authorize_idempotent(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="landscape.manage",
+        authorization_revision=payload.authorization_revision,
+        idempotency_key=payload.idempotency_key,
+        operation=operation,
+        fingerprint=mutation_effect(payload, scan_id),
+        request_id=request_id,
+    )
+    if receipt is not None:
+        return CorporateDeleteResult.model_validate(receipt.response_body)
+    if payload.expected_revision != 0:
+        raise ApiError(ErrorCategory.PRECONDITION, "immutable scan revision must be zero")
+    deleted = await db.get(TechnologyScanDeletion, (organization_id, scan_id))
+    if deleted is None:
+        detail = await read_scan_detail(
+            db, ctx=ctx, organization_id=organization_id, scan_id=scan_id, request_id=request_id
+        )
+        if detail.status in {"queued", "running"}:
+            raise ApiError(ErrorCategory.CONFLICT, "an active scan cannot be removed")
+        db.add(
+            TechnologyScanDeletion(
+                organization_id=organization_id, id=scan_id, deleted_by=ctx.account_id
+            )
+        )
+    response = CorporateDeleteResult(resource_id=scan_id)
+    await finish_mutation(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        payload=payload,
+        operation=operation,
+        target=scan_id,
+        response=response,
+        before=None,
+        request_id=request_id,
+        target_table="technology_scan_deletion",
+    )
+    return response

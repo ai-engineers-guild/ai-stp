@@ -63,7 +63,6 @@
     "objectKind": "Object type",
     "setup": "Setup",
     "component": "Component",
-    "viaTeam": "Assigned through a team",
     "directAssignment": "Direct assignment",
     "noAssignments": "No setups or components assigned yet.",
     "exactVersion": "Version",
@@ -163,7 +162,9 @@
     "technologyAreas": "Technology areas",
     "technologyMap": "Technology map",
     "areas": "Areas",
-    "telemetry": "Telemetry"
+    "telemetry": "Telemetry",
+    "assignOwner": "Assign operational owner",
+    "catalogEditDescription": "Manage the operational owner and links to employees, teams, projects, and technologies."
   },
   "corporateReports": {
     "title": "Reports",
@@ -649,7 +650,6 @@
       "id": "ID",
       "projectRepository": "Project / Repository",
       "dateTime": "Date and time (UTC)",
-      "openScan": "Open scan {id}",
       "journalDescription": "Repository and project scan history. Results are used to detect and map technologies.",
       "mapTitle": "Technology map",
       "mapDescription": "Actual technologies and versions used in the organization, grouped by technology area and category.",
@@ -1237,7 +1237,6 @@
         "label": "Product analytics"
       }
     },
-    "openEntry": "Open",
     "entryCount": "{count, plural, one {# entry} other {# entries}}",
     "entryDialogDescription": "Name, description and area assignment.",
     "telemetryPageDescription": "Configure telemetry collection and data retention for your organization.",
@@ -1991,7 +1990,8 @@
     "contextBudgetAdaptationRequired": "A target-specific estimate is required for this version with multiple adaptations.",
     "objectDelete": "Delete object",
     "objectDeleteConfirm": "Delete this object? This cannot be undone.",
-    "objectDeleted": "Object deleted"
+    "objectDeleted": "Object deleted",
+    "copyAndShare": "Copy and share"
   },
   "publisher": {
     "title": "Publisher",
@@ -2534,6 +2534,7 @@
     "kindComponent": "component",
     "kindSetup": "setup",
     "githubNote": "GitHub usernames are resolved by the server before access is granted.",
+    "receivedAccess": "Access received",
     "peopleWithAccess": "People with access",
     "emptyPeople": "No one has access yet.",
     "copyId": "Copy ID",
@@ -3280,7 +3281,6 @@
     "joinedColumn": "Joined",
     "lastActivity": "Last activity",
     "actions": "Actions",
-    "viewProfile": "View profile",
     "manageAccess": "Manage access",
     "noEmail": "No email",
     "active": "active",
@@ -3374,7 +3374,8 @@
     "teamLeads": "Team lead in",
     "teamLeadsHint": "Choose teams where this member is the lead",
     "editPartial": "{count} updates failed. Retry them.",
-    "showingEvents": "{start}–{end} of {total}"
+    "showingEvents": "{start}–{end} of {total}",
+    "teamLeadIn": "Team lead in"
   },
   "gitlabConnector": {
     "title": "GitLab connector",
@@ -3605,6 +3606,14 @@
       "invitation": {
         "name": "Invitations",
         "description": "Create, list and revoke organization invitations (member.invite)"
+      },
+      "area": {
+        "name": "Technology areas",
+        "description": "Technology taxonomy areas"
+      },
+      "connector": {
+        "name": "Git connectors",
+        "description": "Repository provider connections"
       }
     },
     "actions": {
@@ -3686,7 +3695,11 @@
       "employeeAccess": "Individual access and scoped assignments.",
       "jobTitles": "Job title dictionary.",
       "security": "Service principals and authentication policies.",
-      "dashboard": "Configurable overview and quick links."
+      "dashboard": "Configurable overview and quick links.",
+      "scans": "Repository and project scan history.",
+      "settings": "Organization settings and policy.",
+      "technologyAreas": "Technology area dictionary.",
+      "telemetry": "Installation and usage telemetry."
     },
     "organizationRole": "Organization role",
     "source": "Source",

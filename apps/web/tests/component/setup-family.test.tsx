@@ -1,4 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { entityMenuResult, catalogActions } from "../entity-menu-fixture";
+import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
+import { render } from "../render-with-intl";
+import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/i18n/navigation", () => ({
@@ -127,3 +130,9 @@ describe("SetupFamilyBlock", () => {
     expect(screen.getAllByRole("button", { name: "More actions" })).toHaveLength(2);
   });
 });
+
+vi.mock("@/lib/entity-action-query", () => ({
+  queryEntityActionMenu: vi.fn((subject: EntityActionSubject) =>
+    Promise.resolve(entityMenuResult(subject, catalogActions, `/catalog/setups/${subject.id}`)),
+  ),
+}));

@@ -1881,22 +1881,6 @@ async def write_technology(
         raise ApiError(ErrorCategory.VALIDATION, "creation requires expected revision zero")
     operation = "technology.create" if payload.expected_revision == 0 else "technology.update"
 
-    async def _owner_grant() -> bool:
-        if technology_id is None or operation != "technology.update":
-            return False
-        return (
-            await db.scalar(
-                select(Technology.id).where(
-                    Technology.organization_id == organization_id,
-                    Technology.id == technology_id,
-                    Technology.owner_account_id == ctx.account_id,
-                    Technology.redirect_id.is_(None),
-                    Technology.lifecycle != "archived",
-                )
-            )
-            is not None
-        )
-
     organization, receipt = await authorize_idempotent(
         db,
         ctx=ctx,
@@ -1909,7 +1893,6 @@ async def write_technology(
         operation=operation,
         fingerprint=mutation_effect(payload, target),
         request_id=request_id,
-        extra_grant=_owner_grant,
     )
     if receipt is not None:
         return TechnologyView.model_validate(receipt.response_body)

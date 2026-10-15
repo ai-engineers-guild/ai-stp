@@ -1,4 +1,5 @@
 "use client";
+import { returnFromEditor } from "@/lib/navigation-history";
 
 /* eslint-disable max-lines -- coordinates shared upload and two mutation boundaries */
 /* eslint-disable max-lines-per-function */
@@ -45,9 +46,10 @@ import {
   withoutFieldErrors,
   type FieldErrors,
 } from "@/lib/api/field-errors";
-import { useRouter } from "@/lib/i18n/navigation";
+import { useRouter } from "next/navigation";
 
 export type CorporateEntityUpdate =
+  | { kind: "profile"; revision: number }
   | { kind: "project"; revision: number; state: "active" | "archived" }
   | {
       kind: "team";
@@ -73,6 +75,7 @@ export function CorporateRichEditor({
   csrfToken: string;
   cancelHref: string;
   entityUpdate: CorporateEntityUpdate;
+  closeThroughHistory?: boolean;
 }) {
   const account = useTranslations("account");
   const common = useTranslations("common");
@@ -94,7 +97,8 @@ export function CorporateRichEditor({
   const uploadReceipts = useRef(new Map<string, { file: File; key: string }>());
   const uploadGeneration = useRef(new Map<string, number>());
   const router = useRouter();
-  const config = ENTITY_EDITOR_CONFIGS[entityUpdate.kind];
+  const baseConfig = ENTITY_EDITOR_CONFIGS[entityUpdate.kind];
+  const config = { ...baseConfig, limits: { ...baseConfig.limits, description: 20_000 } };
   if (!initial.can_edit) return null;
 
   const fieldErrorMessages = corporateFieldErrorMessages(account, corporate, objects);
@@ -191,7 +195,8 @@ export function CorporateRichEditor({
   }
 
   async function updateEntity(key: string) {
-    if (name.trim() === initial.name) return { ok: true } as const;
+    if (entityUpdate.kind === "profile" || name.trim() === initial.name)
+      return { ok: true } as const;
     const base = {
       schema_version: 1 as const,
       expected_revision: entityUpdate.revision,
@@ -299,7 +304,12 @@ export function CorporateRichEditor({
           resourceId,
           data: {
             schema_version: 1,
-            fields: { description, links, avatar_asset_id: null, media: presentationMedia },
+            fields: {
+              description,
+              links,
+              avatar_asset_id: initial.avatar_asset_id,
+              media: presentationMedia,
+            },
             expected_revision: initial.revision,
             authorization_revision: initial.authorization_revision,
             idempotency_key: key,
@@ -316,7 +326,7 @@ export function CorporateRichEditor({
           return;
         }
         saveReceipt.current = null;
-        router.push(cancelHref);
+        returnFromEditor(router, cancelHref);
         router.refresh();
       } catch {
         setError(account("profileSaveFailed"));
@@ -349,6 +359,7 @@ export function CorporateRichEditor({
                 <Input
                   id="entity-name"
                   value={name}
+                  readOnly={entityUpdate.kind !== "technology"}
                   required
                   maxLength={config.limits.displayName}
                   className={
@@ -452,7 +463,7 @@ export function CorporateRichEditor({
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    router.push(cancelHref);
+                    returnFromEditor(router, cancelHref);
                   }}
                 >
                   {common("cancel")}

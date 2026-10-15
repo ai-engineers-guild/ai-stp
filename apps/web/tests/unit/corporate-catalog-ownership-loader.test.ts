@@ -43,8 +43,8 @@ beforeEach(() => {
   });
   directory.mockResolvedValue({
     items: [
-      { id: ownerId, name: "Active employee", state: "active" },
-      { id: "account_01JQZK7B8N4M6P2R9T5V0X3Y8A", name: "Suspended", state: "suspended" },
+      { id: ownerId, name: "Active employee" },
+      { id: "account_01JQZK7B8N4M6P2R9T5V0X3Y8A", name: "Second employee" },
     ],
   });
 });
@@ -63,7 +63,7 @@ describe("corporate catalog ownership loader", () => {
     expect(directory).not.toHaveBeenCalled();
     expect(request).toHaveBeenCalledTimes(1);
   });
-  it("reads the tenant-scoped owner and only active member choices", async () => {
+  it("reads tenant-scoped owner choices from directory items without a state field", async () => {
     const result = await readCorporateCatalogOwnership("session", "component", stableId, version);
 
     expect(request).toHaveBeenCalledWith(
@@ -75,10 +75,27 @@ describe("corporate catalog ownership loader", () => {
     );
     expect(directory).toHaveBeenCalledWith("session", organizationId, {
       resource: "members",
-      include_archived: true,
     });
-    expect(result?.members).toEqual([{ id: ownerId, name: "Active employee", state: "active" }]);
+    expect(result?.members).toEqual([
+      { id: ownerId, name: "Active employee" },
+      { id: "account_01JQZK7B8N4M6P2R9T5V0X3Y8A", name: "Second employee" },
+    ]);
     expect(result?.authorizationRevision).toBe(9);
+  });
+
+  it("loads owner choices even when the context capability summary omits member.list", async () => {
+    context.mockResolvedValueOnce({
+      organization: { organization_id: organizationId, authorization_revision: 9 },
+      capabilities: [],
+    });
+    const result = await readCorporateCatalogOwnership("session", "component", stableId, version);
+    expect(directory).toHaveBeenCalledWith("session", organizationId, {
+      resource: "members",
+    });
+    expect(result?.members).toEqual([
+      { id: ownerId, name: "Active employee" },
+      { id: "account_01JQZK7B8N4M6P2R9T5V0X3Y8A", name: "Second employee" },
+    ]);
   });
 
   it("does not load member choices when the ownership contract denies editing", async () => {

@@ -18,6 +18,8 @@ const arrayFields = [
   "technology_ids",
   "project_ids",
   "category_ids",
+  "area_ids",
+  "job_title_ids",
   "subject_ids",
 ] as const;
 
@@ -40,6 +42,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (!organization) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const parseNumber = (value: string | null, fallback: number) => {
+    if (value === null) return fallback;
     const parsed = Number(value);
     return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : fallback;
   };

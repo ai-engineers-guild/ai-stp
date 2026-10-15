@@ -5,7 +5,6 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { Badge } from "@/components/atoms/badge";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
-import { LocalizedResourceDeleteMenuItem } from "@/components/organisms/localized-corporate-resource-actions";
 import { CorporateCatalogAssignments } from "@/components/organisms/corporate-catalog-assignments";
 import { CorporateRelationSection } from "@/components/organisms/corporate-relation-section";
 import { relationSectionLabels } from "@/lib/corporate-directory-types";
@@ -24,7 +23,7 @@ import { readCorporateResource, readCorporateCatalogAssignments } from "@/lib/ap
 import { readProjectTechnologyDetail } from "@/lib/api/technology";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
-import { mapPool, readAssignedObjectSummary } from "@/lib/catalog-load";
+import { loadPublisherProfiles, mapPool, readAssignedObjectSummary } from "@/lib/catalog-load";
 import { safeCorporateQuery } from "@/lib/corporate-routes";
 
 type PageProps = {
@@ -295,19 +294,13 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
     ? presentation.description
     : team?.description || detail.description;
   const csrfToken = (await readCsrfToken()) ?? "";
-  const actionSet =
-    resource === "teams"
-      ? (team?.available_actions ?? [])
-      : resource === "members"
-        ? (member?.available_actions ?? workspace.context.capabilities)
-        : resource === "projects"
-          ? (project?.available_actions ?? workspace.context.capabilities)
-          : workspace.context.capabilities;
-  const canDelete = actionSet.includes(
-    `${resource === "members" ? "member" : resource === "roles" ? "role" : resource.slice(0, -1)}.delete`,
+  const assignmentAuthors = await loadPublisherProfiles(
+    Object.values(assignmentCards).flatMap((card) =>
+      card.catalog_item?.publisher_id ? [card.catalog_item.publisher_id] : [],
+    ),
   );
   return (
-    <article className="mx-auto max-w-7xl space-y-8">
+    <article className="mx-auto w-full max-w-screen-2xl space-y-8">
       <HistoryBackButton label={backLabel} fallback={parentHref} />
       <CorporateEntityDetail
         rail={
@@ -317,7 +310,7 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
               organizationId={workspace.organization.organization_id}
               authorizationRevision={workspace.context.organization.authorization_revision}
               csrfToken={csrfToken}
-              canManage={actionSet.includes("project.update")}
+              canManage={false}
             />
           ) : undefined
         }
@@ -326,18 +319,7 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
         resource={resource === "roles" ? "teams" : resource}
         resourceId={resourceId}
         title={detail.name}
-        adminMenu={
-          canDelete ? (
-            <LocalizedResourceDeleteMenuItem
-              csrfToken={csrfToken}
-              organizationId={workspace.context.organization.organization_id}
-              authorizationRevision={workspace.context.organization.authorization_revision}
-              resource={resource}
-              resourceId={detail.id}
-              revision={detail.revision}
-            />
-          ) : null
-        }
+
         meta={
           member?.job_title_name ? <Badge variant="secondary">{member.job_title_name}</Badge> : null
         }
@@ -383,6 +365,7 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
         ) : null}
         {assignments && subjectKind && (
           <CorporateCatalogAssignments
+            authors={assignmentAuthors}
             items={assignments.items}
             cards={assignmentCards}
             organizationId={workspace.organization.organization_id}
@@ -393,7 +376,9 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
             canManage={
               resource === "teams"
                 ? Boolean(team?.available_actions.includes("assignment.manage"))
-                : workspace.context.capabilities.includes("catalog_object.assign")
+                : resource === "members"
+                  ? workspace.context.capabilities.includes("member.manage")
+                  : Boolean(projectDetail?.permissions.capabilities.includes("project.update"))
             }
           />
         )}

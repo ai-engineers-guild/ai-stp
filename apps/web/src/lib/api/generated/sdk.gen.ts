@@ -187,6 +187,9 @@ import type {
   DeleteStaffContentData,
   DeleteStaffContentErrors,
   DeleteStaffContentResponses,
+  DeleteTechnologyScanData,
+  DeleteTechnologyScanErrors,
+  DeleteTechnologyScanResponses,
   DisconnectGithubData,
   DisconnectGithubErrors,
   DisconnectGithubResponses,
@@ -436,6 +439,9 @@ import type {
   QueryCorporateDashboardData,
   QueryCorporateDashboardErrors,
   QueryCorporateDashboardResponses,
+  QueryEntityActionsData,
+  QueryEntityActionsErrors,
+  QueryEntityActionsResponses,
   ReadAccessComponentVersionData,
   ReadAccessComponentVersionErrors,
   ReadAccessComponentVersionResponses,
@@ -4474,6 +4480,26 @@ export const launchTechnologyScans = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Remove a completed scan from the journal, retaining immutable evidence.
+ */
+export const deleteTechnologyScan = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteTechnologyScanData, ThrowOnError>,
+): RequestResult<DeleteTechnologyScanResponses, DeleteTechnologyScanErrors, ThrowOnError> =>
+  (options.client ?? client).delete<
+    DeleteTechnologyScanResponses,
+    DeleteTechnologyScanErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technology-scans/{scan_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
  * Read one scan's findings, versions, and evidence.
  */
 export const readTechnologyScanDetail = <ThrowOnError extends boolean = false>(
@@ -5146,6 +5172,25 @@ export const revokeDevice = <ThrowOnError extends boolean = false>(
   (options.client ?? client).post<RevokeDeviceResponses, RevokeDeviceErrors, ThrowOnError>({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/devices/{device_id}/revoke",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read ordered entity menus for the current principal.
+ */
+export const queryEntityActions = <ThrowOnError extends boolean = false>(
+  options: Options<QueryEntityActionsData, ThrowOnError>,
+): RequestResult<QueryEntityActionsResponses, QueryEntityActionsErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    QueryEntityActionsResponses,
+    QueryEntityActionsErrors,
+    ThrowOnError
+  >({
+    url: "/v1/entity-actions/query",
     ...options,
     headers: {
       "Content-Type": "application/json",

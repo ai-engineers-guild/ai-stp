@@ -10,7 +10,7 @@ from ai_stp_api.deps import get_db, require_auth
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.technology import competences, detection, merge, service
 from ai_stp_contracts.context import OrganizationId, RemoteProjectId
-from ai_stp_contracts.corporate import AccountId
+from ai_stp_contracts.corporate import AccountId, CorporateDeleteResult
 from ai_stp_contracts.technology import (
     AreaId,
     AreaLifecycleRequest,
@@ -1122,3 +1122,22 @@ async def export_scan_findings_md(
     ctx: Auth,
 ) -> Response:
     return await _findings_export_response(organization_id, scan_id, "md", request, db, ctx)
+
+
+@router.delete("/technology-scans/{scan_id}", response_model=CorporateDeleteResult)
+async def delete_scan(
+    organization_id: str,
+    scan_id: TechnologyScanId,
+    payload: TechnologyMutation,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateDeleteResult:
+    return await detection.delete_scan(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        scan_id=scan_id,
+        payload=payload,
+        request_id=getattr(request.state, "request_id", None),
+    )

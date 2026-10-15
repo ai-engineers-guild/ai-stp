@@ -1,7 +1,16 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { Button } from "@/components/atoms/button";
-import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/atoms/menu";
+import {
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuSeparator,
+  MenuTrigger,
+  MenuSub,
+  MenuSubTrigger,
+  MenuSubContent,
+} from "@/components/atoms/menu";
 import { Icon } from "@/theme";
 
 const meta = {
@@ -35,6 +44,28 @@ export const Default: Story = {
           <Icon name="flag" size="sm" />
           Report
         </MenuItem>
+      </MenuContent>
+    </Menu>
+  ),
+};
+
+export const SharingFlyout: Story = {
+  render: () => (
+    <Menu modal={false}>
+      <MenuTrigger asChild>
+        <Button variant="outline">Actions</Button>
+      </MenuTrigger>
+      <MenuContent>
+        <MenuItem>Open details</MenuItem>
+        <MenuSub>
+          <MenuSubTrigger>Copy and share</MenuSubTrigger>
+          <MenuSubContent>
+            {["Copy ID", "Copy URL", "Copy CLI command", "Share"].map((label) => (
+              <MenuItem key={label}>{label}</MenuItem>
+            ))}
+          </MenuSubContent>
+        </MenuSub>
+        <MenuItem>Edit</MenuItem>
       </MenuContent>
     </Menu>
   ),

@@ -3,6 +3,16 @@ import { describe, expect, it } from "vitest";
 import { excerptMarkdown, renderMarkdownOnServer } from "@/lib/markdown/render";
 
 describe("renderMarkdownOnServer", () => {
+  it("renders a GFM table with safe line breaks, emoji, inline code and links", () => {
+    const rendered = renderMarkdownOnServer(
+      "| Tool | Features |\n| :--- | :--- |\n| 🚀 **Next.js** | 🟢 `v15` SSR<br>App Router [Docs](https://nextjs.org) |",
+    );
+    expect(rendered.html).toContain("<table");
+    expect(rendered.html).toContain("SSR<br>App Router");
+    expect(rendered.html).toContain("<code>v15</code>");
+    expect(rendered.html).toContain('href="https://nextjs.org"');
+    expect(renderMarkdownOnServer('<br onclick="alert(1)">').html).not.toContain("<br onclick");
+  });
   it("renders safe subset with noopener links", () => {
     const ok = renderMarkdownOnServer(
       "Hello **world** and `code` with [link](https://example.com/a)",

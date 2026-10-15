@@ -23,6 +23,7 @@ const CORPORATE_PUBLIC_PAGES = new Set([
 
 type SiteLayoutProps = {
   children: ReactNode;
+  modal?: ReactNode;
   params: Promise<{ locale: string }>;
 };
 
@@ -35,7 +36,7 @@ type SiteLayoutProps = {
  * checks the cookie and this layout validates it against the API, so an
  * expired session always lands on the authentication screen.
  */
-export default async function SiteLayout({ children, params }: SiteLayoutProps) {
+export default async function SiteLayout({ children, modal, params }: SiteLayoutProps) {
   const { locale } = await params;
   let corporateSessionVerified = false;
   let corporateNavigationPages: readonly string[] | null = null;
@@ -59,6 +60,7 @@ export default async function SiteLayout({ children, params }: SiteLayoutProps) 
       corporateNavigationPages={corporateNavigationPages}
     >
       {children}
+      {modal}
     </AppShell>
   );
 }

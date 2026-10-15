@@ -1,3 +1,6 @@
+import { entityMenuResult, publicActions } from "../entity-menu-fixture";
+import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
+import { queryEntityActionMenu } from "@/lib/entity-action-query";
 import type { ReactNode } from "react";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -5,11 +8,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CorporatePresentation } from "@/lib/corporate-detail";
 
 vi.mock("next-intl", () => ({
+  useLocale: () => "en",
   useTranslations: (namespace: string) => (key: string) => `${namespace}.${key}`,
 }));
 vi.mock("@/lib/i18n/navigation", () => ({
-  Link: ({ children, href }: { children: ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
+  Link: ({ children, href, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
   ),
 }));
 vi.mock("@/components/organisms/object-detail-frame", () => ({
@@ -56,6 +62,15 @@ afterEach(cleanup);
 
 describe("corporate entity owner labels", () => {
   it("links editable entities to a separate edit page", async () => {
+    vi.mocked(queryEntityActionMenu).mockImplementation((subject) =>
+      Promise.resolve(
+        entityMenuResult(
+          subject,
+          [...publicActions.slice(0, -1), "edit_presentation", "report"],
+          `/corporate/teams/${subject.id}`,
+        ),
+      ),
+    );
     render(
       <CorporateEntityDetail
         presentation={{ ...presentation, can_edit: true }}
@@ -69,9 +84,11 @@ describe("corporate entity owner labels", () => {
     );
 
     await userEvent.click(screen.getByRole("button", { name: "access.more" }));
-    expect(screen.getByRole("link", { name: "objects.editPresentation" })).toHaveAttribute(
+    expect(
+      await screen.findByRole("menuitem", { name: "objects.editPresentation" }),
+    ).toHaveAttribute(
       "href",
-      "/corporate/teams/operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z/edit",
+      "/corporate/teams/operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z/presentation/edit",
     );
     expect(screen.queryByRole("form")).toBeNull();
   });
@@ -137,7 +154,8 @@ describe("corporate entity owner labels", () => {
     );
 
     await userEvent.click(screen.getByRole("button", { name: "access.more" }));
-    expect(screen.getByRole("menuitem", { name: "hub.copyId" })).toBeVisible();
+    await userEvent.click(await screen.findByRole("menuitem", { name: "catalog.copyAndShare" }));
+    expect(await screen.findByRole("menuitem", { name: "hub.copyId" })).toBeVisible();
     expect(screen.getByRole("menuitem", { name: "hub.share" })).toBeVisible();
     expect(screen.getByRole("menuitem", { name: "hub.report" })).toBeVisible();
   });
@@ -162,3 +180,9 @@ describe("corporate entity owner labels", () => {
     expect(screen.queryByText("hub.operationalOwner")).toBeNull();
   });
 });
+
+vi.mock("@/lib/entity-action-query", () => ({
+  queryEntityActionMenu: vi.fn((subject: EntityActionSubject) =>
+    Promise.resolve(entityMenuResult(subject, publicActions, `/corporate/teams/${subject.id}`)),
+  ),
+}));

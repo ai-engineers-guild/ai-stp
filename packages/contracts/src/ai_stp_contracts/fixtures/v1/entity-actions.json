@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "queryEntityActions.publicPublisher",
+      "operation_id": "queryEntityActions",
+      "kind": "positive",
+      "why": "An active public publisher exposes common actions in server order without management rights.",
+      "request": {
+        "body": {
+          "schema_version": 1,
+          "subjects": [
+            {
+              "kind": "publisher",
+              "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+            }
+          ]
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [
+          {
+            "subject": {
+              "kind": "publisher",
+              "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+            },
+            "href": "/publishers/account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "revision": null,
+            "authorization_revision": null,
+            "object_version": null,
+            "object_name": null,
+            "visibility": null,
+            "device_id": null,
+            "actions": [
+              {
+                "id": "open",
+                "group": "navigation"
+              },
+              {
+                "id": "copy_id",
+                "group": "sharing"
+              },
+              {
+                "id": "copy_url",
+                "group": "sharing"
+              },
+              {
+                "id": "copy_cli",
+                "group": "sharing"
+              },
+              {
+                "id": "share",
+                "group": "sharing"
+              },
+              {
+                "id": "report",
+                "group": "support"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

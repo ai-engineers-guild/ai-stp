@@ -1,3 +1,5 @@
+import { entityMenuResult } from "../entity-menu-fixture";
+import { queryEntityActionMenu } from "@/lib/entity-action-query";
 import userEvent from "@testing-library/user-event";
 import { TechnologyRegistryCreate } from "@/components/organisms/technology-registry-create";
 import { NextIntlClientProvider } from "next-intl";
@@ -28,7 +30,9 @@ const { mutation, refresh, push, download } = vi.hoisted(() => ({
   push: vi.fn(),
   download: vi.fn(),
 }));
+vi.mock("@/lib/entity-action-query", () => ({ queryEntityActionMenu: vi.fn() }));
 vi.mock("@/lib/api/corporate-mutation", () => ({ corporateMutation: mutation }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh, push }) }));
 vi.mock("@/lib/findings-export", () => ({ downloadScanFindings: download }));
 vi.mock("@/lib/i18n/navigation", () => ({
   useRouter: () => ({ refresh, push, replace: vi.fn() }),
@@ -55,6 +59,16 @@ const props = {
 };
 afterEach(cleanup);
 beforeEach(() => {
+  vi.mocked(queryEntityActionMenu).mockImplementation((subject) =>
+    Promise.resolve(
+      entityMenuResult(
+        subject,
+        subject.kind === "area"
+          ? ["open", "expand_all", "collapse_all", "open_technologies"]
+          : ["open"],
+      ),
+    ),
+  );
   mutation.mockReset();
   mutation.mockResolvedValue({ ok: true, data: { updated: 1 } });
   refresh.mockReset();
@@ -83,7 +97,7 @@ it("renders the area map and opens real versions and project evidence", () => {
   expect(within(dialog).getByRole("link", { name: "Platform API" })).toBeVisible();
   expect(within(dialog).getAllByText(/0.115/).length).toBeGreaterThan(0);
 });
-it("keeps cards compact and expands categories through the area menu", async () => {
+it("keeps cards compact and expands categories through view controls", async () => {
   render(
     wrap(
       <TechnologyLandscapeResults
@@ -96,13 +110,16 @@ it("keeps cards compact and expands categories through the area menu", async () 
   );
   expect(screen.queryByRole("button", { name: "FastAPI" })).toBeNull();
   const user = userEvent.setup();
-  const areaActions = () =>
-    screen.getAllByRole("button", { name: "Area actions" }).at(0) ??
-    screen.getByRole("button", { name: "Area actions" });
-  await user.click(areaActions());
+  await user.click(
+    screen.getAllByRole("button", { name: "Area actions" })[0] ??
+      screen.getByRole("button", { name: "Area actions" }),
+  );
   await user.click(await screen.findByRole("menuitem", { name: "Expand all" }));
   expect(screen.getByRole("button", { name: "FastAPI" })).toBeVisible();
-  await user.click(areaActions());
+  await user.click(
+    screen.getAllByRole("button", { name: "Area actions" })[0] ??
+      screen.getByRole("button", { name: "Area actions" }),
+  );
   await user.click(await screen.findByRole("menuitem", { name: "Collapse all" }));
   expect(screen.queryByRole("button", { name: "FastAPI" })).toBeNull();
 });
@@ -301,4 +318,46 @@ it("creates a technology with only a name", async () => {
   expect(mutation.mock.calls[0]?.[0].body).toMatchObject({
     metadata: { name: "New library", category_ids: [], description: "" },
   });
+});
+
+it("uses the shared server menu for a landscape area", async () => {
+  vi.mocked(queryEntityActionMenu).mockImplementation((subject) =>
+    Promise.resolve(
+      entityMenuResult(
+        { ...subject, organization_id: authority.organizationId },
+        ["open", "expand_all", "collapse_all", "open_technologies", "edit", "delete"],
+        "/corporate/admin/technology-areas",
+      ),
+    ),
+  );
+  render(
+    wrap(
+      <TechnologyLandscapeResults
+        landscape={landscape}
+        filters={{}}
+        categories={categories}
+        areas={areas}
+      />,
+    ),
+  );
+  const user = userEvent.setup();
+  await user.click(
+    screen.getAllByRole("button", { name: "Area actions" }).at(0) ??
+      screen.getByRole("button", { name: "Area actions" }),
+  );
+  await screen.findByRole("menuitem", { name: "Delete" });
+  expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+    "Open details",
+    "Expand all",
+    "Collapse all",
+    "Open technology list",
+    "Edit",
+    "Delete",
+  ]);
+  expect(queryEntityActionMenu).toHaveBeenCalledWith({
+    kind: "area",
+    id: areas[0].area_id,
+    view: "landscape",
+  });
+  expect(screen.queryByRole("button", { name: "Expand all" })).not.toBeInTheDocument();
 });

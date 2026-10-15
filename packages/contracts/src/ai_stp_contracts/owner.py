@@ -154,7 +154,7 @@ class OwnerObjectCapabilities(ContractModel):
     object_kind: ObjectKind
     stable_id: Annotated[str, Field(min_length=8, max_length=64)]
     capabilities: Annotated[
-        list[Literal["edit", "edit_presentation", "delete"]], Field(max_length=8)
+        list[Literal["edit", "edit_presentation", "delete", "manage_access"]], Field(max_length=8)
     ] = []
 
 

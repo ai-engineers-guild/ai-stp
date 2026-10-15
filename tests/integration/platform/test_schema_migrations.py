@@ -202,9 +202,10 @@ def test_grant_replay_migration_preserves_data_and_refuses_unsafe_downgrade(
     with pytest.raises(DBAPIError, match="grant state change requires its next revision"):
         asyncio.run(old_writer())
     assert asyncio.run(_scalar(isolated_database_url, rows)) == before
+    applied_revision = _version(isolated_database_url)
     with pytest.raises(RuntimeError, match="preserve revisions and receipts"):
         command.downgrade(config, "0114_corporate_role_flat")
-    assert _version(isolated_database_url) == "0124_grant_operation_receipts"
+    assert _version(isolated_database_url) == applied_revision
     assert asyncio.run(_scalar(isolated_database_url, rows)) == before
 
 

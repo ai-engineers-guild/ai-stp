@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   canGoBack,
@@ -6,12 +6,27 @@ import {
   readNavigationHistory,
   recordNavigation,
   updateCurrentNavigation,
+  returnFromEditor,
 } from "@/lib/navigation-history";
 
 const storage = window.sessionStorage;
 
 afterEach(() => {
   storage.clear();
+});
+
+it("returns to the actual filtered origin and falls back for a direct editor URL", () => {
+  const router = { back: vi.fn(), replace: vi.fn() };
+  window.history.replaceState({}, "", "/en/corporate/employees/member_1/edit");
+  recordNavigation(storage, "/en/corporate/employees?query=Andrey", false, 300);
+  recordNavigation(storage, window.location.pathname, false, 0);
+  returnFromEditor(router, "/corporate/employees/member_1");
+  expect(router.back).toHaveBeenCalledTimes(1);
+  expect(router.replace).not.toHaveBeenCalled();
+  storage.clear();
+  returnFromEditor(router, "/corporate/employees/member_1");
+  expect(router.replace).toHaveBeenCalledWith("/en/corporate/employees/member_1");
+  window.history.replaceState({}, "", "/");
 });
 
 describe("navigation history", () => {

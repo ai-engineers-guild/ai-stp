@@ -105,6 +105,7 @@
     "source-map-js": "1.2.2"
   },
   "patchedDependencies": {
-    "braces@3.0.3": "patches/braces@3.0.3.patch"
+    "braces@3.0.3": "patches/braces@3.0.3.patch",
+    "next-themes@0.4.6": "patches/next-themes@0.4.6.patch"
   }
 }

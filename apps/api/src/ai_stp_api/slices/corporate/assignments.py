@@ -157,7 +157,7 @@ async def write_assignment(
         "organization": "organization.manage",
     }.get(kind, f"{kind}.update")
     fingerprint = service.mutation_fingerprint(
-        payload.model_dump(mode="json", exclude={"idempotency_key"})
+        payload.model_dump(mode="json", exclude={"idempotency_key", "authorization_revision"})
     )
     _, receipt = await service.authorize_idempotent(
         db,
@@ -170,6 +170,9 @@ async def write_assignment(
         idempotency_key=payload.idempotency_key,
         operation="catalog_assignment.write",
         fingerprint=fingerprint,
+        legacy_fingerprint=service.mutation_fingerprint(
+            payload.model_dump(mode="json", exclude={"idempotency_key"})
+        ),
         request_id=request_id,
     )
     # Revalidate catalog access even on replay; a receipt is not an access grant.
@@ -194,7 +197,7 @@ async def write_assignment(
         )
         subject_active = subject is not None and (
             getattr(subject, "state", None) == "active"
-            or getattr(subject, "lifecycle", None) in {"active", "deprecated"}
+            or getattr(subject, "lifecycle", None) in {"draft", "active", "deprecated"}
         )
     if subject is None or (payload.state == "current" and not subject_active):
         raise ApiError(ErrorCategory.PERMISSION, "assignment subject is unavailable")

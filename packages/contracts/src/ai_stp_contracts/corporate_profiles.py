@@ -74,7 +74,7 @@ class EntityProfileFields(ContractModel):
     @field_validator("description")
     @classmethod
     def safe_description(cls, value: str) -> str:
-        return validate_public_text(value, allow_empty=True)
+        return validate_public_text(value, allow_empty=True, markdown=True)
 
     @field_validator("links")
     @classmethod

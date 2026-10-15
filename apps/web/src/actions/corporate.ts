@@ -21,6 +21,7 @@ import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
 import type {
   CorporateAuditExport,
   CorporateDirectoryView,
+  CorporateCatalogAssignmentList,
   TechnologyMergePlanView,
   ProjectTechnologyView,
   SetupListResponse,
@@ -73,7 +74,11 @@ export async function corporateCatalogSearchAction(input: {
     const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
     const options = {
       ...(sessionToken ? { sessionToken } : {}),
-      query: { q: input.query, page_size: 32, include_experimental: true },
+      query: {
+        ...(input.query.trim() ? { q: input.query.trim() } : {}),
+        page_size: 32,
+        include_experimental: true,
+      },
     };
     const result =
       input.kind === "setup"
@@ -245,7 +250,7 @@ export async function corporateAssignContextAction(): Promise<CorporateAssignCon
     const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
     if (!sessionToken || !(await readSession())) return { ok: false };
     const context = await readCorporateContext(sessionToken);
-    if (!context?.capabilities.includes("catalog_object.assign")) return { ok: false };
+    if (!context) return { ok: false };
     const csrfToken = await readCsrfToken();
     if (!csrfToken) return { ok: false };
     const t = await getTranslations("hub");
@@ -315,7 +320,55 @@ export async function corporateSubjectSearchAction(input: {
     );
     return {
       ok: true,
-      items: data.items.map((item) => ({ value: item.id, label: item.name || item.id })),
+      items: data.items
+        .filter((item) =>
+          item.available_actions.includes(
+            input.kind === "employee" ? "member.manage" : `${input.kind}.update`,
+          ),
+        )
+        .map((item) => ({ value: item.id, label: item.name || item.id })),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof ApiError ? error.message : common("requestFailed"),
+    };
+  }
+}
+
+export async function corporateAssignmentRevisionAction(input: {
+  organizationId: string;
+  kind: CorporateAssignSubjectKind;
+  subjectId: string;
+  objectKind: "component" | "setup";
+  stableId: string;
+  version: string | null;
+  csrfToken: string;
+}): Promise<{ ok: true; revision: number } | { ok: false; message: string }> {
+  const common = await getTranslations("common");
+  try {
+    assertCsrf(input.csrfToken, await readCsrfToken());
+    const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
+    if (!sessionToken || !(await readSession()))
+      return { ok: false, message: common("notSignedIn") };
+    const data = await privateApiRequest<CorporateCatalogAssignmentList>(
+      `/v1/corporate/organizations/${input.organizationId}/catalog-assignments`,
+      {
+        sessionToken,
+        query: { subject_kind: input.kind, subject_id: input.subjectId, include_retired: true },
+      },
+    );
+    return {
+      ok: true,
+      revision:
+        data.items.find(
+          (item) =>
+            !item.source_team_id &&
+            item.object_kind === input.objectKind &&
+            item.stable_id === input.stableId &&
+            item.version === input.version &&
+            !item.harness,
+        )?.revision ?? 0,
     };
   } catch (error) {
     return {

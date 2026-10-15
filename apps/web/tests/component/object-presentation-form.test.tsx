@@ -3,6 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ObjectPresentationForm } from "@/components/organisms/object-presentation-form";
+import { recordNavigation } from "@/lib/navigation-history";
+
+const { back, replace } = vi.hoisted(() => ({ back: vi.fn(), replace: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ back, replace }) }));
 
 const updateAction = vi.fn<(...args: unknown[]) => unknown>();
 
@@ -83,6 +87,10 @@ function renderForm(
 
 describe("ObjectPresentationForm media editor", () => {
   beforeEach(() => {
+    window.sessionStorage.clear();
+    window.history.replaceState({}, "", "/");
+    back.mockClear();
+    replace.mockClear();
     updateAction.mockReset();
     updateAction.mockResolvedValue({ ok: true });
     vi.stubGlobal(
@@ -102,6 +110,35 @@ describe("ObjectPresentationForm media editor", () => {
         ),
       ),
     );
+  });
+
+  it("returns to the invoking catalog after saving a standalone presentation", async () => {
+    const edit = "/en/corporate/objects/component/component_fixture/edit";
+    window.history.replaceState({}, "", edit);
+    recordNavigation(
+      window.sessionStorage,
+      "/en/corporate/catalog?resource=components",
+      false,
+      240,
+    );
+    recordNavigation(window.sessionStorage, edit, false, 0);
+    render(
+      <ObjectPresentationForm
+        locale="en"
+        stableId="component_fixture"
+        csrfToken="csrf"
+        initialBio="Description"
+        initialMedia={[]}
+        labels={labels}
+        returnAfterSave
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: labels.save }));
+    await waitFor(() => {
+      expect(back).toHaveBeenCalledOnce();
+    });
+    expect(replace).not.toHaveBeenCalled();
+    expect(updateAction).toHaveBeenCalledOnce();
   });
 
   it("uploads a file, shows preview, and saves with the public media path", async () => {

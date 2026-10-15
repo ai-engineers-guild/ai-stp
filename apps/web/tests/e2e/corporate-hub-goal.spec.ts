@@ -317,10 +317,18 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
         const name = await cards.first().getByRole("heading").innerText();
         const href = await cards.first().locator("h3 a").getAttribute("href");
         expect(Boolean(href)).toBe(true);
-        const directorySearch = page.locator("#directory-search, #employee-search").first();
+        await main(page).getByRole("button", { name: "Open search", exact: true }).click();
+        const directorySearch = main(page).getByRole("textbox", {
+          name: "Search by name",
+          exact: true,
+        });
         await directorySearch.fill("__corporate_e2e_no_matching_card__");
+        await expect(page).toHaveURL(
+          (url) => url.searchParams.get("query") === "__corporate_e2e_no_matching_card__",
+        );
         await expect(cards).toHaveCount(0);
         await directorySearch.fill(name);
+        await expect(page).toHaveURL((url) => url.searchParams.get("query") === name);
         await expect(cards.first()).toBeVisible();
         const list = main(page).getByRole("button", { name: "List", exact: true });
         await list.click();
@@ -333,6 +341,18 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
         await screenshot(page, info, `${resource}-cards`);
         await cards.first().locator("h3 a").click();
         await expect(main(page).getByRole("heading", { level: 1 })).toHaveText(name);
+        const frame = main(page).locator('[data-ui="component-detail-lower"]').first();
+        const bounds = await frame.boundingBox();
+        const mainBounds = await main(page).boundingBox();
+        expect(bounds).not.toBeNull();
+        if (info.project.name === "chromium" && mainBounds)
+          expect(bounds?.width).toBeGreaterThan(mainBounds.width * 0.9);
+        if (resource === "teams")
+          await expect(
+            main(page)
+              .locator('[data-ui="component-detail-main"]')
+              .getByRole("heading", { name: "Team leads", exact: true }),
+          ).toHaveCount(0);
         if (resource === "projects") {
           // Derived from the current corporate-overview and technology fixtures:
           // Platform is owned by Core and currently uses Offline technology.
@@ -426,10 +446,6 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           name: "Edit public presentation",
           exact: true,
         });
-        if (resource === "employees") {
-          await expect(edit).toHaveCount(0);
-          return;
-        }
         if (!canEdit) {
           await expect(edit).toHaveCount(0);
           await screenshot(page, info, `${resource}-detail-readonly`);
@@ -443,6 +459,9 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           .getByRole("button", { name: "More actions", exact: true })
           .click();
         await expect(edit).toBeVisible();
+        await expect(page.getByRole("menuitem", { name: "Open details", exact: true })).toHaveCount(
+          0,
+        );
         await screenshot(page, info, `${resource}-detail`);
         await edit.click();
         await expect(page).toHaveURL(/\/edit$/);
@@ -452,7 +471,7 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
         const draftMarker = `Corporate goal browser draft (${info.project.name}-${resource})`;
         const draft = `${original}\n\n**${draftMarker}**`;
         await description.fill(draft);
-        const form = main(page).locator('form[aria-label="Edit public presentation"]');
+        const form = page.locator('form[aria-label="Edit public presentation"]');
         await form.getByRole("button", { name: "Rendered", exact: true }).click();
         const renderedDraft = form.locator("strong").filter({ hasText: draftMarker });
         await expect(renderedDraft).toHaveCount(1);

@@ -1,17 +1,17 @@
 "use client";
+import { returnFromEditor } from "@/lib/navigation-history";
 
 import { Select } from "@/components/atoms/select";
 import { useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
-import { corporateCatalogSearchAction, corporateCatalogVersionsAction } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { Textarea } from "@/components/atoms/textarea";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
 import { corporateMutation } from "@/lib/api/corporate-mutation";
-import { useRouter } from "@/lib/i18n/navigation";
+import { useRouter } from "next/navigation";
 
 type Option = { value: string; label: string };
 type CreateResource = "members" | "teams" | "projects";
@@ -22,94 +22,6 @@ type CreateOptions = {
   technologies: readonly Option[];
   jobTitles: readonly Option[];
 };
-type CatalogOption = { id: string; name: string };
-
-function EmployeeCatalogFields({
-  formId,
-  results,
-  selected,
-  versions,
-  version,
-  busy,
-  search,
-  choose,
-  setVersion,
-}: {
-  formId: string;
-  results: CatalogOption[];
-  selected: CatalogOption | null;
-  versions: string[];
-  version: string;
-  busy: boolean;
-  search: (query: string) => void;
-  choose: (item: CatalogOption) => void;
-  setVersion: (value: string) => void;
-}) {
-  const h = useTranslations("hub");
-  return (
-    <div className="space-y-3 md:col-span-2">
-      <Label htmlFor={`${formId}-catalog-query`}>{h("component")}</Label>
-      <div className="flex flex-wrap gap-2">
-        <Input
-          id={`${formId}-catalog-query`}
-          name="catalog_query"
-          placeholder={h("search")}
-          className="min-w-0 flex-1"
-        />
-        <Button
-          type="button"
-          variant="outline"
-          disabled={busy}
-          onClick={(event) => {
-            const input = event.currentTarget.previousElementSibling as HTMLInputElement;
-            search(input.value);
-          }}
-        >
-          {h("search")}
-        </Button>
-      </div>
-      {results.length ? (
-        <div className="grid gap-2" role="listbox" aria-label={h("component")}>
-          {results.map((item) => (
-            <Button
-              key={item.id}
-              type="button"
-              variant={selected?.id === item.id ? "default" : "outline"}
-              className="justify-start"
-              onClick={() => {
-                choose(item);
-              }}
-            >
-              {item.name}
-            </Button>
-          ))}
-        </div>
-      ) : null}
-      {selected ? (
-        <div className="space-y-2">
-          <p className="text-muted-foreground text-sm">{selected.name}</p>
-          <Select
-            aria-label={h("exactVersion")}
-            value={version}
-            disabled={busy}
-            onChange={(event) => {
-              setVersion(event.target.value);
-            }}
-            className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
-          >
-            <option value="">{h("exactVersion")}</option>
-            {versions.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </Select>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 function CorporateCreateFields({
   resource,
   formId,
@@ -117,14 +29,6 @@ function CorporateCreateFields({
   options,
   values,
   choose,
-  catalogResults,
-  catalogSelected,
-  catalogVersions,
-  catalogVersion,
-  catalogBusy,
-  searchCatalog,
-  chooseCatalog,
-  setCatalogVersion,
 }: {
   resource: CreateResource;
   formId: string;
@@ -132,14 +36,6 @@ function CorporateCreateFields({
   options: CreateOptions;
   values: (name: string) => string[];
   choose: (name: string, values: string[]) => void;
-  catalogResults: CatalogOption[];
-  catalogSelected: CatalogOption | null;
-  catalogVersions: string[];
-  catalogVersion: string;
-  catalogBusy: boolean;
-  searchCatalog: (query: string) => void;
-  chooseCatalog: (item: CatalogOption) => void;
-  setCatalogVersion: (version: string) => void;
 }) {
   const c = useTranslations("corporate");
   const h = useTranslations("hub");
@@ -206,17 +102,6 @@ function CorporateCreateFields({
           {select("team_ids", h("teams"), options.teams)}
           {select("project_ids", h("projects"), options.projects)}
           {select("job_title_ids", h("job_titles"), options.jobTitles, false)}
-          <EmployeeCatalogFields
-            formId={formId}
-            results={catalogResults}
-            selected={catalogSelected}
-            versions={catalogVersions}
-            version={catalogVersion}
-            busy={catalogBusy}
-            search={searchCatalog}
-            choose={chooseCatalog}
-            setVersion={setCatalogVersion}
-          />
         </>
       ) : null}
       {resource === "teams" ? (
@@ -237,7 +122,6 @@ function CorporateCreateFields({
   );
 }
 
-// eslint-disable-next-line max-lines-per-function
 export function CorporateCreateForm({
   resource,
   organizationId,
@@ -267,11 +151,6 @@ export function CorporateCreateForm({
   const [selected, setSelected] = useState<Record<string, string[]>>({});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [catalogResults, setCatalogResults] = useState<CatalogOption[]>([]);
-  const [catalogSelected, setCatalogSelected] = useState<CatalogOption | null>(null);
-  const [catalogVersions, setCatalogVersions] = useState<string[]>([]);
-  const [catalogVersion, setCatalogVersion] = useState("");
-  const [catalogBusy, setCatalogBusy] = useState(false);
   const retry = useRef<{ effect: string; key: string } | null>(null);
 
   const choose = (name: string, values: string[]) => {
@@ -279,39 +158,6 @@ export function CorporateCreateForm({
   };
   const values = (name: string) => selected[name] ?? [];
   const target = resource === "members" ? "employees" : resource;
-
-  async function searchCatalog(query: string) {
-    if (!query.trim()) return;
-    setCatalogBusy(true);
-    setCatalogSelected(null);
-    setCatalogVersions([]);
-    setCatalogVersion("");
-    const result = await corporateCatalogSearchAction({
-      kind: "component",
-      query: query.trim(),
-      csrfToken,
-    });
-    if (result.ok) setCatalogResults(result.items);
-    else setMessage(result.message);
-    setCatalogBusy(false);
-  }
-
-  async function chooseCatalog(item: CatalogOption) {
-    setCatalogBusy(true);
-    setCatalogSelected(item);
-    setCatalogVersions([]);
-    setCatalogVersion("");
-    const result = await corporateCatalogVersionsAction({
-      kind: "component",
-      id: item.id,
-      csrfToken,
-    });
-    if (result.ok) {
-      setCatalogVersions(result.versions);
-      setCatalogVersion(result.versions[0] ?? "");
-    } else setMessage(result.message);
-    setCatalogBusy(false);
-  }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -325,16 +171,6 @@ export function CorporateCreateForm({
             team_ids: values("team_ids"),
             project_ids: values("project_ids"),
             job_title_id: values("job_title_ids")[0] ?? null,
-            catalog_assignments:
-              catalogSelected && catalogVersion
-                ? [
-                    {
-                      object_kind: "component",
-                      stable_id: catalogSelected.id,
-                      version: catalogVersion,
-                    },
-                  ]
-                : [],
           }
         : resource === "teams"
           ? {
@@ -373,7 +209,7 @@ export function CorporateCreateForm({
       return;
     }
     retry.current = null;
-    router.push(`/corporate/${target}`);
+    returnFromEditor(router, `/corporate/${target}`);
   }
 
   const options: CreateOptions = {
@@ -398,18 +234,6 @@ export function CorporateCreateForm({
         options={options}
         values={values}
         choose={choose}
-        catalogResults={catalogResults}
-        catalogSelected={catalogSelected}
-        catalogVersions={catalogVersions}
-        catalogVersion={catalogVersion}
-        catalogBusy={catalogBusy}
-        searchCatalog={(query) => {
-          void searchCatalog(query);
-        }}
-        chooseCatalog={(item) => {
-          void chooseCatalog(item);
-        }}
-        setCatalogVersion={setCatalogVersion}
       />
       {message ? (
         <p role="alert" className="text-destructive text-sm">
@@ -424,7 +248,7 @@ export function CorporateCreateForm({
           type="button"
           variant="outline"
           onClick={() => {
-            router.push(`/corporate/${target}`);
+            returnFromEditor(router, `/corporate/${target}`);
           }}
         >
           {c("cancel")}
