@@ -18,6 +18,7 @@ a declaration that disagrees with it can be caught without asking anybody.
 
 from __future__ import annotations
 
+from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any, cast
 
@@ -101,3 +102,25 @@ def test_the_ecosystems_this_repository_declares_are_ones_the_table_knows() -> N
     known = set(LOCKFILES) | set(MANIFESTS) | {"github-actions"}
     declared = {str(update["package-ecosystem"]) for update in _updates()}
     assert declared <= known, sorted(declared - known)
+
+
+def test_codeql_steps_are_updated_in_one_pull_request() -> None:
+    update = next(item for item in _updates() if item["package-ecosystem"] == "github-actions")
+    owners: list[str | None] = []
+    for dependency in ("github/codeql-action/init", "github/codeql-action/analyze"):
+        owner = next(
+            (
+                name
+                for name, group in update.get("groups", {}).items()
+                if group.get("applies-to", "version-updates") == "version-updates"
+                and any(fnmatchcase(dependency, pattern) for pattern in group["patterns"])
+                and not any(
+                    fnmatchcase(dependency, pattern)
+                    for pattern in group.get("exclude-patterns", [])
+                )
+                and not group.get("update-types")
+            ),
+            None,
+        )
+        owners.append(owner)
+    assert owners[0] is not None and owners[0] == owners[1], owners
