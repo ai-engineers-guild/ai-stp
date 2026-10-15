@@ -4,6 +4,12 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import {
+  EntityActionItems,
+  usePreloadedEntityMenu,
+} from "@/components/organisms/entity-action-items";
+import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
+import { entityActionSubject } from "@/lib/entity-action-subject";
 import { Button } from "@/components/atoms/button";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/atoms/menu";
 import { ContactReportDialog } from "@/components/organisms/contact-report-dialog";
@@ -41,12 +47,6 @@ function MenuAction({
 // Canonical order: open, copy ID, copy URL, share, privileged actions, report.
 export function EntityDetailMenu({
   moreLabel,
-  openLabel,
-  openHref,
-  editLabel,
-  editHref,
-  editPresentationLabel,
-  editPresentationHref,
   entityId,
   shareHref,
   copyIdLabel,
@@ -54,7 +54,8 @@ export function EntityDetailMenu({
   shareLabel,
   reportLabel,
   reportTarget,
-  adminItems,
+  subject,
+  choices,
 }: {
   moreLabel: string;
   openLabel?: string | undefined;
@@ -71,7 +72,17 @@ export function EntityDetailMenu({
   reportLabel?: string | undefined;
   reportTarget?: string | undefined;
   adminItems?: ReactNode;
+  subject?: EntityActionSubject;
+  choices?: {
+    actionId: string;
+    label: string;
+    icon?: IconName;
+    onSelect?: () => void;
+    href?: string;
+  }[];
 }) {
+  const actionSubject = subject ?? entityActionSubject(reportTarget);
+  const preloaded = usePreloadedEntityMenu(actionSubject ?? null);
   const [reportOpen, setReportOpen] = useState(false);
 
   async function copy(value: string) {
@@ -107,62 +118,73 @@ export function EntityDetailMenu({
           </Button>
         </MenuTrigger>
         <MenuContent sideOffset={6}>
-          {openHref ? (
-            <MenuLink href={openHref} icon="eye">
-              {openLabel ?? "Open details"}
-            </MenuLink>
-          ) : null}
-          {entityId ? (
-            <MenuAction
-              icon="copy"
-              onSelect={() => {
-                void copy(entityId);
+          {actionSubject ? (
+            <EntityActionItems
+              initialResult={preloaded}
+              subject={actionSubject}
+              entries={{
+                ...Object.fromEntries(
+                  (choices ?? []).map((choice) => [
+                    choice.actionId,
+                    choice.href ? (
+                      <MenuLink href={choice.href} icon={choice.icon ?? "eye"}>
+                        {choice.label}
+                      </MenuLink>
+                    ) : (
+                      <MenuAction
+                        icon={choice.icon ?? "eye"}
+                        onSelect={choice.onSelect ?? (() => {})}
+                      >
+                        {choice.label}
+                      </MenuAction>
+                    ),
+                  ]),
+                ),
+                copy_id: entityId ? (
+                  <MenuAction
+                    icon="copy"
+                    onSelect={() => {
+                      void copy(entityId);
+                    }}
+                  >
+                    {copyIdLabel ?? "Copy ID"}
+                  </MenuAction>
+                ) : null,
+                copy_url: shareHref ? (
+                  <MenuAction
+                    icon="copy"
+                    onSelect={() => {
+                      void copy(new URL(shareHref, window.location.origin).toString());
+                    }}
+                  >
+                    {copyUrlLabel ?? "Copy URL"}
+                  </MenuAction>
+                ) : null,
+                share: shareHref ? (
+                  <MenuAction
+                    icon="link"
+                    onSelect={() => {
+                      void share();
+                    }}
+                  >
+                    {shareLabel ?? "Share"}
+                  </MenuAction>
+                ) : null,
+                report: reportTarget ? (
+                  <MenuAction
+                    icon="flag"
+                    onSelect={() => {
+                      setReportOpen(true);
+                    }}
+                  >
+                    {reportLabel ?? "Report"}
+                  </MenuAction>
+                ) : null,
               }}
-            >
-              {copyIdLabel ?? "Copy ID"}
-            </MenuAction>
-          ) : null}
-          {shareHref ? (
-            <MenuAction
-              icon="copy"
-              onSelect={() => {
-                void copy(new URL(shareHref, window.location.origin).toString());
-              }}
-            >
-              {copyUrlLabel ?? "Copy URL"}
-            </MenuAction>
-          ) : null}
-          {shareHref ? (
-            <MenuAction
-              icon="link"
-              onSelect={() => {
-                void share();
-              }}
-            >
-              {shareLabel ?? "Share"}
-            </MenuAction>
-          ) : null}
-          {editHref ? (
-            <MenuLink href={editHref} icon="edit">
-              {editLabel}
-            </MenuLink>
-          ) : null}
-          {editPresentationHref ? (
-            <MenuLink href={editPresentationHref} icon="edit">
-              {editPresentationLabel}
-            </MenuLink>
-          ) : null}
-          {adminItems}
-          {reportTarget ? (
-            <MenuAction
-              icon="flag"
-              onSelect={() => {
-                setReportOpen(true);
-              }}
-            >
-              {reportLabel ?? "Report"}
-            </MenuAction>
-          ) : null}
+            />
+          ) : (
+            <MenuItem disabled>{moreLabel}</MenuItem>
+          )}
         </MenuContent>
       </Menu>
       {reportTarget ? (

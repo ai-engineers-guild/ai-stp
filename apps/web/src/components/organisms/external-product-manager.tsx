@@ -294,6 +294,7 @@ function ServiceRequestDialog({
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    event.stopPropagation();
     startTransition(async () => {
       const result = await requestExternalProductAction({
         ...context,
@@ -463,6 +464,7 @@ function CountryRequestDialog({
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    event.stopPropagation();
     const normalizedCode = code.trim().toUpperCase();
     if (!/^[A-Z]{2}$/.test(normalizedCode)) {
       setStatus({ kind: "error", text: t("invalidCountryCode") });

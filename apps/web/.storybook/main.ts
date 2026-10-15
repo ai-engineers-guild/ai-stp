@@ -36,6 +36,10 @@ const config: StorybookConfig = {
         // Specific shims first — a bare "@" alias would swallow "@/actions/*".
         alias: [
           {
+            find: "@/actions/entity-actions",
+            replacement: path.resolve(appDir, "src/stories/shims/actions-entity-actions.ts"),
+          },
+          {
             find: "@/lib/api/public-profile",
             replacement: path.resolve(appDir, "src/stories/shims/api-public-profile.ts"),
           },

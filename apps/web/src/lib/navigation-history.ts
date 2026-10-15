@@ -106,3 +106,15 @@ export function canGoBack(storage: Storage | null, href: string): boolean {
   const history = readNavigationHistory(storage);
   return history.length > 1 && history.at(-1)?.href === href;
 }
+
+/** Return to the invoking page, including a safe destination for direct links. */
+export function returnFromEditor(
+  router: { back: () => void; replace: (href: string) => void },
+  fallback: string,
+): void {
+  if (canGoBack(getNavigationStorage(), currentNavigationHref(window.location))) router.back();
+  else {
+    const locale = window.location.pathname.split("/")[1];
+    router.replace(locale === "en" || locale === "ru" ? `/${locale}${fallback}` : fallback);
+  }
+}

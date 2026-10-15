@@ -32,7 +32,7 @@ test.describe("component detail actions and media (SPEC-035)", () => {
     ).toHaveCount(1);
     await expect(
       page.getByText(`ai-stp registry version --kind component --id ${stableId}`),
-    ).toHaveCount(1);
+    ).toHaveCount(0);
     await expect(page.locator('[data-component-type="agent"]')).toBeVisible();
     await expect(page.locator('header img[src*="/catalog-art/agent"]')).toHaveCount(0);
 
@@ -40,6 +40,8 @@ test.describe("component detail actions and media (SPEC-035)", () => {
     await expect(page.locator('[data-ui="component-overflow"]')).toHaveClass(/right-0/);
     await expect(page.getByText("View exact source")).toHaveCount(0);
     await page.getByRole("button", { name: "More actions" }).click();
+    await expect(page.getByRole("menuitem", { name: "Open details" })).toHaveCount(0);
+    await page.getByRole("menuitem", { name: "Copy and share" }).click();
     await page.getByRole("menuitem", { name: "Copy ID" }).click();
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(stableId);
 
@@ -154,4 +156,26 @@ test.describe("exact harness projection presentation", () => {
     if (!before || !after) throw new Error("card geometry unavailable");
     expect(after.height).toBe(before.height);
   });
+});
+
+test("keeps the detail frame wide and stable when passport content expands", async ({
+  page,
+}, info) => {
+  await page.goto(`/en/catalog/components/${stableId}`);
+  const frame = page.locator("#main-content > article").first();
+  await expect(page.getByRole("heading", { level: 1, name: "river-planner-agent" })).toBeVisible();
+  const before = await frame.boundingBox();
+  if (!before) throw new Error("detail frame missing");
+  const viewport = page.viewportSize();
+  if (!viewport) throw new Error("viewport missing");
+  const main = await page.locator("#main-content").boundingBox();
+  if (!main) throw new Error("main content missing");
+  if (info.project.name === "chromium") expect(before.width).toBeGreaterThan(main.width * 0.9);
+  expect(before.x).toBeGreaterThan(0);
+  expect(before.x + before.width).toBeLessThan(viewport.width);
+  await page.getByText("Passport", { exact: true }).click();
+  const after = await frame.boundingBox();
+  expect(after?.width).toBeCloseTo(before.width, 0);
+  expect(after?.x).toBeCloseTo(before.x, 0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

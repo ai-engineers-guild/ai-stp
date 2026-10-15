@@ -14,6 +14,9 @@ vi.mock("@/actions/corporate", () => ({
   corporateProjectUsageAction: loadUsage,
 }));
 vi.mock("@/lib/api/corporate-mutation", () => ({ corporateMutation: mutation }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh, push, replace: push, back: vi.fn() }),
+}));
 vi.mock("@/lib/i18n/navigation", () => ({ useRouter: () => ({ refresh, push }) }));
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 

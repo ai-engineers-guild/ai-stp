@@ -54,6 +54,7 @@ function inline(text: string): string {
   value = value.replace(/`([^`\n]+)`/g, (_match, code: string) =>
     addToken(tokens, `<code>${escapeHtml(code)}</code>`),
   );
+  value = value.replace(/<br\s*\/?>/gi, () => addToken(tokens, "<br>"));
   value = value.replace(
     /!\[([^\]]*)\]\((\/content\/illustrations\/[^)\s]+)\)/g,
     (_match, alt: string, src: string) =>

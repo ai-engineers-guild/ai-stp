@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "standard_family": "ai-stp-standard/1",
-  "contract_digest": "sha256:ee7ac0afd123b901ec0b6944d604755292cb7e045af4a9caebaded3896cd8834",
+  "contract_digest": "sha256:4c760699aa3f642ccdb5eb5f752c221df80f562af3e3df03f7bb013f3ca6da3e",
   "axes": [
     {
       "name": "standard_family",
@@ -1403,6 +1403,14 @@
     {
       "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:employee-technology-view"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:entity-action-menus"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:entity-action-query"
     },
     {
       "axis": "http_schema",

@@ -2255,6 +2255,32 @@
         ]
       },
       "error_code": null
+    },
+    {
+      "case_id": "deleteTechnologyScan.completed",
+      "operation_id": "deleteTechnologyScan",
+      "kind": "positive",
+      "why": "Administrator removes a completed journal entry while immutable observations remain readable.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": {
+          "schema_version": 1,
+          "expected_revision": 1,
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-deleteTechnologyScan-0001"
+        },
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "resource_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+      },
+      "error_code": null
     }
   ]
 }

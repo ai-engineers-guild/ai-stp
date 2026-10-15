@@ -7593,6 +7593,143 @@ export type EmployeeTechnologyView = {
   [key: string]: unknown;
 };
 
+/**
+ * EntityAction
+ */
+export type EntityAction = {
+  /**
+   * Group
+   */
+  group: "navigation" | "sharing" | "management" | "danger" | "support";
+  /**
+   * Id
+   */
+  id: string;
+  [key: string]: unknown;
+};
+
+/**
+ * EntityActionMenu
+ */
+export type EntityActionMenu = {
+  /**
+   * Actions
+   */
+  actions: Array<EntityAction>;
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | null;
+  /**
+   * Device Id
+   */
+  device_id: string | null;
+  /**
+   * Href
+   */
+  href: string | null;
+  /**
+   * Object Name
+   */
+  object_name: string | null;
+  /**
+   * Object Version
+   */
+  object_version: string | null;
+  /**
+   * Revision
+   */
+  revision: number | null;
+  subject: EntityActionSubject;
+  /**
+   * Visibility
+   */
+  visibility: "public" | "private" | null;
+  [key: string]: unknown;
+};
+
+/**
+ * EntityActionMenus
+ */
+export type EntityActionMenus = {
+  /**
+   * Items
+   */
+  items: Array<EntityActionMenu>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * EntityActionQuery
+ */
+export type EntityActionQuery = {
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Subjects
+   */
+  subjects: Array<EntityActionSubject>;
+};
+
+/**
+ * EntityActionSubject
+ */
+export type EntityActionSubject = {
+  /**
+   * Assignment Id
+   */
+  assignment_id?: string | null;
+  /**
+   * Coordinate
+   */
+  coordinate?: string | null;
+  /**
+   * Finding Kind
+   */
+  finding_kind?: "package" | "image" | "executable" | "configuration" | "alias" | null;
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Kind
+   */
+  kind:
+    | "component"
+    | "setup"
+    | "team"
+    | "project"
+    | "member"
+    | "technology"
+    | "category"
+    | "area"
+    | "job_title"
+    | "role"
+    | "grant"
+    | "invitation"
+    | "finding"
+    | "publisher"
+    | "scan";
+  /**
+   * Organization Id
+   */
+  organization_id?: string | null;
+  /**
+   * Usage Context
+   */
+  usage_context?: "production" | "development" | "testing" | "browser_support" | null;
+  /**
+   * View
+   */
+  view?: "landscape" | "detail" | null;
+};
+
 export type EntityId = string;
 
 /**
@@ -10050,7 +10187,7 @@ export type OwnerObjectCapabilities = {
   /**
    * Capabilities
    */
-  capabilities: Array<"edit" | "edit_presentation" | "delete">;
+  capabilities: Array<"edit" | "edit_presentation" | "delete" | "manage_access">;
   object_kind: ObjectKind;
   /**
    * Schema Version
@@ -29664,6 +29801,76 @@ export type LaunchTechnologyScansResponses = {
 export type LaunchTechnologyScansResponse =
   LaunchTechnologyScansResponses[keyof LaunchTechnologyScansResponses];
 
+export type DeleteTechnologyScanData = {
+  body: TechnologyMutation;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Immutable scan ID.
+     */
+    scan_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-scans/{scan_id}";
+};
+
+export type DeleteTechnologyScanErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type DeleteTechnologyScanError =
+  DeleteTechnologyScanErrors[keyof DeleteTechnologyScanErrors];
+
+export type DeleteTechnologyScanResponses = {
+  /**
+   * Remove a completed scan from the journal, retaining immutable evidence.
+   */
+  200: CorporateDeleteResult;
+};
+
+export type DeleteTechnologyScanResponse =
+  DeleteTechnologyScanResponses[keyof DeleteTechnologyScanResponses];
+
 export type ReadTechnologyScanDetailData = {
   body?: never;
   headers?: {
@@ -31961,6 +32168,50 @@ export type RevokeDeviceResponses = {
 };
 
 export type RevokeDeviceResponse = RevokeDeviceResponses[keyof RevokeDeviceResponses];
+
+export type QueryEntityActionsData = {
+  body: EntityActionQuery;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/entity-actions/query";
+};
+
+export type QueryEntityActionsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type QueryEntityActionsError = QueryEntityActionsErrors[keyof QueryEntityActionsErrors];
+
+export type QueryEntityActionsResponses = {
+  /**
+   * Read ordered entity menus for the current principal.
+   */
+  200: EntityActionMenus;
+};
+
+export type QueryEntityActionsResponse =
+  QueryEntityActionsResponses[keyof QueryEntityActionsResponses];
 
 export type ListGrantsData = {
   body?: never;

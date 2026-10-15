@@ -1,8 +1,21 @@
 import { expect, test } from "@playwright/test";
+import { FIXTURE_COMPONENT_ID } from "../../src/mocks/fixtures/catalog-ids";
 
 const enabled = process.env["AI_STP_EXPECT_CONTENT_HUB"] !== "false";
 const saas = process.env["AI_STP_EXPECT_SAAS_PUBLIC_PAGES"] !== "false";
 const corporate = process.env["AI_STP_WEB_PROFILE"] === "corporate_hub";
+
+test("shows linked services only outside the corporate presentation editor", async ({ page }) => {
+  const path = `/en/${corporate ? "corporate/" : ""}objects/component/${FIXTURE_COMPONENT_ID}/edit`;
+  await page.goto(`/en/login?returnTo=${encodeURIComponent(path)}`);
+  await page.getByRole("button", { name: /Continue with GitHub/i }).click();
+  await expect(
+    page.getByRole("heading", { name: "Edit public presentation", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Linked service", exact: true })).toHaveCount(
+    corporate ? 0 : 1,
+  );
+});
 
 test("compiled content profile is consistent across every public projection", async ({
   page,

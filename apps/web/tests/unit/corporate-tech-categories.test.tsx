@@ -1,3 +1,5 @@
+import { entityMenuResult, publicActions } from "../entity-menu-fixture";
+import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
@@ -11,6 +13,7 @@ const { mutation, refresh } = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/api/corporate-mutation", () => ({ corporateMutation: mutation }));
 vi.mock("next-intl", () => ({
+  useLocale: () => "en",
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${Object.values(values).join(",")}` : key,
 }));
@@ -183,3 +186,15 @@ it("links technologies to a category by merging category_ids", async () => {
     expected_revision: 2,
   });
 });
+
+vi.mock("@/lib/entity-action-query", () => ({
+  queryEntityActionMenu: vi.fn((subject: EntityActionSubject) =>
+    Promise.resolve(
+      entityMenuResult(
+        subject,
+        [...publicActions.slice(0, -1), "edit", "manage_technologies", "delete", "report"],
+        `/corporate/categories/${subject.id}`,
+      ),
+    ),
+  ),
+}));

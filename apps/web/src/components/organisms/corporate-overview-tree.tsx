@@ -86,7 +86,7 @@ export function CorporateOverviewTree({ graph }: { graph: CorporateOverview }) {
         fullyExpanded={fullyExpanded}
       />
       <div className="border-border bg-card flex flex-wrap items-center gap-3 rounded-lg border p-3">
-        <div className="relative w-full min-w-0 md:w-auto md:flex-1">
+        <div className="relative w-full min-w-0 md:min-w-64 md:flex-1">
           <Icon name="search" size="sm" className="text-muted-foreground absolute top-3.5 left-3" />
           <Input
             aria-label={t(view === "organization" ? "searchStructure" : "searchUsage")}
@@ -98,7 +98,9 @@ export function CorporateOverviewTree({ graph }: { graph: CorporateOverview }) {
             className="min-h-11 pl-9"
           />
         </div>
-        <div className="hidden max-w-full min-w-0 flex-wrap gap-2 md:flex">{controls}</div>
+        <div className="hidden max-w-full min-w-0 flex-wrap gap-2 md:flex md:flex-1">
+          {controls}
+        </div>
         <div className="md:hidden">
           <Sheet>
             <SheetTrigger asChild>
@@ -117,7 +119,7 @@ export function CorporateOverviewTree({ graph }: { graph: CorporateOverview }) {
             </SheetContent>
           </Sheet>
         </div>
-        <label className="flex min-h-11 w-full items-center gap-2 text-sm md:ml-auto md:w-auto">
+        <label className="flex min-h-11 w-full items-center gap-2 text-sm md:ml-auto md:w-auto md:shrink-0">
           {t(view === "organization" ? "expandTo" : "sortBy")}
           <Select
             aria-label={t(view === "organization" ? "expandTo" : "sortBy")}

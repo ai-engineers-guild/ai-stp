@@ -31,6 +31,7 @@ from ai_stp_api.slices.corporate.catalog_ownership import router as corporate_ow
 from ai_stp_api.slices.corporate.router import router as corporate_router
 from ai_stp_api.slices.devices.router import router as devices_router
 from ai_stp_api.slices.documents.router import router as documents_router
+from ai_stp_api.slices.entity_actions.router import router as entity_actions_router
 from ai_stp_api.slices.github_connector.router import router as github_connector_router
 from ai_stp_api.slices.gitlab_connector.router import router as gitlab_connector_router
 from ai_stp_api.slices.grants.router import router as grants_router
@@ -158,6 +159,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth_router, prefix=_API_PREFIX)
     app.include_router(auth_compatibility_router)
     app.include_router(devices_router, prefix=_API_PREFIX)
+    app.include_router(entity_actions_router, prefix=_API_PREFIX)
     app.include_router(catalog_router, prefix=_API_PREFIX)
     app.include_router(complaints_router, prefix=_API_PREFIX)
     app.include_router(context_router, prefix=_API_PREFIX)

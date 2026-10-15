@@ -13,6 +13,15 @@ afterEach(() => {
 });
 
 describe("dev API rewrites (same-origin hop without a host proxy)", () => {
+  it("allows local Docker browser origins to load Next development resources", () => {
+    expect(nextConfig.allowedDevOrigins).toEqual(["localhost", "127.0.0.1"]);
+  });
+
+  it("leaves static asset caching to Next so development chunks can hydrate", async () => {
+    const headers = await nextConfig.headers?.();
+    expect(headers?.some((route) => route.source === "/_next/static/:path*")).toBe(false);
+  });
+
   it("enables rewrites only in development", () => {
     expect(shouldEnableDevApiRewrites("development")).toBe(true);
     expect(shouldEnableDevApiRewrites("production")).toBe(false);

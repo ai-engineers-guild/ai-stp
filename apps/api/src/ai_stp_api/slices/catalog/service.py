@@ -1007,7 +1007,7 @@ async def read_component_version(
             version=version,
             account_id=account_id,
         )
-        if metadata is None:
+        if metadata is None or metadata.visibility != "public":
             raise CatalogNotFound
         row = PublicVersionRow(
             metadata=metadata,

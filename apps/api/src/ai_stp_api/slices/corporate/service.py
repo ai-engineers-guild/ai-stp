@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 import unicodedata
-from collections.abc import Awaitable, Callable, Collection, Mapping
+from collections.abc import Collection, Mapping
 from datetime import UTC, datetime
 from typing import Literal, cast
 
@@ -295,7 +295,7 @@ ROLE_PERMISSIONS["lead"] |= {"catalog_object.read", "catalog_object.assign"} | _
 ROLE_PERMISSIONS["staff"] |= {"catalog_object.read"} | _ROLE_CONNECTOR_READ
 
 _ROLE_NAME_RE = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
-_BUILT_IN_ROLES: frozenset[str] = frozenset(ROLE_PERMISSIONS)
+BUILT_IN_ROLES: frozenset[str] = frozenset(ROLE_PERMISSIONS)
 KNOWN_PERMISSIONS: frozenset[str] = frozenset(
     permission for permissions in ROLE_PERMISSIONS.values() for permission in permissions
 )
@@ -640,27 +640,15 @@ async def team_view(
                 scope_id=row.id,
             ):
                 effective_permissions.append(permission)
-        available_actions = [
-            action
-            for action, permission in (
-                ("team.update", "team.update"),
-                ("team.delete", "team.delete"),
-                ("assignment.manage", "catalog_object.assign"),
-                ("maintainer.manage", "catalog_object.maintainer"),
-                ("audit.explain", "catalog_object.explain"),
-            )
-            if permission in effective_permissions
-        ]
-        from ai_stp_api.slices.corporate.entity_profiles import can_edit_profile
+        from ai_stp_api.slices.corporate.subject_access import subject_available_actions
 
-        if await can_edit_profile(
+        available_actions = await subject_available_actions(
             db,
-            ctx=ctx,
+            account_id=ctx.account_id,
             organization_id=row.organization_id,
             subject_kind="team",
             subject_id=row.id,
-        ):
-            available_actions.append("entity_profile.update")
+        )
         history_rows = list(
             (
                 await db.scalars(
@@ -884,7 +872,6 @@ async def authorize(
     scope_kind: str = "organization",
     scope_id: str | None = None,
     authorization_revision: int | None = None,
-    extra_grant: Callable[[], Awaitable[bool]] | None = None,
 ) -> tuple[Organization, OrganizationMembership]:
     organization, membership = await _organization_and_membership(
         db, ctx=ctx, organization_id=organization_id
@@ -895,42 +882,16 @@ async def authorize(
     ):
         raise ApiError(ErrorCategory.PRECONDITION, "capability revision is stale")
     scope = scope_id or organization_id
-    if permission in {"entity_profile.update", "entity_profile.owner"}:
-        from ai_stp_api.slices.corporate.entity_profiles import can_edit_profile
+    from ai_stp_api.slices.corporate.subject_access import subject_permission_allowed
 
-        if not await can_edit_profile(
-            db,
-            ctx=ctx,
-            organization_id=organization_id,
-            subject_kind=scope_kind,
-            subject_id=scope,
-            owner_assignment=permission == "entity_profile.owner",
-        ):
-            raise ApiError(ErrorCategory.PERMISSION, "profile edit is forbidden")
-        return organization, membership
-    allowed = await has_corporate_permission(
+    allowed = await subject_permission_allowed(
         db,
+        account_id=ctx.account_id,
         organization_id=organization_id,
-        principal_type="user",
-        principal_id=ctx.account_id,
         permission=permission,
-        scope_kind=scope_kind,
-        scope_id=scope,
+        subject_kind=scope_kind,
+        subject_id=scope,
     )
-    if not allowed and scope_kind == "member":
-        # Organization-wide member administration keeps working for org-scoped
-        # roles; scoped (team) grants already matched inside the evaluator.
-        allowed = await has_corporate_permission(
-            db,
-            organization_id=organization_id,
-            principal_type="user",
-            principal_id=ctx.account_id,
-            permission=permission,
-            scope_kind="organization",
-            scope_id=organization_id,
-        )
-    if not allowed and extra_grant is not None:
-        allowed = await extra_grant()
     if not allowed:
         raise ApiError(ErrorCategory.PERMISSION, "capability is forbidden")
     return organization, membership
@@ -1191,7 +1152,7 @@ async def _role_coverage(db: AsyncSession, *, organization_id: str, role: str) -
     return "descendants" if admin and admin <= grants.get(role, frozenset()) else "self"
 
 
-async def _org_admin_state(
+async def organization_admin_state(
     db: AsyncSession, *, organization_id: str
 ) -> tuple[set[str], frozenset[str]]:
     """Active user accounts whose organization-scope effective permissions cover
@@ -1343,7 +1304,6 @@ async def authorize_idempotent(
     scope_kind: str = "organization",
     scope_id: str | None = None,
     legacy_fingerprint: str | None = None,
-    extra_grant: Callable[[], Awaitable[bool]] | None = None,
 ) -> tuple[Organization, CorporateMutationReceipt | None]:
     organization, membership = await authorize(
         db,
@@ -1352,7 +1312,6 @@ async def authorize_idempotent(
         permission=permission,
         scope_kind=scope_kind,
         scope_id=scope_id,
-        extra_grant=extra_grant,
     )
     # ponytail: per-tenant mutation lock; split locks if measured throughput needs it.
     locked = await db.scalar(
@@ -1370,7 +1329,6 @@ async def authorize_idempotent(
         permission=permission,
         scope_kind=scope_kind,
         scope_id=scope_id,
-        extra_grant=extra_grant,
     )
     receipt = await db.get(CorporateMutationReceipt, (organization_id, idempotency_key))
     if receipt is not None:
@@ -1552,7 +1510,7 @@ async def update_role(
     )
     if row is None:
         raise ApiError(ErrorCategory.NOT_FOUND, "corporate role not found")
-    if role_name in _BUILT_IN_ROLES:
+    if role_name in BUILT_IN_ROLES:
         raise ApiError(ErrorCategory.CONFLICT, "built-in corporate role is immutable")
     if row.revision != payload.expected_revision:
         raise ApiError(ErrorCategory.CONFLICT, "corporate role revision changed")
@@ -1637,7 +1595,7 @@ async def delete_role(
     )
     if row is None:
         raise ApiError(ErrorCategory.NOT_FOUND, "corporate role not found")
-    if role_name in _BUILT_IN_ROLES:
+    if role_name in BUILT_IN_ROLES:
         raise ApiError(ErrorCategory.CONFLICT, "built-in corporate role is immutable")
     if row.revision != payload.expected_revision:
         raise ApiError(ErrorCategory.CONFLICT, "corporate role revision changed")
@@ -1684,7 +1642,7 @@ async def delete_role(
     elif bindings or memberships:
         raise ApiError(ErrorCategory.CONFLICT, "corporate role is still referenced")
     if bindings or memberships:
-        admins, admin_set = await _org_admin_state(db, organization_id=organization_id)
+        admins, admin_set = await organization_admin_state(db, organization_id=organization_id)
         affected = {
             binding.account_id
             for binding in bindings
@@ -2304,7 +2262,7 @@ async def update_member(
         scope_kind="organization",
         scope_id=organization_id,
     )
-    admins, admin_set = await _org_admin_state(db, organization_id=organization_id)
+    admins, admin_set = await organization_admin_state(db, organization_id=organization_id)
     if not org_admin and (account_id in admins or payload.role != row.role):
         # Scoped (team) member administration cannot change organization roles
         # or touch an effective organization administrator.
@@ -2461,7 +2419,7 @@ async def delete_member(
         scope_kind="organization",
         scope_id=organization_id,
     )
-    admins, _admin_set = await _org_admin_state(db, organization_id=organization_id)
+    admins, _admin_set = await organization_admin_state(db, organization_id=organization_id)
     if not org_admin and account_id in admins:
         raise ApiError(ErrorCategory.PERMISSION, "member delete is forbidden")
     if account_id in admins and len(admins) <= 1:
@@ -2837,7 +2795,7 @@ async def update_binding(
     ):
         raise ApiError(ErrorCategory.CONFLICT, "binding already exists")
     if row.principal_type == "user" and row.account_id is not None:
-        admins, admin_set = await _org_admin_state(db, organization_id=organization_id)
+        admins, admin_set = await organization_admin_state(db, organization_id=organization_id)
         if row.account_id in admins:
             org_roles_after = await _member_org_roles_after(
                 db,
@@ -2927,7 +2885,7 @@ async def delete_binding(
     if row.origin != "direct":
         raise ApiError(ErrorCategory.CONFLICT, "binding is managed by its owner")
     if row.principal_type == "user" and row.account_id is not None:
-        admins, admin_set = await _org_admin_state(db, organization_id=organization_id)
+        admins, admin_set = await organization_admin_state(db, organization_id=organization_id)
         if row.account_id in admins:
             org_roles_after = await _member_org_roles_after(
                 db,

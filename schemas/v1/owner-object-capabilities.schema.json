@@ -19,7 +19,8 @@
         "enum": [
           "edit",
           "edit_presentation",
-          "delete"
+          "delete",
+          "manage_access"
         ],
         "type": "string"
       },

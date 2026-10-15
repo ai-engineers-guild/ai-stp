@@ -1,4 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { entityMenuResult, catalogActions } from "../entity-menu-fixture";
+import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
+import { render } from "../render-with-intl";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MenuItem } from "@/components/atoms/menu";
 import { describe, expect, it, vi } from "vitest";
@@ -43,7 +46,7 @@ const labels = {
 
 describe("CatalogItemMenu", () => {
   it("offers copy commands then report, with clipboard feedback", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
 
@@ -57,27 +60,30 @@ describe("CatalogItemMenu", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "More actions" })).toHaveClass("h-11", "w-11");
+    expect(screen.getByRole("button", { name: "More actions" })).toHaveClass("size-11");
     await user.click(screen.getByRole("button", { name: "More actions" }));
+    await screen.findByRole("menuitem", { name: "Copy and share" });
     const items = screen.getAllByRole("menuitem");
     expect(items.map((item) => item.textContent)).toEqual([
-      "Copy URL",
-      "Copy ID",
-      "Copy CLI command",
+      "Open details",
+      "Copy and share",
       "Like",
       "Report setup",
     ]);
     expect(document.body.style.overflow).not.toBe("hidden");
     expect(getComputedStyle(document.body).overflow).not.toBe("hidden");
-    await user.click(screen.getByRole("menuitem", { name: "Copy ID" }));
+    await user.click(screen.getByRole("menuitem", { name: "Copy and share" }));
+    expect(screen.getAllByRole("menu")).toHaveLength(2);
+    await user.click(await screen.findByRole("menuitem", { name: "Copy ID" }));
     expect(writeText).toHaveBeenCalledWith("setup_example");
     await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Copy CLI command" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Copy and share" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Copy CLI command" }));
     expect(writeText).toHaveBeenCalledWith("ai-stp registry show --kind setup --id setup_example");
   });
 
-  it("prepends owner actions before the shared public actions", async () => {
-    const user = userEvent.setup();
+  it("ignores locally injected owner actions without server authorization", async () => {
+    const user = userEvent.setup({ skipHover: true });
     render(
       <CatalogItemMenu
         kind="component"
@@ -94,20 +100,17 @@ describe("CatalogItemMenu", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "More actions" }));
+    await screen.findByRole("menuitem", { name: "Copy and share" });
     expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
-      "Make public",
-      "Edit public presentation",
-      "Manage access",
-      "Copy URL",
-      "Copy ID",
-      "Copy CLI command",
+      "Open details",
+      "Copy and share",
       "Like",
       "Report component",
     ]);
   });
 
   it("names the report action for a component and restores focus on Escape", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     render(
       <CatalogItemMenu
         kind="component"
@@ -119,14 +122,14 @@ describe("CatalogItemMenu", () => {
     );
     const trigger = screen.getByRole("button", { name: "More actions" });
     await user.click(trigger);
-    expect(screen.getByRole("menuitem", { name: "Report component" })).toBeInTheDocument();
+    expect(await screen.findByRole("menuitem", { name: "Report component" })).toBeInTheDocument();
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
   });
 
   it("moves between menu items with the arrow keys", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     render(
       <CatalogItemMenu
         kind="component"
@@ -137,15 +140,18 @@ describe("CatalogItemMenu", () => {
       />,
     );
     await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.keyboard("{ArrowDown}");
-    await user.keyboard("{ArrowDown}");
-    expect(screen.getByRole("menuitem", { name: "Copy ID" })).toHaveFocus();
+    await screen.findByRole("menuitem", { name: "Copy and share" });
+    await user.keyboard("{Home}{ArrowDown}");
+    expect(screen.getByRole("menuitem", { name: "Copy and share" })).toHaveFocus();
+    await user.keyboard("{ArrowRight}");
+    expect(await screen.findByRole("menuitem", { name: "Copy ID" })).toHaveFocus();
+    await user.keyboard("{ArrowLeft}");
     await user.keyboard("{End}");
-    expect(screen.getByRole("menuitem", { name: "Report component" })).toHaveFocus();
+    expect(await screen.findByRole("menuitem", { name: "Report component" })).toHaveFocus();
   });
 
   it("toggles like through the catalog reaction action without locking page scroll", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     render(
       <CatalogItemMenu
         kind="component"
@@ -157,14 +163,26 @@ describe("CatalogItemMenu", () => {
     );
     await user.click(screen.getByRole("button", { name: "More actions" }));
     expect(getComputedStyle(document.body).overflow).not.toBe("hidden");
-    await user.click(screen.getByRole("menuitem", { name: "Like" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Like" }));
     await waitFor(() => {
       expect(updateCatalogReaction).toHaveBeenCalledWith("component", "cmp_example", true);
     });
     await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Unlike" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Unlike" }));
     await waitFor(() => {
       expect(updateCatalogReaction).toHaveBeenCalledWith("component", "cmp_example", false);
     });
   });
 });
+
+vi.mock("@/lib/entity-action-query", () => ({
+  queryEntityActionMenu: vi.fn((subject: EntityActionSubject) =>
+    Promise.resolve(
+      entityMenuResult(
+        subject,
+        catalogActions,
+        `/catalog/${subject.kind === "component" ? "components" : "setups"}/${subject.id}`,
+      ),
+    ),
+  ),
+}));

@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "@/components/atoms/select";
 
 import { useEffect, useRef, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
@@ -175,7 +176,7 @@ export function PeopleSelect({
   options: readonly { value: string; label: string }[];
 }) {
   return (
-    <select
+    <Select
       aria-label={label}
       value={value}
       className={`${peopleSelectClass} sm:w-auto sm:min-w-32`}
@@ -189,7 +190,7 @@ export function PeopleSelect({
           {option.label}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }
 
@@ -382,6 +383,7 @@ export function PeopleTeams({ teams }: { teams: readonly { team_id: string; name
  * can never mix a team kind with a project id.
  */
 export function ScopeField({
+  initialScope,
   id,
   teams,
   projects,
@@ -395,15 +397,16 @@ export function ScopeField({
   projects: readonly CorporateProjectView[];
   organizationId: string;
   organizationLabel: string;
+  initialScope?: string | undefined;
   onKindChange?: (kind: string) => void;
   options: readonly { value: string; label: string }[];
 }) {
   const a = useTranslations("accessUi");
   return (
-    <select
+    <Select
       id={id}
       name="scope"
-      defaultValue={`organization:${organizationId}`}
+      defaultValue={initialScope ?? `organization:${organizationId}`}
       onChange={(event) => onKindChange?.(event.target.value.split(":", 1)[0] ?? "organization")}
       className="border-input bg-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
     >
@@ -449,6 +452,6 @@ export function ScopeField({
           </option>
         ))}
       </optgroup>
-    </select>
+    </Select>
   );
 }

@@ -8,7 +8,7 @@ import pytest
 from pydantic import ValidationError
 
 from ai_stp_api.session import AuthContext
-from ai_stp_api.slices.corporate import directory, overview
+from ai_stp_api.slices.corporate import directory, overview, subject_access
 from ai_stp_contracts.corporate import CorporateOrganization, CorporateOverview
 from ai_stp_contracts.corporate_directory import (
     CorporateDirectoryFacets,
@@ -224,6 +224,11 @@ async def test_named_technology_relations_are_authorized_before_facets(
 
     monkeypatch.setattr(directory, "corporate_effective_permissions", effective)
     monkeypatch.setattr(directory, "bulk_effective_permissions", bulk)
+    monkeypatch.setattr(
+        subject_access,
+        "subject_available_actions",
+        AsyncMock(return_value=["entity_profile.update"]),
+    )
     db = AsyncMock()
     streams: list[list[Any]] = [
         technologies,
@@ -296,6 +301,11 @@ async def test_project_lead_uses_directory_field_without_changing_graph_contract
         directory, "corporate_effective_permissions", AsyncMock(return_value=_DIRECTORY_PERMISSIONS)
     )
     monkeypatch.setattr(directory, "bulk_effective_permissions", bulk)
+    monkeypatch.setattr(
+        subject_access,
+        "subject_available_actions",
+        AsyncMock(return_value=["entity_profile.update"]),
+    )
     db = AsyncMock()
     streams = [
         [],

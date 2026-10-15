@@ -382,6 +382,15 @@ class TechnologyScan(_TenantRow, Base):
     )
 
 
+class TechnologyScanDeletion(_TenantRow, Base):
+    """Recoverable journal removal; immutable observations remain available to derivation."""
+
+    __tablename__ = "technology_scan_deletion"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    deleted_by: Mapped[str] = mapped_column(String(64), nullable=False)
+    deleted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class TechnologyCoordinateMapping(_TenantRow, Base):
     __tablename__ = "technology_coordinate_mapping"
     __table_args__ = (

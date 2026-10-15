@@ -17,13 +17,10 @@ import { CorporateCatalogOwnerDialog } from "@/components/organisms/corporate-ca
 const stableId = "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
 const organizationId = "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
 const ownerId = "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
+const nextOwnerId = "account_01JQZK7B8N4M6P2R9T5V0X3Y8B";
 const members = [
-  { id: ownerId, name: "Current owner", state: "active" },
-  {
-    id: "account_01JQZK7B8N4M6P2R9T5V0X3Y8A",
-    name: "Suspended employee",
-    state: "suspended",
-  },
+  { id: ownerId, name: "Current owner" },
+  { id: nextOwnerId, name: "New owner" },
 ] satisfies CorporateCatalogOwnerMember[];
 
 const props = {
@@ -59,14 +56,28 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("corporate catalog owner editor", () => {
+  it("searches employees and chooses exactly one operational owner", async () => {
+    render(<CorporateCatalogOwnerDialog open onOpenChange={() => {}} ownerEdit={props} />);
+    fireEvent.click(screen.getByLabelText("operationalOwner: Current owner"));
+    fireEvent.change(screen.getByRole("searchbox", { name: "search" }), {
+      target: { value: "New" },
+    });
+    expect(screen.queryByRole("checkbox", { name: "Current owner" })).toBeNull();
+    fireEvent.click(screen.getByRole("checkbox", { name: "New owner" }));
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+    await waitFor(() => {
+      expect(mutation).toHaveBeenCalledOnce();
+    });
+    expect(mutation.mock.calls[0]?.[0].body).toMatchObject({ owner_account_id: nextOwnerId });
+  });
   it("supports nullable unassign with revision and retry-safe mutation data", async () => {
     mutation
       .mockResolvedValueOnce({ ok: false, message: "Conflict" })
       .mockResolvedValueOnce({ ok: true, data: props.ownership });
     render(<CorporateCatalogOwnerDialog open onOpenChange={() => {}} ownerEdit={props} />);
 
-    expect(screen.queryByRole("option", { name: "Suspended employee" })).toBeNull();
-    fireEvent.change(screen.getByLabelText("operationalOwner"), { target: { value: "" } });
+    fireEvent.click(screen.getByLabelText("operationalOwner: Current owner"));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Current owner" }));
     fireEvent.click(screen.getByRole("button", { name: "save" }));
     await screen.findByText("Conflict");
     await waitFor(() => {
@@ -109,7 +120,8 @@ describe("corporate catalog owner editor", () => {
     });
     render(<CorporateCatalogOwnerDialog open onOpenChange={() => {}} ownerEdit={props} />);
 
-    fireEvent.change(screen.getByLabelText("operationalOwner"), { target: { value: "" } });
+    fireEvent.click(screen.getByLabelText("operationalOwner: Current owner"));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Current owner" }));
     fireEvent.click(screen.getByRole("button", { name: "save" }));
 
     await screen.findByText("failed");

@@ -33,6 +33,7 @@ const contentSecurityPolicy = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ["localhost", "127.0.0.1"],
   pageExtensions: webPageExtensions(featureProfile),
   skipProxyUrlNormalize: featureProfile.profile === "corporate_hub",
   outputFileTracingExcludes: {
@@ -81,15 +82,6 @@ const nextConfig: NextConfig = {
           {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=(), browsing-topics=()",
-          },
-        ],
-      },
-      {
-        source: "/_next/static/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: isDevelopment ? "no-store" : "public, max-age=31536000, immutable",
           },
         ],
       },

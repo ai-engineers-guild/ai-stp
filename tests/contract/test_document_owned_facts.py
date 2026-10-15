@@ -1,6 +1,7 @@
 """Shared model/document consistency; native CLI parity runs in verify.py."""
 
 from pathlib import Path
+from typing import TypeAliasType, get_args, get_type_hints
 
 from ai_stp_contracts.identity import DeviceSummary
 from ai_stp_foundation.errors import ERROR_CODES, VALID_EXIT_CLASSES
@@ -112,7 +113,11 @@ def test_the_wire_can_carry_every_result_a_scan_can_produce() -> None:
     from ai_stp_contracts.publication import EvidenceBindingView
     from ai_stp_contracts.safety_checks import SafetyCheckEntry
 
-    produced = set(SafetyCheckEntry.model_fields["result"].annotation.__value__.__args__)  # type: ignore[union-attr]
+    annotation = get_type_hints(SafetyCheckEntry)["result"]
+    if isinstance(annotation, TypeAliasType):
+        annotation = annotation.__value__
+    produced = set(get_args(annotation))
+    assert produced
 
     for result in sorted(produced):
         EvidenceBindingView(check_id="sca_npm_audit", result=result, source="platform_safety_scan")

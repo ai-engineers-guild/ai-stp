@@ -22,6 +22,20 @@ export type PageInventoryEntry = {
  * pattern; a page without a pair is a defect (REQ-3622).
  */
 export const PAGE_INVENTORY: readonly PageInventoryEntry[] = [
+  {
+    pattern: "corporate/:resource/:resourceId/presentation/edit",
+    access: "session",
+    presenter: "generic",
+  },
+  { pattern: "corporate/employees/:resourceId/access", access: "session", presenter: "generic" },
+  { pattern: "corporate/areas/:areaId", access: "session", presenter: "generic" },
+  { pattern: "corporate/areas/:areaId/edit", access: "session", presenter: "generic" },
+  { pattern: "corporate/categories/:categoryId/edit", access: "session", presenter: "generic" },
+  {
+    pattern: "corporate/technologies/:technologyId/presentation/edit",
+    access: "session",
+    presenter: "generic",
+  },
   { pattern: "", access: "public", presenter: "domain" },
   { pattern: "catalog", access: "public", presenter: "domain" },
   { pattern: "catalog/components/:stableId", access: "public", presenter: "domain" },

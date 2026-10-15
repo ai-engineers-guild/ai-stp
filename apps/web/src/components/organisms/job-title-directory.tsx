@@ -10,7 +10,7 @@ import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { Select } from "@/components/atoms/select";
-import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/atoms/menu";
+import { EntityDetailMenu } from "@/components/organisms/entity-detail-menu";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/atoms/dialog";
 import { ExpandableSearch } from "@/components/molecules/expandable-search";
 import { PagePager } from "@/components/molecules/page-pager";
@@ -50,7 +50,6 @@ export function JobTitleDirectory({
   const [editing, setEditing] = useState<CorporateJobTitleView | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const canCreate = permissions.includes("job_title.create");
-  const canUpdate = permissions.includes("job_title.update");
   const needle = query.trim().toLocaleLowerCase();
   const filtered = jobTitles.filter(
     (item) => !needle || `${item.name} ${item.description}`.toLocaleLowerCase().includes(needle),
@@ -117,7 +116,7 @@ export function JobTitleDirectory({
             <JobTitleCard
               key={item.job_title_id}
               item={item}
-              canUpdate={canUpdate}
+              organizationId={organizationId}
               onEdit={setEditing}
             />
           ))}
@@ -161,11 +160,11 @@ export function JobTitleDirectory({
 
 function JobTitleCard({
   item,
-  canUpdate,
+  organizationId,
   onEdit,
 }: {
   item: CorporateJobTitleView;
-  canUpdate: boolean;
+  organizationId: string;
   onEdit: (item: CorporateJobTitleView) => void;
 }) {
   const c = useTranslations("corporate");
@@ -193,26 +192,22 @@ function JobTitleCard({
             ) : null}
           </div>
         </div>
-        {canUpdate && (
-          <div className="absolute top-4 right-4">
-            <Menu>
-              <MenuTrigger asChild>
-                <Button size="icon" variant="ghost" aria-label={h("moreActions")}>
-                  <Icon name="more" size="sm" />
-                </Button>
-              </MenuTrigger>
-              <MenuContent>
-                <MenuItem
-                  onSelect={() => {
-                    onEdit(item);
-                  }}
-                >
-                  {c("edit")}
-                </MenuItem>
-              </MenuContent>
-            </Menu>
-          </div>
-        )}
+        <div className="absolute top-4 right-4">
+          <EntityDetailMenu
+            moreLabel={h("moreActions")}
+            subject={{ kind: "job_title", id: item.job_title_id, organization_id: organizationId }}
+            choices={[
+              {
+                actionId: "edit",
+                label: c("edit"),
+                icon: "edit",
+                onSelect: () => {
+                  onEdit(item);
+                },
+              },
+            ]}
+          />
+        </div>
       </article>
     </li>
   );

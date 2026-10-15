@@ -769,54 +769,13 @@ async def search_catalog(
             return and_(object_coordinates(model), model.version == projection.version)
 
         relation_clauses: list[ColumnElement[bool]] = []
-        assignment_exists = exists(
-            select(1).where(
-                object_coordinates(CorporateCatalogAssignment),
-                CorporateCatalogAssignment.state == "current",
-            )
-        )
-        owner_exists = exists(
-            select(1).where(
-                CorporateCatalogOwnership.organization_id == corporate_organization_id,
-                CorporateCatalogOwnership.object_kind == projection.object_kind,
-                CorporateCatalogOwnership.stable_id == projection.stable_id,
-                CorporateCatalogOwnership.owner_id.is_not(None),
-            )
-        )
-        maintainer_exists = exists(
-            select(1).where(
-                object_coordinates(CorporateCatalogMaintainer),
-                CorporateCatalogMaintainer.state == "current",
-            )
-        )
-        verification_exists = exists(
-            select(1).where(
-                object_coordinates(CorporateCatalogVerification),
-                CorporateCatalogVerification.state == "verified",
-            )
-        )
-        lifecycle_visible_exists = exists(
-            select(1).where(
-                exact_coordinates(CorporateCatalogLifecycle),
-                CorporateCatalogLifecycle.state.in_(("visible", "deprecated")),
-            )
-        )
         lifecycle_hidden_exists = exists(
             select(1).where(
                 exact_coordinates(CorporateCatalogLifecycle),
                 CorporateCatalogLifecycle.state.in_(("hidden", "retired")),
             )
         )
-        stmt = stmt.where(
-            ~lifecycle_hidden_exists,
-            or_(
-                assignment_exists,
-                owner_exists,
-                maintainer_exists,
-                verification_exists,
-                lifecycle_visible_exists,
-            ),
-        )
+        stmt = stmt.where(~lifecycle_hidden_exists)
         if corporate_team_ids:
             relation_clauses.append(
                 exists(

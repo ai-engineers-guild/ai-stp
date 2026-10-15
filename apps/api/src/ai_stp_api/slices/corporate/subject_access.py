@@ -5,13 +5,18 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ai_stp_api.session import AuthContext
 from ai_stp_platform.catalog_ownership_models import CorporateCatalogOwnership
-from ai_stp_platform.corporate_authorization import has_corporate_permission
+from ai_stp_platform.corporate_authorization import (
+    corporate_principal_active,
+    has_corporate_permission,
+)
 from ai_stp_platform.models import CatalogIdentity
-from ai_stp_platform.organization_models import CorporateTeam, CorporateTeamMember
+from ai_stp_platform.organization_models import (
+    CorporateTeam,
+    CorporateTeamMember,
+)
 from ai_stp_platform.technology_models import ProjectTeamRelation, Technology
-
-OBJECT_CAPABILITIES = ("edit", "edit_presentation", "delete")
 
 
 def _led_teams(organization_id: str, account_id: str):
@@ -34,6 +39,10 @@ def _led_teams(organization_id: str, account_id: str):
 async def is_technology_owner(
     db: AsyncSession, *, organization_id: str, technology_id: str, account_id: str
 ) -> bool:
+    if not await corporate_principal_active(
+        db, organization_id=organization_id, principal_type="user", principal_id=account_id
+    ):
+        return False
     return (
         await db.scalar(
             select(Technology.id).where(
@@ -59,55 +68,107 @@ async def subject_available_actions(
     """Menu actions the principal may perform on one corporate subject."""
     resource = "member" if subject_kind == "employee" else subject_kind
 
-    async def _scoped(permission: str) -> bool:
-        if await has_corporate_permission(
+    candidates = [f"{resource}.update", "entity_profile.update", f"{resource}.delete"]
+    if resource == "member":
+        candidates.append("member.manage")
+    if resource == "team":
+        candidates += [
+            "catalog_object.assign",
+            "catalog_object.maintainer",
+            "catalog_object.explain",
+        ]
+    actions: list[str] = []
+    for permission in candidates:
+        if await subject_permission_allowed(
+            db,
+            account_id=account_id,
+            organization_id=organization_id,
+            subject_kind=subject_kind,
+            subject_id=subject_id,
+            permission=permission,
+        ):
+            actions.append(
+                {
+                    "catalog_object.assign": "assignment.manage",
+                    "catalog_object.maintainer": "maintainer.manage",
+                    "catalog_object.explain": "audit.explain",
+                }.get(permission, permission)
+            )
+    return actions
+
+
+async def subject_permission_allowed(
+    db: AsyncSession,
+    *,
+    account_id: str,
+    organization_id: str,
+    subject_kind: str,
+    subject_id: str,
+    permission: str,
+) -> bool:
+    """The decision shared by mutations and every entity action projection."""
+    resource = "member" if subject_kind == "employee" else subject_kind
+    if permission in {"entity_profile.update", "entity_profile.owner"}:
+        return await can_edit_subject_profile(
+            db,
+            account_id=account_id,
+            organization_id=organization_id,
+            subject_kind=subject_kind,
+            subject_id=subject_id,
+            owner_assignment=permission == "entity_profile.owner",
+        )
+    allowed = await has_corporate_permission(
+        db,
+        organization_id=organization_id,
+        principal_type="user",
+        principal_id=account_id,
+        permission=permission,
+        scope_kind=resource,
+        scope_id=subject_id,
+    )
+    if not allowed and resource == "member":
+        allowed = await has_corporate_permission(
             db,
             organization_id=organization_id,
             principal_type="user",
             principal_id=account_id,
             permission=permission,
-            scope_kind=resource,
-            scope_id=subject_id,
-        ):
-            return True
-        if resource == "member":
-            # Scoped member checks only match team bindings and superadmin;
-            # organization-wide member roles grant the same capability.
-            return await has_corporate_permission(
-                db,
-                organization_id=organization_id,
-                principal_type="user",
-                principal_id=account_id,
-                permission=permission,
-                scope_kind="organization",
-                scope_id=organization_id,
-            )
-        return False
-
-    actions: list[str] = []
-    update_allowed = await _scoped(f"{resource}.update")
-    if not update_allowed and subject_kind == "technology":
-        update_allowed = await is_technology_owner(
-            db,
-            organization_id=organization_id,
-            technology_id=subject_id,
-            account_id=account_id,
+            scope_kind="organization",
+            scope_id=organization_id,
         )
-    if update_allowed:
-        actions.append(f"{resource}.update")
-    if await _scoped(f"{resource}.delete"):
-        actions.append(f"{resource}.delete")
-    from ai_stp_api.slices.corporate.entity_profiles import can_edit_profile
-
-    if await can_edit_profile(
-        db,
-        account_id=account_id,
-        organization_id=organization_id,
-        subject_kind=subject_kind,
-        subject_id=subject_id,
+    if (
+        not allowed
+        and permission in {"team.update", "project.update"}
+        and resource in {"team", "project"}
     ):
-        actions.append("entity_profile.update")
-    return actions
+        if not await corporate_principal_active(
+            db, organization_id=organization_id, principal_type="user", principal_id=account_id
+        ):
+            return False
+        led = _led_teams(organization_id, account_id)
+        if resource == "team":
+            allowed = (
+                await db.scalar(led.where(CorporateTeamMember.team_id == subject_id))
+            ) is not None
+        else:
+            allowed = (
+                await db.scalar(
+                    select(ProjectTeamRelation.team_id).where(
+                        ProjectTeamRelation.organization_id == organization_id,
+                        ProjectTeamRelation.project_id == subject_id,
+                        ProjectTeamRelation.team_id.in_(led),
+                        ProjectTeamRelation.role == "owner",
+                        ProjectTeamRelation.state == "current",
+                    )
+                )
+            ) is not None
+    return allowed or (
+        resource == "technology"
+        and permission == "technology.update"
+        and await is_technology_owner(
+            db, organization_id=organization_id, technology_id=subject_id, account_id=account_id
+        )
+    )
 
 
 async def catalog_object_capabilities(
@@ -134,7 +195,7 @@ async def catalog_object_capabilities(
             )
         )
     if author_id == account_id and author_id is not None:
-        capabilities = {"edit", "edit_presentation"}
+        capabilities = {"edit", "edit_presentation", "manage_access"}
         if not await _has_published_version(
             db, organization_id=organization_id, stable_id=stable_id
         ):
@@ -143,20 +204,20 @@ async def catalog_object_capabilities(
 
     capabilities: set[str] = set()
 
-    async def _org(permission: str) -> bool:
+    async def _object(permission: str) -> bool:
         return await has_corporate_permission(
             db,
             organization_id=organization_id,
             principal_type="user",
             principal_id=account_id,
             permission=permission,
-            scope_kind="organization",
-            scope_id=organization_id,
+            scope_kind="catalog_object",
+            scope_id=stable_id,
         )
 
-    if await _org("catalog_object.edit"):
+    if await _object("catalog_object.edit"):
         capabilities |= {"edit", "edit_presentation"}
-    if await _org("catalog_object.delete") and not await _has_published_version(
+    if await _object("catalog_object.delete") and not await _has_published_version(
         db, organization_id=organization_id, stable_id=stable_id
     ):
         capabilities.add("delete")
@@ -168,7 +229,7 @@ async def catalog_object_capabilities(
         stable_id=stable_id,
         account_id=account_id,
     ):
-        capabilities |= {"edit", "edit_presentation"}
+        capabilities |= {"edit", "edit_presentation", "manage_access"}
     return sorted(capabilities)
 
 
@@ -186,6 +247,10 @@ async def resolves_catalog_ownership(
     for employees, team lead for team owners, the project owner's team lead,
     and the technology owner for technology owners — the same chain
     `catalog_object_capabilities` applies."""
+    if not await corporate_principal_active(
+        db, organization_id=organization_id, principal_type="user", principal_id=account_id
+    ):
+        return False
     row = await db.get(CorporateCatalogOwnership, (organization_id, object_kind, stable_id))
     owner_id = (row.owner_id or row.owner_account_id) if row is not None else None
     if row is None or owner_id is None:
@@ -195,11 +260,8 @@ async def resolves_catalog_ownership(
     if row.owner_kind == "team":
         return (
             await db.scalar(
-                select(CorporateTeamMember.team_id).where(
-                    CorporateTeamMember.organization_id == organization_id,
-                    CorporateTeamMember.team_id == owner_id,
-                    CorporateTeamMember.account_id == account_id,
-                    CorporateTeamMember.role == "lead",
+                _led_teams(organization_id, account_id).where(
+                    CorporateTeamMember.team_id == owner_id
                 )
             )
         ) is not None
@@ -238,3 +300,122 @@ async def _has_published_version(db: AsyncSession, *, organization_id: str, stab
         )
         is not None
     )
+
+
+async def can_edit_subject_profile(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext | None = None,
+    account_id: str | None = None,
+    organization_id: str,
+    subject_kind: str,
+    subject_id: str,
+    owner_assignment: bool = False,
+) -> bool:
+    if subject_kind == "member":
+        subject_kind = "employee"
+    principal_id = account_id or (ctx.account_id if ctx is not None else "")
+    if not principal_id:
+        return False
+    if not await corporate_principal_active(
+        db, organization_id=organization_id, principal_type="user", principal_id=principal_id
+    ):
+        return False
+    resource = "member" if subject_kind == "employee" else subject_kind
+    subject_permission = (
+        ("catalog_object.ownership_transfer" if owner_assignment else "catalog_object.edit")
+        if subject_kind == "catalog_object"
+        else f"{resource}.update"
+    )
+
+    async def _org(permission: str) -> bool:
+        return await has_corporate_permission(
+            db,
+            organization_id=organization_id,
+            principal_type="user",
+            principal_id=principal_id,
+            permission=permission,
+            scope_kind="organization",
+            scope_id=organization_id,
+        )
+
+    if subject_kind == "technology" and owner_assignment:
+        return await _org("organization.manage")
+
+    if (
+        await has_corporate_permission(
+            db,
+            organization_id=organization_id,
+            principal_type="user",
+            principal_id=principal_id,
+            permission=subject_permission,
+            scope_kind=resource,
+            scope_id=subject_id,
+        )
+        or await _org(subject_permission)
+        or await _org("member.update")
+    ):
+        return True
+    led_teams = (
+        select(CorporateTeamMember.team_id)
+        .join(
+            CorporateTeam,
+            (CorporateTeam.organization_id == CorporateTeamMember.organization_id)
+            & (CorporateTeam.id == CorporateTeamMember.team_id),
+        )
+        .where(
+            CorporateTeamMember.organization_id == organization_id,
+            CorporateTeamMember.account_id == principal_id,
+            CorporateTeamMember.role == "lead",
+            CorporateTeam.state == "active",
+        )
+    )
+    if subject_kind == "employee":
+        return (
+            await db.scalar(
+                select(CorporateTeamMember.account_id).where(
+                    CorporateTeamMember.organization_id == organization_id,
+                    CorporateTeamMember.account_id == subject_id,
+                    CorporateTeamMember.team_id.in_(led_teams),
+                )
+            )
+            is not None
+        )
+    if subject_kind == "team":
+        return (
+            await db.scalar(
+                select(CorporateTeam.id).where(
+                    CorporateTeam.organization_id == organization_id,
+                    CorporateTeam.id == subject_id,
+                    CorporateTeam.id.in_(led_teams),
+                )
+            )
+            is not None
+        )
+    if subject_kind == "project":
+        return (
+            await db.scalar(
+                select(ProjectTeamRelation.team_id).where(
+                    ProjectTeamRelation.organization_id == organization_id,
+                    ProjectTeamRelation.project_id == subject_id,
+                    ProjectTeamRelation.team_id.in_(led_teams),
+                    ProjectTeamRelation.role == "owner",
+                    ProjectTeamRelation.state == "current",
+                )
+            )
+            is not None
+        )
+    if subject_kind == "technology" and not owner_assignment:
+        return (
+            await db.scalar(
+                select(Technology.id).where(
+                    Technology.organization_id == organization_id,
+                    Technology.id == subject_id,
+                    Technology.owner_account_id == principal_id,
+                    Technology.redirect_id.is_(None),
+                    Technology.lifecycle != "archived",
+                )
+            )
+            is not None
+        )
+    return False

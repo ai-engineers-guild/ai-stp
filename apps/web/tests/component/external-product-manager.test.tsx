@@ -16,33 +16,39 @@ vi.mock("@/actions/external-products", () => ({
 const { ExternalProductManager } = await import("@/components/organisms/external-product-manager");
 
 function renderManager(selectedDomains: string[] = ["notion.so"]) {
-  return render(
+  const presentationSubmit = vi.fn((event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+  });
+  const view = render(
     <NextIntlClientProvider locale="en" messages={en}>
-      <ExternalProductManager
-        locale="en"
-        objectKind="component"
-        stableId="component_12345678"
-        csrfToken="csrf"
-        initialProducts={[
-          {
-            schema_version: 1,
-            name: "Notion",
-            canonical_domain: "notion.so",
-            primary_url: "https://notion.so",
-            country_codes: ["US"],
-          },
-          {
-            schema_version: 1,
-            name: "Kaspi",
-            canonical_domain: "kaspi.kz",
-            primary_url: "https://kaspi.kz",
-            country_codes: ["KZ"],
-          },
-        ]}
-        selectedDomains={selectedDomains}
-      />
+      <form onSubmit={presentationSubmit}>
+        <ExternalProductManager
+          locale="en"
+          objectKind="component"
+          stableId="component_12345678"
+          csrfToken="csrf"
+          initialProducts={[
+            {
+              schema_version: 1,
+              name: "Notion",
+              canonical_domain: "notion.so",
+              primary_url: "https://notion.so",
+              country_codes: ["US"],
+            },
+            {
+              schema_version: 1,
+              name: "Kaspi",
+              canonical_domain: "kaspi.kz",
+              primary_url: "https://kaspi.kz",
+              country_codes: ["KZ"],
+            },
+          ]}
+          selectedDomains={selectedDomains}
+        />
+      </form>
     </NextIntlClientProvider>,
   );
+  return { ...view, presentationSubmit };
 }
 
 async function openServiceDialog(user: ReturnType<typeof userEvent.setup>) {
@@ -74,7 +80,7 @@ describe("ExternalProductManager", () => {
 
   it("requests a service and a country from nested dialogs", async () => {
     const user = userEvent.setup();
-    renderManager([]);
+    const { presentationSubmit } = renderManager([]);
     const dialog = await openServiceDialog(user);
 
     await user.type(
@@ -112,10 +118,14 @@ describe("ExternalProductManager", () => {
     await user.click(within(countryDialog).getByRole("button", { name: "Submit country request" }));
 
     expect(requestCountry).toHaveBeenCalledWith(expect.objectContaining({ code: "KZ" }));
+    expect(requestService).not.toHaveBeenCalled();
+    expect(presentationSubmit).not.toHaveBeenCalled();
     expect(within(dialog).getByRole("textbox", { name: /Country codes/ })).toHaveValue("KZ");
     await user.click(within(dialog).getByRole("button", { name: "Submit service request" }));
 
     expect(requestService).toHaveBeenCalledWith(expect.objectContaining({ countryCodes: ["KZ"] }));
+    expect(requestService).toHaveBeenCalledTimes(1);
+    expect(presentationSubmit).not.toHaveBeenCalled();
     expect(await within(dialog).findByText(/Service request submitted/)).toBeVisible();
   });
 

@@ -85,13 +85,13 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     rail: true,
     section: "technologies",
     exact: [],
-    prefixes: ["/corporate/technology-landscape"],
+    prefixes: ["/corporate/technology-landscape", "/corporate/areas"],
   },
   // Reports renders as a root-rail entry before the pinned Administration
   // item; manifest order is rail order, so it must precede it.
   {
     id: "reports",
-    context: "organization",
+    context: "root",
     href: "/corporate/reports",
     label: "reports",
     icon: "list",
@@ -199,7 +199,7 @@ export const CORPORATE_NAV_PAGES: readonly CorporateNavPage[] = [
     label: "categories",
     icon: "filter",
     root: false,
-    rail: true,
+    rail: false,
     section: "categories",
     exact: [],
     prefixes: ["/corporate/categories"],

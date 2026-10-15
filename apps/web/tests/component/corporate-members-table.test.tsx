@@ -1,3 +1,5 @@
+import { entityMenuResult, publicActions } from "../entity-menu-fixture";
+import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
 import { NextIntlClientProvider } from "next-intl";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -63,8 +65,8 @@ it("reuses the table independently, linking roles and teams and keeping row menu
     `/corporate/teams/${team.team_id}`,
   );
   await user.click(screen.getByRole("button", { name: /Actions for/ }));
-  expect(screen.getByRole("menuitem", { name: "View profile" })).toBeVisible();
-  expect(screen.queryByRole("menuitem", { name: "Edit member" })).not.toBeInTheDocument();
+  expect(await screen.findByRole("menuitem", { name: "Open details" })).toBeVisible();
+  expect(screen.getByRole("menuitem", { name: "Edit" })).toBeVisible();
   expect(document.body).not.toHaveAttribute("data-scroll-locked");
   await user.keyboard("{Escape}");
   expect(screen.getByRole("button", { name: /Actions for/ })).toHaveFocus();
@@ -80,7 +82,7 @@ it("exposes the edit action in the row menu when onEdit is provided", async () =
     </NextIntlClientProvider>,
   );
   await user.click(screen.getByRole("button", { name: /Actions for/ }));
-  await user.click(screen.getByRole("menuitem", { name: "Edit member" }));
+  await user.click(await screen.findByRole("menuitem", { name: "Edit member" }));
   expect(onEdit).toHaveBeenCalledWith(member);
 });
 it("exposes empty state, native mixed selection and sortable joined column", async () => {
@@ -105,3 +107,15 @@ it("exposes empty state, native mixed selection and sortable joined column", asy
   );
   expect(screen.getByText(/No members yet/)).toBeVisible();
 });
+
+vi.mock("@/lib/entity-action-query", () => ({
+  queryEntityActionMenu: vi.fn((subject: EntityActionSubject) =>
+    Promise.resolve(
+      entityMenuResult(
+        subject,
+        [...publicActions.slice(0, -1), "edit", "manage_access", "report"],
+        `/corporate/employees/${subject.id}`,
+      ),
+    ),
+  ),
+}));

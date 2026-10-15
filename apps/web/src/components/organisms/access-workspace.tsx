@@ -4,8 +4,9 @@ import { Select } from "@/components/atoms/select";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { EntityActionItems } from "@/components/organisms/entity-action-items";
 import { Button } from "@/components/atoms/button";
-import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/atoms/menu";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/atoms/menu";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { CatalogAuthorLink } from "@/components/molecules/catalog-author-link";
@@ -19,13 +20,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/atoms/dialog";
-import {
-  createDirectGrantAction,
-  createInvitationAction,
-  revokeGrantAction,
-} from "@/actions/grants";
-import { useRouter } from "@/lib/i18n/navigation";
+import * as grantActions from "@/actions/grants";
+import { Link, useRouter } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";
+import { grantPreconditions, type GrantRecipientInput } from "@/lib/grant-preconditions";
 
 import type { AccessGrantResponse } from "@/lib/api/generated/types.gen";
 
@@ -35,6 +33,9 @@ export type AccessUser = {
   accountId: string;
   displayName: string | null;
   avatarUrl: string | null;
+  objectKind?: "component" | "setup";
+  stableId?: string;
+  major?: number;
 };
 
 type Labels = {
@@ -66,12 +67,15 @@ type Labels = {
 
 type AccessWorkspaceProps = {
   users: readonly AccessUser[];
+  incomingUsers?: readonly AccessUser[];
+  incomingLabel?: string;
   observedGrants?: readonly AccessGrantResponse[] | undefined;
   csrfToken: string;
   labels: Labels;
   initialObjectKind?: "component" | "setup" | undefined;
   initialStableId?: string | undefined;
   initialMajor?: number | undefined;
+  canCreate?: boolean;
 };
 
 function Field({
@@ -119,13 +123,7 @@ function InviteForm({
   initialObjectKind?: "component" | "setup" | undefined;
   initialStableId?: string | undefined;
   initialMajor?: number | undefined;
-  onCreate: (input: {
-    recipientKind: "verified_email" | "github_username" | "user_id";
-    recipient: string;
-    kind: "component" | "setup";
-    stableId: string;
-    major: number;
-  }) => void;
+  onCreate: (input: GrantRecipientInput) => void;
 }) {
   const [recipient, setRecipient] = useState("");
   const [recipientKind, setRecipientKind] = useState<
@@ -232,7 +230,7 @@ function AccessUserRow({
   const [reportOpen, setReportOpen] = useState(false);
 
   async function copyId() {
-    await navigator.clipboard.writeText(user.accountId);
+    await navigator.clipboard.writeText(user.grantId);
     toast.success(labels.copied);
   }
 
@@ -246,6 +244,15 @@ function AccessUserRow({
           verified={false}
           verifiedLabel={labels.user}
         />
+        {user.objectKind && user.stableId ? (
+          <Link
+            href={`/catalog/${user.objectKind === "component" ? "components" : "setups"}/${user.stableId}`}
+            className="text-muted-foreground block truncate font-mono text-xs hover:underline"
+          >
+            {user.stableId}
+            {user.major ? `@${user.major}.x` : ""}
+          </Link>
+        ) : null}
       </div>
       <Menu modal={false}>
         <MenuTrigger asChild>
@@ -254,32 +261,42 @@ function AccessUserRow({
           </Button>
         </MenuTrigger>
         <MenuContent>
-          <MenuItem
-            disabled={pending}
-            onSelect={() => {
-              onRevoke(user.grantId);
+          <EntityActionItems
+            subject={{ kind: "grant", id: user.grantId }}
+            entries={{
+              report: (
+                <MenuItem
+                  onSelect={() => {
+                    setReportOpen(true);
+                  }}
+                >
+                  <Icon name="flag" size="sm" />
+                  {labels.report}
+                </MenuItem>
+              ),
+              copy_id: (
+                <MenuItem
+                  onSelect={() => {
+                    void copyId();
+                  }}
+                >
+                  <Icon name="copy" size="sm" />
+                  {labels.copyId}
+                </MenuItem>
+              ),
+              revoke: (
+                <MenuItem
+                  disabled={pending}
+                  onSelect={() => {
+                    onRevoke(user.grantId);
+                  }}
+                >
+                  <Icon name="close" size="sm" />
+                  {labels.revoke}
+                </MenuItem>
+              ),
             }}
-          >
-            <Icon name="close" size="sm" />
-            {labels.revoke}
-          </MenuItem>
-          <MenuItem
-            onSelect={() => {
-              void copyId();
-            }}
-          >
-            <Icon name="copy" size="sm" />
-            {labels.copyId}
-          </MenuItem>
-          <MenuSeparator />
-          <MenuItem
-            onSelect={() => {
-              setReportOpen(true);
-            }}
-          >
-            <Icon name="flag" size="sm" />
-            {labels.report}
-          </MenuItem>
+          />
         </MenuContent>
       </Menu>
       <ContactReportDialog
@@ -296,12 +313,15 @@ function AccessUserRow({
 
 export function AccessWorkspace({
   users,
+  incomingUsers = [],
+  incomingLabel,
   observedGrants = [],
   csrfToken,
   labels,
   initialObjectKind,
   initialStableId,
   initialMajor,
+  canCreate = true,
 }: AccessWorkspaceProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -331,7 +351,7 @@ export function AccessWorkspace({
     const { grantId, revision, idempotencyKey } = revokeTarget;
     setRevokeTarget(null);
     run(() =>
-      revokeGrantAction({
+      grantActions.revokeGrantAction({
         csrfToken,
         grantId,
         reason: "",
@@ -343,74 +363,69 @@ export function AccessWorkspace({
 
   return (
     <div className="space-y-8">
-      <InviteForm
-        labels={labels}
-        pending={pending}
-        initialObjectKind={initialObjectKind}
-        initialStableId={initialStableId}
-        initialMajor={initialMajor}
-        onCreate={(input) => {
-          const recipient = input.recipient.trim();
-          const observed = observedGrants.find(
-            (grant) =>
-              grant.object_kind === input.kind &&
-              grant.stable_id === input.stableId &&
-              grant.major === input.major &&
-              (input.recipientKind === "user_id"
-                ? grant.grantee_account_id === recipient
-                : input.recipientKind === "github_username" &&
-                  grant.recipient_kind === "github_username" &&
-                  grant.recipient === recipient.toLowerCase().replace(/^@/, "")),
-          );
-          const idempotencyKey = crypto.randomUUID();
-          run(() =>
-            input.recipientKind === "verified_email"
-              ? createInvitationAction({
-                  csrfToken,
-                  objectKind: input.kind,
-                  stableId: input.stableId,
-                  major: input.major,
-                  recipientEmail: input.recipient,
-                })
-              : createDirectGrantAction({
-                  csrfToken,
-                  objectKind: input.kind,
-                  stableId: input.stableId,
-                  major: input.major,
-                  recipientKind: input.recipientKind,
-                  recipient: input.recipient,
-                  expectedGrantId: observed?.revision ? observed.grant_id : undefined,
-                  expectedRevision: observed?.revision ?? undefined,
-                  idempotencyKey,
-                }),
-          );
-        }}
-      />
+      {canCreate ? (
+        <InviteForm
+          labels={labels}
+          pending={pending}
+          initialObjectKind={initialObjectKind}
+          initialStableId={initialStableId}
+          initialMajor={initialMajor}
+          onCreate={(input) => {
+            const preconditions = grantPreconditions(observedGrants, input);
+            run(() =>
+              input.recipientKind === "verified_email"
+                ? grantActions.createInvitationAction({
+                    csrfToken,
+                    objectKind: input.kind,
+                    stableId: input.stableId,
+                    major: input.major,
+                    recipientEmail: input.recipient,
+                  })
+                : grantActions.createDirectGrantAction({
+                    csrfToken,
+                    objectKind: input.kind,
+                    stableId: input.stableId,
+                    major: input.major,
+                    recipientKind: input.recipientKind,
+                    recipient: input.recipient,
+                    ...preconditions,
+                  }),
+            );
+          }}
+        />
+      ) : null}
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-medium tracking-tight">{labels.peopleWithAccess}</h2>
-        {users.length === 0 ? (
-          <p className="text-muted-foreground text-sm">{labels.emptyPeople}</p>
-        ) : (
-          <ul className="border-border rounded-lg border">
-            {users.map((user) => (
-              <AccessUserRow
-                key={user.grantId}
-                user={user}
-                labels={labels}
-                pending={pending}
-                onRevoke={(grantId) => {
-                  setRevokeTarget({
-                    grantId,
-                    revision: user.revision,
-                    idempotencyKey: crypto.randomUUID(),
-                  });
-                }}
-              />
-            ))}
-          </ul>
-        )}
-      </section>
+      {[
+        { key: "outgoing", label: labels.peopleWithAccess, entries: users },
+        { key: "incoming", label: incomingLabel, entries: incomingUsers },
+      ]
+        .filter((group) => group.key === "outgoing" || group.entries.length > 0)
+        .map((group) => (
+          <section key={group.key} className="space-y-3">
+            <h2 className="text-lg font-medium tracking-tight">{group.label}</h2>
+            {group.entries.length === 0 ? (
+              <p className="text-muted-foreground text-sm">{labels.emptyPeople}</p>
+            ) : (
+              <ul className="border-border rounded-lg border">
+                {group.entries.map((user) => (
+                  <AccessUserRow
+                    key={user.grantId}
+                    user={user}
+                    labels={labels}
+                    pending={pending}
+                    onRevoke={(grantId) => {
+                      setRevokeTarget({
+                        grantId,
+                        revision: user.revision,
+                        idempotencyKey: crypto.randomUUID(),
+                      });
+                    }}
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
+        ))}
 
       <div className="mx-auto max-w-lg space-y-2">
         <MutationReference label={labels.referenceId} operationId={operationId} />

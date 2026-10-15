@@ -331,6 +331,30 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
       return null;
     },
   },
+  ...[
+    "corporate/:resource/:resourceId/presentation/edit",
+    "corporate/employees/:resourceId/access",
+    "corporate/areas/:areaId",
+    "corporate/areas/:areaId/edit",
+    "corporate/categories/:categoryId/edit",
+    "corporate/technologies/:technologyId/presentation/edit",
+  ].map((pattern) => ({
+    pattern,
+    resolve: async ({ segments }: { segments: string[] }) => {
+      const t = await getTranslations("corporate");
+      const title = pattern.includes("/access")
+        ? (await getTranslations("objects"))("manageAccess")
+        : pattern.includes("/areas")
+          ? (await getTranslations("technology"))("areas.title")
+          : t("edit");
+      return presentPage({
+        title,
+        links: [
+          [(await getTranslations("common"))("back"), `/corporate/${segments[1]}/${segments[2]}`],
+        ],
+      });
+    },
+  })),
   {
     pattern: "corporate/:resource/:resourceId/edit",
     resolve: async ({ segments }) => {
@@ -342,10 +366,15 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
         (resource !== "projects" && resource !== "teams" && resource !== "members")
       )
         return null;
-      const t = await getTranslations("objects");
+      const t = await getTranslations("corporate");
       return presentPage({
-        title: t("editPresentation"),
-        links: [[t("backToObject"), `/corporate/${resource}/${resourceId}`]],
+        title: t("edit"),
+        links: [
+          [
+            (await getTranslations("common"))("back"),
+            `/corporate/${requestedResource}/${resourceId}`,
+          ],
+        ],
       });
     },
   },

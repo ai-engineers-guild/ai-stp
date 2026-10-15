@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { asComponentId, asCursorToken } from "@/lib/brands";
+import { asComponentId, asCursorToken, asVersionId } from "@/lib/brands";
 
 /**
  * Catalog client must forward the cursor literally and surface empty pages
@@ -124,4 +124,119 @@ describe("catalog client searchComponents", () => {
       readComponent(asComponentId("component_01JQZK7B8N4M6P2R9T5V0X3Y70")),
     ).rejects.toBeInstanceOf(ApiError);
   });
+});
+
+describe("stable component private passport loading", () => {
+  const id = asComponentId("component_01JQZK7B8N4M6P2R9T5V0X3Y70");
+  const path = `/v1/catalog/components/${id}/versions/1.0`;
+  const envelope = {
+    schema_version: 1,
+    passport_digest: "fixture-digest",
+    passport: {
+      stable_id: id,
+      visibility: "private",
+      name: "Owner skill",
+    },
+  };
+  beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "http://localhost:3000");
+    vi.stubEnv("AI_STP_SESSION_SECRET", "dev-only-change-me-to-a-long-random-string");
+    vi.stubEnv("AI_STP_API_BASE_URL", "http://api.test:8000");
+    vi.stubEnv("AI_STP_USE_MOCKS", "false");
+    vi.stubEnv("AI_STP_MOCK_AUTH", "false");
+  });
+  afterEach(() => {
+    vi.resetModules();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it.each([undefined, "owner-session"])(
+    "reads public passports without probing private data (%s)",
+    async (token) => {
+      const payload = { ...envelope, passport: { ...envelope.passport, visibility: "public" } };
+      const fetchMock = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(new Response(JSON.stringify(payload), { status: 200 }));
+      vi.stubGlobal("fetch", fetchMock);
+      const { readLatestComponentVersion } = await import("@/lib/api/catalog");
+      expect(await readLatestComponentVersion(id, asVersionId("1.0"), token)).toEqual(payload);
+      expect(fetchMock).toHaveBeenCalledOnce();
+      expect(fetchMock.mock.calls[0]?.[0]).toHaveProperty("href", `http://api.test:8000${path}`);
+    },
+  );
+
+  it("loads the exact private envelope after an authenticated public 404", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: { code: "AI_STP_NOT_FOUND", message: "private" } }), {
+          status: 404,
+        }),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify(envelope), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { readLatestComponentVersion } = await import("@/lib/api/catalog");
+    expect(await readLatestComponentVersion(id, asVersionId("1.0"), "owner-session")).toEqual(
+      envelope,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1]?.[0]).toHaveProperty(
+      "href",
+      `http://api.test:8000${path}/private`,
+    );
+    expect(fetchMock.mock.calls[1]?.[1]?.cache).toBe("no-store");
+    expect(new Headers(fetchMock.mock.calls[1]?.[1]?.headers).get("Authorization")).toBeNull();
+    expect(new Headers(fetchMock.mock.calls[1]?.[1]?.headers).get("Cookie")).toBe(
+      "ai_stp_session=owner-session",
+    );
+  });
+
+  it.each([403, 404])(
+    "does not expose a private passport when its endpoint rejects the caller (%s)",
+    async (status) => {
+      const fetchMock = vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ error: { code: "AI_STP_NOT_FOUND", message: "private" } }),
+            { status: 404 },
+          ),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ error: { code: "AI_STP_NOT_FOUND", message: "unavailable" } }),
+            { status },
+          ),
+        );
+      vi.stubGlobal("fetch", fetchMock);
+      const { readLatestComponentVersion } = await import("@/lib/api/catalog");
+      expect(
+        await readLatestComponentVersion(id, asVersionId("1.0"), "outsider-session"),
+      ).toBeNull();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it.each([
+    { status: 404, token: undefined },
+    { status: 403, token: "session" },
+    { status: 503, token: "session" },
+  ])(
+    "does not probe private data for anonymous or non-404 errors ($status, $token)",
+    async ({ status, token }) => {
+      const fetchMock = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(
+          new Response(
+            JSON.stringify({ error: { code: "AI_STP_UNAVAILABLE", message: "unavailable" } }),
+            { status },
+          ),
+        );
+      vi.stubGlobal("fetch", fetchMock);
+      const { readLatestComponentVersion } = await import("@/lib/api/catalog");
+      expect(await readLatestComponentVersion(id, asVersionId("1.0"), token)).toBeNull();
+      expect(fetchMock).toHaveBeenCalledOnce();
+    },
+  );
 });

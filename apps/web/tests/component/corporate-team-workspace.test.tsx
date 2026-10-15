@@ -1,3 +1,5 @@
+import { entityMenuResult } from "../entity-menu-fixture";
+import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
@@ -55,12 +57,12 @@ describe("corporate resource actions", () => {
     const user = userEvent.setup();
     render(wrap(<CorporateResourceActions {...resourceProps} />));
     await user.click(screen.getByRole("button", { name: "Actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Edit" }));
     await user.clear(screen.getByLabelText(messages.corporate.permissions));
     await user.type(screen.getByLabelText(messages.corporate.permissions), "team.write");
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     await user.click(screen.getByRole("button", { name: "Actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Edit" }));
     expect(screen.getByLabelText(messages.corporate.permissions)).toHaveValue("team.read");
   });
   it("reuses a failed resource effect key but changes it for an edited draft", async () => {
@@ -68,7 +70,7 @@ describe("corporate resource actions", () => {
     vi.mocked(corporateMutation).mockResolvedValue({ ok: false, message: "Conflict" });
     render(wrap(<CorporateResourceActions {...resourceProps} />));
     await user.click(screen.getByRole("button", { name: "Actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Edit" }));
     await user.click(screen.getByRole("button", { name: messages.corporate.update }));
     await screen.findByText("Conflict");
     await user.click(await screen.findByRole("button", { name: messages.corporate.update }));
@@ -98,7 +100,7 @@ describe("corporate resource actions", () => {
       .mockResolvedValueOnce({ ok: false, message: "Conflict" });
     render(wrap(<CorporateResourceActions {...resourceProps} />));
     await user.click(screen.getByRole("button", { name: "Actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Edit" }));
     await user.clear(screen.getByLabelText(messages.corporate.permissions));
     await user.type(screen.getByLabelText(messages.corporate.permissions), "team.write");
     await user.click(screen.getByRole("button", { name: messages.corporate.update }));
@@ -133,3 +135,9 @@ describe("corporate projection placement", () => {
     );
   });
 });
+
+vi.mock("@/lib/entity-action-query", () => ({
+  queryEntityActionMenu: vi.fn((subject: EntityActionSubject) =>
+    Promise.resolve(entityMenuResult(subject, ["edit"], "/corporate/admin/roles")),
+  ),
+}));

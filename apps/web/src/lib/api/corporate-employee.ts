@@ -189,7 +189,10 @@ export function applyCorporateEmployeePresentation(
     id: team.team_id,
     name: team.name,
   }));
-  const leadRefs = [
+  const ledTeams = memberTeams
+    .filter((team) => team.lead_account_ids.includes(input.member.account_id))
+    .map((team) => ({ kind: "team" as const, id: team.team_id, name: team.name }));
+  const otherLeadRefs = [
     ...new Map(
       memberTeams.flatMap((team) =>
         team.lead_account_ids.flatMap((leadId) => {
@@ -211,6 +214,7 @@ export function applyCorporateEmployeePresentation(
       ),
     ).values(),
   ];
+  const leadRefs = ledTeams.length ? ledTeams : otherLeadRefs;
   const projectRefs = [
     ...new Map(
       input.projects.map((project) => [

@@ -5,6 +5,38 @@ import { expect, test } from "@playwright/test";
  * and separate component/setup resources.
  */
 test.describe("catalog pagination (REQ-2206)", () => {
+  test.beforeEach(async ({ page }) => {
+    if (process.env["AI_STP_CORPORATE_E2E"] !== "offline") return;
+    await page.goto("/en/login?returnTo=%2Fen%2Fcorporate%2Fcatalog");
+    await page.getByRole("button", { name: /Continue with GitHub/i }).click();
+    await page.waitForURL("**/en/corporate/catalog");
+  });
+  test("mixed catalog renders server pagination and preserves resource coordinates", async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto("/en/catalog?resource=all&page_size=5&page=1");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Catalog", exact: true }),
+    ).toBeVisible();
+    const pager = page.getByRole("navigation", { name: "Pagination", exact: true });
+    await expect(pager).toBeVisible();
+    const next = pager.getByRole("link", { name: "2", exact: true });
+    const href = await next.getAttribute("href");
+    const target = new URL(href ?? "", page.url());
+    expect(target.searchParams.get("resource")).toBe("all");
+    expect(target.searchParams.get("page_size")).toBe("5");
+    expect(target.searchParams.get("setups_page")).not.toBeNull();
+    expect(target.searchParams.get("components_page")).not.toBeNull();
+    await next.click();
+    await expect(page).toHaveURL(target.toString());
+    await expect(pager.getByRole("link", { name: "2", exact: true })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(errors).toEqual([]);
+  });
   test("components expose explicit page links and do not duplicate adjacent pages", async ({
     page,
   }) => {

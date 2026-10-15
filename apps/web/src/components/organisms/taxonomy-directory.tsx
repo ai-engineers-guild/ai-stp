@@ -1,8 +1,11 @@
 "use client";
 
+import { useRequestedEntityAction } from "@/lib/use-requested-entity-action";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 
+import { EntityActionItems } from "@/components/organisms/entity-action-items";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { Select } from "@/components/atoms/select";
@@ -94,6 +97,7 @@ export function TaxonomyDirectory({
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const current = Math.min(page, totalPages);
   const shown = filtered.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
+  useTaxonomyRequestedAction(kind, items, authority, setEditing);
   const createKey = kind === "area" ? "areas.create" : "createCategory";
   return (
     <div className="min-w-0 space-y-5">
@@ -292,10 +296,7 @@ function TaxonomyCard({
 function TaxonomyEntryActions({
   kind,
   item,
-  detailBase,
   authority,
-  canUpdate,
-  canRemove,
   onEdit,
 }: {
   kind: TaxonomyKind;
@@ -311,11 +312,9 @@ function TaxonomyEntryActions({
   const c = useTranslations("corporate");
   const mutation = useGovernanceMutation(authority);
   const id = entryId(kind, item);
-  const state = item.state ?? "active";
   const path = `/v1/corporate/organizations/${authority.organizationId}/${
     kind === "area" ? "technology-areas" : "technology-categories"
   }/${id}`;
-  if (!detailBase && !canUpdate && !canRemove) return null;
   return (
     <>
       <Menu>
@@ -325,30 +324,45 @@ function TaxonomyEntryActions({
           </Button>
         </MenuTrigger>
         <MenuContent aria-busy={mutation.busy}>
-          {detailBase && (
-            <MenuItem asChild>
-              <Link href={`${detailBase}/${id}`}>{t("openEntry")}</Link>
-            </MenuItem>
-          )}
-          {canUpdate && (
-            <MenuItem
-              onSelect={() => {
-                onEdit(item);
-              }}
-            >
-              {t(kind === "area" ? "areas.edit" : "editCategory")}
-            </MenuItem>
-          )}
-          {canRemove && state !== "archived" && (
-            <MenuItem
-              disabled={mutation.busy}
-              onSelect={() => {
-                mutation.save(path, { expected_revision: item.revision }, "DELETE", () => {});
-              }}
-            >
-              {c("delete")}
-            </MenuItem>
-          )}
+          <EntityActionItems
+            subject={{ kind, id, organization_id: authority.organizationId }}
+            entries={{
+              edit: (
+                <MenuItem
+                  onSelect={() => {
+                    onEdit(item);
+                  }}
+                >
+                  {t(kind === "area" ? "areas.edit" : "editCategory")}
+                </MenuItem>
+              ),
+              delete: (
+                <MenuItem
+                  disabled={mutation.busy}
+                  onSelect={() => {
+                    mutation.save(path, { expected_revision: item.revision }, "DELETE", () => {});
+                  }}
+                >
+                  {c("delete")}
+                </MenuItem>
+              ),
+              restore: (
+                <MenuItem
+                  disabled={mutation.busy}
+                  onSelect={() => {
+                    mutation.save(
+                      `${path}/lifecycle`,
+                      { expected_revision: item.revision, target: "active" },
+                      "POST",
+                      () => {},
+                    );
+                  }}
+                >
+                  {t("restore")}
+                </MenuItem>
+              ),
+            }}
+          />
         </MenuContent>
       </Menu>
       {mutation.message && (
@@ -401,5 +415,24 @@ function TaxonomyEditorDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function useTaxonomyRequestedAction(
+  kind: TaxonomyKind,
+  items: readonly TaxonomyEntry[],
+  authority: GovernanceAuthority,
+  onEdit: (entry: TaxonomyEntry) => void,
+) {
+  const params = useSearchParams();
+  const requested = items.find((item) => entryId(kind, item) === params.get("entity"));
+  useRequestedEntityAction(
+    requested
+      ? { kind, id: entryId(kind, requested), organization_id: authority.organizationId }
+      : null,
+    params.get("action") ?? "",
+    () => {
+      if (requested && params.get("action") === "edit") onEdit(requested);
+    },
   );
 }

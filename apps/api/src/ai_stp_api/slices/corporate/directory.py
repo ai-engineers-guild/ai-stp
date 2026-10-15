@@ -137,22 +137,21 @@ async def read_directory(
     async def permitted(permission: str, kind: str, identity: str) -> bool:
         return permission in await scope_grants(kind, identity)
 
-    async def available_actions(
-        kind: str, identity: str, *, scope_kind: str | None = None
-    ) -> list[str]:
-        scope = scope_kind or kind
-        scope_id = organization_id if scope == "organization" else identity
-        actions = [
-            action
-            for action, permission in (
-                (f"{kind}.update", f"{kind}.update"),
-                (f"{kind}.delete", f"{kind}.delete"),
+    async def finish(view: CorporateDirectoryView) -> CorporateDirectoryView:
+        from ai_stp_api.slices.corporate.subject_access import subject_available_actions
+
+        # Only the selected page needs management projections; facets need read authority alone.
+        items: list[CorporateDirectoryItem] = []
+        for item in view.items:
+            actions = await subject_available_actions(
+                db,
+                account_id=ctx.account_id,
+                organization_id=organization_id,
+                subject_kind=item.kind,
+                subject_id=item.id,
             )
-            if await permitted(permission, scope, scope_id)
-        ]
-        if kind in {"team", "project", "member"} and profile_editable:
-            actions.append("entity_profile.update")
-        return actions
+            items.append(item.model_copy(update={"available_actions": actions}))
+        return view.model_copy(update={"items": items})
 
     technologies = (
         await db.scalars(
@@ -218,9 +217,6 @@ async def read_directory(
             project_technologies.get(edge.parent_id, set())
         )
     leads = {node.id: set(node.lead_account_ids) for node in graph.nodes if node.kind == "team"}
-    profile_editable = await permitted("member.update", "organization", organization_id) or any(
-        ctx.account_id in account_ids for account_ids in leads.values()
-    )
 
     def references(identities: set[str]) -> list[CorporateDirectoryReference]:
         return sorted(
@@ -306,9 +302,7 @@ async def read_directory(
                             }
                         ),
                         job_title=job_title_refs.get(getattr(member, "job_title_id", None) or ""),
-                        available_actions=await available_actions(
-                            "member", member.account_id, scope_kind="organization"
-                        ),
+                        available_actions=[],
                         is_lead=any(member.account_id in ids for ids in leads.values()),
                     )
                 )
@@ -388,7 +382,7 @@ async def read_directory(
                                 and relation.category_id in category_area
                             }
                         ),
-                        available_actions=await available_actions("technology", technology.id),
+                        available_actions=[],
                     )
                 )
         extended.sort(key=lambda item: (item.name.casefold(), item.id))
@@ -397,26 +391,28 @@ async def read_directory(
             refs = {ref.id: ref for item in extended for ref in getattr(item, field)}
             return sorted(refs.values(), key=lambda ref: (ref.name.casefold(), ref.id))
 
-        return select_directory(
-            CorporateDirectoryView(
-                organization=graph.organization,
-                resource=query.resource,
-                items=extended,
-                total=len(extended),
-                facets=CorporateDirectoryFacets(
-                    leads=[],
-                    teams=extended_facet("teams"),
-                    technologies=extended_facet("technologies"),
-                    projects=extended_facet("projects"),
-                    categories=extended_facet("categories"),
-                    areas=extended_facet("areas"),
-                    job_titles=sorted(
-                        job_title_refs.values(), key=lambda ref: (ref.name.casefold(), ref.id)
+        return await finish(
+            select_directory(
+                CorporateDirectoryView(
+                    organization=graph.organization,
+                    resource=query.resource,
+                    items=extended,
+                    total=len(extended),
+                    facets=CorporateDirectoryFacets(
+                        leads=[],
+                        teams=extended_facet("teams"),
+                        technologies=extended_facet("technologies"),
+                        projects=extended_facet("projects"),
+                        categories=extended_facet("categories"),
+                        areas=extended_facet("areas"),
+                        job_titles=sorted(
+                            job_title_refs.values(), key=lambda ref: (ref.name.casefold(), ref.id)
+                        ),
                     ),
                 ),
-            ),
-            query,
-        ).model_copy(update={"resource": requested_resource})
+                query,
+            ).model_copy(update={"resource": requested_resource})
+        )
 
     project_leads: dict[str, set[str]] = {}
     if query.resource == "projects":
@@ -502,7 +498,7 @@ async def read_directory(
                     )
                 ),
                 "owner_team": nodes.get(owners.get(row.id, "")),
-                "available_actions": await available_actions(kind, row.id),
+                "available_actions": [],
             }
         )
         items.append(item)
@@ -512,18 +508,20 @@ async def read_directory(
         refs = {ref.id: ref for item in items for ref in getattr(item, field)}
         return sorted(refs.values(), key=lambda ref: (ref.name.casefold(), ref.id))
 
-    return select_directory(
-        CorporateDirectoryView(
-            organization=graph.organization,
-            resource=query.resource,
-            items=items,
-            total=len(items),
-            facets=CorporateDirectoryFacets(
-                leads=facet("leads"),
-                teams=facet("teams" if kind == "project" else "related_teams"),
-                technologies=facet("technologies"),
-                job_titles=[],
+    return await finish(
+        select_directory(
+            CorporateDirectoryView(
+                organization=graph.organization,
+                resource=query.resource,
+                items=items,
+                total=len(items),
+                facets=CorporateDirectoryFacets(
+                    leads=facet("leads"),
+                    teams=facet("teams" if kind == "project" else "related_teams"),
+                    technologies=facet("technologies"),
+                    job_titles=[],
+                ),
             ),
-        ),
-        query,
-    ).model_copy(update={"resource": requested_resource})
+            query,
+        ).model_copy(update={"resource": requested_resource})
+    )

@@ -461,6 +461,18 @@ async def remote_projection(
             )
             in (granted or set())
         }
+    if organization.kind == "corporate" and scope_kind == "technology":
+        from ai_stp_api.slices.corporate.subject_access import subject_permission_allowed
+
+        if await subject_permission_allowed(
+            db,
+            account_id=ctx.account_id,
+            organization_id=organization.id,
+            subject_kind="technology",
+            subject_id=scope_id or "",
+            permission="technology.update",
+        ):
+            effective = (effective or set()) | {"technology.update"}
     return projection_for(
         mode=organization.kind,
         organization_id=organization.id,

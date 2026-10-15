@@ -293,6 +293,7 @@ export function useObjectPresentationForm(input: {
   initialBio: string;
   initialMedia: OwnerPresentationMedia[];
   labels: PresentationFormLabels;
+  onSaved?: () => void;
 }) {
   const { locale, stableId, csrfToken, initialBio, initialMedia, labels } = input;
   const objectKind = input.objectKind ?? "component";
@@ -422,6 +423,7 @@ export function useObjectPresentationForm(input: {
         media: payload,
       });
       if (result.ok) {
+        input.onSaved?.();
         setMessage(labels.saved);
         setFieldErrors({});
         setErrorCode(null);

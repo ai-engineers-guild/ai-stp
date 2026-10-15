@@ -1,13 +1,10 @@
 /* eslint-disable max-lines -- Object-card variants share one fixture and mock harness. */
-import { render, screen } from "@testing-library/react";
+import { render } from "../render-with-intl";
+import { screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import type {
-  ComponentSummary,
-  OwnerObjectSummary,
-  SetupSummary,
-} from "@/lib/api/generated/types.gen";
+import type { ComponentSummary, OwnerObjectSummary } from "@/lib/api/generated/types.gen";
 import { componentSummaryFixture, setupSummaryFixture } from "@/mocks/fixtures/catalog";
 
 vi.mock("@/lib/features/gate", () => ({
@@ -95,7 +92,7 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
     );
     expect(container.querySelector("article")).toHaveClass("min-w-0", "overflow-x-hidden");
     expect(container.querySelector("article")).toHaveAttribute("data-view", "list");
-    expect(screen.getByRole("button", { name: "More actions" })).toHaveClass("h-11", "w-11");
+    expect(screen.getByRole("button", { name: "More actions" })).toHaveClass("size-11");
   });
 
   it("renders the richer card without duplicated metadata", () => {
@@ -120,7 +117,7 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
       "overflow-x-hidden",
     );
     expect(container.querySelector("article")).toHaveAttribute("data-view", "cards");
-    expect(screen.getByRole("button", { name: "More actions" })).toHaveClass("h-11", "w-11");
+    expect(screen.getByRole("button", { name: "More actions" })).toHaveClass("size-11");
   });
 
   it("marks a currently verified author independently from content verification", () => {
@@ -332,7 +329,7 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
     render(
       <ObjectCard
         kind="setup"
-        item={componentSummaryFixture as unknown as SetupSummary}
+        item={componentSummaryFixture}
         href="/catalog/setups/x"
         labels={labels}
         view="cards"

@@ -1,6 +1,7 @@
 /* eslint-disable max-lines -- Category table, editor panel, icon picker, and linking dialog stay in one render owner. */
 "use client";
 
+import { useRequestedEntityAction } from "@/lib/use-requested-entity-action";
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -12,10 +13,10 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { Textarea } from "@/components/atoms/textarea";
-import { CatalogChoiceMenu } from "@/components/molecules/catalog-choice-menu";
+import { EntityDetailMenu } from "@/components/organisms/entity-detail-menu";
 import { FormDialog } from "@/components/molecules/form-dialog";
 import {
-  CATEGORY_LUCIDE_PREFIX,
+  categoryIconValue,
   CategoryIconBadge,
   categoryLucideName,
 } from "@/components/molecules/category-icon-badge";
@@ -164,7 +165,7 @@ export function CorporateTechCategories({
   const selected = categories.find((item) => item.category_id === selectedId) ?? null;
   const selectedLinked = selected ? (linked.get(selected.category_id) ?? []) : [];
   const iconFor = (category: CategoryView) =>
-    category.icon ?? `${CATEGORY_LUCIDE_PREFIX}${defaultCategoryIcon(category.category_id)}`;
+    category.icon ?? categoryIconValue(defaultCategoryIcon(category.category_id));
 
   function openEditor(category: CategoryView | null) {
     setCreating(category === null);
@@ -179,7 +180,7 @@ export function CorporateTechCategories({
         : {
             name: "",
             description: "",
-            icon: `${CATEGORY_LUCIDE_PREFIX}${defaultCategoryIcon(`new-${Date.now()}`)}`,
+            icon: categoryIconValue(defaultCategoryIcon(`new-${Date.now()}`)),
           },
     );
   }
@@ -327,6 +328,25 @@ export function CorporateTechCategories({
     });
   }
 
+  const requestedCategory = categories.find((item) => item.category_id === filters.get("entity"));
+  useRequestedEntityAction(
+    requestedCategory
+      ? { kind: "category", id: requestedCategory.category_id, organization_id: organizationId }
+      : null,
+    filters.get("action"),
+    () => {
+      if (!requestedCategory) return;
+      if (filters.get("action") === "edit") openEditor(requestedCategory);
+      if (filters.get("action") === "manage_technologies") {
+        setLinkSelection(
+          (linked.get(requestedCategory.category_id) ?? []).map(
+            (technology) => technology.technology_id,
+          ),
+        );
+        setManageTarget(requestedCategory);
+      }
+    },
+  );
   return (
     <div className="min-w-0 space-y-6">
       <section className="min-w-0 space-y-4">
@@ -551,21 +571,25 @@ export function CorporateTechCategories({
                     event.stopPropagation();
                   }}
                 >
-                  <CatalogChoiceMenu
-                    icon="moreVertical"
-                    variant="ghost"
-                    align="end"
-                    label={t("categoryActions", { name: category.name })}
-                    options={[
+                  <EntityDetailMenu
+                    subject={{
+                      kind: "category",
+                      id: category.category_id,
+                      organization_id: organizationId,
+                    }}
+
+                    moreLabel={t("categoryActions", { name: category.name })}
+                    choices={[
                       {
+                        actionId: "edit",
                         label: t("edit"),
                         icon: "edit",
                         onSelect: () => {
                           openEditor(category);
                         },
-                        disabled: !canUpdate,
                       },
                       {
+                        actionId: "manage_technologies",
                         label: t("manageTechnologies"),
                         icon: "link",
                         onSelect: () => {
@@ -576,26 +600,23 @@ export function CorporateTechCategories({
                             ),
                           );
                         },
-                        disabled: !canLink,
                       },
                       category.state === "archived"
                         ? {
+                            actionId: "restore",
                             label: t("restore"),
                             icon: "check",
-                            separatorBefore: true,
                             onSelect: () => {
                               lifecycle(category, "active");
                             },
-                            disabled: !canUpdate,
                           }
                         : {
+                            actionId: "delete",
                             label: t("deleteCategory"),
                             icon: "close",
-                            separatorBefore: true,
                             onSelect: () => {
                               lifecycle(category, "archived");
                             },
-                            disabled: !canDelete,
                           },
                     ]}
                   />
@@ -745,6 +766,7 @@ export function CorporateTechCategories({
         busyLabel={t("saving")}
         busy={busy}
         submitDisabled={!draft?.name.trim() || (creating ? !can("category.create") : !canUpdate)}
+        error={message}
         onSubmit={save}
       >
         {draft ? (
@@ -835,7 +857,7 @@ export function CorporateTechCategories({
               value={categoryLucideName(draft.icon)}
               label={t("chooseIcon")}
               onChange={(icon) => {
-                setDraft({ ...draft, icon: `${CATEGORY_LUCIDE_PREFIX}${icon}` });
+                setDraft({ ...draft, icon: categoryIconValue(icon) });
                 setIconPicker(false);
               }}
             />

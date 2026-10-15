@@ -1,3 +1,4 @@
+import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
@@ -33,7 +34,10 @@ export async function ObjectPresentationEditorPage({
     items: [],
   };
   try {
-    if (process.env.NEXT_PUBLIC_EXTERNAL_CATALOG_ENABLED === "false") {
+    if (
+      COMPILED_FEATURE_PROFILE === "corporate_hub" ||
+      process.env.NEXT_PUBLIC_EXTERNAL_CATALOG_ENABLED === "false"
+    ) {
       [presentation, object] = await Promise.all([
         readOwnerPresentation(token, stableId, objectKind),
         readOwnerObject(token, objectKind, stableId),
@@ -59,6 +63,7 @@ export async function ObjectPresentationEditorPage({
         fallback={`/objects/${objectKind}/${stableId}`}
       />
       <ObjectPresentationForm
+        returnAfterSave
         objectKind={objectKind}
         locale={locale}
         stableId={stableId}
@@ -67,6 +72,7 @@ export async function ObjectPresentationEditorPage({
         initialMedia={presentation.media}
         initialDisplayName={object.name}
         beforeMedia={
+          COMPILED_FEATURE_PROFILE !== "corporate_hub" &&
           process.env.NEXT_PUBLIC_EXTERNAL_CATALOG_ENABLED !== "false" ? (
             <ExternalProductManager
               locale={locale}

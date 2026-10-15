@@ -63,6 +63,10 @@ updates:
         update-types: [minor, patch]
     commit-message:
       prefix: "chore(web)"
+    # Node runtime and types move to a new supported LTS together.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
     cooldown:
       default-days: 7
       semver-major-days: 14
@@ -129,7 +133,7 @@ updates:
     cooldown:
       default-days: 7
       semver-major-days: 14
-  # Keep coordinated Bun pins and PostgreSQL major migrations manual.
+  # Runtime major upgrades need coordinated compatibility checks.
   - package-ecosystem: docker
     directory: /deploy/docker
     target-branch: dev
@@ -145,6 +149,8 @@ updates:
     cooldown:
       default-days: 7
     ignore:
+      - dependency-name: node
+        update-types: [version-update:semver-major]
       - dependency-name: oven/bun
         update-types:
           - version-update:semver-major

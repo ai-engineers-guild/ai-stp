@@ -4,6 +4,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import type { ComponentProps } from "react";
 
 import { cn } from "@/lib/cn";
+import { Icon } from "@/theme";
 
 /**
  * Menu — the only file allowed to import `radix-ui/react-dropdown-menu`.
@@ -21,6 +22,56 @@ export function Menu({ modal = false, ...props }: ComponentProps<typeof Dropdown
 }
 export const MenuTrigger = DropdownMenu.Trigger;
 export const MenuPortal = DropdownMenu.Portal;
+export const MenuSub = DropdownMenu.Sub;
+
+export function MenuSubTrigger({
+  children,
+  className,
+  onPointerLeave,
+  ...props
+}: ComponentProps<typeof DropdownMenu.SubTrigger>) {
+  return (
+    <DropdownMenu.SubTrigger
+      className={cn(
+        "focus:bg-muted data-[state=open]:bg-muted flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm outline-none",
+        className,
+      )}
+      {...props}
+      onPointerLeave={(event) => {
+        onPointerLeave?.(event);
+        const target = event.relatedTarget;
+        // Keep focus when the flyout flips left and the pointer enters it directly.
+        if (
+          target instanceof Element &&
+          target.closest('[role="menu"]')?.getAttribute("aria-labelledby") ===
+            event.currentTarget.id
+        )
+          event.preventDefault();
+      }}
+    >
+      {children}
+      <Icon name="chevronRight" size="sm" className="ml-auto" />
+    </DropdownMenu.SubTrigger>
+  );
+}
+
+export function MenuSubContent({
+  className,
+  ...props
+}: ComponentProps<typeof DropdownMenu.SubContent>) {
+  return (
+    <DropdownMenu.Portal>
+      <DropdownMenu.SubContent
+        collisionPadding={12}
+        className={cn(
+          "border-border bg-popover text-popover-foreground z-[81] min-w-52 rounded-lg border p-1 shadow-md",
+          className,
+        )}
+        {...props}
+      />
+    </DropdownMenu.Portal>
+  );
+}
 
 export function MenuContent({
   className,
