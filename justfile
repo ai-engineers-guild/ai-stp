@@ -7,7 +7,7 @@
 # the same operations narrowed to one group.
 #
 # A group is a check's owner, and the prefix is mandatory:
-#   docs-*    — the documentation basis (specs, ADRs, docs/, MkDocs);
+#   docs-*    — current documentation and MkDocs;
 #   back-*    — Python: packages/, apps/api, apps/platform, apps/cli, tests/;
 #   cli-v2-*  — apps/cli-v2 (native CLI and its boundary proofs);
 #   web-*     — apps/web;

@@ -47,6 +47,10 @@ ROOT_DOCS = [
     "CONTRIBUTING.md",
     "apps/cli-v2/README.md",
     "apps/desktop/README.md",
+    "standards/README.md",
+    "standards/just.md",
+    "standards/docker.md",
+    "standards/setup-systems.md",
 ]
 
 # GitHub homepages that are an explicit locale of README.md. English remains
