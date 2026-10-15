@@ -5,7 +5,7 @@ description: "Install the ai_stp CLI, check the environment, and reach the first
 
 # Quickstart for people
 
-Download the native archive for your OS from the [latest release](https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.1.0).
+Download the native archive for your OS from the [latest release](https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.1.1).
 Verify its checksum and GitHub attestation, then follow the release installation steps.
 No Python runtime is required. Linux supports provider execution; macOS and Windows
 support the other native operations advertised by their capabilities.
@@ -27,4 +27,4 @@ ai-stp init --credential-store os_keyring --json
 ai-stp task intents --json
 ```
 
-[Agent workflow](agent.md). [Migration and installation reference](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli-v2/README.md).
+[Agent workflow](agent.md). [Migration and installation reference](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli/README.md).

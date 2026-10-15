@@ -41,7 +41,7 @@ last_verified: "2026-10-14"
 
 ## Native output and handling
 
-`apps/cli-v2/src/lib.rs`, `main.rs`, `error.rs` and the executable registry own
+`apps/cli/src/lib.rs`, `main.rs`, `error.rs` and the executable registry own
 the current output behavior. Machine mode emits exactly one JSON envelope and
 newline. Public command failures use the same envelope shape. Human mode prints
 help or a formatted payload; a failure goes to stderr. Secrets are never echoed.

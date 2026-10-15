@@ -1,3 +1,0 @@
-# First run
-
-Run `ai-stp task intents --json`. If the executable is absent, acquire the native archive from the official GitHub release and verify its checksum and repository/workflow attestation before executing it. Follow the archive-owned installation flow in the release guide. Do not install the historical Python wheel. Use `ai-stp state path` and explicit `ai-stp init` for fresh state. Existing Python data requires `ai-stp state migrate plan`; never initialize a replacement identity. Discover/index only project roots already named by the user, never the whole home directory. Do not ask again for those roots.

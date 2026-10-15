@@ -9,17 +9,16 @@ do not add requirements catalogues, ADR collections, roadmaps or session reports
 
 ## Code map
 
-- `apps/cli-v2`: Rust CLI and library; the product engine. Start with its README
+- `apps/cli`: Rust CLI and library; the product engine. Start with its README
   and `ai-stp help --agent --json` for implemented commands.
-- `apps/cli`: Python compatibility oracle and legacy fixtures, not the native runtime.
 - `apps/api`, `apps/worker`, `apps/platform`: HTTP, jobs and server services.
 - `apps/web`: account, catalog and generated HTTP client.
 - `apps/desktop`: Tauri shell consuming the native CLI JSON contract.
 - `packages`: shared models, canonicalization, passports, sources and schemas.
 - `skills/canonical`: agent guidance; projections are generated.
 
-Regenerate `schemas/v1`, `provider-kit`, `skills/projections` and the contract
-inventory with `just back-gen`; native projections with `just cli-v2-gen`;
+Regenerate `schemas/v1`, `skills/projections` and the contract
+inventory with `just back-gen`; native projections with `just cli-gen`;
 documentation indexes with `just docs-gen`. Do not hand-edit generated output.
 Published provider-kit bytes retain their original provenance references, which
 resolve against their source revision in Git history.
@@ -61,7 +60,7 @@ Stage only intended paths. The agent does not pass `--author` or add fictional
 The agent does not change `user.name` or `user.email`.
 
 Run affected checks through `just`: `docs-check`, `back-static`, `back-test`,
-`cli-v2-check`, `web-check`, and `desktop-check` for desktop changes. `just --show
+`cli-check`, `web-check`, and `desktop-check` for desktop changes. `just --show
 check` gives the aggregate; CI runs its shards. Record commands and observed results
 on the exact final SHA in the PR. Generated output and its source change together.
 Finish with a diff review, current documentation and synchronized branches.

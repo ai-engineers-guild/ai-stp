@@ -115,13 +115,13 @@ describe("machine presenters (REQ-3609, REQ-3610, REQ-3608, REQ-3627)", () => {
         title: "The AI setup registry, not just a skill catalog",
         subtitle: "Find, verify, install, and earn on AI components.",
         browseCatalog: "Browse catalog",
-        releasesUrl: "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.1.0",
+        releasesUrl: "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.1.1",
         installHeading: "Install the CLI",
       }),
       "en",
     );
     expect(landing).toContain(
-      "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.1.0",
+      "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.1.1",
     );
     expect(landing).toContain("ai-stp init --credential-store os_keyring --json");
     expect(body).toContain("local_owner_or_pinned");

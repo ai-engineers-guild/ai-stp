@@ -1,6 +1,6 @@
 # Development
 
-Read [AGENTS.md](AGENTS.md). The [Rust CLI guide](apps/cli-v2/README.md) owns current
+Read [AGENTS.md](AGENTS.md). The [Rust CLI guide](apps/cli/README.md) owns current
 CLI behavior; the executable command registry owns parameters. Work is tracked
 in GitHub issues and PRs, not in a second set of requirements or plans.
 
@@ -12,7 +12,7 @@ cd ai-stp
 git switch --track origin/dev
 git switch -c feat/your-change
 just setup-python
-just cli-v2-check
+just cli-check
 ```
 
 Use tool versions from `.uv-version`, `.bun-version`, the native

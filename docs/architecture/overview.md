@@ -5,18 +5,18 @@ last_verified: "2026-10-15"
 
 # System boundaries
 
-`apps/cli-v2` owns local business operations: identity, SQLite state, authoring,
+`apps/cli` owns local business operations: identity, SQLite state, authoring,
 source analysis, selection, bundles, account/sync/publication, installation and
 recovery. Its library performs operations; the executable renders JSON envelope v1.
-The [CLI guide](../../apps/cli-v2/README.md) maps services to modules.
+The [CLI guide](../../apps/cli/README.md) maps services to modules.
 
 The web owns account and catalog presentation. `apps/api` serves `/v1` through
 `apps/platform` domain/persistence services; `apps/worker` processes asynchronous
 jobs. PostgreSQL and object storage retain server state. The Tauri desktop shell
 invokes the same CLI machine contract and owns no alternate installation engine.
 
-Shared models generate `schemas/v1` and the HTTP client. `apps/cli` remains a
-Python compatibility oracle for existing consumers and migration fixtures.
+Shared server models generate `schemas/v1` and the HTTP client. The retired
+Python CLI is preserved on the `legacy/python-cli` branch.
 It is not a runtime dependency of the native executable.
 
 A provider is an ai-stp installation component released from its public setup-system

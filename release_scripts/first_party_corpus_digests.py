@@ -1,12 +1,4 @@
-"""Pin the committed first-party corpus with per-file SHA-256 digests.
-
-`build_first_party_corpus.py` needs the live setup-system repositories and a
-release tag, so it cannot be the drift check: a hand edit inside
-`first_party/v1/` used to be invisible to every gate. This manifest is the
-local answer — `SHA256SUMS` lists the digest of every committed member, and
-`--check` compares the closed set: a changed byte, a dropped member and an
-unlisted file are each reported by name.
-"""
+"""Verify the closed set of committed first-party corpus bytes."""
 
 import argparse
 import hashlib

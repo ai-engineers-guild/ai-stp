@@ -379,7 +379,7 @@ class _Native(NativeClient):
         assert self.login(root, server.origin, web)["account_id"] == account
         assert self.account(root, "attach")["outcome"] == "attached"
         declarations = json.loads(
-            Path("apps/cli-v2/tests/fixtures/provider-declarations.json").read_text()
+            Path("apps/cli/tests/fixtures/provider-declarations.json").read_text()
         )
         (root / "provider.json").write_text(
             json.dumps(next(v for v in declarations if v["harness_id"] == "codex"))

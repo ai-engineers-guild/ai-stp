@@ -45,7 +45,7 @@ ROOT_DOCS = [
     "SECURITY.md",
     "QUICKSTART.md",
     "CONTRIBUTING.md",
-    "apps/cli-v2/README.md",
+    "apps/cli/README.md",
     "apps/desktop/README.md",
     "standards/README.md",
     "standards/just.md",

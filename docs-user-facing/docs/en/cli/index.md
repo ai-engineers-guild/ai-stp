@@ -27,6 +27,6 @@ Explicit YAML configuration supports `catalog.enabled`, `catalog.url` and
 stay in the chosen credential store. State is selected by `--state-dir`,
 `AI_STP_STATE_DIR`, or the XDG data directory. Never treat this directory as cache.
 
-The [native guide](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli-v2/README.md)
+The [native guide](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli/README.md)
 owns installation, migration, modules and platform limits. The
 [agent workflow](../quickstart/agent.md) explains task execution.
