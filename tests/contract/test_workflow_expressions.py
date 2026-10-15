@@ -69,3 +69,11 @@ def test_actionlint_accepts_every_workflow() -> None:
         check=False,
     )
     assert result.returncode == 0, result.stdout or result.stderr
+
+
+def test_codeql_steps_use_the_same_revision() -> None:
+    for workflow in _files():
+        revisions = set(
+            re.findall(r"uses: github/codeql-action/[^@\s]+@([^\s]+)", workflow.read_text())
+        )
+        assert len(revisions) <= 1, f"{workflow.name}: incompatible CodeQL steps: {revisions}"
