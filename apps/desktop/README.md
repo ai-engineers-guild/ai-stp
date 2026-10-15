@@ -1,7 +1,7 @@
 # ai-stp-desktop
 
 Tauri 2 shell + React/Vite UI over the `ai-stp` CLI machine contract
-(ADR-0222). The CLI is the only engine: this app spawns `ai-stp … --json`,
+through the native process contract. The CLI is the only engine: this app spawns `ai-stp … --json`,
 parses the single JSON envelope, and renders it. It never writes harness
 files, never touches `registry.sqlite`, never invokes providers, and never
 holds user credentials.
@@ -127,7 +127,7 @@ placeholder and never replaces a real sidecar.
 - Signed/notarized bundles — needs signing certificates and notarization
   credentials; `SHA256SUMS` in each release covers integrity until then.
 - Catalog traffic stays in the CLI, including private acquisitions and
-  credentials, as required by ADR-0222.
+  credentials, as required by the CLI process boundary.
 - Per-target mutation parallelism — mutations serialize on one mutex
   because the CLI journal is global state; targeted parallelism would
   not make journal writes any safer.

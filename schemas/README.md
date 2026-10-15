@@ -13,7 +13,7 @@ just back-static    # compare byte-for-byte with the models; part of just check
 
 Drift between the models and committed files fails `back-static` in CI under
 `SPEC-015` REQ-1509. A schema without a generator in `v1/` is also an error.
-The canonical contracts in `docs/contracts/` explain the fields; this directory
+The source models in `packages/contracts` define the fields; this directory
 contains machine artifacts only.
 
 Each schema uses the 2020-12 dialect and a stable `$id` of the form

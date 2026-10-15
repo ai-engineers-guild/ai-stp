@@ -1,95 +1,31 @@
 ---
-description: "Overall data flow and the boundaries of the local and server environments."
-last_verified: "2026-10-10"
+description: "Runtime responsibilities and data ownership."
+last_verified: "2026-10-15"
 ---
 
-# Architecture Overview
+# System boundaries
 
-## One Product, Two Environments
+`apps/cli-v2` owns local business operations: identity, SQLite state, authoring,
+source analysis, selection, bundles, account/sync/publication, installation and
+recovery. Its library performs operations; the executable renders JSON envelope v1.
+The [CLI guide](../../apps/cli-v2/README.md) maps services to modules.
 
-### Local Environment
+The web owns account and catalog presentation. `apps/api` serves `/v1` through
+`apps/platform` domain/persistence services; `apps/worker` processes asynchronous
+jobs. PostgreSQL and object storage retain server state. The Tauri desktop shell
+invokes the same CLI machine contract and owns no alternate installation engine.
 
-- CLI;
-- Agent Skill;
-- local registry;
-- project index;
-- setup compiler;
-- validation runner;
-- provider client;
-- operation journal.
+Shared models generate `schemas/v1` and the HTTP client. `apps/cli` remains a
+Python compatibility oracle for existing consumers and migration fixtures.
+It is not a runtime dependency of the native executable.
 
-### Server Environment
+A provider is an ai-stp installation component released from its public setup-system
+repository. The CLI authenticates its exact release and prepares the bundle;
+only that component writes the harness's final configuration. Linux isolation
+and staged activation enforce this boundary. The user/vendor owns the harness
+executable and its updates.
 
-- FastAPI;
-- PostgreSQL;
-- worker;
-- RustFS/S3;
-- OAuth;
-- Next.js;
-- Resend.
-
-Both environments use the same schemas and terms, but do not have to share a runtime package.
-
-## Main Flow
-
-```text
-Developer Passport
-+ Project Passport
-+ selected harness
-+ local and cloud candidates
-        ↓
-hard filters
-        ↓
-Agent asks questions and creates composition proposals
-        ↓
-user confirmation records a private SetupVersion
-        ↓
-Setup Graph
-        ↓
-deterministic Setup Compiler
-        ↓
-Harness Bundle
-        ↓
-provider plan
-        ↓
-exact apply / verification / launch / status / recovery
-```
-
-## Ownership Chain
-
-```text
-Agent
-  interprets findings, asks questions, and creates composition proposals
-
-CLI and core
-  discover facts, validate machine data, store the local registry,
-  filter candidates, deterministically build and validate packages,
-  and invoke the provider
-
-Provider component
-  owns the harness program, native target, locks, backups,
-  application, launch, state, and restoration
-
-Server and catalog
-  own accounts, public and private metadata, publication,
-  validation policy, object lifecycle, synchronization,
-  permissions, reports, moderation, and audit
-```
-
-Each layer accepts the result of the previous one and does not redo its work. The Agent is neither a policy mechanism nor a state writer; the server does not write the local target.
-
-## Final-State Owner
-
-The ai-stp CLI orchestrator does not write native harness files directly. Its
-managed provider component is the only writer for that harness. Components
-retain their public repositories and authenticated releases, while the Rust CLI
-owns the user workflow ([ADR-0228](../adr/ADR-0228-setup-systems-are-ai-stp-components.md)).
-Native installation remains pending until its complete recovery journey passes.
-
-## Trust
-
-The Agent makes judgment-based decisions only after mechanical constraints have been applied. A device signature confirms a report's provenance but does not turn local execution into platform-executed validation.
-
-## Active Target
-
-A new setup is applied to a separate target. The current session continues to use the old one. Switching occurs only after the new target has been verified.
+Published component/setup versions pin exact immutable bytes. Mechanical
+compatibility, provenance, trust and access checks run before effects. Mutations
+retain exact plans and receipts for idempotent recovery. Credentials stay in the
+selected credential store; runtime state is not a development cache.

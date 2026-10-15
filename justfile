@@ -434,7 +434,6 @@ docs-gen:
 [group('docs')]
 docs-static:
     {{ py }} {{ scripts }}/docs_lint.py
-    {{ py }} {{ scripts }}/spec_lint.py
     {{ py }} {{ scripts }}/contract_lint.py
     {{ py }} {{ scripts }}/run_markdownlint.py
     {{ py }} -m yamllint -c {{ scripts }}/.yamllint.yml .

@@ -131,13 +131,12 @@ stable storage identifiers, not a second product.
 `--config`; sync requires `sync.enabled: true`. Account plans retain their exact
 origin/provider. Unknown settings refuse rather than promising unused behavior.
 No corporate cabinet, assignment/heartbeat/usage delivery, generic model evaluation
-runner or automatic toolchain manager is included. The former command inventory
-is reconciled in `docs/engineering/cli-v2-scope.md`; it is not a runtime registry.
+runner or automatic toolchain manager is included. Use the executable registry for the supported command surface.
 
 ## Setup components and installation
 
 Setup systems are ai-stp installation components with separate public repositories
-(ADR-0228). The CLI authenticates their exact releases and invokes them itself;
+with a single CLI entrypoint. The CLI authenticates their exact releases and invokes them itself;
 users do not install a second setup-manager product. `provider/managed.rs` owns
 the build default. An explicit component release remains exact, and a retained
 operation never floats to a new release. Full publisher identity, signed

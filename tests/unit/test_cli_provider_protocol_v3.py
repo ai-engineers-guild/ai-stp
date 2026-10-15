@@ -1,7 +1,6 @@
 """Protocol v3 negotiates native capability without changing frozen v1/v2."""
 
 from dataclasses import replace
-from pathlib import Path
 from typing import cast
 
 import pytest
@@ -10,8 +9,6 @@ from ai_stp_cli.provider import protocol, protocol_v2, protocol_v3
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
 
-CONTRACT = Path("docs/contracts/provider-protocol.md")
-ADR = Path("docs/adr/ADR-0061-capability-negotiated-provider-protocol-v3.md")
 REMOVE = object()
 PROFILE_CASES: tuple[tuple[str, object], ...] = (
     ("profile_id", ""),
@@ -215,24 +212,6 @@ def test_software_download_does_not_widen_apply() -> None:
     )
 
 
-def test_software_lifecycle_argv_is_in_the_provider_contract() -> None:
-    """The flag names belong to the contract, not to a provider inventing them.
-
-    A second copy in protocol_v3.py would be a second owner. The kit already
-    names the operations; this is the argv the kit cannot express.
-    """
-    text = CONTRACT.read_text(encoding="utf-8")
-    for token in (
-        "--prefix",
-        "--software-version",
-        "--software-artifact",
-        "software_artifacts",
-        "byte_length",
-        "entry_point",
-    ):
-        assert token in text, token
-
-
 def test_provider_state_provenance_is_complete_and_non_secret() -> None:
     required = set(protocol_v3.PROVENANCE_FIELDS)
     assert {
@@ -360,13 +339,6 @@ def test_provider_info_parser_fails_closed_for_malformed_wire_fields(
 
     with pytest.raises(ValueError, match=message):
         protocol_v3.parse_capabilities(value)
-
-
-def test_contract_and_adr_name_v3_without_redefining_old_versions() -> None:
-    contract = CONTRACT.read_text(encoding="utf-8")
-    adr = ADR.read_text(encoding="utf-8")
-    assert "Protocol v1 and v2 remain unchanged" in adr
-    assert "protocol v3" in contract.lower()
 
 
 def _info_with(**overrides: object) -> dict[str, object]:

@@ -5,8 +5,6 @@ from pathlib import Path
 from ai_stp_contracts.identity import DeviceSummary
 from ai_stp_foundation.errors import ERROR_CODES, VALID_EXIT_CLASSES
 
-CONTRACTS = Path(__file__).parents[2] / "docs" / "contracts"
-
 
 def test_legacy_errors_remain_within_their_compatibility_classes() -> None:
     assert {entry.exit_class for entry in ERROR_CODES.values()} == set(VALID_EXIT_CLASSES)
@@ -40,22 +38,6 @@ def test_the_device_summary_carries_exactly_the_closed_list() -> None:
     # added to the model without the document would leave it too.
     declared = set(DeviceSummary.model_fields) - {"schema_version"}
     assert declared == DOCUMENTED_SUMMARY
-
-
-def test_the_document_still_closes_the_summary_to_the_bullets_it_is_paired_with() -> None:
-    # The list is prose, so it is read rather than parsed; what is checked is
-    # that it is still closed and still as long as the pairing above claims.
-    # The length comes from `DOCUMENTED_BULLETS` rather than a literal, so a
-    # sixth bullet cannot be reconciled by editing one character.
-    text = (CONTRACTS / "device-passport.md").read_text(encoding="utf-8")
-    section = text.split("The permitted device summary has a closed field set:", 1)[1]
-    bullets: list[str] = []
-    for line in section.splitlines():
-        if line.startswith("- "):
-            bullets.append(line)
-        elif bullets and line.strip() == "":
-            break
-    assert len(bullets) == len(DOCUMENTED_BULLETS)
 
 
 def test_the_summary_can_hold_no_path_and_no_environment_value() -> None:

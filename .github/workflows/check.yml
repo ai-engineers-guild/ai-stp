@@ -177,7 +177,6 @@ jobs:
           # `docs_scripts/docs_scripts/docs_lint.py`.
           (cd docs_scripts && bun install --frozen-lockfile)
           uv run --locked --group docs python docs_scripts/docs_lint.py
-          uv run --locked --group docs python docs_scripts/spec_lint.py
           uv run --locked --group docs python docs_scripts/contract_lint.py
           uv run --locked --group docs python docs_scripts/run_markdownlint.py
           uv run --locked --group docs python -m yamllint -c docs_scripts/.yamllint.yml .

@@ -37,7 +37,6 @@ _RECIPE = re.compile(r"^([a-z][a-z0-9-]*):(?:\s+([a-z0-9\- ]*))?$", re.MULTILINE
 _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
     "docs-static": (
         "docs_scripts/docs_lint.py",
-        "docs_scripts/spec_lint.py",
         "docs_scripts/contract_lint.py",
         "docs_scripts/run_markdownlint.py",
         "-m yamllint -c docs_scripts/.yamllint.yml .",
