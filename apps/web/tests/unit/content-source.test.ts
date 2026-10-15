@@ -3,16 +3,15 @@ import { describe, expect, it } from "vitest";
 import {
   allContentEntries,
   assertContentLocaleParity,
-  CONTENT_TYPES,
   publishedContent,
 } from "@/lib/content/source";
 
 describe("git-native content source", () => {
-  it("publishes every content type in both locales", () => {
+  it("publishes current articles and blog posts in both locales", () => {
     assertContentLocaleParity();
     for (const locale of ["en", "ru"]) {
       expect(new Set(publishedContent(locale).map((entry) => entry.type))).toEqual(
-        new Set(CONTENT_TYPES),
+        new Set(["article", "blog_post"]),
       );
     }
   });
