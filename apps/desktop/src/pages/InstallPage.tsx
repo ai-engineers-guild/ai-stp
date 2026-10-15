@@ -1,407 +1,610 @@
-import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router";
-import { Ban, Play, StepForward } from "lucide-react";
-import { argvToCall } from "../argv";
+import { useEffect, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router";
+import { ArrowRight, Ban, RefreshCw, StepForward } from "lucide-react";
 import {
-  cliApplyConfirmed,
-  cliPlan,
+  cmdTaskIntents,
+  cmdTaskStatus,
+  cmdTaskAnswer,
+  cmdTaskContinue,
+  cmdTaskCancel,
   cmdMachineHelp,
   cmdRunRead,
-  cmdTaskAnswer,
-  cmdTaskCancel,
-  cmdTaskContinue,
-  cmdTaskIntents,
-  cmdTaskStart,
-  cmdTaskStatus,
-  type CliContinuation,
+  cliApplyConfirmed,
+  cliPlan,
   type CmdResult,
+  type CliContinuation,
 } from "../transport";
-import { Json, ResultMeta, Spinner } from "../components/Result";
+import {
+  isTask,
+  settled,
+  type Descriptor,
+  type TaskIntent,
+  type TaskView,
+} from "../contracts";
+import { useTaskStart } from "../taskStart";
+import { useApp } from "../store";
+import { argvToCall } from "../argv";
+import TaskOutcome from "../components/TaskOutcome";
+import { Details, Json, ResultMeta, Spinner } from "../components/Result";
+import { PageHeader, StatusBadge } from "../components/Layout";
+import InstallInput, {
+  emptyInstall,
+  installComplete,
+  installInput,
+} from "../components/InstallInput";
 
-interface Question {
-  question_id: string;
-  prompt: string;
-  value_type?: string;
-  choices?: string[];
-  recommended?: string;
-  why?: string;
-  actor?: string;
-}
-
-interface TaskView {
-  task_id: string;
-  revision: number;
-  intent: string;
-  state: string;
-  goal_satisfied?: boolean;
-  questions: Question[];
-  outcome?: unknown;
-}
-
-// Fallback only: the live list comes from `task intents`, which publishes
-// the same closed set `task start --intent` enforces. A CLI that cannot
-// answer gets this — which is why it stays a constant.
-
-/** Task-engine wizard: the CLI asks questions, we render them, the engine
- *  decides the next step. The app never guesses the flow — `questions[]`,
- *  `continuations[]` and `state` are the whole protocol. */
 export default function InstallPage() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  const taskId = params.get("task");
+  const activeTask = useRef(taskId);
+  activeTask.current = taskId;
   const [intent, setIntent] = useState(params.get("intent") ?? "install");
-  const [intents, setIntents] = useState<string[]>([]);
-  const [inputPath, setInputPath] = useState("");
+  const [intentResult, setIntentResult] = useState<CmdResult | null>(null);
   const [inputSchema, setInputSchema] = useState<CmdResult | null>(null);
+  const [mode, setMode] = useState("form");
+  const [inputPath, setInputPath] = useState("");
+  const [fields, setFields] = useState(() => ({
+    ...emptyInstall,
+    setup: params.get("setup") ?? "",
+    version: params.get("version") ?? "",
+    digest: params.get("digest") ?? "",
+    harness: params.get("harness") ?? "",
+  }));
   const [task, setTask] = useState<TaskView | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [continuations, setContinuations] = useState<CliContinuation[]>([]);
-  const [lastResult, setLastResult] = useState<CmdResult | null>(null);
+  const [result, setResult] = useState<CmdResult | null>(null);
   const [busy, setBusy] = useState(false);
-  // One idempotency key per logical Start click — a timeout-and-retry of
-  // the same start hits the CLI's dedup instead of forking a second task.
-  const [startKey, setStartKey] = useState<string | null>(null);
-
+  const [confirmed, setConfirmed] = useState(false);
+  const starter = useTaskStart();
+  const capabilities = useApp((state) => state.capabilities);
+  const current = useRef(true);
   useEffect(() => {
-    const q = params.get("intent");
-    if (q) setIntent(q);
-  }, [params]);
-
-  useEffect(() => {
-    void cmdTaskIntents().then((r) => {
-      const names = (
-        (r.data?.intents as { name?: string }[] | undefined) ?? []
-      )
-        .map((i) => i.name)
-        .filter((n): n is string => typeof n === "string" && n.length > 0);
-      if (r.ok && names.length > 0) setIntents(names);
-    });
+    current.current = true;
+    return () => {
+      current.current = false;
+    };
   }, []);
-
-  // Closing a journey ends the logical start it belonged to; the next Start
-  // must mint a fresh key or the CLI reads it as the same start retried
-  // with different input — a conflict, correctly refused.
-  function closeTask() {
+  useEffect(() => {
+    if (!taskId && params.get("intent")) {
+      setIntent(params.get("intent")!);
+      setConfirmed(false);
+    }
+  }, [params, taskId]);
+  useEffect(() => {
+    let active = true;
+    void cmdTaskIntents().then((r) => {
+      if (active) setIntentResult(r);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+  useEffect(() => {
+    let active = true;
+    setInputSchema(null);
+    void cmdRunRead("task input-schema", { intent }).then((r) => {
+      if (active) setInputSchema(r);
+    });
+    return () => {
+      active = false;
+    };
+  }, [intent]);
+  useEffect(() => {
+    let active = true;
     setTask(null);
-    setStartKey(null);
+    setAnswers({});
     setContinuations([]);
-  }
-
-  function view(r: CmdResult): TaskView | null {
-    return (r.data as unknown as TaskView) ?? null;
-  }
-
-  async function refresh(taskId: string) {
-    const r = await cmdTaskStatus(taskId);
-    if (r.ok && r.data) setTask(view(r));
-    return r;
-  }
-
-  async function start() {
-    setBusy(true);
-    try {
-      setAnswers({});
-      const key = startKey ?? `desktop-${Date.now().toString(36)}`;
-      setStartKey(key);
-      const r = await cmdTaskStart(intent, key, inputPath.trim());
-      setLastResult(r);
-      setContinuations(r.continuations);
-      if (r.ok) setTask(view(r));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function submitAnswers() {
-    if (!task) return;
-    setBusy(true);
-    try {
-      let current = task;
-      // External-actor questions are informational — the engine answers
-      // them itself; only human questions are submitted from the UI.
-      for (const q of task.questions.filter((q) => q.actor !== "external")) {
-        const v = answers[q.question_id] ?? q.recommended ?? "";
-        if (v === "") {
-          setLastResult({
-            ok: false, data: null, warnings: [], continuations: [],
-            error: `missing answer: ${q.question_id}`, error_code: "UI_VALIDATION",
-          });
-          return;
-        }
-        const r = await cmdTaskAnswer(
-          current.task_id,
-          String(current.revision),
-          q.question_id,
-          v,
-        );
-        setLastResult(r);
+    setBusy(false);
+    if (taskId) {
+      setBusy(true);
+      void cmdTaskStatus(taskId).then((r) => {
+        if (!active) return;
+        setResult(r);
+        if (isTask(r.data)) setTask(r.data);
         setContinuations(r.continuations);
-        if (!r.ok) return;
-        if (r.data) current = r.data as unknown as TaskView;
-        setTask(current);
-        await refresh(current.task_id).then((rr) => {
-          if (rr.ok && rr.data) current = rr.data as unknown as TaskView;
-        });
-        setTask(current);
-      }
-      setAnswers({});
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function continueTask() {
-    if (!task) return;
-    setBusy(true);
-    try {
-      const r = await cmdTaskContinue(task.task_id, String(task.revision));
-      setLastResult(r);
-      setContinuations(r.continuations);
-      if (r.ok) await refresh(task.task_id);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function cancel() {
-    if (!task) return;
-    setBusy(true);
-    try {
-      const r = await cmdTaskCancel(task.task_id, String(task.revision));
-      setLastResult(r);
-      if (r.ok) closeTask();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function runContinuation(c: CliContinuation) {
-    const callArgs = argvToCall(c.path, c.argv);
-    if (!callArgs) {
-      setLastResult({
-        ok: false, data: null, warnings: [], continuations: [],
-        error: `cannot translate continuation argv: ${c.argv.join(" ")}`,
-        error_code: "UI_UNSUPPORTED_CONTINUATION",
+        setBusy(false);
       });
+    }
+    return () => {
+      active = false;
+    };
+  }, [taskId]);
+  useEffect(() => {
+    if (taskId || starter.busy || !starter.result || starter.opened) return;
+    if (params.has("setup")) {
+      starter.acknowledge();
       return;
     }
+    const id = isTask(starter.result.data)
+      ? starter.result.data.task_id
+      : starter.result.error_details?.task_id;
+    if (typeof id === "string") {
+      setParams({ task: id });
+      starter.acknowledge();
+    }
+  }, [
+    taskId,
+    starter.busy,
+    starter.result,
+    starter.opened,
+    starter.acknowledge,
+    params,
+    setParams,
+  ]);
+
+  async function refresh(id: string, showResult = true) {
+    const response = await cmdTaskStatus(id);
+    if (current.current && activeTask.current === id) {
+      if (isTask(response.data)) {
+        setTask(response.data);
+        setAnswers({});
+      }
+      setContinuations(response.continuations);
+      if (showResult || !response.ok) setResult(response);
+    }
+    return response;
+  }
+  async function step(action: () => Promise<CmdResult>) {
+    if (!task || busy) return;
     setBusy(true);
     try {
-      const help = await cmdMachineHelp();
-      const mut = (
-        ((help.data ?? {}) as Record<string, unknown>).commands as
-          | { path: string[]; mutability: string }[]
-          | undefined
-      )?.find((d) => d.path.join(" ") === callArgs.path)?.mutability;
-      let r: CmdResult;
-      if (mut === "read")
-        r = await cmdRunRead(callArgs.path, callArgs.values, callArgs.flags, callArgs.repeated);
-      else if (mut === "plan")
-        r = await cliPlan(callArgs.path, callArgs.values, callArgs.flags, callArgs.repeated);
-      else if (mut === "apply")
-        r = await cliApplyConfirmed(callArgs.path, callArgs.values, callArgs.flags, true, callArgs.repeated);
-      else
-        r = {
-          ok: false, data: null, warnings: [], continuations: [],
-          error: `continuation to ${callArgs.path} (mutability=${mut ?? "unknown"}) is not runnable from the UI`,
-          error_code: "UI_UNSUPPORTED_CONTINUATION",
-        };
-      setLastResult(r);
-      setContinuations(r.continuations);
-      if (task) await refresh(task.task_id);
+      const response = await action();
+      if (!current.current || activeTask.current !== task.task_id) return;
+      setResult(response);
+      if (isTask(response.data)) setTask(response.data);
+      await refresh(task.task_id, false);
     } finally {
-      setBusy(false);
+      if (current.current && activeTask.current === task.task_id)
+        setBusy(false);
     }
   }
-
-  const terminal = task && ["completed", "failed", "cancelled"].includes(task.state);
-  // Only `actor === "cli"` continuations are runnable. Everything else —
-  // external, human, agent, or an absent/unknown actor — is poll-only
-  // status per ADR-0222 (fail-closed, matching the core's actor_kind()).
-  const pendingContinuations = continuations.filter(
-    (c) => c.actor === "cli" && c.argv.length > 0 && c.path.join(" ") !== "task answer",
-  );
-  // A `cli` continuation with no argv (older CLI, additive field absent) is
-  // not runnable either — show it as informational rather than dropping it.
-  const externalContinuations = continuations.filter(
-    (c) => (c.actor !== "cli" || c.argv.length === 0) && c.path.join(" ") !== "task answer",
-  );
-
+  async function submitAnswer(questionId: string, value: string) {
+    if (!task || !value) return;
+    await step(() =>
+      cmdTaskAnswer(task.task_id, String(task.revision), questionId, value),
+    );
+  }
+  async function runContinuation(continuation: CliContinuation) {
+    if (!task) return;
+    await step(async () => {
+      const args = argvToCall(continuation.path, continuation.argv);
+      const help = await cmdMachineHelp();
+      const descriptor = (
+        help.data?.commands as Descriptor[] | undefined
+      )?.find((item) => item.path.join(" ") === args?.path);
+      if (!args || !descriptor)
+        return {
+          ok: false,
+          data: null,
+          warnings: [],
+          continuations: [],
+          error:
+            "This continuation is not available in the connected command registry.",
+          error_code: "DESKTOP_UNSUPPORTED_CONTINUATION",
+        };
+      if (descriptor.mutability === "read")
+        return cmdRunRead(args.path, args.values, args.flags, args.repeated);
+      if (descriptor.mutability === "plan")
+        return cliPlan(args.path, args.values, args.flags, args.repeated);
+      if (descriptor.mutability === "apply")
+        return cliApplyConfirmed(
+          args.path,
+          args.values,
+          args.flags,
+          true,
+          args.repeated,
+        );
+      return {
+        ok: false,
+        data: null,
+        warnings: [],
+        continuations: [],
+        error: "Use the CLI for this continuation.",
+        error_code: "DESKTOP_UNSUPPORTED_CONTINUATION",
+      };
+    });
+  }
+  function closeTask() {
+    starter.reset();
+    setParams({ intent });
+    setTask(null);
+    setResult(null);
+    setConfirmed(false);
+  }
+  const intents = (intentResult?.data?.intents ?? []) as TaskIntent[];
+  const unavailable =
+    intent === "install" &&
+    capabilities?.data?.configuration_installation !== "supported";
+  const valid =
+    mode === "file"
+      ? !!inputPath.trim()
+      : intent === "author" || (inputSchema?.ok && installComplete(fields));
+  const locked = busy || starter.busy;
+  const pendingStart = !taskId && !starter.opened && starter.result;
+  const lastResult = result ?? pendingStart;
   return (
-    <div className="space-y-5">
-      <header>
-        <h1 className="page-title">Install &amp; flows</h1>
-        <p className="page-sub">
-          Start authoring or installation with explicit inputs. Starting authorizes
-          the requested operation; the CLI validates, journals and applies it.
-        </p>
-      </header>
-
-      {!task && (
-        <section className="card max-w-xl space-y-3 p-4">
-          <h2 className="section-title">Start a flow</h2>
-          <div className="flex flex-wrap gap-2">
-            {intents.map((it) => (
+    <div className="page-stack">
+      <PageHeader
+        title={taskId ? "Task workspace" : "Your next setup"}
+        description={
+          taskId
+            ? "Review the current state and continue through the engine's retained steps."
+            : "Create from your files or install an exact setup into your chosen harness."
+        }
+        action={
+          <Link className="btn-outline" to="/tasks">
+            View activity
+            <ArrowRight size={14} />
+          </Link>
+        }
+      />
+      {!taskId && (
+        <section className="card space-y-6 p-6">
+          <div className="flex flex-wrap gap-2" aria-label="Task intent">
+            {intents.map((item) => (
               <button
-                key={it}
+                key={item.name}
+                className={intent === item.name ? "btn-primary" : "btn-outline"}
+                aria-pressed={intent === item.name}
+                disabled={locked || !!pendingStart}
                 onClick={() => {
-                  setIntent(it);
-                  setStartKey(null);
+                  setIntent(item.name);
+                  setConfirmed(false);
                 }}
-                className={`rounded-sm border px-3 py-1.5 text-sm ${
-                  intent === it
-                    ? "border-primary bg-primary/10 font-medium text-primary"
-                    : "border-input text-muted-foreground"
-                }`}
               >
-                {it}
+                {item.name === "install"
+                  ? "Install a setup"
+                  : item.name === "author"
+                    ? "Create from files"
+                    : item.name}
               </button>
             ))}
           </div>
-          <label className="block space-y-1 text-sm">Task input JSON file
-            <input className="input block w-full font-mono" value={inputPath} onChange={(event) => {
-              setInputPath(event.target.value); setStartKey(null);
-            }} placeholder="Absolute path to the task input file" />
-          </label>
-          <button className="btn-outline" disabled={!intents.includes(intent)} onClick={() => {
-            void cmdRunRead("task input-schema", { intent }).then(setInputSchema);
-          }}>Show accepted input</button>
-          {inputSchema && <><ResultMeta r={inputSchema} />{inputSchema.data && <Json v={inputSchema.data} />}</>}
-          <button onClick={() => void start()} disabled={busy || !intents.includes(intent) || (intent === "install" && !inputPath.trim())} className="btn-primary">
-            <Play size={14} /> Start
-          </button>
+          {!intentResult && <Spinner label="Reading available flows" />}
+          {intentResult && !intentResult.ok && <ResultMeta r={intentResult} />}
+          <p className="text-sm leading-6 text-muted-foreground">
+            {intents.find((item) => item.name === intent)?.when}
+          </p>
+          {unavailable && (
+            <div
+              role="status"
+              className="rounded-md border border-warning/40 bg-warning/5 p-4 text-sm"
+            >
+              {capabilities
+                ? `Setup installation is unavailable on ${String(capabilities.data?.os ?? "this platform")}. Authoring and catalog browsing remain available.`
+                : "Checking installation support…"}
+            </div>
+          )}
+          {starter.busy && (
+            <Spinner label="The engine is running this task. You can return through Activity." />
+          )}
+          {pendingStart && !isTask(pendingStart.data) && (
+            <div className="space-y-3">
+              <ResultMeta r={pendingStart} />
+              <p className="text-sm text-muted-foreground">
+                The last request is retained for an identical retry. If its
+                effect is unconfirmed, inspect Activity before retrying.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  className="btn-outline"
+                  onClick={() => {
+                    if (starter.request) void starter.start(starter.request);
+                  }}
+                >
+                  Retry the same request
+                </button>
+                <Link className="btn-outline" to="/tasks">
+                  Inspect activity
+                </Link>
+                <button
+                  className="btn-outline"
+                  onClick={() => {
+                    starter.reset();
+                    setConfirmed(false);
+                  }}
+                >
+                  Edit a new request
+                </button>
+              </div>
+            </div>
+          )}
+          <fieldset disabled={locked || !!pendingStart} className="space-y-5">
+            <label className="field-label max-w-xs">
+              Input method
+              <select
+                className="input"
+                value={mode}
+                onChange={(event) => {
+                  setMode(event.target.value);
+                  setConfirmed(false);
+                }}
+              >
+                <option value="form">
+                  {intent === "author"
+                    ? "Guided questions"
+                    : "Installation form"}
+                </option>
+                <option value="file">Existing JSON file (advanced)</option>
+              </select>
+            </label>
+            {mode === "file" ? (
+              <label className="field-label">
+                Task input JSON file
+                <input
+                  className="input font-mono font-normal"
+                  value={inputPath}
+                  onChange={(event) => {
+                    setInputPath(event.target.value);
+                    setConfirmed(false);
+                  }}
+                  placeholder="Absolute path to the input file"
+                />
+                <p className="field-help">
+                  The CLI reads and validates this file. Use it for advanced
+                  access, trust pins and placement options.
+                </p>
+              </label>
+            ) : intent === "install" ? (
+              <InstallInput
+                schema={inputSchema}
+                fields={fields}
+                setFields={(value) => {
+                  setFields(value);
+                  setConfirmed(false);
+                }}
+              />
+            ) : (
+              <p className="rounded-md bg-muted/50 p-4 text-sm leading-6">
+                The engine will ask for your directory, harness, component kind,
+                name and license. Answering the final question authorizes
+                creation.
+              </p>
+            )}
+            <label className="flex items-start gap-3 rounded-md border border-border p-4 text-sm">
+              <input
+                className="mt-1"
+                type="checkbox"
+                checked={confirmed}
+                onChange={(event) => setConfirmed(event.target.checked)}
+              />
+              I authorize this request. Starting or answering can apply changes
+              immediately after the engine validates the inputs.
+            </label>
+            <button
+              className="btn-primary"
+              disabled={
+                !confirmed ||
+                !valid ||
+                unavailable ||
+                !intents.some((item) => item.name === intent)
+              }
+              onClick={() =>
+                void starter.start({
+                  intent,
+                  ...(mode === "file"
+                    ? { inputPath: inputPath.trim() }
+                    : intent === "install"
+                      ? { input: installInput(fields) }
+                      : {}),
+                })
+              }
+            >
+              Start {intent === "author" ? "authoring" : "installation"}
+              <ArrowRight size={14} />
+            </button>
+          </fieldset>
+          {inputSchema?.data && (
+            <Details label="Accepted input schema" value={inputSchema.data} />
+          )}
         </section>
       )}
-
+      {taskId && busy && <Spinner label="Reading the latest task state" />}
       {task && (
-        <section className="card space-y-3 p-4">
-          <div className="flex items-center justify-between">
-            <h2 className="section-title">
-              {task.intent} <span className="font-mono text-xs text-muted-foreground">{task.task_id}</span>
-            </h2>
-            <span className={`chip ${
-              task.state === "completed" ? "bg-success/15 text-success"
-              : task.state === "blocked" ? "bg-warning/15 text-warning"
-              : "bg-muted text-muted-foreground"
-            }`}>{task.state} · rev {task.revision}</span>
+        <section className="card space-y-6 p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="section-title capitalize">{task.intent} task</h2>
+              <p className="mt-2 break-all font-mono text-xs text-muted-foreground">
+                {task.task_id}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Revision {task.revision}
+              </p>
+            </div>
+            <StatusBadge state={task.state} />
           </div>
-
-          {task.questions.length > 0 && (
-            <div className="space-y-3">
-              {task.questions.map((q) =>
-                q.actor === "external" ? (
-                  <p key={q.question_id} className="text-xs text-muted-foreground">
-                    ⓘ {q.prompt} — resolved by the engine, not you.
-                  </p>
-                ) : (
-                <label key={q.question_id} className="block text-xs">
-                  <span className="font-medium">{q.prompt}</span>
-                  {q.why && <span className="ml-1 text-muted-foreground">— {q.why}</span>}
-                  {q.choices && q.choices.length > 0 ? (
+          {task.legacy_read_only && (
+            <p className="text-sm text-muted-foreground">
+              This retained legacy task is read-only.
+            </p>
+          )}
+          {task.questions.map((question) =>
+            question.actor === "external" || question.actor === "agent" ? (
+              <p
+                key={question.question_id}
+                className="text-sm text-muted-foreground"
+              >
+                {question.prompt} · waiting for {question.actor}
+              </p>
+            ) : (
+              <form
+                key={`${task.revision}-${question.question_id}`}
+                className="space-y-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void submitAnswer(
+                    question.question_id,
+                    answers[question.question_id] ?? question.recommended ?? "",
+                  );
+                }}
+              >
+                <label className="field-label">
+                  {question.prompt}
+                  {question.choices?.length ? (
                     <select
-                      value={answers[q.question_id] ?? q.recommended ?? ""}
-                      onChange={(e) =>
-                        setAnswers((a) => ({ ...a, [q.question_id]: e.target.value }))
+                      className="input"
+                      disabled={locked}
+                      value={
+                        answers[question.question_id] ??
+                        question.recommended ??
+                        ""
                       }
-                      className="input mt-1 w-full"
+                      onChange={(event) =>
+                        setAnswers({
+                          [question.question_id]: event.target.value,
+                        })
+                      }
                     >
-                      <option value="">—</option>
-                      {q.choices.map((c) => <option key={c}>{c}</option>)}
+                      <option value="">Choose…</option>
+                      {question.choices.map((choice) => (
+                        <option key={choice}>{choice}</option>
+                      ))}
                     </select>
                   ) : (
                     <input
-                      value={answers[q.question_id] ?? q.recommended ?? ""}
-                      onChange={(e) =>
-                        setAnswers((a) => ({ ...a, [q.question_id]: e.target.value }))
+                      className="input"
+                      disabled={locked}
+                      value={
+                        answers[question.question_id] ??
+                        question.recommended ??
+                        ""
                       }
-                      className="input mt-1 w-full font-mono"
+                      onChange={(event) =>
+                        setAnswers({
+                          [question.question_id]: event.target.value,
+                        })
+                      }
                     />
                   )}
                 </label>
-                ),
-              )}
-              {task.questions.some((q) => q.actor !== "external") && (
-                <button onClick={() => void submitAnswers()} disabled={busy} className="btn-primary">
-                  <StepForward size={14} /> Submit answers
+                {question.why && <p className="field-help">{question.why}</p>}
+                <button
+                  className="btn-primary"
+                  disabled={
+                    locked ||
+                    task.legacy_read_only ||
+                    !(
+                      answers[question.question_id] ??
+                      question.recommended ??
+                      ""
+                    )
+                  }
+                >
+                  <StepForward size={14} />
+                  Submit answer
                 </button>
-              )}
-            </div>
+              </form>
+            ),
           )}
-
-          {task.outcome != null && (
-            <section className="space-y-2">
-              <h3 className="section-title">Outcome</h3>
-              <Json v={task.outcome} />
+          {task.handoff != null && (
+            <section className="space-y-3">
+              <h3 className="section-title">Activation handoff</h3>
+              <p className="text-sm text-muted-foreground">
+                Follow the engine's restart instructions before continuing this
+                task.
+              </p>
+              <Json v={task.handoff} />
             </section>
           )}
-
-          {pendingContinuations.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="section-title">Engine requests</h3>
-              {pendingContinuations.map((c, i) => (
-                <div key={i} className="space-y-1">
-                  <button
-                    onClick={() => void runContinuation(c)}
-                    disabled={busy}
-                    className="btn-danger"
-                  >
-                    Approve &amp; run: <code className="font-mono text-xs">{c.path.join(" ")}</code>
-                  </button>
-                  {c.argv.length > 0 && (
-                    <p className="break-all font-mono text-[10px] text-muted-foreground">
-                      {c.argv.join(" ")}
+          {task.outcome != null && <TaskOutcome value={task.outcome} />}
+          {continuations
+            .filter((item) => item.path.join(" ") !== "task answer")
+            .map((item, index) => (
+              <div
+                key={index}
+                className="space-y-2 rounded-md border border-border p-4"
+              >
+                <p className="font-mono text-xs">{item.path.join(" ")}</p>
+                {item.actor === "cli" &&
+                item.argv.length > 0 &&
+                !item.missing.length ? (
+                  <>
+                    <p className="break-all font-mono text-xs text-muted-foreground">
+                      {item.argv.join(" ")}
                     </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {externalContinuations.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="section-title">Waiting on external work</h3>
-              <p className="text-xs text-muted-foreground">
-                The engine delegated these steps outside the UI — poll status
-                until they clear. They are informational, not runnable here.
-              </p>
-              <ul className="card divide-y divide-border text-xs">
-                {externalContinuations.map((c, i) => (
-                  <li key={i} className="flex items-center gap-2 px-3 py-1.5">
-                    <span className="chip bg-warning/15 text-warning">{c.actor}</span>
-                    <code className="font-mono">{c.path.join(" ")}</code>
-                    {c.missing.length > 0 && (
-                      <span className="text-muted-foreground">needs: {c.missing.join(", ")}</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              {task && (
+                    <button
+                      className="btn-outline"
+                      disabled={locked || task.legacy_read_only}
+                      onClick={() => void runContinuation(item)}
+                    >
+                      Approve and run this step
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Waiting for {item.actor ?? "human"}
+                    {item.missing.length
+                      ? ` · needs ${item.missing.join(", ")}`
+                      : ""}
+                    . Refresh after completing the external step.
+                  </p>
+                )}
+              </div>
+            ))}
+          <div className="flex flex-wrap gap-3 border-t border-border pt-5">
+            <button
+              className="btn-outline"
+              disabled={locked}
+              onClick={() => {
+                setBusy(true);
+                void refresh(task.task_id).finally(() => setBusy(false));
+              }}
+            >
+              <RefreshCw size={14} />
+              Refresh
+            </button>
+            {!settled(task) && !task.legacy_read_only && (
+              <>
                 <button
-                  onClick={() => void refresh(task.task_id)}
-                  disabled={busy}
-                  className="btn-outline"
+                  className="btn-primary"
+                  disabled={locked || !!task.questions.length}
+                  onClick={() =>
+                    void step(() =>
+                      cmdTaskContinue(task.task_id, String(task.revision)),
+                    )
+                  }
                 >
-                  Refresh status
+                  <StepForward size={14} />
+                  Continue task
                 </button>
-              )}
-            </div>
-          )}
-
-          <div className="flex gap-2">
-            <button onClick={() => void continueTask()} disabled={busy || !!terminal} className="btn-outline">
-              <StepForward size={14} /> Continue
-            </button>
-            <button onClick={() => void cancel()} disabled={busy || !!terminal} className="btn-outline">
-              <Ban size={14} /> Cancel task
-            </button>
-            <button onClick={closeTask} disabled={busy} className="btn-outline">
-              Close
+                <button
+                  className="btn-outline"
+                  disabled={locked}
+                  onClick={() =>
+                    void step(() =>
+                      cmdTaskCancel(task.task_id, String(task.revision)),
+                    )
+                  }
+                >
+                  <Ban size={14} />
+                  Cancel task
+                </button>
+              </>
+            )}
+            <button
+              className="btn-outline"
+              disabled={locked}
+              onClick={closeTask}
+            >
+              {settled(task) ? "Start another flow" : "Close view"}
             </button>
           </div>
         </section>
       )}
-
-      {busy && <Spinner label="Talking to the task engine" />}
-      {lastResult && <ResultMeta r={lastResult} />}
-      {lastResult?.data && <details className="text-xs"><summary className="cursor-pointer text-muted-foreground">Last envelope</summary><Json v={lastResult.data} /></details>}
+      {lastResult && !pendingStart && <ResultMeta r={lastResult} />}
+      {taskId &&
+        starter.result &&
+        !starter.result.ok &&
+        starter.result.error_details?.task_id === taskId && (
+          <ResultMeta r={starter.result} />
+        )}
+      {taskId && !task && !busy && (
+        <button className="btn-outline" onClick={closeTask}>
+          Back to setups
+        </button>
+      )}
     </div>
   );
 }

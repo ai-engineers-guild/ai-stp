@@ -9,7 +9,10 @@
   src: url("/fonts/plex-sans-latin-400.woff2") format("woff2");
   font-weight: 400;
   font-display: swap;
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
   font-family: "plexSans";
@@ -23,7 +26,10 @@
   src: url("/fonts/plex-sans-latin-500.woff2") format("woff2");
   font-weight: 500;
   font-display: swap;
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
   font-family: "plexSans";
@@ -37,7 +43,10 @@
   src: url("/fonts/plex-mono-latin-400.woff2") format("woff2");
   font-weight: 400;
   font-display: swap;
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
   font-family: "plexMono";
@@ -51,7 +60,10 @@
   src: url("/fonts/plex-mono-latin-500.woff2") format("woff2");
   font-weight: 500;
   font-display: swap;
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
   font-family: "plexMono";
@@ -139,10 +151,13 @@
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
-  --color-brand: #fb631b;
 
-  --font-sans: plexSans, Arial, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", sans-serif;
-  --font-mono: plexMono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-sans:
+    plexSans, Arial, system-ui, -apple-system, "Segoe UI", "Helvetica Neue",
+    sans-serif;
+  --font-mono:
+    plexMono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
 
   --radius-sm: 0.25rem;
   --radius-md: 0.375rem;
@@ -153,7 +168,7 @@
 body {
   background: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-family: var(--font-sans);
+  @apply font-sans;
 }
 
 /* Component primitives — one definition, semantic tokens only. */
@@ -184,5 +199,182 @@ body {
   }
   .section-title {
     @apply text-sm font-medium;
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    margin: 0;
+  }
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  summary {
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 3px;
+  }
+  input[type="checkbox"] {
+    accent-color: hsl(var(--primary));
+  }
+  select option {
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+  ::selection {
+    background: hsl(var(--primary) / 0.2);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+@layer components {
+  .app-shell {
+    @apply flex h-dvh overflow-hidden bg-background text-foreground;
+  }
+  .app-sidebar {
+    @apply flex w-56 shrink-0 flex-col border-r border-border bg-card/60;
+  }
+  .brand {
+    @apply flex items-center gap-3 px-5 py-7;
+  }
+  .brand-mark {
+    @apply grid h-10 w-10 place-items-center rounded-lg bg-foreground text-background;
+  }
+  .brand strong {
+    @apply font-mono text-lg font-medium tracking-tight;
+  }
+  .brand-caption {
+    @apply mt-0.5 block text-[10px] text-muted-foreground;
+  }
+  .sidebar-nav {
+    @apply flex-1 space-y-5 overflow-y-auto px-3 pb-5;
+  }
+  .nav-group > .eyebrow {
+    @apply mb-2 px-3;
+  }
+  .nav-item {
+    @apply my-0.5 flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground;
+  }
+  .nav-active {
+    @apply bg-primary/10 font-medium text-primary hover:bg-primary/10 hover:text-primary;
+  }
+  .sidebar-footer {
+    @apply space-y-3 border-t border-border px-5 py-4;
+  }
+  .engine-status {
+    @apply flex items-center gap-2 font-mono text-[11px] text-muted-foreground;
+  }
+  .account-link {
+    @apply flex items-center gap-1.5 text-xs hover:text-primary;
+  }
+  .icon-button {
+    @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground;
+  }
+  .app-main {
+    @apply min-w-0 flex-1 overflow-y-auto outline-none;
+  }
+  .page-container {
+    @apply mx-auto max-w-6xl px-6 py-8 xl:px-10 xl:py-10;
+  }
+  .page-stack {
+    @apply space-y-7;
+  }
+  .page-header {
+    @apply flex flex-wrap items-start justify-between gap-4;
+  }
+  .eyebrow {
+    @apply text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground;
+  }
+  .page-title {
+    @apply mt-2 text-2xl font-medium tracking-tight;
+  }
+  .page-sub {
+    @apply mt-2 max-w-2xl text-sm leading-6 text-muted-foreground;
+  }
+  .hero-panel {
+    @apply relative flex items-center justify-between gap-6 overflow-hidden rounded-xl border border-border bg-card px-7 py-8;
+  }
+  .hero-title {
+    @apply mt-3 text-3xl font-medium leading-tight tracking-tight;
+  }
+  .hero-emblem {
+    @apply mr-5 hidden shrink-0 flex-col items-center gap-4 text-muted-foreground/60 xl:flex;
+  }
+  .hero-emblem span {
+    @apply font-mono text-[10px];
+  }
+  .stat-card {
+    @apply min-w-0 rounded-lg border border-border p-5;
+  }
+  .stat-value {
+    @apply mt-3 text-lg font-medium tracking-tight;
+  }
+  .stat-note {
+    @apply mt-2 text-xs leading-5 text-muted-foreground;
+  }
+  .action-card {
+    @apply flex items-start justify-between gap-4 rounded-lg border border-border p-5 transition-colors hover:border-primary/50 hover:bg-card;
+  }
+  .panel-heading {
+    @apply flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-4;
+  }
+  .check-row {
+    @apply flex items-center justify-between gap-5 px-5 py-4;
+  }
+  .status-badge {
+    @apply inline-flex shrink-0 items-center gap-1.5 rounded-md bg-muted px-2 py-1 text-[11px] text-muted-foreground;
+  }
+  .status-good {
+    @apply bg-success/10 text-success;
+  }
+  .status-warning {
+    @apply bg-warning/10 text-warning;
+  }
+  .status-bad {
+    @apply bg-destructive/10 text-destructive;
+  }
+  .empty-state {
+    @apply flex flex-col items-center gap-3 rounded-lg border border-dashed border-border px-6 py-10 text-center;
+  }
+  .technical-details {
+    @apply space-y-3 text-xs;
+  }
+  .technical-details > summary {
+    @apply w-fit py-1 text-muted-foreground hover:text-foreground;
+  }
+  .field-label {
+    @apply block space-y-2 text-sm font-medium;
+  }
+  .field-help {
+    @apply text-xs font-normal leading-5 text-muted-foreground;
+  }
+  .input {
+    @apply w-full bg-background py-2 disabled:opacity-60;
+  }
+  .skip-link {
+    @apply fixed left-60 top-2 z-50 -translate-y-20 rounded bg-background px-4 py-2 focus:translate-y-0;
   }
 }
