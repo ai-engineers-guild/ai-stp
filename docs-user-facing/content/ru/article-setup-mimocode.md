@@ -42,7 +42,7 @@ ai-stp может хранить описание и ссылку на внеш�
 ## Ссылки
 
 - [Организация NDDev OpenNetwork](https://github.com/NDDev-OpenNetwork)
-- [Контракт публичных setup-system в ai-stp](https://github.com/NDDev-OpenNetwork/ai-stp/blob/main/specs/active/SPEC-008-provider-installation.md)
+- [Контракт публичных setup-system в ai-stp](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli-v2/README.md#setup-components-and-installation)
 
 ## Граница доверия
 
