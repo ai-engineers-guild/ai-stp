@@ -1,134 +1,122 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { Play } from "lucide-react";
-import {
-  cmdTaskIntents,
-  cmdTaskList,
-  cmdTaskStatus,
-  type CmdResult,
-} from "../transport";
-import { Json, ResultMeta } from "../components/Result";
+import { ArrowRight, RefreshCw } from "lucide-react";
+import { cmdTaskList, type CmdResult } from "../transport";
+import { ResultMeta, Spinner } from "../components/Result";
+import { EmptyState, PageHeader, StatusBadge } from "../components/Layout";
 
-/** Durable task journeys. Progress is phases/status, not fake percentages —
- * the CLI has no streaming progress protocol, so we poll `task status`. */
 export default function TasksPage() {
-  const [intents, setIntents] = useState<CmdResult | null>(null);
   const [list, setList] = useState<CmdResult | null>(null);
-
-  const [status, setStatus] = useState<CmdResult | null>(null);
+  const [busy, setBusy] = useState(false);
   const [inspectId, setInspectId] = useState("");
-
-  useEffect(() => {
-    void (async () => {
-      setIntents(await cmdTaskIntents());
+  async function refresh() {
+    setBusy(true);
+    try {
       setList(await cmdTaskList());
-    })();
-  }, []);
-
-  async function pollOnce(id: string) {
-    setStatus(await cmdTaskStatus(id));
+    } finally {
+      setBusy(false);
+    }
   }
-
-  // Starting a journey lives on the Install & flows page — it owns the
-  // question loop. This page watches the durable status of tasks started
-  // anywhere.
-
-  const intentsData = (intents?.data ?? {}) as Record<string, unknown>;
-  const listData = (list?.data ?? {}) as Record<string, unknown>;
-  const intentList = (intentsData.intents ?? intentsData.items ?? []) as Array<
-    Record<string, unknown>
-  >;
-  const taskList = (listData.tasks ?? listData.items ?? []) as Array<
-    Record<string, unknown>
-  >;
-
+  useEffect(() => {
+    let current = true;
+    void cmdTaskList().then((result) => {
+      if (current) setList(result);
+    });
+    return () => {
+      current = false;
+    };
+  }, []);
+  const tasks = (list?.data?.tasks ?? []) as {
+    task_id: string;
+    intent: string;
+    state: string;
+    harness_id?: string;
+    updated_at?: string;
+  }[];
   return (
-    <div className="space-y-5">
-      <header>
-        <h1 className="page-title">Tasks</h1>
-        <p className="text-sm text-muted-foreground">
-          Native authoring and installation with durable status and recovery.
-        </p>
-      </header>
-
-      <section>
-        <h2 className="mb-2 section-title">Available intents</h2>
-        {intents && !intents.ok && <ResultMeta r={intents} />}
-        {intentList.length === 0 && intents?.ok && (
-          <p className="text-sm text-muted-foreground">No intents reported.</p>
-        )}
-        <div className="flex flex-wrap gap-2">
-          {intentList.map((it, i) => {
-            const name = String(it.intent ?? it.name ?? it.id ?? "");
-            return (
-              <Link
-                key={i}
-                to={`/install?intent=${encodeURIComponent(name)}`}
-                className="flex items-center gap-1.5 rounded-lg border border-input px-3 py-1.5 text-sm hover:bg-accent"
-              >
-                <Play size={12} /> {name}
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-
-
-
-      <section className="space-y-2">
-        <h2 className="section-title">Inspect a task</h2>
-        <div className="flex gap-2">
-          <input
-            value={inspectId}
-            onChange={(e) => setInspectId(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && inspectId.trim() && void pollOnce(inspectId.trim())}
-            placeholder="task_01…"
-            className="input w-72 font-mono"
-          />
+    <div className="page-stack">
+      <PageHeader
+        title="Activity"
+        description="Resume open tasks or inspect any retained task by its ID."
+        action={
           <button
-            onClick={() => void pollOnce(inspectId.trim())}
-            disabled={!inspectId.trim()}
             className="btn-outline"
+            onClick={() => void refresh()}
+            disabled={busy}
           >
-            Check status
+            <RefreshCw size={14} />
+            Refresh
           </button>
+        }
+      />
+      <section className="card space-y-3 p-5">
+        <h2 className="section-title">Open a retained task</h2>
+        <div className="flex gap-3">
+          <input
+            aria-label="Task ID"
+            className="input min-w-0 font-mono"
+            value={inspectId}
+            onChange={(event) => setInspectId(event.target.value)}
+            placeholder="task_…"
+          />
+          <Link
+            aria-disabled={!inspectId.trim()}
+            onClick={(event) => {
+              if (!inspectId.trim()) event.preventDefault();
+            }}
+            className="btn-outline shrink-0"
+            to={`/install?task=${encodeURIComponent(inspectId.trim())}`}
+          >
+            Open task
+            <ArrowRight size={14} />
+          </Link>
         </div>
-        {status && (
-          <>
-            <ResultMeta r={status} />
-            {status.data && <Json v={status.data} />}
-          </>
-        )}
       </section>
-
-      <section>
-        <h2 className="mb-2 section-title">Recent tasks</h2>
-        {list && !list.ok && <ResultMeta r={list} />}
-        {list?.ok && taskList.length === 0 && (
-          <p className="text-sm text-muted-foreground">None yet.</p>
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="section-title">Open tasks</h2>
+          <Link className="text-sm text-primary" to="/install">
+            Start a flow
+          </Link>
+        </div>
+        {(!list || busy) && <Spinner label="Reading task history" />}
+        {list && <ResultMeta r={list} />}
+        {list?.ok && tasks.length === 0 && (
+          <EmptyState title="All clear">
+            There are no unfinished tasks. Completed tasks remain available by
+            their ID.
+            <Link className="btn-outline mt-5" to="/install">
+              Create or install a setup
+              <ArrowRight size={14} />
+            </Link>
+          </EmptyState>
         )}
-        {taskList.length > 0 && (
-          <ul className="divide-y divide-border card">
-            {taskList.map((t, i) => {
-              const id = String(t.task_id ?? t.id ?? "");
-              return (
-                <li key={i}>
-                  <button
-                    onClick={() => {
-                      setInspectId(id);
-                      void pollOnce(id);
-                    }}
-                    className="flex w-full items-center justify-between px-4 py-2 text-left text-sm hover:bg-accent"
-                  >
-                    <span className="font-mono text-xs">{id}</span>
-                    <span className="text-xs">{String(t.intent ?? "")}</span>
-                    <span className="text-xs font-semibold">
-                      {String(t.state ?? t.status ?? "")}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
+        {tasks.length > 0 && (
+          <ul className="card divide-y divide-border overflow-hidden">
+            {tasks.map((task) => (
+              <li key={task.task_id}>
+                <Link
+                  to={`/install?task=${encodeURIComponent(task.task_id)}`}
+                  className="flex items-center justify-between gap-5 px-5 py-4 hover:bg-accent"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium capitalize">
+                      {task.intent}
+                      {task.harness_id ? ` · ${task.harness_id}` : ""}
+                    </p>
+                    <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
+                      {task.task_id}
+                    </p>
+                    {task.updated_at && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Updated {new Date(task.updated_at).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                  <StatusBadge state={task.state} />
+                </Link>
+              </li>
+            ))}
           </ul>
         )}
       </section>

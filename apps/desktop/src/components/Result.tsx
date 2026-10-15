@@ -2,7 +2,7 @@ import type { CmdResult } from "../transport";
 
 export function Json({ v }: { v: unknown }) {
   return (
-    <pre className="overflow-auto rounded-lg bg-muted/50 p-3 text-xs leading-5 text-foreground dark:bg-muted/50">
+    <pre className="max-h-96 overflow-auto rounded-lg bg-muted/50 p-4 font-mono text-xs leading-5 text-foreground">
       {JSON.stringify(v, null, 2)}
     </pre>
   );
@@ -12,7 +12,9 @@ export function Json({ v }: { v: unknown }) {
  *  continuations, engine-named next actions, and the structured error. */
 export function ResultMeta({ r }: { r: CmdResult }) {
   const options = Array.isArray(r.error_details?.options)
-    ? (r.error_details?.options as unknown[]).filter((o) => typeof o === "string")
+    ? (r.error_details?.options as unknown[]).filter(
+        (o) => typeof o === "string",
+      )
     : [];
   return (
     <div className="space-y-2">
@@ -28,7 +30,9 @@ export function ResultMeta({ r }: { r: CmdResult }) {
           <p className="mb-1 font-semibold">Next actions</p>
           {r.continuations.map((c, i) => (
             <p key={i}>
-              <span className="rounded bg-sky-600/20 px-1">{c.actor ?? "cli"}</span>{" "}
+              <span className="rounded bg-muted px-1">
+                {c.actor ?? "human"}
+              </span>{" "}
               {c.path.join(" ")}
               {c.missing.length > 0 && ` — needs: ${c.missing.join(", ")}`}
             </p>
@@ -46,7 +50,10 @@ export function ResultMeta({ r }: { r: CmdResult }) {
         </div>
       )}
       {r.error && (
-        <div className="card border-destructive/50 bg-destructive/10 p-3 text-xs">
+        <div
+          role="alert"
+          className="card border-destructive/50 bg-destructive/10 p-4 text-sm"
+        >
           {r.error_code && !r.error.startsWith(`${r.error_code}:`) && (
             <span className="mr-2 font-mono font-semibold">{r.error_code}</span>
           )}
@@ -72,9 +79,27 @@ export function ResultMeta({ r }: { r: CmdResult }) {
 
 export function Spinner({ label }: { label?: string }) {
   return (
-    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+    <div
+      role="status"
+      className="flex items-center gap-2 text-sm text-muted-foreground"
+    >
       <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
       {label ?? "Working…"}
     </div>
+  );
+}
+
+export function Details({
+  label = "Technical details",
+  value,
+}: {
+  label?: string;
+  value: unknown;
+}) {
+  return (
+    <details className="technical-details">
+      <summary>{label}</summary>
+      <Json v={value} />
+    </details>
   );
 }

@@ -1,234 +1,348 @@
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, LogOut, ShieldCheck } from "lucide-react";
+import { Link } from "react-router";
+import { ExternalLink, LogOut, RefreshCw, ShieldCheck } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   cmdAuthComplete,
   cmdAuthLogin,
   cmdAuthLogout,
+  cmdAuthRefresh,
+  cmdAuthResume,
   cmdMachineHelp,
   descriptorChoices,
   type CmdResult,
 } from "../transport";
-import { Json, ResultMeta, Spinner } from "../components/Result";
+import { Details, ResultMeta, Spinner } from "../components/Result";
+import { PageHeader, StatusBadge } from "../components/Layout";
 import { useApp } from "../store";
 
-// Display labels for known providers; the *set* comes live from the
-// `account plan --provider` descriptor choices — an unknown id renders
-// under its own name rather than hiding.
-const PROVIDER_LABELS: Record<string, string> = {
+const PROVIDERS: Record<string, string> = {
   google: "Google",
   github: "GitHub",
 };
+function pause(ms: number, signal: AbortSignal) {
+  return new Promise<void>((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", done);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    signal.addEventListener("abort", done, { once: true });
+    if (signal.aborted) done();
+  });
+}
 
-/** Device-code sign-in driven entirely by the CLI. The app displays the
- *  user code and opens the verification URL; tokens are stored by the CLI
- *  in the OS keyring — they never enter this process. */
 export default function AuthPage() {
-  const { auth, refreshAuth } = useApp();
+  const { auth, authResult, refreshAuth } = useApp();
   const [provider, setProvider] = useState("github");
   const [providers, setProviders] = useState<string[]>([]);
-  const [flow, setFlow] = useState<CmdResult | null>(null);
-  const [status, setStatus] = useState<CmdResult | null>(null);
+  const [help, setHelp] = useState<CmdResult | null>(null);
+  const [result, setResult] = useState<CmdResult | null>(null);
+  const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(false);
-  const [starting, setStarting] = useState(false);
-  // Generation counter: unmounting or pressing Cancel bumps it, which
-  // breaks the poll loop — a zombie poller would keep hitting
-  // `auth complete` and could interfere with a newer login attempt.
-  const pollGen = useRef(0);
-
+  const [now, setNow] = useState(Date.now());
+  const [openError, setOpenError] = useState(false);
+  const controller = useRef<AbortController | null>(null);
+  const mounted = useRef(true);
   useEffect(() => {
+    mounted.current = true;
     void refreshAuth();
-    void cmdMachineHelp().then((r) => {
-      const choices = descriptorChoices(r, "account plan", "provider");
-      if (choices) {
-        setProviders(choices);
-        setProvider((p) => (choices.includes(p) ? p : choices[0]));
-      }
+    void cmdMachineHelp().then((response) => {
+      if (!mounted.current) return;
+      setHelp(response);
+      const choices =
+        descriptorChoices(response, "account plan", "provider") ?? [];
+      setProviders(choices);
+      setProvider((value) =>
+        choices.includes(value) ? value : (choices[0] ?? ""),
+      );
     });
+    const clock = setInterval(() => setNow(Date.now()), 1000);
     return () => {
-      pollGen.current++;
+      mounted.current = false;
+      controller.current?.abort();
+      clearInterval(clock);
     };
   }, [refreshAuth]);
-
-  const loginData = (flow?.data?.session ?? auth?.session ?? {}) as Record<string, unknown>;
-  const userCode = String(loginData.user_code ?? "");
-  const verificationUrl = String(
-    loginData.verification_uri_complete ?? loginData.verification_uri ?? "",
+  const session = (auth?.session ?? {}) as Record<string, unknown>;
+  const pending = auth?.pending_operation as
+    { plan?: { action?: string } } | undefined;
+  const authorized = session.state === "authorized";
+  const signedIn =
+    authorized &&
+    session.access_expired !== true &&
+    (!session.access_expires_at ||
+      Date.parse(String(session.access_expires_at)) > now);
+  const expiresAt = Date.parse(String(session.expires_at ?? ""));
+  const remaining = Number.isFinite(expiresAt)
+    ? Math.max(0, Math.ceil((expiresAt - now) / 1000))
+    : 0;
+  const pendingCode = session.state === "pending" && remaining > 0;
+  const url = String(
+    session.verification_uri_complete ?? session.verification_uri ?? "",
   );
-  const expiresIn = Math.max(0, (Date.parse(String(loginData.expires_at ?? "")) - Date.now()) / 1000) || 0;
-
-  async function startLogin() {
-    setStarting(true);
+  async function action(run: () => Promise<CmdResult>) {
+    if (busy || waiting) return;
+    setBusy(true);
+    setOpenError(false);
     try {
-      setFlow(await cmdAuthLogin(provider));
+      const response = await run();
+      if (mounted.current) setResult(response);
+      await refreshAuth();
     } finally {
-      setStarting(false);
+      if (mounted.current) setBusy(false);
     }
   }
-
-  function cancelWait() {
-    pollGen.current++;
+  function stop() {
+    controller.current?.abort();
     setWaiting(false);
   }
-
-  async function openAndWait() {
-    const gen = ++pollGen.current;
+  async function waitForLogin() {
+    if (waiting || busy || !pendingCode) return;
+    const abort = new AbortController();
+    controller.current = abort;
     setWaiting(true);
-    if (verificationUrl) {
-      try {
-        await openUrl(verificationUrl);
-      } catch {
-        /* headless — user copies the link */
-      }
-    }
-    // Opening the browser is asynchronous too: cancellation or unmount
-    // during that await must not start a new poller afterwards.
-    if (pollGen.current !== gen) return;
-    // The CLI owns pacing and classification. This bounded UI loop only
-    // schedules the next request and stops when the page is closed.
-    let interval = Math.min(Math.max(Number(loginData.interval) || 4, 1), 30);
-    let nextPoll = Date.parse(String(loginData.next_poll_at ?? ""));
-    const deadline =
-      Date.now() + Math.min(expiresIn > 0 ? expiresIn : 900, 900) * 1000;
-    let transientFailures = 0;
-    let res: CmdResult | null = null;
+    setOpenError(false);
     try {
-      while (Date.now() < deadline && pollGen.current === gen) {
-        if (Number.isFinite(nextPoll) && nextPoll > Date.now()) {
-          await new Promise((resolve) => setTimeout(resolve, Math.min(nextPoll - Date.now(), 30000)));
-        }
-        if (pollGen.current !== gen) break;
-        res = await cmdAuthComplete(false);
-        const session = res.data?.session as Record<string, unknown> | undefined;
-        if (session) {
-          interval = Math.max(1, Number(session.interval) || interval);
-          nextPoll = Date.parse(String(session.next_poll_at ?? ""));
-        }
-        if (res.ok && session?.state !== "pending") break;
-        if (res.ok) { transientFailures = 0; }
-        // PENDING keeps polling; a rate limit or another retryable failure
-        // is a wait, not a refusal — anything else is a decision.
-        else if (res.error_code === "AI_STP_AUTHORIZATION_PENDING") {
-          transientFailures = 0;
-        } else if (res.error_code === "AI_STP_RATE_LIMITED" || res.error_retryable === true) {
-          if (++transientFailures >= 5) break;
-        } else break;
-        await new Promise((r) => setTimeout(r, interval * 1000));
+      try {
+        await openUrl(url);
+      } catch {
+        if (mounted.current) setOpenError(true);
+      }
+      let nextSession = session;
+      let failures = 0;
+      while (!abort.signal.aborted && Date.now() < expiresAt) {
+        const next = Date.parse(String(nextSession.next_poll_at ?? ""));
+        const delay = Number.isFinite(next)
+          ? Math.max(0, next - Date.now())
+          : Math.max(1, Number(nextSession.interval) || 5) * 1000;
+        await pause(Math.min(Math.max(delay, 1000), 30000), abort.signal);
+        if (abort.signal.aborted || Date.now() >= expiresAt) break;
+        if (Number.isFinite(next) && Date.now() < next) continue;
+        const response = await cmdAuthComplete(false);
+        if (abort.signal.aborted) break;
+        setResult(response);
+        await refreshAuth();
+        nextSession = (useApp.getState().auth?.session ?? {}) as Record<
+          string,
+          unknown
+        >;
+        if (nextSession.state !== "pending") break;
+        if (
+          !response.ok &&
+          response.error_code !== "AI_STP_AUTHORIZATION_PENDING"
+        ) {
+          if (
+            !(
+              response.error_retryable ||
+              response.error_code === "AI_STP_RATE_LIMITED"
+            ) ||
+            ++failures >= 5
+          )
+            break;
+          await pause(
+            Math.max(5, Number(nextSession.interval) || 5) * 1000,
+            abort.signal,
+          );
+        } else failures = 0;
       }
     } finally {
-      if (pollGen.current === gen) setWaiting(false);
+      if (mounted.current && controller.current === abort) {
+        setWaiting(false);
+        await refreshAuth();
+      }
     }
-    if (pollGen.current !== gen) return; // cancelled or unmounted
-    setStatus(res);
-    await refreshAuth();
   }
-
-  async function logout() {
-    setStatus(await cmdAuthLogout());
-    setFlow(null);
-    await refreshAuth();
-  }
-
-  // Cached authorization is not a claim of current network verification.
-  const session = auth?.session as Record<string, unknown> | undefined;
-  const authenticated = session?.state === "authorized" && session.access_expired !== true;
-
   return (
-    <div className="space-y-5">
-      <header>
-        <h1 className="page-title">Account</h1>
-        <p className="text-sm text-muted-foreground">
-          Sign in with your provider's device flow. Credentials live in the OS
-          keyring via the CLI — the app never sees a token.
-        </p>
-      </header>
-
-      <section className="card p-4">
-        <div className="flex items-center gap-2">
-          <ShieldCheck size={16} className={authenticated ? "text-success" : "text-muted-foreground"} />
-          <p className="font-semibold">{authenticated ? "Signed in" : "Signed out"}</p>
-        </div>
-        {auth && <div className="mt-3"><Json v={auth} /></div>}
-      </section>
-
-      {!authenticated && (
-        <section className="space-y-3 card p-4">
-          <p className="section-title">Choose a provider</p>
-          <div className="flex gap-2">
-            {providers.map((p) => (
-              <button
-                key={p}
-                onClick={() => setProvider(p)}
-                className={`rounded-lg border px-3 py-1.5 text-sm ${
-                  provider === p
-                    ? "border-primary bg-primary/10 font-medium text-primary"
-                    : "border-current/20 text-muted-foreground"
-                }`}
-              >
-                {PROVIDER_LABELS[p] ?? p}
-              </button>
-            ))}
-          </div>
+    <div className="page-stack">
+      <PageHeader
+        eyebrow="System"
+        title="Your account"
+        description="Connect your local workspace to the ai-stp catalog."
+        action={
           <button
-            onClick={() => void startLogin()}
-            disabled={starting || waiting || !providers.includes(provider)}
-            className="btn-primary"
+            className="btn-outline"
+            disabled={busy || waiting}
+            onClick={() => void refreshAuth()}
           >
-            {starting ? "Starting…" : "Start sign-in"}
+            <RefreshCw size={14} />
+            Refresh status
           </button>
-        </section>
-      )}
-
-      {(flow || userCode) && (
-        <section className="space-y-3 rounded-xl border border-sky-500/30 bg-sky-500/5 p-4">
-          {flow && <ResultMeta r={flow} />}
-          {userCode && (
-            <>
-              <p className="text-sm">Enter this code on the verification page:</p>
-              <p className="select-all text-center font-mono text-2xl font-bold tracking-[0.3em]">
-                {userCode}
+        }
+      />
+      <section className="card space-y-5 p-6">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <ShieldCheck size={22} className="text-muted-foreground" />
+            <h2 className="section-title">
+              {signedIn
+                ? "Account connected"
+                : authorized
+                  ? "Session needs refresh"
+                  : "Connect an account"}
+            </h2>
+          </div>
+          <StatusBadge
+            state={signedIn ? "authorized" : pendingCode ? "pending" : "absent"}
+          >
+            {signedIn
+              ? "Signed in"
+              : pendingCode
+                ? "Awaiting approval"
+                : "Signed out"}
+          </StatusBadge>
+        </div>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Sign in through your browser. The CLI keeps credentials in your
+          selected local store; this app only receives public session status.
+        </p>
+        {signedIn && (
+          <p className="break-all font-mono text-xs text-muted-foreground">
+            {String(session.account_id ?? "")}
+          </p>
+        )}
+        {authResult && !authResult.ok && (
+          <>
+            <ResultMeta r={authResult} />
+            <Link className="btn-outline" to="/settings">
+              Check local workspace
+            </Link>
+          </>
+        )}
+        {pending && (
+          <div className="space-y-3 rounded-md border border-warning/40 bg-warning/5 p-4">
+            <p className="text-sm">
+              The engine retained an unfinished account operation:{" "}
+              <strong>{pending.plan?.action ?? "unknown"}</strong>.
+            </p>
+            {["start", "poll", "refresh", "logout"].includes(
+              pending.plan?.action ?? "",
+            ) ? (
+              <button
+                className="btn-outline"
+                disabled={busy || waiting}
+                onClick={() => void action(cmdAuthResume)}
+              >
+                Resume retained operation
+              </button>
+            ) : (
+              <Link
+                className="btn-outline"
+                to="/registry?command=account%20status"
+              >
+                Inspect operation
+              </Link>
+            )}
+          </div>
+        )}
+        {!authorized && !pendingCode && !pending && (
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              {providers.map((value) => (
+                <button
+                  key={value}
+                  disabled={busy}
+                  aria-pressed={provider === value}
+                  className={provider === value ? "btn-primary" : "btn-outline"}
+                  onClick={() => setProvider(value)}
+                >
+                  {PROVIDERS[value] ?? value}
+                </button>
+              ))}
+            </div>
+            {(session.state === "expired" ||
+              (session.state === "pending" && !remaining)) && (
+              <p className="text-sm text-muted-foreground">
+                This code has expired. Start sign-in to request a new one.
               </p>
-              {verificationUrl ? (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => void openAndWait()}
-                    disabled={waiting}
-                    className="btn-primary"
-                  >
-                    <ExternalLink size={14} />
-                    {waiting ? "Waiting for confirmation…" : "Open browser & confirm"}
-                  </button>
-                  {waiting && (
-                    <button onClick={cancelWait} className="btn-outline">
-                      Stop waiting
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <p className="text-xs text-destructive">
-                  The CLI returned no verification URL — check the flow result above.
-                </p>
-              )}
-              {expiresIn > 0 && (
-                <p className="text-xs text-muted-foreground">Code valid for {Math.round(expiresIn / 60)} min.</p>
-              )}
+            )}
+            <button
+              className="btn-primary"
+              disabled={
+                busy || !providers.includes(provider) || !authResult?.ok
+              }
+              onClick={() => void action(() => cmdAuthLogin(provider))}
+            >
+              {busy ? "Starting…" : "Start sign-in"}
+              <ExternalLink size={14} />
+            </button>
+          </div>
+        )}
+        {authorized && !pending && (
+          <div className="flex flex-wrap gap-3">
+            {!signedIn && (
+              <button
+                className="btn-primary"
+                disabled={busy}
+                onClick={() => void action(cmdAuthRefresh)}
+              >
+                Refresh session
+              </button>
+            )}
+            <button
+              className="btn-outline"
+              disabled={busy}
+              onClick={() => void action(cmdAuthLogout)}
+            >
+              <LogOut size={14} />
+              Sign out
+            </button>
+          </div>
+        )}
+        {help && !help.ok && <ResultMeta r={help} />}
+      </section>
+      {pendingCode && (
+        <section className="card space-y-5 p-6">
+          <div>
+            <p className="eyebrow">Device confirmation</p>
+            <h2 className="mt-3 section-title">
+              Approve this device in your browser
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Use the code below on the verification page.
+            </p>
+          </div>
+          <p className="select-all rounded-lg bg-muted/60 px-5 py-6 text-center font-mono text-3xl tracking-[0.25em]">
+            {String(session.user_code ?? "")}
+          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <button
+              className="btn-primary"
+              disabled={waiting || busy || !url || !!pending}
+              onClick={() => void waitForLogin()}
+            >
+              <ExternalLink size={14} />
+              {waiting ? "Waiting for approval…" : "Open browser and confirm"}
+            </button>
+            <p className="font-mono text-xs text-muted-foreground">
+              {Math.floor(remaining / 60)}:
+              {String(remaining % 60).padStart(2, "0")} remaining
+            </p>
+          </div>
+          {waiting && (
+            <>
+              <Spinner label="Waiting for the account service" />
+              <button className="btn-outline" onClick={stop}>
+                Stop waiting
+              </button>
             </>
+          )}
+          {openError && (
+            <p role="status" className="text-sm text-muted-foreground">
+              The browser could not be opened. Copy the verification address
+              below; polling continues.
+            </p>
+          )}
+          {url && (
+            <p className="select-all break-all font-mono text-xs text-muted-foreground">
+              {url}
+            </p>
           )}
         </section>
       )}
-
-      {authenticated && (
-        <button
-          onClick={() => void logout()}
-          className="flex items-center gap-2 rounded-lg border border-red-500/40 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10"
-        >
-          <LogOut size={14} /> Sign out
-        </button>
-      )}
-
-      {waiting && <Spinner label="Waiting for device confirmation (CLI is polling)" />}
-      {status && <ResultMeta r={status} />}
-      {status?.data && <Json v={status.data} />}
+      {result && <ResultMeta r={result} />}
+      {auth && <Details label="Public session details" value={auth} />}
     </div>
   );
 }

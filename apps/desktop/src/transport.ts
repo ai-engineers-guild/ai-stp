@@ -39,7 +39,10 @@ export interface CmdResult {
  *  becomes a `CmdResult` with error_code "IPC_THROW" so callers always
  *  get a renderable result — a thrown invoke would otherwise strand
  *  busy/spinner state forever on the calling page. */
-function call(command: string, args?: Record<string, unknown>): Promise<CmdResult> {
+function call(
+  command: string,
+  args?: Record<string, unknown>,
+): Promise<CmdResult> {
   const t0 = performance.now();
   const argsRec = args ?? {};
   // args go through redact like results — plus `task answer`'s `value`,
@@ -47,33 +50,63 @@ function call(command: string, args?: Record<string, unknown>): Promise<CmdResul
   // verbatim; key-name redaction cannot see it, so it is named here.
   const tracedArgs =
     command === "task_answer" && "value" in argsRec
-      ? { ...(redact(argsRec) as Record<string, unknown>), value: "[user answer]" }
-      : (redact(argsRec) as Record<string, unknown>);
+      ? {
+          ...(redact(argsRec) as Record<string, unknown>),
+          value: "[user answer]",
+        }
+      : command === "task_start" && "input" in argsRec
+        ? {
+            ...(redact(argsRec) as Record<string, unknown>),
+            input: "[task input]",
+          }
+        : (redact(argsRec) as Record<string, unknown>);
+  if (
+    argsRec.path === "task answer" &&
+    tracedArgs.values &&
+    typeof tracedArgs.values === "object"
+  ) {
+    tracedArgs.values = {
+      ...(tracedArgs.values as Record<string, unknown>),
+      value: "[user answer]",
+    };
+  }
   const trace = (e: Omit<IpcEntry, "id" | "ts">) => {
     if (useDebug.getState().debugMode) useDebug.getState().push(e);
   };
-  return invoke<CmdResult>(command, argsRec).then(
-    (r) => {
-      trace({
-        cmd: command, args: tracedArgs,
-        ms: Math.round(performance.now() - t0),
-        ok: r.ok, error_code: r.error_code, error: r.error,
-        result: redact(r) as CmdResult,
-      });
-      return r;
-    },
-    (e) => {
-      trace({
-        cmd: command, args: tracedArgs,
-        ms: Math.round(performance.now() - t0),
-        ok: null, error_code: "IPC_THROW", error: String(e),
-      });
-      return {
-        ok: false, data: null, warnings: [], continuations: [],
-        error: `IPC call failed: ${String(e)}`, error_code: "IPC_THROW",
-      };
-    },
-  );
+  return Promise.resolve()
+    .then(() => invoke<CmdResult>(command, argsRec))
+    .then(
+      (r) => {
+        trace({
+          cmd: command,
+          args: tracedArgs,
+          ms: Math.round(performance.now() - t0),
+          ok: r.ok,
+          error_code: r.error_code,
+          error: r.error,
+          result: redact(r) as CmdResult,
+        });
+        return r;
+      },
+      (e) => {
+        trace({
+          cmd: command,
+          args: tracedArgs,
+          ms: Math.round(performance.now() - t0),
+          ok: null,
+          error_code: "IPC_THROW",
+          error: String(e),
+        });
+        return {
+          ok: false,
+          data: null,
+          warnings: [],
+          continuations: [],
+          error: `IPC call failed: ${String(e)}`,
+          error_code: "IPC_THROW",
+        };
+      },
+    );
 }
 
 export function cmdVersion(): Promise<CmdResult> {
@@ -92,8 +125,17 @@ export function cmdDoctor(): Promise<CmdResult> {
   return call("cli_doctor");
 }
 
+let helpRequest: Promise<CmdResult> | null = null;
+let helpReadAt = 0;
 export function cmdMachineHelp(): Promise<CmdResult> {
-  return call("machine_help");
+  if (!helpRequest || Date.now() - helpReadAt > 30000) {
+    helpReadAt = Date.now();
+    helpRequest = call("machine_help").then((result) => {
+      if (!result.ok) helpRequest = null;
+      return result;
+    });
+  }
+  return helpRequest;
 }
 
 interface WireParameter {
@@ -107,7 +149,7 @@ interface WireDescriptor {
 }
 
 /** The `choices` the CLI publishes for `path`'s `param`, or `null` when the
- *  machine help cannot answer — the caller's fallback is its business. */
+ *  machine help cannot answer; callers must keep the operation unavailable. */
 export function descriptorChoices(
   help: CmdResult | null,
   path: string,
@@ -167,7 +209,10 @@ export function cmdCatalogSearch(
   });
 }
 
-export function cmdCatalogShow(kind: string, stableId: string): Promise<CmdResult> {
+export function cmdCatalogShow(
+  kind: string,
+  stableId: string,
+): Promise<CmdResult> {
   return call("catalog_show", { kind, stableId });
 }
 
@@ -189,7 +234,13 @@ export function cliApplyConfirmed(
   confirmed = false,
   repeated: Record<string, string[]> = {},
 ): Promise<CmdResult> {
-  return call("cli_apply_confirmed", { path, values, flags, confirmed, repeated });
+  return call("cli_apply_confirmed", {
+    path,
+    values,
+    flags,
+    confirmed,
+    repeated,
+  });
 }
 
 // -- tasks (durable journeys)
@@ -202,6 +253,7 @@ export function cmdTaskStart(
   intent: string,
   idemKey?: string,
   inputPath?: string,
+  input?: Record<string, unknown>,
 ): Promise<CmdResult> {
   // One key per logical start: a timeout-and-retry hits the CLI's
   // idempotency dedup instead of forking a duplicate task. The CLI reads
@@ -210,6 +262,7 @@ export function cmdTaskStart(
     intent,
     idemKey: idemKey ?? null,
     inputPath: inputPath ?? null,
+    input: input ?? null,
   });
 }
 
@@ -226,14 +279,27 @@ export function cmdTaskAnswer(
   return call("task_answer", { task, revision, questionId, value });
 }
 
-export function cmdTaskContinue(task: string, revision: string): Promise<CmdResult> {
+export function cmdTaskContinue(
+  task: string,
+  revision: string,
+): Promise<CmdResult> {
   return call("task_continue", { task, revision });
 }
 
-export function cmdTaskCancel(task: string, revision: string): Promise<CmdResult> {
+export function cmdTaskCancel(
+  task: string,
+  revision: string,
+): Promise<CmdResult> {
   return call("task_cancel", { task, revision });
 }
 
 export function cmdTaskList(): Promise<CmdResult> {
   return call("task_list");
+}
+
+export function cmdAuthRefresh(): Promise<CmdResult> {
+  return call("auth_refresh");
+}
+export function cmdAuthResume(): Promise<CmdResult> {
+  return call("auth_resume");
 }

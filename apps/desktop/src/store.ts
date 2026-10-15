@@ -1,5 +1,12 @@
 import { create } from "zustand";
-import { cmdAuthStatus, cmdCapabilities, cmdVersion, type CmdResult } from "./transport";
+import {
+  cmdAuthStatus,
+  cmdCapabilities,
+  cmdDoctor,
+  cmdRunRead,
+  cmdVersion,
+  type CmdResult,
+} from "./transport";
 
 export interface IpcEntry {
   id: number;
@@ -28,9 +35,16 @@ interface DebugState {
 
 export const useDebug = create<DebugState>((set) => ({
   log: [],
-  debugMode: typeof localStorage !== "undefined" && localStorage.getItem("ai-stp.debug") === "1",
+  debugMode:
+    typeof localStorage !== "undefined" &&
+    localStorage.getItem("ai-stp.debug") === "1",
   push: (e) =>
-    set((s) => ({ log: [{ ...e, id: ++ipcSeq, ts: Date.now() }, ...s.log].slice(0, IPC_LOG_CAP) })),
+    set((s) => ({
+      log: [{ ...e, id: ++ipcSeq, ts: Date.now() }, ...s.log].slice(
+        0,
+        IPC_LOG_CAP,
+      ),
+    })),
   setDebugMode: (v) => {
     localStorage.setItem("ai-stp.debug", v ? "1" : "0");
     set({ debugMode: v });
@@ -42,32 +56,58 @@ interface AppState {
   cliVersion: string | null;
   cliOk: boolean | null;
   registryDigest: string | null;
+  capabilities: CmdResult | null;
+  doctor: CmdResult | null;
+  location: CmdResult | null;
+  engineResult: CmdResult | null;
+  authResult: CmdResult | null;
   auth: CmdResult["data"];
   refreshCli: () => Promise<void>;
   refreshAuth: () => Promise<void>;
 }
 
+let refreshRequest: Promise<void> | null = null;
 export const useApp = create<AppState>((set) => ({
   cliVersion: null,
   cliOk: null,
   registryDigest: null,
+  capabilities: null,
+  doctor: null,
+  location: null,
+  engineResult: null,
+  authResult: null,
   auth: null,
-  refreshCli: async () => {
-    const res = await cmdVersion();
-    const d = (res.data ?? {}) as Record<string, unknown>;
-    // `version` reports the CLI build; the live registry digest is only
-    // carried by `capabilities` (`data.registry_digest`).
-    const caps = res.ok ? await cmdCapabilities() : null;
-    const cd = (caps?.data ?? {}) as Record<string, unknown>;
-    set({
-      cliOk: res.ok,
-      cliVersion: res.ok ? String(d.version ?? d.cli_version ?? "") : null,
-      registryDigest:
-        caps?.ok === true ? String(cd.registry_digest ?? "") || null : null,
+  refreshCli: () => {
+    if (refreshRequest) return refreshRequest;
+    refreshRequest = (async () => {
+      const version = await cmdVersion();
+      const [capabilities, doctor, location] = version.ok
+        ? await Promise.all([
+            cmdCapabilities(),
+            cmdDoctor(),
+            cmdRunRead("state path"),
+          ])
+        : [null, null, null];
+      set({
+        cliOk: version.ok && capabilities?.ok === true,
+        cliVersion: version.ok
+          ? String(version.data?.version ?? version.data?.cli_version ?? "")
+          : null,
+        registryDigest: capabilities?.ok
+          ? String(capabilities.data?.registry_digest ?? "") || null
+          : null,
+        capabilities,
+        doctor,
+        location,
+        engineResult: !version.ok ? version : capabilities,
+      });
+    })().finally(() => {
+      refreshRequest = null;
     });
+    return refreshRequest;
   },
   refreshAuth: async () => {
     const res = await cmdAuthStatus();
-    set({ auth: res.ok ? res.data : null });
+    set({ auth: res.ok ? res.data : null, authResult: res });
   },
 }));
