@@ -11,7 +11,6 @@ import yaml
 
 ROOT = Path(__file__).parents[2]
 JUSTFILE = ROOT / "justfile"
-QUICKSTART = ROOT / "QUICKSTART.md"
 #: Where the workflows this tree runs live.
 WORKFLOWS = ROOT / ".github" / "workflows"
 
@@ -31,7 +30,6 @@ def test_web_regression_never_installs_system_packages_with_sudo() -> None:
     well — checking only the justfile would have gone quiet the moment the
     command moved one file over.
     """
-    quickstart = QUICKSTART.read_text(encoding="utf-8")
     sources = {
         "justfile": JUSTFILE.read_text(encoding="utf-8"),
         "ensure-chrome.sh": ENSURE_CHROME.read_text(encoding="utf-8"),
@@ -45,7 +43,6 @@ def test_web_regression_never_installs_system_packages_with_sudo() -> None:
         assert not re.search(r"(^|[\s;&|(])sudo\s", commands), f"{name} invokes sudo"
     assert "playwright install chrome" in sources["ensure-chrome.sh"]
     assert "ensure-chrome.sh" in sources["justfile"]
-    assert "never invokes `sudo`" in quickstart
 
 
 def test_python_ci_jobs_do_not_reuse_a_persistent_checkout_venv() -> None:

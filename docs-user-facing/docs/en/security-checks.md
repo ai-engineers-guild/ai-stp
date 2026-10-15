@@ -1,89 +1,17 @@
 ---
-title: Security checks
-description: "What ai_stp checks, which engines it uses, and which risks each check reduces."
+title: "Security checks"
+description: "What verification evidence proves and what it does not."
 ---
 
-This page is the help-center view of what a catalog card, a publication plan, and a setup pin actually scanned. The eight [component kinds](components/index.md) and [trust lines](trust-and-safety/index.md) point here; they do not repeat the table.
+# Security checks
 
-ai_stp runs a staged, non-executing safety suite before a public component can be treated as verified. A passed scan reduces known risk; it is not a guarantee that an artifact is harmless. Required checks block publication when they fail or cannot run. Optional checks produce visible warnings or incomplete coverage.
+Inspect evidence for the exact artifact, target and policy. Author identity and
+component verification are independent. A passing scan is evidence within that
+check's scope, not a guarantee about every possible behavior.
 
-## Result states
+An unavailable scanner, timeout or malformed package is degraded execution, not a
+successful scan or a malware finding. Inapplicable checks do not run. The worker's
+current policy and result models define required checks; the UI displays those results.
 
-- **Passed** — the engine completed without a policy finding.
-- **Failed** — a blocking finding was detected; the catalog shows the sanitized reason.
-- **Warning** — a non-blocking finding needs review.
-- **Not run / degraded** — the engine did not produce a verdict; required coverage remains pending. Optional unfinished checks stay on the machine audit list and do not enter the catalog percent.
-- **Not applicable / skipped** — the check does not apply and is excluded from the percentage.
-
-The catalog card percent is `passed / (passed + failed + warning)`. Publication
-uses the required checks; extra scanners are shown separately when they produced
-a verdict.
-
-## What the card is telling you
-
-The percent is a coverage of **completed** required-or-shown checks, not a
-score of how safe the bytes are. A 100% card can still be an `experimental`
-object, and a verified author can still own a version whose required check
-failed.
-
-| You see | It means | It does not mean |
-| --- | --- | --- |
-| high percent | most shown checks produced `passed` | the workflow is harmless |
-| `failed` | a blocking finding exists | you should `--confirm` harder |
-| `warning` | review is required | publication is already allowed |
-| `not run` / degraded | the engine gave no verdict | the check passed by absence |
-| `skipped` | the check does not apply | the family was ignored on purpose |
-
-`author_verified` and `component_verified` stay independent of this table.
-A scan percent is not either bit. Pin an exact `X.Y` and read the check
-ids; do not install from the headline number.
-
-## What to do with `not run`
-
-A required check that cannot run **blocks publication**. It is not a
-soft skip. An optional scanner that is not installed stays on the
-machine audit list and never becomes a pass.
-
-If a card shows degraded coverage:
-
-1. copy the check id (the catalog sanitizes the reason);
-2. read this inventory for the family;
-3. file a [report](web/reports.md) against that digest, or wait until
-   the engine is available and the version is scanned again.
-
-Do not treat an unavailable NVIDIA SkillSpector or Cisco Skill Scanner
-run as `skill_static_gate` having passed. Owned rules still run; the
-external engines are extra when present.
-
-## Check inventory
-
-| Family                    | Checks                                                                                              | Method or technology                                                                                                                                                                                                                                                                                      | Risk reduced                                                                                                            |
-| ------------------------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Integrity and provenance  | `structure`, `digest`, `license`, `tags`, `source_repo`                                             | Pydantic schemas, canonical serialization, SHA-256, repository/commit pinning                                                                                                                                                                                                                             | Tampered or misrepresented artifacts; OWASP A08 Software and Data Integrity Failures                                    |
-| Safe extraction           | `artifact_unpack`, `path_denylist`                                                                  | Bounded archive extraction, path normalization, deny rules                                                                                                                                                                                                                                                | Zip-slip, traversal, unsafe files; A01 Broken Access Control, A08                                                       |
-| Secrets                   | `secrets_heuristic`, `secrets_gitleaks`                                                             | Owned pattern/entropy rules and [Gitleaks](https://github.com/gitleaks/gitleaks)                                                                                                                                                                                                                          | Embedded tokens, passwords and private keys; A02 Cryptographic Failures                                                 |
-| Prompt and hidden content | `pi_content_pack`, `content_hidden`                                                                 | Owned prompt-injection and invisible-content rules                                                                                                                                                                                                                                                        | Prompt injection and covert instructions; OWASP LLM01 Prompt Injection, LLM02 Sensitive Information Disclosure          |
-| Generic SAST              | `sast_opengrep`                                                                                     | Owned rules executed with [Opengrep](https://github.com/opengrep/opengrep)                                                                                                                                                                                                                                | Injection, unsafe subprocess and code patterns; A03 Injection, A04 Insecure Design                                      |
-| MCP and hooks             | `mcp_config_static`, `hook_schema_static`, `hook_command_argv`                                      | Schema validation, URL/transport policy, argv analysis                                                                                                                                                                                                                                                    | SSRF, command injection, excessive capability; A03, A10 SSRF, LLM06 Excessive Agency                                    |
-| Agent skills              | `skill_static_gate`                                                                                 | Owned rules plus [NVIDIA SkillSpector](https://github.com/NVIDIA/SkillSpector) and [Cisco Skill Scanner](https://github.com/cisco-ai-defense/skill-scanner) when available                                                                                                                                | Malicious instructions, exfiltration and undeclared permissions; LLM01, LLM02, LLM06                                    |
-| Language SAST             | `shell_obfuscation`, `sast_shellcheck`, `sast_bandit`, `sast_gosec`, `sast_eslint_security`         | [ShellCheck](https://github.com/koalaman/shellcheck), [Bandit](https://github.com/PyCQA/bandit), [gosec](https://github.com/securego/gosec), [eslint-plugin-security](https://github.com/eslint-community/eslint-plugin-security)                                                                         | Language-specific injection and insecure coding patterns; A03, A04                                                      |
-| Dependencies              | `sca_osv`, `sca_pip_audit`, `sca_govulncheck`, `sca_cargo_audit`, `sca_cargo_deny`, `sca_npm_audit` | [OSV-Scanner](https://github.com/google/osv-scanner), [pip-audit](https://github.com/pypa/pip-audit), [govulncheck](https://github.com/golang/vuln), [cargo-audit](https://github.com/rustsec/rustsec/tree/main/cargo-audit), [cargo-deny](https://github.com/EmbarkStudios/cargo-deny), native npm audit | Known vulnerable or prohibited dependencies; A06 Vulnerable and Outdated Components, LLM05 Supply Chain Vulnerabilities |
-| Documents                 | `document_pdf`                                                                                      | Static PDF action, JavaScript and suspicious-string inspection                                                                                                                                                                                                                                            | Active document content and embedded prompt injection; A03, LLM01                                                       |
-| Malware                   | `malware_clamav`, `malware_yara`                                                                    | [ClamAV](https://github.com/Cisco-Talos/clamav), [YARA](https://github.com/VirusTotal/yara)                                                                                                                                                                                                               | Known malware and policy signatures; A08                                                                                |
-| Setups                    | `setup_pin_aggregate`                                                                               | Exact component pins and aggregate component evidence                                                                                                                                                                                                                                                     | A setup hiding an unsafe or unverified dependency; A06, A08, LLM05                                                      |
-
-Checks are selected by component kind, detected languages and files, and the `minimal`, `standard`, or `strict` profile. External CLI engines run only when the platform enables them; an unavailable engine never becomes a pass.
-
-## Why a check failed
-
-The expanded catalog view shows a sanitized reason next to every failed, warning, degraded, or not-run check. Sensitive values, secret material and local paths are never exposed. Use the check identifier when reporting an issue to the component author.
-
-The normative policy is maintained in `docs/contracts/validation-policy.md`; the catalog page is its reader-oriented projection.
-
-## Related pages
-
-- [Trust and safety](trust-and-safety/index.md) — two verification axes, not this percent.
-- [Catalog](catalog/index.md) — how a card shows the result.
-- [Components](components/index.md) — kinds that select which checks run.
-- [Publishing](publishing/index.md) — required scans that block a public version.
-- [Reports](cli/report.md) — file a case with the check identifier.
+Follow the CLI's mechanical admission decision. Do not bypass failed compatibility,
+access, integrity or required-evidence checks. See [trust](trust-and-safety/index.md).

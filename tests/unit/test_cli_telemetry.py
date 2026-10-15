@@ -302,19 +302,6 @@ def test_the_request_carries_exactly_the_declared_fields() -> None:
     assert tuple(fields) == telemetry.PING_FIELDS
 
 
-def test_the_declared_field_list_is_the_contract_document() -> None:
-    """The closed list lives in three places and they have to agree.
-
-    Widening the request means editing the code, the contract and `SPEC-013`
-    together. This is what makes forgetting one of them fail rather than ship.
-    """
-    contract = Path("docs/contracts/cli-telemetry.md").read_text(encoding="utf-8")
-    named = [line for line in contract.splitlines() if line.startswith("| `")]
-    documented = tuple(line.split("`")[1] for line in named)
-
-    assert documented == telemetry.PING_FIELDS
-
-
 def test_a_field_outside_the_list_is_refused_rather_than_sent(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

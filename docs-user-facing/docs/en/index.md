@@ -1,74 +1,20 @@
 ---
 title: "Overview"
-description: "Understand ai_stp, its trust model, and the path from catalog to installed setup."
+description: "Current Rust CLI, account and catalog guidance."
 ---
 
-<!--
-THESIS: public docs explain ai_stp from the user's daily path, while internal docs keep architecture and requirements out of the help center.
-OWN-WORLD: restrained MkDocs Material reading surface, English prose, narrow pages, explicit navigation, code examples only where they help action.
-STORY: a developer and their agent understand what ai_stp does, install the CLI, read catalog evidence, assemble a setup, and recover safely.
-FIRST VIEWPORT: search, left navigation, concise product definition, and direct links to quickstart and trust guidance before deeper reference.
-FORM: MVP documentation site, category-standard static docs chosen deliberately for reliability; FINISH: unreviewed and undocumented is unfinished.
--->
+# ai-stp
 
-# ai_stp
+ai-stp creates, validates, selects and installs complete configurations for AI
+harnesses. The Rust CLI is the engine; the web provides accounts and the public
+catalog. A setup belongs to one harness and pins exact immutable component versions.
 
-`ai_stp` helps a developer and their coding agent select, verify and safely
-install a complete setup for an AI harness.
+[Install](quickstart/human.md), then let your agent use the
+[task interface](quickstart/agent.md). The [CLI reference](cli/index.md) explains
+command discovery and state. [Catalog](catalog/index.md) and
+[trust](trust-and-safety/index.md) explain what public results mean.
 
-A setup covers instructions, skills, MCP, hooks, commands, agents, plugins and
-settings. `ai_stp` records provenance, compatibility, exact versions and trust
-decisions so that an agent never has to guess at a configuration.
-
-The website owns the account and the public catalog. It displays results. It
-does not select a composition, assemble a setup, or write native harness
-state. That work belongs to the [CLI](cli/index.md), the agent, and the
-harness's own public provider.
-
-## Where to start
-
-- [Quickstart for people](quickstart/human.md): install the CLI, check the
-  environment and read the catalog.
-- [Quickstart for agents](quickstart/agent.md): start every session from
-  `task intents --json`.
-- [CLI](cli/index.md): the working surface — JSON envelopes, plans, and
-  confirmation.
-- [Web](web/index.md): account, catalog cards, publications, and reports.
-- [Harnesses](harnesses.md): the seven open-beta harnesses and `undefined`.
-- [Concepts](concepts/index.md): harness, setup, provider, assembler, device,
-  project, and the three modes.
-- [Components](components/index.md): the closed kinds and how they differ.
-- [Catalog](catalog/index.md): how to read a public result and how the CLI
-  searches it.
-- [Trust and safety](trust-and-safety/index.md): why a verified author is not
-  the same thing as safe content.
-- [Troubleshooting](troubleshooting/index.md): recovering when an install or a
-  check does not pass.
-
-## What the MVP supports
-
-Open beta ships all seven harnesses at the `beta` tier: **Claude Code**,
-**Codex**, **Grok Build**, **Pi**, **OpenCode**, **Cursor**, and
-**Antigravity**. Missing evidence is `not_verified`; it does not drop a
-harness from the product.
-
-An unknown harness falls back to limited **`undefined`**. Reading, import and
-local checks are allowed. Automatic installation is not considered safe.
-
-The main path looks like this:
-
-```text
-CLI → task intents → task start
-→ follow continuations (execute argv only when actor is cli)
-→ report payload verification
-```
-
-??? question "How to read this documentation"
-    If `ai_stp` is new to you, start with the [human](quickstart/human.md) or
-    [agent](quickstart/agent.md) quickstart and the harnesses page. If you
-    are already assembling a setup, go straight to
-    [components](components/index.md): each page explains what one kind is
-    for, where its boundary is, and what it risks. Everyday flags come from
-    continuation `argv` after `ai-stp task intents --json`; `help --agent`
-    remains the full registry of this install. This site names commands so a
-    person can find the right page.
+Linux x86-64, Apple Silicon macOS and Windows x86-64 run in CI. Isolated setup
+installation and active-session handoff are currently available on Linux.
+Harness executables remain managed by users/vendors. No model key is needed,
+and the CLI has no telemetry sender or automatic updater.

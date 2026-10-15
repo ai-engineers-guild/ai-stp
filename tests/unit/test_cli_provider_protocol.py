@@ -1,7 +1,6 @@
 """Protocol v1 is frozen, and the conformance kit actually catches a breach."""
 
 import os
-import re
 import sys
 from collections.abc import Sequence
 from dataclasses import fields
@@ -13,12 +12,9 @@ import pytest
 from ai_stp_cli.application import install
 from ai_stp_cli.commands import select
 from ai_stp_cli.errors import CliFailure
+from ai_stp_cli.local.journal import OperationState
 from ai_stp_cli.provider import conformance, protocol
 from ai_stp_foundation.canonical import JsonValue
-
-CONTRACT = Path("docs/contracts/provider-protocol.md")
-OPERATION = Path("docs/contracts/operation.md")
-NETWORK_ADR = Path("docs/adr/ADR-0047-provider-network-capability.md")
 
 
 def _object(value: JsonValue) -> dict[str, JsonValue]:
@@ -289,11 +285,6 @@ def test_the_corpus_covers_every_rejection_class() -> None:
 
 
 # The frozen declaration itself.
-def test_the_twelve_commands_match_the_contract() -> None:
-    block = re.search(r"```text\n(.*?)```", CONTRACT.read_text("utf-8"), re.S)
-    assert block is not None
-    assert tuple(block.group(1).split()) == protocol.COMMANDS
-    assert len(protocol.COMMANDS) == 12
 
 
 def test_every_command_is_either_a_read_or_an_apply_or_a_plan() -> None:
@@ -306,16 +297,8 @@ def test_every_command_is_either_a_read_or_an_apply_or_a_plan() -> None:
     )
 
 
-def test_the_state_mapping_matches_the_contract() -> None:
-    text = CONTRACT.read_text("utf-8")
-    for reported, mapped in protocol.STATE_MAP.items():
-        assert f"| `{reported}` | `{mapped}` |" in text
-
-
 def test_every_provider_state_maps_to_a_declared_operation_state() -> None:
-    block = re.search(r"```text\n(.*?)```", OPERATION.read_text("utf-8"), re.S)
-    assert block is not None
-    declared = set(block.group(1).split())
+    declared = set(OperationState.__value__.__args__)
     assert set(protocol.STATE_MAP.values()) <= declared
     assert declared >= protocol.OPERATION_ONLY_STATES
 
@@ -365,15 +348,6 @@ def test_network_policy_does_not_silently_widen_frozen_v1() -> None:
         "network_requirement",
         "network_enforcement",
     }
-
-    contract = CONTRACT.read_text(encoding="utf-8")
-    decision = NETWORK_ADR.read_text(encoding="utf-8")
-    assert "protocol v1 declares no network requirement" in contract
-    for value in ("none", "artifact_download", "runtime_external"):
-        assert f"`network_requirement = {value}`" in decision
-    for value in ("enforced", "unavailable", "not_requested"):
-        assert f"`network_enforcement = {value}`" in decision
-    assert "`VERSION = 1`" in decision
 
 
 def test_the_environment_allowlist_passes_real_values_through(

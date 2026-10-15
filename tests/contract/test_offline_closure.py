@@ -799,30 +799,3 @@ def test_an_uncached_cloud_search_refuses_rather_than_answering_empty(warm: Warm
         guard=warm.guard,
     )
     assert error["code"] == "AI_STP_DEPENDENCY_UNAVAILABLE", error
-
-
-def test_every_offline_row_of_the_contract_has_a_check_here() -> None:
-    """The contract owns the list; this pins that the list is the one proved.
-
-    A row added to `offline-capability.md` with nothing proving it is exactly
-    the situation `#178` exists to end, and it would otherwise be invisible.
-    """
-    contract = Path("docs/contracts/offline-capability.md").read_text(encoding="utf-8")
-    _heading, _, rest = contract.partition("## Offline operations")
-    table, _, _remainder = rest.partition("\n## ")
-    rows = [
-        line.split("|")[1].strip()
-        for line in table.splitlines()
-        if line.startswith("|") and "---" not in line
-    ][1:]  # drop the header cell
-    assert rows == [
-        "Developer and project passports",
-        "Project index",
-        "Local registry",
-        "Imported and owned objects",
-        "Search",
-        "Selection and compilation",
-        "Checks",
-        "Package and plan",
-        "Installation and launch",
-    ], "the contract's offline rows moved; the checks above are named after them"

@@ -1,15 +1,9 @@
 nav:
-  - Главная: index.md
-  - Быстрый старт: quickstart
-  - Харнессы: harnesses.md
-  - Понятия: concepts
+  - Обзор: index.md
+  - Начало работы: quickstart
   - Каталог: catalog
   - CLI: cli
-  - Веб: web
-  - Компоненты: components
-  - Сетапы: setups
-  - Публикация: publishing
   - Доверие и безопасность:
       - Обзор: trust-and-safety/index.md
       - Проверки безопасности: security-checks.md
-  - Диагностика: troubleshooting
+  - Решение проблем: troubleshooting

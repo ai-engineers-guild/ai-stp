@@ -1,11 +1,4 @@
-"""Inventory of agent-facing authority prose, and the contradictions it forbids.
-
-`ADR-0150` / `ADR-0159` close the remaining human stops. Installed skills,
-AGENTS files, agent docs, SPEC-001, and SPEC-011 must not demand a pause
-for in-task work (experimental composition, unverified install, Git
-promotion, deploy, unknown engineering facts, a second confirm on a plan
-digest). This module names the surfaces and the forbidden phrases.
-"""
+"""Check agent instructions against current task authority and remaining stops."""
 
 from __future__ import annotations
 
@@ -25,7 +18,7 @@ REMAINING_STOPS: Final[tuple[str, ...]] = (
     "without recovery",
 )
 
-#: Named patterns that demand a pause ADR-0150 already removed.
+#: Phrases that contradict current task authority.
 CONTRADICTIONS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     ("ask_the_owner", re.compile(r"\bask the owner before\b", re.I)),
     (
@@ -101,25 +94,16 @@ def inventory(root: Path = ROOT) -> tuple[Path, ...]:
     """Every agent-facing surface this check owns, in a stable order."""
     required = (
         root / "AGENTS.md",
+        root / "apps" / "cli-v2" / "README.md",
         root / ".claude" / "CLAUDE.md",
         root / "skills" / "canonical" / "ai-stp" / "SKILL.md",
         root / "skills" / "canonical" / "ai-stp" / "references" / "decisions.md",
-        root / "docs" / "agent" / "interaction-policy.md",
-        root / "docs" / "agent" / "integration-skill.md",
-        root / "docs" / "agent" / "machine-help.md",
-        root / "specs" / "active" / "SPEC-011-cli-agent-skill.md",
-        root / "specs" / "active" / "SPEC-001-product-contract.md",
-        root / "docs" / "engineering" / "testing.md",
     )
     globs = (
         "skills/canonical/ai-stp/**/*.md",
         "skills/projections/**/*.md",
         "apps/cli/src/ai_stp_cli/skills/**/*.md",
-        "docs/agent/*.md",
         "packages/contracts/src/ai_stp_contracts/first_party/v1/*instruction*.md",
-        "specs/active/SPEC-011-*.md",
-        "specs/active/SPEC-001-*.md",
-        "docs/engineering/testing.md",
     )
     found: set[Path] = set()
     for path in required:

@@ -59,7 +59,7 @@ they do not invent controls inline.
    component files.
 
 The consolidation order and the audit baseline are in
-[`docs/engineering/web-component-consolidation-plan.md`](../../docs/engineering/web-component-consolidation-plan.md).
+[the component library](src/components).
 
 ## Recipient import reuse
 

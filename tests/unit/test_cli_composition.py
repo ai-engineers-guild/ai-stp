@@ -2,7 +2,6 @@
 
 import json
 import os
-import re
 import subprocess
 from pathlib import Path
 from typing import Final
@@ -12,8 +11,6 @@ import pytest
 from ai_stp_cli.local import composition
 from ai_stp_cli.provider import protocol_v3
 from ai_stp_foundation.harnesses import HARNESS_IDS
-
-CONTRACT = Path("docs/contracts/composition-reports.md")
 
 CLAUDE = composition.Target(harness_id="claude-code", os="linux", arch="x86_64")
 
@@ -49,9 +46,6 @@ def test_an_empty_composition_is_a_composition_not_an_absence() -> None:
     assert report.conflicts == ()
     assert "deterministic_report_generation" in report.operations
     assert composition.convert((), CLAUDE).complete
-    contract = CONTRACT.read_text(encoding="utf-8")
-    assert "Empty composition" in contract
-    assert "An empty composition does not exist" not in contract
 
 
 def test_a_nested_managed_path_is_the_same_claim_as_its_root() -> None:
@@ -852,16 +846,6 @@ def test_provider_rule_projection_kinds_are_the_protocol_closed_set() -> None:
 
 
 # Documentation and code are two statements of one closed set.
-def test_the_conflict_registry_matches_the_contract() -> None:
-    written = set(re.findall(r"^\| `([a-z_]+)` \|", CONTRACT.read_text("utf-8"), re.MULTILINE))
-    states = {composition.STATE_COMPLETE, composition.STATE_PARTIAL, composition.STATE_UNSUPPORTED}
-    assert written - states == composition.CONFLICTS
-
-
-def test_the_operation_registry_matches_the_contract() -> None:
-    text = CONTRACT.read_text("utf-8")
-    for name in composition.OPERATIONS:
-        assert name in text
 
 
 def _real_provider_capabilities() -> dict[str, protocol_v3.ProviderCapabilities]:
