@@ -19,9 +19,10 @@ use crate::{
 use serde_json::Value;
 use std::collections::BTreeSet;
 
-static INFO: Schema = Schema::new(include_str!(
-    "../../../provider-kit/v3/provider-info.schema.json"
-));
+static INFO: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/provider-kit/v3/provider-info.schema.json"
+)));
 
 pub struct Info(Value);
 fn invalid() -> Failure {

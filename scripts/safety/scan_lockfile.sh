@@ -64,6 +64,7 @@ for lockfile in \
   apps/desktop/core/Cargo.lock \
   apps/desktop/src-tauri/Cargo.lock \
   apps/cli/Cargo.lock \
+  apps/cli/xtask/Cargo.lock \
   requirements.txt:scripts/safety/requirements.lock; do
   "${scanner}" scan source "--lockfile=${lockfile}" || status=1
 done

@@ -10,21 +10,30 @@ use crate::{
     error::{Failure, Result},
 };
 
-static COMPONENT: Schema = Schema::reader(include_str!(
-    "../../../../schemas/v1/component-version-passport.schema.json"
-));
-static SETUP: Schema = Schema::reader(include_str!(
-    "../../../../schemas/v1/setup-version-passport.schema.json"
-));
+static COMPONENT: Schema = Schema::reader(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/component-version-passport.schema.json"
+)));
+static SETUP: Schema = Schema::reader(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/setup-version-passport.schema.json"
+)));
 static SCOPE: Schema = Schema::definition(
-    include_str!("../../../../schemas/v1/component-adaptation.schema.json"),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/resources/schemas/v1/component-adaptation.schema.json"
+    )),
     "ScopeAdaptation",
 );
-static ADAPTATION: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/component-adaptation.schema.json"
-));
+static ADAPTATION: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/component-adaptation.schema.json"
+)));
 static MEMBER: Schema = Schema::definition(
-    include_str!("../../../../schemas/v1/component-adaptation.schema.json"),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/resources/schemas/v1/component-adaptation.schema.json"
+    )),
     "ProjectedMember",
 );
 

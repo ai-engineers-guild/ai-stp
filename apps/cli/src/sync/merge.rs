@@ -211,9 +211,10 @@ fn missing_remote(t: &Transaction<'_>, account: &str, id: &str) -> Result<Option
         return Ok(None);
     };
     let receipt = crate::wire::parse(receipt.as_bytes())?;
-    static SCHEMA: crate::wire::Schema = crate::wire::Schema::new(include_str!(
-        "../../../../schemas/v1/sync-event-receipt.schema.json"
-    ));
+    static SCHEMA: crate::wire::Schema = crate::wire::Schema::new(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/resources/schemas/v1/sync-event-receipt.schema.json"
+    )));
     SCHEMA.validate(&receipt)?;
     let Some(remote) = receipt["server_head_revision_id"].as_str() else {
         return Ok(None);

@@ -12,15 +12,18 @@ use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 
 const LIMIT: u64 = 65536;
-static REQUEST: wire::Schema = wire::Schema::new(include_str!(
-    "../../../../schemas/v1/visibility-plan-create-request.schema.json"
-));
-static RESPONSE: wire::Schema = wire::Schema::new(include_str!(
-    "../../../../schemas/v1/visibility-plan-response.schema.json"
-));
-static CONFIRM: wire::Schema = wire::Schema::new(include_str!(
-    "../../../../schemas/v1/publication-confirm-request.schema.json"
-));
+static REQUEST: wire::Schema = wire::Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/visibility-plan-create-request.schema.json"
+)));
+static RESPONSE: wire::Schema = wire::Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/visibility-plan-response.schema.json"
+)));
+static CONFIRM: wire::Schema = wire::Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/publication-confirm-request.schema.json"
+)));
 const FIELDS: &[&str] = &[
     "schema_version",
     "plan_id",

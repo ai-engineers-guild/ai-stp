@@ -81,7 +81,10 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             apps/cli/target
-          key: cli-${{ runner.os }}-${{ hashFiles('apps/cli/Cargo.*', 'apps/cli/*.toml') }}
+            apps/cli/xtask/target
+          key: >-
+            cli-${{ runner.os }}-${{ hashFiles('apps/cli/Cargo.*',
+            'apps/cli/*.toml', 'apps/cli/xtask/Cargo.*') }}
           # A package-version bump should retain reusable dependencies. Cargo
           # revalidates the restored build; every check below still runs.
           restore-keys: cli-${{ runner.os }}-
@@ -90,14 +93,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- resources --check
           cargo fmt --check
-          python scripts/with_libclang.py cargo clippy --locked --all-targets -- -D warnings
-          python scripts/with_libclang.py cargo test --locked
-          python scripts/with_libclang.py cargo build --locked --release --bins --examples
+          cargo fmt --manifest-path xtask/Cargo.toml --check
+          cargo clippy --locked --manifest-path xtask/Cargo.toml --all-targets -- -D warnings
+          cargo test --locked --manifest-path xtask/Cargo.toml
+          cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
+            cargo clippy --locked --all-targets -- -D warnings
+          cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build cargo test --locked
+          cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
+            cargo build --locked --release --bins --examples
       - name: Existing consumers and real SQLite backup
         shell: bash
         run: |
-          uv run --no-sync python apps/cli/scripts/verify.py apps/cli/target/release/ai-stp
+          uv run --no-sync python tests/native_contract/verify.py apps/cli/target/release/ai-stp
       - name: Cache the successful native build
         if: steps.native-cache.outputs.cache-hit != 'true'
         # Cache availability must not prevent or invalidate the checks above.
@@ -109,6 +118,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             apps/cli/target
+            apps/cli/xtask/target
           key: ${{ steps.native-cache.outputs.cache-primary-key }}
 
   docs:

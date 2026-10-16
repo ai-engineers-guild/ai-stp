@@ -12,9 +12,10 @@ use crate::{
     passport, wire,
 };
 
-static VERSION: wire::Schema = wire::Schema::reader(include_str!(
-    "../../../../schemas/v1/private-version-response.schema.json"
-));
+static VERSION: wire::Schema = wire::Schema::reader(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/private-version-response.schema.json"
+)));
 
 pub(crate) fn validate(kind: Kind, id: &str, version: &str, document: &Value) -> Result<()> {
     VERSION.validate(document)?;

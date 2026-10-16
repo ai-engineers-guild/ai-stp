@@ -11,15 +11,18 @@ use crate::{
 
 use super::event::Event;
 
-static PUSH: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/sync-push-request.schema.json"
-));
-static PUSH_RESPONSE: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/sync-push-response.schema.json"
-));
-static PULL_RESPONSE: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/sync-pull-response.schema.json"
-));
+static PUSH: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/sync-push-request.schema.json"
+)));
+static PUSH_RESPONSE: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/sync-push-response.schema.json"
+)));
+static PULL_RESPONSE: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/sync-pull-response.schema.json"
+)));
 
 pub(crate) enum Request<'a> {
     Push(&'a Value),

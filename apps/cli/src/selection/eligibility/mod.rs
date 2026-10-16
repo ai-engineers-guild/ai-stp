@@ -15,7 +15,10 @@ use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 
 static ASSESSMENT: Schema = Schema::definition(
-    include_str!("../../../../../schemas/v1/cli-eligibility-report.schema.json"),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/resources/schemas/v1/cli-eligibility-report.schema.json"
+    )),
     "CandidateEligibility",
 );
 

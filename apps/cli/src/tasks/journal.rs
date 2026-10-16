@@ -15,7 +15,10 @@ use crate::{
 };
 
 const FORMAT: &str = "ai-stp-native-task/1";
-static VIEW: Schema = Schema::new(include_str!("../../../../schemas/v1/cli-task.schema.json"));
+static VIEW: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/cli-task.schema.json"
+)));
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]

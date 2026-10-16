@@ -6,9 +6,8 @@ on:
       - .github/workflows/cli-release.yml
       - apps/cli/Cargo.toml
       - apps/cli/Cargo.lock
-      - apps/cli/scripts/package_release.py
-      - apps/cli/scripts/release_sbom.py
-      - tests/unit/test_cli_release.py
+      - apps/cli/xtask/**
+      - tests/native_contract/**
   workflow_dispatch:
     inputs:
       version:
@@ -59,6 +58,14 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Install the native CLI toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          toolchain="$(sed -n 's/^channel = "\(.*\)"/\1/p' apps/cli/rust-toolchain.toml)"
+          test -n "${toolchain}"
+          rustup toolchain install "${toolchain}" --profile minimal
+          echo "RUSTUP_TOOLCHAIN=${toolchain}" >> "${GITHUB_ENV}"
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: "3.14"
@@ -68,13 +75,7 @@ jobs:
           EXPECTED_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          version=$(python - <<'PY'
-          import pathlib
-          import tomllib
-          document = tomllib.loads(pathlib.Path("apps/cli/Cargo.toml").read_text())
-          print(document["package"]["version"])
-          PY
-          )
+          version=$(cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- version)
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             test "${version}" = "${EXPECTED_VERSION}"
             git merge-base --is-ancestor HEAD origin/main
@@ -97,7 +98,9 @@ jobs:
       - name: Build the native executable
         working-directory: apps/cli
         shell: bash
-        run: python scripts/with_libclang.py cargo build --locked --release --bin ai-stp
+        run: >-
+          cargo run --quiet --locked --manifest-path xtask/Cargo.toml --
+          build cargo build --locked --release --bin ai-stp
       - name: Package and verify the extracted executable outside checkout
         shell: bash
         env:
@@ -106,22 +109,67 @@ jobs:
           RELEASE_EXTENSION: ${{ matrix.extension }}
         run: |
           set -euo pipefail
-          python apps/cli/scripts/package_release.py build \
+          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- package \
             --binary "apps/cli/target/release/${RELEASE_BINARY}" \
             --target "${RELEASE_TARGET}" --version "${RELEASE_VERSION}" \
             --revision "${GITHUB_SHA}" --output release
-          python apps/cli/scripts/package_release.py build \
+          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- package \
             --binary "apps/cli/target/release/${RELEASE_BINARY}" \
             --target "${RELEASE_TARGET}" --version "${RELEASE_VERSION}" \
             --revision "${GITHUB_SHA}" --output release-repeat
           stem="ai-stp-cli-${RELEASE_VERSION}-${RELEASE_TARGET}"
           cmp "release/${stem}.${RELEASE_EXTENSION}" "release-repeat/${stem}.${RELEASE_EXTENSION}"
-          python apps/cli/scripts/package_release.py verify \
+          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- verify \
             --archive "release/${stem}.${RELEASE_EXTENSION}" \
             --target "${RELEASE_TARGET}" --version "${RELEASE_VERSION}" \
             --revision "${GITHUB_SHA}" --install-directory "${RUNNER_TEMP}/ai-stp-rust-install"
-          uv run --no-sync python apps/cli/scripts/verify.py \
+          uv run --no-sync python tests/native_contract/verify.py \
             "${RUNNER_TEMP}/ai-stp-rust-install/${RELEASE_BINARY}"
+      - name: Package and qualify the native wheel
+        shell: bash
+        env:
+          RELEASE_TARGET: ${{ matrix.target }}
+          RELEASE_BINARY: ${{ matrix.binary }}
+          RELEASE_EXTENSION: ${{ matrix.extension }}
+          UV_TOOL_DIR: ${{ runner.temp }}/native-wheel-tools
+          UV_TOOL_BIN_DIR: ${{ runner.temp }}/native-wheel-bin
+        run: |
+          set -euo pipefail
+          stem="ai-stp-cli-${RELEASE_VERSION}-${RELEASE_TARGET}"
+          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- wheel \
+            --archive "release/${stem}.${RELEASE_EXTENSION}" \
+            --target "${RELEASE_TARGET}" --version "${RELEASE_VERSION}" \
+            --revision "${GITHUB_SHA}" --output wheels
+          wheel=$(find wheels -maxdepth 1 -name '*.whl' -type f)
+          test -n "${wheel}"
+          uv tool install --no-index "${wheel}"
+          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- probe \
+            --binary "${UV_TOOL_BIN_DIR}/${RELEASE_BINARY}" --version "${RELEASE_VERSION}"
+          python -m venv "${RUNNER_TEMP}/pip-native"
+          if [[ "${RUNNER_OS}" == Windows ]]; then
+            pip_python="${RUNNER_TEMP}/pip-native/Scripts/python.exe"
+            pip_binary="${RUNNER_TEMP}/pip-native/Scripts/${RELEASE_BINARY}"
+          else
+            pip_python="${RUNNER_TEMP}/pip-native/bin/python"
+            pip_binary="${RUNNER_TEMP}/pip-native/bin/${RELEASE_BINARY}"
+          fi
+          "${pip_python}" -m pip install --no-index --no-deps "${wheel}"
+          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- probe \
+            --binary "${pip_binary}" --version "${RELEASE_VERSION}"
+          cp "${wheel}" release/
+          (cd release && sha256sum *.whl > "$(basename "${wheel}").sha256")
+      - name: Qualify the standalone Cargo source package
+        if: runner.os == 'Linux'
+        working-directory: apps/cli
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- resources --check
+          cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- \
+            build cargo package --locked
+          cp "target/package/ai-stp-cli-${RELEASE_VERSION}.crate" ../../release/
+          cd ../../release
+          sha256sum *.crate > "ai-stp-cli-${RELEASE_VERSION}.crate.sha256"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: ai-stp-rust-${{ matrix.target }}-${{ github.sha }}
