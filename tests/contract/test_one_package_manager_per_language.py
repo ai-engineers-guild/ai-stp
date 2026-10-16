@@ -95,7 +95,7 @@ def test_the_policy_still_says_what_this_test_enforces() -> None:
 
 
 def test_the_toolchain_invokes_only_uv_and_bun() -> None:
-    """No `pip`, `npm`, `npx`, `pnpm` or `yarn` in what the repository runs.
+    """Repository dependencies use uv/bun; one offline pip consumer probe is allowed.
 
     `uv pip` is uv, not pip: it is uv's own pip-compatible interface and the
     binary invoked is `uv`. It is joined into one token before the search
@@ -111,6 +111,15 @@ def test_the_toolchain_invokes_only_uv_and_bun() -> None:
     offences: list[str] = []
     for name, text in _toolchain().items():
         commands = _commands(text, Path(name).suffix).replace("uv pip ", "uv-pip ")
+        if name == ".github/workflows/cli-release.yml":
+            # Consumer qualification must exercise real pip. This one isolated
+            # install reads only the built wheel, without indexes or dependencies;
+            # repository environments and build tools still use uv exclusively.
+            commands = commands.replace(
+                '"${pip_python}" -m pip install --no-index --no-deps "${wheel}"',
+                "",
+                1,
+            )
         for match in pattern.finditer(commands):
             line = commands[: match.start()].count("\n") + 1
             offences.append(f"{name}:{line}: {match.group(1)}")
