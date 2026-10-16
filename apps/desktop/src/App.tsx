@@ -1,6 +1,15 @@
-import { useEffect } from "react";
-import { HashRouter, Navigate, NavLink, Route, Routes } from "react-router";
+import { useEffect, useState } from "react";
 import {
+  HashRouter,
+  Navigate,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router";
+import {
+  Activity,
+  ArrowUpRight,
   Bug,
   Home,
   ListChecks,
@@ -26,115 +35,150 @@ import RegistryPage from "./pages/RegistryPage";
 import DebugPage from "./pages/DebugPage";
 import SettingsPage from "./pages/SettingsPage";
 
-const NAV = [
-  { to: "/", icon: Home, label: "Overview" },
-  { to: "/auth", icon: ShieldCheck, label: "Account" },
-  { to: "/catalog", icon: Package, label: "Catalog" },
-  { to: "/tasks", icon: ListChecks, label: "Tasks" },
-  { to: "/install", icon: Wrench, label: "Install" },
-  { to: "/targets", icon: MonitorSmartphone, label: "Targets" },
-  { to: "/discover", icon: Radar, label: "Discovery" },
-  { to: "/registry", icon: SquareTerminal, label: "Commands" },
-  { to: "/debug", icon: Bug, label: "Debug" },
-  { to: "/settings", icon: Settings, label: "Settings" },
+const GROUPS = [
+  {
+    label: "Workspace",
+    items: [
+      { to: "/", icon: Home, label: "Overview" },
+      { to: "/catalog", icon: Package, label: "Catalog" },
+      { to: "/install", icon: Wrench, label: "Setups" },
+      { to: "/tasks", icon: ListChecks, label: "Activity" },
+    ],
+  },
+  {
+    label: "Tools",
+    items: [
+      { to: "/targets", icon: MonitorSmartphone, label: "Targets" },
+      { to: "/discover", icon: Radar, label: "Discovery" },
+      { to: "/registry", icon: SquareTerminal, label: "Commands" },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { to: "/auth", icon: ShieldCheck, label: "Account" },
+      { to: "/settings", icon: Settings, label: "Settings" },
+      { to: "/debug", icon: Bug, label: "Diagnostics" },
+    ],
+  },
 ];
 
-export default function App() {
-  const { auth, cliOk, refreshAuth, refreshCli } = useApp();
-  const { debugMode, setDebugMode, log } = useDebug();
-
+function Shell() {
+  const { auth, cliOk, cliVersion, refreshAuth, refreshCli } = useApp();
+  const failures = useDebug(
+    (s) => s.log.filter((entry) => entry.ok !== true).length,
+  );
+  const [dark, setDark] = useState(
+    document.documentElement.classList.contains("dark"),
+  );
+  const location = useLocation();
   useEffect(() => {
-    // Color theme: an explicit saved choice wins; otherwise follow the OS.
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const apply = () => {
       const saved = localStorage.getItem("ai-stp.theme");
-      document.documentElement.classList.toggle(
-        "dark",
-        saved ? saved === "dark" : mq.matches,
-      );
+      const next = saved ? saved === "dark" : mq.matches;
+      document.documentElement.classList.toggle("dark", next);
+      setDark(next);
     };
     apply();
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
   }, []);
-
   useEffect(() => {
     void refreshCli();
     void refreshAuth();
   }, [refreshCli, refreshAuth]);
-
+  useEffect(() => {
+    document.getElementById("main-content")?.scrollTo(0, 0);
+  }, [location.pathname]);
   const session = auth?.session as Record<string, unknown> | undefined;
-  const signedIn = session?.state === "authorized" && session.access_expired !== true;
-  const failures = log.filter((e) => e.ok === false || e.ok === null).length;
-
+  const signedIn =
+    session?.state === "authorized" && session.access_expired !== true;
   function toggleTheme() {
-    const dark = !document.documentElement.classList.contains("dark");
-    document.documentElement.classList.toggle("dark", dark);
-    localStorage.setItem("ai-stp.theme", dark ? "dark" : "light");
+    const next = !dark;
+    setDark(next);
+    document.documentElement.classList.toggle("dark", next);
+    localStorage.setItem("ai-stp.theme", next ? "dark" : "light");
   }
-
   return (
-    <HashRouter>
-      <div className="flex h-screen bg-background text-foreground">
-        <aside className="flex w-52 shrink-0 flex-col border-r border-border">
-          <div className="mb-2 flex items-center gap-2 px-4 pt-4">
-            <span className="h-2.5 w-2.5 rounded-[2px] bg-primary" />
-            <span className="font-mono text-sm font-medium">ai-stp-desktop</span>
-            <span
-              className={`ml-auto h-2 w-2 rounded-full ${
-                cliOk === null ? "bg-warning" : cliOk ? "bg-success" : "bg-destructive"
-              }`}
-              title={cliOk ? "CLI connected" : "CLI unavailable"}
-            />
-          </div>
-          <nav className="flex flex-col px-2 py-2">
-            {NAV.map((n) => (
-              <NavLink
-                key={n.to}
-                to={n.to}
-                end={n.to === "/"}
-                className={({ isActive }) =>
-                  `relative flex items-center gap-2.5 rounded-sm px-3 py-2 text-sm transition-colors hover:bg-accent ${
-                    isActive ? "font-medium text-primary" : "text-foreground"
-                  }`
-                }
-              >
-                <n.icon size={15} />
-                {n.label}
-                {n.to === "/debug" && failures > 0 && (
-                  <span className="ml-auto rounded-md bg-destructive/15 px-1.5 font-mono text-[10px] text-destructive">
-                    {failures}
-                  </span>
-                )}
-              </NavLink>
-            ))}
-          </nav>
-          <div className="mt-auto space-y-1 border-t border-border px-4 py-3">
-            <div className="flex items-center justify-between">
-              <p className="font-mono text-[11px] text-muted-foreground">
-                {signedIn ? "signed in" : "signed out"}
-              </p>
-              <button
-                onClick={toggleTheme}
-                className="rounded-sm p-1 text-muted-foreground hover:bg-accent"
-                title="Toggle light/dark"
-              >
-                <Sun size={13} className="hidden dark:block" />
-                <Moon size={13} className="dark:hidden" />
-              </button>
+    <div className="app-shell">
+      <a
+        href="#main-content"
+        className="skip-link"
+        onClick={(event) => {
+          event.preventDefault();
+          document.getElementById("main-content")?.focus();
+        }}
+      >
+        Skip to content
+      </a>
+      <aside className="app-sidebar">
+        <NavLink to="/" className="brand" aria-label="ai-stp home">
+          <span className="brand-mark">
+            <SquareTerminal size={20} />
+          </span>
+          <span>
+            <strong>ai-stp</strong>
+            <span className="brand-caption">Your agent workspace</span>
+          </span>
+        </NavLink>
+        <nav aria-label="Main navigation" className="sidebar-nav">
+          {GROUPS.map((group) => (
+            <div key={group.label} className="nav-group">
+              <p className="eyebrow">{group.label}</p>
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.to === "/"}
+                  className={({ isActive }) =>
+                    `nav-item ${isActive ? "nav-active" : ""}`
+                  }
+                >
+                  <item.icon size={17} aria-hidden="true" />
+                  <span>{item.label}</span>
+                  {item.to === "/debug" && failures > 0 && (
+                    <span className="ml-auto text-xs text-destructive">
+                      {failures}
+                    </span>
+                  )}
+                </NavLink>
+              ))}
             </div>
-            <label className="flex cursor-pointer items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={debugMode}
-                onChange={(e) => setDebugMode(e.target.checked)}
-                className="h-3 w-3 accent-primary"
-              />
-              debug trace
-            </label>
+          ))}
+        </nav>
+        <div className="sidebar-footer">
+          <div className="engine-status">
+            <Activity
+              size={15}
+              aria-hidden="true"
+              className={cliOk ? "text-success" : "text-muted-foreground"}
+            />
+            <span>
+              {cliOk === null
+                ? "Connecting to engine"
+                : cliOk
+                  ? `Rust CLI ${cliVersion ?? ""}`
+                  : "Engine unavailable"}
+            </span>
           </div>
-        </aside>
-        <main className="flex-1 overflow-auto p-6">
+          <div className="flex items-center justify-between gap-2">
+            <NavLink to="/auth" className="account-link">
+              {signedIn ? "Account connected" : "Connect account"}
+              <ArrowUpRight size={13} />
+            </NavLink>
+            <button
+              className="icon-button"
+              onClick={toggleTheme}
+              aria-label={dark ? "Use light theme" : "Use dark theme"}
+            >
+              {dark ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+          </div>
+        </div>
+      </aside>
+      <main id="main-content" tabIndex={-1} className="app-main">
+        <div className="page-container">
           <Routes>
             <Route path="/" element={<OverviewPage />} />
             <Route path="/auth" element={<AuthPage />} />
@@ -148,8 +192,15 @@ export default function App() {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </main>
-      </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+export default function App() {
+  return (
+    <HashRouter>
+      <Shell />
     </HashRouter>
   );
 }

@@ -223,15 +223,18 @@ jobs:
         run: |
           set -euo pipefail
           cat > "${RUNNER_TEMP}/NOTES.md" <<'NOTES'
-          Desktop application over the ai-stp CLI (ADR-0222). The CLI is
+          Desktop application over the native ai-stp CLI. The CLI is
           bundled inside the app as the optimized Rust `ai-stp-desktop-cli`
           with a digest manifest via `bundle.resources` — no separate install is
           needed; a configured path or PATH `ai-stp` still works in
           development.
 
-          Upgrading from `ai-stp` 0.3.0? Uninstall it first — the product
-          was renamed to `ai-stp-desktop`, so old installs do not
-          auto-upgrade and both would coexist.
+          Includes workspace initialization, catalog browsing, explicit setup
+          installation forms, retained task recovery and account device login.
+          Harness executables remain user/vendor managed. Isolated setup
+          installation is currently Linux-only; other platforms expose that
+          limitation before starting. Existing Python state requires the
+          explicit migration plan in Settings.
 
           Bundles are unsigned: macOS will ask to allow the app in
           Privacy & Security, Windows SmartScreen will warn, and Linux
@@ -246,6 +249,6 @@ jobs:
           # cannot resolve it from a missing .git directory.
           gh release create "desktop-v${VERSION}" \
             --repo "${{ github.repository }}" --verify-tag \
-            --title "ai-stp-desktop ${VERSION}" \
+            --title "ai-stp-desktop ${VERSION}" --latest=false \
             --notes-file "${RUNNER_TEMP}/NOTES.md" \
             -- *

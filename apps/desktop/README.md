@@ -1,133 +1,76 @@
-# ai-stp-desktop
+# ai-stp desktop
 
-Tauri 2 shell + React/Vite UI over the `ai-stp` CLI machine contract
-through the native process contract. The CLI is the only engine: this app spawns `ai-stp … --json`,
-parses the single JSON envelope, and renders it. It never writes harness
-files, never touches `registry.sqlite`, never invokes providers, and never
-holds user credentials.
+A Tauri 2 application over the bundled, optimized Rust CLI. The CLI owns all
+business operations, credentials, SQLite state and harness installation. The
+webview receives public JSON envelopes; it never invokes providers or writes
+harness files. Harness executables remain user/vendor managed.
 
-## Layout
+## Use
 
-- `core/` — pure-Rust, transport-free crate: envelope parsing
-  (`schema_version` gate, `continuations`, `error.code`), command-registry
-  argv construction from `help --agent --json` descriptors
-  (`parameter_rules`, `choices`, `required`), CLI process runner
-  (executable resolution bundled → configured → PATH, env pinning, bounded
-  wait, timeout = effect unconfirmed).
-- `src-tauri/` — thin Tauri shell: `#[tauri::command]` wrappers run core
-  calls on `spawn_blocking`; capabilities are restricted to core invoke/
-  window, `opener` URLs (HTTPS plus loopback HTTP for local providers),
-  and `window-state`; plugins are single-instance, window-state, and
-  opener; strict CSP. IPC tiers: `cli_run_read`
-  (mutability=`read` only), `cli_plan` (`plan` only),
-  `cli_apply_confirmed` (`apply` + explicit UI confirmation), plus typed
-  commands for auth, catalog, tasks.
-- `src/` — React + Vite + Tailwind v4 UI, `HashRouter` + Zustand. Single
-  `transport.ts` choke point; replies are typed `CmdResult`. Pages:
-  Overview (CLI health/doctor/device), Account (device-code sign-in),
-  Catalog (registry search/detail via CLI), Tasks (intents + status
-  polling), Install (native author/install tasks with explicit input files,
-  questions and recovery), Discovery and Targets (forms from live native
-  descriptors), Commands (implemented read/plan/apply operations),
-  Debug (IPC trace, resolved engine, envelope inspector, diagnostic
-  bundle), Settings (explicit initialization, migration and local configuration).
+- **Overview** shows engine health, local identity and platform capabilities.
+- **Settings** explicitly initializes a workspace with the selected credential
+  store. Existing Python state requires the migration plan and exact digest
+  exposed through Commands; initialization never replaces it.
+- **Catalog** searches separate authoritative/experimental lanes. A published
+  setup version can prefill the installation form with its exact ID and digest.
+- **Setups** creates components through CLI questions or starts installation
+  from explicit coordinates and target directories. Advanced inputs can use an
+  existing JSON file. Starting and answering can execute changes immediately;
+  the UI requires authorization and the CLI validates the full request.
+- **Activity** lists unfinished tasks and opens any retained task by ID.
+  Recovery reads the current revision; an uncertain start retains its retry
+  identity in memory across navigation. After restarting the app, inspect
+  Activity before starting again.
+- **Account** drives device login, expiration, session refresh and retained
+  operation recovery. Credentials stay in the CLI's selected store.
+- **Targets**, **Discovery** and **Commands** render the connected engine's
+  command descriptors with read/plan/apply gates and explicit apply confirmation.
+- **Diagnostics** offers an optional, bounded in-memory trace and an explicitly
+  copied redacted report. No telemetry or automatic diagnostic upload.
 
-The default state location belongs to the CLI. A fresh installation uses
-Settings → `init` with an explicitly selected credential store. Existing Python
-state requires `state migrate plan` and its exact apply digest; the desktop does
-not create a replacement identity. Account actions compose `account plan` and
-`account apply`, resume the retained pending plan and read `account status`.
-Public temporary plan files contain no credentials and are removed after use.
-Installation input must satisfy the live `task input-schema`; Start authorizes
-that input, so it may execute immediately. The UI has no invented fallback
-intent, provider or harness list and no legacy backup/rollback controls.
+The engine reports installation availability. Isolated setup execution is
+currently Linux-only; authoring and catalog reads remain available on macOS and
+Windows. The desktop does not bypass an unsupported operation.
 
-## Design system
+## Code
 
-Tokens and rules are mirrored from `apps/web` (`docs/product/DESIGN.md`,
-`apps/web/src/theme/tokens.json`): IBM Plex Sans/Mono (vendored woff2,
-unicode-range split), semantic HSL channels under `:root`/`.dark`,
-component primitives (`.card`, `.btn-primary`, `.input`, `.chip`, …) in
-`src/index.css`. Raw hex in components is prohibited; accent orange is
-reserved for CTAs and active markers. Light/dark follows the OS with a
-manual toggle in the sidebar.
+- `core/`: envelope parsing, descriptor-driven argv, executable resolution,
+  filtered environment and bounded process execution. Linux session bus access
+  is preserved for the existing OS keyring. A timeout leaves effects unconfirmed.
+- `src-tauri/`: asynchronous IPC wrappers, serialized mutations and temporary
+  public plan/input files. Form input is an object bounded to 16 KiB and passed
+  unchanged to CLI schema validation; files are private and removed after use.
+- `src/transport.ts`: the single IPC boundary. `store.ts` shares engine state;
+  `taskStart.ts` retains a logical start's retry identity. Pages render the
+  native contract; common visual primitives live in `components/` and `index.css`.
 
-## Debug mode
+The app uses the shared web theme roles, vendored IBM Plex fonts, light/dark
+appearance, visible keyboard focus and reduced-motion preferences. Technical
+responses remain available in expandable details.
 
-Every IPC call is recorded (command, args, latency, ok/error_code, full
-envelope) in a bounded ring buffer — open the Debug page to inspect the
-trace, expand any call's raw envelope, run a read-gated probe command, or
-copy a redacted diagnostic bundle. `debug_info` reports which CLI binary
-was resolved and from where. The sidebar badge counts failed calls.
+## Develop and verify
 
-## Build and test
+Use the Rust version in `apps/cli/rust-toolchain.toml` and the repository's pinned
+Bun/uv versions. Tauri needs the platform webview development packages.
 
-```bash
-# Rust core (no GUI deps required)
-cd core && cargo test                      # unit tests
-cd core && cargo test -- --ignored         # + real ai-stp on PATH
-
-# Frontend
-bun install && bun run build
-
-# Tauri shell (needs OS webview dev packages; Debian/Ubuntu:
-# libwebkit2gtk-4.1-dev libsoup-3.0-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev)
-cd src-tauri && cargo check && cargo build
+```sh
+just desktop-gen       # Format Rust
+just desktop-check     # Frontend, both Rust crates, real optimized sidecar
+just desktop-bundle-test # Probe an existing packaged CLI resource tree
 ```
 
-From the repository root, `just desktop-check` runs the same group CI
-runs: frontend tsc/vitest/build, fmt+clippy+tests for both crates, and a
-`desktop-regress` leg that builds the optimized Rust sidecar and spawns it under the app's filtered
-environment. `just desktop-gen` formats both crates. The `--stub` sidecar
-these recipes install is a dev-only placeholder that answers
-`version --json`; it is never written over a real build.
+From `apps/desktop`, `bun run tauri dev` starts the native app. `bun run dev`
+starts the frontend only and cannot perform operations without Tauri IPC.
+Tests isolate IPC responses; sidecar regressions execute the actual native CLI.
 
-Run the dev app (needs a display): `bunx tauri dev` from `apps/desktop`.
+Release bundles require their own `cli/ai-stp-desktop-cli` resource. A missing
+bundled engine fails closed. Development can use `AI_STP_CLI` or PATH when no
+bundled resource is present; a missing configured executable also fails closed.
+The compile-time stub never overwrites a real sidecar.
 
-## Contract rules encoded here
+## Release
 
-- argv is built only from `help --agent --json` descriptors — undeclared
-  parameters are refused before spawn;
-- exactly one JSON object on stdout; unknown `schema_version` majors fail
-  closed with an update prompt;
-- errors are routed by `error.code` (+ `retryable` and structured
-  `details`/`next_actions` passthrough), never message text; shell-local
-  failures use `DESKTOP_*` codes, never the CLI's `AI_STP_*` namespace;
-- `actor="external"` continuations mean poll, not re-run;
-- unknown `actor` values degrade to `human` — the app never auto-runs an
-  argv it was not explicitly handed.
-
-## Releases
-
-`.github/workflows/desktop-release.yml` builds and publishes a GitHub
-Release for all three OSes. Tag the release commit `desktop-vX.Y.Z` where
-`X.Y.Z` equals `src-tauri/tauri.conf.json` → `version`, push the tag, then
-dispatch the workflow with that version. The run refuses to proceed on any
-other ref, verifies the tag/version match, runs the full check set per OS,
-checksums every artifact (`SHA256SUMS`), and attaches bundles to the
-release. Bundles are unsigned — signing/notarization is a separate track.
-
-## Requirements
-
-Release bundles carry the Rust CLI inside. `scripts/build-cli-sidecar.sh`
-builds the locked optimized native package, verifies its machine protocol and
-packages one `ai-stp-desktop-cli` executable plus its digest-bound `sidecar.json`.
-Tauri installs those resources under `cli/`; the shell uses the platform resource
-resolver. There is no interpreter, runtime extraction or separate CLI installation.
-The sidecar name does not occupy the standalone `ai-stp` entrypoint. The packaged
-resource probe verifies the actual extracted binary and runs it through the app's
-filtered environment.
-
-Development resolution falls back to a configured path and then PATH. A configured
-path that is missing fails explicitly. `--stub` remains a compile-time development
-placeholder and never replaces a real sidecar.
-
-## Deliberate boundaries
-
-- Signed/notarized bundles — needs signing certificates and notarization
-  credentials; `SHA256SUMS` in each release covers integrity until then.
-- Catalog traffic stays in the CLI, including private acquisitions and
-  credentials, as required by the CLI process boundary.
-- Per-target mutation parallelism — mutations serialize on one mutex
-  because the CLI journal is global state; targeted parallelism would
-  not make journal writes any safer.
+Tag the verified commit `desktop-vX.Y.Z`, matching all desktop manifest versions,
+then dispatch `.github/workflows/desktop-release.yml` on that tag. The workflow
+checks and packages Linux, macOS and Windows builds and publishes `SHA256SUMS`.
+Bundles are currently unsigned; no signing credentials are configured.
