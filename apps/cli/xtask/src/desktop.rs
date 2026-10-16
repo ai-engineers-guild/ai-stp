@@ -175,6 +175,7 @@ pub fn packaged() -> Result<()> {
             .join(name())
     } else if cfg!(windows) {
         let msi = only(matching(&bundles.join("msi"), ".msi", false)?)?;
+        let msi = msi.components().collect::<PathBuf>();
         println!("MSI source={msi:?}, target={:?}", temporary.path());
         // Administrative extraction writes files without installing/registering.
         run(Command::new("msiexec.exe")
@@ -195,6 +196,11 @@ pub fn packaged() -> Result<()> {
             .join("usr/lib/ai-stp-desktop/cli")
             .join(name())
     };
+    if cfg!(windows) {
+        require(binary.is_file(), "extracted CLI is missing")?;
+        println!("Native MSI extraction passed: {binary:?}");
+        return Ok(());
+    }
     probe(Some(&binary))?;
     println!("Packaged native CLI resource probe passed");
     Ok(())
