@@ -1,4 +1,4 @@
-//! UI-agnostic core for the ai-stp desktop app (ADR-0222).
+//! UI-agnostic core for the ai-stp desktop app.
 //!
 //! Everything here is synchronous and transport-free: the Tauri shell pushes
 //! calls off the async runtime (`tauri::async_runtime::spawn_blocking`), and

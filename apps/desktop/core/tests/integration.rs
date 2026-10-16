@@ -67,12 +67,12 @@ fn argv_built_from_descriptors() {
     values.insert("project".to_string(), "/tmp/proj".to_string());
     values.insert("harness".to_string(), "claude-code".to_string());
     let argv = reg
-        .build_argv("install plan", &values, &[], &BTreeMap::new())
+        .build_argv("sample plan", &values, &[], &BTreeMap::new())
         .unwrap();
     assert_eq!(
         argv,
         vec![
-            "install",
+            "sample",
             "plan",
             "--setup",
             "setup_01ABC@1.0",
@@ -92,16 +92,16 @@ fn argv_refuses_undeclared_and_missing() {
     let mut values = BTreeMap::new();
     values.insert("undeclared".to_string(), "x".to_string());
     assert!(
-        reg.build_argv("install plan", &values, &[], &BTreeMap::new())
+        reg.build_argv("sample plan", &values, &[], &BTreeMap::new())
             .is_err()
     );
 
     // With no `action` at all the conditioned exactly_one{proposal,setup}
     // does not apply (contract: it only holds while action takes
-    // install/update/remove) — bare `install plan` is legal argv; whether
+    // install/update/remove) — bare `sample plan` is legal argv; whether
     // it is meaningful is the CLI's semantic check, not the shell's.
     assert!(
-        reg.build_argv("install plan", &BTreeMap::new(), &[], &BTreeMap::new())
+        reg.build_argv("sample plan", &BTreeMap::new(), &[], &BTreeMap::new())
             .is_ok()
     );
 }
@@ -111,12 +111,12 @@ fn argv_enforces_declared_rules() {
     let help: MachineHelp = serde_json::from_slice(&fixture("machine-help.json")).unwrap();
     let reg = CommandRegistry::from_help(&help);
 
-    // install plan: `required_when` project while setup present — refuse without it.
+    // sample plan: `required_when` project while setup present — refuse without it.
     let mut values = BTreeMap::new();
     values.insert("setup".to_string(), "setup_01ABC@1.0".to_string());
     values.insert("harness".to_string(), "claude-code".to_string());
     assert!(
-        reg.build_argv("install plan", &values, &[], &BTreeMap::new())
+        reg.build_argv("sample plan", &values, &[], &BTreeMap::new())
             .is_err()
     );
 
@@ -126,7 +126,7 @@ fn argv_enforces_declared_rules() {
     values.insert("harness".to_string(), "claude-code".to_string());
     values.insert("action".to_string(), "install".to_string());
     assert!(
-        reg.build_argv("install plan", &values, &[], &BTreeMap::new())
+        reg.build_argv("sample plan", &values, &[], &BTreeMap::new())
             .is_err()
     );
 
@@ -136,46 +136,46 @@ fn argv_enforces_declared_rules() {
     values.insert("project".to_string(), "/tmp/p".to_string());
     values.insert("harness".to_string(), "not-a-harness".to_string());
     assert!(
-        reg.build_argv("install plan", &values, &[], &BTreeMap::new())
+        reg.build_argv("sample plan", &values, &[], &BTreeMap::new())
             .is_err()
     );
 
-    // Conditioned-off pair rule: on `backup`/`rollback` the
+    // Conditioned-off pair rule: on `archive`/`restore` the
     // exactly_one{proposal,setup} relaxes to at_most_one — supplying
-    // neither is legal (the CLI's own declaration, registry.py).
+    // neither is legal (the synthetic declaration, synthetic fixture).
     let mut values = BTreeMap::new();
-    values.insert("action".to_string(), "backup".to_string());
+    values.insert("action".to_string(), "archive".to_string());
     assert!(
-        reg.build_argv("install plan", &values, &[], &BTreeMap::new())
+        reg.build_argv("sample plan", &values, &[], &BTreeMap::new())
             .is_ok(),
-        "conditioned-off exactly_one must not fire on action=backup"
+        "conditioned-off exactly_one must not fire on action=archive"
     );
 
     // …but the conditioned at_most_one does fire: both is still refused.
     let mut values = BTreeMap::new();
-    values.insert("action".to_string(), "backup".to_string());
+    values.insert("action".to_string(), "archive".to_string());
     values.insert("proposal".to_string(), "p".to_string());
     values.insert("setup".to_string(), "s".to_string());
     assert!(
-        reg.build_argv("install plan", &values, &[], &BTreeMap::new())
+        reg.build_argv("sample plan", &values, &[], &BTreeMap::new())
             .is_err()
     );
 
-    // `component` is forbidden_when action=backup — conditioned-on rule.
+    // `component` is forbidden_when action=archive — conditioned-on rule.
     let mut values = BTreeMap::new();
-    values.insert("action".to_string(), "backup".to_string());
+    values.insert("action".to_string(), "archive".to_string());
     values.insert("component".to_string(), "c".to_string());
     assert!(
-        reg.build_argv("install plan", &values, &[], &BTreeMap::new())
+        reg.build_argv("sample plan", &values, &[], &BTreeMap::new())
             .is_err()
     );
 
-    // target status: both required options present.
+    // sample status: both required options present.
     let mut values = BTreeMap::new();
     values.insert("project".to_string(), "a".to_string());
     values.insert("harness".to_string(), "codex".to_string());
     assert!(
-        reg.build_argv("target status", &values, &[], &BTreeMap::new())
+        reg.build_argv("sample status", &values, &[], &BTreeMap::new())
             .is_ok()
     );
 }
@@ -196,7 +196,7 @@ fn argv_repeated_and_positional_flags() {
     values.insert("project".to_string(), "/tmp/p".to_string());
     values.insert("harness".to_string(), "claude-code".to_string());
     let argv = reg
-        .build_argv("install plan", &values, &[], &repeated)
+        .build_argv("sample plan", &values, &[], &repeated)
         .unwrap();
     let n = argv.iter().filter(|a| *a == "--allow-permission").count();
     assert_eq!(n, 2);
@@ -231,7 +231,7 @@ fn argv_repeated_and_positional_flags() {
     }
 }
 
-/// Synthetic registry exercising rules the shipped fixture does not have:
+/// Synthetic registry exercising rules the base synthetic fixture does not have:
 /// repeatable-with-choices, `when_parameter` fed through `repeated`, and a
 /// multi-name `required_when`.
 fn synthetic_help() -> MachineHelp {
@@ -528,7 +528,7 @@ fn argv_boolean_flags_and_repeatables() {
     );
     let argv = reg
         .build_argv(
-            "install plan",
+            "sample plan",
             &values,
             &["unverified-provider".to_string()],
             &repeated,
@@ -546,7 +546,7 @@ fn argv_boolean_flags_and_repeatables() {
     // a non-boolean parameter is not a flag.
     assert!(
         reg.build_argv(
-            "install plan",
+            "sample plan",
             &values,
             &["setup".to_string()],
             &BTreeMap::new()

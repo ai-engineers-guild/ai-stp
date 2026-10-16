@@ -20,7 +20,7 @@ struct CmdResult {
     /// Stable machine code when the CLI produced one — the frontend keys
     /// on this, never on the message text.
     error_code: Option<String>,
-    /// Contract fields the UI can route on (ADR-0222): operation tracking
+    /// Contract fields the UI can route on: operation tracking
     /// and retry/disposition hints ride along unmodified.
     #[serde(skip_serializing_if = "Option::is_none")]
     request_id: Option<String>,
@@ -253,10 +253,16 @@ fn new_idem_key(prefix: &str) -> String {
 struct PublicPlanFile(PathBuf);
 impl PublicPlanFile {
     fn write(plan: &serde_json::Value) -> Result<Self, String> {
+        Self::bounded(plan, 65536)
+    }
+
+    fn bounded(plan: &serde_json::Value, limit: usize) -> Result<Self, String> {
         use std::io::Write;
         let bytes = serde_json::to_vec(plan).map_err(|_| "invalid public plan")?;
-        if bytes.len() > 65536 {
-            return Err("public plan exceeds 64 KiB".into());
+        if !plan.is_object() || bytes.len() > limit {
+            return Err(format!(
+                "public input must be an object of at most {limit} bytes"
+            ));
         }
         let path =
             std::env::temp_dir().join(format!("{}.json", new_idem_key("ai-stp-desktop-plan")));
@@ -623,6 +629,45 @@ async fn auth_logout(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult
 }
 
 #[tauri::command]
+async fn auth_refresh(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || account_action(&st, "refresh", None))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn auth_resume(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let status = run_cli(&st, &argv("account status"));
+        if !status.ok {
+            return status;
+        }
+        let plan = status
+            .data
+            .as_ref()
+            .and_then(|data| data.get("pending_operation"))
+            .and_then(|pending| pending.get("plan"));
+        let action = plan.and_then(|plan| plan["action"].as_str()).unwrap_or("");
+        if !matches!(action, "start" | "poll" | "refresh" | "logout") {
+            return CmdResult::failed(
+                "DESKTOP_USAGE",
+                "Inspect and resume this account operation through the native command forms",
+            );
+        }
+        let provider = if action == "start" {
+            plan.and_then(|plan| plan["provider"].as_str())
+        } else {
+            None
+        };
+        account_action(&st, action, provider)
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 async fn device_show(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || run_cli(&st, &argv("device show")))
@@ -685,7 +730,7 @@ async fn catalog_show(
     .map_err(|e| e.to_string())
 }
 
-// ---- tasks: the durable journey surface (SPEC-080).
+// ---- tasks: the durable journey surface.
 
 #[tauri::command]
 async fn task_intents(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, String> {
@@ -701,9 +746,21 @@ async fn task_start(
     intent: String,
     idem_key: Option<String>,
     input_path: Option<String>,
+    input: Option<serde_json::Value>,
 ) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
+        if input.is_some() && input_path.as_ref().is_some_and(|p| !p.is_empty()) {
+            return CmdResult::failed("DESKTOP_USAGE", "Choose form input or an input file");
+        }
+        let file = match input
+            .as_ref()
+            .map(|input| PublicPlanFile::bounded(input, 16384))
+            .transpose()
+        {
+            Ok(file) => file,
+            Err(error) => return CmdResult::failed("DESKTOP_USAGE", error),
+        };
         // The UI supplies one key per logical start attempt so a timeout-
         // and-retry hits the CLI's idempotency dedup instead of forking a
         // second task; absent a key we mint one per call.
@@ -719,6 +776,10 @@ async fn task_start(
             "--idempotency-key".into(),
             key,
         ];
+        let input_path = file
+            .as_ref()
+            .map(|file| file.0.to_string_lossy().into_owned())
+            .or(input_path);
         if let Some(path) = input_path.filter(|path| !path.is_empty()) {
             a.extend(["--input".into(), path]);
         }
@@ -846,7 +907,9 @@ pub fn run() {
             let bundled = app
                 .path()
                 .resolve(name, tauri::path::BaseDirectory::Resource)?;
-            let bundled = bundled.is_file().then_some(bundled);
+            // A packaged application must not silently execute a PATH binary
+            // if its bundled engine is missing. Development may use an override.
+            let bundled = (!cfg!(debug_assertions) || bundled.is_file()).then_some(bundled);
             app.manage(Arc::new(AppState::new(bundled)));
             Ok(())
         })
@@ -885,6 +948,8 @@ pub fn run() {
             auth_complete,
             auth_status,
             auth_logout,
+            auth_refresh,
+            auth_resume,
             device_show,
             catalog_search,
             catalog_show,
@@ -903,6 +968,31 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn temporary_task_input_is_bounded_private_and_removed() {
+        let input = serde_json::json!({"harness_id":"codex","targets":{"project":"/workspace"}});
+        let file = PublicPlanFile::bounded(&input, 16384).unwrap();
+        let path = file.0.clone();
+        let stored: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(stored, input);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+        drop(file);
+        assert!(!path.exists());
+        assert!(PublicPlanFile::bounded(&serde_json::json!([]), 16384).is_err());
+        assert!(
+            PublicPlanFile::bounded(&serde_json::json!({"value":"x".repeat(16384)}), 16384)
+                .is_err()
+        );
+    }
 
     #[test]
     fn registry_reads_do_not_postpone_verification() {
