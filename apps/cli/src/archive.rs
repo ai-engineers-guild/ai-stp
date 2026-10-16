@@ -223,10 +223,11 @@ pub(crate) fn decode(payload: &[u8], limits: Limits) -> Result<Vec<Entry<'static
             0o040000 => Kind::Directory,
             _ => return Err(invalid()),
         };
+        let name = file.name().map_err(|_| invalid())?;
         let path = if kind == Kind::Directory {
-            file.name().strip_suffix('/').ok_or_else(invalid)?
+            name.strip_suffix('/').ok_or_else(invalid)?
         } else {
-            file.name()
+            name.as_ref()
         }
         .to_owned();
         total = total.checked_add(file.size()).ok_or_else(invalid)?;

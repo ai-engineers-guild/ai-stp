@@ -172,7 +172,7 @@ pub fn read_archive(path: &Path, binary: &str) -> Result<Files> {
                 "archive entry is not a regular unencrypted file",
             )?;
             admit(
-                entry.name().into(),
+                entry.name()?.into_owned(),
                 entry.size(),
                 mode & 0o7777,
                 Box::new(entry),
