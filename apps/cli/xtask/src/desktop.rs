@@ -175,11 +175,13 @@ pub fn packaged() -> Result<()> {
             .join(name())
     } else if cfg!(windows) {
         let msi = only(matching(&bundles.join("msi"), ".msi", false)?)?;
+        println!("MSI source={msi:?}, target={:?}", temporary.path());
         // Administrative extraction writes files without installing/registering.
         run(Command::new("msiexec.exe")
             .arg("/a")
             .arg(msi)
             .arg("/qn")
+            .arg("/l*v").arg("msi-rust.log")
             .arg(format!("TARGETDIR={}", temporary.path().display())))?;
         only(matching(temporary.path(), name(), true)?)?
     } else {

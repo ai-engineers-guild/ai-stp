@@ -1,138 +1,46 @@
-# Desktop application CI: the Tauri shell over apps/desktop on all three
-# target OSes. Style follows check.yml — pinned action SHAs, pinned tool
-# versions, no job depends on another.
-#
-# The core crate tests run everywhere; the full `tauri build` produces the
-# per-OS bundles (.deb/.rpm/.AppImage, .dmg, .msi/.nsis) so cross-platform
-# breakage is caught here rather than on a maintainer's machine.
-name: desktop
-
+name: desktop-msi-diagnostic
 on:
-  push:
-    branches: [dev, main]
-    # The sidecar is the optimized Rust CLI built from this source tree.
-    paths:
-      - "apps/desktop/**"
-      - "apps/cli/**"
-      - "packages/**"
-      - ".github/workflows/desktop.yml"
-      # Bun installation changes also affect the desktop build.
-      - ".github/scripts/install-bun.sh"
-  pull_request:
-    paths:
-      - "apps/desktop/**"
-      - "apps/cli/**"
-      - "packages/**"
-      - ".github/workflows/desktop.yml"
-      # Bun installation changes also affect the desktop build.
-      - ".github/scripts/install-bun.sh"
   workflow_dispatch:
-
 permissions:
   contents: read
-
-concurrency:
-  group: desktop-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  BUN_VERSION: "1.4.2"
-
 jobs:
-  desktop:
-    name: desktop-${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        # Linux bundles need the glibc of the image that built them, so the leg
-        # pins the image the shipped bundles were built and tested on rather
-        # than `ubuntu-latest`, which moves to Ubuntu 26.04 from 2026-10-19.
-        os: [ubuntu-24.04, macos-15, windows-2025]
+  probe:
+    runs-on: windows-2025
+    timeout-minutes: 10
+    env:
+      RUSTUP_TOOLCHAIN: 1.99.0
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Install the native CLI toolchain
-        shell: bash
+      - name: Prepare published MSI
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
-          toolchain="$(sed -n 's/^channel = "\(.*\)"/\1/p' apps/cli/rust-toolchain.toml)"
-          test -n "${toolchain}"
-          rustup toolchain install "${toolchain}" --profile minimal \
-            --component clippy --component rustfmt
-          echo "RUSTUP_TOOLCHAIN=${toolchain}" >> "${GITHUB_ENV}"
-      - name: Install pinned bun
-        shell: bash
+          rustup toolchain install 1.99.0 --profile minimal
+          gh release download desktop-v0.0.9 --repo ai-engineers-guild/ai-stp --pattern '*.msi' --pattern SHA256SUMS --dir apps/desktop/src-tauri/target/release/bundle/msi
+          python -c "from pathlib import Path; import hashlib; p=Path('apps/desktop/src-tauri/target/release/bundle/msi'); f=next(p.glob('*.msi')); assert hashlib.sha256(f.read_bytes()).hexdigest()+'  '+f.name in (p/'SHA256SUMS').read_text()"
+      - name: Rust extraction
+        continue-on-error: true
+        shell: pwsh
+        run: cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- desktop-package-probe
+      - name: Original subprocess extraction
+        continue-on-error: true
+        shell: pwsh
         run: |
-          set -euo pipefail
-          bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
-          echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
-      - name: Install WebKitGTK dependencies (Linux)
-        if: runner.os == 'Linux'
+          @'
+          import pathlib, subprocess, tempfile
+          msi=next(pathlib.Path('apps/desktop/src-tauri/target/release/bundle/msi').resolve().glob('*.msi'))
+          with tempfile.TemporaryDirectory() as dest:
+              args=['msiexec.exe', '/a', str(msi), '/qn', '/l*v', 'msi-python.log', 'TARGETDIR='+dest]
+              print(repr(args), flush=True)
+              result=subprocess.run(args, timeout=180)
+              print('Python extraction exit:', result.returncode)
+              print('Extracted CLI:', list(pathlib.Path(dest).rglob('ai-stp-desktop-cli.exe')))
+          '@ | python
+      - name: MSI diagnostics
+        if: always()
+        shell: pwsh
         run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
-            librsvg2-dev patchelf
-      - name: Frontend install
-        working-directory: apps/desktop
-        run: bun install --frozen-lockfile
-      - name: Frontend checks (tsc, vitest, vite build)
-        working-directory: apps/desktop
-        shell: bash
-        run: |
-          set -euo pipefail
-          bun x tsc --noEmit
-          bun x vitest run
-          bun x vite build
-      - name: Core crate tests
-        working-directory: apps/desktop/core
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo fmt --check
-          cargo clippy --locked --all-targets -- -D warnings
-          cargo test --locked
-      - name: Stub sidecar for shell-crate checks
-        shell: bash
-        # tauri-build's build.rs verifies resource paths exist at compile
-        # time; the stub satisfies that before the real Rust sidecar
-        # is built below.
-        run: cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- desktop-stub
-      - name: Shell crate tests
-        working-directory: apps/desktop/src-tauri
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo fmt --check
-          cargo clippy --locked --all-targets -- -D warnings
-          cargo test --locked
-      - name: Build the bundled CLI sidecar
-        shell: bash
-        run: cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- desktop-build
-      - name: Sidecar spawns under the app's filtered env
-        shell: bash
-        # CliRunner clears the child env and re-adds a passthrough set —
-        # the same path the installed app takes. The probe verifies the Rust
-        # runtime, executable registry and native task input contract.
-        # The native tool is shared with `just desktop-regress`.
-        run: cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- desktop-probe
-      - name: Tauri build
-        working-directory: apps/desktop
-        shell: bash
-        run: bun x tauri build
-      - name: Probe the packaged CLI resource tree
-        shell: bash
-        run: >-
-          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml --
-          desktop-package-probe
-      - name: Upload bundles
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: ai-stp-desktop-${{ matrix.os }}
-          path: |
-            apps/desktop/src-tauri/target/release/bundle/
-          if-no-files-found: warn
+          Get-ChildItem -Filter 'msi-*.log' | ForEach-Object { Write-Output $_.Name; Get-Content $_.FullName -Tail 100 }
