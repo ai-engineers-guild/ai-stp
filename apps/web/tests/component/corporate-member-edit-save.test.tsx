@@ -67,6 +67,10 @@ it("keeps a failed draft in the modal, reports the error and closes with X", asy
   expect(await screen.findByRole("alert")).toHaveTextContent("Write unavailable");
   expect(screen.getByDisplayValue("Ada Draft")).toBeVisible();
   expect(close).not.toHaveBeenCalled();
+  // The error can render before the saving transition releases the dialog.
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: messages.corporate.cancel })).toBeEnabled();
+  });
   await userEvent.click(screen.getByRole("button", { name: messages.people.close }));
   expect(close).toHaveBeenCalledOnce();
 });
