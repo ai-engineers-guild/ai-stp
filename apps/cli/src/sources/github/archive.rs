@@ -101,6 +101,7 @@ mod tests {
     fn zip(entries: &[(&str, &[u8])]) -> std::result::Result<Vec<u8>, Box<dyn Error>> {
         let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
         let options = zip::write::SimpleFileOptions::default()
+            .system(zip::System::Unix)
             .compression_method(zip::CompressionMethod::Deflated)
             .unix_permissions(0o755);
         writer.add_directory("owner-repo-sha/", options)?;
