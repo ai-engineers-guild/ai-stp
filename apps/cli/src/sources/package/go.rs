@@ -96,7 +96,7 @@ fn module_archive(bytes: &[u8], name: &str, version: &str) -> Result<(String, Ve
     for index in 0..archive.len() {
         let member = archive.by_index(index).map_err(|_| invalid())?;
         let name = std::str::from_utf8(member.name_raw()).map_err(|_| invalid())?;
-        if name != member.name()
+        if name != member.name().map_err(|_| invalid())?
             || !name.starts_with(&prefix)
             || name.contains('\\')
             || name.chars().any(char::is_control)

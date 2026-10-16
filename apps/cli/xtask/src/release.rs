@@ -93,6 +93,7 @@ pub fn zip_bytes(files: &Files, executable: &str) -> Result<Vec<u8>> {
     let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
     for (name, bytes) in files {
         let options = zip::write::SimpleFileOptions::default()
+            .system(zip::System::Unix)
             .compression_method(zip::CompressionMethod::Deflated)
             .unix_permissions(if name == executable { 0o755 } else { 0o644 });
         archive.start_file(name, options)?;
@@ -172,7 +173,7 @@ pub fn read_archive(path: &Path, binary: &str) -> Result<Files> {
                 "archive entry is not a regular unencrypted file",
             )?;
             admit(
-                entry.name().into(),
+                entry.name()?.into_owned(),
                 entry.size(),
                 mode & 0o7777,
                 Box::new(entry),

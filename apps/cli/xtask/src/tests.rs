@@ -2,7 +2,7 @@ use crate::{Files, Result, encoded, hash, release, sbom, wheel};
 use serde_json::{Value, json};
 use std::fs;
 
-const VERSION: &str = "0.1.2";
+const VERSION: &str = "0.1.3";
 const REVISION: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const TARGET: &str = "x86_64-unknown-linux-gnu";
 
