@@ -1,0 +1,27 @@
+[package]
+name = "ai-stp-native-tools"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+publish = false
+license = "AGPL-3.0-or-later"
+
+# Build and release tooling only; none of this crate enters shipped binaries.
+[workspace]
+
+[dependencies]
+base64 = "=0.23.1"
+flate2 = { version = "=1.1.10", default-features = false, features = ["zlib-rs"] }
+serde_json = "=1.0.151"
+sha2 = "=0.11.0"
+tar = "=0.4.46"
+tempfile = "=3.27.0"
+toml_edit = { version = "=0.25.16", default-features = false, features = ["parse", "display"] }
+zip = { version = "=8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"

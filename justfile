@@ -8,7 +8,7 @@
 #
 # A group is a check's owner, and the prefix is mandatory:
 #   docs-*    — current documentation and MkDocs;
-#   back-*    — Python: packages/, apps/api, apps/platform, apps/cli, tests/;
+#   back-*    — Python: packages/, apps/api, apps/platform, tests/;
 #   cli-*  — apps/cli (native CLI and its boundary proofs);
 #   web-*     — apps/web;
 #   desktop-* — apps/desktop (UI + core + src-tauri crates);
@@ -39,6 +39,7 @@ set minimum-version := "1.58.0"
 scripts := "docs_scripts"
 py := "uv run --locked --group docs python"
 run := "uv run --locked"
+native := "cd apps/cli && cargo run --quiet --locked --manifest-path xtask/Cargo.toml --"
 # Test processes. The fleet class that runs the gate is a 4-vCPU machine, so 4
 # is the shape CI actually has; a laptop with more cores can raise it and a
 # constrained one can set 0 to go back to a single process. `auto` is
@@ -488,27 +489,31 @@ web-check: web-build web-storybook web-static web-test web-regress web-feature-p
 [group('cli')]
 cli-gen:
     cd apps/cli && cargo fmt
+    cd apps/cli && cargo fmt --manifest-path xtask/Cargo.toml
 
 # Native formatting and compiler diagnostics, including evidence examples
 [group('cli')]
 cli-static:
     cd apps/cli && cargo fmt --check
-    cd apps/cli && python3 scripts/with_libclang.py cargo clippy --locked --all-targets -- -D warnings
+    cd apps/cli && cargo fmt --manifest-path xtask/Cargo.toml --check
+    cd apps/cli && cargo clippy --locked --manifest-path xtask/Cargo.toml --all-targets -- -D warnings
+    {{ native }} build cargo clippy --locked --all-targets -- -D warnings
 
 # Canonical vectors, real binary behavior and adversarial signed provenance
 [group('cli')]
 cli-test:
-    cd apps/cli && python3 scripts/with_libclang.py cargo test --locked
+    cd apps/cli && cargo test --locked --manifest-path xtask/Cargo.toml
+    {{ native }} build cargo test --locked
 
 # Optimized native executable and explicit provider evidence runner
 [group('cli')]
 cli-build:
-    cd apps/cli && python3 scripts/with_libclang.py cargo build --locked --release --bins --examples
+    {{ native }} build cargo build --locked --release --bins --examples
 
 # Existing envelope consumer, registry digest and live-WAL backup compatibility
 [group('cli')]
 cli-regress: cli-build
-    {{ run }} python apps/cli/scripts/verify.py apps/cli/target/release/ai-stp
+    {{ run }} python tests/native_contract/verify.py apps/cli/target/release/ai-stp
 
 # Native CLI boundary gate (also part of the repository gate)
 [group('cli')]
@@ -534,16 +539,15 @@ desktop-gen:
     cd apps/desktop/src-tauri && cargo fmt
 
 # The frozen lockfile is the contract; `vite build` emits `dist/` and the
-# stub sidecar satisfies the resource existence check before the crates
-# compile. `run_bash.py` picks Git-for-Windows bash over WSL on Windows —
-# the recipe line stays identical everywhere.
+# stub resource satisfies the existence check before the crates compile.
+# The repository-only Rust tool drives identical operations on all three OSes.
 [doc('Frontend build plus a stub sidecar for compile-time checks')]
 [group('desktop')]
 desktop-build:
     {{ bunreq }}
     cd apps/desktop && bun install --frozen-lockfile
     cd apps/desktop && bun x vite build
-    {{ run }} python release_scripts/run_bash.py apps/desktop/scripts/build-cli-sidecar.sh --stub
+    {{ native }} desktop-stub
 
 [doc('tsc, fmt and clippy for the UI and both crates')]
 [group('desktop')]
@@ -562,21 +566,20 @@ desktop-test: desktop-build
     cd apps/desktop/src-tauri && cargo test --locked
 
 # Builds the optimized Rust sidecar, replaces the generated stub, and runs
-# the same filtered-env resource probe as desktop.yml. Python is a build-time
-# driver only; the resource tree contains no interpreter.
+# the same filtered-env resource probe as desktop.yml. The build and resource
+# qualification use Rust; no interpreter is required.
 [doc('Build the real sidecar and spawn it under the filtered env')]
 [group('desktop')]
 desktop-regress: desktop-build
-    {{ uvreq }}
-    {{ run }} python release_scripts/run_bash.py apps/desktop/scripts/build-cli-sidecar.sh
-    {{ run }} python release_scripts/run_bash.py apps/desktop/scripts/test-bundled-sidecar.sh
+    {{ native }} desktop-build
+    {{ native }} desktop-probe
 
 # Requires existing OS bundles from `bun x tauri build`; extraction is local
 # and never installs the application on the developer's machine.
 [doc('Extract an existing desktop bundle and probe its CLI resource tree')]
 [group('desktop')]
 desktop-bundle-test:
-    {{ run }} python apps/desktop/scripts/test-packaged-sidecar.py
+    {{ native }} desktop-package-probe
 
 [doc('The desktop aggregate')]
 [group('desktop')]

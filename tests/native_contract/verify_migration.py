@@ -19,7 +19,7 @@ from typing import Any
 
 
 def fixture() -> None:
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2] / "apps/cli"
     document = json.loads((root / "tests/fixtures/legacy-state.json").read_text(encoding="utf-8"))
     state = Path(os.environ["XDG_DATA_HOME"]) / "ai-stp"
     state.mkdir(mode=0o700)

@@ -78,13 +78,13 @@ def prove(binary: Path, root: Path) -> None:
     home.mkdir()
     help_data = run(binary, home, ["help", "--agent"])["data"]
     MachineHelp.model_validate(help_data)
-    contracts = Path(__file__).resolve().parents[3] / "docs/contracts"
+    contracts = Path(__file__).resolve().parents[2] / "docs/contracts"
     exit_document = (contracts / "cli-json.md").read_text(encoding="utf-8")
     section = exit_document.split("## Exit codes", 1)[1].split("\n## ", 1)[0]
     documented_exits = {int(value) for value in re.findall(r"^\| (\d+) \|", section, re.MULTILINE)}
     assert documented_exits == {0, *(row["exit_class"] for row in help_data["error_codes"])}
     # Check installed agent guidance against the executable registry in every locale.
-    skill = Path(__file__).resolve().parents[3] / "skills/canonical/ai-stp"
+    skill = Path(__file__).resolve().parents[2] / "skills/canonical/ai-stp"
     for document in skill.rglob("*.md"):
         for invocation in re.findall(r"`(ai-stp [^`\n]+)`", document.read_text(encoding="utf-8")):
             arguments = shlex.split(invocation)[1:]
@@ -161,7 +161,7 @@ def prove(binary: Path, root: Path) -> None:
     backup = root / "backup.sqlite"
     source = sqlite3.connect(live, autocommit=True)
     source.execute("PRAGMA journal_mode=WAL")
-    bootstrap = Path(__file__).resolve().parents[1] / "src/store/schema.sql"
+    bootstrap = Path(__file__).resolve().parents[2] / "apps/cli/src/store/schema.sql"
     source.executescript(bootstrap.read_text(encoding="utf-8"))
     try:
         source.execute("PRAGMA wal_autocheckpoint=0")
@@ -256,7 +256,7 @@ def prove_config(binary: Path, home: Path, root: Path) -> None:
         "sync.enabled",
     }
     assert all(item.source == "default" for item in defaults.values)
-    document = (Path(__file__).resolve().parents[3] / "docs/contracts/cli-config.md").read_text(
+    document = (Path(__file__).resolve().parents[2] / "docs/contracts/cli-config.md").read_text(
         encoding="utf-8"
     )
     block = re.search(r"```yaml\n(.*?)```", document, re.DOTALL)

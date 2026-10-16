@@ -1,0 +1,161 @@
+//! Resolve installed libclang without downloading or modifying system tools.
+#[cfg(target_os = "linux")]
+use crate::hash;
+use crate::{Result, root, run};
+#[cfg(unix)]
+use crate::{require, text};
+#[cfg(target_os = "linux")]
+use std::fs;
+#[cfg(unix)]
+use std::path::Path;
+use std::{ffi::OsString, process::Command};
+
+#[cfg(unix)]
+fn prepend(command: &mut Command, key: &str, paths: &[&Path]) -> Result<()> {
+    let mut entries = paths.iter().map(|p| p.to_path_buf()).collect::<Vec<_>>();
+    if let Some(value) = std::env::var_os(key) {
+        entries.extend(std::env::split_paths(&value));
+    }
+    command.env(key, std::env::join_paths(entries)?);
+    Ok(())
+}
+
+#[cfg(unix)]
+fn flags(command: &mut Command, values: &[&str]) {
+    let mut value = values
+        .iter()
+        .map(|s| format!("'{}'", s.replace('\'', "'\\''")))
+        .collect::<Vec<_>>()
+        .join(" ");
+    if let Ok(existing) = std::env::var("BINDGEN_EXTRA_CLANG_ARGS") {
+        value.push(' ');
+        value.push_str(&existing);
+    }
+    command.env("BINDGEN_EXTRA_CLANG_ARGS", value);
+}
+
+pub fn invoke(arguments: &[OsString]) -> Result<()> {
+    let program = arguments.first().ok_or("build requires a command")?;
+    let mut command = Command::new(program);
+    command
+        .args(&arguments[1..])
+        .current_dir(root().join("apps/cli"));
+    configure(&mut command)?;
+    run(&mut command)
+}
+
+#[cfg(target_os = "linux")]
+fn configure(command: &mut Command) -> Result<()> {
+    let mut directories = if let Some(value) = std::env::var_os("LIBCLANG_PATH") {
+        vec![value.into()]
+    } else {
+        let mut entries = fs::read_dir("/usr/lib")?
+            .collect::<std::io::Result<Vec<_>>>()?
+            .into_iter()
+            .filter(|entry| entry.file_name().to_string_lossy().starts_with("llvm-"))
+            .map(|entry| entry.path().join("lib"))
+            .collect::<Vec<_>>();
+        entries.sort();
+        entries.reverse();
+        entries
+    };
+    let mut libraries = Vec::new();
+    for directory in directories.drain(..) {
+        if directory.is_file() {
+            libraries.push(directory);
+            continue;
+        }
+        if !directory.is_dir() {
+            continue;
+        }
+        let mut entries = fs::read_dir(directory)?
+            .collect::<std::io::Result<Vec<_>>>()?
+            .into_iter()
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("libclang.so")
+            })
+            .map(|entry| entry.path())
+            .collect::<Vec<_>>();
+        entries.sort();
+        libraries.extend(entries);
+    }
+    let library = libraries
+        .iter()
+        .find(|p| p.is_file())
+        .ok_or("install libclang development files or set LIBCLANG_PATH")?
+        .canonicalize()?;
+    let include = text(Command::new("cc").arg("-print-file-name=include"))?;
+    require(
+        Path::new(&include).is_absolute() && Path::new(&include).join("stdarg.h").is_file(),
+        "C compiler standard headers are unavailable",
+    )?;
+    let target = std::env::var_os("CARGO_TARGET_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| root().join("apps/cli/target"));
+    let target = if target.is_absolute() {
+        target
+    } else {
+        root().join("apps/cli").join(target)
+    };
+    let directory = target
+        .join("native-toolchain")
+        .join(hash(&fs::read(&library)?));
+    fs::create_dir_all(&directory)?;
+    let link = directory.join("libclang.so");
+    if let Ok(metadata) = fs::symlink_metadata(&link) {
+        require(
+            metadata.is_symlink(),
+            "libclang cache entry must be a symbolic link",
+        )?;
+    }
+    if link.canonicalize().ok().as_ref() != Some(&library) {
+        let staged = tempfile::tempdir_in(&directory)?;
+        std::os::unix::fs::symlink(&library, staged.path().join("libclang.so"))?;
+        fs::rename(staged.path().join("libclang.so"), &link)?;
+    }
+    command.env("LIBCLANG_PATH", &directory);
+    prepend(command, "LIBRARY_PATH", &[&directory])?;
+    prepend(
+        command,
+        "LD_LIBRARY_PATH",
+        &[&directory, library.parent().ok_or("library has no parent")?],
+    )?;
+    flags(command, &["-isystem", &include]);
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn configure(command: &mut Command) -> Result<()> {
+    let compiler = std::path::PathBuf::from(text(Command::new("xcrun").args(["--find", "clang"]))?);
+    let directory = compiler
+        .parent()
+        .and_then(Path::parent)
+        .ok_or("invalid Xcode compiler path")?
+        .join("lib");
+    require(
+        directory.join("libclang.dylib").is_file(),
+        "selected Xcode toolchain lacks libclang",
+    )?;
+    let sdk = text(Command::new("xcrun").arg("--show-sdk-path"))?;
+    let resources = text(Command::new(&compiler).arg("-print-resource-dir"))?;
+    command.env("LIBCLANG_PATH", &directory);
+    prepend(command, "DYLD_FALLBACK_LIBRARY_PATH", &[&directory])?;
+    flags(
+        command,
+        &[
+            "-isysroot",
+            &sdk,
+            "-isystem",
+            &format!("{resources}/include"),
+        ],
+    );
+    Ok(())
+}
+
+#[cfg(windows)]
+fn configure(_command: &mut Command) -> Result<()> {
+    Ok(())
+}
