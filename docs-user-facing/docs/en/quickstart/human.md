@@ -5,7 +5,7 @@ description: "Install the ai_stp CLI, check the environment, and reach the first
 
 # Quickstart for people
 
-Download the native archive for your OS from the [latest release](https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.1.2).
+Download the native archive for your OS from the [latest release](https://github.com/ai-engineers-guild/ai-stp/releases/latest).
 Verify its checksum and GitHub attestation, then follow the release installation steps.
 No Python runtime is required. Linux supports provider execution; macOS and Windows
 support the other native operations advertised by their capabilities.
