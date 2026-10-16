@@ -20,8 +20,8 @@ ai-stp help --agent --json
 ```
 
 Existing Python state requires the explicit in-place transfer described in the
-[CLI guide](apps/cli/README.md#state-and-first-run). Historical PyPI wheels are
-not the current installation route. The retired implementation is preserved on
+[CLI guide](apps/cli/README.md#state-and-first-run). PyPI wheels from 0.1.2 carry
+the same native executable for existing package-manager users; older wheels contain the retired Python implementation. It is preserved on
 [`legacy/python-cli`](https://github.com/ai-engineers-guild/ai-stp/tree/legacy/python-cli).
 
 ## Boundaries

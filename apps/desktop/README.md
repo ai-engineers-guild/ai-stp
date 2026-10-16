@@ -51,7 +51,9 @@ responses remain available in expandable details.
 ## Develop and verify
 
 Use the Rust version in `apps/cli/rust-toolchain.toml` and the repository's pinned
-Bun/uv versions. Tauri needs the platform webview development packages.
+Bun version. Native build and bundle probes run through the Rust tool in
+`apps/cli/xtask`; desktop builds do not need Python or uv. Tauri needs the
+platform webview development packages.
 
 ```sh
 just desktop-gen       # Format Rust

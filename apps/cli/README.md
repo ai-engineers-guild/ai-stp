@@ -73,9 +73,13 @@ CLI process before retrying replacement.
 
 PATH, credentials, the registry and harness configuration are untouched. Expose
 the reported executable through a user-owned PATH directory or command link.
-Retire an old uv/pipx launcher through its package manager before exposing the
-new command. Never overwrite another installer's launcher. There is no automatic
-download, backup, database restoration or implicit privilege escalation.
+PyPI also distributes these same native binaries as platform wheels, without
+Python wrappers or runtime dependencies. Existing uv/pipx users can upgrade
+through their package manager; that manager continues to own the executable.
+For an archive-managed installation, retire the old launcher through its owning
+package manager before exposing the new command. Never overwrite its launcher.
+There is no automatic download, backup, database restoration or implicit
+privilege escalation.
 
 ## State and first run
 
@@ -160,9 +164,9 @@ harness state; no in-place half-update of the active agent is authorized.
 ## Build and verification
 
 Rust 1.99.0 is pinned in `rust-toolchain.toml`. The SQLite capability VFS build
-needs libclang (Homebrew LLVM on macOS, the Visual Studio Clang component on
-Windows, or the system development library on Linux). `scripts/with_libclang.py`
-finds that installed toolchain; the shipped executable does not need libclang.
+needs libclang (the selected Xcode toolchain on macOS, the Visual Studio Clang
+component on Windows, or the system development library on Linux). The
+repository-only Rust build tool in `xtask/` finds that installed toolchain; the shipped executable does not need libclang.
 
 ```sh
 just cli-check
@@ -170,11 +174,15 @@ just desktop-check
 ```
 
 The native gate runs formatting, Clippy, Rust tests, the optimized release build
-and real envelope/SQLite regression. Python validates shared server wire contracts
-in development only; native child processes run without it on PATH. `tests/startup.rs` proves
+and real envelope/SQLite regression. Builds, archive/SBOM/wheel packaging and
+desktop resource probes use Rust.
+Independent server interoperability proofs live in `tests/native_contract`;
+they validate the native output against the actual Python server models in CI.
+Native child processes run without Python on PATH. `tests/startup.rs` proves
 read-only first-run behavior and refusal to replace a legacy identity.
 `tests/distribution.rs` proves archive ownership, replay, a modeled interrupted
-publication and foreign-prefix refusal. `scripts/verify_migration.py` includes
+publication and foreign-prefix refusal.
+`tests/native_contract/verify_migration.py` includes
 real process termination across the writer-transfer boundary on Unix.
 
 Release builds use thin LTO and stripped symbols. Benchmark the optimized
