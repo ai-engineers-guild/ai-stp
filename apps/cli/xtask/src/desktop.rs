@@ -175,6 +175,8 @@ pub fn packaged() -> Result<()> {
             .join(name())
     } else if cfg!(windows) {
         let msi = only(matching(&bundles.join("msi"), ".msi", false)?)?;
+        // Windows Installer rejects forward slashes accepted by filesystem APIs.
+        let msi = msi.components().collect::<PathBuf>();
         // Administrative extraction writes files without installing/registering.
         run(Command::new("msiexec.exe")
             .arg("/a")
