@@ -1,0 +1,84 @@
+name: publish-pypi
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact native CLI version already published on GitHub
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-pypi-publication
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # No checkout: this lane can only deliver existing attested release bytes.
+      - name: Verify the exact native release and its wheels
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test "${GITHUB_REF}" = "refs/tags/cli-v${VERSION}"
+          gh release download "cli-v${VERSION}" --pattern '*.whl' \
+            --pattern '*.whl.sha256' --dir release
+          test "$(find release -maxdepth 1 -name '*.whl' -type f | wc -l)" -eq 3
+          (cd release && cat ./*.whl.sha256 | sha256sum --check --strict)
+          for wheel in release/*.whl; do
+            gh attestation verify "${wheel}" --repo "${GH_REPO}" \
+              --signer-workflow "${GH_REPO}/.github/workflows/cli-release.yml" \
+              --source-digest "${GITHUB_SHA}"
+          done
+      - name: Refuse conflicting files on publication retries
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          status=$(curl --silent --show-error --retry 3 --max-time 30 \
+            --output published.json --write-out '%{http_code}' \
+            "https://pypi.org/pypi/ai-stp/${VERSION}/json")
+          if [[ "${status}" == 200 ]]; then
+            while IFS=$'\t' read -r filename digest; do
+              [[ "${filename}" != */* ]]
+              test -f "release/${filename}"
+              printf '%s  %s\n' "${digest}" "release/${filename}" | sha256sum --check --strict
+            done < <(jq -r '.urls[] | [.filename, .digests.sha256] | @tsv' published.json)
+          else
+            test "${status}" = 404
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: native-wheels-${{ github.sha }}
+          path: release/*.whl
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: pypi-cli
+      url: https://pypi.org/project/ai-stp/
+    permissions:
+      id-token: write
+    steps:
+      # The token-bearing runner executes no repository code or build scripts.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: native-wheels-${{ github.sha }}
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
+        with:
+          attestations: true
+          skip-existing: true

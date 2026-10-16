@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "standard_family": "ai-stp-standard/1",
-  "contract_digest": "sha256:4c760699aa3f642ccdb5eb5f752c221df80f562af3e3df03f7bb013f3ca6da3e",
+  "contract_digest": "sha256:4f1a71278c2d64421d48c5d0e3e615c5e3bbc1eaa2edf681ea3c3f31b8a2f458",
   "axes": [
     {
       "name": "standard_family",
@@ -419,22 +419,6 @@
     {
       "axis": "exported_schema",
       "identity": "urn:ai-stp:schema:v1:cli-selection-impact-report"
-    },
-    {
-      "axis": "exported_schema",
-      "identity": "urn:ai-stp:schema:v1:cli-self-update-check"
-    },
-    {
-      "axis": "exported_schema",
-      "identity": "urn:ai-stp:schema:v1:cli-self-update-plan"
-    },
-    {
-      "axis": "exported_schema",
-      "identity": "urn:ai-stp:schema:v1:cli-self-update-result"
-    },
-    {
-      "axis": "exported_schema",
-      "identity": "urn:ai-stp:schema:v1:cli-self-update-status"
     },
     {
       "axis": "exported_schema",

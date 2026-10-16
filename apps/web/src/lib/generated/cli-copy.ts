@@ -4,7 +4,7 @@ export type ObjectKind = "component" | "setup";
 export type LoginProvider = "google" | "github" | "authentik" | "keycloak" | "gitlab" | "saml";
 
 export const DISTRIBUTION = "ai-stp-cli" as const;
-export const CLI_RELEASES_URL = "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.1.1" as const;
+export const CLI_RELEASES_URL = "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.1.2" as const;
 export const REGISTRY_SHOW = "ai-stp registry show --kind {kind} --id {stable_id}" as const;
 export const REGISTRY_VERSION =
   "ai-stp registry version --kind {kind} --id {stable_id} --version {version}" as const;

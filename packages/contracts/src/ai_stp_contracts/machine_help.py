@@ -1,29 +1,8 @@
-"""Machine help: the contract between the agent and the CLI (issue #72).
+"""Shared wire models consumed by the server and native-client interoperability tests.
 
-`docs/agent/machine-help.md` makes this the source the canonical Skill reads
-instead of copying flags by hand, and `SPEC-011` REQ-1106 forbids the Skill from
-restating parameters. That makes the shape of machine help a machine boundary of
-the same kind as `/v1` — five harness projections depend on it — so it is
-declared in this package, published into `schemas/v1` and held by the same
-gate, rather than living inside the application that happens to render it.
-
-The split between the two introspection commands is deliberate:
-
-- `capabilities` answers **what this installation can do right now** — versions,
-  supported harnesses, whether the catalogue and sync are switched on. It still
-  lists every `command_path`. Durable journeys start at `task intents`. Do not
-  type `capabilities` as the first move.
-- `help --agent` answers **what commands and fields exist**. It is the full
-  registry and it is larger.
-
-Both are rendered from one registry inside the CLI, so they cannot disagree
-about which commands exist.
-
-The models live in `ai_stp_contracts.cli`, one module per command family,
-so a command imports only the family it returns: importing all of them cost
-every invocation about half a second (docs/engineering/cli-performance.md).
-This module keeps the whole surface under one name for the schema generator,
-the platform and anyone reading the contract as a single document.
+The executable Rust registry owns current CLI commands. This module re-exports
+shared response models for schema generation and server consumers; it is not an
+alternate command implementation or a runtime dependency of the native CLI.
 """
 
 from ai_stp_contracts.cli.catalog import (
@@ -179,16 +158,6 @@ from ai_stp_contracts.cli.selection import (
     TrustedBuildAttestation,
     TrustedIndexPublisher,
 )
-from ai_stp_contracts.cli.self_update import (
-    CliInstallMethod,
-    CliSelfUpdateCheck,
-    CliSelfUpdatePlan,
-    CliSelfUpdateResult,
-    CliSelfUpdateStatus,
-    CliUpdateApplyOutcome,
-    CliUpdateCheckState,
-    CliUpdateJournalState,
-)
 from ai_stp_contracts.cli.setups import (
     ComponentMaterializePlan,
     ComponentMaterializeResult,
@@ -289,15 +258,10 @@ __all__ = [
     "CatalogSearchResult",
     "CatalogSetupAcquisition",
     "CatalogVersionView",
-    "CliInstallMethod",
     "CliProgram",
     "CliSchemaDocument",
     "CliSchemaEntry",
     "CliSchemaIndex",
-    "CliSelfUpdateCheck",
-    "CliSelfUpdatePlan",
-    "CliSelfUpdateResult",
-    "CliSelfUpdateStatus",
     "CliSignedAttestation",
     "CliTechnologyClaim",
     "CliTechnologyEvidence",
@@ -309,9 +273,6 @@ __all__ = [
     "CliTechnologyScan",
     "CliTechnologyUnmapped",
     "CliTechnologyUnmappedItem",
-    "CliUpdateApplyOutcome",
-    "CliUpdateCheckState",
-    "CliUpdateJournalState",
     "CommandDescriptor",
     "CommandParameter",
     "CommandParameterRule",

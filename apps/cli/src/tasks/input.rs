@@ -13,9 +13,10 @@ use crate::{
     wire::Schema,
 };
 
-static SCHEMA: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/cli-task-input-author.schema.json"
-));
+static SCHEMA: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/cli-task-input-author.schema.json"
+)));
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -213,9 +214,10 @@ fn available_kinds() -> Result<BTreeSet<String>> {
 
 pub(super) fn descriptor() -> Result<Value> {
     let supported_kinds = available_kinds()?;
-    let schema: Value = serde_json::from_str(include_str!(
-        "../../../../schemas/v1/cli-task-input-author.schema.json"
-    ))
+    let schema: Value = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/resources/schemas/v1/cli-task-input-author.schema.json"
+    )))
     .map_err(|_| Failure::precondition("the embedded author schema is invalid"))?;
     let fields = schema["properties"]
         .as_object()

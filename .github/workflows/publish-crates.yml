@@ -1,0 +1,96 @@
+name: publish-crates
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact native CLI version already published on GitHub
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-crate-publication
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      published: ${{ steps.verify.outputs.published }}
+    steps:
+      - name: Verify the attested source crate and registry identity
+        id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test "${GITHUB_REF}" = "refs/tags/cli-v${VERSION}"
+          name="ai-stp-cli-${VERSION}.crate"
+          gh release download "cli-v${VERSION}" --pattern "${name}" \
+            --pattern "${name}.sha256" --dir release
+          (cd release && sha256sum --check --strict "${name}.sha256")
+          gh attestation verify "release/${name}" --repo "${GH_REPO}" \
+            --signer-workflow "${GH_REPO}/.github/workflows/cli-release.yml" \
+            --source-digest "${GITHUB_SHA}"
+          status=$(curl --silent --show-error --retry 3 --max-time 30 \
+            --user-agent "ai-stp release (https://github.com/${GH_REPO})" \
+            --output published.json --write-out '%{http_code}' \
+            "https://crates.io/api/v1/crates/ai-stp-cli/${VERSION}")
+          if [[ "${status}" == 200 ]]; then
+            digest=$(jq -er '.version.checksum' published.json)
+            printf '%s  %s\n' "${digest}" "release/${name}" | sha256sum --check --strict
+            echo 'published=true' >> "${GITHUB_OUTPUT}"
+          else
+            test "${status}" = 404
+            echo 'published=false' >> "${GITHUB_OUTPUT}"
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: native-crate-${{ github.sha }}
+          path: release/*.crate
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: verify
+    if: needs.verify.outputs.published != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: native-crate-${{ github.sha }}
+          path: attested
+      - name: Reproduce the verified crate before acquiring publishing credentials
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          toolchain="$(sed -n 's/^channel = "\(.*\)"/\1/p' apps/cli/rust-toolchain.toml)"
+          test -n "${toolchain}"
+          rustup toolchain install "${toolchain}" --profile minimal
+          echo "RUSTUP_TOOLCHAIN=${toolchain}" >> "${GITHUB_ENV}"
+          cd apps/cli
+          cargo package --locked --no-verify
+          cmp "target/package/ai-stp-cli-${VERSION}.crate" \
+            "../../attested/ai-stp-cli-${VERSION}.crate"
+      - uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18
+        id: auth
+      - name: Publish without running repository build scripts
+        working-directory: apps/cli
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: cargo publish --locked --no-verify

@@ -15,9 +15,10 @@ use crate::{
     wire::Schema,
 };
 
-static REPORT: Schema = Schema::new(include_str!(
-    "../../../../../schemas/v1/cli-blast-radius-report.schema.json"
-));
+static REPORT: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/cli-blast-radius-report.schema.json"
+)));
 const MAX_SETUPS: usize = 4096;
 
 fn device(connection: &Connection) -> Result<Vec<String>> {

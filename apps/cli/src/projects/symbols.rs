@@ -17,9 +17,10 @@ const MAX_FILES: usize = 2000;
 const MAX_SOURCE: usize = 512 * 1024;
 const MAX_SYMBOLS: usize = 10_000;
 const DEADLINE: Duration = Duration::from_secs(20);
-static SCHEMA: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/cli-project-symbols.schema.json"
-));
+static SCHEMA: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/cli-project-symbols.schema.json"
+)));
 
 struct Outline {
     symbols: usize,

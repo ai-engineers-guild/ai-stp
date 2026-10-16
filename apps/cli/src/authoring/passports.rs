@@ -21,9 +21,10 @@ use crate::{
 };
 
 const MAX_PATCH: usize = 256 * 1024;
-static PATCH: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/cli-component-passport-patch.schema.json"
-));
+static PATCH: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/cli-component-passport-patch.schema.json"
+)));
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(try_from = "Value", into = "Value")]

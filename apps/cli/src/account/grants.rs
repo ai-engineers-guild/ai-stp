@@ -17,30 +17,38 @@ use crate::{
 };
 
 const MAX_REQUEST: u64 = 65536;
-static DIRECT: wire::Schema = wire::Schema::new(include_str!(
-    "../../../../schemas/v1/grant-direct-create-request.schema.json"
-));
-static INVITE: wire::Schema = wire::Schema::new(include_str!(
-    "../../../../schemas/v1/grant-invitation-create-request.schema.json"
-));
-static ACCEPT: wire::Schema = wire::Schema::new(include_str!(
-    "../../../../schemas/v1/grant-accept-request.schema.json"
-));
-static REVOKE: wire::Schema = wire::Schema::new(include_str!(
-    "../../../../schemas/v1/grant-revoke-request.schema.json"
-));
-static GRANT: wire::Schema = wire::Schema::new(include_str!(
-    "../../../../schemas/v1/grant-access-response.schema.json"
-));
-static INVITATION: wire::Schema = wire::Schema::new(include_str!(
-    "../../../../schemas/v1/grant-invitation-response.schema.json"
-));
-static LIST: wire::Schema = wire::Schema::new(include_str!(
-    "../../../../schemas/v1/grant-list-response.schema.json"
-));
-static REVOKED: wire::Schema = wire::Schema::new(include_str!(
-    "../../../../schemas/v1/grant-revoke-response.schema.json"
-));
+static DIRECT: wire::Schema = wire::Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/grant-direct-create-request.schema.json"
+)));
+static INVITE: wire::Schema = wire::Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/grant-invitation-create-request.schema.json"
+)));
+static ACCEPT: wire::Schema = wire::Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/grant-accept-request.schema.json"
+)));
+static REVOKE: wire::Schema = wire::Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/grant-revoke-request.schema.json"
+)));
+static GRANT: wire::Schema = wire::Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/grant-access-response.schema.json"
+)));
+static INVITATION: wire::Schema = wire::Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/grant-invitation-response.schema.json"
+)));
+static LIST: wire::Schema = wire::Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/grant-list-response.schema.json"
+)));
+static REVOKED: wire::Schema = wire::Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/grant-revoke-response.schema.json"
+)));
 
 #[derive(Clone, Copy, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "snake_case")]

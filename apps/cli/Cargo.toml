@@ -1,9 +1,14 @@
 [package]
 name = "ai-stp-cli"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 rust-version = "1.99"
-publish = false
+repository = "https://github.com/ai-engineers-guild/ai-stp"
+homepage = "https://ai-stp.aiguild.space"
+readme = "README.md"
+keywords = ["cli", "ai", "configuration", "agents"]
+categories = ["command-line-utilities", "development-tools"]
+include = ["src/**", "resources/**", "tests/fixtures/**", "Cargo.toml", "Cargo.lock", "README.md", "rust-toolchain.toml", "rustfmt.toml"]
 license = "AGPL-3.0-or-later"
 description = "Native ai-stp CLI engine"
 

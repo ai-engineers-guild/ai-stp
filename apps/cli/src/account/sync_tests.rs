@@ -204,9 +204,10 @@ fn private_push_walks_parents_retries_before_new_versions_and_replays_tombstones
     })?;
     drop(store);
     assert!(runtime::apply(&original, &hash, Some(&configuration), &at).is_err());
-    let fixture: Value = serde_json::from_str(include_str!(
-        "../../../../tests/golden/passports/component-version.json"
-    ))?;
+    let fixture: Value = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/resources/tests/golden/passports/component-version.json"
+    )))?;
     let mut released = fixture["value"].clone();
     released["stable_id"] = id.clone().into();
     released["owner_id"] = context.account_id.clone().into();

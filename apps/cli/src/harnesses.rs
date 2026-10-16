@@ -76,9 +76,10 @@ pub fn definitions() -> Result<&'static [Definition]> {
     static CATALOG: OnceLock<std::result::Result<Catalog, serde_json::Error>> = OnceLock::new();
     let catalog = CATALOG
         .get_or_init(|| {
-            serde_json::from_str(include_str!(
-                "../../../packages/foundation/src/ai_stp_foundation/harness_catalog.json"
-            ))
+            serde_json::from_str(include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/resources/packages/foundation/src/ai_stp_foundation/harness_catalog.json"
+            )))
         })
         .as_ref()
         .map_err(|_| {

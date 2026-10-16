@@ -12,15 +12,18 @@ use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 
 const LIMIT: u64 = 65536;
-static REQUEST: wire::Schema = wire::Schema::new(include_str!(
-    "../../../../schemas/v1/github-source-prepare-request.schema.json"
-));
-static PREPARED: wire::Schema = wire::Schema::new(include_str!(
-    "../../../../schemas/v1/github-source-prepared.schema.json"
-));
-static STATUS: wire::Schema = wire::Schema::new(include_str!(
-    "../../../../schemas/v1/github-connector-status.schema.json"
-));
+static REQUEST: wire::Schema = wire::Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/github-source-prepare-request.schema.json"
+)));
+static PREPARED: wire::Schema = wire::Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/github-source-prepared.schema.json"
+)));
+static STATUS: wire::Schema = wire::Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/github-connector-status.schema.json"
+)));
 
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]

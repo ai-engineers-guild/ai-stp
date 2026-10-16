@@ -712,7 +712,7 @@ const COMMANDS: &[Declaration] = &[
     },
     Declaration {
         path: &["version"],
-        summary: "Report the native preview build and its wire version.",
+        summary: "Report the stable native build and its wire version.",
         parameters: &[],
         handler: Handler::Version,
     },
@@ -1048,7 +1048,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         .ok_or_else(|| {
             Failure::new(
                 ErrorKind::NotFound,
-                "the native preview identity has not been initialized",
+                "the local identity has not been initialized",
             )
         }),
         Handler::Config => config::show(

@@ -47,9 +47,10 @@ pub fn intents() -> Result<Value> {
 
 pub fn input_schema(intent: &str) -> Result<Value> {
     match intent {
-        "author" => serde_json::from_str(include_str!(
-            "../../../../schemas/v1/cli-task-input-author.schema.json"
-        ))
+        "author" => serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/resources/schemas/v1/cli-task-input-author.schema.json"
+        )))
         .map_err(|_| Failure::precondition("the embedded author schema is invalid")),
         "install" => install::schema(),
         _ => Err(Failure::input("this native task intent is unavailable")),

@@ -1,0 +1,112 @@
+{
+  "$defs": {
+    "AcquiredComponentVersion": {
+      "additionalProperties": true,
+      "description": "One exact component made available to the local setup compiler.",
+      "properties": {
+        "artifact_digest": {
+          "minLength": 1,
+          "title": "Artifact Digest",
+          "type": "string"
+        },
+        "passport_digest": {
+          "minLength": 1,
+          "title": "Passport Digest",
+          "type": "string"
+        },
+        "stable_id": {
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_digest",
+        "passport_digest",
+        "stable_id",
+        "version"
+      ],
+      "title": "AcquiredComponentVersion",
+      "type": "object"
+    },
+    "AnswerSource": {
+      "enum": [
+        "online",
+        "cache"
+      ],
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-catalog-setup-acquisition",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "An exact published setup graph materialized in the local registry.",
+  "properties": {
+    "artifact_digest": {
+      "minLength": 1,
+      "title": "Artifact Digest",
+      "type": "string"
+    },
+    "checked_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "components": {
+      "items": {
+        "$ref": "#/$defs/AcquiredComponentVersion"
+      },
+      "title": "Components",
+      "type": "array"
+    },
+    "harness_id": {
+      "minLength": 1,
+      "title": "Harness Id",
+      "type": "string"
+    },
+    "passport_digest": {
+      "minLength": 1,
+      "title": "Passport Digest",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source": {
+      "$ref": "#/$defs/AnswerSource"
+    },
+    "stable_id": {
+      "minLength": 1,
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "version": {
+      "minLength": 1,
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "artifact_digest",
+    "checked_at",
+    "components",
+    "harness_id",
+    "passport_digest",
+    "schema_version",
+    "source",
+    "stable_id",
+    "version"
+  ],
+  "title": "CatalogSetupAcquisition",
+  "type": "object"
+}

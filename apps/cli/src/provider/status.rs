@@ -9,9 +9,10 @@ use crate::{
     wire::Schema,
 };
 
-static STATUS: Schema = Schema::new(include_str!(
-    "../../../../provider-kit/v3/status-response.schema.json"
-));
+static STATUS: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/provider-kit/v3/status-response.schema.json"
+)));
 
 fn invalid() -> Failure {
     Failure::precondition(

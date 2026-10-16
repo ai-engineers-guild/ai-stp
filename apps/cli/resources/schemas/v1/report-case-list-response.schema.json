@@ -1,0 +1,202 @@
+{
+  "$defs": {
+    "Cursor": {
+      "pattern": "^[A-Za-z0-9_-]{1,512}$",
+      "type": "string"
+    },
+    "ObjectKind": {
+      "enum": [
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    },
+    "PageInfo": {
+      "additionalProperties": true,
+      "description": "Cursor pagination state (docs/contracts/http-api.md).\n\nNo total is exposed. Reporting one would let a caller detect objects it is\nnot allowed to read, so a hidden or deleted object leaks through neither a\ncount nor a cursor.",
+      "properties": {
+        "next_cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "page_size": {
+          "$ref": "#/$defs/PageSize"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "next_cursor",
+        "page_size",
+        "schema_version"
+      ],
+      "title": "PageInfo",
+      "type": "object"
+    },
+    "PageSize": {
+      "maximum": 100,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "ReportCaseResponse": {
+      "additionalProperties": true,
+      "description": "One closed report case (reporter view — no secrets).",
+      "properties": {
+        "case_id": {
+          "maxLength": 64,
+          "minLength": 8,
+          "title": "Case Id",
+          "type": "string"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "locale": {
+          "$ref": "#/$defs/RequestLocale",
+          "default": "en"
+        },
+        "object_kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectKind"
+            },
+            {
+              "const": "",
+              "type": "string"
+            }
+          ],
+          "default": "",
+          "title": "Object Kind"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "default": "",
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/ReportState"
+        },
+        "topic": {
+          "$ref": "#/$defs/RequestTopic",
+          "default": "object_report"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Version"
+            },
+            {
+              "const": "",
+              "type": "string"
+            }
+          ],
+          "default": "",
+          "title": "Version"
+        },
+        "vulnerability": {
+          "default": false,
+          "title": "Vulnerability",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "case_id",
+        "created_at",
+        "locale",
+        "object_kind",
+        "schema_version",
+        "stable_id",
+        "state",
+        "topic",
+        "version",
+        "vulnerability"
+      ],
+      "title": "ReportCaseResponse",
+      "type": "object"
+    },
+    "ReportState": {
+      "enum": [
+        "submitted",
+        "triaged",
+        "awaiting_author",
+        "security_escalated",
+        "resolved",
+        "dismissed"
+      ],
+      "type": "string"
+    },
+    "RequestLocale": {
+      "enum": [
+        "ru",
+        "en"
+      ],
+      "type": "string"
+    },
+    "RequestTopic": {
+      "enum": [
+        "object_report",
+        "service_request",
+        "country_request",
+        "component_complaint",
+        "author_complaint",
+        "ownership_transfer",
+        "verification_request",
+        "other"
+      ],
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "Version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:report-case-list-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Reporter's own cases.",
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/ReportCaseResponse"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "page": {
+      "$ref": "#/$defs/PageInfo"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "items",
+    "page",
+    "schema_version"
+  ],
+  "title": "ReportCaseListResponse",
+  "type": "object"
+}

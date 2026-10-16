@@ -5,15 +5,19 @@ use serde_json::{Value, json};
 use super::invalid;
 use crate::{error::Result, passport, wire};
 
-const SOURCE: &str =
-    include_str!("../../../../../schemas/v1/report-case-create-request.schema.json");
+const SOURCE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/report-case-create-request.schema.json"
+));
 static REQUEST: wire::Schema = wire::Schema::new(SOURCE);
-static CASE: wire::Schema = wire::Schema::new(include_str!(
-    "../../../../../schemas/v1/report-case-response.schema.json"
-));
-static LIST: wire::Schema = wire::Schema::new(include_str!(
-    "../../../../../schemas/v1/report-case-list-response.schema.json"
-));
+static CASE: wire::Schema = wire::Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/report-case-response.schema.json"
+)));
+static LIST: wire::Schema = wire::Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/report-case-list-response.schema.json"
+)));
 
 pub(super) fn text<'a>(value: &'a Value, key: &str) -> Result<&'a str> {
     value[key].as_str().ok_or_else(invalid)

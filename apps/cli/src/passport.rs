@@ -13,9 +13,10 @@ use crate::{
     wire::Schema,
 };
 
-static ENVELOPE: Schema = Schema::new(include_str!(
-    "../../../schemas/v1/passport-envelope.schema.json"
-));
+static ENVELOPE: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/passport-envelope.schema.json"
+)));
 
 pub fn stable_id(value: &str, kind: &str) -> bool {
     value

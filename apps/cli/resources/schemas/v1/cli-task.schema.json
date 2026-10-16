@@ -1,0 +1,1653 @@
+{
+  "$defs": {
+    "CliTechnologyUnmappedItem": {
+      "additionalProperties": true,
+      "description": "One coordinate the effective mapping cannot resolve, with its contexts.",
+      "properties": {
+        "contexts": {
+          "items": {
+            "enum": [
+              "production",
+              "development",
+              "testing",
+              "browser_support"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Contexts",
+          "type": "array"
+        },
+        "coordinate": {
+          "minLength": 1,
+          "title": "Coordinate",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "package",
+            "image",
+            "executable",
+            "configuration",
+            "alias"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "project_ids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Project Ids",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "contexts",
+        "coordinate",
+        "kind",
+        "project_ids",
+        "schema_version"
+      ],
+      "title": "CliTechnologyUnmappedItem",
+      "type": "object"
+    },
+    "ComponentType": {
+      "enum": [
+        "instruction",
+        "skill",
+        "mcp",
+        "hook",
+        "command",
+        "agent",
+        "plugin",
+        "setting",
+        "cli"
+      ],
+      "type": "string"
+    },
+    "DoctorCheck": {
+      "additionalProperties": true,
+      "description": "One thing `doctor` looked at.",
+      "properties": {
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "name": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/SetupState"
+        }
+      },
+      "required": [
+        "detail",
+        "name",
+        "state"
+      ],
+      "title": "DoctorCheck",
+      "type": "object"
+    },
+    "DoctorReport": {
+      "additionalProperties": true,
+      "description": "What `doctor` found.\n\nA report, not a verdict. `state` is the worst state among the checks, so a\ncaller that reads one field still gets the truth.",
+      "properties": {
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/DoctorCheck"
+          },
+          "minItems": 1,
+          "title": "Checks",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "state": {
+          "$ref": "#/$defs/SetupState"
+        }
+      },
+      "required": [
+        "checks",
+        "schema_version",
+        "state"
+      ],
+      "title": "DoctorReport",
+      "type": "object"
+    },
+    "EvidenceBindingView": {
+      "additionalProperties": true,
+      "description": "One accepted evidence binding on a snapshot.",
+      "properties": {
+        "check_id": {
+          "title": "Check Id",
+          "type": "string"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "finding_summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SafetyFindingSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "result": {
+          "$ref": "#/$defs/ai_stp_contracts__publication__CheckResult"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/EvidenceSource"
+        }
+      },
+      "required": [
+        "check_id",
+        "expires_at",
+        "finding_summary",
+        "reason",
+        "result",
+        "schema_version",
+        "source"
+      ],
+      "title": "EvidenceBindingView",
+      "type": "object"
+    },
+    "EvidenceSource": {
+      "enum": [
+        "author_attested",
+        "platform_digest_verified",
+        "platform_structure_verified",
+        "platform_safety_scan",
+        "provider_installation_tested",
+        "runtime_tested"
+      ],
+      "type": "string"
+    },
+    "FindingSeverity": {
+      "enum": [
+        "info",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "type": "string"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity"
+      ],
+      "type": "string"
+    },
+    "ObjectKind": {
+      "enum": [
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    },
+    "ParameterType": {
+      "enum": [
+        "string",
+        "boolean",
+        "integer"
+      ],
+      "type": "string"
+    },
+    "PublicationSetMemberView": {
+      "additionalProperties": true,
+      "description": "One object inside a setup's publication, and why it is there.\n\n`role` is what separates the setup from the components it pins, and it is\nstated rather than inferred from `object_kind`: a set holds exactly one\nsetup, and a reader deciding what becomes public should not have to work\nthat out by counting.",
+      "properties": {
+        "already_published": {
+          "default": false,
+          "title": "Already Published",
+          "type": "boolean"
+        },
+        "error_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Code"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/EvidenceBindingView"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "object_kind": {
+          "$ref": "#/$defs/ObjectKind"
+        },
+        "plan_hash": {
+          "default": "",
+          "title": "Plan Hash",
+          "type": "string"
+        },
+        "plan_id": {
+          "default": "",
+          "title": "Plan Id",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "setup",
+            "pinned_component"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "state": {
+          "default": "",
+          "title": "State",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 32,
+          "minLength": 3,
+          "title": "Version",
+          "type": "string"
+        },
+        "visibility": {
+          "default": "public",
+          "enum": [
+            "public",
+            "private"
+          ],
+          "title": "Visibility",
+          "type": "string"
+        }
+      },
+      "required": [
+        "already_published",
+        "error_code",
+        "evidence",
+        "object_kind",
+        "plan_hash",
+        "plan_id",
+        "role",
+        "schema_version",
+        "stable_id",
+        "state",
+        "version",
+        "visibility"
+      ],
+      "title": "PublicationSetMemberView",
+      "type": "object"
+    },
+    "PublicationSetView": {
+      "additionalProperties": true,
+      "description": "Every plan one setup's publication needs, as a single decision.\n\nA setup cannot be published before the components it pins are, so a person\npublishing one had to publish each component first and confirm each hash\nseparately. Locally the two are already one act — `setup import register`\ncommits the component passports and the setup graph together or not at all —\nand this carries that same rule across the publication boundary\n(`ADR-0114`).\n\nThe guarantee that survives is the one that matters: publication still takes\nan explicit confirmation of an exact hash. `set_digest` covers every plan in\norder, so confirming it is confirming all of them and nothing else.",
+      "properties": {
+        "expires_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "members": {
+          "items": {
+            "$ref": "#/$defs/PublicationSetMemberView"
+          },
+          "minItems": 1,
+          "title": "Members",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "set_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Set Digest",
+          "type": "string"
+        },
+        "setup_stable_id": {
+          "title": "Setup Stable Id",
+          "type": "string"
+        },
+        "setup_version": {
+          "maxLength": 32,
+          "minLength": 3,
+          "title": "Setup Version",
+          "type": "string"
+        },
+        "state": {
+          "default": "planned",
+          "enum": [
+            "planned",
+            "published",
+            "partial"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "expires_at",
+        "members",
+        "schema_version",
+        "set_digest",
+        "setup_stable_id",
+        "setup_version",
+        "state"
+      ],
+      "title": "PublicationSetView",
+      "type": "object"
+    },
+    "SafetyFindingSummary": {
+      "additionalProperties": true,
+      "description": "Bounded public identifiers for findings; never scanned content.",
+      "properties": {
+        "count": {
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "paths": {
+          "items": {
+            "maxLength": 240,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Paths",
+          "type": "array"
+        },
+        "rule_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Rule Ids",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "severity_max": {
+          "$ref": "#/$defs/FindingSeverity"
+        },
+        "truncated": {
+          "default": false,
+          "title": "Truncated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "count",
+        "paths",
+        "rule_ids",
+        "schema_version",
+        "severity_max",
+        "truncated"
+      ],
+      "title": "SafetyFindingSummary",
+      "type": "object"
+    },
+    "SetupState": {
+      "enum": [
+        "ready",
+        "needs_user_action",
+        "partial",
+        "failed"
+      ],
+      "type": "string"
+    },
+    "SyncPendingVersion": {
+      "additionalProperties": false,
+      "description": "An exact legacy version reference whose snapshot is not available yet.",
+      "properties": {
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "passport_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Passport Digest",
+          "type": "string"
+        },
+        "revision_id": {
+          "title": "Revision Id",
+          "type": "string"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stable_id",
+        "version",
+        "passport_digest",
+        "revision_id",
+        "event_id"
+      ],
+      "title": "SyncPendingVersion",
+      "type": "object"
+    },
+    "SyncPullView": {
+      "additionalProperties": false,
+      "description": "One atomically applied page from the private account stream.",
+      "properties": {
+        "applied": {
+          "minimum": 0,
+          "title": "Applied",
+          "type": "integer"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Next Cursor"
+        },
+        "pending_version_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Pending Version Count",
+          "type": "integer"
+        },
+        "pending_versions": {
+          "items": {
+            "$ref": "#/$defs/SyncPendingVersion"
+          },
+          "maxItems": 128,
+          "title": "Pending Versions",
+          "type": "array"
+        },
+        "received": {
+          "minimum": 0,
+          "title": "Received",
+          "type": "integer"
+        },
+        "replayed": {
+          "minimum": 0,
+          "title": "Replayed",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "skipped": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Skipped",
+          "type": "array"
+        },
+        "state": {
+          "default": "pulling",
+          "enum": [
+            "pulling",
+            "up_to_date",
+            "partial"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "received",
+        "applied",
+        "replayed",
+        "next_cursor"
+      ],
+      "title": "SyncPullView",
+      "type": "object"
+    },
+    "SyncPushView": {
+      "additionalProperties": false,
+      "description": "Durable outcome of pushing one exact local revision.",
+      "properties": {
+        "conflict_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflict Fields",
+          "type": "array"
+        },
+        "conflicting_entity_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Conflicting Entity Id"
+        },
+        "event_id": {
+          "minLength": 8,
+          "title": "Event Id",
+          "type": "string"
+        },
+        "local_revision_id": {
+          "minLength": 1,
+          "title": "Local Revision Id",
+          "type": "string"
+        },
+        "processed_events": {
+          "minimum": 1,
+          "title": "Processed Events",
+          "type": "integer"
+        },
+        "remote_revision_id": {
+          "minLength": 1,
+          "title": "Remote Revision Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "server_head_revision_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Server Head Revision Id"
+        },
+        "stable_id": {
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "accepted",
+            "rejected",
+            "conflict",
+            "superseded"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stable_id",
+        "processed_events",
+        "local_revision_id",
+        "event_id",
+        "remote_revision_id",
+        "state",
+        "server_head_revision_id",
+        "conflicting_entity_id"
+      ],
+      "title": "SyncPushView",
+      "type": "object"
+    },
+    "TaskAccountOutcome": {
+      "additionalProperties": true,
+      "description": "Account drained in-process. Login never uploads; sync is a separate explicit step.",
+      "properties": {
+        "action": {
+          "enum": [
+            "login",
+            "logout",
+            "sync"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "authenticated": {
+          "title": "Authenticated",
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "account",
+          "default": "account",
+          "title": "Kind",
+          "type": "string"
+        },
+        "login_uploaded": {
+          "const": false,
+          "default": false,
+          "title": "Login Uploaded",
+          "type": "boolean"
+        },
+        "provider": {
+          "default": "",
+          "title": "Provider",
+          "type": "string"
+        },
+        "scope": {
+          "default": "",
+          "title": "Scope",
+          "type": "string"
+        },
+        "session_state": {
+          "default": "",
+          "title": "Session State",
+          "type": "string"
+        },
+        "sync_result": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SyncPushView"
+            },
+            {
+              "$ref": "#/$defs/SyncPullView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sync Result"
+        },
+        "synced": {
+          "default": false,
+          "title": "Synced",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "action",
+        "authenticated",
+        "kind",
+        "login_uploaded",
+        "provider",
+        "scope",
+        "session_state",
+        "sync_result",
+        "synced"
+      ],
+      "title": "TaskAccountOutcome",
+      "type": "object"
+    },
+    "TaskActor": {
+      "enum": [
+        "human",
+        "external"
+      ],
+      "type": "string"
+    },
+    "TaskAuthorOutcome": {
+      "additionalProperties": true,
+      "description": "Author drained in-process. A local component and one new setup identity.",
+      "properties": {
+        "component_id": {
+          "title": "Component Id",
+          "type": "string"
+        },
+        "component_type": {
+          "$ref": "#/$defs/ComponentType"
+        },
+        "component_version": {
+          "title": "Component Version",
+          "type": "string"
+        },
+        "directory": {
+          "title": "Directory",
+          "type": "string"
+        },
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "kind": {
+          "const": "author",
+          "default": "author",
+          "title": "Kind",
+          "type": "string"
+        },
+        "minted": {
+          "title": "Minted",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "setup_id": {
+          "title": "Setup Id",
+          "type": "string"
+        },
+        "setup_version": {
+          "title": "Setup Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "component_id",
+        "component_type",
+        "component_version",
+        "directory",
+        "harness_id",
+        "kind",
+        "minted",
+        "name",
+        "setup_id",
+        "setup_version"
+      ],
+      "title": "TaskAuthorOutcome",
+      "type": "object"
+    },
+    "TaskChangeOutcome": {
+      "additionalProperties": true,
+      "description": "Change drained in-process. A new setup identity; the source id is untouched.",
+      "properties": {
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "kind": {
+          "const": "change",
+          "default": "change",
+          "title": "Kind",
+          "type": "string"
+        },
+        "minted": {
+          "title": "Minted",
+          "type": "boolean"
+        },
+        "operation_id": {
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "setup_id": {
+          "title": "Setup Id",
+          "type": "string"
+        },
+        "setup_version": {
+          "title": "Setup Version",
+          "type": "string"
+        },
+        "source_setup_id": {
+          "title": "Source Setup Id",
+          "type": "string"
+        },
+        "source_setup_version": {
+          "title": "Source Setup Version",
+          "type": "string"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "verified": {
+          "title": "Verified",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "harness_id",
+        "kind",
+        "minted",
+        "operation_id",
+        "setup_id",
+        "setup_version",
+        "source_setup_id",
+        "source_setup_version",
+        "state",
+        "verified"
+      ],
+      "title": "TaskChangeOutcome",
+      "type": "object"
+    },
+    "TaskId": {
+      "pattern": "^task_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "TaskInitializeOutcome": {
+      "additionalProperties": true,
+      "description": "Initialize drained in-process. The provider writes harness files.",
+      "properties": {
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "kind": {
+          "const": "initialize",
+          "default": "initialize",
+          "title": "Kind",
+          "type": "string"
+        },
+        "limitation": {
+          "default": "",
+          "title": "Limitation",
+          "type": "string"
+        },
+        "section_digest": {
+          "default": "",
+          "pattern": "^(?:sha256:[0-9a-f]{64})?$",
+          "title": "Section Digest",
+          "type": "string"
+        },
+        "surface": {
+          "default": "",
+          "title": "Surface",
+          "type": "string"
+        },
+        "wrote": {
+          "title": "Wrote",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "harness_id",
+        "kind",
+        "limitation",
+        "section_digest",
+        "surface",
+        "wrote"
+      ],
+      "title": "TaskInitializeOutcome",
+      "type": "object"
+    },
+    "TaskInspectOutcome": {
+      "additionalProperties": true,
+      "description": "Inspection drained in-process by the inspect intent.",
+      "properties": {
+        "doctor": {
+          "$ref": "#/$defs/DoctorReport"
+        },
+        "kind": {
+          "const": "inspect",
+          "default": "inspect",
+          "title": "Kind",
+          "type": "string"
+        },
+        "orientation": {
+          "$ref": "#/$defs/TaskOrientation"
+        }
+      },
+      "required": [
+        "doctor",
+        "kind",
+        "orientation"
+      ],
+      "title": "TaskInspectOutcome",
+      "type": "object"
+    },
+    "TaskInstallOutcome": {
+      "additionalProperties": true,
+      "description": "Install drained in-process. Plan, approve, and apply never return to the model.",
+      "properties": {
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "kind": {
+          "const": "install",
+          "default": "install",
+          "title": "Kind",
+          "type": "string"
+        },
+        "operation_id": {
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "setup_id": {
+          "title": "Setup Id",
+          "type": "string"
+        },
+        "setup_version": {
+          "title": "Setup Version",
+          "type": "string"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "verified": {
+          "title": "Verified",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "harness_id",
+        "kind",
+        "operation_id",
+        "setup_id",
+        "setup_version",
+        "state",
+        "verified"
+      ],
+      "title": "TaskInstallOutcome",
+      "type": "object"
+    },
+    "TaskIntent": {
+      "enum": [
+        "inspect",
+        "initialize",
+        "install",
+        "change",
+        "author",
+        "switch",
+        "account",
+        "publish",
+        "technology"
+      ],
+      "type": "string"
+    },
+    "TaskOrientation": {
+      "additionalProperties": true,
+      "description": "Slim inspect facts. No command registry dump.",
+      "properties": {
+        "catalog_enabled": {
+          "title": "Catalog Enabled",
+          "type": "boolean"
+        },
+        "cli_version": {
+          "minLength": 1,
+          "title": "Cli Version",
+          "type": "string"
+        },
+        "installation": {
+          "enum": [
+            "distribution",
+            "source"
+          ],
+          "title": "Installation",
+          "type": "string"
+        },
+        "intents": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Intents",
+          "type": "array"
+        },
+        "local_schema_version": {
+          "minimum": 1,
+          "title": "Local Schema Version",
+          "type": "integer"
+        },
+        "registry_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Registry Digest",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "supported_harnesses": {
+          "items": {
+            "$ref": "#/$defs/HarnessId"
+          },
+          "minItems": 1,
+          "title": "Supported Harnesses",
+          "type": "array"
+        },
+        "sync_enabled": {
+          "title": "Sync Enabled",
+          "type": "boolean"
+        },
+        "wire_schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Wire Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "catalog_enabled",
+        "cli_version",
+        "installation",
+        "intents",
+        "local_schema_version",
+        "registry_digest",
+        "schema_version",
+        "supported_harnesses",
+        "sync_enabled",
+        "wire_schema_version"
+      ],
+      "title": "TaskOrientation",
+      "type": "object"
+    },
+    "TaskOutcome": {
+      "discriminator": {
+        "mapping": {
+          "account": "#/$defs/TaskAccountOutcome",
+          "author": "#/$defs/TaskAuthorOutcome",
+          "change": "#/$defs/TaskChangeOutcome",
+          "initialize": "#/$defs/TaskInitializeOutcome",
+          "inspect": "#/$defs/TaskInspectOutcome",
+          "install": "#/$defs/TaskInstallOutcome",
+          "publish": "#/$defs/TaskPublishOutcome",
+          "switch": "#/$defs/TaskSwitchOutcome",
+          "technology": "#/$defs/TaskTechnologyOutcome"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/TaskInspectOutcome"
+        },
+        {
+          "$ref": "#/$defs/TaskInitializeOutcome"
+        },
+        {
+          "$ref": "#/$defs/TaskInstallOutcome"
+        },
+        {
+          "$ref": "#/$defs/TaskChangeOutcome"
+        },
+        {
+          "$ref": "#/$defs/TaskAuthorOutcome"
+        },
+        {
+          "$ref": "#/$defs/TaskSwitchOutcome"
+        },
+        {
+          "$ref": "#/$defs/TaskAccountOutcome"
+        },
+        {
+          "$ref": "#/$defs/TaskPublishOutcome"
+        },
+        {
+          "$ref": "#/$defs/TaskTechnologyOutcome"
+        }
+      ]
+    },
+    "TaskPublishOutcome": {
+      "additionalProperties": true,
+      "description": "Publish drained in-process. Worker receipt is not a readable catalog result.",
+      "properties": {
+        "kind": {
+          "const": "publish",
+          "default": "publish",
+          "title": "Kind",
+          "type": "string"
+        },
+        "object_id": {
+          "title": "Object Id",
+          "type": "string"
+        },
+        "object_version": {
+          "title": "Object Version",
+          "type": "string"
+        },
+        "plan_hash": {
+          "title": "Plan Hash",
+          "type": "string"
+        },
+        "plan_id": {
+          "title": "Plan Id",
+          "type": "string"
+        },
+        "provenance": {
+          "const": "filesystem",
+          "default": "filesystem",
+          "title": "Provenance",
+          "type": "string"
+        },
+        "publication_set": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PublicationSetView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "readable": {
+          "title": "Readable",
+          "type": "boolean"
+        },
+        "source_binding_id": {
+          "default": "",
+          "title": "Source Binding Id",
+          "type": "string"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "visibility": {
+          "enum": [
+            "private",
+            "public"
+          ],
+          "title": "Visibility",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "object_id",
+        "object_version",
+        "plan_hash",
+        "plan_id",
+        "provenance",
+        "publication_set",
+        "readable",
+        "source_binding_id",
+        "state",
+        "visibility"
+      ],
+      "title": "TaskPublishOutcome",
+      "type": "object"
+    },
+    "TaskQuestion": {
+      "additionalProperties": true,
+      "description": "One typed question the task engine still needs before it can continue.",
+      "properties": {
+        "actor": {
+          "$ref": "#/$defs/TaskActor",
+          "default": "human"
+        },
+        "choices": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Choices",
+          "type": "array"
+        },
+        "prompt": {
+          "minLength": 1,
+          "title": "Prompt",
+          "type": "string"
+        },
+        "question_id": {
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "title": "Question Id",
+          "type": "string"
+        },
+        "recommended": {
+          "default": "",
+          "title": "Recommended",
+          "type": "string"
+        },
+        "value_type": {
+          "$ref": "#/$defs/ParameterType"
+        },
+        "why": {
+          "default": "",
+          "title": "Why",
+          "type": "string"
+        }
+      },
+      "required": [
+        "actor",
+        "choices",
+        "prompt",
+        "question_id",
+        "recommended",
+        "value_type",
+        "why"
+      ],
+      "title": "TaskQuestion",
+      "type": "object"
+    },
+    "TaskState": {
+      "enum": [
+        "planned",
+        "blocked",
+        "running",
+        "completed",
+        "failed",
+        "cancelled"
+      ],
+      "type": "string"
+    },
+    "TaskSwitchOutcome": {
+      "additionalProperties": true,
+      "description": "Switch drained in-process. Restores last user working config; never kills the caller.",
+      "properties": {
+        "drift_preserved_setup_id": {
+          "default": "",
+          "title": "Drift Preserved Setup Id",
+          "type": "string"
+        },
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "kind": {
+          "const": "switch",
+          "default": "switch",
+          "title": "Kind",
+          "type": "string"
+        },
+        "operation_id": {
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "preserved_setup_id": {
+          "title": "Preserved Setup Id",
+          "type": "string"
+        },
+        "process_killed": {
+          "const": false,
+          "default": false,
+          "title": "Process Killed",
+          "type": "boolean"
+        },
+        "project_root": {
+          "title": "Project Root",
+          "type": "string"
+        },
+        "session_loaded": {
+          "const": false,
+          "default": false,
+          "title": "Session Loaded",
+          "type": "boolean"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "verified": {
+          "title": "Verified",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "drift_preserved_setup_id",
+        "harness_id",
+        "kind",
+        "operation_id",
+        "preserved_setup_id",
+        "process_killed",
+        "project_root",
+        "session_loaded",
+        "state",
+        "verified"
+      ],
+      "title": "TaskSwitchOutcome",
+      "type": "object"
+    },
+    "TaskTechnologyOutcome": {
+      "additionalProperties": true,
+      "description": "Technology intent drained in-process: the queue, or the published snapshot.",
+      "properties": {
+        "action": {
+          "enum": [
+            "unmapped",
+            "publish-mapping",
+            "resolve"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "applied": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Applied",
+          "type": "array"
+        },
+        "coordinates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CliTechnologyUnmappedItem"
+          },
+          "title": "Coordinates",
+          "type": "array"
+        },
+        "created_category_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Created Category Ids",
+          "type": "array"
+        },
+        "created_technology_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Created Technology Ids",
+          "type": "array"
+        },
+        "kind": {
+          "const": "technology",
+          "default": "technology",
+          "title": "Kind",
+          "type": "string"
+        },
+        "mapping_digest": {
+          "default": "",
+          "title": "Mapping Digest",
+          "type": "string"
+        },
+        "mapping_version": {
+          "default": "",
+          "title": "Mapping Version",
+          "type": "string"
+        },
+        "organization_id": {
+          "default": "",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "project_id": {
+          "default": "",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "proposed": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Proposed",
+          "type": "array"
+        },
+        "scan_id": {
+          "default": "",
+          "title": "Scan Id",
+          "type": "string"
+        },
+        "scan_state": {
+          "anyOf": [
+            {
+              "enum": [
+                "complete",
+                "partial"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scan State"
+        },
+        "server_coordinates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TechnologyUnmappedEntry"
+          },
+          "title": "Server Coordinates",
+          "type": "array"
+        }
+      },
+      "required": [
+        "action",
+        "applied",
+        "coordinates",
+        "created_category_ids",
+        "created_technology_ids",
+        "kind",
+        "mapping_digest",
+        "mapping_version",
+        "organization_id",
+        "project_id",
+        "proposed",
+        "scan_id",
+        "scan_state",
+        "server_coordinates"
+      ],
+      "title": "TaskTechnologyOutcome",
+      "type": "object"
+    },
+    "TechnologyUnmappedEntry": {
+      "additionalProperties": true,
+      "description": "One unmapped coordinate, the projects that reported it and its review state.",
+      "properties": {
+        "candidate_technology_id": {
+          "anyOf": [
+            {
+              "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Candidate Technology Id"
+        },
+        "coordinate": {
+          "maxLength": 512,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._:/@+*-]+$",
+          "title": "Coordinate",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "package",
+            "image",
+            "executable",
+            "configuration",
+            "alias"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "project_ids": {
+          "items": {
+            "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "type": "string"
+          },
+          "maxItems": 512,
+          "title": "Project Ids",
+          "type": "array"
+        },
+        "resolved_technology_id": {
+          "anyOf": [
+            {
+              "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resolved Technology Id"
+        },
+        "state": {
+          "default": "open",
+          "enum": [
+            "open",
+            "resolved"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "candidate_technology_id",
+        "coordinate",
+        "kind",
+        "project_ids",
+        "resolved_technology_id",
+        "state"
+      ],
+      "title": "TechnologyUnmappedEntry",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "ai_stp_contracts__publication__CheckResult": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ai_stp_contracts__safety_checks__CheckResult"
+        },
+        {
+          "const": "expired",
+          "type": "string"
+        }
+      ]
+    },
+    "ai_stp_contracts__safety_checks__CheckResult": {
+      "enum": [
+        "passed",
+        "warning",
+        "failed",
+        "degraded",
+        "not_run",
+        "not_applicable",
+        "skipped",
+        "running"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-task",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "One durable agent task. Envelope `ok` is independent of `state`.",
+  "properties": {
+    "child_operation_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Child Operation Ids",
+      "type": "array"
+    },
+    "goal_satisfied": {
+      "title": "Goal Satisfied",
+      "type": "boolean"
+    },
+    "intent": {
+      "$ref": "#/$defs/TaskIntent"
+    },
+    "outcome": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TaskOutcome"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "questions": {
+      "items": {
+        "$ref": "#/$defs/TaskQuestion"
+      },
+      "title": "Questions",
+      "type": "array"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "$ref": "#/$defs/TaskState"
+    },
+    "task_id": {
+      "$ref": "#/$defs/TaskId"
+    }
+  },
+  "required": [
+    "child_operation_ids",
+    "goal_satisfied",
+    "intent",
+    "outcome",
+    "questions",
+    "revision",
+    "schema_version",
+    "state",
+    "task_id"
+  ],
+  "title": "TaskView",
+  "type": "object"
+}

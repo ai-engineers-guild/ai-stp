@@ -18,9 +18,10 @@ use super::event::Event;
 
 const ORIGIN: &str = "sync.origin";
 const MAX_BYTES: usize = http::MAX_BODY as usize;
-static RECEIPT: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/sync-event-receipt.schema.json"
-));
+static RECEIPT: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/sync-event-receipt.schema.json"
+)));
 
 fn invalid() -> Failure {
     Failure::precondition("the private sync journal or its origin binding is inconsistent")

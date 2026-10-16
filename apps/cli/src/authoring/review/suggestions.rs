@@ -14,9 +14,10 @@ use crate::{
     wire::Schema,
 };
 
-static SCHEMA: Schema = Schema::new(include_str!(
-    "../../../../../schemas/v1/cli-component-passport-suggestions.schema.json"
-));
+static SCHEMA: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/cli-component-passport-suggestions.schema.json"
+)));
 
 const PUBLICATION_FIELDS: &[&str] = &[
     "component_type",
