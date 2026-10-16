@@ -30,7 +30,8 @@ jobs:
           set -euo pipefail
           [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           test "${GITHUB_REF}" = "refs/tags/cli-v${VERSION}"
-          gh release download "cli-v${VERSION}" --pattern '*.whl' --pattern '*.whl.sha256' --dir release
+          gh release download "cli-v${VERSION}" --pattern '*.whl' \
+            --pattern '*.whl.sha256' --dir release
           test "$(find release -maxdepth 1 -name '*.whl' -type f | wc -l)" -eq 3
           (cd release && cat ./*.whl.sha256 | sha256sum --check --strict)
           for wheel in release/*.whl; do
