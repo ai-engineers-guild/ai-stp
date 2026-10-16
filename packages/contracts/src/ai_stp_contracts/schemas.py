@@ -338,10 +338,6 @@ from ai_stp_contracts.machine_help import (
     CliProgram,
     CliSchemaDocument,
     CliSchemaIndex,
-    CliSelfUpdateCheck,
-    CliSelfUpdatePlan,
-    CliSelfUpdateResult,
-    CliSelfUpdateStatus,
     CliSignedAttestation,
     CliTechnologyFindings,
     CliTechnologyMappings,
@@ -1017,10 +1013,6 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
 #: document, so the two surfaces cannot be confused for one.
 CLI_MODELS: Final[dict[str, ExportedSchema]] = {
     "cli-signed-attestation": CliSignedAttestation,
-    "cli-self-update-check": CliSelfUpdateCheck,
-    "cli-self-update-plan": CliSelfUpdatePlan,
-    "cli-self-update-result": CliSelfUpdateResult,
-    "cli-self-update-status": CliSelfUpdateStatus,
     "installation-heartbeat-subscription": InstallationHeartbeatSubscription,
     "cli-owner-object-list": CliOwnerObjectListView,
     "cli-owner-object-detail": CliOwnerObjectDetailView,
