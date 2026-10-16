@@ -32,10 +32,14 @@ fn require(condition: bool, message: &str) -> Result<()> {
 }
 
 fn root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../..")
-        .canonicalize()
-        .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.."))
+    // Preserve Cargo's ordinary absolute path. Windows Installer cannot open
+    // the verbatim paths returned by fs::canonicalize on Windows.
+    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+    manifest
+        .ancestors()
+        .nth(3)
+        .unwrap_or(manifest)
+        .to_path_buf()
 }
 
 fn hash(bytes: &[u8]) -> String {
