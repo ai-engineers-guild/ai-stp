@@ -54,9 +54,10 @@ fn private_access_binds_account_device_origin_expiry_and_physical_root()
     );
     let observed = json!({"schema_version":1,"account_id":account,
         "device_id":device.context().device_id,"account_status":"active"});
-    let fixture: Value = serde_json::from_str(include_str!(
-        "../../../../tests/golden/passports/component-version.json"
-    ))?;
+    let fixture: Value = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/resources/tests/golden/passports/component-version.json"
+    )))?;
     let mut document = fixture["value"].clone();
     document["visibility"] = "private".into();
     let document = crate::store::revisions::seal(&document)?;

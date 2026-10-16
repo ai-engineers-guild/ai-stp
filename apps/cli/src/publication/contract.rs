@@ -15,15 +15,18 @@ use crate::{
 };
 
 const MAX_REQUEST: usize = 8 * 1024 * 1024;
-static CREATE: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/publication-plan-create-request.schema.json"
-));
-static RESPONSE: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/publication-plan-response.schema.json"
-));
-static CONFIRM: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/publication-confirm-request.schema.json"
-));
+static CREATE: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/publication-plan-create-request.schema.json"
+)));
+static RESPONSE: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/publication-plan-response.schema.json"
+)));
+static CONFIRM: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/publication-confirm-request.schema.json"
+)));
 
 pub(crate) fn confirmation_key(key: &str) -> Result<()> {
     CONFIRM.validate(&json!({"schema_version":1,"plan_hash":"plan_confirmation_shape","confirmed":true,"idempotency_key":key}))

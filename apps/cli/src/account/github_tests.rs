@@ -31,9 +31,10 @@ fn selected_source_keeps_exact_request_across_lost_reply_and_session_refresh()
         journal.write(state)
     };
     write_state(&state)?;
-    let fixture: Value = serde_json::from_str(include_str!(
-        "../../../../packages/contracts/src/ai_stp_contracts/fixtures/v1/github_connector.json"
-    ))?;
+    let fixture: Value = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/resources/packages/contracts/src/ai_stp_contracts/fixtures/v1/github_connector.json"
+    )))?;
     let prepared = &fixture["cases"][3];
     let request = prepared["request"]["body"].clone();
     let expected = prepared["body"].clone();

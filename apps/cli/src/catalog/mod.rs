@@ -13,24 +13,30 @@ use crate::{
 use serde_json::{Value, json};
 use std::{collections::BTreeSet, path::Path};
 
-static COMPONENT_LIST: Schema = Schema::reader(include_str!(
-    "../../../../schemas/v1/catalog-component-list.schema.json"
-));
-static SETUP_LIST: Schema = Schema::reader(include_str!(
-    "../../../../schemas/v1/catalog-setup-list.schema.json"
-));
-static COMPONENT_DETAIL: Schema = Schema::reader(include_str!(
-    "../../../../schemas/v1/catalog-component-detail.schema.json"
-));
-static SETUP_DETAIL: Schema = Schema::reader(include_str!(
-    "../../../../schemas/v1/catalog-setup-detail.schema.json"
-));
-static COMPONENT_VERSION: Schema = Schema::reader(include_str!(
-    "../../../../schemas/v1/catalog-component-version.schema.json"
-));
-static SETUP_VERSION: Schema = Schema::reader(include_str!(
-    "../../../../schemas/v1/catalog-setup-version.schema.json"
-));
+static COMPONENT_LIST: Schema = Schema::reader(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/catalog-component-list.schema.json"
+)));
+static SETUP_LIST: Schema = Schema::reader(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/catalog-setup-list.schema.json"
+)));
+static COMPONENT_DETAIL: Schema = Schema::reader(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/catalog-component-detail.schema.json"
+)));
+static SETUP_DETAIL: Schema = Schema::reader(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/catalog-setup-detail.schema.json"
+)));
+static COMPONENT_VERSION: Schema = Schema::reader(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/catalog-component-version.schema.json"
+)));
+static SETUP_VERSION: Schema = Schema::reader(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/catalog-setup-version.schema.json"
+)));
 
 #[derive(Clone, Copy)]
 pub enum Kind {

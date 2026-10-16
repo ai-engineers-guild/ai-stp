@@ -27,9 +27,10 @@ use credentials::Vault;
 
 const NAMESPACE: &str = "ai-stp-v2-identity";
 const OWNER: &[u8] = b"ai-stp-cli-v2 isolated identity v1\n";
-static REPORT: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/cli-device-identity.schema.json"
-));
+static REPORT: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/cli-device-identity.schema.json"
+)));
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "snake_case")]

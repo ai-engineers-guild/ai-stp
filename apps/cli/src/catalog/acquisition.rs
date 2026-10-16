@@ -29,9 +29,10 @@ const MAX_BYTES: usize = 128 * 1024 * 1024;
 const MAX_METADATA: usize = 8 * 1024 * 1024;
 const MAX_COMPONENTS: usize = 512;
 const MAX_EDGES: usize = 8192;
-static RESULT: wire::Schema = wire::Schema::new(include_str!(
-    "../../../../schemas/v1/cli-catalog-setup-acquisition.schema.json"
-));
+static RESULT: wire::Schema = wire::Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/cli-catalog-setup-acquisition.schema.json"
+)));
 
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]

@@ -17,12 +17,14 @@ use crate::{
     wire::Schema,
 };
 
-static VALIDATION: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/cli-component-passport-validation.schema.json"
-));
-static QUALITY: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/cli-component-quality-report.schema.json"
-));
+static VALIDATION: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/cli-component-passport-validation.schema.json"
+)));
+static QUALITY: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/cli-component-quality-report.schema.json"
+)));
 
 struct Review {
     document: Value,

@@ -21,9 +21,10 @@ use crate::{
     wire::Schema,
 };
 
-static REPORT: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/cli-selection-impact-report.schema.json"
-));
+static REPORT: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/cli-selection-impact-report.schema.json"
+)));
 const MAX_BYTES: usize = 128 * 1024 * 1024;
 const CAPABILITIES: [&str; 8] = [
     "tools",

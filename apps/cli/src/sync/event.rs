@@ -10,21 +10,26 @@ use crate::{
     wire::Schema,
 };
 
-static PUSH: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/sync-event.schema.json"
-));
-static STREAM: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/sync-stream-event.schema.json"
-));
-static SUMMARY: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/identity-device-summary.schema.json"
-));
-static CONSENT: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/sync-consent-upsert.schema.json"
-));
-static REVOCATION: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/sync-consent-tombstone.schema.json"
-));
+static PUSH: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/sync-event.schema.json"
+)));
+static STREAM: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/sync-stream-event.schema.json"
+)));
+static SUMMARY: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/identity-device-summary.schema.json"
+)));
+static CONSENT: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/sync-consent-upsert.schema.json"
+)));
+static REVOCATION: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/sync-consent-tombstone.schema.json"
+)));
 
 pub(super) fn invalid() -> Failure {
     Failure::input("the private sync event fails its content, account or entity binding")

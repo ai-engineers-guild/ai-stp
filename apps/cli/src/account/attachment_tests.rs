@@ -80,9 +80,10 @@ fn attachment_is_atomic_exact_and_fences_stale_authority() -> std::result::Resul
         })?);
     }
     let component_id = drafts[0]["stable_id"].as_str().ok_or("id")?.to_owned();
-    let catalog: Value = serde_json::from_str(include_str!(
-        "../../../../packages/contracts/src/ai_stp_contracts/fixtures/v1/catalog.json"
-    ))?;
+    let catalog: Value = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/resources/packages/contracts/src/ai_stp_contracts/fixtures/v1/catalog.json"
+    )))?;
     let mut version = catalog["cases"]
         .as_array()
         .ok_or("cases")?

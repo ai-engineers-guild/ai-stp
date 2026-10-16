@@ -20,8 +20,11 @@ ai-stp help --agent --json
 ```
 
 Existing Python state requires the explicit in-place transfer described in the
-[CLI guide](apps/cli/README.md#state-and-first-run). PyPI wheels from 0.1.2 carry
-the same native executable for existing package-manager users; older wheels contain the retired Python implementation. It is preserved on
+[CLI guide](apps/cli/README.md#state-and-first-run). Install from source with
+`cargo install ai-stp-cli --locked`, or use `uv tool install ai-stp` /
+`pip install ai-stp` for the same executable in a native wheel. The older
+`ai-stp-cli` PyPI project is separate; remove its launcher through its package
+manager before changing installation routes. Retired Python source is preserved on
 [`legacy/python-cli`](https://github.com/ai-engineers-guild/ai-stp/tree/legacy/python-cli).
 
 ## Boundaries

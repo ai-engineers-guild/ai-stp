@@ -24,9 +24,10 @@ fn policy() -> Result<&'static (Policy, regex::Regex)> {
     static POLICY: OnceLock<std::result::Result<(Policy, regex::Regex), String>> = OnceLock::new();
     POLICY
         .get_or_init(|| {
-            let policy: Policy = serde_json::from_str(include_str!(
-                "../../../../packages/contracts/src/ai_stp_contracts/sync_payload_policy.json"
-            ))
+            let policy: Policy = serde_json::from_str(include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/resources/packages/contracts/src/ai_stp_contracts/sync_payload_policy.json"
+            )))
             .map_err(|_| "embedded sync payload policy is invalid".to_owned())?;
             let pattern = regex::Regex::new(&policy.absolute_path_pattern)
                 .map_err(|_| "embedded sync path policy is invalid".to_owned())?;

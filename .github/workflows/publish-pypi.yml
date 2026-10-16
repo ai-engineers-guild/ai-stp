@@ -46,7 +46,7 @@ jobs:
           set -euo pipefail
           status=$(curl --silent --show-error --retry 3 --max-time 30 \
             --output published.json --write-out '%{http_code}' \
-            "https://pypi.org/pypi/ai-stp-cli/${VERSION}/json")
+            "https://pypi.org/pypi/ai-stp/${VERSION}/json")
           if [[ "${status}" == 200 ]]; then
             while IFS=$'\t' read -r filename digest; do
               [[ "${filename}" != */* ]]
@@ -69,7 +69,7 @@ jobs:
     timeout-minutes: 10
     environment:
       name: pypi-cli
-      url: https://pypi.org/project/ai-stp-cli/
+      url: https://pypi.org/project/ai-stp/
     permissions:
       id-token: write
     steps:

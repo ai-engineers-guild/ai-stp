@@ -2,6 +2,7 @@
 mod build;
 mod desktop;
 mod release;
+mod resources;
 mod sbom;
 #[cfg(test)]
 mod tests;
@@ -197,6 +198,8 @@ fn main_result() -> Result<()> {
     let command = args.first().and_then(|s| s.to_str()).unwrap_or("");
     match command {
         "build" => build::invoke(&args[1..]),
+        "resources" if args.len() == 1 => resources::sync(false),
+        "resources" if args.len() == 2 && args[1] == "--check" => resources::sync(true),
         "version" => { println!("{}", release::version()?); Ok(()) }
         "package" => release::package(&args[1..]),
         "verify" => release::verify(&args[1..]),

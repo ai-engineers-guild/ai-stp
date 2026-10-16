@@ -1,0 +1,112 @@
+{
+  "$defs": {
+    "ConsentScope": {
+      "enum": [
+        "publisher",
+        "object_major",
+        "task"
+      ],
+      "type": "string"
+    },
+    "JsonValue": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "array"
+        },
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:sync-consent-upsert",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The `unverified_consent` payload for an `upsert` event.\n\nOne shape for the writer and every reader: the server refuses a malformed\nrecord at intake so it can never wedge a pull, and a device applies exactly\nwhat this model admits — nothing looser and nothing extra.",
+  "properties": {
+    "created_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "decided_by": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Decided By",
+      "type": "string"
+    },
+    "fingerprint": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "maxProperties": 32,
+      "title": "Fingerprint",
+      "type": "object"
+    },
+    "observed": {
+      "items": {
+        "maxLength": 256,
+        "type": "string"
+      },
+      "maxItems": 256,
+      "title": "Observed",
+      "type": "array"
+    },
+    "origin": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Origin",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "scope": {
+      "$ref": "#/$defs/ConsentScope"
+    },
+    "target": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Target",
+      "type": "string"
+    }
+  },
+  "required": [
+    "created_at",
+    "decided_by",
+    "fingerprint",
+    "observed",
+    "origin",
+    "schema_version",
+    "scope",
+    "target"
+  ],
+  "title": "ConsentUpsertPayload",
+  "type": "object"
+}

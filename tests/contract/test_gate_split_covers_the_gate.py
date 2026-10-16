@@ -76,6 +76,7 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
     "back-build": ("uv build --all-packages",),
     "back-regress": ("clean_install_regress.sh",),
     "cli-static": (
+        "-- resources --check",
         "cargo fmt --check",
         "cargo clippy --locked --all-targets -- -D warnings",
     ),

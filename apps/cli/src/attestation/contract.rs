@@ -21,9 +21,10 @@ pub(super) const TARGETS: [&str; 6] = [
     "os",
     "arch",
 ];
-static SCHEMA: Schema = Schema::new(include_str!(
-    "../../../../schemas/v1/publication-author-attestation.schema.json"
-));
+static SCHEMA: Schema = Schema::new(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/publication-author-attestation.schema.json"
+)));
 
 pub(super) fn invalid() -> Failure {
     Failure::precondition("author evidence differs from its exact subject, account or signature")

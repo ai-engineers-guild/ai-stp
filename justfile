@@ -488,12 +488,14 @@ web-check: web-build web-storybook web-static web-test web-regress web-feature-p
 # Format native sources explicitly; checks never rewrite them
 [group('cli')]
 cli-gen:
+    {{ native }} resources
     cd apps/cli && cargo fmt
     cd apps/cli && cargo fmt --manifest-path xtask/Cargo.toml
 
 # Native formatting and compiler diagnostics, including evidence examples
 [group('cli')]
 cli-static:
+    {{ native }} resources --check
     cd apps/cli && cargo fmt --check
     cd apps/cli && cargo fmt --manifest-path xtask/Cargo.toml --check
     cd apps/cli && cargo clippy --locked --manifest-path xtask/Cargo.toml --all-targets -- -D warnings

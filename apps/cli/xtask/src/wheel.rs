@@ -20,13 +20,13 @@ pub fn contents(
     target: &str,
 ) -> Result<(String, Files)> {
     release::validate(files, version, revision, target)?;
-    let stem = format!("ai_stp_cli-{version}");
+    let stem = format!("ai_stp-{version}");
     let info = format!("{stem}.dist-info");
     let binary = format!("{stem}.data/scripts/{}", release::binary(target)?);
     let platform = tag(target)?;
-    let description = "# ai-stp Rust CLI\n\nThis package contains the same native Rust executable as the GitHub release.\nThere is no Python launcher, interpreter dependency or legacy CLI fallback.\n\nInstall or upgrade with `uv tool install --upgrade ai-stp-cli`, then run\n`ai-stp version --json`. Package-manager installations remain owned by that\npackage manager; use it for subsequent updates.\n\nNative archives require no Python installation and remain the primary route:\nhttps://github.com/ai-engineers-guild/ai-stp/releases?q=cli-v\n\nExisting Python state needs explicit `ai-stp state migrate plan` and apply.\nVersions before 0.1.0 are the retired Python implementation.\n\nSupported binaries: Linux x86-64 (glibc 2.39+), macOS 15+ Apple Silicon,\nWindows x86-64. Isolated setup installation is currently Linux-only.\n";
+    let description = "# ai-stp Rust CLI\n\nThis package contains the same native Rust executable as the GitHub release.\nThere is no Python launcher, interpreter dependency or legacy CLI fallback.\n\nInstall or upgrade with `uv tool install --upgrade ai-stp`, then run\n`ai-stp version --json`. Package-manager installations remain owned by that\npackage manager; use it for subsequent updates.\n\nNative archives require no Python installation and remain the primary route:\nhttps://github.com/ai-engineers-guild/ai-stp/releases?q=cli-v\n\nExisting Python state needs explicit `ai-stp state migrate plan` and apply.\nThe older ai-stp-cli PyPI project is separate; remove its launcher through its owning package manager before installing ai-stp.\n\nSupported binaries: Linux x86-64 (glibc 2.39+), macOS 15+ Apple Silicon,\nWindows x86-64. Isolated setup installation is currently Linux-only.\n";
     let metadata = format!(
-        "Metadata-Version: 2.4\nName: ai-stp-cli\nVersion: {version}\nSummary: Native Rust engine for AI harness configurations\nLicense-Expression: AGPL-3.0-or-later\nLicense-File: LICENSE\nClassifier: Programming Language :: Rust\nProject-URL: Repository, https://github.com/ai-engineers-guild/ai-stp\nDescription-Content-Type: text/markdown\n\n{description}"
+        "Metadata-Version: 2.4\nName: ai-stp\nVersion: {version}\nSummary: Native Rust engine for AI harness configurations\nLicense-Expression: AGPL-3.0-or-later\nLicense-File: LICENSE\nClassifier: Programming Language :: Rust\nProject-URL: Repository, https://github.com/ai-engineers-guild/ai-stp\nDescription-Content-Type: text/markdown\n\n{description}"
     );
     let mut wheel = Files::from([
         (binary.clone(), files[release::binary(target)?].clone()),
@@ -71,7 +71,7 @@ pub fn package(args: &[OsString]) -> Result<()> {
         bytes.len() <= release::MAX_ARCHIVE,
         "wheel exceeds its size bound",
     )?;
-    let name = format!("ai_stp_cli-{version}-py3-none-{}.whl", tag(target)?);
+    let name = format!("ai_stp-{version}-py3-none-{}.whl", tag(target)?);
     let output = Path::new(&opts["--output"]);
     fs::create_dir(output)?;
     write_new(&output.join(&name), &bytes)?;

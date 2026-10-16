@@ -1,0 +1,887 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "likeCatalogObject.idempotent",
+      "operation_id": "likeCatalogObject",
+      "kind": "positive",
+      "why": "Liking the same public object is idempotent, so the current account remains liked and the aggregate stays at one.",
+      "request": {
+        "path_params": {
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "liked": true,
+        "likes_count": 1
+      }
+    },
+    {
+      "case_id": "listCatalogReactions.currentAccount",
+      "operation_id": "listCatalogReactions",
+      "kind": "positive",
+      "why": "The authenticated account sees its own liked objects through public catalog summaries without any reacting account identifiers.",
+      "request": {},
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [
+          {
+            "object_kind": "component",
+            "summary": {
+              "schema_version": 1,
+              "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "publisher_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "owner_handle": "fixture-owner",
+              "canonical_name": "fixture-component",
+              "display_name": "Fixture Component",
+              "display_locale": "en",
+              "likes_count": 1,
+              "github_stars": null,
+              "updated_at": "2026-08-05T00:00:00.000Z",
+              "latest_version": "1.2",
+              "latest_name": "fixture-component",
+              "latest_description": "fixture-component-description",
+              "latest_harness_id": "claude-code",
+              "latest_harness_ids": [
+                "claude-code"
+              ],
+              "latest_component_type": "skill",
+              "latest_projection_kind": "native_files",
+              "latest_assurance": {
+                "verified_targets": 0,
+                "assessed_targets": 1
+              },
+              "latest_tags": [
+                "python",
+                "tests"
+              ],
+              "latest_lifecycle": "active",
+              "latest_requirements_count": 0,
+              "latest_requires_credentials": false,
+              "latest_trust": {
+                "trust_lane": "experimental",
+                "author_verified": false,
+                "component_verified": false
+              },
+              "latest_published_at": "2026-08-05T00:00:00.000Z",
+              "latest_support": {
+                "schema_version": 1,
+                "tier": "beta",
+                "state": "missing",
+                "evidence": []
+              },
+              "latest_checks": null,
+              "usage_metrics": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "unlikeCatalogObject.idempotent",
+      "operation_id": "unlikeCatalogObject",
+      "kind": "positive",
+      "why": "Removing the current account's reaction is idempotent, so the object remains unliked and its aggregate does not become negative.",
+      "request": {
+        "path_params": {
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "liked": false,
+        "likes_count": 0
+      }
+    },
+    {
+      "case_id": "searchComponents.emptyAuthoritativeLane",
+      "operation_id": "searchComponents",
+      "kind": "positive",
+      "why": "Without consent the experimental lane is not returned at all, and an empty authoritative lane is an honest answer rather than an error.",
+      "request": {
+        "query": {
+          "q": "pytest",
+          "page_size": 20,
+          "include_experimental": false,
+          "include_deprecated": false
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [],
+        "experimental": [],
+        "page": {
+          "schema_version": 1,
+          "next_cursor": null,
+          "page_size": 20
+        }
+      }
+    },
+    {
+      "case_id": "searchComponents.experimentalOnConsent",
+      "operation_id": "searchComponents",
+      "kind": "positive",
+      "why": "With consent the experimental candidates arrive in their own section, never interleaved into items (SPEC-006 REQ-603). Sprint 1 has no validation pipeline, so nothing can honestly claim component_verified and the authoritative lane is legitimately empty.",
+      "request": {
+        "query": {
+          "q": "pytest",
+          "page_size": 20,
+          "include_experimental": true,
+          "include_deprecated": false
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [],
+        "experimental": [],
+        "page": {
+          "schema_version": 1,
+          "next_cursor": null,
+          "page_size": 20
+        }
+      }
+    },
+    {
+      "case_id": "searchComponents.unknownFilter",
+      "operation_id": "searchComponents",
+      "kind": "rejected_request",
+      "why": "A silently ignored filter is not forward compatibility: the caller asked to narrow the result, would receive the unfiltered catalogue, and the answer would look complete. A mistyped tag must fail loudly.",
+      "request": {
+        "query": {
+          "tag": "python"
+        }
+      },
+      "status": 400,
+      "error_code": "AI_STP_VALIDATION_ERROR"
+    },
+    {
+      "case_id": "searchSetups.emptyPage",
+      "operation_id": "searchSetups",
+      "kind": "positive",
+      "why": "Setups are a separate resource with their own cursor sequence, so a setup search is answered independently of a component search.",
+      "request": {
+        "query": {
+          "page_size": 20,
+          "include_experimental": false,
+          "include_deprecated": false
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [],
+        "experimental": [],
+        "page": {
+          "schema_version": 1,
+          "next_cursor": null,
+          "page_size": 20
+        }
+      }
+    },
+    {
+      "case_id": "readComponent.nonContiguousVersions",
+      "operation_id": "readComponent",
+      "kind": "positive",
+      "why": "Hiding a version does not free its number, so 1.0 then 1.2 is a legal answer. The contract states the non-contiguity rather than implying a dense sequence it cannot deliver.",
+      "request": {
+        "path_params": {
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "summary": {
+          "schema_version": 1,
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "publisher_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "owner_handle": "fixture-owner",
+          "canonical_name": "fixture-component",
+          "display_name": "Fixture Component",
+          "display_locale": "en",
+          "likes_count": 0,
+          "github_stars": null,
+          "updated_at": "2026-08-05T00:00:00.000Z",
+          "latest_version": "1.2",
+          "latest_name": "fixture-component",
+          "latest_description": "fixture-component-description",
+          "latest_harness_id": "claude-code",
+          "latest_harness_ids": [
+            "claude-code"
+          ],
+          "latest_component_type": "skill",
+          "latest_projection_kind": "native_files",
+          "latest_assurance": {
+            "verified_targets": 0,
+            "assessed_targets": 1
+          },
+          "latest_tags": [
+            "python",
+            "tests"
+          ],
+          "latest_lifecycle": "active",
+          "latest_requirements_count": 0,
+          "latest_requires_credentials": false,
+          "latest_trust": {
+            "trust_lane": "experimental",
+            "author_verified": false,
+            "component_verified": false
+          },
+          "latest_published_at": "2026-08-05T00:00:00.000Z",
+          "latest_support": {
+            "schema_version": 1,
+            "tier": "beta",
+            "state": "missing",
+            "evidence": []
+          },
+          "latest_checks": null,
+          "usage_metrics": null
+        },
+        "versions": [
+          {
+            "version": "1.0",
+            "passport_digest": "sha256:50b6bdc506a595ad182822793d10870247d4cb4654a4294124fae4cbb72b0e2e",
+            "lifecycle": "active",
+            "trust": {
+              "trust_lane": "experimental",
+              "author_verified": false,
+              "component_verified": false
+            },
+            "published_at": "2026-08-05T00:00:00.000Z",
+            "support": {
+              "schema_version": 1,
+              "tier": "beta",
+              "state": "missing",
+              "evidence": []
+            },
+            "checks": null
+          },
+          {
+            "version": "1.2",
+            "passport_digest": "sha256:670e7e16c2e594559d84428ea72057f9da6c0bbe888b3a82fe45f7f47a3f8284",
+            "lifecycle": "active",
+            "trust": {
+              "trust_lane": "experimental",
+              "author_verified": false,
+              "component_verified": false
+            },
+            "published_at": "2026-08-05T00:00:00.000Z",
+            "support": {
+              "schema_version": 1,
+              "tier": "beta",
+              "state": "missing",
+              "evidence": []
+            },
+            "checks": null
+          }
+        ],
+        "media": [],
+        "country_codes": [],
+        "services": [],
+        "target_matrix": {
+          "schema_version": 1,
+          "exact": [
+            {
+              "schema_version": 1,
+              "kind": "exact",
+              "harness_id": "claude-code",
+              "adaptation_id": "adaptation_41f731619dda6537c8880281c319f8a5132f06117e364651cb482473779cb46e",
+              "scope": "global",
+              "implementation_mode": "native",
+              "projection_kind": "native_files",
+              "technical_support": "experimental",
+              "technical_support_reason": "synthetic catalog seed",
+              "supported_os": [],
+              "supported_arch": [],
+              "semantic_losses": [],
+              "permissions_summary": [],
+              "assessment_state": "not_verified",
+              "freshness": null,
+              "recommendation": "ineffective",
+              "evidence_refs": [],
+              "safety_checks": []
+            }
+          ]
+        },
+        "presentation_bio": null
+      }
+    },
+    {
+      "case_id": "readComponent.unknownObject",
+      "operation_id": "readComponent",
+      "kind": "rejected_request",
+      "why": "An absent object is not a bare validation error: the caller sent a well-formed identifier and must be able to tell not-found from malformed.",
+      "request": {
+        "path_params": {
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y70"
+        }
+      },
+      "status": 404,
+      "error_code": "AI_STP_NOT_FOUND"
+    },
+    {
+      "case_id": "searchComponents.authoritativeWithoutEvidence",
+      "operation_id": "searchComponents",
+      "kind": "invalid_response",
+      "why": "A server labelling an unverified object authoritative would drive a CLI that gates automatic installation on that lane into installing it. The lane requires both verification flags.",
+      "request": {
+        "query": {
+          "page_size": 20,
+          "include_experimental": false,
+          "include_deprecated": false
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [
+          {
+            "schema_version": 1,
+            "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "latest_version": "1.2",
+            "latest_name": "fixture-component",
+            "latest_description": "fixture-component-description",
+            "latest_harness_id": "claude-code",
+            "latest_harness_ids": [
+              "claude-code"
+            ],
+            "latest_component_type": "skill",
+            "latest_projection_kind": "native_files",
+            "latest_tags": [
+              "python",
+              "tests"
+            ],
+            "latest_lifecycle": "active",
+            "latest_trust": {
+              "trust_lane": "authoritative",
+              "author_verified": false,
+              "component_verified": false
+            },
+            "latest_published_at": "2026-08-05T00:00:00.000Z",
+            "latest_support": {
+              "schema_version": 1,
+              "tier": "beta",
+              "state": "missing",
+              "evidence": []
+            },
+            "latest_checks": null,
+            "usage_metrics": null
+          }
+        ],
+        "experimental": [],
+        "page": {
+          "schema_version": 1,
+          "next_cursor": null,
+          "page_size": 20
+        }
+      }
+    },
+    {
+      "case_id": "searchComponents.hiddenLifecycle",
+      "operation_id": "searchComponents",
+      "kind": "invalid_response",
+      "why": "A hidden object is not disclosed at all, so no lifecycle value on the public wire may admit that one exists.",
+      "request": {
+        "query": {
+          "page_size": 20,
+          "include_experimental": false,
+          "include_deprecated": false
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [
+          {
+            "schema_version": 1,
+            "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "latest_version": "1.2",
+            "latest_name": "fixture-component",
+            "latest_description": "fixture-component-description",
+            "latest_harness_id": "claude-code",
+            "latest_harness_ids": [
+              "claude-code"
+            ],
+            "latest_component_type": "skill",
+            "latest_projection_kind": "native_files",
+            "latest_tags": [
+              "python",
+              "tests"
+            ],
+            "latest_lifecycle": "hidden",
+            "latest_trust": {
+              "trust_lane": "experimental",
+              "author_verified": false,
+              "component_verified": false
+            },
+            "latest_published_at": "2026-08-05T00:00:00.000Z",
+            "latest_support": {
+              "schema_version": 1,
+              "tier": "beta",
+              "state": "missing",
+              "evidence": []
+            },
+            "latest_checks": null,
+            "usage_metrics": null
+          }
+        ],
+        "experimental": [],
+        "page": {
+          "schema_version": 1,
+          "next_cursor": null,
+          "page_size": 20
+        }
+      }
+    },
+    {
+      "case_id": "readComponentVersion.published",
+      "operation_id": "readComponentVersion",
+      "kind": "positive",
+      "why": "The passport is the description of the version (ADR-0012); its digest is served alongside so the client can verify cached bytes independently of the transport. The revision id is a real content seal over this exact body.",
+      "request": {
+        "path_params": {
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "distribution_visibility": null,
+        "passport": {
+          "schema_version": 1,
+          "kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "revision_id": "revision_14c0776d573f024fde2407db9dad40cce3320c07ff2ca19f454fbb88e0db5c90",
+          "parent_revision_ids": [],
+          "owner_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "created_at": "2026-08-05T00:00:00.000Z",
+          "visibility": "public",
+          "facts": {},
+          "name": "fixture-component",
+          "description": "fixture-component-description",
+          "version": "1.2",
+          "tags": [
+            "python",
+            "tests"
+          ],
+          "source": null,
+          "artifact": {
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "size_bytes": 1024
+          },
+          "required_env": [],
+          "requires_credentials": false,
+          "requires_authorization": "none",
+          "permissions": {
+            "filesystem": [],
+            "network": [],
+            "process": []
+          },
+          "external_endpoints": [],
+          "license": {
+            "spdx_id": "AGPL-3.0-or-later",
+            "redistribution_allowed": true
+          },
+          "compatibility_evidence_refs": [],
+          "component_type": "skill",
+          "origin_harness_id": "claude-code",
+          "adaptations": [
+            {
+              "adaptation_id": "adaptation_41f731619dda6537c8880281c319f8a5132f06117e364651cb482473779cb46e",
+              "harness_id": "claude-code",
+              "implementation_mode": "native",
+              "source_artifact": null,
+              "transform": null,
+              "logical_component_type": "skill",
+              "scope_adaptations": [
+                {
+                  "scope": "global",
+                  "projection_format": "ai-stp-adaptation-projection/1",
+                  "projection_artifact": {
+                    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                    "size_bytes": 1024
+                  },
+                  "provider_component_kind": "skill",
+                  "projection_kind": "native_files",
+                  "required_surface": {
+                    "profile_id": "claude-code/fixture/1",
+                    "profile_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                    "bundle_format": "ai-stp-bundle/1"
+                  },
+                  "permissions": {
+                    "filesystem": [],
+                    "network": [],
+                    "process": []
+                  },
+                  "members": [
+                    {
+                      "path": "fixtures/component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "object_type": "file",
+                      "mode": 420,
+                      "content_artifact": {
+                        "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                        "size_bytes": 1024
+                      },
+                      "native_ids": [
+                        "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                      ],
+                      "content_format": "application/octet-stream",
+                      "parser_id": null,
+                      "ownership": "whole",
+                      "ownership_key": null,
+                      "write_semantics": "replace",
+                      "withdrawal_semantics": "remove_path"
+                    }
+                  ],
+                  "supported_harness_versions": [],
+                  "supported_os": [],
+                  "supported_arch": [],
+                  "technical_support": "experimental",
+                  "technical_support_reason": "synthetic catalog seed",
+                  "semantic_losses": []
+                }
+              ]
+            }
+          ],
+          "provides_capabilities": [],
+          "requires_components": [],
+          "requires_capabilities": [],
+          "conflicts": {
+            "paths": [],
+            "commands": [],
+            "hooks": [],
+            "mcp": [],
+            "agents": [],
+            "plugins": []
+          }
+        },
+        "passport_digest": "sha256:670e7e16c2e594559d84428ea72057f9da6c0bbe888b3a82fe45f7f47a3f8284",
+        "lifecycle": "active",
+        "trust": {
+          "trust_lane": "experimental",
+          "author_verified": false,
+          "component_verified": false
+        },
+        "published_at": "2026-08-05T00:00:00.000Z",
+        "support": {
+          "schema_version": 1,
+          "tier": "beta",
+          "state": "missing",
+          "evidence": []
+        },
+        "checks": null,
+        "usage_metrics": null,
+        "target_matrix": {
+          "schema_version": 1,
+          "exact": [
+            {
+              "schema_version": 1,
+              "kind": "exact",
+              "harness_id": "claude-code",
+              "adaptation_id": "adaptation_41f731619dda6537c8880281c319f8a5132f06117e364651cb482473779cb46e",
+              "scope": "global",
+              "implementation_mode": "native",
+              "projection_kind": "native_files",
+              "technical_support": "experimental",
+              "technical_support_reason": "synthetic catalog seed",
+              "supported_os": [],
+              "supported_arch": [],
+              "semantic_losses": [],
+              "permissions_summary": [],
+              "assessment_state": "not_verified",
+              "freshness": null,
+              "recommendation": "ineffective",
+              "evidence_refs": [],
+              "safety_checks": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "readComponentVersion.privatePassport",
+      "operation_id": "readComponentVersion",
+      "kind": "invalid_response",
+      "why": "The passport models are shared with the local registry, where private is the default. On an anonymous route that default is a disclosure channel: source repository, exact commit, subpath, required environment variable names and owner id. The contract cannot fix the server's authorization but it can refuse to represent the mistake.",
+      "request": {
+        "path_params": {
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "passport": {
+          "schema_version": 1,
+          "kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "revision_id": "revision_8261a24bf74bc47154db5cb194b721fa429e20afb6c5fce0c66c2b6075ce7ee6",
+          "parent_revision_ids": [],
+          "owner_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "created_at": "2026-08-05T00:00:00.000Z",
+          "visibility": "private",
+          "facts": {},
+          "name": "fixture-component",
+          "description": "fixture-component-description",
+          "version": "1.2",
+          "tags": [
+            "python",
+            "tests"
+          ],
+          "source": null,
+          "artifact": {
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "size_bytes": 1024
+          },
+          "required_env": [],
+          "requires_credentials": false,
+          "requires_authorization": "none",
+          "permissions": {
+            "filesystem": [],
+            "network": [],
+            "process": []
+          },
+          "external_endpoints": [],
+          "license": {
+            "spdx_id": "AGPL-3.0-or-later",
+            "redistribution_allowed": true
+          },
+          "compatibility_evidence_refs": [],
+          "component_type": "skill",
+          "origin_harness_id": "claude-code",
+          "adaptations": [
+            {
+              "adaptation_id": "adaptation_41f731619dda6537c8880281c319f8a5132f06117e364651cb482473779cb46e",
+              "harness_id": "claude-code",
+              "implementation_mode": "native",
+              "source_artifact": null,
+              "transform": null,
+              "logical_component_type": "skill",
+              "scope_adaptations": [
+                {
+                  "scope": "global",
+                  "projection_format": "ai-stp-adaptation-projection/1",
+                  "projection_artifact": {
+                    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                    "size_bytes": 1024
+                  },
+                  "provider_component_kind": "skill",
+                  "projection_kind": "native_files",
+                  "required_surface": {
+                    "profile_id": "claude-code/fixture/1",
+                    "profile_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                    "bundle_format": "ai-stp-bundle/1"
+                  },
+                  "permissions": {
+                    "filesystem": [],
+                    "network": [],
+                    "process": []
+                  },
+                  "members": [
+                    {
+                      "path": "fixtures/component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "object_type": "file",
+                      "mode": 420,
+                      "content_artifact": {
+                        "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                        "size_bytes": 1024
+                      },
+                      "native_ids": [
+                        "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                      ],
+                      "content_format": "application/octet-stream",
+                      "parser_id": null,
+                      "ownership": "whole",
+                      "ownership_key": null,
+                      "write_semantics": "replace",
+                      "withdrawal_semantics": "remove_path"
+                    }
+                  ],
+                  "supported_harness_versions": [],
+                  "supported_os": [],
+                  "supported_arch": [],
+                  "technical_support": "experimental",
+                  "technical_support_reason": "synthetic catalog seed",
+                  "semantic_losses": []
+                }
+              ]
+            }
+          ],
+          "provides_capabilities": [],
+          "requires_components": [],
+          "requires_capabilities": [],
+          "conflicts": {
+            "paths": [],
+            "commands": [],
+            "hooks": [],
+            "mcp": [],
+            "agents": [],
+            "plugins": []
+          }
+        },
+        "passport_digest": "sha256:1d0c7a5437939d2b984300d8070b2e5a13b11a86c5f7d4227bd29c08bb5ef986",
+        "lifecycle": "active",
+        "trust": {
+          "trust_lane": "experimental",
+          "author_verified": false,
+          "component_verified": false
+        },
+        "published_at": "2026-08-05T00:00:00.000Z",
+        "support": {
+          "schema_version": 1,
+          "tier": "beta",
+          "state": "missing",
+          "evidence": []
+        },
+        "checks": null,
+        "usage_metrics": null
+      }
+    },
+    {
+      "case_id": "readComponentGithubMetadata.unavailable",
+      "operation_id": "readComponentGithubMetadata",
+      "kind": "positive",
+      "why": "On-demand GitHub metadata is nullable when the source is missing or the request fails.",
+      "request": {
+        "path_params": {
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "stars": null,
+        "archived": null
+      }
+    },
+    {
+      "case_id": "readComponentContextBudget.estimated",
+      "operation_id": "readComponentContextBudget",
+      "kind": "positive",
+      "why": "A component context budget reports the bounded estimate and loading mode.",
+      "request": {
+        "path_params": {
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2"
+        },
+        "query": {
+          "estimator_profile": "ai-stp:unicode-chars-div4/1"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "coordinate": {
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2",
+          "passport_digest": "sha256:a0b29e900e8e1f0a5269a5094500cebc1829dc346b1f0147c5e6603eeddb79c5"
+        },
+        "estimator": {
+          "schema_version": 1,
+          "profile": "ai-stp:unicode-chars-div4/1",
+          "accuracy": "estimated",
+          "method": "unicode_codepoints_div_4",
+          "model": null,
+          "local_only": true
+        },
+        "component_type": "skill",
+        "loading": "conditional",
+        "tokens": 256,
+        "utf8_bytes": 1024,
+        "status": "estimated",
+        "reason": null
+      }
+    },
+    {
+      "case_id": "listCatalogAuthors.empty",
+      "operation_id": "listCatalogAuthors",
+      "kind": "positive",
+      "why": "An empty catalog has no author filter options.",
+      "request": {},
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": []
+      }
+    },
+    {
+      "case_id": "readPrivateComponentVersion.authorized",
+      "operation_id": "readPrivateComponentVersion",
+      "kind": "positive",
+      "why": "An authenticated owner or exact-major grantee receives the private passport only after authorization.",
+      "request": {
+        "path_params": {
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "passport": {
+          "schema_version": 1,
+          "kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2",
+          "visibility": "private",
+          "revision_id": "revision_73513aa9c3b143b808cf6b5ee921a3d83ed32d942ca4b12471f618dcdf1e428f"
+        },
+        "passport_digest": "sha256:9e70631a56fb56d2afea8d84b5ade17cbc44655bcd0bec386d53c1ad1bb27b18",
+        "lifecycle": "active",
+        "trust": {
+          "trust_lane": "local_owner_or_pinned",
+          "author_verified": false,
+          "component_verified": false
+        },
+        "published_at": "2026-08-05T00:00:00.000Z",
+        "visibility": "private"
+      }
+    },
+    {
+      "case_id": "readPrivateSetupVersion.authorized",
+      "operation_id": "readPrivateSetupVersion",
+      "kind": "positive",
+      "why": "Private setup metadata follows the same owner or exact-major grant boundary as its artifact.",
+      "request": {
+        "path_params": {
+          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "passport": {
+          "schema_version": 1,
+          "kind": "setup",
+          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2",
+          "visibility": "private",
+          "revision_id": "revision_96d95c341c106f702f57d6d3f7cef9ca3680da5286c3f5b5d971e52927bafaf4"
+        },
+        "passport_digest": "sha256:3c81d91ab53f6739f77a641bd70a599e17e8c5bfb505a99d9761ba0ae54b462c",
+        "lifecycle": "active",
+        "trust": {
+          "trust_lane": "local_owner_or_pinned",
+          "author_verified": false,
+          "component_verified": false
+        },
+        "published_at": "2026-08-05T00:00:00.000Z",
+        "visibility": "private"
+      }
+    }
+  ]
+}
