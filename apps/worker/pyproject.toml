@@ -6,7 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
     "ai-stp-foundation",
     "ai-stp-platform",
-    "pydantic-settings>=2.5",
+    "pydantic-settings>=2.16.0",
     "structlog>=24.4",
 ]
 

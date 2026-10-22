@@ -23,7 +23,7 @@ dependencies = [
     "ai-stp-assurance==0.0.16",
     "ai-stp-foundation==0.0.16",
     "ai-stp-passports==0.0.16",
-    "pydantic>=2.9",
+    "pydantic>=2.14.1",
     "tzdata>=2025.1; sys_platform == 'win32'",
 ]
 

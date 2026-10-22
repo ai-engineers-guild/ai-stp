@@ -22,7 +22,7 @@ classifiers = [
 dependencies = [
     "ai-stp-foundation==0.0.16",
     "markdown-it-py>=4.0,<5",
-    "pydantic>=2.9",
+    "pydantic>=2.14.1",
 ]
 
 [project.urls]
