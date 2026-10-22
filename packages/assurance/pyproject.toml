@@ -35,5 +35,5 @@ ai-stp-foundation = { workspace = true }
 ai-stp-passports = { workspace = true }
 
 [build-system]
-requires = ["uv_build>=0.11,<0.13"]
+requires = ["uv_build>=0.13.1,<0.14"]
 build-backend = "uv_build"
