@@ -129,6 +129,9 @@ fn replaced_device_preserves_publication_intent_and_reconciles_without_old_write
         "passport":snapshot.passport,"passport_digest":snapshot.passport_digest,
         "trust":{"author_verified":true,"component_verified":false,"trust_lane":"local_owner_or_pinned"}});
     let server = thread::spawn(move || -> std::io::Result<()> {
+        // Offline device replacement can outlast an HTTP idle window in debug
+        // builds. Bound the complete journey while retaining the request bound.
+        let deadline = Instant::now() + Duration::from_secs(600);
         let phases = [
             "lost-create",
             "create",
@@ -150,7 +153,7 @@ fn replaced_device_preserves_publication_intent_and_reconciles_without_old_write
         ];
         let mut next = 0;
         for _ in 0..50 {
-            let mut socket = accept(&listener)?;
+            let mut socket = accept_until(&listener, deadline)?;
             let (headers, body) = receive(&mut socket)?;
             let (device, token) = server_current
                 .lock()
