@@ -171,6 +171,8 @@ Rust 1.99.0 is pinned in `rust-toolchain.toml`. The SQLite capability VFS build
 needs libclang (the selected Xcode toolchain on macOS, the Visual Studio Clang
 component on Windows, or the system development library on Linux). The
 repository-only Rust build tool in `xtask/` finds that installed toolchain; the shipped executable does not need libclang.
+Linux tests also require `dbus-daemon` for a private bus with no service activation;
+the cleanup regression does not use the user's session bus or services.
 
 ```sh
 just cli-gen          # Refresh embedded shared contracts after back-gen
@@ -185,6 +187,10 @@ The published source crate includes generated resources under `resources/`;
 `just cli-gen` projects the shared sources and `cli-static` rejects drift.
 Independent server interoperability proofs live in `tests/native_contract`;
 they validate the native output against the actual Python server models in CI.
+The Linux job also runs `verify_ownership.py` against migrated PostgreSQL and the
+HTTP API, acquiring an exact setup before and after repeated component ownership
+transfers. To run it locally, set `AI_STP_TEST_DB_URL` to a disposable PostgreSQL
+server with database creation rights and run `just cli-ownership-regress`.
 Native child processes run without Python on PATH. `tests/startup.rs` proves
 read-only first-run behavior and refusal to replace a legacy identity.
 `tests/distribution.rs` proves archive ownership, replay, a modeled interrupted
