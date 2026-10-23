@@ -21,7 +21,7 @@ dependencies = [
     "lxml>=6.0",
     "itsdangerous>=2.2.0",
     "maxminddb>=2.8",
-    "pillow>=12.3",
+    "pillow>=13.0.0",
 ]
 
 [project.scripts]
