@@ -16,7 +16,7 @@ services:
   cliproxy:
     profiles: ["seo_enrichment"]
     # yamllint disable-line rule:line-length
-    image: ${AI_STP_CLIPROXY_IMAGE:-eceasy/cli-proxy-api:v8.0.22@sha256:fb287227792ae14eff38063479568049c90cb692b1f299e39c6f54650584428f}
+    image: ${AI_STP_CLIPROXY_IMAGE:-eceasy/cli-proxy-api:v8.0.30@sha256:a0b564ef82f67b157ebf488ee11d395e8c1ff6281c1fd17e7c34261f85d31f22}
     # 8317 stays on `internal`. 51121 is the Antigravity OAuth callback,
     # localhost-only, for first login or `ssh -L` on a server.
     ports:
@@ -40,7 +40,7 @@ services:
   litellm:
     profiles: ["seo_enrichment"]
     # yamllint disable-line rule:line-length
-    image: ${AI_STP_LITELLM_IMAGE:-ghcr.io/berriai/litellm:v1.105.1@sha256:b7b9e2c306343721802253d0dd9436b9634a2eb4e14da7c7cf06c5c7b7530802}
+    image: ${AI_STP_LITELLM_IMAGE:-ghcr.io/berriai/litellm:v1.106.2@sha256:7294b90f868c5c38c99b83021c7ba46f9b439e95f8e32964c925c7d2563a03f7}
     command: ["--config", "/app/config.yaml", "--port", "4000"]
     environment:
       LITELLM_MASTER_KEY:
