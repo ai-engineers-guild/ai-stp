@@ -111,7 +111,7 @@ async def _read_projection(
         payload = await store.read_by_digest(
             artifact_digest,
             expected_size=next(iter(sizes)),
-            owner_account_id=metadata.owner_account_id,
+            owner_account_id=component.owner_id,
         )
     except ObjectIntegrityError as exc:
         raise fail("stored projection bytes failed verification") from exc
@@ -174,26 +174,20 @@ async def read_public_artifact(
             stable_id=stable_id,
             version=version,
         )
-    if location.owner_account_id is not None and (
-        location.owner_account_id != metadata.owner_account_id
-        or location.bucket != store.bucket
-        or location.object_key
-        != store.key_for_digest(
-            location.digest,
-            owner_account_id=metadata.owner_account_id,
-        )
-    ):
-        raise _corrupt(
-            "stored object location is not bound to its owner",
-            object_kind=object_kind,
-            stable_id=stable_id,
-            version=version,
-        )
     fail = partial(_corrupt, object_kind=object_kind, stable_id=stable_id, version=version)
     passport = metadata.passport_document
     if not isinstance(passport, Mapping):
         raise fail("passport document is not an object")
     document = cast(Mapping[str, object], passport)
+    # Catalog ownership controls authorization above. Storage belongs to the
+    # immutable publication: a transfer does not rewrite passports or move bytes.
+    if location.owner_account_id is not None and (
+        location.owner_account_id != document.get("owner_id")
+        or location.bucket != store.bucket
+        or location.object_key
+        != store.key_for_digest(location.digest, owner_account_id=location.owner_account_id)
+    ):
+        raise fail("stored object location is not bound to its publication owner")
     artifact = document.get("artifact")
     if not isinstance(artifact, Mapping):
         raise fail("passport declares no artifact")
