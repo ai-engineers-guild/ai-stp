@@ -42,7 +42,9 @@ from ai_stp_platform.models import (
     ReportCase,
 )
 from ai_stp_platform.storage import ImmutableObjectStore, MemoryObjectClient
+from ai_stp_platform.storage.migrate import migrate_legacy_objects
 from ai_stp_platform.storage.object_store import ARTIFACT_DIGEST_DOMAIN
+from ai_stp_platform.storage.verify import verify_referenced_objects
 
 pytestmark = pytest.mark.platform
 
@@ -128,10 +130,12 @@ async def test_public_component_and_setup_artifacts_return_verified_bytes(
 
 
 @pytest.mark.parametrize("transfer_count", [0, 1, 2])
+@pytest.mark.parametrize("legacy_primary", [False, True])
 async def test_exact_projection_delivery_is_declared_owner_bound_and_authorized(
     artifact_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], MemoryObjectClient, str],
     tmp_path: Path,
     transfer_count: int,
+    legacy_primary: bool,
 ) -> None:
     client, sessionmaker, object_client, _payload = artifact_harness
     store = ImmutableObjectStore(settings=make_settings(tmp_path).storage, client=object_client)
@@ -199,6 +203,28 @@ async def test_exact_projection_delivery_is_declared_owner_bound_and_authorized(
         location.size_bytes = primary.size_bytes
         location.content_id = primary.content_id
         location.object_key = primary.key
+        setup = await session.scalar(
+            select(CatalogMetadata).where(
+                CatalogMetadata.stable_id == FIXTURE_SETUP_ID,
+                CatalogMetadata.version == "1.0",
+            )
+        )
+        assert setup is not None
+        setup_document = cast(dict[str, JsonValue], dict(setup.passport_document or {}))
+        setup_document.update(
+            harness_id="codex",
+            components=[
+                {
+                    "stable_id": FIXTURE_COMPONENT_ID,
+                    "version": "1.2",
+                    "passport_digest": row.passport_digest,
+                }
+            ],
+        )
+        setup_document["revision_id"] = derive_revision_id(setup_document)
+        setup.passport_document = cast(dict[str, object], setup_document)
+        setup.current_revision_id = setup_document["revision_id"]
+        setup.passport_digest = digest_canonical(PASSPORT_DIGEST_DOMAIN, setup_document)
         await session.commit()
 
     # A transfer changes authority, while the immutable publication retains its
@@ -296,6 +322,60 @@ async def test_exact_projection_delivery_is_declared_owner_bound_and_authorized(
             )
             assert len(revisions) == index + 1
     assert set(object_client.objects) == original_objects
+
+    if legacy_primary:
+        del object_client.objects[(primary.bucket, primary.key)]
+        legacy = await store.put_immutable(
+            primary_bytes,
+            expected_digest=primary.digest,
+            expected_size=len(primary_bytes),
+        )
+        async with sessionmaker() as session:
+            location = await session.scalar(
+                select(ObjectLocation).where(
+                    ObjectLocation.catalog_metadata_id == row.id,
+                    ObjectLocation.purpose == "artifact",
+                )
+            )
+            assert location is not None
+            location.owner_account_id = None
+            location.object_key = legacy.key
+            location.bucket = legacy.bucket
+            await session.commit()
+    async with sessionmaker() as session:
+        migrated = await migrate_legacy_objects(
+            session,
+            settings=make_settings(tmp_path).storage,
+            client=object_client,
+        )
+        assert migrated.artifacts == int(legacy_primary)
+        replayed = await migrate_legacy_objects(
+            session,
+            settings=make_settings(tmp_path).storage,
+            client=object_client,
+        )
+        assert replayed.artifacts == 0
+        verified = await verify_referenced_objects(
+            session,
+            settings=make_settings(tmp_path).storage,
+            client=object_client,
+        )
+        assert verified.artifacts == 2
+        location = await session.scalar(
+            select(ObjectLocation).where(
+                ObjectLocation.catalog_metadata_id == row.id, ObjectLocation.purpose == "artifact"
+            )
+        )
+        assert location is not None and location.owner_account_id == SEED_OWNER_ACCOUNT_ID
+        assert location.object_key == primary.key
+
+    budget = await client.get(
+        f"/v1/catalog/setups/{FIXTURE_SETUP_ID}/versions/1.0/context-budget",
+        params={"estimator_profile": "ai-stp:utf8-bytes/1"},
+    )
+    assert budget.status_code == 200, budget.text
+    assert budget.json()["status"] == "ready", budget.text
+    assert budget.json()["total_tokens"] == len("# Target skill\ncafé 👋\n".encode())
 
     path = f"/v1/catalog/components/{FIXTURE_COMPONENT_ID}/versions/1.2/artifact"
     assert (await client.get(path)).content == primary_bytes

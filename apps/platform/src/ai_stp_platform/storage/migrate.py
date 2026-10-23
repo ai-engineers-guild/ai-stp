@@ -19,6 +19,7 @@ from ai_stp_platform.storage.object_store import (
     ObjectClient,
     ObjectIntegrityError,
 )
+from ai_stp_platform.storage.publication import PublicationIdentityError, publication_owner
 from ai_stp_platform.storage.s3 import S3ObjectClient
 
 
@@ -80,7 +81,12 @@ async def migrate_legacy_objects(
         )
     ).all()
     for location, metadata in artifact_rows:
-        owner = metadata.owner_account_id
+        try:
+            owner = publication_owner(metadata, location)
+        except PublicationIdentityError as exc:
+            raise StorageMigrationError(
+                f"artifact {location.id} has an invalid publication"
+            ) from exc
         if location.owner_account_id not in {None, owner}:
             raise StorageMigrationError(f"artifact {location.id} has the wrong owner")
         target = artifact_store.key_for_digest(location.digest, owner_account_id=owner)
@@ -94,6 +100,9 @@ async def migrate_legacy_objects(
             except ObjectIntegrityError:
                 current = None
             if current is not None:
+                if location.owner_account_id is None:
+                    location.owner_account_id = owner
+                    artifact_count += 1
                 continue
         payload = await _legacy_bytes(
             artifact_store,

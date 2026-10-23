@@ -9,10 +9,12 @@ from unittest.mock import AsyncMock
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_foundation.digests import digest_bytes
+from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.digests import digest_bytes, digest_canonical
+from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_platform.settings import StorageSettings
 from ai_stp_platform.storage import ImmutableObjectStore, ObjectConflict, ObjectIntegrityError
-from ai_stp_platform.storage.migrate import migrate_legacy_objects
+from ai_stp_platform.storage.migrate import StorageMigrationError, migrate_legacy_objects
 from ai_stp_platform.storage.object_store import ARTIFACT_DIGEST_DOMAIN
 from ai_stp_platform.storage.verify import StorageVerificationError, verify_referenced_objects
 
@@ -333,8 +335,26 @@ async def test_organization_scoped_objects_reject_cross_tenant_keys() -> None:
         )
 
 
+def _publication_metadata(digest: str, size: int, current_owner: str) -> SimpleNamespace:
+    document: dict[str, JsonValue] = {
+        "stable_id": "component_one",
+        "version": "1.0",
+        "owner_id": "account_owner",
+        "artifact": {"digest": digest, "size_bytes": size},
+    }
+    document["revision_id"] = derive_revision_id(document)
+    return SimpleNamespace(
+        owner_account_id=current_owner,
+        stable_id="component_one",
+        version="1.0",
+        passport_document=document,
+        passport_digest=digest_canonical("ai-stp:passport:v1", document),
+    )
+
+
 @pytest.mark.asyncio
-async def test_restore_verifier_hashes_artifacts_and_uploaded_assets() -> None:
+@pytest.mark.parametrize("current_owner", ["account_owner", "account_recipient"])
+async def test_restore_verifier_hashes_artifacts_and_uploaded_assets(current_owner: str) -> None:
     settings = StorageSettings(
         endpoint="memory://test",
         artifact_bucket="artifacts",
@@ -375,7 +395,7 @@ async def test_restore_verifier_hashes_artifacts_and_uploaded_assets() -> None:
         size_bytes=artifact.size_bytes,
         bucket=artifact.bucket,
     )
-    metadata = SimpleNamespace(owner_account_id="account_owner")
+    metadata = _publication_metadata(artifact.digest, artifact.size_bytes, current_owner)
     avatar_row = SimpleNamespace(
         id="avatar_one",
         account_id="account_owner",
@@ -402,13 +422,24 @@ async def test_restore_verifier_hashes_artifacts_and_uploaded_assets() -> None:
     counts = await verify_referenced_objects(session(), settings=settings, client=client)
     assert (counts.artifacts, counts.avatars, counts.component_media) == (1, 1, 1)
 
+    original = metadata.passport_document
+    metadata.passport_document = {**original, "owner_id": "account_foreign"}
+    with pytest.raises(StorageVerificationError, match="invalid publication"):
+        await verify_referenced_objects(session(), settings=settings, client=client)
+    metadata.passport_document = original
+
     client.objects[(media.bucket, media.key)]["body"] = b"tampered"
     with pytest.raises(StorageVerificationError, match="component media"):
         await verify_referenced_objects(session(), settings=settings, client=client)
 
 
 @pytest.mark.asyncio
-async def test_legacy_objects_are_copied_to_owner_scoped_buckets_idempotently() -> None:
+@pytest.mark.parametrize("current_owner", ["account_owner", "account_recipient"])
+@pytest.mark.parametrize("scoped_without_owner", [False, True])
+async def test_legacy_objects_are_copied_to_owner_scoped_buckets_idempotently(
+    current_owner: str,
+    scoped_without_owner: bool,
+) -> None:
     settings = StorageSettings(
         endpoint="memory://test",
         bucket="legacy",
@@ -439,7 +470,18 @@ async def test_legacy_objects_are_copied_to_owner_scoped_buckets_idempotently() 
         size_bytes=len(artifact_payload),
         bucket=None,
     )
-    metadata = SimpleNamespace(owner_account_id="account_owner")
+    metadata = _publication_metadata(
+        _digest(artifact_payload), len(artifact_payload), current_owner
+    )
+    if scoped_without_owner:
+        stored = await ImmutableObjectStore(settings=settings, client=client).put_immutable(
+            artifact_payload,
+            expected_digest=_digest(artifact_payload),
+            expected_size=len(artifact_payload),
+            owner_account_id="account_owner",
+        )
+        location.object_key = stored.key
+        location.bucket = stored.bucket
     avatar = SimpleNamespace(
         id="avatar_one",
         account_id="account_owner",
@@ -461,6 +503,12 @@ async def test_legacy_objects_are_copied_to_owner_scoped_buckets_idempotently() 
         commit=AsyncMock(),
     )
     session = cast(AsyncSession, fake)
+
+    original = metadata.passport_document
+    metadata.passport_document = {**original, "owner_id": "account_foreign"}
+    with pytest.raises(StorageMigrationError, match="invalid publication"):
+        await migrate_legacy_objects(session, settings=settings, client=client)
+    metadata.passport_document = original
 
     first = await migrate_legacy_objects(session, settings=settings, client=client)
     second = await migrate_legacy_objects(session, settings=settings, client=client)

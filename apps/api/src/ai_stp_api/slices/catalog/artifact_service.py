@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from functools import partial
 from typing import Final, cast
 
@@ -18,6 +17,7 @@ from ai_stp_platform.catalog_read import ObjectKind, get_visible_metadata
 from ai_stp_platform.logging import get_logger
 from ai_stp_platform.models import CatalogMetadata, ObjectLocation
 from ai_stp_platform.storage.object_store import ImmutableObjectStore, ObjectIntegrityError
+from ai_stp_platform.storage.publication import PublicationIdentityError, publication_owner
 
 _log = get_logger("catalog")
 
@@ -175,36 +175,18 @@ async def read_public_artifact(
             version=version,
         )
     fail = partial(_corrupt, object_kind=object_kind, stable_id=stable_id, version=version)
-    passport = metadata.passport_document
-    if not isinstance(passport, Mapping):
-        raise fail("passport document is not an object")
-    document = cast(Mapping[str, object], passport)
-    sealed = cast(dict[str, JsonValue], passport)
-    if (
-        document.get("stable_id") != stable_id
-        or document.get("version") != version
-        or derive_revision_id(sealed) != document.get("revision_id")
-        or digest_canonical("ai-stp:passport:v1", sealed) != metadata.passport_digest
-    ):
-        raise fail("passport does not match its recorded identity")
+    try:
+        owner = publication_owner(metadata, location)
+    except PublicationIdentityError as exc:
+        raise fail(str(exc)) from exc
     # Catalog ownership controls authorization above. Storage belongs to the
     # immutable publication: a transfer does not rewrite passports or move bytes.
     if location.owner_account_id is not None and (
-        location.owner_account_id != document.get("owner_id")
+        location.owner_account_id != owner
         or location.bucket != store.bucket
-        or location.object_key
-        != store.key_for_digest(location.digest, owner_account_id=location.owner_account_id)
+        or location.object_key != store.key_for_digest(location.digest, owner_account_id=owner)
     ):
         raise fail("stored object location is not bound to its publication owner")
-    artifact = document.get("artifact")
-    if not isinstance(artifact, Mapping):
-        raise fail("passport declares no artifact")
-    declared = cast(Mapping[str, object], artifact)
-    if (
-        declared.get("digest") != location.digest
-        or declared.get("size_bytes") != location.size_bytes
-    ):
-        raise fail("stored object disagrees with the declared artifact")
     try:
         payload = await store.read_verified(
             object_key=location.object_key,
