@@ -179,6 +179,14 @@ async def read_public_artifact(
     if not isinstance(passport, Mapping):
         raise fail("passport document is not an object")
     document = cast(Mapping[str, object], passport)
+    sealed = cast(dict[str, JsonValue], passport)
+    if (
+        document.get("stable_id") != stable_id
+        or document.get("version") != version
+        or derive_revision_id(sealed) != document.get("revision_id")
+        or digest_canonical("ai-stp:passport:v1", sealed) != metadata.passport_digest
+    ):
+        raise fail("passport does not match its recorded identity")
     # Catalog ownership controls authorization above. Storage belongs to the
     # immutable publication: a transfer does not rewrite passports or move bytes.
     if location.owner_account_id is not None and (

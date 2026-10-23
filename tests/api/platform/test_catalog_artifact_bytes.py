@@ -83,7 +83,10 @@ async def artifact_harness(
                     continue
                 passport = dict(row.passport_document or {})
                 passport["artifact"] = {"digest": digest, "size_bytes": len(payload)}
+                passport["revision_id"] = derive_revision_id(passport)
                 row.passport_document = passport
+                row.current_revision_id = passport["revision_id"]
+                row.passport_digest = digest_canonical(PASSPORT_DIGEST_DOMAIN, passport)
                 stored = await store.put_immutable(
                     payload,
                     expected_digest=digest,
@@ -255,14 +258,14 @@ async def test_exact_projection_delivery_is_declared_owner_bound_and_authorized(
             )
             session.add(case)
             await session.flush()
-            arguments = dict(
-                case_id=case.id,
-                expected_owner_account_id=owner_id,
-                expected_ownership_revision_id=revision_id,
-                recipient_account_id=recipient.id,
-                reason="Verified ownership transfer",
-                operator_account_id=SEED_OWNER_ACCOUNT_ID,
-            )
+            arguments = {
+                "case_id": case.id,
+                "expected_owner_account_id": owner_id,
+                "expected_ownership_revision_id": revision_id,
+                "recipient_account_id": recipient.id,
+                "reason": "Verified ownership transfer",
+                "operator_account_id": SEED_OWNER_ACCOUNT_ID,
+            }
             revision = await transfer_catalog_line(session, **arguments)
             await session.commit()
             replay = await transfer_catalog_line(session, **arguments)
@@ -301,6 +304,17 @@ async def test_exact_projection_delivery_is_declared_owner_bound_and_authorized(
     assert response.content == target_bytes
     assert response.headers["content-length"] == str(len(target_bytes))
     assert (await client.get(path, params={"digest": primary.digest})).content == primary_bytes
+    original_primary = object_client.objects.pop((primary.bucket, primary.key))
+    await store.put_immutable(
+        primary_bytes,
+        expected_digest=primary.digest,
+        expected_size=len(primary_bytes),
+        owner_account_id=new_id("account"),
+    )
+    missing_primary = await client.get(path)
+    assert missing_primary.status_code == 500
+    assert missing_primary.json()["error"]["code"] == CATEGORY_CODE[ErrorCategory.CATALOG_INTEGRITY]
+    object_client.objects[(primary.bucket, primary.key)] = original_primary
     assert (await client.get(path, params={"digest": "sha256:" + "f" * 64})).status_code == 404
     malformed = await client.get(path, params={"digest": "not-a-digest"})
     assert malformed.status_code == 400
