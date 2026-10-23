@@ -289,10 +289,11 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
     expect(meter).toHaveAttribute("title", explanation);
     const fill = container.querySelector("[data-safety-fill]");
     expect(fill).toHaveStyle({ width: "50%" });
-    expect(fill?.firstElementChild).toHaveStyle({
-      background:
-        "linear-gradient(90deg, hsl(var(--destructive)), hsl(var(--warning)), hsl(var(--success)))",
-    });
+    // This suite does not load theme CSS. jsdom now resolves missing custom
+    // properties in computed styles, so assert the declared token gradient here.
+    expect((fill?.firstElementChild as HTMLElement).style.background).toBe(
+      "linear-gradient(90deg, hsl(var(--destructive)), hsl(var(--warning)), hsl(var(--success)))",
+    );
     expect(screen.queryByText("1 warning")).not.toBeInTheDocument();
   });
 
