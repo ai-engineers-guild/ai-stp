@@ -49,6 +49,17 @@ pub struct Capture {
 }
 
 impl Capture {
+    /// The native passport remains local; its permitted remote summary names
+    /// the authenticated enrollment device, as required by the server contract.
+    fn for_sender(mut self, sender: &Identity) -> Result<Self> {
+        sender.validate()?;
+        if self.entity_kind == "device_summary" {
+            self.entity_id = sender.device_id.clone();
+        }
+        self.digest()?;
+        Ok(self)
+    }
+
     pub fn digest(&self) -> Result<String> {
         let value = serde_json::to_value(self).map_err(|_| invalid())?;
         if canonical::bytes(&value)?.len() > MAX_CAPTURE {
@@ -56,6 +67,20 @@ impl Capture {
         }
         digest::canonical("ai-stp:plan:v1", &value)
     }
+}
+
+pub(super) fn capture_for_sender(
+    connection: &Connection,
+    native: &Identity,
+    sender: &Identity,
+    id: &str,
+) -> Result<Capture> {
+    let local_id = if id == sender.device_id {
+        native.device_id.as_str()
+    } else {
+        id
+    };
+    capture(connection, native, local_id)?.for_sender(sender)
 }
 
 /// Query-only capture. Every outgoing payload is checked before the first POST.

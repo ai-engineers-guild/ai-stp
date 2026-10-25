@@ -50,6 +50,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
         parameters: &[
             STATE_DIR,
             API,
+            super::account::CONNECTION,
             Parameter {
                 name: "request",
                 summary: "Closed JSON request with stable_id, version, optional visibility, component_root and per-member evidence; at most 16 MiB.",
@@ -132,9 +133,13 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     }
     let origin = args.get_one::<String>("api-url").map(String::as_str);
     let plan = match handler {
-        Handler::Plan => {
-            runtime::plan(root, origin, runtime::read_request(path("request")?)?, &at)?
-        }
+        Handler::Plan => runtime::plan_for_connection(
+            root,
+            origin,
+            args.get_one::<String>("connection").map(String::as_str),
+            runtime::read_request(path("request")?)?,
+            &at,
+        )?,
         Handler::Resume => runtime::resume(root, origin, text("operation-id")?, &at)?,
         Handler::Reconcile => return runtime::reconcile(root, origin, text("operation-id")?),
         _ => return Err(Failure::input("invalid publication command")),
