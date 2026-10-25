@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   cleanup,
+  act,
   fireEvent,
   render,
   screen,
@@ -28,6 +29,7 @@ vi.mock("./transport", async (original) => ({
   cmdTaskStatus: vi.fn(),
   cmdTaskAnswer: vi.fn(),
   cmdAuthComplete: vi.fn(),
+  cmdAuthLogin: vi.fn(),
   cliApplyConfirmed: vi.fn(),
 }));
 const ok = (data: Record<string, unknown> = {}): CmdResult => ({
@@ -92,6 +94,93 @@ beforeEach(() => {
   vi.mocked(transport.cmdRunRead).mockResolvedValue(ok({ properties: {} }));
 });
 afterEach(cleanup);
+
+it("offers only sign-in methods configured at the chosen origin", async () => {
+  vi.mocked(transport.cmdMachineHelp).mockResolvedValue(
+    ok({
+      commands: [
+        command(["account", "plan"], "plan", [
+          { name: "provider", choices: ["github", "keycloak"] },
+        ]),
+      ],
+    }),
+  );
+  vi.mocked(transport.cmdRunRead).mockResolvedValue(
+    ok({ origin: "https://selected.example.test", providers: ["keycloak"] }),
+  );
+  vi.mocked(transport.cmdAuthLogin).mockResolvedValue(ok());
+  mount(<AuthPage />);
+  await screen.findByRole("button", { name: "Keycloak" });
+  expect(screen.queryByRole("button", { name: "GitHub" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Start sign-in" }));
+  await waitFor(() =>
+    expect(transport.cmdAuthLogin).toHaveBeenCalledWith(
+      "keycloak",
+      "https://selected.example.test",
+    ),
+  );
+});
+
+it("keeps sign-in unavailable when discovery fails and retries explicitly", async () => {
+  vi.mocked(transport.cmdRunRead).mockResolvedValue({
+    ...ok(),
+    ok: false,
+    error: "Unavailable",
+  });
+  mount(<AuthPage />);
+  await screen.findByRole("button", { name: "Retry sign-in methods" });
+  expect(
+    (screen.getByRole("button", { name: "Start sign-in" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+  vi.mocked(transport.cmdRunRead).mockResolvedValue(
+    ok({ origin: "https://selected.example.test", providers: ["github"] }),
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Retry sign-in methods" }),
+  );
+  await screen.findByRole("button", { name: "GitHub" });
+  expect(
+    (screen.getByRole("button", { name: "Start sign-in" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(false);
+});
+
+it("discards provider discovery from an origin that is no longer selected", async () => {
+  let previous!: (value: CmdResult) => void;
+  useApp.setState({
+    auth: {
+      origin: "https://previous.example.test",
+      session: { state: "absent" },
+    },
+  });
+  vi.mocked(transport.cmdRunRead).mockImplementation(async (_path, values) => {
+    if (values?.["api-url"] === "https://previous.example.test") {
+      return new Promise((resolve) => {
+        previous = resolve;
+      });
+    }
+    return ok({ providers: [] });
+  });
+  mount(<AuthPage />);
+  await act(async () => {
+    useApp.setState({
+      auth: {
+        origin: "https://current.example.test",
+        session: { state: "absent" },
+      },
+    });
+  });
+  await screen.findByText(
+    "This server has no sign-in methods supported by this engine.",
+  );
+  await act(async () => previous(ok({ providers: ["github"] })));
+  expect(screen.queryByRole("button", { name: "GitHub" })).toBeNull();
+  expect(
+    (screen.getByRole("button", { name: "Start sign-in" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+});
 
 it("discards a catalog page when its filter changes while the request is in flight", async () => {
   let complete!: (value: CmdResult) => void;

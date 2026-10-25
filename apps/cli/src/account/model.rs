@@ -72,7 +72,7 @@ impl Plan {
         if self.schema_version != 1
             || !passport::stable_id(&self.operation_id, "operation")
             || !self.root.is_absolute()
-            || !matches!(self.provider.as_str(), "github" | "google")
+            || !super::providers::IDS.contains(&self.provider.as_str())
             || self.expires_at != authoring::expiry(&self.created_at)?
             || self
                 .expected_revision

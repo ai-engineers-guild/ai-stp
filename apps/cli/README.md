@@ -6,6 +6,11 @@ There is no Python fallback, model client, background updater or telemetry.
 The executable registry is the command reference: `ai-stp help --agent --json`.
 Use `task intents` and `task input-schema` for the smaller task interface.
 
+`account providers --api-url https://your-server.example` reads the sign-in
+methods enabled by that deployment without credentials or local state writes.
+Machine help lists the engine's supported methods; it does not claim that a
+server has configured them. Starting sign-in remains subject to server policy.
+
 ## Release and supported platforms
 
 Stable archives use `cli-v<version>` tags and the exact `Cargo.toml` version.

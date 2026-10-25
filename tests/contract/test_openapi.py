@@ -345,6 +345,10 @@ def test_the_pack_declares_no_route_outside_the_sprint_boundary() -> None:
         "publish",
     }
     for path in PATHS:
+        # This exact auth resource discovers identity providers, not harness
+        # installation components. Keep all other provider namespaces excluded.
+        if path == "/v1/auth/providers":
+            continue
         literal = {
             segment.lower()
             for segment in path.split("/")

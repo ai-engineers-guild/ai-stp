@@ -57,6 +57,8 @@ from ai_stp_api.slices.auth.service import (
 )
 from ai_stp_api.slices.devices.crypto import verify_ed25519
 from ai_stp_contracts.auth import (
+    OAUTH_PROVIDERS,
+    AuthProvidersResponse,
     DeviceRefreshRequest,
     DeviceTokenResponse,
     LegalOnboardingCompleteRequest,
@@ -84,6 +86,18 @@ _SESSION_KEY_CLIENT = "oauth_client"
 _WEB_DEVICE_TYPE = "web"
 _SESSION_KEY_RETURN_TO = "oauth_return_to"
 _DEFAULT_WEB_RETURN_TO = "/ru/account"
+
+
+@router.get("/auth/providers")
+async def read_auth_providers(
+    auth: Annotated[AuthSettings, Depends(get_auth_settings)],
+    response: Response,
+) -> AuthProvidersResponse:
+    """Use the same deployment policy as device authorization; disclose only IDs."""
+    response.headers["Cache-Control"] = "no-store"
+    return AuthProvidersResponse(
+        providers=[provider for provider in OAUTH_PROVIDERS if auth.provider_enabled(provider)]
+    )
 
 
 def _oauth(request: Request) -> Any:

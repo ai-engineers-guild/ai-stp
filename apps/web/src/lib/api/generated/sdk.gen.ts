@@ -457,6 +457,9 @@ import type {
   ReadAuthMeData,
   ReadAuthMeErrors,
   ReadAuthMeResponses,
+  ReadAuthProvidersData,
+  ReadAuthProvidersErrors,
+  ReadAuthProvidersResponses,
   ReadComponentArtifactData,
   ReadComponentArtifactErrors,
   ReadComponentArtifactResponses,
@@ -1262,6 +1265,18 @@ export const completeLegalOnboarding = <ThrowOnError extends boolean = false>(
       ...options.headers,
     },
   });
+
+/**
+ * Read configured device sign-in providers at this origin.
+ */
+export const readAuthProviders = <ThrowOnError extends boolean = false>(
+  options?: Options<ReadAuthProvidersData, ThrowOnError>,
+): RequestResult<ReadAuthProvidersResponses, ReadAuthProvidersErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ReadAuthProvidersResponses,
+    ReadAuthProvidersErrors,
+    ThrowOnError
+  >({ url: "/v1/auth/providers", ...options });
 
 /**
  * Read the outcome of the browser half of a sign-in.

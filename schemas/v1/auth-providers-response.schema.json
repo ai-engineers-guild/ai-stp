@@ -1,0 +1,41 @@
+{
+  "$defs": {
+    "OAuthProvider": {
+      "enum": [
+        "google",
+        "github",
+        "authentik",
+        "keycloak",
+        "gitlab",
+        "saml"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:auth-providers-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Configured device sign-in providers at this origin, without IdP secrets.",
+  "properties": {
+    "providers": {
+      "items": {
+        "$ref": "#/$defs/OAuthProvider"
+      },
+      "maxItems": 6,
+      "title": "Providers",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "providers",
+    "schema_version"
+  ],
+  "title": "AuthProvidersResponse",
+  "type": "object"
+}

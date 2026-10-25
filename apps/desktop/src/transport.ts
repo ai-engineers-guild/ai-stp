@@ -173,8 +173,11 @@ export function cmdRunRead(
 
 // -- auth: device-code flow through the CLI; the app holds no credentials.
 
-export function cmdAuthLogin(provider: string): Promise<CmdResult> {
-  return call("auth_login", { provider });
+export function cmdAuthLogin(
+  provider: string,
+  origin?: string,
+): Promise<CmdResult> {
+  return call("auth_login", { provider, ...(origin ? { origin } : {}) });
 }
 
 export function cmdAuthComplete(wait: boolean): Promise<CmdResult> {

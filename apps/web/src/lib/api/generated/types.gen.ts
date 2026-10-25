@@ -474,6 +474,23 @@ export type AuthMeResponse = {
 };
 
 /**
+ * AuthProvidersResponse
+ *
+ * Configured device sign-in providers at this origin, without IdP secrets.
+ */
+export type AuthProvidersResponse = {
+  /**
+   * Providers
+   */
+  providers: Array<OAuthProvider>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
  * AuthorAttestation
  *
  * Full closed author attestation on the /v1 wire (ADR-0092).
@@ -18262,6 +18279,50 @@ export type CompleteLegalOnboardingResponses = {
 
 export type CompleteLegalOnboardingResponse =
   CompleteLegalOnboardingResponses[keyof CompleteLegalOnboardingResponses];
+
+export type ReadAuthProvidersData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/auth/providers";
+};
+
+export type ReadAuthProvidersErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadAuthProvidersError = ReadAuthProvidersErrors[keyof ReadAuthProvidersErrors];
+
+export type ReadAuthProvidersResponses = {
+  /**
+   * Read configured device sign-in providers at this origin.
+   */
+  200: AuthProvidersResponse;
+};
+
+export type ReadAuthProvidersResponse =
+  ReadAuthProvidersResponses[keyof ReadAuthProvidersResponses];
 
 export type ReadOAuthCallbackResultData = {
   body?: never;
