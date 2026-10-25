@@ -114,6 +114,14 @@ to the original enrollment must be reconciled before this recovery can be
 admitted. Unrelated enrollment operations are retained. Recovery does not settle
 unknown remote effects or grant corporate installation authority.
 
+Windows account sessions use versioned compressed binary records in the native
+Credential Manager, avoiding its password API's UTF-16 expansion. The native
+blob is limited to 2,560 bytes and decoded records to 64 KiB; records that cannot
+fit refuse before credential publication. Existing password entries remain
+readable and device keys retain their encoding. New session writes fence older
+account-journal readers; retain a compatible client. No token file fallback is
+used.
+
 ## Release and supported platforms
 
 Stable archives use `cli-v<version>` tags and the exact `Cargo.toml` version.

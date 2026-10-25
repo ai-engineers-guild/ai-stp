@@ -327,6 +327,50 @@ fn production_registry_keeps_its_original_filename_and_marker_after_recovery()
 }
 
 #[test]
+fn enrollment_recovery_preserves_the_stronger_windows_record_writer_fence()
+-> std::result::Result<(), Box<dyn Error>> {
+    let f = revoked()?;
+    let local = identity_at(f.root.path())?;
+    let namespace = format!("ai-stp-v2-account-{}", f.connection.connection_id);
+    {
+        let directory = crate::files::OwnedDirectory::open_compatible(
+            local.root_directory(),
+            &namespace,
+            b"ai-stp-cli-v2 isolated account sessions v1\n",
+            &[b"ai-stp-cli-v2 isolated account sessions v2\n"],
+            false,
+        )?
+        .ok_or("journal")?;
+        directory.atomic("owner", identity::credentials::WINDOWS_ACCOUNT_OWNER)?;
+    }
+    let plan = recovery::plan(
+        f.root.path(),
+        &f.connection.connection_id,
+        "Replacement",
+        &f.at,
+    )?;
+    recovery::apply(&plan, &plan.digest()?, &f.at)?;
+    assert_eq!(
+        fs::read(f.root.path().join(&namespace).join("owner"))?,
+        identity::credentials::WINDOWS_ACCOUNT_OWNER
+    );
+    assert!(
+        crate::files::OwnedDirectory::open_compatible(
+            local.root_directory(),
+            &namespace,
+            b"ai-stp-cli-v2 isolated account sessions v1\n",
+            &[
+                b"ai-stp-cli-v2 isolated account sessions v2\n",
+                b"ai-stp-cli-v2 isolated enrollment recovery v1\n"
+            ],
+            false
+        )
+        .is_err()
+    );
+    Ok(())
+}
+
+#[test]
 fn child_key_write_failure_keeps_atomic_parent_and_child_admission_for_expired_replay()
 -> std::result::Result<(), Box<dyn Error>> {
     let f = revoked()?;

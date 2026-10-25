@@ -182,9 +182,9 @@ fn native_vault_recovery_preserves_other_sessions_and_uses_same_account_key_cons
         account::apply(&refresh, &refresh.digest()?, &clock(&at, 8)?)?["outcome"],
         "revoked"
     );
-    let old_session = digest::sha256(first_session.0.get_password()?.as_bytes());
+    let old_session = digest::sha256(&first_session.0.get_secret()?);
     let old_key = digest::sha256(first_key.0.get_password()?.as_bytes());
-    let other_session = digest::sha256(second_session.0.get_password()?.as_bytes());
+    let other_session = digest::sha256(&second_session.0.get_secret()?);
     let plan = enrollment_recovery::plan(
         root.path(),
         &first.connection_id,
@@ -203,16 +203,13 @@ fn native_vault_recovery_preserves_other_sessions_and_uses_same_account_key_cons
         enrollment_recovery::list(root.path())?["recoveries"][0]["state"],
         "authorized"
     );
-    assert_eq!(
-        digest::sha256(first_session.0.get_password()?.as_bytes()),
-        old_session
-    );
+    assert_eq!(digest::sha256(&first_session.0.get_secret()?), old_session);
     assert_eq!(
         digest::sha256(first_key.0.get_password()?.as_bytes()),
         old_key
     );
     assert_eq!(
-        digest::sha256(second_session.0.get_password()?.as_bytes()),
+        digest::sha256(&second_session.0.get_secret()?),
         other_session
     );
     let logout = account::plan_for_connection(
