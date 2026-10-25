@@ -262,7 +262,7 @@ fn execute(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
                 "the attestation signing plan has expired",
             ));
         }
-        let mut account = Access::for_account(&plan.state_parent, Some(&plan.account.origin))?;
+        let mut account = Access::for_binding(&plan.state_parent, &plan.account, false)?;
         if *account.binding() != plan.account {
             return Err(invalid());
         }

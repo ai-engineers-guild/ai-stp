@@ -25,6 +25,11 @@ harness files. Harness executables remain user/vendor managed.
   operation recovery. It offers only methods reported by the selected server
   and supported by the native engine; discovery failure requires an explicit
   retry. Credentials stay in the CLI's selected store.
+- **Connections** creates and recovers independent native enrollments through
+  reviewed plans, opens each account session separately and retains native offline,
+  personal and corporate context observations. It exposes the exact registry
+  format upgrade before application. View selection preserves existing operations
+  and harness files; current organization access is an explicit online read.
 - **Targets**, **Discovery** and **Commands** render the connected engine's
   command descriptors with read/plan/apply gates and explicit apply confirmation.
 - **Diagnostics** offers an optional, bounded in-memory trace and an explicitly

@@ -289,17 +289,26 @@ impl Drop for PublicPlanFile {
     }
 }
 
+fn account_arguments(path: &str, connection: Option<&str>) -> Vec<String> {
+    let mut arguments = argv(path);
+    if let Some(connection) = connection {
+        arguments.extend(["--connection".into(), connection.into()]);
+    }
+    arguments
+}
+
 fn account_action(
     state: &AppState,
     action: &str,
     provider: Option<&str>,
     origin: Option<&str>,
+    connection: Option<&str>,
 ) -> CmdResult {
     let _mutation = match state.mutation_lock.lock() {
         Ok(lock) => lock,
         Err(_) => return CmdResult::failed("DESKTOP_TRANSPORT", "mutation lock poisoned"),
     };
-    let current = run_cli(state, &argv("account status"));
+    let current = run_cli(state, &account_arguments("account status", connection));
     if !current.ok {
         return current;
     }
@@ -320,7 +329,7 @@ fn account_action(
         }
         pending.clone()
     } else {
-        let mut arguments = argv("account plan");
+        let mut arguments = account_arguments("account plan", connection);
         arguments.extend(["--action".into(), action.into()]);
         if let Some(provider) = provider {
             arguments.extend(["--provider".into(), provider.into()]);
@@ -359,7 +368,7 @@ fn account_action(
     if !applied.ok {
         return applied;
     }
-    let mut status = run_cli(state, &argv("account status"));
+    let mut status = run_cli(state, &account_arguments("account status", connection));
     status.warnings.extend(applied.warnings);
     status.operation_id = applied.operation_id;
     status
@@ -478,6 +487,40 @@ async fn cli_plan(
     repeated: Option<BTreeMap<String, Vec<String>>>,
 ) -> Result<CmdResult, String> {
     gated_run(state.inner().clone(), path, values, flags, repeated, "plan").await
+}
+
+/// Only reviewed native profile plans may cross this in-memory public bridge.
+#[tauri::command]
+async fn profile_apply(
+    state: tauri::State<'_, Arc<AppState>>,
+    path: String,
+    plan: serde_json::Value,
+    digest: String,
+    confirmed: bool,
+) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        if !confirmed || !matches!(path.as_str(), "account connections apply" | "context apply") {
+            return CmdResult::failed(
+                "DESKTOP_CONFIRMATION_REQUIRED",
+                "Review and confirm the exact native profile plan",
+            );
+        }
+        let file = match PublicPlanFile::bounded(&plan, 131072) {
+            Ok(file) => file,
+            Err(error) => return CmdResult::failed("DESKTOP_USAGE", error),
+        };
+        let mut arguments = argv(&path);
+        arguments.extend([
+            "--plan".into(),
+            file.0.to_string_lossy().into_owned(),
+            "--plan-digest".into(),
+            digest,
+        ]);
+        run_cli_mutating(&st, &arguments)
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 /// Apply-tier passthrough: requires the explicit `confirmed` flag — the
@@ -599,10 +642,17 @@ async fn auth_login(
     state: tauri::State<'_, Arc<AppState>>,
     provider: String,
     origin: Option<String>,
+    connection: Option<String>,
 ) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        account_action(&st, "start", Some(&provider), origin.as_deref())
+        account_action(
+            &st,
+            "start",
+            Some(&provider),
+            origin.as_deref(),
+            connection.as_deref(),
+        )
     })
     .await
     .map_err(|e| e.to_string())
@@ -612,47 +662,72 @@ async fn auth_login(
 async fn auth_complete(
     state: tauri::State<'_, Arc<AppState>>,
     wait: bool,
+    connection: Option<String>,
 ) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         if wait {
             return CmdResult::failed("DESKTOP_USAGE", "Use bounded polling without wait");
         }
-        account_action(&st, "poll", None, None)
+        account_action(&st, "poll", None, None, connection.as_deref())
     })
     .await
     .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn auth_status(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, String> {
-    let st = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || run_cli(&st, &argv("account status")))
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-async fn auth_logout(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, String> {
-    let st = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || account_action(&st, "logout", None, None))
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-async fn auth_refresh(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, String> {
-    let st = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || account_action(&st, "refresh", None, None))
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-async fn auth_resume(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, String> {
+async fn auth_status(
+    state: tauri::State<'_, Arc<AppState>>,
+    connection: Option<String>,
+) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let status = run_cli(&st, &argv("account status"));
+        run_cli(
+            &st,
+            &account_arguments("account status", connection.as_deref()),
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn auth_logout(
+    state: tauri::State<'_, Arc<AppState>>,
+    connection: Option<String>,
+) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        account_action(&st, "logout", None, None, connection.as_deref())
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn auth_refresh(
+    state: tauri::State<'_, Arc<AppState>>,
+    connection: Option<String>,
+) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        account_action(&st, "refresh", None, None, connection.as_deref())
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn auth_resume(
+    state: tauri::State<'_, Arc<AppState>>,
+    connection: Option<String>,
+) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let status = run_cli(
+            &st,
+            &account_arguments("account status", connection.as_deref()),
+        );
         if !status.ok {
             return status;
         }
@@ -673,7 +748,7 @@ async fn auth_resume(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult
         } else {
             None
         };
-        account_action(&st, action, provider, None)
+        account_action(&st, action, provider, None, connection.as_deref())
     })
     .await
     .map_err(|e| e.to_string())
@@ -956,6 +1031,7 @@ pub fn run() {
             debug_info,
             cli_plan,
             cli_apply_confirmed,
+            profile_apply,
             auth_login,
             auth_complete,
             auth_status,

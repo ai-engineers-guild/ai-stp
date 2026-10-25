@@ -1,6 +1,6 @@
 //! Thin adapters for the account reporter workflow.
 
-use super::{Declaration, Parameter, ParameterType, STATE_DIR};
+use super::{Declaration, Parameter, ParameterType, STATE_DIR, account::CONNECTION};
 use crate::{
     account::reports,
     error::{Failure, Result},
@@ -41,6 +41,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
         parameters: &[
             STATE_DIR,
             API,
+            CONNECTION,
             Parameter {
                 name: "request",
                 summary: "Bounded closed report JSON with topic-specific fields and a 16–128 character idempotency_key. Diagnostics are explicit text only; schema_version and diagnostics_previewed are CLI-owned.",
@@ -82,6 +83,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
         parameters: &[
             STATE_DIR,
             API,
+            CONNECTION,
             Parameter {
                 name: "cursor",
                 summary: "Opaque next cursor returned by the preceding page, at most 512 characters.",
@@ -97,6 +99,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
         parameters: &[
             STATE_DIR,
             API,
+            CONNECTION,
             Parameter {
                 name: "case-id",
                 summary: "Exact report case ID.",
@@ -118,9 +121,10 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             .ok_or_else(|| Failure::input("a required report argument is absent"))
     };
     match handler {
-        Handler::Preview => reports::preview(
+        Handler::Preview => reports::preview_for_connection(
             root,
             args.get_one::<String>("api-url").map(String::as_str),
+            args.get_one::<String>("connection").map(String::as_str),
             args.get_one::<PathBuf>("request")
                 .ok_or_else(|| Failure::input("the report request is absent"))?,
             &format!("{:.3}", jiff::Timestamp::now()),
@@ -131,14 +135,16 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             required("plan-digest")?,
             args.get_flag("confirm"),
         ),
-        Handler::List => reports::list(
+        Handler::List => reports::list_for_connection(
             root,
             args.get_one::<String>("api-url").map(String::as_str),
+            args.get_one::<String>("connection").map(String::as_str),
             args.get_one::<String>("cursor").map(String::as_str),
         ),
-        Handler::Status => reports::status(
+        Handler::Status => reports::status_for_connection(
             root,
             args.get_one::<String>("api-url").map(String::as_str),
+            args.get_one::<String>("connection").map(String::as_str),
             required("case-id")?,
         ),
     }

@@ -2,7 +2,10 @@
 
 pub(super) mod contract;
 
-use super::{access::Access, transport::Code};
+use super::{
+    access::{Access, Binding},
+    transport::Code,
+};
 use crate::{
     digest,
     error::{ErrorKind, Failure, Result},
@@ -25,6 +28,8 @@ struct Record {
     account_id: String,
     origin: String,
     root_identity: [String; 2],
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    account_binding: Option<Box<Binding>>,
     request: Value,
     request_sha256: String,
     created_at: String,
@@ -77,19 +82,47 @@ fn plan_id(key: &str) -> Result<String> {
     Ok(format!("plan_{}", ulid::Ulid::from(number)))
 }
 
+fn scoped_key(
+    account: &str,
+    origin: &str,
+    caller: &str,
+    binding: Option<&Binding>,
+) -> Result<String> {
+    let legacy = key(account, origin, caller)?;
+    match binding {
+        None => Ok(legacy),
+        Some(binding) => Ok(digest::sha256(&contract::bytes(&json!([
+            "ai-stp-native-report-connection/1",
+            legacy,
+            binding.connection
+        ]))?)),
+    }
+}
+
 impl Record {
     fn validate(&self) -> Result<()> {
         contract::validate(&self.request)?;
+        if let Some(binding) = &self.account_binding {
+            binding.validate()?;
+            if binding.connection.is_none()
+                || binding.account_id != self.account_id
+                || binding.origin != self.origin
+                || binding.root_identity != self.root_identity
+            {
+                return Err(invalid());
+            }
+        }
         if self.schema_version != 1
             || !passport::stable_id(&self.account_id, "account")
             || super::transport::origin(&self.origin)? != self.origin
             || !passport::timestamp(&self.created_at)
             || self.request_sha256 != digest::sha256(&contract::bytes(&self.request)?)
             || self.plan_id
-                != plan_id(&key(
+                != plan_id(&scoped_key(
                     &self.account_id,
                     &self.origin,
                     contract::text(&self.request, "idempotency_key")?,
+                    self.account_binding.as_deref(),
                 )?)?
             || self.submitted.is_some() && !self.started
         {
@@ -105,20 +138,26 @@ impl Record {
 
     fn digest(&self) -> Result<String> {
         self.validate()?;
-        digest::canonical(
-            "ai-stp:plan:v1",
-            &json!({"schema_version":1,
+        let mut value = json!({"schema_version":1,
             "plan_id":self.plan_id,"account_id":self.account_id,"api_origin":self.origin,
             "root_identity":self.root_identity,"request_sha256":self.request_sha256,
-            "created_at":self.created_at}),
-        )
+            "created_at":self.created_at});
+        if let Some(binding) = &self.account_binding {
+            value["account_binding"] = serde_json::to_value(binding).map_err(|_| invalid())?;
+        }
+        digest::canonical("ai-stp:plan:v1", &value)
     }
 
     fn body(&self) -> Result<Value> {
         let mut body = self.request.clone();
         // The server replays solely by account/key, without a payload hash.
         // Bind this client's wire key to every original byte and its origin.
-        let hash = key(&self.account_id, &self.origin, &self.request_sha256)?;
+        let hash = scoped_key(
+            &self.account_id,
+            &self.origin,
+            &self.request_sha256,
+            self.account_binding.as_deref(),
+        )?;
         body["idempotency_key"] = format!("native.report.{}", &hash[7..]).into();
         Ok(body)
     }
@@ -167,15 +206,30 @@ fn retained(
 }
 
 pub fn preview(root: &Path, origin: Option<&str>, input: &Path, at: &str) -> Result<Value> {
+    preview_for_connection(root, origin, None, input, at)
+}
+
+pub fn preview_for_connection(
+    root: &Path,
+    origin: Option<&str>,
+    connection: Option<&str>,
+    input: &Path,
+    at: &str,
+) -> Result<Value> {
     let request = contract::prepare(wire::parse(&files::read(input, LIMIT)?)?)?;
-    let access = Access::for_account(root, origin)?;
+    let access = Access::for_connection(root, origin, connection, false)?;
     let identity = super::identity_at(root)?;
     let dir = directory(&identity, true)?;
     let account = access.binding();
-    let id = plan_id(&key(
+    let binding = account
+        .connection
+        .as_ref()
+        .map(|_| Box::new(account.clone()));
+    let id = plan_id(&scoped_key(
         &account.account_id,
         &account.origin,
         contract::text(&request, "idempotency_key")?,
+        binding.as_deref(),
     )?)?;
     let hash = digest::sha256(&contract::bytes(&request)?);
     if let Some(record) = load(&dir, &id)? {
@@ -183,6 +237,8 @@ pub fn preview(root: &Path, origin: Option<&str>, input: &Path, at: &str) -> Res
             || record.origin != account.origin
             || record.root_identity != account.root_identity
             || record.request_sha256 != hash
+            || record.account_binding.as_ref().map(|b| &b.connection)
+                != binding.as_ref().map(|b| &b.connection)
         {
             return Err(Failure::new(
                 ErrorKind::Conflict,
@@ -197,6 +253,7 @@ pub fn preview(root: &Path, origin: Option<&str>, input: &Path, at: &str) -> Res
         account_id: account.account_id.clone(),
         origin: account.origin.clone(),
         root_identity: account.root_identity.clone(),
+        account_binding: binding,
         request,
         request_sha256: hash,
         created_at: at.into(),
@@ -225,7 +282,10 @@ pub fn confirm(root: &Path, id: &str, expected: &str, confirmed: bool) -> Result
     }
     // Lock order stays account then reporter journal. A completed receipt above
     // remains readable after logout and never acquires network authority.
-    let mut access = Access::for_account(root, Some(&record.origin))?;
+    let mut access = match &record.account_binding {
+        Some(binding) => Access::for_binding(root, binding, false)?,
+        None => Access::for_account(root, Some(&record.origin))?,
+    };
     if access.binding().account_id != record.account_id
         || access.binding().root_identity != record.root_identity
     {
@@ -248,10 +308,19 @@ pub fn confirm(root: &Path, id: &str, expected: &str, confirmed: bool) -> Result
 }
 
 pub fn list(root: &Path, origin: Option<&str>, cursor: Option<&str>) -> Result<Value> {
+    list_for_connection(root, origin, None, cursor)
+}
+
+pub fn list_for_connection(
+    root: &Path,
+    origin: Option<&str>,
+    connection: Option<&str>,
+    cursor: Option<&str>,
+) -> Result<Value> {
     if cursor.is_some_and(|value| !contract::cursor(value)) {
         return Err(invalid());
     }
-    let mut access = Access::for_account(root, origin)?;
+    let mut access = Access::for_connection(root, origin, connection, false)?;
     access.verify()?;
     let value = access.reports(None, cursor, None)?;
     let page = contract::page(&value, cursor)?;
@@ -262,10 +331,19 @@ pub fn list(root: &Path, origin: Option<&str>, cursor: Option<&str>) -> Result<V
 }
 
 pub fn status(root: &Path, origin: Option<&str>, id: &str) -> Result<Value> {
+    status_for_connection(root, origin, None, id)
+}
+
+pub fn status_for_connection(
+    root: &Path,
+    origin: Option<&str>,
+    connection: Option<&str>,
+    id: &str,
+) -> Result<Value> {
     if !passport::stable_id(id, "report") {
         return Err(invalid());
     }
-    let mut access = Access::for_account(root, origin)?;
+    let mut access = Access::for_connection(root, origin, connection, false)?;
     access.verify()?;
     let case = contract::case(&access.reports(Some(id), None, None)?)?;
     if case["case_id"] != id {

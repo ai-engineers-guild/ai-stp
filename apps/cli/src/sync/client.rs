@@ -62,7 +62,10 @@ impl Client {
         plan: Option<&super::runtime::Plan>,
     ) -> Result<Self> {
         enabled(configuration)?;
-        let mut account = Access::for_account(root, origin)?;
+        let mut account = match plan {
+            Some(plan) => Access::for_binding(root, &plan.account, false)?,
+            None => Access::for_account(root, origin)?,
+        };
         if plan.is_some_and(|expected| &expected.account != account.binding()) {
             return Err(Failure::precondition(
                 "the sync account, session, device or physical root changed after planning",

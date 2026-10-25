@@ -280,6 +280,16 @@ impl Plan {
 }
 
 pub fn plan(root: &Path, origin: Option<&str>, request: &Path, at: &str) -> Result<Plan> {
+    plan_for_connection(root, origin, None, request, at)
+}
+
+pub fn plan_for_connection(
+    root: &Path,
+    origin: Option<&str>,
+    connection: Option<&str>,
+    request: &Path,
+    at: &str,
+) -> Result<Plan> {
     let mut request: Request =
         serde_json::from_value(canonical::parse(&files::read(request, MAX_REQUEST)?)?)
             .map_err(|_| invalid())?;
@@ -292,7 +302,7 @@ pub fn plan(root: &Path, origin: Option<&str>, request: &Path, at: &str) -> Resu
     request.validate()?;
     let token = request.token()?;
     let state_parent = PathBuf::from(files::location(root)?);
-    let mut access = Access::for_account(&state_parent, origin)?;
+    let mut access = Access::for_connection(&state_parent, origin, connection, false)?;
     access.verify()?;
     let plan = Plan {
         schema_version: 1,
@@ -381,7 +391,15 @@ fn observed(access: &Access, response: Value) -> Result<Value> {
 }
 
 pub fn list(root: &Path, origin: Option<&str>) -> Result<Value> {
-    let mut access = Access::for_account(root, origin)?;
+    list_for_connection(root, origin, None)
+}
+
+pub fn list_for_connection(
+    root: &Path,
+    origin: Option<&str>,
+    connection: Option<&str>,
+) -> Result<Value> {
+    let mut access = Access::for_connection(root, origin, connection, false)?;
     access.verify()?;
     let value = access.grants("", None)?;
     LIST.validate(&value)?;
@@ -418,7 +436,7 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
             "the invitation token changed after planning",
         ));
     }
-    let mut access = Access::for_account(&plan.state_parent, Some(&plan.account.origin))?;
+    let mut access = Access::for_binding(&plan.state_parent, &plan.account, false)?;
     if access.binding() != &plan.account {
         return Err(Failure::precondition(
             "the grant account, device, session or physical state changed after planning",
@@ -525,6 +543,7 @@ mod tests {
                 root_identity: ["volume".into(), "directory".into()],
                 public_key: "fixture".into(),
                 credential_store: crate::identity::Storage::File,
+                connection: None,
             },
             request: direct.clone(),
             token_sha256: None,

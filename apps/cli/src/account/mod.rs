@@ -3,6 +3,8 @@
 pub(crate) mod access;
 pub(crate) mod adoption;
 pub(crate) mod attachment;
+pub mod connections;
+pub mod contexts;
 pub mod github;
 pub mod grants;
 mod journal;
@@ -51,6 +53,15 @@ fn bind(plan: &Plan) -> Result<identity::Identity> {
 }
 
 fn check_binding(identity: &identity::Identity, plan: &Plan) -> Result<()> {
+    if let Some(connection) = &plan.connection {
+        if identity.root_binding() != (plan.root.as_path(), &plan.root_identity)
+            || !identity.historical(&plan.identity)
+            || identity.storage() != plan.credential_store
+        {
+            return Err(invalid());
+        }
+        return connection.check(identity);
+    }
     if identity.root_binding() != (plan.root.as_path(), &plan.root_identity)
         || identity.context() != plan.identity
         || identity.storage() != plan.credential_store
@@ -69,6 +80,17 @@ fn check_binding(identity: &identity::Identity, plan: &Plan) -> Result<()> {
 }
 
 fn check_state(state: &State, plan: &Plan) -> Result<()> {
+    if state.plan.connection.is_some() || plan.connection.is_some() {
+        if state.plan.connection != plan.connection
+            || state.plan.root != plan.root
+            || state.plan.root_identity != plan.root_identity
+            || state.plan.identity.account_id != plan.identity.account_id
+            || state.plan.credential_store != plan.credential_store
+        {
+            return Err(invalid());
+        }
+        return Ok(());
+    }
     if state.plan.root != plan.root
         || state.plan.root_identity != plan.root_identity
         || state.plan.identity != plan.identity
@@ -89,10 +111,29 @@ pub fn plan(
     provider: Option<&str>,
     at: &str,
 ) -> Result<Plan> {
+    plan_for_connection(root, action, api, provider, None, at)
+}
+
+pub fn plan_for_connection(
+    root: &Path,
+    action: Action,
+    api: Option<&str>,
+    provider: Option<&str>,
+    connection: Option<&str>,
+    at: &str,
+) -> Result<Plan> {
     let identity = identity_at(root)?;
+    let connection = connection
+        .map(|id| connections::enrollment(&identity, id))
+        .transpose()?;
+    if connection.is_some() && matches!(action, Action::Attach | Action::Recover | Action::Import) {
+        return Err(Failure::precondition(
+            "this action requires the legacy local-owner session; it cannot replace another connection's identity",
+        ));
+    }
     let (root, root_identity) = identity.root_binding();
     let (root, root_identity) = (root.to_owned(), root_identity.clone());
-    let journal = Journal::open(&identity, false)?;
+    let journal = Journal::for_connection(&identity, connection.as_ref(), false)?;
     if journal
         .as_ref()
         .map(Journal::pending)
@@ -105,19 +146,28 @@ pub fn plan(
         ));
     }
     let state = journal.as_ref().map(Journal::state).transpose()?.flatten();
-    let recovered = identity.recovery_binding();
-    let origin = transport::origin(api.unwrap_or_else(|| {
-        state.as_ref().map_or_else(
-            || recovered.map_or(crate::config::CATALOG_URL, |e| e.plan.origin.as_str()),
-            |s| s.plan.origin.as_str(),
-        )
-    }))?;
-    let provider = provider.unwrap_or_else(|| {
-        state.as_ref().map_or_else(
-            || recovered.map_or("github", |e| e.plan.provider.as_str()),
-            |s| s.plan.provider.as_str(),
-        )
-    });
+    let recovered = if connection.is_none() {
+        identity.recovery_binding()
+    } else {
+        None
+    };
+    let origin = transport::origin(
+        api.or_else(|| connection.as_ref().map(|value| value.origin.as_str()))
+            .unwrap_or_else(|| {
+                state.as_ref().map_or_else(
+                    || recovered.map_or(crate::config::CATALOG_URL, |e| e.plan.origin.as_str()),
+                    |s| s.plan.origin.as_str(),
+                )
+            }),
+    )?;
+    let provider = provider
+        .or_else(|| connection.as_ref().map(|value| value.provider.as_str()))
+        .unwrap_or_else(|| {
+            state.as_ref().map_or_else(
+                || recovered.map_or("github", |e| e.plan.provider.as_str()),
+                |s| s.plan.provider.as_str(),
+            )
+        });
     if recovered.is_some_and(|e| e.plan.origin != origin) {
         return Err(invalid());
     }
@@ -144,6 +194,7 @@ pub fn plan(
             .and_then(|e| e.plan.recovery.as_ref())
             .and_then(|r| r.account_id.clone()),
         revoked_public_key: recovered.map(|e| e.plan.public_key.clone()),
+        connection,
     };
     if action == Action::Recover {
         plan.recovery = Some(recovery::selection(
@@ -239,22 +290,46 @@ fn precondition(plan: &Plan, state: Option<&State>, at: &str) -> Result<()> {
 }
 
 pub fn status(root: &Path, at: &str) -> Result<Value> {
+    status_for_connection(root, None, at)
+}
+
+fn qualify_status(mut value: Value, connection: Option<&connections::Enrollment>) -> Value {
+    if let Some(connection) = connection {
+        value["connection_id"] = connection.connection_id.clone().into();
+        value["origin"] = connection.origin.clone().into();
+        value["provider"] = connection.provider.clone().into();
+        value["device_id"] = connection.device_id.clone().into();
+        value["owner_attached"] = false.into();
+        if let Some(fields) = value.as_object_mut() {
+            fields.remove("effective_owner_id");
+        }
+    }
+    value
+}
+
+pub fn status_for_connection(root: &Path, connection: Option<&str>, at: &str) -> Result<Value> {
     if !passport::timestamp(at) {
         return Err(invalid());
     }
-    if let Some(pending) = recovery::pending(root)? {
+    if connection.is_none()
+        && let Some(pending) = recovery::pending(root)?
+    {
         return Ok(pending);
     }
     let identity = identity_at(root)?;
-    let journal = Journal::open(&identity, false)?;
+    let connection = connection
+        .map(|id| connections::enrollment(&identity, id))
+        .transpose()?;
+    let journal = Journal::for_connection(&identity, connection.as_ref(), false)?;
     identity.revalidate()?;
     let store = crate::store::Store::planning_at(identity.root_directory())?;
     let owner = attachment::effective(&store.connection, &identity)?;
     drop(store);
     let Some(journal) = journal else {
-        return Ok(
+        return Ok(qualify_status(
             json!({"schema_version":1,"session":{"state":"absent"},"owner_attached":owner != identity.context(),"effective_owner_id":owner.account_id,"online_verified":false}),
-        );
+            connection.as_ref(),
+        ));
     };
     let state = journal.state()?;
     if let Some(state) = &state {
@@ -271,7 +346,7 @@ pub fn status(root: &Path, at: &str) -> Result<Value> {
         Some(p) => json!({"plan":p.plan,"plan_digest":p.plan.digest()?}),
         None => Value::Null,
     };
-    Ok(result)
+    Ok(qualify_status(result, connection.as_ref()))
 }
 
 pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
@@ -284,6 +359,9 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
     }
     let identity = identity_at(&plan.root)?;
     if check_binding(&identity, plan).is_err() {
+        if plan.connection.is_some() {
+            return Err(invalid());
+        }
         identity.historical_account(plan)?;
         if plan.action == Action::Attach {
             return attachment::apply(plan, &identity, at);
@@ -300,7 +378,7 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
     if plan.action == Action::Attach {
         return attachment::apply(plan, &identity, at);
     }
-    let existing = Journal::open(&identity, false)?;
+    let existing = Journal::for_connection(&identity, plan.connection.as_ref(), false)?;
     if existing.is_none() && (at < plan.created_at.as_str() || at > plan.expires_at.as_str()) {
         return Err(Failure::precondition(
             "the account plan expired before admission",
@@ -308,7 +386,8 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
     }
     let journal = match existing {
         Some(v) => v,
-        None => Journal::open(&identity, true)?.ok_or_else(invalid)?,
+        None => Journal::for_connection(&identity, plan.connection.as_ref(), true)?
+            .ok_or_else(invalid)?,
     };
     if let Some(receipt) = journal.receipt(plan)? {
         if journal.pending()?.is_some_and(|p| p.plan == *plan) {
@@ -325,6 +404,12 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
     }
     let pending = journal.pending()?;
     let resumed = pending.is_some();
+    if (!resumed || plan.action == Action::Start)
+        && matches!(plan.action, Action::Start | Action::Poll | Action::Refresh)
+        && let Some(connection) = &plan.connection
+    {
+        connection.verify_key(&identity)?;
+    }
     let pending = match pending {
         Some(p) if p.plan == *plan => p,
         Some(_) => {
@@ -538,8 +623,8 @@ fn poll(api: &Api, plan: &Plan, session: Session, at: &str) -> Result<(Session, 
         serde_json::to_vec(&Request {
             schema_version: 1,
             device_code: &device_code,
-            device_id: &plan.identity.device_id,
-            public_key: &plan.public_key,
+            device_id: plan.device_id(),
+            public_key: plan.enrollment_public_key(),
             display_name: "ai-stp Rust CLI",
             expected_account_id: plan.expected_account_id.as_deref(),
             revoked_public_key: plan.revoked_public_key.as_deref(),
@@ -599,10 +684,10 @@ fn refresh(
     let checked_at = now_after(at);
     let message = format!(
         "ai-stp:device-refresh:v1\n{}\n{checked_at}",
-        plan.identity.device_id
+        plan.device_id()
     );
-    let signature = URL_SAFE_NO_PAD.encode(identity.sign(message.as_bytes())?);
-    let body=serde_json::to_vec(&json!({"schema_version":1,"device_id":plan.identity.device_id,"checked_at":checked_at,"signature":signature})).map_err(|_|invalid())?;
+    let signature = URL_SAFE_NO_PAD.encode(plan.sign(identity, message.as_bytes())?);
+    let body=serde_json::to_vec(&json!({"schema_version":1,"device_id":plan.device_id(),"checked_at":checked_at,"signature":signature})).map_err(|_|invalid())?;
     let reply = api.post::<Tokens>("device/refresh", &body, Some(refresh_token))?;
     if let Reply::Resource(tokens) = &reply {
         validate_tokens(tokens, plan, Some(account_id))?;
@@ -622,7 +707,7 @@ fn authorized(tokens: Tokens, at: &str) -> Result<Session> {
 fn validate_tokens(tokens: &Tokens, plan: &Plan, account: Option<&str>) -> Result<()> {
     if tokens.schema_version != 1
         || tokens.token_type != "Bearer"
-        || tokens.device_id != plan.identity.device_id
+        || tokens.device_id != plan.device_id()
         || !passport::stable_id(&tokens.account_id, "account")
         || account.is_some_and(|v| v != tokens.account_id)
         || !(60..=86400).contains(&tokens.expires_in)

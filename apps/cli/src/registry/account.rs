@@ -9,12 +9,22 @@ use clap::ArgMatches;
 use serde_json::{Value, json};
 use std::path::PathBuf;
 
+pub(super) const CONNECTION: Parameter = Parameter {
+    name: "connection",
+    summary: "Exact retained connection ID; absence explicitly uses the legacy local-owner session.",
+    kind: ParameterType::String,
+    required: false,
+};
+
 #[derive(Clone, Copy)]
 pub(super) enum Handler {
     Plan,
     Apply,
     Status,
     Providers,
+    ConnectionPlan,
+    ConnectionApply,
+    Connections,
 }
 
 pub(super) fn warnings(result: &Result<Value>) -> Vec<String> {
@@ -35,14 +45,65 @@ pub(super) fn warnings(result: &Result<Value>) -> Vec<String> {
 impl Handler {
     pub fn mutability(self) -> &'static str {
         match self {
-            Self::Plan => "plan",
-            Self::Apply => "apply",
-            Self::Status | Self::Providers => "read",
+            Self::Plan | Self::ConnectionPlan => "plan",
+            Self::Apply | Self::ConnectionApply => "apply",
+            Self::Status | Self::Providers | Self::Connections => "read",
         }
     }
 }
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["account", "connections", "plan"],
+        summary: "Plan a retained server connection with its own enrollment key; review the registry format upgrade before applying.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "label",
+                summary: "Local connection label, 1 to 120 UTF-8 bytes.",
+                kind: ParameterType::String,
+                required: true,
+            },
+            Parameter {
+                name: "api-url",
+                summary: "Exact HTTPS server origin, or explicit loopback HTTP.",
+                kind: ParameterType::String,
+                required: true,
+            },
+            Parameter {
+                name: "provider",
+                summary: "Sign-in provider; account providers reports the server's configured availability.",
+                kind: ParameterType::Choice(account::providers::IDS),
+                required: true,
+            },
+        ],
+        handler: super::Handler::Account(Handler::ConnectionPlan),
+    },
+    Declaration {
+        path: &["account", "connections", "apply"],
+        summary: "Create or recover an exact retained connection and its native enrollment key, preserving the local identity and existing operations.",
+        parameters: &[
+            Parameter {
+                name: "plan",
+                summary: "Exact connection plan JSON, at most 64 KiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Exact reviewed connection plan digest.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Account(Handler::ConnectionApply),
+    },
+    Declaration {
+        path: &["account", "connections", "list"],
+        summary: "List retained connection metadata without network access, tokens or an authentication claim.",
+        parameters: &[STATE_DIR],
+        handler: super::Handler::Account(Handler::Connections),
+    },
     Declaration {
         path: &["account", "providers"],
         summary: "Read the sign-in providers enabled by the chosen server; no credentials, browser flow or local writes.",
@@ -59,6 +120,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
         summary: "Plan a session action, owner attachment or revoked-key recovery against the exact isolated account revision and device key.",
         parameters: &[
             STATE_DIR,
+            CONNECTION,
             Parameter {
                 name: "action",
                 summary: "One bounded account operation; poll honors its durable minimum interval.",
@@ -104,7 +166,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
         path: &["account", "status"],
         summary: "Read cached isolated authorization and any unfinished intent without network access, owner transfer or a claim of live authentication.",
-        parameters: &[STATE_DIR],
+        parameters: &[STATE_DIR, CONNECTION],
         handler: super::Handler::Account(Handler::Status),
     },
 ];
@@ -117,6 +179,28 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             .ok_or_else(|| Failure::input("required account path is absent"))
     };
     match handler {
+        Handler::ConnectionPlan => {
+            let text = |name: &str| {
+                args.get_one::<String>(name)
+                    .map(String::as_str)
+                    .ok_or_else(|| Failure::input("required connection argument is absent"))
+            };
+            let plan = account::connections::plan(
+                path("state-dir")?,
+                text("label")?,
+                text("api-url")?,
+                text("provider")?,
+                &at,
+            )?;
+            Ok(json!({"plan_digest":plan.digest()?,"plan":plan}))
+        }
+        Handler::ConnectionApply => account::connections::apply(
+            &account::connections::read_plan(path("plan")?)?,
+            args.get_one::<String>("plan-digest")
+                .ok_or_else(|| Failure::input("connection plan digest is absent"))?,
+            &at,
+        ),
+        Handler::Connections => account::connections::list(path("state-dir")?),
         Handler::Plan => {
             let action = match args.get_one::<String>("action").map(String::as_str) {
                 Some("start") => account::Action::Start,
@@ -127,11 +211,12 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                 Some("recover") => account::Action::Recover,
                 _ => return Err(Failure::input("account action is absent")),
             };
-            let plan = account::plan(
+            let plan = account::plan_for_connection(
                 path("state-dir")?,
                 action,
                 args.get_one::<String>("api-url").map(String::as_str),
                 args.get_one::<String>("provider").map(String::as_str),
+                args.get_one::<String>("connection").map(String::as_str),
                 &at,
             )?;
             Ok(json!({"plan_digest":plan.digest()?,"plan":plan}))
@@ -142,7 +227,11 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                 .ok_or_else(|| Failure::input("account plan digest is absent"))?,
             &at,
         ),
-        Handler::Status => account::status(path("state-dir")?, &at),
+        Handler::Status => account::status_for_connection(
+            path("state-dir")?,
+            args.get_one::<String>("connection").map(String::as_str),
+            &at,
+        ),
         Handler::Providers => {
             account::providers::read(args.get_one::<String>("api-url").map(String::as_str))
         }

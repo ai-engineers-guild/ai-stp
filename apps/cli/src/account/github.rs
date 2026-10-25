@@ -111,10 +111,20 @@ impl Plan {
 }
 
 pub fn plan(root: &Path, origin: Option<&str>, input: &Path, at: &str) -> Result<Plan> {
+    plan_for_connection(root, origin, None, input, at)
+}
+
+pub fn plan_for_connection(
+    root: &Path,
+    origin: Option<&str>,
+    connection: Option<&str>,
+    input: &Path,
+    at: &str,
+) -> Result<Plan> {
     let body = wire::parse(&files::read(input, LIMIT)?)?;
     request(&body)?;
     let state_parent = PathBuf::from(files::location(root)?);
-    let mut access = Access::for_account(&state_parent, origin)?;
+    let mut access = Access::for_connection(&state_parent, origin, connection, false)?;
     access.verify()?;
     let plan = Plan {
         schema_version: 1,
@@ -190,7 +200,15 @@ fn observed(access: &Access, response: Value) -> Result<Value> {
 }
 
 pub fn status(root: &Path, origin: Option<&str>) -> Result<Value> {
-    let mut access = Access::for_account(root, origin)?;
+    status_for_connection(root, origin, None)
+}
+
+pub fn status_for_connection(
+    root: &Path,
+    origin: Option<&str>,
+    connection: Option<&str>,
+) -> Result<Value> {
+    let mut access = Access::for_connection(root, origin, connection, false)?;
     access.verify()?;
     let value = access.github(None)?;
     STATUS.validate(&value)?;
@@ -239,7 +257,7 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
             "the source plan expired; re-plan the original request with its unchanged idempotency key",
         ));
     }
-    let mut access = Access::for_account(&plan.state_parent, Some(&plan.account.origin))?;
+    let mut access = Access::for_binding(&plan.state_parent, &plan.account, false)?;
     if access.binding() != &plan.account {
         return Err(Failure::precondition(
             "the source account, device, session or physical state changed after planning",

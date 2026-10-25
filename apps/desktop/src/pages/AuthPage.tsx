@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router";
 import { ExternalLink, LogOut, RefreshCw, ShieldCheck } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
@@ -8,6 +8,7 @@ import {
   cmdAuthLogout,
   cmdAuthRefresh,
   cmdAuthResume,
+  cmdAuthStatus,
   cmdMachineHelp,
   cmdRunRead,
   descriptorChoices,
@@ -39,7 +40,43 @@ function pause(ms: number, signal: AbortSignal) {
 }
 
 export default function AuthPage() {
-  const { auth, authResult, refreshAuth } = useApp();
+  const [params] = useSearchParams();
+  const connection = params.get("connection") || undefined;
+  const activeConnection = useRef(connection);
+  const viewEpoch = useRef(0);
+  if (activeConnection.current !== connection) {
+    viewEpoch.current++;
+    activeConnection.current = connection;
+  }
+  const {
+    auth: legacyAuth,
+    authResult: legacyResult,
+    refreshAuth: refreshLegacy,
+  } = useApp();
+  const [namedStatus, setNamedStatus] = useState<{
+    connection: string;
+    epoch: number;
+    result: CmdResult;
+  } | null>(null);
+  const scoped =
+    namedStatus &&
+    namedStatus.connection === connection &&
+    namedStatus.epoch === viewEpoch.current
+      ? namedStatus.result
+      : null;
+  const auth = connection ? (scoped?.ok ? scoped.data : null) : legacyAuth;
+  const authResult = connection ? scoped : legacyResult;
+  const refreshAuth = useCallback(async () => {
+    if (!connection) {
+      await refreshLegacy();
+      return useApp.getState().authResult;
+    }
+    const epoch = viewEpoch.current;
+    const result = await cmdAuthStatus(connection);
+    if (activeConnection.current === connection && viewEpoch.current === epoch)
+      setNamedStatus({ connection, epoch, result });
+    return result;
+  }, [connection, refreshLegacy]);
   const [provider, setProvider] = useState("github");
   const [providers, setProviders] = useState<string[]>([]);
   const [help, setHelp] = useState<CmdResult | null>(null);
@@ -62,6 +99,9 @@ export default function AuthPage() {
       : undefined;
   useEffect(() => {
     mounted.current = true;
+    setResult(null);
+    setBusy(false);
+    setWaiting(false);
     void refreshAuth();
     const clock = setInterval(() => setNow(Date.now()), 1000);
     return () => {
@@ -72,6 +112,7 @@ export default function AuthPage() {
   }, [refreshAuth]);
   useEffect(() => {
     let current = true;
+    if (connection && !authResult?.ok) return;
     setProviders([]);
     setAvailability(null);
     void Promise.all([
@@ -91,7 +132,10 @@ export default function AuthPage() {
               (value): value is string => typeof value === "string",
             )
           : [];
-      const choices = supported.filter((value) => enabled.includes(value));
+      const choices = supported.filter(
+        (value) =>
+          enabled.includes(value) && (!connection || value === auth?.provider),
+      );
       setProviders(choices);
       setProvider((value) =>
         choices.includes(value) ? value : (choices[0] ?? ""),
@@ -100,7 +144,7 @@ export default function AuthPage() {
     return () => {
       current = false;
     };
-  }, [origin, attempt]);
+  }, [origin, attempt, connection, authResult?.ok, auth?.provider]);
   const session = (auth?.session ?? {}) as Record<string, unknown>;
   const pending = auth?.pending_operation as
     { plan?: { action?: string } } | undefined;
@@ -120,14 +164,27 @@ export default function AuthPage() {
   );
   async function action(run: () => Promise<CmdResult>) {
     if (busy || waiting) return;
+    const selected = connection,
+      epoch = viewEpoch.current;
     setBusy(true);
     setOpenError(false);
     try {
       const response = await run();
-      if (mounted.current) setResult(response);
-      await refreshAuth();
+      if (
+        mounted.current &&
+        activeConnection.current === selected &&
+        viewEpoch.current === epoch
+      ) {
+        setResult(response);
+        await refreshAuth();
+      }
     } finally {
-      if (mounted.current) setBusy(false);
+      if (
+        mounted.current &&
+        activeConnection.current === selected &&
+        viewEpoch.current === epoch
+      )
+        setBusy(false);
     }
   }
   function stop() {
@@ -136,6 +193,7 @@ export default function AuthPage() {
   }
   async function waitForLogin() {
     if (waiting || busy || !pendingCode) return;
+    const epoch = viewEpoch.current;
     const abort = new AbortController();
     controller.current = abort;
     setWaiting(true);
@@ -156,11 +214,13 @@ export default function AuthPage() {
         await pause(Math.min(Math.max(delay, 1000), 30000), abort.signal);
         if (abort.signal.aborted || Date.now() >= expiresAt) break;
         if (Number.isFinite(next) && Date.now() < next) continue;
-        const response = await cmdAuthComplete(false);
+        const response = await cmdAuthComplete(false, connection);
         if (abort.signal.aborted) break;
         setResult(response);
-        await refreshAuth();
-        nextSession = (useApp.getState().auth?.session ?? {}) as Record<
+        const refreshed = await refreshAuth();
+        if (abort.signal.aborted || activeConnection.current !== connection)
+          break;
+        nextSession = (refreshed?.data?.session ?? {}) as Record<
           string,
           unknown
         >;
@@ -184,7 +244,11 @@ export default function AuthPage() {
         } else failures = 0;
       }
     } finally {
-      if (mounted.current && controller.current === abort) {
+      if (
+        mounted.current &&
+        controller.current === abort &&
+        viewEpoch.current === epoch
+      ) {
         setWaiting(false);
         await refreshAuth();
       }
@@ -194,8 +258,8 @@ export default function AuthPage() {
     <div className="page-stack">
       <PageHeader
         eyebrow="System"
-        title="Your account"
-        description="Connect your local workspace to the ai-stp catalog."
+        title={connection ? "Connected account" : "Local-owner account"}
+        description="Keep account sessions separate. Choose a retained connection to inspect or sign in without replacing another session."
         action={
           <button
             className="btn-outline"
@@ -207,6 +271,14 @@ export default function AuthPage() {
           </button>
         }
       />
+      <Link className="btn-outline" to="/profiles">
+        Manage connections and contexts
+      </Link>
+      {connection && (
+        <Link className="btn-outline" to="/auth">
+          View local-owner session
+        </Link>
+      )}
       <section className="card space-y-5 p-6">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -258,7 +330,7 @@ export default function AuthPage() {
               <button
                 className="btn-outline"
                 disabled={busy || waiting}
-                onClick={() => void action(cmdAuthResume)}
+                onClick={() => void action(() => cmdAuthResume(connection))}
               >
                 Resume retained operation
               </button>
@@ -321,7 +393,11 @@ export default function AuthPage() {
                 !signInOrigin
               }
               onClick={() =>
-                void action(() => cmdAuthLogin(provider, signInOrigin))
+                void action(() =>
+                  connection
+                    ? cmdAuthLogin(provider, signInOrigin, connection)
+                    : cmdAuthLogin(provider, signInOrigin),
+                )
               }
             >
               {busy ? "Starting…" : "Start sign-in"}
@@ -335,7 +411,7 @@ export default function AuthPage() {
               <button
                 className="btn-primary"
                 disabled={busy}
-                onClick={() => void action(cmdAuthRefresh)}
+                onClick={() => void action(() => cmdAuthRefresh(connection))}
               >
                 Refresh session
               </button>
@@ -343,7 +419,7 @@ export default function AuthPage() {
             <button
               className="btn-outline"
               disabled={busy}
-              onClick={() => void action(cmdAuthLogout)}
+              onClick={() => void action(() => cmdAuthLogout(connection))}
             >
               <LogOut size={14} />
               Sign out

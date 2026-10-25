@@ -144,6 +144,7 @@ pub(crate) fn apply(
         recovery: None,
         expected_account_id: None,
         revoked_public_key: None,
+        connection: None,
     };
     let state = State {
         revision: operation.into(),

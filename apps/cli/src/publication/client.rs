@@ -46,6 +46,17 @@ impl Client {
         })
     }
 
+    pub(super) fn for_binding(root: &Path, binding: &Binding) -> Result<Self> {
+        // Legacy device replacement is checked by authorize/recovered. Named
+        // enrollments can never fall back to that unrelated local recovery.
+        let access = if binding.connection.is_some() {
+            Access::for_binding(root, binding, false)?
+        } else {
+            Access::for_account(root, Some(&binding.origin))?
+        };
+        Ok(Self { access })
+    }
+
     pub fn binding(&self) -> &Binding {
         self.access.binding()
     }
@@ -69,6 +80,7 @@ impl Client {
         if held.account_id != expected.account_id
             || held.origin != expected.origin
             || held.root_identity != expected.root_identity
+            || held.connection != expected.connection
             || write
                 && (held.device_id != expected.device_id
                     || held.public_key != expected.public_key

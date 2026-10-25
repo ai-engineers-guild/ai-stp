@@ -68,9 +68,30 @@ pub(super) fn read(leaf: &ArgMatches, handler: Handler) -> Result<Value> {
     let cache = path(leaf, "cache-dir");
     let offline = flag(leaf, "offline");
     let kind = catalog::Kind::parse(text(leaf, "kind")?)?;
+    let connection = leaf
+        .try_get_one::<String>("connection")
+        .ok()
+        .flatten()
+        .map(String::as_str);
+    if connection.is_some() && !flag(leaf, "private") {
+        return Err(Failure::input(
+            "a retained catalog connection requires an explicit private read",
+        ));
+    }
     if matches!(handler, Handler::CatalogVersion) && flag(leaf, "private") {
         let root = path(leaf, "state-dir")
             .ok_or_else(|| Failure::input("private reads require an isolated state directory"))?;
+        if connection.is_some() {
+            return catalog::private::version_with_access(
+                config,
+                cache,
+                kind,
+                text(leaf, "id")?,
+                text(leaf, "version")?,
+                offline,
+                Access::for_connection(root, None, connection, offline)?,
+            );
+        }
         return catalog::private::version(
             config,
             cache,

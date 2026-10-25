@@ -198,7 +198,7 @@ fn acquire(plan: Plan) -> Result<Value> {
     }
     // Acquire the account lock before execute opens a writable registry.
     let mut access =
-        crate::account::access::Access::load(&plan.state_parent, &binding.origin, false)?;
+        crate::account::access::Access::for_binding(&plan.state_parent, binding, false)?;
     if access.binding() != binding {
         return Err(Failure::precondition(
             "the planned private acquisition session changed",

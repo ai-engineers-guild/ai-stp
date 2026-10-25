@@ -1,6 +1,6 @@
 //! Existing visibility outcomes over the isolated account API.
 
-use super::{Declaration, Parameter, ParameterType, STATE_DIR};
+use super::{Declaration, Parameter, ParameterType, STATE_DIR, account::CONNECTION};
 use crate::{
     account::visibility,
     error::{Failure, Result},
@@ -40,6 +40,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
         parameters: &[
             STATE_DIR,
             API,
+            CONNECTION,
             Parameter {
                 name: "plan-id",
                 summary: "Exact server visibility plan ID; a historical result is not current distribution state.",
@@ -55,6 +56,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
         parameters: &[
             STATE_DIR,
             API,
+            CONNECTION,
             Parameter {
                 name: "request",
                 summary: "Closed JSON object_kind, stable_id, version, visibility and idempotency_key. Preserve the exact request on retry.",
@@ -99,16 +101,18 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     };
     let at = format!("{:.3}", jiff::Timestamp::now());
     match handler {
-        Handler::Status => visibility::status(
+        Handler::Status => visibility::status_for_connection(
             path("state-dir")?,
             args.get_one::<String>("api-url").map(String::as_str),
+            args.get_one::<String>("connection").map(String::as_str),
             args.get_one::<String>("plan-id")
                 .ok_or_else(|| Failure::input("visibility plan ID is absent"))?,
         ),
         Handler::Plan => {
-            let plan = visibility::plan(
+            let plan = visibility::plan_for_connection(
                 path("state-dir")?,
                 args.get_one::<String>("api-url").map(String::as_str),
+                args.get_one::<String>("connection").map(String::as_str),
                 path("request")?,
                 &at,
             )?;
