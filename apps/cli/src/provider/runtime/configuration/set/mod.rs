@@ -509,7 +509,10 @@ pub(super) fn inactive(
             return Err(invalid());
         }
     }
-    apply::require_inactive(target)
+    apply::require_inactive(target)?;
+    // Desktop and other callers can have a different, filtered environment.
+    // Their ambient roots do not prove that another consumer is stopped.
+    activation::require_inactive(target)
 }
 
 fn verify(plan: &Plan, record: &Record) -> Result<()> {
