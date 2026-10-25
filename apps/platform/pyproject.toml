@@ -13,7 +13,7 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.36",
     "asyncpg>=0.30",
     "alembic>=1.13",
-    "pydantic-settings>=2.5",
+    "pydantic-settings>=2.16.0",
     "httpx>=0.28",
     "structlog>=24.4",
     "aiobotocore>=3.9.0",
@@ -28,7 +28,7 @@ ai-stp-assurance = { workspace = true }
 ai-stp-sources = { workspace = true }
 
 [build-system]
-requires = ["uv_build>=0.11,<0.13"]
+requires = ["uv_build>=0.13.1,<0.14"]
 build-backend = "uv_build"
 
 # Include non-Python safety policy assets (opengrep yml, yara rules).

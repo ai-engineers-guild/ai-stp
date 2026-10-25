@@ -167,10 +167,12 @@ harness state; no in-place half-update of the active agent is authorized.
 
 ## Build and verification
 
-Rust 1.99.0 is pinned in `rust-toolchain.toml`. The SQLite capability VFS build
+Rust 1.99.1 is pinned in `rust-toolchain.toml`. The SQLite capability VFS build
 needs libclang (the selected Xcode toolchain on macOS, the Visual Studio Clang
 component on Windows, or the system development library on Linux). The
 repository-only Rust build tool in `xtask/` finds that installed toolchain; the shipped executable does not need libclang.
+Linux tests also require `dbus-daemon` for a private bus with no service activation;
+the cleanup regression does not use the user's session bus or services.
 
 ```sh
 just cli-gen          # Refresh embedded shared contracts after back-gen
@@ -181,10 +183,26 @@ just desktop-check
 The native gate runs formatting, Clippy, Rust tests, the optimized release build
 and real envelope/SQLite regression. Builds, archive/SBOM/wheel packaging and
 desktop resource probes use Rust.
+Cargo build messages identify the executable used by regressions, release archives
+and desktop sidecar packaging. A checkout-local `target/` is not required. Existing
+managed Cargo/uv/Bun frontends, including the NDS Cleaner profile, retain their
+shared caches and selected compiler; do not add a second cache-placement policy.
+The CLI regression keeps its Python validation environment in the user data
+directory under `uv/projects`, isolated by checkout identity. An explicit
+`UV_PROJECT_ENVIRONMENT` takes precedence. Package downloads remain in uv's managed
+cache, and changing checkouts does not retarget another checkout's editable imports.
+The libclang adapter uses Cargo's effective artifact directory. CI exercises native
+checks with artifacts outside the checkout on Linux, macOS and Windows.
+Run the native CLI locally through that profile. Build and run backend, web and
+docs changes on the production server; desktop bundles are qualified in CI.
 The published source crate includes generated resources under `resources/`;
 `just cli-gen` projects the shared sources and `cli-static` rejects drift.
 Independent server interoperability proofs live in `tests/native_contract`;
 they validate the native output against the actual Python server models in CI.
+The Linux job also runs `verify_ownership.py` against migrated PostgreSQL and the
+HTTP API, acquiring an exact setup before and after repeated component ownership
+transfers. For server-side qualification, set `AI_STP_TEST_DB_URL` to a disposable PostgreSQL
+server with database creation rights and run `just cli-ownership-regress`.
 Native child processes run without Python on PATH. `tests/startup.rs` proves
 read-only first-run behavior and refusal to replace a legacy identity.
 `tests/distribution.rs` proves archive ownership, replay, a modeled interrupted

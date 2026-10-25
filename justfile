@@ -40,6 +40,9 @@ scripts := "docs_scripts"
 py := "uv run --locked --group docs python"
 run := "uv run --locked"
 native := "cd apps/cli && cargo run --quiet --locked --manifest-path xtask/Cargo.toml --"
+# Keep installed validation tooling outside the source tree, with one environment
+# per checkout. uv and managed frontends continue to own their package caches.
+cli_python_environment := env_var_or_default("UV_PROJECT_ENVIRONMENT", data_directory() / "uv" / "projects" / sha256(justfile_directory()))
 # Test processes. The fleet class that runs the gate is a 4-vCPU machine, so 4
 # is the shape CI actually has; a laptop with more cores can raise it and a
 # constrained one can set 0 to go back to a single process. `auto` is
@@ -515,7 +518,14 @@ cli-build:
 # Existing envelope consumer, registry digest and live-WAL backup compatibility
 [group('cli')]
 cli-regress: cli-build
-    {{ run }} python tests/native_contract/verify.py apps/cli/target/release/ai-stp
+    UV_PROJECT_ENVIRONMENT={{ quote(cli_python_environment) }} uv sync --locked --package ai-stp-contracts --package ai-stp-sources --no-default-groups
+    binary="$({{ native }} cli-binary)" && UV_PROJECT_ENVIRONMENT={{ quote(cli_python_environment) }} uv run --no-sync python tests/native_contract/verify.py "$binary"
+
+# PostgreSQL is explicit for this additional cross-process regression.
+[group('cli')]
+cli-ownership-regress: cli-build
+    test -n "${AI_STP_TEST_DB_URL:-}"
+    binary="$({{ native }} cli-binary)" && {{ run }} python -m tests.native_contract.verify_ownership "$binary"
 
 # Native CLI boundary gate (also part of the repository gate)
 [group('cli')]

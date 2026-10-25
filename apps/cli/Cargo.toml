@@ -34,12 +34,12 @@ process-wrap = { version = "=10.0.1", default-features = false, features = ["std
 rusqlite = { version = "=0.40.2", features = ["bundled", "serialize", "hooks", "limits"] }
 sqlite-plugin = "=0.11.0"
 serde = { version = "=1.0.229", features = ["derive"] }
-serde_json = { version = "=1.0.151", features = ["raw_value", "float_roundtrip"] }
+serde_json = { version = "=1.0.154", features = ["raw_value", "float_roundtrip"] }
 serde_json_canonicalizer = "=0.3.2"
 serde-saphyr = { version = "=1.3.0", default-features = false, features = ["deserialize"] }
-sha2 = "=0.11.0"
+sha2 = "=0.11.1"
 sigstore-tuf = { version = "=0.14.0", default-features = false }
-sigstore-verify = { version = "=0.14.0", default-features = false }
+sigstore-verify = { version = "=0.15.0", default-features = false, features = ["aws-lc-rs"] }
 ulid = "=3.0.0"
 toml_edit = { version = "=0.25.17", default-features = false, features = ["parse", "display"] }
 tree-sitter = { version = "=0.27.1", default-features = false, features = ["std"] }
@@ -63,14 +63,14 @@ regex = { version = "=1.13.1", default-features = false, features = ["std"] }
 [target.'cfg(target_os = "linux")'.dependencies]
 command-fds = "=0.3.3"
 rustix = { version = "=1.1.5", features = ["net", "process", "param"] }
-zbus = { version = "=5.19.0", default-features = false, features = ["async-io", "blocking-api"] }
+zbus = { version = "=6.1.0", default-features = false, features = ["default-rt", "proxy"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 apple-native-keyring-store = { version = "=1.0.2", features = ["keychain"] }
 security-framework = "=3.7.0"
 
 [target.'cfg(any(target_os = "macos", windows))'.dependencies]
-keyring-core = "=1.0.0"
+keyring-core = "=1.0.1"
 
 [target.'cfg(any(target_os = "linux", target_os = "macos"))'.dependencies]
 rustix = { version = "=1.1.5", features = ["fs"] }

@@ -30,8 +30,8 @@ concurrency:
 env:
   PYTHON_VERSION: "3.14"
   NODE_VERSION: "24"
-  UV_VERSION: "0.12.23"
-  BUN_VERSION: "1.4.2"
+  UV_VERSION: "0.13.5"
+  BUN_VERSION: "1.4.4"
 
 jobs:
   cli:
@@ -74,20 +74,22 @@ jobs:
         run: >-
           uv sync --locked --package ai-stp-contracts
           --package ai-stp-sources --no-default-groups
+      - name: Select an external native artifact directory
+        shell: bash
+        run: echo "CARGO_TARGET_DIR=${RUNNER_TEMP}/ai-stp-native-target" >> "${GITHUB_ENV}"
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         id: native-cache
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            apps/cli/target
-            apps/cli/xtask/target
+            ${{ runner.temp }}/ai-stp-native-target
           key: >-
-            cli-${{ runner.os }}-${{ hashFiles('apps/cli/Cargo.*',
+            cli-shared-${{ runner.os }}-${{ hashFiles('apps/cli/Cargo.*',
             'apps/cli/*.toml', 'apps/cli/xtask/Cargo.*') }}
           # A package-version bump should retain reusable dependencies. Cargo
           # revalidates the restored build; every check below still runs.
-          restore-keys: cli-${{ runner.os }}-
+          restore-keys: cli-shared-${{ runner.os }}-
       - name: Native boundary checks
         working-directory: apps/cli
         shell: bash
@@ -106,7 +108,35 @@ jobs:
       - name: Existing consumers and real SQLite backup
         shell: bash
         run: |
-          uv run --no-sync python tests/native_contract/verify.py apps/cli/target/release/ai-stp
+          set -euo pipefail
+          binary="$(
+            cd apps/cli &&
+              cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- cli-binary
+          )"
+          printf 'AI_STP_TEST_CLI_BINARY=%s\n' "$binary" >> "${GITHUB_ENV}"
+          uv run --no-sync python tests/native_contract/verify.py "$binary"
+      - name: Ownership transfer through exact native setup acquisition
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          AI_STP_TEST_DB_URL: postgresql+asyncpg://ai_stp:ai_stp_dev@127.0.0.1:15432/ai_stp
+        run: |
+          set -euo pipefail
+          docker run --detach --name ai-stp-native-ownership \
+            -e POSTGRES_USER=ai_stp -e POSTGRES_PASSWORD=ai_stp_dev -e POSTGRES_DB=ai_stp \
+            -p 127.0.0.1:15432:5432 \
+            docker.io/library/postgres:18@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
+          trap 'docker rm --force ai-stp-native-ownership >/dev/null' EXIT
+          for ((attempt=0; attempt<30; attempt++)); do
+            if docker exec ai-stp-native-ownership pg_isready -U ai_stp -d ai_stp; then
+              break
+            fi
+            sleep 1
+          done
+          docker exec ai-stp-native-ownership pg_isready -U ai_stp -d ai_stp
+          uv sync --locked
+          uv run --locked python -m tests.native_contract.verify_ownership \
+            "${AI_STP_TEST_CLI_BINARY}"
       - name: Cache the successful native build
         if: steps.native-cache.outputs.cache-hit != 'true'
         # Cache availability must not prevent or invalidate the checks above.
@@ -117,8 +147,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            apps/cli/target
-            apps/cli/xtask/target
+            ${{ runner.temp }}/ai-stp-native-target
           key: ${{ steps.native-cache.outputs.cache-primary-key }}
 
   docs:

@@ -41,6 +41,12 @@ test.describe("landing → search → detail smoke (REQ-2213)", () => {
     await page.goto("/en/catalog?resource=components");
     const firstCard = page.locator("article[data-kind='component']").first();
     await expect(firstCard).toBeVisible({ timeout: 15_000 });
+    const scoreGradient = page.getByRole("meter").first().locator("[data-safety-fill] > span");
+    await expect(scoreGradient).toHaveCSS("background-image", /linear-gradient/);
+    const resolvedGradient = await scoreGradient.evaluate(
+      (element) => getComputedStyle(element).backgroundImage,
+    );
+    expect(resolvedGradient).not.toContain("var(");
     await firstCard.locator("h3 a").click();
     await expect(page).toHaveURL(/\/en\/catalog\/components\/component_/);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();

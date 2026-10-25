@@ -62,8 +62,11 @@ fn receive(socket: &mut TcpStream) -> std::io::Result<(String, Vec<u8>)> {
 }
 
 fn accept(listener: &TcpListener) -> std::io::Result<TcpStream> {
+    accept_until(listener, Instant::now() + Duration::from_secs(10))
+}
+
+fn accept_until(listener: &TcpListener, deadline: Instant) -> std::io::Result<TcpStream> {
     listener.set_nonblocking(true)?;
-    let deadline = Instant::now() + Duration::from_secs(10);
     loop {
         match listener.accept() {
             Ok((socket, _)) => {

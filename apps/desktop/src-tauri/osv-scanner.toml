@@ -14,3 +14,22 @@ reason = "glib 0.18.x VariantStrIter unsoundness (RUSTSEC-2024-0429); fixed only
 id = "RUSTSEC-2024-0370"
 ignoreUntil = 2027-01-03
 reason = "proc-macro-error 1.0.4 unmaintained; pulled only by glib-macros 0.18.5 and gtk3-macros 0.18.2 in the same tauri-pinned GTK3 stack, so it cannot move independently; re-evaluate when tauri moves to GTK4"
+
+# Informational advisories: these standalone crates moved into zbus 6.
+# Stable opener 2.7.2 and single-instance 2.5.4 still require zbus ^5.9.
+# Upstream: https://github.com/tauri-apps/plugins-workspace/issues/3716
+# Removal and supported-platform qualification: ai-stp issue #1066.
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0370"
+ignoreUntil = 2026-11-06
+reason = "Informational unmaintained standalone zvariant; stable Tauri plugins require zbus 5. No patched standalone version. Remove with stable zbus 6 plugin migration (#1066)."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0371"
+ignoreUntil = 2026-11-06
+reason = "Informational unmaintained standalone zbus_names; stable Tauri plugins require zbus 5. No patched standalone version. Remove with stable zbus 6 plugin migration (#1066)."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0372"
+ignoreUntil = 2026-11-06
+reason = "Informational unmaintained standalone zvariant_derive; stable Tauri plugins require zbus 5. No patched standalone version. Remove with stable zbus 6 plugin migration (#1066)."
