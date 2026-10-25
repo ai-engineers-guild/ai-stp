@@ -380,13 +380,29 @@ impl Access {
     pub(crate) fn owned_registry(&self) -> Result<crate::store::Store> {
         self.revalidate()?;
         let store = crate::store::Store::open_at(self.identity.root_directory(), false)?;
-        let owner = super::attachment::effective(&store.connection, &self.identity)?;
-        if owner.account_id != self.binding.account_id || owner.device_id != self.binding.device_id
-        {
+        self.check_registry_owner(&store.connection)?;
+        Ok(store)
+    }
+
+    /// Local authoring and remote transport devices are independent. Only a
+    /// verified transfer at this origin can authorize a named enrollment.
+    pub(crate) fn owns_registry(&self, connection: &rusqlite::Connection) -> Result<bool> {
+        self.revalidate()?;
+        let owner = super::attachment::effective(connection, &self.identity)?;
+        let origin = super::attachment::owner_origin(connection, &self.identity)?;
+        let qualified = match origin {
+            Some(origin) => origin == self.binding.origin,
+            None => self.binding.connection.is_none() && owner.device_id == self.binding.device_id,
+        };
+        self.revalidate()?;
+        Ok(qualified && owner.account_id == self.binding.account_id)
+    }
+
+    pub(crate) fn check_registry_owner(&self, connection: &rusqlite::Connection) -> Result<()> {
+        if !self.owns_registry(connection)? {
             return Err(refused("registry_owner_not_attached"));
         }
-        self.revalidate()?;
-        Ok(store)
+        Ok(())
     }
 
     pub(crate) fn publication_recovered(

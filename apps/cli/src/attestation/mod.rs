@@ -165,14 +165,26 @@ pub fn plan(
     output: &Path,
     at: &str,
 ) -> Result<Plan> {
+    plan_for_connection(root, origin, None, request, output, at)
+}
+
+pub fn plan_for_connection(
+    root: &Path,
+    origin: Option<&str>,
+    connection: Option<&str>,
+    request: Request,
+    output: &Path,
+    at: &str,
+) -> Result<Plan> {
     evidence(&request.evidence)?;
-    let mut account = Access::for_account(root, origin)?;
+    let mut account = Access::for_connection(root, origin, connection, false)?;
     account.verify()?;
     let state_parent = PathBuf::from(files::location(root)?);
     let (output, parent_identity) = files::tree::destination(output)?;
     files::document::unused(&output, &parent_identity)?;
     let owner = identity::current(&state_parent)?.ok_or_else(invalid)?;
     let mut store = Store::planning_at(owner.root_directory())?;
+    account.check_registry_owner(&store.connection)?;
     let snapshot = subject_at(&mut store, &request.stable_id, &request.version, None)?;
     snapshot.require_owner(&account.binding().account_id)?;
     let mut record = request.evidence;

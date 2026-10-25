@@ -45,7 +45,7 @@ const HARNESS_EXECUTABLE: Parameter = Parameter {
 
 const ACCESS: Parameter = Parameter {
     name: "access",
-    summary: "Closed JSON with exact trust_pins and optional account access; at most 64 KiB. Grants never imply trust.",
+    summary: "Closed JSON with exact trust_pins, optional account access and its connection ID; at most 64 KiB. Grants never imply trust.",
     kind: ParameterType::Path,
     required: false,
 };

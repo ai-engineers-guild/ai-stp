@@ -73,13 +73,9 @@ impl Client {
         }
         account.verify()?;
         let owner = runtime::owner(root)?;
-        if owner.account_id != account.binding().account_id
-            || owner.device_id != account.binding().device_id
-        {
-            return Err(Failure::precondition(
-                "private sync requires the unchanged attached account and device",
-            ));
-        }
+        let planned = owner.planning()?;
+        account.check_registry_owner(&planned.connection)?;
+        drop(planned);
         let scope = Scope::new(&account.binding().account_id, &account.binding().origin)?;
         if let Some(plan) = plan {
             let store = owner.planning()?;
@@ -206,8 +202,12 @@ impl Client {
 
     pub fn capture_push(&mut self, id: &str) -> Result<super::push::Capture> {
         self.account.revalidate()?;
+        let sender = crate::authoring::Identity {
+            account_id: self.account.binding().account_id.clone(),
+            device_id: self.account.binding().device_id.clone(),
+        };
         self.store
-            .transaction(|t| super::push::capture(t, &self._owner, id))
+            .transaction(|t| super::push::capture_for_sender(t, &self._owner, &sender, id))
     }
 
     pub(super) fn recover(
@@ -258,6 +258,10 @@ impl Client {
             .store
             .transaction(|t| push::History::load(t, &self.scope, &capture.entity_id))?;
         let mut processed = 0;
+        let sender = crate::authoring::Identity {
+            account_id: self.account.binding().account_id.clone(),
+            device_id: self.account.binding().device_id.clone(),
+        };
         // Settle an older uncertain generation before asking the graph for a
         // new event. Retired-device requests remain explicit refusals; they are
         // never re-signed or overwritten under another device's credentials.
@@ -275,7 +279,7 @@ impl Client {
             let receipt = if let Some(known) = history.known(step, is_head) {
                 push::receipt(known)
             } else {
-                let request = history.request(capture, step, &self._owner)?;
+                let request = history.request(capture, step, &sender)?;
                 self.sent(&request, &mut history)?
             };
             processed += 1;
@@ -291,7 +295,7 @@ impl Client {
             let receipt = if let Some(known) = history.known(&step, true) {
                 push::receipt(known)
             } else {
-                let request = history.request(capture, &step, &self._owner)?;
+                let request = history.request(capture, &step, &sender)?;
                 self.sent(&request, &mut history)?
             };
             processed += 1;

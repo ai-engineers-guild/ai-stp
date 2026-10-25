@@ -234,8 +234,18 @@ fn catalog(
 }
 
 pub fn plan(root: &Path, origin: Option<&str>, request: Request, at: &str) -> Result<Plan> {
+    plan_for_connection(root, origin, None, request, at)
+}
+
+pub fn plan_for_connection(
+    root: &Path,
+    origin: Option<&str>,
+    connection: Option<&str>,
+    request: Request,
+    at: &str,
+) -> Result<Plan> {
     let state_parent = PathBuf::from(files::location(root)?);
-    let mut client = Client::connect(&state_parent, origin)?;
+    let mut client = Client::for_connection(&state_parent, origin, connection)?;
     let mut store = client.registry()?;
     let component_root = request
         .component_root
@@ -299,10 +309,19 @@ pub fn plan(root: &Path, origin: Option<&str>, request: Request, at: &str) -> Re
 }
 
 pub fn resume(root: &Path, origin: Option<&str>, operation_id: &str, at: &str) -> Result<Plan> {
-    let mut client = Client::connect(root, origin)?;
+    // Resolve the durable intent before acquiring its account journal. The
+    // selected view and unrelated legacy session cannot retarget continuation.
+    let identity = identity::current(root)?.ok_or_else(invalid)?;
+    let intent = {
+        let store = Store::planning_at(identity.root_directory())?;
+        Run::intent(&store.connection, operation_id)?
+    };
+    if origin.is_some_and(|origin| origin != intent.account.origin) {
+        return Err(invalid());
+    }
+    let mut client = Client::for_binding(root, &intent.account)?;
     client.verify()?;
     let mut store = client.registry()?;
-    let intent = Run::intent(&store.connection, operation_id)?;
     if intent.state_parent != Path::new(&files::location(root)?) {
         return Err(invalid());
     }
