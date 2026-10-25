@@ -31,9 +31,20 @@ from ai_stp_foundation.ids import new_id
 from ai_stp_passports import ComponentVersionPassport, ScopeAdaptation, seal_adaptation
 from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_passports.projections import build_projection
-from ai_stp_platform.models import AccessGrant, Account, CatalogMetadata, ObjectLocation
+from ai_stp_platform.catalog_transfer import transfer_catalog_line
+from ai_stp_platform.models import (
+    AccessGrant,
+    Account,
+    CatalogIdentity,
+    CatalogMetadata,
+    ObjectLocation,
+    OwnershipRevision,
+    ReportCase,
+)
 from ai_stp_platform.storage import ImmutableObjectStore, MemoryObjectClient
+from ai_stp_platform.storage.migrate import migrate_legacy_objects
 from ai_stp_platform.storage.object_store import ARTIFACT_DIGEST_DOMAIN
+from ai_stp_platform.storage.verify import verify_referenced_objects
 
 pytestmark = pytest.mark.platform
 
@@ -74,7 +85,10 @@ async def artifact_harness(
                     continue
                 passport = dict(row.passport_document or {})
                 passport["artifact"] = {"digest": digest, "size_bytes": len(payload)}
+                passport["revision_id"] = derive_revision_id(passport)
                 row.passport_document = passport
+                row.current_revision_id = passport["revision_id"]
+                row.passport_digest = digest_canonical(PASSPORT_DIGEST_DOMAIN, passport)
                 stored = await store.put_immutable(
                     payload,
                     expected_digest=digest,
@@ -115,9 +129,13 @@ async def test_public_component_and_setup_artifacts_return_verified_bytes(
         assert response.content == payload.encode()
 
 
+@pytest.mark.parametrize("transfer_count", [0, 1, 2])
+@pytest.mark.parametrize("legacy_primary", [False, True])
 async def test_exact_projection_delivery_is_declared_owner_bound_and_authorized(
     artifact_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], MemoryObjectClient, str],
     tmp_path: Path,
+    transfer_count: int,
+    legacy_primary: bool,
 ) -> None:
     client, sessionmaker, object_client, _payload = artifact_harness
     store = ImmutableObjectStore(settings=make_settings(tmp_path).storage, client=object_client)
@@ -185,7 +203,179 @@ async def test_exact_projection_delivery_is_declared_owner_bound_and_authorized(
         location.size_bytes = primary.size_bytes
         location.content_id = primary.content_id
         location.object_key = primary.key
+        setup = await session.scalar(
+            select(CatalogMetadata).where(
+                CatalogMetadata.stable_id == FIXTURE_SETUP_ID,
+                CatalogMetadata.version == "1.0",
+            )
+        )
+        assert setup is not None
+        setup_document = cast(dict[str, JsonValue], dict(setup.passport_document or {}))
+        setup_document.update(
+            harness_id="codex",
+            components=[
+                {
+                    "stable_id": FIXTURE_COMPONENT_ID,
+                    "version": "1.2",
+                    "passport_digest": row.passport_digest,
+                }
+            ],
+        )
+        setup_document["revision_id"] = derive_revision_id(setup_document)
+        setup.passport_document = cast(dict[str, object], setup_document)
+        setup.current_revision_id = setup_document["revision_id"]
+        setup.passport_digest = digest_canonical(PASSPORT_DIGEST_DOMAIN, setup_document)
         await session.commit()
+
+    # A transfer changes authority, while the immutable publication retains its
+    # passport and the original publisher's exact storage namespace.
+    owner_id = SEED_OWNER_ACCOUNT_ID
+    revision_id = ""
+    original_objects = set(object_client.objects)
+    async with sessionmaker() as session:
+        identity = await session.get(CatalogIdentity, FIXTURE_COMPONENT_ID)
+        if identity is None:
+            session.add(
+                CatalogIdentity(
+                    stable_id=FIXTURE_COMPONENT_ID,
+                    owner_account_id=owner_id,
+                    canonical_name="fixture-component",
+                    canonical_name_normalized="fixture-component",
+                )
+            )
+        original_session = await issue_session(
+            session, account_id=owner_id, device_id=None, ttl_seconds=3600
+        )
+        stale_grantee = Account(id=new_id("account"))
+        session.add(stale_grantee)
+        await session.flush()
+        stale_session = await issue_session(
+            session, account_id=stale_grantee.id, device_id=None, ttl_seconds=3600
+        )
+        session.add(
+            AccessGrant(
+                id=new_id("grant"),
+                object_kind="component",
+                stable_id=FIXTURE_COMPONENT_ID,
+                major=1,
+                owner_account_id=owner_id,
+                grantee_account_id=stale_grantee.id,
+                state="active",
+            )
+        )
+        await session.commit()
+    for index in range(transfer_count):
+        async with sessionmaker() as session:
+            recipient = Account(id=new_id("account"))
+            session.add(recipient)
+            await session.flush()
+            case = ReportCase(
+                id=new_id("report"),
+                reporter_account_id=recipient.id,
+                topic="ownership_transfer",
+                object_kind="component",
+                stable_id=FIXTURE_COMPONENT_ID,
+                state="submitted",
+                vulnerability=False,
+                payload={"recipient_account_id": recipient.id},
+                locale="en",
+                group_key=f"ownership_transfer:{FIXTURE_COMPONENT_ID}:{recipient.id}",
+                idempotency_key=f"artifact-transfer-{index}",
+            )
+            session.add(case)
+            await session.flush()
+            arguments = {
+                "case_id": case.id,
+                "expected_owner_account_id": owner_id,
+                "expected_ownership_revision_id": revision_id,
+                "recipient_account_id": recipient.id,
+                "reason": "Verified ownership transfer",
+                "operator_account_id": SEED_OWNER_ACCOUNT_ID,
+            }
+            revision = await transfer_catalog_line(session, **arguments)
+            await session.commit()
+            replay = await transfer_catalog_line(session, **arguments)
+            assert replay.id == revision.id
+            await session.commit()
+            owner_id, revision_id = recipient.id, revision.id
+            retained = await session.get(CatalogMetadata, row.id)
+            assert retained is not None and retained.owner_account_id == owner_id
+            assert retained.passport_document == document
+            assert retained.passport_digest == digest_canonical(PASSPORT_DIGEST_DOMAIN, document)
+            assert retained.current_revision_id == document["revision_id"]
+            location = await session.scalar(
+                select(ObjectLocation).where(
+                    ObjectLocation.catalog_metadata_id == row.id,
+                    ObjectLocation.purpose == "artifact",
+                )
+            )
+            assert location is not None and location.owner_account_id == SEED_OWNER_ACCOUNT_ID
+            assert location.object_key == primary.key
+            revisions = list(
+                (
+                    await session.scalars(
+                        select(OwnershipRevision).where(
+                            OwnershipRevision.stable_id == FIXTURE_COMPONENT_ID
+                        )
+                    )
+                ).all()
+            )
+            assert len(revisions) == index + 1
+    assert set(object_client.objects) == original_objects
+
+    if legacy_primary:
+        del object_client.objects[(primary.bucket, primary.key)]
+        legacy = await store.put_immutable(
+            primary_bytes,
+            expected_digest=primary.digest,
+            expected_size=len(primary_bytes),
+        )
+        async with sessionmaker() as session:
+            location = await session.scalar(
+                select(ObjectLocation).where(
+                    ObjectLocation.catalog_metadata_id == row.id,
+                    ObjectLocation.purpose == "artifact",
+                )
+            )
+            assert location is not None
+            location.owner_account_id = None
+            location.object_key = legacy.key
+            location.bucket = legacy.bucket
+            await session.commit()
+    async with sessionmaker() as session:
+        migrated = await migrate_legacy_objects(
+            session,
+            settings=make_settings(tmp_path).storage,
+            client=object_client,
+        )
+        assert migrated.artifacts == int(legacy_primary)
+        replayed = await migrate_legacy_objects(
+            session,
+            settings=make_settings(tmp_path).storage,
+            client=object_client,
+        )
+        assert replayed.artifacts == 0
+        verified = await verify_referenced_objects(
+            session,
+            settings=make_settings(tmp_path).storage,
+            client=object_client,
+        )
+        assert verified.artifacts == 2
+        location = await session.scalar(
+            select(ObjectLocation).where(
+                ObjectLocation.catalog_metadata_id == row.id, ObjectLocation.purpose == "artifact"
+            )
+        )
+        assert location is not None and location.owner_account_id == SEED_OWNER_ACCOUNT_ID
+        assert location.object_key == primary.key
+
+    budget = await client.get(
+        f"/v1/catalog/setups/{FIXTURE_SETUP_ID}/versions/1.0/context-budget",
+        params={"estimator_profile": "ai-stp:utf8-bytes/1"},
+    )
+    assert budget.status_code == 200, budget.text
+    assert budget.json()["status"] == "ready", budget.text
+    assert budget.json()["total_tokens"] == len("# Target skill\ncafé 👋\n".encode())
 
     path = f"/v1/catalog/components/{FIXTURE_COMPONENT_ID}/versions/1.2/artifact"
     assert (await client.get(path)).content == primary_bytes
@@ -194,6 +384,17 @@ async def test_exact_projection_delivery_is_declared_owner_bound_and_authorized(
     assert response.content == target_bytes
     assert response.headers["content-length"] == str(len(target_bytes))
     assert (await client.get(path, params={"digest": primary.digest})).content == primary_bytes
+    original_primary = object_client.objects.pop((primary.bucket, primary.key))
+    await store.put_immutable(
+        primary_bytes,
+        expected_digest=primary.digest,
+        expected_size=len(primary_bytes),
+        owner_account_id=new_id("account"),
+    )
+    missing_primary = await client.get(path)
+    assert missing_primary.status_code == 500
+    assert missing_primary.json()["error"]["code"] == CATEGORY_CODE[ErrorCategory.CATALOG_INTEGRITY]
+    object_client.objects[(primary.bucket, primary.key)] = original_primary
     assert (await client.get(path, params={"digest": "sha256:" + "f" * 64})).status_code == 404
     malformed = await client.get(path, params={"digest": "not-a-digest"})
     assert malformed.status_code == 400
@@ -228,7 +429,7 @@ async def test_exact_projection_delivery_is_declared_owner_bound_and_authorized(
         assert retained is not None
         retained.visibility = "private"
         owner_session = await issue_session(
-            session, account_id=SEED_OWNER_ACCOUNT_ID, device_id=None, ttl_seconds=3600
+            session, account_id=owner_id, device_id=None, ttl_seconds=3600
         )
         grantee = Account(id=new_id("account"))
         session.add(grantee)
@@ -241,7 +442,7 @@ async def test_exact_projection_delivery_is_declared_owner_bound_and_authorized(
             object_kind="component",
             stable_id=FIXTURE_COMPONENT_ID,
             major=1,
-            owner_account_id=SEED_OWNER_ACCOUNT_ID,
+            owner_account_id=owner_id,
             grantee_account_id=grantee.id,
             state="active",
         )
@@ -249,6 +450,21 @@ async def test_exact_projection_delivery_is_declared_owner_bound_and_authorized(
         await session.commit()
     assert (await client.get(path, params={"digest": target_digest})).status_code == 404
     owner_headers = {"Authorization": f"Bearer {owner_session.raw_token}"}
+    private_path = f"/v1/catalog/components/{FIXTURE_COMPONENT_ID}/versions/1.2/private"
+    if transfer_count:
+        for token in (original_session.raw_token, stale_session.raw_token):
+            headers = {"Authorization": f"Bearer {token}"}
+            assert (await client.get(path, headers=headers)).status_code == 404
+            assert (
+                await client.get(path, params={"digest": target_digest}, headers=headers)
+            ).status_code == 404
+            assert (await client.get(private_path, headers=headers)).status_code == 404
+    metadata_response = await client.get(private_path, headers=owner_headers)
+    assert metadata_response.status_code == 200
+    private_version = CliPrivateVersionResponse.model_validate(metadata_response.json())
+    assert private_version.passport == document
+    assert private_version.passport_digest == digest_canonical(PASSPORT_DIGEST_DOMAIN, document)
+    assert (await client.get(path, headers=owner_headers)).content == primary_bytes
     assert (
         await client.get(path, params={"digest": target_digest}, headers=owner_headers)
     ).content == target_bytes

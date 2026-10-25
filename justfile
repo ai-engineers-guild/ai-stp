@@ -517,6 +517,12 @@ cli-build:
 cli-regress: cli-build
     {{ run }} python tests/native_contract/verify.py apps/cli/target/release/ai-stp
 
+# PostgreSQL is explicit for this additional cross-process regression.
+[group('cli')]
+cli-ownership-regress: cli-build
+    test -n "${AI_STP_TEST_DB_URL:-}"
+    {{ run }} python -m tests.native_contract.verify_ownership apps/cli/target/release/ai-stp
+
 # Native CLI boundary gate (also part of the repository gate)
 [group('cli')]
 cli-check: cli-static cli-test cli-build cli-regress

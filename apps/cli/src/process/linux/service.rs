@@ -6,10 +6,12 @@ use std::{
 };
 
 use zbus::{
+    Connection, Proxy,
     address::{Address, transport::Transport},
-    blocking::{Connection, Proxy, connection::Builder, proxy},
+    connection::Builder,
+    proxy,
     proxy::CacheProperties,
-    zvariant::{Fd, OwnedObjectPath, OwnedValue, Value},
+    wire::{Fd, OwnedObjectPath, OwnedVariant, Variant},
 };
 
 use crate::error::Result;
@@ -26,18 +28,24 @@ pub(super) struct Service {
     _lease: UnixStream,
 }
 
-fn proxy<'a>(connection: &'a Connection, path: &'a str, interface: &'a str) -> Result<Proxy<'a>> {
+async fn proxy<'a>(
+    connection: &'a Connection,
+    path: &'a str,
+    interface: &'a str,
+) -> Result<Proxy<'a>> {
     proxy::Builder::new(connection)
         .destination(DESTINATION)
-        .and_then(|builder| builder.path(path))
-        .and_then(|builder| builder.interface(interface))
-        .and_then(|builder| builder.cache_properties(CacheProperties::No).build())
+        .path(path)
+        .interface(interface)
+        .cache_properties(CacheProperties::No)
+        .build()
+        .await
         .map_err(|_| unavailable())
 }
 
 impl Service {
-    fn manager(&self) -> Result<Proxy<'_>> {
-        proxy(&self.connection, "/org/freedesktop/systemd1", MANAGER)
+    async fn manager(&self) -> Result<Proxy<'_>> {
+        proxy(&self.connection, "/org/freedesktop/systemd1", MANAGER).await
     }
 
     pub(super) fn name(&self) -> &str {
@@ -45,12 +53,16 @@ impl Service {
     }
 
     pub(super) fn attach(&self, pid: u32) -> Result<()> {
-        self.manager()?
-            .call::<_, _, ()>(
-                "AttachProcessesToUnit",
-                &(self.name.as_str(), "", vec![pid]),
-            )
-            .map_err(|_| unavailable())
+        zbus::block_on(async {
+            self.manager()
+                .await?
+                .call::<_, _, ()>(
+                    "AttachProcessesToUnit",
+                    &(self.name.as_str(), "", vec![pid]),
+                )
+                .await
+                .map_err(|_| unavailable())
+        })
     }
 
     pub(super) fn start(image: &File, timeout: Duration) -> Result<Self> {
@@ -72,11 +84,12 @@ impl Service {
         if !matches!(address.transport(), Transport::Unix(_)) {
             return Err(unavailable());
         }
-        let connection = Builder::address(address)
-            .map_err(|_| unavailable())?
-            .method_timeout(Duration::from_secs(3))
-            .build()
-            .map_err(|_| unavailable())?;
+        let connection = zbus::block_on(
+            Builder::address(address)
+                .method_timeout(Duration::from_secs(3))
+                .build(),
+        )
+        .map_err(|_| unavailable())?;
         // Establish cleanup before submitting the method: a timed-out request
         // may still be accepted. The private lease also closes on every error.
         let service = Self {
@@ -91,26 +104,26 @@ impl Service {
         let maximum = u64::try_from((timeout + Duration::from_secs(10)).as_micros())
             .map_err(|_| unavailable())?;
         let policy = vec![
-            ("Type", Value::from("exec")),
-            ("ExitType", Value::from("main")),
-            ("RemainAfterExit", Value::from(false)),
-            ("KillMode", Value::from("control-group")),
+            ("Type", Variant::from("exec")),
+            ("ExitType", Variant::from("main")),
+            ("RemainAfterExit", Variant::from(false)),
+            ("KillMode", Variant::from("control-group")),
             // Required by AttachProcessesToUnit. No cgroup filesystem or bus
             // descriptor is exposed to the sandboxed component.
-            ("Delegate", Value::from(true)),
-            ("KillSignal", Value::from(15i32)),
-            ("FinalKillSignal", Value::from(9i32)),
-            ("SendSIGKILL", Value::from(true)),
-            ("Restart", Value::from("no")),
+            ("Delegate", Variant::from(true)),
+            ("KillSignal", Variant::from(15i32)),
+            ("FinalKillSignal", Variant::from(9i32)),
+            ("SendSIGKILL", Variant::from(true)),
+            ("Restart", Variant::from("no")),
             (
                 "RestartForceExitStatus",
-                Value::new((Vec::<i32>::new(), Vec::<i32>::new())),
+                Variant::new((Vec::<i32>::new(), Vec::<i32>::new())),
             ),
-            ("RuntimeMaxUSec", Value::from(maximum)),
-            ("RuntimeRandomizedExtraUSec", Value::from(0u64)),
-            ("TimeoutStartUSec", Value::from(5_000_000u64)),
-            ("TimeoutStopUSec", Value::from(1_000_000u64)),
-            ("TimeoutStopFailureMode", Value::from("kill")),
+            ("RuntimeMaxUSec", Variant::from(maximum)),
+            ("RuntimeRandomizedExtraUSec", Variant::from(0u64)),
+            ("TimeoutStartUSec", Variant::from(5_000_000u64)),
+            ("TimeoutStopUSec", Variant::from(1_000_000u64)),
+            ("TimeoutStopFailureMode", Variant::from("kill")),
         ];
         let mut properties = policy
             .iter()
@@ -118,23 +131,26 @@ impl Service {
             .collect::<std::result::Result<Vec<_>, _>>()
             .map_err(|_| unavailable())?;
         properties.extend([
-            ("Description", Value::from("Bounded ai-stp provider worker")),
-            ("CollectMode", Value::from("inactive-or-failed")),
+            (
+                "Description",
+                Variant::from("Bounded ai-stp provider worker"),
+            ),
+            ("CollectMode", Variant::from("inactive-or-failed")),
             (
                 "StandardInputFileDescriptor",
-                Value::from(Fd::from(image.as_fd())),
+                Variant::from(Fd::from(image.as_fd())),
             ),
             (
                 "StandardOutputFileDescriptor",
-                Value::from(Fd::from(channel.as_fd())),
+                Variant::from(Fd::from(channel.as_fd())),
             ),
             (
                 "StandardErrorFileDescriptor",
-                Value::from(Fd::from(null.as_fd())),
+                Variant::from(Fd::from(null.as_fd())),
             ),
             (
                 "ExecStartEx",
-                Value::new(vec![(
+                Variant::new(vec![(
                     "/proc/self/fd/0",
                     vec![
                         "ai-stp-provider-supervisor",
@@ -145,48 +161,60 @@ impl Service {
                 )]),
             ),
         ]);
-        let auxiliary: Vec<(&str, Vec<(&str, Value<'_>)>)> = Vec::new();
-        let manager = service.manager()?;
-        let _: OwnedObjectPath = manager
-            .call(
-                "StartTransientUnit",
-                &(service.name.as_str(), "fail", properties, auxiliary),
+        let auxiliary: Vec<(&str, Vec<(&str, Variant<'_>)>)> = Vec::new();
+        // Keep the cleanup guard outside the runtime: errors must leave block_on
+        // before Drop drives StopUnit, including a timed-out start request.
+        zbus::block_on(async {
+            let manager = service.manager().await?;
+            let _: OwnedObjectPath = manager
+                .call(
+                    "StartTransientUnit",
+                    &(service.name.as_str(), "fail", properties, auxiliary),
+                )
+                .await
+                .map_err(|_| unavailable())?;
+            let path: OwnedObjectPath = manager
+                .call("GetUnit", &(service.name.as_str(),))
+                .await
+                .map_err(|_| unavailable())?;
+            let unit = proxy(
+                &service.connection,
+                path.as_str(),
+                "org.freedesktop.systemd1.Unit",
             )
-            .map_err(|_| unavailable())?;
-        let path: OwnedObjectPath = manager
-            .call("GetUnit", &(service.name.as_str(),))
-            .map_err(|_| unavailable())?;
-        let unit = proxy(
-            &service.connection,
-            path.as_str(),
-            "org.freedesktop.systemd1.Unit",
-        )?;
-        let execution = proxy(
-            &service.connection,
-            path.as_str(),
-            "org.freedesktop.DBus.Properties",
-        )?;
-        let observed: BTreeMap<String, OwnedValue> = execution
-            .call("GetAll", &(SERVICE,))
-            .map_err(|_| unavailable())?;
-        if !unit
-            .get_property::<bool>("Transient")
-            .map_err(|_| unavailable())?
-            || unit
-                .get_property::<String>("CollectMode")
+            .await?;
+            let execution = proxy(
+                &service.connection,
+                path.as_str(),
+                "org.freedesktop.DBus.Properties",
+            )
+            .await?;
+            let observed: BTreeMap<String, OwnedVariant> = execution
+                .call("GetAll", &(SERVICE,))
+                .await
+                .map_err(|_| unavailable())?;
+            if !unit
+                .get_property::<bool>("Transient")
+                .await
                 .map_err(|_| unavailable())?
-                != "inactive-or-failed"
-            || !policy.iter().all(|(name, expected)| {
-                observed
-                    .get(*name)
-                    .is_some_and(|actual| **actual == *expected)
-            })
-        {
-            return Err(unavailable());
-        }
-        drop(execution);
-        drop(unit);
-        drop(manager);
+                || unit
+                    .get_property::<String>("CollectMode")
+                    .await
+                    .map_err(|_| unavailable())?
+                    != "inactive-or-failed"
+                || !policy.iter().all(|(name, expected)| {
+                    observed
+                        .get(*name)
+                        .is_some_and(|actual| **actual == *expected)
+                })
+            {
+                return Err(unavailable());
+            }
+            drop(execution);
+            drop(unit);
+            drop(manager);
+            Ok(())
+        })?;
         drop(channel);
         let mut ready = [0];
         lease.read_exact(&mut ready).map_err(|_| unavailable())?;
@@ -199,9 +227,75 @@ impl Service {
 
 impl Drop for Service {
     fn drop(&mut self) {
-        if let Ok(manager) = self.manager() {
-            let _: zbus::Result<OwnedObjectPath> =
-                manager.call("StopUnit", &(self.name.as_str(), "replace"));
+        zbus::block_on(async {
+            if let Ok(manager) = self.manager().await {
+                let _: zbus::Result<OwnedObjectPath> = manager
+                    .call("StopUnit", &(self.name.as_str(), "replace"))
+                    .await;
+            }
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{
+        error::Error,
+        io::BufRead,
+        process::{Child, Command, Stdio},
+    };
+
+    struct Bus(Child);
+
+    impl Drop for Bus {
+        fn drop(&mut self) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
         }
+    }
+
+    #[test]
+    fn failed_start_cleans_up_outside_the_bus_runtime() -> std::result::Result<(), Box<dyn Error>> {
+        const CHILD: &str = "AI_STP_TEST_SERVICE_WITHOUT_MANAGER";
+        if std::env::var_os(CHILD).is_some() {
+            let image = File::open(std::env::current_exe()?)?;
+            assert!(Service::start(&image, Duration::from_secs(1)).is_err());
+            return Ok(());
+        }
+        let temporary = tempfile::tempdir()?;
+        let config = temporary.path().join("bus.conf");
+        std::fs::write(
+            &config,
+            "<busconfig><type>session</type><listen>unix:tmpdir=/tmp</listen><auth>EXTERNAL</auth><policy context=\"default\"><allow own=\"*\"/><allow send_destination=\"*\"/><allow receive_sender=\"*\"/></policy></busconfig>",
+        )?;
+        let child = Command::new("dbus-daemon")
+            .arg("--config-file")
+            .arg(config)
+            .args(["--nofork", "--print-address=1"])
+            .stdout(Stdio::piped())
+            .spawn()?;
+        let mut bus = Bus(child);
+        let output = bus.0.stdout.take().ok_or("bus address pipe is missing")?;
+        let mut address = String::new();
+        std::io::BufReader::new(output).read_line(&mut address)?;
+        assert!(address.starts_with("unix:"));
+        let result = Command::new(std::env::current_exe()?)
+            .args([
+                "--exact",
+                "process::linux::service::tests::failed_start_cleans_up_outside_the_bus_runtime",
+                "--nocapture",
+            ])
+            .env(CHILD, "1")
+            .env("DBUS_SESSION_BUS_ADDRESS", address.trim())
+            .output()?;
+        assert!(
+            result.status.success(),
+            "{}{}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+        assert!(String::from_utf8_lossy(&result.stdout).contains("1 passed"));
+        Ok(())
     }
 }

@@ -350,7 +350,7 @@ async def _artifact_payload(
             payload = await store.read_by_digest(
                 expected.digest,
                 expected_size=expected.size_bytes,
-                owner_account_id=row.owner_account_id,
+                owner_account_id=passport.owner_id,
             )
         else:
             location = await session.scalar(
@@ -364,10 +364,10 @@ async def _artifact_payload(
             if location.digest != expected.digest or location.size_bytes != expected.size_bytes:
                 return None, "artifact_corrupt"
             if location.owner_account_id is not None and (
-                location.owner_account_id != row.owner_account_id
+                location.owner_account_id != passport.owner_id
                 or location.bucket != store.bucket
                 or location.object_key
-                != store.key_for_digest(expected.digest, owner_account_id=row.owner_account_id)
+                != store.key_for_digest(expected.digest, owner_account_id=passport.owner_id)
             ):
                 return None, "artifact_corrupt"
             payload = await store.read_verified(

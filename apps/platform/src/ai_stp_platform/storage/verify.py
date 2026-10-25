@@ -17,6 +17,7 @@ from ai_stp_platform.storage.object_store import (
     ObjectClient,
     ObjectIntegrityError,
 )
+from ai_stp_platform.storage.publication import PublicationIdentityError, publication_owner
 from ai_stp_platform.storage.s3 import S3ObjectClient
 
 
@@ -76,11 +77,15 @@ async def verify_referenced_objects(
         )
     ).all()
     for location, metadata in artifact_rows:
-        if location.owner_account_id != metadata.owner_account_id:
+        try:
+            owner = publication_owner(metadata, location)
+        except PublicationIdentityError as exc:
+            raise StorageVerificationError(
+                f"artifact {location.id} has an invalid publication"
+            ) from exc
+        if location.owner_account_id != owner:
             raise StorageVerificationError(f"artifact {location.id} has the wrong owner")
-        expected_key = artifact_store.key_for_digest(
-            location.digest, owner_account_id=metadata.owner_account_id
-        )
+        expected_key = artifact_store.key_for_digest(location.digest, owner_account_id=owner)
         if location.bucket != settings.artifact_bucket_name or location.object_key != expected_key:
             raise StorageVerificationError(f"artifact {location.id} has a legacy location")
         await _verify(

@@ -157,7 +157,7 @@ jobs:
           cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- probe \
             --binary "${pip_binary}" --version "${RELEASE_VERSION}"
           cp "${wheel}" release/
-          (cd release && sha256sum *.whl > "$(basename "${wheel}").sha256")
+          (cd release && sha256sum -- *.whl > "$(basename "${wheel}").sha256")
       - name: Qualify the standalone Cargo source package
         if: runner.os == 'Linux'
         working-directory: apps/cli
@@ -169,7 +169,7 @@ jobs:
             build cargo package --locked
           cp "target/package/ai-stp-cli-${RELEASE_VERSION}.crate" ../../release/
           cd ../../release
-          sha256sum *.crate > "ai-stp-cli-${RELEASE_VERSION}.crate.sha256"
+          sha256sum -- *.crate > "ai-stp-cli-${RELEASE_VERSION}.crate.sha256"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: ai-stp-rust-${{ matrix.target }}-${{ github.sha }}

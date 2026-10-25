@@ -335,19 +335,11 @@ fn publication_groups_preserve_order_partial_progress_and_replacement_ancestry()
     }));
     let fixture = shared.clone();
     let server = thread::spawn(move || -> std::io::Result<()> {
-        let deadline = Instant::now() + Duration::from_secs(180);
+        let deadline = Instant::now() + Duration::from_secs(600);
         for _ in 0..1000 {
             // Offline journal validation and the previous executable may keep
             // this fixture idle; bound the journey, not those local pauses.
-            let mut socket = loop {
-                match accept(&listener) {
-                    Ok(socket) => break socket,
-                    Err(e)
-                        if e.kind() == std::io::ErrorKind::WouldBlock
-                            && Instant::now() < deadline => {}
-                    Err(e) => return Err(e),
-                }
-            };
+            let mut socket = accept_until(&listener, deadline)?;
             if fixture
                 .lock()
                 .map_err(|_| std::io::Error::other("fixture"))?

@@ -504,7 +504,9 @@ async def test_policy_rights_revocation_and_retention(
         await db.commit()
     async with sessionmaker() as db:
         await set_tenant_scope(db, organization_id)
-        removed = await apply_retention(db, organization_id=organization_id, now=datetime.now(UTC))
+        removed = await apply_retention(
+            db, organization_id=organization_id, now=datetime(2026, 9, 22, tzinfo=UTC)
+        )
         assert removed == 2
         remaining = (
             await db.scalars(

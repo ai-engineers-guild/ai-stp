@@ -7,7 +7,7 @@ dependencies = [
     "ai-stp-foundation",
     "ai-stp-platform",
     "ai-stp-contracts",
-    "fastapi>=0.115",
+    "fastapi>=0.143.2",
     "uvicorn[standard]>=0.32",
     "pydantic-settings>=2.5",
     "structlog>=24.4",
@@ -21,12 +21,12 @@ dependencies = [
     "lxml>=6.0",
     "itsdangerous>=2.2.0",
     "maxminddb>=2.8",
-    "pillow>=12.3",
+    "pillow>=13.0.0",
 ]
 
 [project.scripts]
 ai-stp-api = "ai_stp_api.__main__:main"
 
 [build-system]
-requires = ["uv_build>=0.11,<0.13"]
+requires = ["uv_build>=0.13.1,<0.14"]
 build-backend = "uv_build"

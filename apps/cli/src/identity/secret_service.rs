@@ -7,10 +7,12 @@
 
 use std::{collections::HashMap, time::Duration};
 use zbus::{
+    Connection, Proxy,
     address::{Address, transport::Transport},
-    blocking::{Connection, Proxy, connection::Builder, proxy},
+    connection::Builder,
+    proxy,
     proxy::CacheProperties,
-    zvariant::{OwnedObjectPath, OwnedValue, Value},
+    wire::{OwnedObjectPath, OwnedVariant, Variant},
 };
 use zeroize::Zeroizing;
 
@@ -20,33 +22,36 @@ use crate::error::Result;
 const SERVICE: &str = "org.freedesktop.secrets";
 type Secret = (OwnedObjectPath, Vec<u8>, Vec<u8>, String);
 
-fn connection() -> Result<Connection> {
+async fn connection() -> Result<Connection> {
     let address = Address::session().map_err(|_| unavailable())?;
     if !matches!(address.transport(), Transport::Unix(_)) {
         return Err(unavailable());
     }
     Builder::address(address)
-        .map_err(|_| unavailable())?
         .method_timeout(Duration::from_secs(3))
         .build()
+        .await
         .map_err(|_| unavailable())
 }
 
-fn proxy<'a>(conn: &'a Connection, path: &'a str, interface: &'a str) -> Result<Proxy<'a>> {
+async fn proxy<'a>(conn: &'a Connection, path: &'a str, interface: &'a str) -> Result<Proxy<'a>> {
     proxy::Builder::new(conn)
         .destination(SERVICE)
-        .and_then(|builder| builder.path(path))
-        .and_then(|builder| builder.interface(interface))
-        .and_then(|builder| builder.cache_properties(CacheProperties::No).build())
+        .path(path)
+        .interface(interface)
+        .cache_properties(CacheProperties::No)
+        .build()
+        .await
         .map_err(|_| unavailable())
 }
 
-fn service(conn: &Connection) -> Result<Proxy<'_>> {
+async fn service(conn: &Connection) -> Result<Proxy<'_>> {
     proxy(
         conn,
         "/org/freedesktop/secrets",
         "org.freedesktop.Secret.Service",
     )
+    .await
 }
 
 fn attributes(id: &str) -> HashMap<&str, &str> {
@@ -59,16 +64,17 @@ fn attributes(id: &str) -> HashMap<&str, &str> {
     }
 }
 
-fn find(service: &Proxy<'_>, id: &str) -> Result<Option<OwnedObjectPath>> {
-    find_attributes(service, attributes(id))
+async fn find(service: &Proxy<'_>, id: &str) -> Result<Option<OwnedObjectPath>> {
+    find_attributes(service, attributes(id)).await
 }
 
-fn find_attributes(
+async fn find_attributes(
     service: &Proxy<'_>,
     selected: HashMap<&str, &str>,
 ) -> Result<Option<OwnedObjectPath>> {
     let (mut unlocked, locked): (Vec<OwnedObjectPath>, Vec<OwnedObjectPath>) = service
         .call("SearchItems", &(selected,))
+        .await
         .map_err(|_| unavailable())?;
     if !locked.is_empty() || unlocked.len() > 1 {
         return Err(unavailable());
@@ -76,9 +82,10 @@ fn find_attributes(
     Ok(unlocked.pop())
 }
 
-fn session(service: &Proxy<'_>) -> Result<OwnedObjectPath> {
-    let (output, session): (OwnedValue, OwnedObjectPath) = service
-        .call("OpenSession", &("plain", Value::from("")))
+async fn session(service: &Proxy<'_>) -> Result<OwnedObjectPath> {
+    let (output, session): (OwnedVariant, OwnedObjectPath) = service
+        .call("OpenSession", &("plain", Variant::from("")))
+        .await
         .map_err(|_| unavailable())?;
     if <&str>::try_from(&output).ok() != Some("") || session.as_str() == "/" {
         return Err(unavailable());
@@ -87,23 +94,27 @@ fn session(service: &Proxy<'_>) -> Result<OwnedObjectPath> {
 }
 
 pub(super) fn read(id: &str) -> Result<Option<Zeroizing<Vec<u8>>>> {
-    read_attributes(attributes(id))
+    zbus::block_on(read_attributes(attributes(id)))
 }
 
 pub(super) fn read_legacy(id: &str) -> Result<Option<Zeroizing<Vec<u8>>>> {
-    read_attributes(HashMap::from([("service", "ai-stp"), ("username", id)]))
+    zbus::block_on(read_attributes(HashMap::from([
+        ("service", "ai-stp"),
+        ("username", id),
+    ])))
 }
 
-fn read_attributes(selected: HashMap<&str, &str>) -> Result<Option<Zeroizing<Vec<u8>>>> {
-    let conn = connection()?;
-    let service = service(&conn)?;
-    let Some(path) = find_attributes(&service, selected)? else {
+async fn read_attributes(selected: HashMap<&str, &str>) -> Result<Option<Zeroizing<Vec<u8>>>> {
+    let conn = connection().await?;
+    let service = service(&conn).await?;
+    let Some(path) = find_attributes(&service, selected).await? else {
         return Ok(None);
     };
-    let item = proxy(&conn, path.as_str(), "org.freedesktop.Secret.Item")?;
-    let session = session(&service)?;
+    let item = proxy(&conn, path.as_str(), "org.freedesktop.Secret.Item").await?;
+    let session = session(&service).await?;
     let (returned_session, parameters, bytes, content_type): Secret = item
         .call("GetSecret", &(&session,))
+        .await
         .map_err(|_| unavailable())?;
     let bytes = Zeroizing::new(bytes);
     if returned_session != session || !parameters.is_empty() || content_type != "text/plain" {
@@ -113,17 +124,22 @@ fn read_attributes(selected: HashMap<&str, &str>) -> Result<Option<Zeroizing<Vec
 }
 
 pub(super) fn write(id: &str, value: &str, replace: bool) -> Result<()> {
-    let conn = connection()?;
-    let service = service(&conn)?;
-    if let Some(path) = find(&service, id)? {
+    zbus::block_on(write_inner(id, value, replace))
+}
+
+async fn write_inner(id: &str, value: &str, replace: bool) -> Result<()> {
+    let conn = connection().await?;
+    let service = service(&conn).await?;
+    if let Some(path) = find(&service, id).await? {
         if !replace {
             return Err(super::invalid());
         }
-        let item = proxy(&conn, path.as_str(), "org.freedesktop.Secret.Item")?;
-        let session = session(&service)?;
+        let item = proxy(&conn, path.as_str(), "org.freedesktop.Secret.Item").await?;
+        let session = session(&service).await?;
         let secret = (&session, &[] as &[u8], value.as_bytes(), "text/plain");
         let (): () = item
             .call("SetSecret", &(secret,))
+            .await
             .map_err(|_| unavailable())?;
         return Ok(());
     }
@@ -132,6 +148,7 @@ pub(super) fn write(id: &str, value: &str, replace: bool) -> Result<()> {
     }
     let collection: OwnedObjectPath = service
         .call("ReadAlias", &("default",))
+        .await
         .map_err(|_| unavailable())?;
     if collection.as_str() == "/" {
         return Err(unavailable());
@@ -140,18 +157,20 @@ pub(super) fn write(id: &str, value: &str, replace: bool) -> Result<()> {
         &conn,
         collection.as_str(),
         "org.freedesktop.Secret.Collection",
-    )?;
+    )
+    .await?;
     if collection
         .get_property::<bool>("Locked")
+        .await
         .map_err(|_| unavailable())?
     {
         return Err(unavailable());
     }
-    let session = session(&service)?;
+    let session = session(&service).await?;
     let properties = HashMap::from([
         (
             "org.freedesktop.Secret.Item.Label",
-            Value::from(if id.starts_with("device-key.") {
+            Variant::from(if id.starts_with("device-key.") {
                 "ai-stp-v2 device signing key"
             } else {
                 "ai-stp-v2 account credential"
@@ -159,12 +178,13 @@ pub(super) fn write(id: &str, value: &str, replace: bool) -> Result<()> {
         ),
         (
             "org.freedesktop.Secret.Item.Attributes",
-            Value::from(attributes(id)),
+            Variant::from(attributes(id)),
         ),
     ]);
     let secret = (&session, &[] as &[u8], value.as_bytes(), "text/plain");
     let (item, prompt): (OwnedObjectPath, OwnedObjectPath) = collection
         .call("CreateItem", &(properties, secret, false))
+        .await
         .map_err(|_| unavailable())?;
     // A prompt becomes invalid when this connection closes. Never display it.
     if item.as_str() == "/" || prompt.as_str() != "/" {
@@ -174,21 +194,24 @@ pub(super) fn write(id: &str, value: &str, replace: bool) -> Result<()> {
 }
 
 pub(super) fn remove(id: &str) -> Result<()> {
-    remove_attributes(attributes(id))
+    zbus::block_on(remove_attributes(attributes(id)))
 }
 
 pub(super) fn remove_legacy(id: &str) -> Result<()> {
-    remove_attributes(HashMap::from([("service", "ai-stp"), ("username", id)]))
+    zbus::block_on(remove_attributes(HashMap::from([
+        ("service", "ai-stp"),
+        ("username", id),
+    ])))
 }
 
-fn remove_attributes(selected: HashMap<&str, &str>) -> Result<()> {
-    let conn = connection()?;
-    let service = service(&conn)?;
-    let Some(path) = find_attributes(&service, selected)? else {
+async fn remove_attributes(selected: HashMap<&str, &str>) -> Result<()> {
+    let conn = connection().await?;
+    let service = service(&conn).await?;
+    let Some(path) = find_attributes(&service, selected).await? else {
         return Ok(());
     };
-    let item = proxy(&conn, path.as_str(), "org.freedesktop.Secret.Item")?;
-    let prompt: OwnedObjectPath = item.call("Delete", &()).map_err(|_| unavailable())?;
+    let item = proxy(&conn, path.as_str(), "org.freedesktop.Secret.Item").await?;
+    let prompt: OwnedObjectPath = item.call("Delete", &()).await.map_err(|_| unavailable())?;
     if prompt.as_str() != "/" {
         return Err(unavailable());
     }
