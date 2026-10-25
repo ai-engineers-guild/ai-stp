@@ -116,6 +116,48 @@ impl Api {
         self.read(response)
     }
 
+    pub fn corporate(
+        &self,
+        request: &super::corporate::Request,
+        organization: &str,
+        account: &str,
+        credential: &Secret,
+    ) -> Result<Reply<serde_json::Value>> {
+        let (url, body) = request.wire(&self.origin, organization, account)?;
+        let authorization = Zeroizing::new(format!("Bearer {}", credential.0.as_str()));
+        let agent = self.agent.borrow();
+        let response = if let Some(body) = body {
+            let body = Zeroizing::new(crate::canonical::bytes(&body)?);
+            if body.len() > 8192 {
+                return Err(super::invalid());
+            }
+            agent
+                .post(url.as_str())
+                .header("Accept", "application/json")
+                .header("Content-Type", "application/json")
+                .header("Accept-Encoding", "identity")
+                .header("X-AI-STP-Schema-Version", "1")
+                .header("X-AI-STP-Organization-Id", organization)
+                .header("Authorization", authorization.as_str())
+                .send(body.as_slice())
+        } else {
+            agent
+                .get(url.as_str())
+                .header("Accept", "application/json")
+                .header("Accept-Encoding", "identity")
+                .header("X-AI-STP-Schema-Version", "1")
+                .header("X-AI-STP-Organization-Id", organization)
+                .header("Authorization", authorization.as_str())
+                .call()
+        }
+        .map_err(|_| unavailable())?;
+        drop(agent);
+        match self.response(response, 4 * 1024 * 1024)? {
+            Reply::Resource(bytes) => crate::wire::parse(&bytes).map(Reply::Resource),
+            Reply::Refused(code) => Ok(Reply::Refused(code)),
+        }
+    }
+
     pub fn reports(
         &self,
         id: Option<&str>,

@@ -48,6 +48,30 @@ existing operation binding. `context list` and `context show` are local reads;
 `context show --refresh` checks current access through the original connection.
 Cached capabilities never authorize installation or publication.
 
+`corporate teams`, `corporate projects` and `corporate project show --project ID`
+read through a saved corporate context. `corporate projects --membership-only`
+uses the authenticated person's explicit project memberships; visibility alone
+does not establish assignment membership. Corporate project IDs use the server's
+`remote_project_` namespace, separately from local project passports.
+`corporate technologies` and `corporate mappings list/show` read the organization's
+own technology directory and versioned mappings. `corporate catalog search`
+requests an authenticated organization-scoped page.
+
+These commands accept `--context ID`; omission resolves the selected view once
+for that new read. The result retains its original context, current account
+revision and bounded observations. Changing the view during a delayed reply does
+not change its server or organization. Membership/capabilities are checked before
+and after the read; changed authority refuses the observation. Unknown server
+extensions are excluded, including nested fields. No corporate response is
+persisted as an authorization cache.
+
+`corporate assignments preview --harness ID` supports all seven harnesses and
+optional `--project`/`--technology` coordinates. It sends an explicitly empty
+managed inventory, without personal or other-context installations. Its server
+diff and observation digest cannot be applied as an installation plan. Checkout
+linking, context-owned installation receipts and actual corporate delivery remain
+separate operations.
+
 The first applied connection/context plan explicitly upgrades the same authority
 registry to schema 55. Older clients refuse that format; keep a compatible client
 available. No database copy, key rotation, credential copying or implicit owner
