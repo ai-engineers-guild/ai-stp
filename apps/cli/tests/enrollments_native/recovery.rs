@@ -121,6 +121,9 @@ fn native_vault_recovery_preserves_other_sessions_and_uses_same_account_key_cons
                     Err(e) => return Err(e),
                 }
             };
+            // Winsock inherits the listener's nonblocking mode after accept.
+            stream.set_nonblocking(false)?;
+            stream.set_write_timeout(Some(Duration::from_secs(5)))?;
             let (header, body) = request(&mut stream)?;
             if header.starts_with("POST /v1/auth/device HTTP/") {
                 respond(
