@@ -1061,7 +1061,7 @@ async def read_project_link_plan_outcome(
     )
     return ProjectLinkPlanOutcome(
         plan=link_plan_body(plan),
-        state=cast(Literal["ready", "applied", "expired"], state),
+        state=state,
         link=link_body(link) if link is not None else None,
         authorization_revision=projection.authorization_revision,
         observed_at=format_timestamp(now),
