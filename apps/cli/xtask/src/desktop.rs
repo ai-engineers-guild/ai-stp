@@ -37,19 +37,7 @@ pub fn stub() -> Result<()> {
 }
 
 pub fn build() -> Result<()> {
-    build::invoke(
-        &[
-            "cargo",
-            "build",
-            "--locked",
-            "--release",
-            "--target-dir",
-            "target",
-            "--bin",
-            "ai-stp",
-        ]
-        .map(Into::into),
-    )?;
+    let source = build::cli_binary()?;
     let compiler = text(
         Command::new("rustc")
             .arg("-vV")
@@ -59,9 +47,6 @@ pub fn build() -> Result<()> {
         .lines()
         .find_map(|line| line.strip_prefix("host: "))
         .ok_or("compiler host unavailable")?;
-    let source = root()
-        .join("apps/cli/target/release")
-        .join(release::binary(host)?);
     let resource = resources();
     let parent = resource.parent().ok_or("resource parent missing")?;
     fs::create_dir_all(parent)?;

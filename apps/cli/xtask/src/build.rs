@@ -4,11 +4,17 @@ use crate::hash;
 use crate::{Result, root, run};
 #[cfg(unix)]
 use crate::{require, text};
+use serde_json::Value;
 #[cfg(target_os = "linux")]
 use std::fs;
 #[cfg(unix)]
 use std::path::Path;
-use std::{ffi::OsString, process::Command};
+use std::{
+    ffi::OsString,
+    io::{BufRead, BufReader},
+    path::PathBuf,
+    process::{Command, Stdio},
+};
 
 #[cfg(unix)]
 fn prepend(command: &mut Command, key: &str, paths: &[&Path]) -> Result<()> {
@@ -44,6 +50,55 @@ pub fn invoke(arguments: &[OsString]) -> Result<()> {
     run(&mut command)
 }
 
+/// Obtain the executable from Cargo itself, including redirected and nested caches.
+pub fn cli_binary() -> Result<PathBuf> {
+    let mut command = Command::new("cargo");
+    command.current_dir(root().join("apps/cli")).args([
+        "build",
+        "--locked",
+        "--release",
+        "--bins",
+        "--examples",
+        "--message-format=json-render-diagnostics",
+    ]);
+    configure(&mut command)?;
+    let mut child = command
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .spawn()?;
+    let stdout = child.stdout.take().ok_or("Cargo stdout is unavailable")?;
+    let result = (|| -> Result<Option<PathBuf>> {
+        let mut binary = None;
+        for line in BufReader::new(stdout).lines() {
+            let message: Value = serde_json::from_str(&line?)?;
+            if message["reason"] == "compiler-artifact"
+                && message["target"]["name"] == "ai-stp"
+                && message["target"]["kind"] == serde_json::json!(["bin"])
+                && let Some(path) = message["executable"].as_str()
+            {
+                if binary.is_some() {
+                    return Err("Cargo reported multiple native CLI executables".into());
+                }
+                binary = Some(PathBuf::from(path));
+            }
+        }
+        Ok(binary)
+    })();
+    if result.is_err() {
+        let _ = child.kill();
+    }
+    let status = child.wait()?;
+    let binary = result?;
+    if !status.success() {
+        return Err("native CLI build failed".into());
+    }
+    let binary = binary.ok_or("Cargo reported no native CLI executable")?;
+    if !binary.is_absolute() || !binary.is_file() {
+        return Err("Cargo reported an unavailable native CLI executable".into());
+    }
+    Ok(binary)
+}
+
 #[cfg(target_os = "linux")]
 fn configure(command: &mut Command) -> Result<()> {
     let mut directories = if let Some(value) = std::env::var_os("LIBCLANG_PATH") {
@@ -72,10 +127,12 @@ fn configure(command: &mut Command) -> Result<()> {
             .collect::<std::io::Result<Vec<_>>>()?
             .into_iter()
             .filter(|entry| {
-                entry
-                    .file_name()
-                    .to_string_lossy()
-                    .starts_with("libclang.so")
+                let name = entry.file_name();
+                let name = name.to_string_lossy();
+                name.starts_with("libclang.so")
+                    || (name.starts_with("libclang-")
+                        && !name.starts_with("libclang-cpp")
+                        && name.contains(".so"))
             })
             .map(|entry| entry.path())
             .collect::<Vec<_>>();
@@ -92,14 +149,20 @@ fn configure(command: &mut Command) -> Result<()> {
         Path::new(&include).is_absolute() && Path::new(&include).join("stdarg.h").is_file(),
         "C compiler standard headers are unavailable",
     )?;
-    let target = std::env::var_os("CARGO_TARGET_DIR")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| root().join("apps/cli/target"));
-    let target = if target.is_absolute() {
-        target
-    } else {
-        root().join("apps/cli").join(target)
-    };
+    let metadata: Value = serde_json::from_str(&text(
+        Command::new("cargo")
+            .current_dir(root().join("apps/cli"))
+            .args(["metadata", "--locked", "--no-deps", "--format-version", "1"]),
+    )?)?;
+    let target = PathBuf::from(
+        metadata["target_directory"]
+            .as_str()
+            .ok_or("Cargo target directory is unavailable")?,
+    );
+    require(
+        target.is_absolute(),
+        "Cargo target directory must be absolute",
+    )?;
     let directory = target
         .join("native-toolchain")
         .join(hash(&fs::read(&library)?));

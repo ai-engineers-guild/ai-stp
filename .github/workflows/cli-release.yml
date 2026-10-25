@@ -87,7 +87,7 @@ jobs:
             echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-rust-release-contracts"
             echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
           } >> "${GITHUB_ENV}"
-          bash .github/scripts/install-uv.sh "0.12.23" "${RUNNER_TEMP}/uv"
+          bash .github/scripts/install-uv.sh "0.13.5" "${RUNNER_TEMP}/uv"
           echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
       - name: Install shared wire-contract validators
         shell: bash
@@ -98,9 +98,10 @@ jobs:
       - name: Build the native executable
         working-directory: apps/cli
         shell: bash
-        run: >-
-          cargo run --quiet --locked --manifest-path xtask/Cargo.toml --
-          build cargo build --locked --release --bin ai-stp
+        run: |
+          set -euo pipefail
+          binary="$(cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- cli-binary)"
+          printf 'CLI_SOURCE_BINARY=%s\n' "$binary" >> "${GITHUB_ENV}"
       - name: Package and verify the extracted executable outside checkout
         shell: bash
         env:
@@ -110,11 +111,11 @@ jobs:
         run: |
           set -euo pipefail
           cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- package \
-            --binary "apps/cli/target/release/${RELEASE_BINARY}" \
+            --binary "${CLI_SOURCE_BINARY}" \
             --target "${RELEASE_TARGET}" --version "${RELEASE_VERSION}" \
             --revision "${GITHUB_SHA}" --output release
           cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- package \
-            --binary "apps/cli/target/release/${RELEASE_BINARY}" \
+            --binary "${CLI_SOURCE_BINARY}" \
             --target "${RELEASE_TARGET}" --version "${RELEASE_VERSION}" \
             --revision "${GITHUB_SHA}" --output release-repeat
           stem="ai-stp-cli-${RELEASE_VERSION}-${RELEASE_TARGET}"

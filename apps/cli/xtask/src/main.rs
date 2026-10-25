@@ -202,6 +202,7 @@ fn main_result() -> Result<()> {
     let command = args.first().and_then(|s| s.to_str()).unwrap_or("");
     match command {
         "build" => build::invoke(&args[1..]),
+        "cli-binary" if args.len() == 1 => { println!("{}", build::cli_binary()?.display()); Ok(()) },
         "resources" if args.len() == 1 => resources::sync(false),
         "resources" if args.len() == 2 && args[1] == "--check" => resources::sync(true),
         "version" => { println!("{}", release::version()?); Ok(()) }
@@ -216,6 +217,6 @@ fn main_result() -> Result<()> {
         "desktop-build" if args.len() == 1 => desktop::build(),
         "desktop-probe" if args.len() == 1 => desktop::probe(None),
         "desktop-package-probe" if args.len() == 1 => desktop::packaged(),
-        _ => Err("expected build <command...>, version, package, verify, wheel, desktop-stub, desktop-build, desktop-probe or desktop-package-probe".into()),
+        _ => Err("expected build <command...>, cli-binary, version, package, verify, wheel, desktop-stub, desktop-build, desktop-probe or desktop-package-probe".into()),
     }
 }
