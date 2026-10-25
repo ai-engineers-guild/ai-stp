@@ -215,7 +215,7 @@ it("reads the next organization catalog page with its original search and harnes
     .mockResolvedValueOnce(page("Next setup", null));
   mount();
   await ready();
-  fireEvent.click(screen.getByRole("button", { name: "Catalog", exact: true }));
+  fireEvent.click(screen.getByRole("button", { name: "Catalog" }));
   fireEvent.change(screen.getByLabelText("Search"), {
     target: { value: "project setup" },
   });
