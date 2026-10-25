@@ -43,6 +43,7 @@ from ai_stp_platform.organization_models import (
     CorporateProjectMember,
     CorporateRoleBinding,
     CorporateTeam,
+    CorporateTeamMember,
     OrganizationMembership,
     ProjectIdentity,
 )
@@ -178,6 +179,11 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
                     project_id=project,
                     account_id=accounts[0],
                     role="owner",
+                )
+            )
+            db.add(
+                CorporateTeamMember(
+                    organization_id=organization, team_id=team, account_id=accounts[0]
                 )
             )
             setup = await db.scalar(
@@ -384,6 +390,124 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
             assert item["action"] == "install" and item["source_scope"] == "organization"
         else:
             assert item["version"] is None and item["action"] == "none"
+
+    # The native preview must retain the real resolver's authority order rather
+    # than recomputing it from its local technology seed or the selected view.
+    async with AsyncClient(base_url=origin, timeout=15, trust_env=False) as client:
+
+        async def assign(
+            scope: str,
+            subject: str,
+            *,
+            harness: str | None = None,
+            latest: bool = False,
+            revision: int = 0,
+            retired: bool = False,
+        ) -> dict[str, Any]:
+            context = await client.get(
+                f"/v1/corporate/organizations/{organization}/context", headers=auth
+            )
+            assert context.status_code == 200, context.text
+            authorization = context.json()["organization"]["authorization_revision"]
+            body: dict[str, Any] = {
+                "subject_kind": scope,
+                "subject_id": subject,
+                "object_kind": "setup",
+                "stable_id": FIXTURE_SETUP_ID,
+                "harness": harness,
+                "expected_revision": revision,
+                "authorization_revision": authorization,
+                "state": "retired" if retired else "current",
+                "idempotency_key": (f"native-precedence-{scope}-{harness or 'all'}-{revision}"),
+                **({"selector": "latest"} if latest else {"version": "1.0"}),
+            }
+            response = await client.put(
+                f"/v1/corporate/organizations/{organization}/catalog-assignments",
+                headers=auth,
+                json=body,
+            )
+            assert response.status_code == 200, response.text
+            result: dict[str, Any] = response.json()
+            replay = await client.put(
+                f"/v1/corporate/organizations/{organization}/catalog-assignments",
+                headers=auth,
+                json=body,
+            )
+            assert replay.status_code == 200 and replay.json() == result
+            return result
+
+        async def decision(
+            *, harness: str = "claude-code", scoped_technology: bool = True
+        ) -> dict[str, Any]:
+            extra = ["--technology", technology] if scoped_technology else []
+            preview = await observe(
+                "assignments", "preview", "--harness", harness, "--project", project, *extra
+            )
+            return next(item for item in preview["items"] if item["stable_id"] == FIXTURE_SETUP_ID)
+
+        def assigned(item: dict[str, Any], row: dict[str, Any], scope: str) -> None:
+            assert item["state"] == "assigned" and item["outcome"] == "missing"
+            assert item["action"] == "install" and item["installed_version"] is None
+            assert item["assignment_id"] == row["assignment_id"]
+            assert item["source_scope"] == scope
+            assert item["version"] == "1.0" and item["passport_digest"] == setup_digest
+
+        organization_generic = await assign("organization", organization, latest=True)
+        # A newer generic decision cannot override a harness-specific decision
+        # within the same scope. Both still resolve to exact immutable bytes.
+        organization_generic = await assign("organization", organization, latest=True, revision=1)
+        specific = await decision()
+        assert specific["source_scope"] == "organization" and specific["harness"] == "claude-code"
+        assert specific["assignment_id"] != organization_generic["assignment_id"]
+        assigned(await decision(harness="codex"), organization_generic, "organization")
+
+        for scope, subject in (
+            ("team", team),
+            ("technology", technology),
+            ("project", project),
+            ("employee", accounts[0]),
+        ):
+            row = await assign(scope, subject, latest=scope == "employee")
+            assigned(await decision(), row, scope)
+            if scope == "technology":
+                assert (await decision(scoped_technology=False))["source_scope"] == "team"
+
+        employee_generic = await assign("employee", accounts[0], latest=True, revision=1)
+        employee_specific = await assign("employee", accounts[0], harness="claude-code")
+        specific = await decision()
+        assigned(specific, employee_specific, "employee")
+        assert specific["selector"] == "exact"
+        generic = await decision(harness="codex")
+        assigned(generic, employee_generic, "employee")
+        assert generic["selector"] == "latest"
+        assert [candidate["scope"] for candidate in specific["candidates"]] == [
+            "employee",
+            "employee",
+            "project",
+            "technology",
+            "team",
+            "organization",
+            "organization",
+        ]
+        assert specific["candidates"][0]["outcome"] == "winner"
+        assert all(candidate["outcome"] == "overridden" for candidate in specific["candidates"][1:])
+
+        await assign("employee", accounts[0], harness="claude-code", revision=1, retired=True)
+        revoked = await decision()
+        assert revoked["state"] == revoked["outcome"] == "revoked"
+        assert revoked["action"] == "none" and revoked["installed_version"] is None
+        assert revoked["version"] is None and revoked["passport_digest"] is None
+        assert revoked["assignment_id"] is None and revoked["source_scope"] is None
+        assert revoked["candidates"][0]["assignment_id"] == employee_specific["assignment_id"]
+        assert revoked["candidates"][0]["outcome"] == "revoked"
+        assert not any(candidate["outcome"] == "winner" for candidate in revoked["candidates"])
+        assigned(await decision(harness="codex"), employee_generic, "employee")
+
+        await assign("employee", accounts[0], latest=True, revision=2, retired=True)
+        for harness in harnesses:
+            revoked = await decision(harness=harness)
+            assert revoked["state"] == "revoked" and revoked["action"] == "none"
+            assert revoked["installed_version"] is None
     assert not (await observe("projects", context=contexts[1]))["items"]
     await refused(
         binary,
@@ -449,6 +573,15 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
                 "native_corporate_http": "passed",
                 "independent_accounts": 2,
                 "harness_previews": len(harnesses),
+                "assignment_precedence": [
+                    "employee",
+                    "project",
+                    "technology",
+                    "team",
+                    "organization",
+                ],
+                "harness_specificity": "passed",
+                "retired_employee_override": "refused_inherited_fallback",
                 "legacy_session": "preserved",
                 "membership_revocation": "refused",
                 "read_operations_added": 0,
