@@ -312,9 +312,11 @@ impl Request {
                 return Err(invalid());
             }
             let key = match self {
-                Self::Teams => Some(("team_id", "team")),
-                Self::Projects { .. } => Some(("project_id", "remote_project")),
-                Self::Technologies { .. } => Some(("technology_id", "technology")),
+                // Team IDs are opaque in the canonical DTO; the current server
+                // mints operation IDs for them, not a separate team namespace.
+                Self::Teams => Some(("team_id", None)),
+                Self::Projects { .. } => Some(("project_id", Some("remote_project"))),
+                Self::Technologies { .. } => Some(("technology_id", Some("technology"))),
                 _ => None,
             };
             if let Some((field, kind)) = key {
@@ -322,7 +324,10 @@ impl Request {
                 for item in items {
                     let id = text(item, field)?;
                     if item["organization_id"] != organization
-                        || !passport::stable_id(id, kind)
+                        || id.is_empty()
+                        || id.len() > 128
+                        || id.chars().any(char::is_control)
+                        || kind.is_some_and(|kind| !passport::stable_id(id, kind))
                         || !ids.insert(id)
                     {
                         return Err(invalid());

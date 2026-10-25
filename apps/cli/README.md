@@ -56,6 +56,9 @@ does not establish assignment membership. Corporate project IDs use the server's
 `corporate technologies` and `corporate mappings list/show` read the organization's
 own technology directory and versioned mappings. `corporate catalog search`
 requests an authenticated organization-scoped page.
+That page projects the public catalog's authoritative lane. An organization
+assignment does not publish a private setup or make an experimental version
+authoritative; private assigned coordinates are resolved separately in previews.
 
 These commands accept `--context ID`; omission resolves the selected view once
 for that new read. The result retains its original context, current account

@@ -34,6 +34,7 @@ from ai_stp_api.session import issue_session
 from ai_stp_api.slices.auth.device_flow import approve_device_authorization
 from ai_stp_foundation.envelope import ErrorEnvelope
 from ai_stp_foundation.ids import new_id
+from ai_stp_platform.catalog_search import upsert_catalog_search_projection
 from ai_stp_platform.models import Account, CatalogMetadata, Device
 from ai_stp_platform.organization_models import (
     CorporateAssignmentDistribution,
@@ -109,7 +110,11 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
 
         organization = response.json()["organization_id"]
         auth = {"Authorization": f"Bearer {fixture_session.raw_token}"}
-        project, team, technology = new_id("remote_project"), new_id("team"), new_id("technology")
+        project, team, technology = (
+            new_id("remote_project"),
+            new_id("operation"),
+            new_id("technology"),
+        )
         async with app.state.sessionmaker() as db:
             db.add(
                 OrganizationMembership(
@@ -173,6 +178,10 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
                 "private",
             )
             setup_digest = setup.passport_digest
+            await db.flush()
+            await upsert_catalog_search_projection(
+                db, object_kind="setup", stable_id=FIXTURE_SETUP_ID
+            )
             await db.commit()
         response = await client.put(
             f"/v1/corporate/organizations/{organization}/catalog-assignments",
@@ -183,6 +192,7 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
                 "object_kind": "setup",
                 "stable_id": FIXTURE_SETUP_ID,
                 "version": "1.0",
+                "harness": "claude-code",
                 "expected_revision": 0,
                 "authorization_revision": 1,
                 "idempotency_key": "native-corporate-assignment",
@@ -330,7 +340,11 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
             "digest"
         ] == mapping["digest"]
     catalog = await observe("catalog", "search", "--kind", "setup")
-    assert FIXTURE_SETUP_ID in {item["stable_id"] for item in catalog["items"]}
+    # Corporate catalog filters project the public catalog. Authentication and
+    # assignment do not put a private version into that index or promote the
+    # unverified public seed into its default authoritative lane. The private
+    # assigned coordinate is resolved separately by the preview below.
+    assert not catalog["items"] and not catalog["experimental"]
     help_data = await native(binary, home, ["help", "--agent"])
     descriptor = next(
         item
@@ -346,9 +360,29 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
             "assignments", "preview", "--harness", harness, "--project", project
         )
         item = next(item for item in preview["items"] if item["stable_id"] == FIXTURE_SETUP_ID)
-        assert item["version"] == "1.0" and item["passport_digest"] == setup_digest
-        assert item["installed_version"] is None and item["action"] == "install"
+        assert item["installed_version"] is None
+        if harness == "claude-code":
+            assert item["version"] == "1.0" and item["passport_digest"] == setup_digest
+            assert item["action"] == "install" and item["source_scope"] == "organization"
+        else:
+            assert item["version"] is None and item["action"] == "none"
     assert not (await observe("projects", "--membership-only", context=contexts[1]))["items"]
+    await refused(
+        binary,
+        home,
+        [
+            "corporate",
+            "assignments",
+            "preview",
+            "--harness",
+            "claude-code",
+            "--project",
+            project,
+            "--context",
+            contexts[1],
+            *scoped,
+        ],
+    )
     await observe("teams", context=legacy["plan"]["change"]["context"]["context_id"])
     assert (await run("corporate", "projects", "--membership-only"))["observation"]["context"][
         "context_id"
