@@ -13,7 +13,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-fn authorize(
+pub(super) fn authorize(
     root: &Path,
     origin: &str,
     connection: Option<&str>,

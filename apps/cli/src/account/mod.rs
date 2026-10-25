@@ -5,6 +5,7 @@ pub(crate) mod adoption;
 pub(crate) mod attachment;
 pub mod connections;
 pub mod contexts;
+pub mod corporate;
 pub mod github;
 pub mod grants;
 mod journal;
