@@ -110,7 +110,8 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update -qq
-          sudo apt-get install --yes --no-install-recommends dbus-daemon gnome-keyring libglib2.0-bin
+          sudo apt-get install --yes --no-install-recommends \
+            dbus-daemon gnome-keyring libglib2.0-bin
       - name: Actual Linux Secret Service enrollment and recovery
         if: runner.os == 'Linux'
         shell: bash

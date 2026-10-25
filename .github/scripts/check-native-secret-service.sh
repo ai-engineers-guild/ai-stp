@@ -53,5 +53,11 @@ checks=(cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
   cargo test --locked --test enrollments_native --)
 listing="$("${checks[@]}" --ignored --list)"
 printf '%s\n' "${listing}"
-test "$(printf '%s\n' "${listing}" | rg -c ': test$')" -eq 2
+selected=0
+while IFS= read -r line; do
+  if [[ "${line}" == *': test' ]]; then
+    selected=$((selected + 1))
+  fi
+done <<<"${listing}"
+test "${selected}" -eq 2
 "${checks[@]}" --ignored
