@@ -34,7 +34,7 @@
 # The floor equals the bootstrap pin in docs_scripts/bootstrap_just.py; raise
 # the two together. A parse-time error beats a feature silently mis-read by an
 # older binary.
-set minimum-version := "1.58.0"
+set minimum-version := "1.59.0"
 
 scripts := "docs_scripts"
 py := "uv run --locked --group docs python"

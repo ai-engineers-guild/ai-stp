@@ -209,7 +209,7 @@ def test_worker_safety_dockerfile_enables_external_cli() -> None:
     assert "install_scanners.sh" in text
     assert "snapshot.debian.org/archive/debian/20260927T000000Z" in text
     assert "requirements.lock" in text
-    assert text.count("FROM python:3.12-slim@sha256:") == 1
+    assert text.count("FROM python:3.12.15-slim@sha256:") == 1
     # Required skill engines + govulncheck (not optional extras).
     assert "golang.org/x/vuln/cmd/govulncheck" in text
     assert "go-tools" in text
