@@ -35,12 +35,19 @@ const CONTEXT: Parameter = Parameter {
     kind: ParameterType::String,
     required: true,
 };
+const LEGACY: Parameter = Parameter {
+    name: "legacy-account",
+    summary: "Explicitly use the existing local-owner account journal and key; do not copy credentials or create an enrollment.",
+    kind: ParameterType::Boolean,
+    required: false,
+};
 pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
         path: &["context", "create", "plan"],
         summary: "Plan a local context or resolve an authenticated personal/corporate organization through an explicit connection; cached capabilities grant no authority.",
         parameters: &[
             STATE_DIR,
+            LEGACY,
             Parameter {
                 name: "label",
                 summary: "Local label, 1 to 120 UTF-8 bytes.",
@@ -49,7 +56,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             },
             Parameter {
                 name: "connection",
-                summary: "Retained connection ID; absence creates a native offline context.",
+                summary: "Retained connection ID; without this or legacy-account, create a native offline context.",
                 kind: ParameterType::String,
                 required: false,
             },
@@ -113,11 +120,12 @@ pub(super) const COMMANDS: &[Declaration] = &[
         summary: "Read organizations available to one authenticated retained connection; no implicit membership or installation changes.",
         parameters: &[
             STATE_DIR,
+            LEGACY,
             Parameter {
                 name: "connection",
                 summary: "Exact retained connection ID.",
                 kind: ParameterType::String,
-                required: true,
+                required: false,
             },
         ],
         handler: super::Handler::Context(Handler::Organizations),
@@ -139,13 +147,28 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     let at = format!("{:.3}", jiff::Timestamp::now());
     match handler {
         Handler::CreatePlan => {
-            let plan = contexts::create_plan(
-                path("state-dir")?,
-                text("label")?,
-                optional("connection"),
-                optional("organization"),
-                &at,
-            )?;
+            let legacy = args.get_flag("legacy-account");
+            if legacy && optional("connection").is_some() {
+                return Err(Failure::input(
+                    "choose a retained connection or the existing local-owner session",
+                ));
+            }
+            let plan = if legacy {
+                contexts::create_legacy_plan(
+                    path("state-dir")?,
+                    text("label")?,
+                    optional("organization"),
+                    &at,
+                )?
+            } else {
+                contexts::create_plan(
+                    path("state-dir")?,
+                    text("label")?,
+                    optional("connection"),
+                    optional("organization"),
+                    &at,
+                )?
+            };
             Ok(json!({"plan_digest":plan.digest()?,"plan":plan}))
         }
         Handler::SelectPlan => {
@@ -163,6 +186,12 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             text("context")?,
             args.get_flag("refresh"),
         ),
-        Handler::Organizations => contexts::organizations(path("state-dir")?, text("connection")?),
+        Handler::Organizations => match (args.get_flag("legacy-account"), optional("connection")) {
+            (true, None) => contexts::legacy_organizations(path("state-dir")?),
+            (false, Some(connection)) => contexts::organizations(path("state-dir")?, connection),
+            _ => Err(Failure::input(
+                "choose exactly one of connection or legacy-account",
+            )),
+        },
     }
 }

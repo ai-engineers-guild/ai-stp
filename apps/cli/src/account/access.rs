@@ -144,6 +144,17 @@ impl Access {
         &self.binding
     }
 
+    /// A remote enrollment authorizes reads; it does not replace the native
+    /// actor which records acquired immutable bytes in this authority root.
+    pub(crate) fn check_local_actor(&self, actor: &crate::authoring::Identity) -> Result<()> {
+        self.revalidate()?;
+        actor.validate()?;
+        if actor.device_id != self.identity.context().device_id {
+            return Err(refused("local_authority_device_mismatch"));
+        }
+        Ok(())
+    }
+
     pub fn revalidate(&self) -> Result<()> {
         super::check_binding(
             &super::identity_at(&self.state.plan.root)?,

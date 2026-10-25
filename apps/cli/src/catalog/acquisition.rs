@@ -470,13 +470,14 @@ pub(crate) fn plan_with_access(
 ) -> Result<Plan> {
     identity.validate()?;
     if let Some(access) = access {
-        access.revalidate()?;
-        if access.binding().device_id != identity.device_id {
-            return Err(invalid());
-        }
+        access.check_local_actor(&identity)?;
     }
     let expires_at = expiry(at)?;
-    let endpoint = Endpoint::configured(config)?;
+    let configured = Endpoint::configured(config)?;
+    let endpoint = match access.filter(|held| held.binding().connection.is_some()) {
+        Some(held) => Endpoint::new(&held.binding().origin)?,
+        None => configured,
+    };
     if access.is_some_and(|access| {
         endpoint.base.origin().ascii_serialization() != access.binding().origin
     }) {
@@ -607,6 +608,9 @@ pub(crate) fn apply_with_access(
         };
     }
     super::private::require_binding(&plan.access, access)?;
+    if let Some(access) = access {
+        access.check_local_actor(identity)?;
+    }
     if at < plan.created_at.as_str() || at > plan.expires_at.as_str() {
         return Err(Failure::precondition(
             "the acquisition plan is outside its validity interval",

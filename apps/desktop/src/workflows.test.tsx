@@ -226,6 +226,61 @@ it("discards a previous account response even after returning to the same connec
   expect(screen.getByText("current-personal")).toBeTruthy();
 });
 
+it("plans a context from the existing account without creating a new enrollment", async () => {
+  const organization = "organization_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+  vi.mocked(transport.cmdRunRead).mockImplementation(async (path) =>
+    path === "account organizations"
+      ? ok({
+          organizations: {
+            schema_version: 1,
+            items: [
+              {
+                organization_id: organization,
+                kind: "personal",
+                display_name: "Personal",
+              },
+            ],
+          },
+        })
+      : path === "context list"
+        ? ok({ contexts: [], selected: null })
+        : ok({ connections: [] }),
+  );
+  vi.mocked(transport.cliPlan).mockResolvedValue(
+    ok({ plan: { schema_version: 1 }, plan_digest: "sha256:legacy" }),
+  );
+  mount(<ProfilesPage />);
+  fireEvent.change(screen.getByLabelText("Context connection"), {
+    target: { value: "legacy-account" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Read available organizations" }),
+  );
+  await screen.findByLabelText("Organization");
+  expect(transport.cmdRunRead).toHaveBeenCalledWith(
+    "account organizations",
+    {},
+    ["legacy-account"],
+  );
+  fireEvent.change(screen.getByLabelText("Organization"), {
+    target: { value: organization },
+  });
+  fireEvent.change(screen.getByLabelText("Context label"), {
+    target: { value: "Existing personal" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Review context creation" }),
+  );
+  await waitFor(() =>
+    expect(transport.cliPlan).toHaveBeenCalledWith(
+      "context create plan",
+      { label: "Existing personal", organization },
+      ["legacy-account"],
+    ),
+  );
+  expect(transport.cmdProfileApply).not.toHaveBeenCalled();
+});
+
 it("reviews an exact enrollment plan and requires confirmation before applying", async () => {
   const plan = {
     schema_version: 1,

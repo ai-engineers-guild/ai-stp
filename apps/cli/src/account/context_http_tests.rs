@@ -5,6 +5,16 @@ use super::*;
 #[test]
 fn retained_contexts_revalidate_membership_and_keep_revoked_offline_observations()
 -> std::result::Result<(), Box<dyn Error>> {
+    exercise_contexts(true)
+}
+
+#[test]
+fn legacy_context_admission_preserves_the_original_key_session_and_journal()
+-> std::result::Result<(), Box<dyn Error>> {
+    exercise_contexts(false)
+}
+
+fn exercise_contexts(named: bool) -> std::result::Result<(), Box<dyn Error>> {
     let root = tempfile::tempdir()?;
     let at = format!("{:.3}", jiff::Timestamp::now());
     let init = identity::plan(root.path(), identity::Storage::File, &at)?;
@@ -12,17 +22,31 @@ fn retained_contexts_revalidate_membership_and_keep_revoked_offline_observations
     let original = local.report();
     let listener = TcpListener::bind("127.0.0.1:0")?;
     let origin = format!("http://{}", listener.local_addr()?);
-    let connection = connections::plan(root.path(), "Work and personal", &origin, "github", &at)?;
-    connections::apply(&connection, &connection.digest()?, &at)?;
+    let connection = if named {
+        let connection =
+            connections::plan(root.path(), "Work and personal", &origin, "github", &at)?;
+        connections::apply(&connection, &connection.digest()?, &at)?;
+        Some(connection)
+    } else {
+        None
+    };
+    let connection_id = connection
+        .as_ref()
+        .map(|value| value.connection_id.as_str());
+    let remote_device = connection.as_ref().map_or_else(
+        || local.context().device_id,
+        |value| value.device_id.clone(),
+    );
     let start = plan_for_connection(
         root.path(),
         Action::Start,
+        Some(&origin),
         None,
-        None,
-        Some(&connection.connection_id),
+        connection_id,
         &at,
     )?;
-    let enrollment = start.connection.as_ref().ok_or("enrollment")?.clone();
+    assert_eq!(start.origin, origin);
+    let enrollment = start.connection.clone();
     let account = format!("account_{}", ulid::Ulid::generate());
     let personal = format!("organization_{}", ulid::Ulid::generate());
     let corporate = format!("organization_{}", ulid::Ulid::generate());
@@ -39,14 +63,14 @@ fn retained_contexts_revalidate_membership_and_keep_revoked_offline_observations
         outcome: Outcome::Authorized,
         completed_at: at.clone(),
     };
-    Journal::for_connection(&local, Some(&enrollment), true)?
+    Journal::for_connection(&local, enrollment.as_ref(), true)?
         .ok_or("journal")?
         .write(&state)?;
     let (server_account, server_personal, server_corporate, server_device, server_token, server_at) = (
         account.clone(),
         personal.clone(),
         corporate.clone(),
-        connection.device_id.clone(),
+        remote_device,
         credential.clone(),
         at.clone(),
     );
@@ -124,29 +148,27 @@ fn retained_contexts_revalidate_membership_and_keep_revoked_offline_observations
         }
         Ok(())
     });
-    let personal_plan = contexts::create_plan(
-        root.path(),
-        "Personal",
-        Some(&connection.connection_id),
-        None,
-        &at,
-    )?;
+    let credential_path = root
+        .path()
+        .join("ai-stp-v2-account")
+        .join(format!("account-{}", local.context().device_id));
+    let legacy_bytes = if named {
+        None
+    } else {
+        Some(crate::digest::sha256(&fs::read(&credential_path)?))
+    };
+    let create = |label: &str, org: Option<&str>| {
+        if named {
+            contexts::create_plan(root.path(), label, connection_id, org, &at)
+        } else {
+            contexts::create_legacy_plan(root.path(), label, org, &at)
+        }
+    };
+    let personal_plan = create("Personal", None)?;
     contexts::apply(&personal_plan, &personal_plan.digest()?, &at)?;
-    let stale = contexts::create_plan(
-        root.path(),
-        "Company",
-        Some(&connection.connection_id),
-        Some(&corporate),
-        &at,
-    )?;
+    let stale = create("Company", Some(&corporate))?;
     assert!(contexts::apply(&stale, &stale.digest()?, &at).is_err());
-    let corporate_plan = contexts::create_plan(
-        root.path(),
-        "Company",
-        Some(&connection.connection_id),
-        Some(&corporate),
-        &at,
-    )?;
+    let corporate_plan = create("Company", Some(&corporate))?;
     let completed = contexts::apply(&corporate_plan, &corporate_plan.digest()?, &at)?;
     let personal_id = match &personal_plan.change {
         contexts::Change::Create { context, .. } => context.context_id.clone(),
@@ -178,7 +200,14 @@ fn retained_contexts_revalidate_membership_and_keep_revoked_offline_observations
     assert_eq!(listed["selected"]["context_id"], corporate_id);
     assert!(!listed.to_string().contains(&credential));
     assert!(!listed.to_string().contains("future_token"));
-    assert_eq!(status(root.path(), &at)?["session"]["state"], "absent");
+    assert_eq!(
+        status(root.path(), &at)?["session"]["state"],
+        if named { "absent" } else { "authorized" }
+    );
+    if let Some(before) = legacy_bytes {
+        assert_eq!(before, crate::digest::sha256(&fs::read(&credential_path)?));
+        assert!(!root.path().join("ai-stp-v2-connections").exists());
+    }
     assert_eq!(identity_at(root.path())?.report(), original);
     Ok(())
 }

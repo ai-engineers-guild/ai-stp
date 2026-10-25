@@ -102,12 +102,15 @@ export default function ProfilesPage() {
     path: string,
     values: Record<string, string>,
     apply: Review["path"],
+    flags: string[] = [],
   ) {
     if (busy) return;
     setBusy(true);
     clearReview();
     try {
-      const response = await cliPlan(path, values);
+      const response = flags.length
+        ? await cliPlan(path, values, flags)
+        : await cliPlan(path, values);
       if (!active.current) return;
       setResult(response);
       if (
@@ -152,9 +155,10 @@ export default function ProfilesPage() {
     setOrganization("");
     clearReview();
     try {
-      const response = await cmdRunRead("account organizations", {
-        connection: selected,
-      });
+      const response =
+        selected === "legacy-account"
+          ? await cmdRunRead("account organizations", {}, ["legacy-account"])
+          : await cmdRunRead("account organizations", { connection: selected });
       if (active.current && connectionRef.current === selected) {
         setOrganizations(response);
       }
@@ -167,6 +171,7 @@ export default function ProfilesPage() {
     object(organizations?.data?.organizations).items,
   );
   const selected = object(contexts?.data?.selected).context_id;
+  const legacy = connection === "legacy-account";
   return (
     <div className="page-stack">
       <PageHeader
@@ -425,6 +430,9 @@ export default function ProfilesPage() {
             }}
           >
             <option value="">Personal · Native offline</option>
+            <option value="legacy-account">
+              Existing local-owner account session
+            </option>
             {retained
               .filter((item) => item.state === "ready")
               .map((item) => (
@@ -447,6 +455,11 @@ export default function ProfilesPage() {
           </button>
         )}
         {organizations && !organizations.ok && <ResultMeta r={organizations} />}
+        {legacy && (
+          <Link className="btn-outline" to="/auth">
+            Check existing account sign-in
+          </Link>
+        )}
         {!!availableOrganizations.length && (
           <label className="field-label">
             Organization
@@ -486,9 +499,12 @@ export default function ProfilesPage() {
               "context create plan",
               {
                 label: contextLabel.trim(),
-                ...(connection ? { connection, organization } : {}),
+                ...(connection
+                  ? { organization, ...(!legacy ? { connection } : {}) }
+                  : {}),
               },
               "context apply",
+              legacy ? ["legacy-account"] : [],
             )
           }
         >
