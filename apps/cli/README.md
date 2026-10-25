@@ -85,9 +85,48 @@ HTTP contracts. The fixture never connects a live SSO account or runs a harness.
 The first applied connection/context plan explicitly upgrades the same authority
 registry to schema 55. Older clients refuse that format; keep a compatible client
 available. No database copy, key rotation, credential copying or implicit owner
-attachment occurs. Named enrollment key recovery and context-owned authoring,
-publication, sync and corporate delivery are separate operations; the legacy
-global attach/recover actions do not operate on a named enrollment.
+attachment occurs. The legacy global attach/recover actions do not operate on a
+named enrollment.
+
+`account connections recovery plan --connection ID --label LABEL` reviews a
+replacement for a named session whose status records `device_revoked`, or whose
+retained authorized session has a genuinely absent enrollment key. Version 1
+binds the original authorized account receipt and positive revocation receipt.
+Version 2 records key absence with the retained session receipt; absence is
+rechecked before admission. Corruption or an unavailable credential store is an
+error, not evidence of absence. Both versions fix the exact new connection/key
+operation. `account connections recovery apply` explicitly
+admits schema 56 and both recovery and key creation in one registry commit.
+The child key plan cannot be applied separately before its parent admission.
+Use `account connections recovery list` to resume `creating_key` or inspect
+`sign_in_required` and the eventual `authorized` receipt. Admitted key creation
+can resume after plan expiry; an existing ready key is never silently replaced.
+
+Sign in through the reported replacement connection. Every authorization fixes
+the expected account and revoked public key, including later reauthorization.
+The server must accept that same account with a distinct replacement key and
+prove the previous key is revoked before the native recovery completes. A
+missing local key permits preparation only: authorization still refuses while
+the previous server device is active. A stored positive receipt finishes confirmation
+after an interruption without repeating the single-use exchange. Original
+credentials, local identity and saved contexts retain their identities; create
+new context views explicitly through the replacement connection. New requests
+through the retired enrollment refuse, while exact historical receipt replay
+remains available.
+
+Schema 56 preserves the original database filename and production owner marker;
+older clients refuse its format. Unfinished publication/sync operations belonging
+to the original enrollment must be reconciled before this recovery can be
+admitted. Unrelated enrollment operations are retained. Recovery does not settle
+unknown remote effects or grant corporate installation authority.
+
+Windows account sessions use versioned compressed binary records in the native
+Credential Manager, avoiding its password API's UTF-16 expansion. The native
+blob is limited to 2,560 bytes and decoded records to 64 KiB; records that cannot
+fit refuse before credential publication. Existing password entries remain
+readable and device keys retain their encoding. New session writes fence older
+account-journal readers; retain a compatible client. No token file fallback is
+used.
 
 ## Release and supported platforms
 
@@ -98,12 +137,12 @@ older operating systems are not implicitly qualified. Linux uses the system GNU
 C runtime and Windows the Microsoft C runtime. macOS and Windows artifacts do
 not carry an OS application certificate or notarization.
 
-| Capability | Linux | macOS / Windows |
-|---|---|---|
-| Native metadata, source analysis, authoring, catalog, account, sync and publication | Implemented | Built and exercised by platform CI |
-| Archive-owned CLI installation/update | Implemented | Exercised by platform CI |
-| Isolated provider execution, setup installation and active-session handoff | Implemented | Unavailable; explicit refusal |
-| In-place legacy state transfer | Real SQLite/WAL and interrupted file-credential proof | macOS file-credential proof; Windows rejects file credentials, native keyring adapter is compiled |
+| Capability                                                                          | Linux                                                 | macOS / Windows                                                                                   |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Native metadata, source analysis, authoring, catalog, account, sync and publication | Implemented                                           | Built and exercised by platform CI                                                                |
+| Archive-owned CLI installation/update                                               | Implemented                                           | Exercised by platform CI                                                                          |
+| Isolated provider execution, setup installation and active-session handoff          | Implemented                                           | Unavailable; explicit refusal                                                                     |
+| In-place legacy state transfer                                                      | Real SQLite/WAL and interrupted file-credential proof | macOS file-credential proof; Windows rejects file credentials, native keyring adapter is compiled |
 
 `capabilities` reports the running platform and installation boundary. Build
 success is not a claim that an unavailable provider sandbox works on that OS.
@@ -207,15 +246,15 @@ stable storage identifiers, not a second product.
 
 ## Business services
 
-| Modules | Implemented responsibility |
-|---|---|
-| `identity`, `account`, `migration` | Offline identity, native credential storage, device-code sign-in, refresh/logout, owner attachment, revoked-key recovery and explicit writer transfer |
-| `sources`, `projects`, `authoring` | Bounded discovery and source capture, project evidence, component/setup authoring, revisions, exact versions, import/export, quality checks and conservative native transformations |
-| `selection`, `bundle` | Mechanical compatibility, trust/access constraints, exact graph selection and deterministic scoped bundles |
-| `provider`, `program` | Authenticated installation-component acquisition, user-installed harness observation, isolated configuration writing and recovery |
-| `tasks` | Durable `author` and `install` intents over the same in-process services |
-| `catalog`, `publication`, `sync`, `attestation` | Exact catalog acquisition, publication/visibility, grants, private revision exchange, conflicts, contribution reports and author attestations |
-| `distribution` | Explicit native archive installation and update with owner-bound recovery |
+| Modules                                         | Implemented responsibility                                                                                                                                                          |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `identity`, `account`, `migration`              | Offline identity, native credential storage, device-code sign-in, refresh/logout, owner attachment, revoked-key recovery and explicit writer transfer                               |
+| `sources`, `projects`, `authoring`              | Bounded discovery and source capture, project evidence, component/setup authoring, revisions, exact versions, import/export, quality checks and conservative native transformations |
+| `selection`, `bundle`                           | Mechanical compatibility, trust/access constraints, exact graph selection and deterministic scoped bundles                                                                          |
+| `provider`, `program`                           | Authenticated installation-component acquisition, user-installed harness observation, isolated configuration writing and recovery                                                   |
+| `tasks`                                         | Durable `author` and `install` intents over the same in-process services                                                                                                            |
+| `catalog`, `publication`, `sync`, `attestation` | Exact catalog acquisition, publication/visibility, grants, private revision exchange, conflicts, contribution reports and author attestations                                       |
+| `distribution`                                  | Explicit native archive installation and update with owner-bound recovery                                                                                                           |
 
 `config show/validate` accepts only implemented network settings: `catalog.enabled`,
 `catalog.url` and `sync.enabled`. Configuration is selected explicitly with

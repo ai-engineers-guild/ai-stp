@@ -13,6 +13,13 @@ use crate::{
     files::OwnedDirectory,
 };
 
+pub(crate) const WINDOWS_ACCOUNT_OWNER: &[u8] =
+    b"ai-stp-cli-v2 isolated Windows account records v1\n";
+
+#[cfg(any(test, windows))]
+#[path = "credentials/windows_record.rs"]
+mod windows_record;
+
 pub(super) fn unavailable() -> Failure {
     Failure::new(
         ErrorKind::Unavailable,
@@ -42,7 +49,7 @@ pub(super) static KEYCHAIN_ACCESS: std::sync::Mutex<()> = std::sync::Mutex::new(
 fn native_read(id: &str) -> Result<Option<Zeroizing<Vec<u8>>>> {
     #[cfg(target_os = "linux")]
     return super::secret_service::read(id);
-    #[cfg(any(target_os = "macos", windows))]
+    #[cfg(target_os = "macos")]
     {
         #[cfg(target_os = "macos")]
         let _access = KEYCHAIN_ACCESS.lock().map_err(|_| unavailable())?;
@@ -53,6 +60,23 @@ fn native_read(id: &str) -> Result<Option<Zeroizing<Vec<u8>>>> {
             Err(keyring_core::Error::NoEntry) => Ok(None),
             Err(_) => Err(unavailable()),
         }
+    }
+    #[cfg(windows)]
+    {
+        let entry = native_entry(id)?;
+        let bytes = match entry.get_secret() {
+            Ok(value) => Zeroizing::new(value),
+            Err(keyring_core::Error::NoEntry) => return Ok(None),
+            Err(_) => return Err(unavailable()),
+        };
+        if windows_record::recognizes(&bytes) {
+            return windows_record::decode(&bytes).map(Some);
+        }
+        // Existing password entries retain the store's UTF-16 decoding.
+        entry
+            .get_password()
+            .map(|value| Some(Zeroizing::new(value.into_bytes())))
+            .map_err(|_| unavailable())
     }
     #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
     {
@@ -66,7 +90,7 @@ fn native_write(id: &str, value: &str, replace: bool) -> Result<()> {
     let _ = replace;
     #[cfg(target_os = "linux")]
     return super::secret_service::write(id, value, replace);
-    #[cfg(any(target_os = "macos", windows))]
+    #[cfg(target_os = "macos")]
     {
         #[cfg(target_os = "macos")]
         let _access = KEYCHAIN_ACCESS.lock().map_err(|_| unavailable())?;
@@ -75,6 +99,16 @@ fn native_write(id: &str, value: &str, replace: bool) -> Result<()> {
         native_entry(id)?
             .set_password(value)
             .map_err(|_| unavailable())
+    }
+    #[cfg(windows)]
+    {
+        let entry = native_entry(id)?;
+        if id.starts_with("account-") {
+            let bytes = windows_record::encode(value.as_bytes())?;
+            entry.set_secret(&bytes).map_err(|_| unavailable())
+        } else {
+            entry.set_password(value).map_err(|_| unavailable())
+        }
     }
     #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
     {
@@ -292,6 +326,11 @@ mod tests {
             assert!(vault.read(name, 65536)?.is_none());
         }
         let _cleanup = Cleanup(names.to_vec());
+        native_entry(&names[1])?.set_password("legacy-account-state")?;
+        assert!(
+            vault.read(&names[1], 65536)?.as_deref().map(Vec::as_slice)
+                == Some(b"legacy-account-state".as_slice())
+        );
         let replacement = super::super::generate()?;
         vault.create_key(&old, &super::super::generate()?)?;
         vault.write_account(&names[1], "disposable-account-state")?;

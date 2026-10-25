@@ -70,10 +70,19 @@ impl Plan {
                     self.action,
                     Action::Attach | Action::Recover | Action::Import
                 )
-                || self.expected_account_id.is_some()
-                || self.revoked_public_key.is_some()
+                || self.expected_account_id.is_some() != self.revoked_public_key.is_some()
             {
                 return Err(super::invalid());
+            }
+            if let Some(key) = &self.revoked_public_key {
+                use base64::{Engine, engine::general_purpose::STANDARD};
+                let decoded = STANDARD.decode(key).map_err(|_| super::invalid())?;
+                if decoded.len() != 32
+                    || STANDARD.encode(decoded) != *key
+                    || *key == connection.public_key
+                {
+                    return Err(super::invalid());
+                }
             }
         }
         match (&self.attachment, self.action) {

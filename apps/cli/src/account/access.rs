@@ -107,6 +107,10 @@ impl Access {
             .state()?
             .ok_or_else(|| refused("account_required"))?;
         super::check_binding(&identity, &state.plan)?;
+        super::check_enrollment_constraints(&identity, &state.plan)?;
+        if let Some(connection) = &state.plan.connection {
+            super::enrollment_recovery::fresh(&identity, connection)?;
+        }
         let Session::Authorized { account_id, .. } = &state.session else {
             return Err(refused("account_required"));
         };
