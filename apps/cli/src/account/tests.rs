@@ -8,6 +8,8 @@ mod visibility_tests;
 use super::*;
 #[path = "access_tests.rs"]
 mod access_tests;
+#[path = "acquisition_tests.rs"]
+mod acquisition_tests;
 #[path = "attachment_tests.rs"]
 mod attachment_tests;
 #[path = "attestation_tests.rs"]

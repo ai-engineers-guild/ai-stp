@@ -672,6 +672,7 @@ const COMMANDS: &[Declaration] = &[
             CONFIG,
             ID,
             PRIVATE,
+            account::CONNECTION,
             Parameter {
                 name: "version",
                 summary: "Exact immutable setup X.Y version.",

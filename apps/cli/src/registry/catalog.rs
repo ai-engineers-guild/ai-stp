@@ -38,13 +38,18 @@ pub(super) fn plan(leaf: &ArgMatches) -> Result<Value> {
     let root =
         path(leaf, "state-dir").ok_or_else(|| Failure::input("state directory is required"))?;
     let config = path(leaf, "config");
+    let connection = leaf.get_one::<String>("connection").map(String::as_str);
+    if connection.is_some() && !flag(leaf, "private") {
+        return Err(Failure::input(
+            "a retained catalog connection requires explicit private acquisition",
+        ));
+    }
     let mut access = if flag(leaf, "private") {
         let endpoint = Endpoint::configured(config)?;
-        Some(Access::load(
-            root,
-            &endpoint.base.origin().ascii_serialization(),
-            false,
-        )?)
+        Some(match connection {
+            Some(connection) => Access::for_connection(root, None, Some(connection), false)?,
+            None => Access::load(root, &endpoint.base.origin().ascii_serialization(), false)?,
+        })
     } else {
         None
     };
