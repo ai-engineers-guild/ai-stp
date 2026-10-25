@@ -9,6 +9,7 @@ import {
 } from "react-router";
 import {
   Activity,
+  Building2,
   ArrowUpRight,
   Bug,
   Home,
@@ -25,9 +26,12 @@ import {
 } from "lucide-react";
 import { useApp, useDebug } from "./store";
 import { readPreference, writePreference } from "./preferences";
+import { useContexts } from "./contexts";
+import ContextSwitcher from "./components/ContextSwitcher";
 import OverviewPage from "./pages/OverviewPage";
 import AuthPage from "./pages/AuthPage";
 import ProfilesPage from "./pages/ProfilesPage";
+import CorporatePage from "./pages/CorporatePage";
 import CatalogPage from "./pages/CatalogPage";
 import TasksPage from "./pages/TasksPage";
 import InstallPage from "./pages/InstallPage";
@@ -43,6 +47,7 @@ const GROUPS = [
     items: [
       { to: "/", icon: Home, label: "Overview" },
       { to: "/catalog", icon: Package, label: "Catalog" },
+      { to: "/corporate", icon: Building2, label: "Company" },
       { to: "/install", icon: Wrench, label: "Setups" },
       { to: "/tasks", icon: ListChecks, label: "Activity" },
     ],
@@ -67,6 +72,7 @@ const GROUPS = [
 ];
 
 function Shell() {
+  const context = useContexts((state) => state.selected);
   const { auth, cliOk, cliVersion, refreshAuth, refreshCli } = useApp();
   const failures = useDebug(
     (s) => s.log.filter((entry) => entry.ok !== true).length,
@@ -125,6 +131,7 @@ function Shell() {
             <span className="brand-caption">Your agent workspace</span>
           </span>
         </NavLink>
+        <ContextSwitcher />
         <nav aria-label="Main navigation" className="sidebar-nav">
           {GROUPS.map((group) => (
             <div key={group.label} className="nav-group">
@@ -166,8 +173,19 @@ function Shell() {
             </span>
           </div>
           <div className="flex items-center justify-between gap-2">
-            <NavLink to="/auth" className="account-link">
-              {signedIn ? "Account connected" : "Connect account"}
+            <NavLink
+              to={
+                context?.connection
+                  ? `/auth?connection=${encodeURIComponent(context.connection)}`
+                  : "/auth"
+              }
+              className="account-link"
+            >
+              {context?.connection
+                ? "Context account"
+                : signedIn
+                  ? "Account connected"
+                  : "Connect account"}
               <ArrowUpRight size={13} />
             </NavLink>
             <button
@@ -186,6 +204,7 @@ function Shell() {
             <Route path="/" element={<OverviewPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/profiles" element={<ProfilesPage />} />
+            <Route path="/corporate" element={<CorporatePage />} />
             <Route path="/catalog" element={<CatalogPage />} />
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/install" element={<InstallPage />} />
