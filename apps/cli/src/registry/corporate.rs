@@ -14,6 +14,7 @@ pub(super) enum Handler {
     Teams,
     Projects,
     Project,
+    LinkTarget,
     Technologies,
     Mappings,
     Mapping,
@@ -98,6 +99,19 @@ pub(super) const COMMANDS: &[Declaration] = &[
             },
         ],
         handler: super::Handler::Corporate(Handler::Project),
+    },
+    Declaration {
+        path: &["corporate", "project", "link-target"],
+        summary: "Read exact current project and provider revisions before a separate link plan; create no link or installation authority.",
+        parameters: &[
+            STATE_DIR,
+            CONTEXT,
+            Parameter {
+                required: true,
+                ..PROJECT
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LinkTarget),
     },
     Declaration {
         path: &["corporate", "technologies"],
@@ -193,6 +207,9 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             membership_only: args.get_flag("membership-only"),
         },
         Handler::Project => Request::Project {
+            project_id: text("project")?,
+        },
+        Handler::LinkTarget => Request::LinkTarget {
             project_id: text("project")?,
         },
         Handler::Technologies => Request::Technologies {

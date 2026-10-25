@@ -27,6 +27,7 @@ from ai_stp_platform.organization_models import (
     OrganizationMembership,
     ProjectIdentity,
     ProjectLink,
+    ProjectLinkPlan,
     ProjectLinkProposal,
     ProjectRevision,
     ProjectRevisionHead,
@@ -152,6 +153,148 @@ def revision_payload(
         "authorization_revision": authorization_revision,
         "idempotency_key": idempotency_key,
     }
+
+
+async def test_link_target_metadata_is_fresh_read_only_and_device_qualified(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+) -> None:
+    client, sessionmaker, token, organization, link_id, remote = project_harness
+    headers = {"Authorization": f"Bearer {token}", "X-AI-STP-Organization-Id": organization}
+    route = f"/v1/organizations/{organization}/project-link-targets/{remote}"
+    initial = await client.get(route, headers=headers)
+    assert initial.status_code == 200, initial.text
+    assert initial.headers["cache-control"] == "private, no-store"
+    assert initial.json()["remote_revision"] == "initial"
+    assert initial.json()["providers"] == [] and initial.json()["observation_only"] is True
+    revision = revision_payload(
+        remote_project_id=remote,
+        parents=[],
+        expected=None,
+        event_id="link-target-observed-head",
+        idempotency_key="link-target-observed-head",
+        authorization_revision=initial.json()["authorization_revision"],
+    )
+    pushed = await client.post(
+        f"/v1/projects/links/{link_id}/revisions", headers=headers, json=revision
+    )
+    assert pushed.status_code == 200, pushed.text
+    provider_id = new_id("provider_project")
+    async with sessionmaker() as db:
+        provider = ProjectIdentity(
+            id=provider_id,
+            organization_id=organization,
+            namespace="provider",
+            external_key="immutable-link-target-repo",
+            display_name="Repository",
+            provider_kind="github",
+            immutable_repository_id="123456",
+            revision=4,
+        )
+        db.add(provider)
+        await db.flush()
+        link = await db.get(ProjectLink, link_id)
+        assert link is not None
+        link.provider_project_id = provider_id
+        await db.commit()
+        before = [
+            await db.scalar(select(func.count()).select_from(model))
+            for model in (AuditEvent, ProjectLink, ProjectLinkPlan)
+        ]
+    observed = await client.get(route, headers=headers)
+    assert observed.status_code == 200, observed.text
+    assert observed.json()["remote_revision"] == revision["revision_id"]
+    assert observed.json()["providers"] == [
+        {
+            "provider_project_id": provider_id,
+            "provider": "github",
+            "immutable_repository_id": "123456",
+            "revision": 4,
+        }
+    ]
+    async with sessionmaker() as db:
+        after = [
+            await db.scalar(select(func.count()).select_from(model))
+            for model in (AuditEvent, ProjectLink, ProjectLinkPlan)
+        ]
+        assert after == before
+        provider = await db.get(ProjectIdentity, provider_id)
+        assert provider is not None
+        provider.revision += 1
+        await db.commit()
+    refreshed = await client.get(route, headers=headers)
+    assert refreshed.status_code == 200 and refreshed.json()["providers"][0]["revision"] == 5
+    async with sessionmaker() as db:
+        provider = await db.get(ProjectIdentity, provider_id)
+        assert provider is not None
+        provider.immutable_repository_id = None
+        await db.commit()
+    assert (await client.get(route, headers=headers)).status_code == 412
+    async with sessionmaker() as db:
+        link = await db.get(ProjectLink, link_id)
+        assert link is not None
+        device = await db.get(Device, link.device_id)
+        assert device is not None
+        device.state = "revoked"
+        await db.commit()
+    assert (await client.get(route, headers=headers)).status_code == 403
+
+
+async def test_corporate_link_target_metadata_keeps_personal_context_and_tenant_boundaries(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+) -> None:
+    client, sessionmaker, token, personal, link_id, personal_project = project_harness
+    async with sessionmaker() as db:
+        link = await db.get(ProjectLink, link_id)
+        assert link is not None
+        owner = link.actor_account_id
+    bootstrapped = await client.post(
+        "/v1/corporate/bootstrap",
+        json={
+            "organization_name": "Link targets",
+            "superadmin_account_id": owner,
+            "idempotency_key": "link-target-corporate-bootstrap",
+        },
+        headers={"X-AI-STP-Bootstrap-Secret": "corporate-bootstrap-test-secret"},
+    )
+    assert bootstrapped.status_code == 200, bootstrapped.text
+    organization = bootstrapped.json()["organization_id"]
+    headers = {"Authorization": f"Bearer {token}"}
+    project = await client.post(
+        f"/v1/corporate/organizations/{organization}/projects",
+        headers=headers,
+        json={
+            "name": "Shared checkout",
+            "authorization_revision": 1,
+            "idempotency_key": "link-target-corporate-project",
+        },
+    )
+    assert project.status_code == 200, project.text
+    route = f"/v1/organizations/{organization}/project-link-targets/{project.json()['project_id']}"
+    observed = await client.get(route, headers=headers)
+    assert observed.status_code == 200, observed.text
+    assert observed.json()["organization_id"] == organization
+    assert observed.json()["authorization_revision"].startswith(f"corporate:{organization}:")
+    wrong_tenant = await client.get(
+        f"/v1/organizations/{personal}/project-link-targets/{project.json()['project_id']}",
+        headers=headers,
+    )
+    assert wrong_tenant.status_code == 404
+    async with sessionmaker() as db:
+        membership = await db.scalar(
+            select(OrganizationMembership).where(
+                OrganizationMembership.organization_id == organization,
+                OrganizationMembership.account_id == owner,
+            )
+        )
+        assert membership is not None
+        membership.state = "suspended"
+        membership.revision += 1
+        await db.commit()
+    assert (await client.get(route, headers=headers)).status_code == 403
+    personal_read = await client.get(
+        f"/v1/organizations/{personal}/project-link-targets/{personal_project}", headers=headers
+    )
+    assert personal_read.status_code == 200
 
 
 async def test_project_ledger_replay_fast_forward_conflict_and_resolution(
