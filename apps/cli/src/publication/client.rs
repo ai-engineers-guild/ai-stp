@@ -41,8 +41,16 @@ impl Client {
     /// Acquire the account before opening the registry. Callers must release
     /// their SQLite transaction before invoking any exchange below.
     pub fn connect(root: &Path, origin: Option<&str>) -> Result<Self> {
+        Self::for_connection(root, origin, None)
+    }
+
+    pub fn for_connection(
+        root: &Path,
+        origin: Option<&str>,
+        connection: Option<&str>,
+    ) -> Result<Self> {
         Ok(Self {
-            access: Access::for_account(root, origin)?,
+            access: Access::for_connection(root, origin, connection, false)?,
         })
     }
 

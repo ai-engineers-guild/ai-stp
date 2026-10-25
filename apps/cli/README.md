@@ -21,6 +21,17 @@ reads, grants, GitHub source requests, visibility requests and report previews.
 Their retained plans keep that original connection across view changes and retries.
 Omitting the selector explicitly retains the legacy session behavior.
 
+`publication plan`, `attestation plan` and private `sync push/pull plan` also
+accept `--connection ID`. Ownership-sensitive operations require the registry's
+explicit attachment to that account at that origin. An independent enrollment
+of the same account can transport and sign; the native authoring device stays
+unchanged. Matching account IDs at different servers grant no owner authority.
+Publication resume resolves its original retained enrollment automatically.
+Selection access JSON accepts `{"account":true,"connection":"connection_ID"}`;
+its exact plan freezes that enrollment. A connection cannot invoke legacy local
+device recovery. Device sync summaries name the remote enrollment device while
+their observed platform facts still come from the native passport.
+
 `registry acquire plan --private --connection ID` captures an exact private setup
 graph from that connection's origin. Authorization uses its remote enrollment;
 the local identity records acquired bytes without an owner or key transfer.

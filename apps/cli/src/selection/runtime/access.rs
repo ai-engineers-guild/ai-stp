@@ -31,6 +31,8 @@ pub(crate) struct Request {
     trust_pins: BTreeSet<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     account: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    connection: Option<String>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -66,6 +68,10 @@ impl Request {
 
     pub fn validate(&self) -> Result<()> {
         if self.trust_pins.len() > 512
+            || self
+                .connection
+                .as_ref()
+                .is_some_and(|id| !self.account || !crate::passport::stable_id(id, "connection"))
             || self.trust_pins.iter().any(|pin| {
                 !pin.strip_prefix("sha256:").is_some_and(|value| {
                     value.len() == 64
@@ -102,6 +108,14 @@ impl Plan {
         }
         if let Some(binding) = &self.account {
             binding.validate()?;
+            if binding
+                .connection
+                .as_ref()
+                .map(|value| value.connection_id.as_str())
+                != self.request.connection.as_deref()
+            {
+                return Err(invalid());
+            }
         }
         Ok(())
     }
@@ -129,10 +143,18 @@ impl Observed {
             Intent::Apply(plan) => (Request::planned(plan)?, plan),
         };
         request.validate()?;
-        let mut account = request
-            .account
-            .then(|| Access::for_account(parent, None))
-            .transpose()?;
+        let mut account = if let Some(binding) = expected.and_then(|plan| plan.account.as_ref()) {
+            Some(Access::for_binding(parent, binding, false)?)
+        } else if request.account {
+            Some(Access::for_connection(
+                parent,
+                None,
+                request.connection.as_deref(),
+                false,
+            )?)
+        } else {
+            None
+        };
         if let Some(expected) = expected
             && expected.account.as_ref() != account.as_ref().map(Access::binding)
         {
@@ -145,6 +167,11 @@ impl Observed {
         if !request.is_empty() {
             let mut store = owner.planning()?;
             store.transaction(|connection| {
+                let own_account = account
+                    .as_ref()
+                    .map(|access| access.owns_registry(connection))
+                    .transpose()?
+                    .unwrap_or(false);
                 let inherited = attachment::inherited(connection, &owner.account_id)?;
                 for roots in groups {
                     if roots.is_empty() {
@@ -157,14 +184,14 @@ impl Observed {
                     for node in closure["nodes"].as_array().ok_or_else(invalid)? {
                         let address = text(node, "passport_digest")?;
                         known.insert(address.to_owned());
-                        if !request.account || inherited.contains(address) {
+                        if !request.account || own_account && inherited.contains(address) {
                             continue;
                         }
                         let id = text(node, "stable_id")?;
                         let version = text(node, "version")?;
                         let document =
                             Objects { connection }.exact_version(id, version, Some(address))?;
-                        if document["owner_id"] != owner.account_id
+                        if (!own_account || document["owner_id"] != owner.account_id)
                             && document["visibility"] != "public"
                         {
                             private.insert(

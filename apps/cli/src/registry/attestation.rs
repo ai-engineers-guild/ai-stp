@@ -31,6 +31,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
         summary: "Plan an author's declared check evidence for one exact local component or setup; no check or harness is executed.",
         parameters: &[
             STATE_DIR,
+            super::account::CONNECTION,
             Parameter {
                 name: "request",
                 summary: "Closed JSON with stable_id, version and evidence; at most 256 KiB.",
@@ -101,9 +102,10 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     let at = format!("{:.3}", jiff::Timestamp::now());
     match handler {
         Handler::Plan => {
-            let plan = attestation::plan(
+            let plan = attestation::plan_for_connection(
                 path("state-dir")?,
                 args.get_one::<String>("api-url").map(String::as_str),
+                args.get_one::<String>("connection").map(String::as_str),
                 attestation::read_request(path("request")?)?,
                 path("output")?,
                 &at,

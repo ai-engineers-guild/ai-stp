@@ -166,6 +166,21 @@ pub(super) fn owner_binding(connection: &Connection) -> Result<Option<(Identity,
         .transpose()
 }
 
+/// The transfer's server is part of ownership, including after native recovery.
+pub(crate) fn owner_origin(
+    connection: &Connection,
+    device: &identity::Identity,
+) -> Result<Option<String>> {
+    receipt(connection)?
+        .map(|held| {
+            if !device.knows_original(&held.plan.identity) {
+                return Err(invalid());
+            }
+            Ok(held.plan.origin)
+        })
+        .transpose()
+}
+
 pub(crate) fn retained(connection: &Connection, owner: &str, document: &Value) -> Result<bool> {
     if document["owner_id"] == owner {
         return Ok(true);

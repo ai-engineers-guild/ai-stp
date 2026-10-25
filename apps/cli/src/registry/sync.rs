@@ -36,7 +36,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
         path: &["sync", "push", "plan"],
         summary: "Capture one private head and its ancestors, immutable versions, deletion mark, or permitted device/consent summary without writing the registry.",
-        parameters: &[STATE_DIR, API, CONFIG, ID],
+        parameters: &[STATE_DIR, API, super::account::CONNECTION, CONFIG, ID],
         handler: super::Handler::Sync(Handler::Push),
     },
     Declaration {
@@ -45,6 +45,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
         parameters: &[
             STATE_DIR,
             API,
+            super::account::CONNECTION,
             CONFIG,
             Parameter {
                 name: "page-size",
@@ -67,6 +68,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
         parameters: &[
             STATE_DIR,
             API,
+            super::account::CONNECTION,
             CONFIG,
             Parameter {
                 name: "event-id",
@@ -143,9 +145,10 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         },
         Handler::Apply => return Err(Failure::input("invalid sync command")),
     };
-    let plan = runtime::plan(
+    let plan = runtime::plan_for_connection(
         path("state-dir")?,
         args.get_one::<String>("api-url").map(String::as_str),
+        args.get_one::<String>("connection").map(String::as_str),
         configuration,
         request,
         &at,

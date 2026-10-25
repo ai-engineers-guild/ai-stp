@@ -151,7 +151,15 @@ impl Plan {
     ) -> Result<()> {
         Run::prepare(connection, self, scope, at)?;
         if let (Request::Push { id }, Some(expected)) = (&self.request, &self.capture)
-            && push::capture(connection, owner, id)? != *expected
+            && push::capture_for_sender(
+                connection,
+                owner,
+                &authoring::Identity {
+                    account_id: self.account.account_id.clone(),
+                    device_id: self.account.device_id.clone(),
+                },
+                id,
+            )? != *expected
         {
             return Err(Failure::precondition(
                 "the private push content changed after planning",
@@ -175,22 +183,42 @@ pub fn plan(
     request: Request,
     at: &str,
 ) -> Result<Plan> {
+    plan_for_connection(root, origin, None, configuration, request, at)
+}
+
+pub fn plan_for_connection(
+    root: &Path,
+    origin: Option<&str>,
+    connection: Option<&str>,
+    configuration: Option<&Path>,
+    request: Request,
+    at: &str,
+) -> Result<Plan> {
     request.validate()?;
     client::enabled(configuration)?;
     let state_parent = PathBuf::from(files::location(root)?);
-    let mut account = Access::for_account(&state_parent, origin)?;
+    let mut account = Access::for_connection(&state_parent, origin, connection, false)?;
+    if account.binding().connection.is_some() && matches!(request, Request::Recover { .. }) {
+        return Err(Failure::precondition(
+            "named enrollment recovery requires its own retirement evidence; local device recovery does not apply",
+        ));
+    }
     account.verify()?;
     let owner = authoring::runtime::owner(&state_parent)?;
-    if owner.account_id != account.binding().account_id
-        || owner.device_id != account.binding().device_id
-    {
-        return Err(invalid());
-    }
     let store = owner.planning()?;
+    account.check_registry_owner(&store.connection)?;
     let scope = Scope::new(&account.binding().account_id, &account.binding().origin)?;
     scope.inspect(&store.connection)?;
     let capture = match &request {
-        Request::Push { id } => Some(push::capture(&store.connection, &owner, id)?),
+        Request::Push { id } => Some(push::capture_for_sender(
+            &store.connection,
+            &owner,
+            &authoring::Identity {
+                account_id: account.binding().account_id.clone(),
+                device_id: account.binding().device_id.clone(),
+            },
+            id,
+        )?),
         Request::Pull { .. } | Request::Recover { .. } => None,
     };
     let retirement = match &request {
