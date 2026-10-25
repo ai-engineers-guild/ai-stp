@@ -189,3 +189,52 @@ it("keeps personal operation free of company reads", async () => {
   expect(transport.cmdRunRead).not.toHaveBeenCalled();
   expect(transport.cliPlan).not.toHaveBeenCalled();
 });
+
+it("reads the next organization catalog page with its original search and harness filters", async () => {
+  const page = (name: string, cursor: string | null) =>
+    ok({
+      observation: {
+        context: { context_id: A.id },
+        request: { action: "catalog" },
+        data: {
+          items: [
+            {
+              stable_id: "setup_fixture",
+              latest_name: name,
+              latest_version: "2.4",
+              latest_description: "Company setup details",
+              latest_lifecycle: "active",
+            },
+          ],
+          page: { next_cursor: cursor },
+        },
+      },
+    });
+  vi.mocked(transport.cmdRunRead)
+    .mockResolvedValueOnce(page("First setup", "opaque-page-cursor"))
+    .mockResolvedValueOnce(page("Next setup", null));
+  mount();
+  await ready();
+  fireEvent.click(screen.getByRole("button", { name: "Catalog", exact: true }));
+  fireEvent.change(screen.getByLabelText("Search"), {
+    target: { value: "project setup" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Read catalog" }));
+  await screen.findByText("First setup");
+  expect(screen.getByText("active · 2.4")).toBeTruthy();
+  expect(screen.getByText("Company setup details")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Read next page" }));
+  await screen.findByText("Next setup");
+  expect(transport.cmdRunRead).toHaveBeenLastCalledWith(
+    "corporate catalog search",
+    {
+      context: A.id,
+      kind: "setup",
+      query: "project setup",
+      harness: "codex",
+      cursor: "opaque-page-cursor",
+    },
+    [],
+  );
+  expect(screen.queryByRole("button", { name: "Read next page" })).toBe(null);
+});

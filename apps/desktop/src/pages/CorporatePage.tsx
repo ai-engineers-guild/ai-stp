@@ -85,7 +85,10 @@ export default function CorporatePage() {
     setResult(null);
     setBusy(false);
   }
-  async function read(mapping?: string) {
+  async function read(
+    mapping?: string,
+    page: { cursor?: string; offset?: number } = {},
+  ) {
     if (!context || context.mode !== "corporate" || contextLoading || busy)
       return;
     const view = context.id,
@@ -109,6 +112,7 @@ export default function CorporatePage() {
         case "Technologies":
           path = "corporate technologies";
           if (query.trim()) values.query = query.trim();
+          if (page.offset !== undefined) values.offset = String(page.offset);
           break;
         case "Mappings":
           path = "corporate mappings list";
@@ -118,6 +122,7 @@ export default function CorporatePage() {
           values.kind = kind;
           if (query.trim()) values.query = query.trim();
           if (harness) values.harness = harness;
+          if (page.cursor) values.cursor = page.cursor;
           break;
         case "Assignments":
           path = "corporate assignments preview";
@@ -170,7 +175,27 @@ export default function CorporatePage() {
     data = record(observation.data);
   const rows = records(Array.isArray(data.items) ? data.items : data.entries);
   const permissions = record(record(observation.observation).capabilities);
-  const mapping = record(observation.request).action === "mapping";
+  const observedRequest = record(observation.request);
+  const mapping = observedRequest.action === "mapping";
+  const cursor = record(data.page).next_cursor;
+  const nextCursor =
+    tab === "Catalog" &&
+    observedRequest.action === "catalog" &&
+    typeof cursor === "string" &&
+    cursor.length > 0
+      ? cursor
+      : null;
+  const offset =
+    typeof observedRequest.offset === "number" ? observedRequest.offset : 0;
+  const nextOffset =
+    tab === "Technologies" &&
+    observedRequest.action === "technologies" &&
+    rows.length > 0 &&
+    typeof data.total === "number" &&
+    offset + rows.length < data.total &&
+    offset + rows.length <= 1_000_000
+      ? offset + rows.length
+      : null;
   const unavailable =
     help?.ok === false || (help?.ok === true && !harnesses.length);
   return (
@@ -426,33 +451,46 @@ export default function CorporatePage() {
                     );
                     const name = String(
                       item.name ??
+                        item.display_name ??
                         item.latest_name ??
                         item.coordinate ??
                         item.stable_id ??
                         item.version ??
                         id,
                     );
+                    const status =
+                      item.action ??
+                      item.lifecycle ??
+                      item.latest_lifecycle ??
+                      item.state;
+                    const version = item.version ?? item.latest_version;
+                    const description =
+                      item.description ?? item.latest_description;
+                    const digest = item.passport_digest ?? item.digest;
                     return (
                       <li className="card space-y-3" key={`${id}:${index}`}>
                         <h2 className="font-medium">{name}</h2>
-                        {(item.state != null ||
-                          item.lifecycle != null ||
-                          item.action != null) && (
+                        {(status != null || version != null) && (
                           <p className="text-sm text-muted-foreground">
-                            {String(
-                              item.action ?? item.lifecycle ?? item.state,
-                            )}
-                            {item.version ? ` · ${String(item.version)}` : ""}
+                            {[status, version]
+                              .filter((value) => value != null)
+                              .map(String)
+                              .join(" · ")}
                           </p>
                         )}
-                        {typeof item.description === "string" && (
+                        {typeof description === "string" && (
                           <p className="text-sm text-muted-foreground">
-                            {item.description}
+                            {description}
                           </p>
                         )}
                         <p className="break-all font-mono text-xs text-muted-foreground">
                           {id}
                         </p>
+                        {typeof digest === "string" && (
+                          <p className="break-all font-mono text-xs text-muted-foreground">
+                            {digest}
+                          </p>
+                        )}
                         {tab === "Projects" && (
                           <button
                             className="btn-outline"
@@ -484,6 +522,22 @@ export default function CorporatePage() {
                     );
                   })}
                 </ul>
+              )}
+              {(nextCursor !== null || nextOffset !== null) && (
+                <button
+                  className="btn-outline"
+                  disabled={busy || contextLoading}
+                  onClick={() =>
+                    void read(
+                      undefined,
+                      nextCursor !== null
+                        ? { cursor: nextCursor }
+                        : { offset: nextOffset! },
+                    )
+                  }
+                >
+                  Read next page
+                </button>
               )}
               {tab === "Assignments" && (
                 <p className="text-sm text-muted-foreground">

@@ -40,6 +40,8 @@ harness files. Harness executables remain user/vendor managed.
   by the engine and use an empty company-managed inventory. They do not apply
   installations or include personal setup files. Replies from an earlier context
   are discarded, including after switching away and back to the same context.
+  Catalog and technology pages retain their search filters for explicit next-page
+  reads; catalog versions and assignment digests are visible in the result cards.
 - **Targets**, **Discovery** and **Commands** render the connected engine's
   command descriptors with read/plan/apply gates and explicit apply confirmation.
 - **Diagnostics** offers an optional, bounded in-memory trace and an explicitly
