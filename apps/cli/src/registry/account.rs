@@ -60,12 +60,12 @@ impl Handler {
 pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
         path: &["account", "connections", "recovery", "plan"],
-        summary: "Plan a same-account replacement for one positively revoked enrollment; retain its local identity, original contexts and historical evidence.",
+        summary: "Plan same-account replacement for a revoked or missing-key enrollment; server revocation remains required before authorization.",
         parameters: &[
             STATE_DIR,
             Parameter {
                 name: "connection",
-                summary: "Exact revoked retained connection ID.",
+                summary: "Exact retained connection ID with revocation evidence or a missing enrollment key.",
                 kind: ParameterType::String,
                 required: true,
             },
@@ -233,7 +233,7 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             let plan = account::enrollment_recovery::plan(
                 path("state-dir")?,
                 args.get_one::<String>("connection")
-                    .ok_or_else(|| Failure::input("revoked connection is absent"))?,
+                    .ok_or_else(|| Failure::input("retained connection is absent"))?,
                 args.get_one::<String>("label")
                     .ok_or_else(|| Failure::input("replacement connection label is absent"))?,
                 &at,
