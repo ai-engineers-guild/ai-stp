@@ -14,7 +14,7 @@ use crate::{
     files::{self, OwnedDirectory},
     identity::{self, credentials::Vault},
     passport,
-    store::{PROFILE_SCHEMA, Store, database},
+    store::{Store, database, profile_schema_after},
 };
 
 #[cfg(all(test, unix))]
@@ -22,8 +22,8 @@ use crate::{
 mod tests;
 
 const KIND: &str = "account.connection.create";
-const NAMESPACE: &str = "ai-stp-v2-connections";
-const OWNER: &[u8] = b"ai-stp native enrollment credentials v1\n";
+pub(super) const NAMESPACE: &str = "ai-stp-v2-connections";
+pub(super) const OWNER: &[u8] = b"ai-stp native enrollment credentials v1\n";
 const LIMIT: usize = 64;
 type StoredConnection = (String, String, String, Option<String>, String);
 type Admission = (String, String, Option<String>, String);
@@ -154,6 +154,8 @@ pub struct Plan {
     pub provider: String,
     pub registry_schema_before: u32,
     pub registry_schema_after: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recovery_operation_id: Option<String>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -179,7 +181,7 @@ impl Plan {
         )
     }
 
-    fn validate(&self) -> Result<()> {
+    pub(super) fn validate(&self) -> Result<()> {
         self.local_identity.validate()?;
         self.credential_store.validate()?;
         if self.schema_version != 1
@@ -197,21 +199,25 @@ impl Plan {
             || self.label.len() > 120
             || self.label.trim() != self.label
             || self.label.chars().any(char::is_control)
-            || ![53, 54, PROFILE_SCHEMA].contains(&self.registry_schema_before)
-            || self.registry_schema_after != PROFILE_SCHEMA
+            || profile_schema_after(self.registry_schema_before)? != self.registry_schema_after
+            || self.recovery_operation_id.as_ref().is_some_and(|id| {
+                !passport::stable_id(id, "operation")
+                    || self.registry_schema_before != crate::store::ENROLLMENT_RECOVERY_SCHEMA
+                    || self.registry_schema_after != crate::store::ENROLLMENT_RECOVERY_SCHEMA
+            })
         {
             return Err(invalid());
         }
         Ok(())
     }
 
-    fn bind(&self) -> Result<identity::Identity> {
+    pub(super) fn bind(&self) -> Result<identity::Identity> {
         let id = super::identity_at(&self.root)?;
         self.belongs(&id)?;
         Ok(id)
     }
 
-    fn belongs(&self, id: &identity::Identity) -> Result<()> {
+    pub(super) fn belongs(&self, id: &identity::Identity) -> Result<()> {
         if id.root_binding() != (self.root.as_path(), &self.root_identity)
             || !id.historical(&self.local_identity)
             || id.storage() != self.credential_store
@@ -277,7 +283,8 @@ pub fn plan(root: &Path, label: &str, origin: &str, provider: &str, at: &str) ->
         origin: super::transport::origin(origin)?,
         provider: provider.into(),
         registry_schema_before: version,
-        registry_schema_after: PROFILE_SCHEMA,
+        registry_schema_after: profile_schema_after(version)?,
+        recovery_operation_id: None,
     };
     result.validate()?;
     id.revalidate()?;
@@ -340,6 +347,39 @@ fn detail(record: &Record) -> Result<String> {
     String::from_utf8(bytes).map_err(|_| invalid())
 }
 
+pub(super) fn admit(
+    transaction: &rusqlite::Transaction<'_>,
+    plan: &Plan,
+    expected: &str,
+    namespace: &[String; 2],
+    at: &str,
+) -> Result<Record> {
+    plan.validate()?;
+    if plan.digest()? != expected {
+        return Err(invalid());
+    }
+    let value = Record {
+        plan: plan.clone(),
+        plan_digest: expected.into(),
+        public_key: None,
+        credential_namespace: namespace.clone(),
+    };
+    let detail = detail(&value)?;
+    let count: i64 = transaction
+        .query_row("SELECT count(*) FROM native_connection", [], |row| {
+            row.get(0)
+        })
+        .map_err(database)?;
+    if count >= LIMIT as i64 {
+        return Err(Failure::precondition(
+            "the retained connection limit has been reached",
+        ));
+    }
+    transaction.execute("INSERT INTO operation(operation_id,kind,state,started_at,detail) VALUES (?1,?2,'applying',?3,?4)",params![plan.operation_id,KIND,at,detail]).map_err(database)?;
+    transaction.execute("INSERT INTO native_connection(connection_id,device_id,origin,state,detail) VALUES (?1,?2,?3,'creating',?4)",params![plan.connection_id,plan.device_id,plan.origin,detail]).map_err(database)?;
+    Ok(value)
+}
+
 fn check_namespace(identity: &identity::Identity, expected: &[String; 2]) -> Result<()> {
     let directory = identity
         .root_directory()
@@ -357,6 +397,7 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
         return Err(invalid());
     }
     let id = plan.bind()?;
+    super::enrollment_recovery::check_child(&id, plan)?;
     let observed = {
         let store = Store::planning_at(id.root_directory())?;
         let held = if store.profiles_enabled()? {
@@ -429,21 +470,9 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
                     "the registry format changed; plan this new connection again",
                 ));
             }
-            let value = Record {
-                plan: plan.clone(),
-                plan_digest: expected.into(),
-                public_key: None,
-                credential_namespace: namespace.clone(),
-            };
-            let detail = detail(&value)?;
             store.profile_transaction(|transaction| {
-                let count:i64=transaction.query_row("SELECT count(*) FROM native_connection",[],|row|row.get(0)).map_err(database)?;
-                if count>=LIMIT as i64 {return Err(Failure::precondition("the retained connection limit has been reached"));}
-                transaction.execute("INSERT INTO operation(operation_id,kind,state,started_at,detail) VALUES (?1,?2,'applying',?3,?4)",params![plan.operation_id,KIND,at,detail]).map_err(database)?;
-                transaction.execute("INSERT INTO native_connection(connection_id,device_id,origin,state,detail) VALUES (?1,?2,?3,'creating',?4)",params![plan.connection_id,plan.device_id,plan.origin,detail]).map_err(database)?;
-                Ok(())
-            })?;
-            value
+                admit(transaction, plan, expected, &namespace, at)
+            })?
         }
     };
     id.revalidate()?;
@@ -484,7 +513,7 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
     })?;
     check_namespace(&id, &namespace)?;
     Ok(
-        json!({"schema_version":1,"connection":completed.public(),"registry_schema_version":PROFILE_SCHEMA}),
+        json!({"schema_version":1,"connection":completed.public(),"registry_schema_version":plan.registry_schema_after}),
     )
 }
 

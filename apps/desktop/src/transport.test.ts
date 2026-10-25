@@ -98,3 +98,39 @@ it("keeps company content out of the shared trace while returning the full reply
   expect(entries.some((entry) => entry.error_code === "FORBIDDEN")).toBe(true);
   expect(entries[0].error_code).toBe("IPC_THROW");
 });
+
+it("omits enrollment recovery plans and account evidence from the shared trace", async () => {
+  useDebug.setState({ debugMode: true });
+  const reply = {
+    ok: true,
+    data: { account_id: "canary-account", root: "/canary/private/state" },
+    error: null,
+    error_code: null,
+    warnings: ["canary-recovery-warning"],
+    continuations: [],
+  };
+  vi.mocked(invoke).mockResolvedValue(reply);
+  expect(await cmdRunRead("account connections recovery list")).toBe(reply);
+  await cliPlan(" account   connections recovery plan ", {
+    connection: "canary-old-connection",
+    label: "canary-new-label",
+  });
+  await cmdProfileApply(
+    "account connections recovery apply",
+    {
+      previous: "canary-original-evidence",
+      replacement: "canary-new-key-plan",
+    },
+    "sha256:fixture",
+    true,
+  );
+  vi.mocked(invoke).mockRejectedValue(new Error("canary-recovery-transport"));
+  expect(
+    (await cmdRunRead("account connections recovery list")).error_code,
+  ).toBe("IPC_THROW");
+  const entries = useDebug.getState().log;
+  expect(entries).toHaveLength(4);
+  expect(JSON.stringify(entries)).not.toContain("canary");
+  expect(entries.every((entry) => entry.result === undefined)).toBe(true);
+  expect(entries[0].error_code).toBe("IPC_THROW");
+});

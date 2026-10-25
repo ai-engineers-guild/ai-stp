@@ -10,7 +10,7 @@ use crate::{
     authoring, canonical, digest,
     error::{Failure, Result},
     files, identity, passport,
-    store::{PROFILE_SCHEMA, Store, database},
+    store::{ENROLLMENT_RECOVERY_SCHEMA, PROFILE_SCHEMA, Store, database, profile_schema_after},
     wire,
 };
 
@@ -281,7 +281,7 @@ impl Plan {
     fn validate(&self) -> Result<()> {
         self.context().validate()?;
         if self.schema_version != 1
-            || self.registry_schema_after != PROFILE_SCHEMA
+            || ![PROFILE_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA].contains(&self.registry_schema_after)
             || !passport::stable_id(&self.operation_id, "operation")
             || !passport::timestamp(&self.created_at)
             || self.expires_at != authoring::expiry(&self.created_at)?
@@ -293,7 +293,7 @@ impl Plan {
                 context,
                 registry_schema_before,
             } => {
-                if ![53, 54, PROFILE_SCHEMA].contains(registry_schema_before)
+                if profile_schema_after(*registry_schema_before)? != self.registry_schema_after
                     || context.observed_at != self.created_at
                 {
                     return Err(invalid());
@@ -534,7 +534,7 @@ fn create_with_source(
         .map_err(database)?;
     let plan = Plan {
         schema_version: 1,
-        registry_schema_after: PROFILE_SCHEMA,
+        registry_schema_after: profile_schema_after(version)?,
         operation_id: format!("operation_{}", ulid::Ulid::generate()),
         created_at: at.into(),
         expires_at: authoring::expiry(at)?,
@@ -558,7 +558,7 @@ pub fn select_plan(root: &Path, context: &str, at: &str) -> Result<Plan> {
     context.check(&id)?;
     let plan = Plan {
         schema_version: 1,
-        registry_schema_after: PROFILE_SCHEMA,
+        registry_schema_after: store.version()?,
         operation_id: format!("operation_{}", ulid::Ulid::generate()),
         created_at: at.into(),
         expires_at: authoring::expiry(at)?,
@@ -662,6 +662,11 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
         None
     };
     let mut store = Store::open_at(id.root_directory(), true)?;
+    if profile_schema_after(store.version()?)? != plan.registry_schema_after {
+        return Err(Failure::precondition(
+            "the registry format changed; review a new context plan",
+        ));
+    }
     if let Change::Create {
         registry_schema_before,
         ..
@@ -682,7 +687,7 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
         match &plan.change {
             Change::Create {context,registry_schema_before}=>{
                 // profile_transaction performs the explicit format upgrade in this commit.
-                if ![53,54,PROFILE_SCHEMA].contains(registry_schema_before) {return Err(invalid());}
+                if profile_schema_after(*registry_schema_before)? != plan.registry_schema_after {return Err(invalid());}
                 let count:i64=tx.query_row("SELECT count(*) FROM native_context",[],|row|row.get(0)).map_err(database)?;
                 if count>=LIMIT as i64 {return Err(Failure::precondition("the retained context limit has been reached"));}
                 tx.execute("INSERT INTO native_context(context_id,connection_id,detail) VALUES (?1,?2,?3)",
