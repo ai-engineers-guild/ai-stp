@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { readPreference, writePreference } from "./preferences";
 import {
   cmdAuthStatus,
   cmdCapabilities,
@@ -34,15 +35,7 @@ interface DebugState {
 }
 
 function debugPreference(): boolean {
-  try {
-    return (
-      typeof localStorage !== "undefined" &&
-      typeof localStorage.getItem === "function" &&
-      localStorage.getItem("ai-stp.debug") === "1"
-    );
-  } catch {
-    return false;
-  }
+  return readPreference("ai-stp.debug") === "1";
 }
 
 export const useDebug = create<DebugState>((set) => ({
@@ -56,16 +49,7 @@ export const useDebug = create<DebugState>((set) => ({
       ),
     })),
   setDebugMode: (v) => {
-    try {
-      if (
-        typeof localStorage !== "undefined" &&
-        typeof localStorage.setItem === "function"
-      ) {
-        localStorage.setItem("ai-stp.debug", v ? "1" : "0");
-      }
-    } catch {
-      // An optional preference cannot prevent startup or an explicit toggle.
-    }
+    writePreference("ai-stp.debug", v ? "1" : "0");
     set({ debugMode: v });
   },
   clear: () => set({ log: [] }),

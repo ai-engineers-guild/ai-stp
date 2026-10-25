@@ -24,6 +24,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { useApp, useDebug } from "./store";
+import { readPreference, writePreference } from "./preferences";
 import OverviewPage from "./pages/OverviewPage";
 import AuthPage from "./pages/AuthPage";
 import ProfilesPage from "./pages/ProfilesPage";
@@ -77,7 +78,7 @@ function Shell() {
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const apply = () => {
-      const saved = localStorage.getItem("ai-stp.theme");
+      const saved = readPreference("ai-stp.theme");
       const next = saved ? saved === "dark" : mq.matches;
       document.documentElement.classList.toggle("dark", next);
       setDark(next);
@@ -100,7 +101,7 @@ function Shell() {
     const next = !dark;
     setDark(next);
     document.documentElement.classList.toggle("dark", next);
-    localStorage.setItem("ai-stp.theme", next ? "dark" : "light");
+    writePreference("ai-stp.theme", next ? "dark" : "light");
   }
   return (
     <div className="app-shell">
