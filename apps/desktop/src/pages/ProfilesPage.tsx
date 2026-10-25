@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useContexts } from "../contexts";
 import { Link } from "react-router";
 import {
   cliPlan,
@@ -139,6 +140,7 @@ export default function ProfilesPage() {
         exact.digest,
         true,
       );
+      if (response.ok) await useContexts.getState().refresh(true);
       if (!active.current) return;
       setResult(response);
       if (response.ok) clearReview();

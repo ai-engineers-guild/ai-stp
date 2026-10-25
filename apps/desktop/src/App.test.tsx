@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import App from "./App";
 import { useApp } from "./store";
+import { useContexts } from "./contexts";
 
 const originalScrollTo = Object.getOwnPropertyDescriptor(
   HTMLElement.prototype,
@@ -10,6 +11,14 @@ const originalScrollTo = Object.getOwnPropertyDescriptor(
 );
 
 beforeEach(() => {
+  useContexts.setState({
+    views: [],
+    selected: null,
+    result: null,
+    loading: false,
+    switching: false,
+    refresh: vi.fn(async () => {}),
+  });
   window.location.hash = "#/";
   Object.defineProperty(HTMLElement.prototype, "scrollTo", {
     configurable: true,
