@@ -1,0 +1,201 @@
+{
+  "$defs": {
+    "CorporateProjectRepository": {
+      "additionalProperties": true,
+      "properties": {
+        "default_branch": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default Branch"
+        },
+        "namespace": {
+          "title": "Namespace",
+          "type": "string"
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "observed_revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Observed Revision"
+        },
+        "provider": {
+          "default": "gitlab",
+          "enum": [
+            "gitlab",
+            "github"
+          ],
+          "title": "Provider",
+          "type": "string"
+        },
+        "provider_project_id": {
+          "title": "Provider Project Id",
+          "type": "string"
+        },
+        "repository_url": {
+          "title": "Repository Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "default_branch",
+        "namespace",
+        "observed_at",
+        "observed_revision",
+        "provider",
+        "provider_project_id",
+        "repository_url"
+      ],
+      "title": "CorporateProjectRepository",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-project-view",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "available_actions": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 128,
+      "title": "Available Actions",
+      "type": "array"
+    },
+    "lifecycle": {
+      "anyOf": [
+        {
+          "enum": [
+            "active",
+            "deprecated",
+            "archived",
+            "deleted"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lifecycle"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "repositories": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CorporateProjectRepository"
+      },
+      "maxItems": 256,
+      "title": "Repositories",
+      "type": "array"
+    },
+    "repository_activity_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "restore_lifecycle": {
+      "anyOf": [
+        {
+          "enum": [
+            "active",
+            "deprecated"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Restore Lifecycle"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source_availability": {
+      "default": "unknown",
+      "enum": [
+        "unknown",
+        "available",
+        "unavailable"
+      ],
+      "title": "Source Availability",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "active",
+        "archived"
+      ],
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "available_actions",
+    "name",
+    "organization_id",
+    "project_id",
+    "revision",
+    "schema_version",
+    "state"
+  ],
+  "title": "CorporateProjectView",
+  "type": "object"
+}
