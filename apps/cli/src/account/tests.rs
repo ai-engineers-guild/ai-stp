@@ -16,6 +16,8 @@ mod attachment_tests;
 mod attestation_tests;
 #[path = "context_http_tests.rs"]
 mod context_http_tests;
+#[path = "corporate_http_tests.rs"]
+mod corporate_http_tests;
 #[path = "enrollments_tests.rs"]
 mod enrollments_tests;
 #[path = "github_tests.rs"]

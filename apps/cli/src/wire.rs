@@ -72,7 +72,7 @@ impl Schema {
     }
 }
 
-fn allow_explicit_defaults(schema: &mut Value) {
+pub(crate) fn allow_explicit_defaults(schema: &mut Value) {
     if let Value::Object(object) = schema {
         let optional: Vec<String> = object
             .get("properties")
