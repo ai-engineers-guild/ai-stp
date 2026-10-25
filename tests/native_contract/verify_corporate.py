@@ -359,6 +359,61 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
     target = await observe("project", "link-target", "--project", project)
     assert target["remote_project_id"] == project and target["remote_revision"] == "initial"
     assert target["providers"] == [] and target["observation_only"] is True
+    async with app.state.sessionmaker() as db:
+        link_session = await issue_session(
+            db, account_id=accounts[0], device_id=connections[0]["device_id"], ttl_seconds=3600
+        )
+        await db.commit()
+    link_headers = {
+        "Authorization": f"Bearer {link_session.raw_token}",
+        "X-AI-STP-Organization-Id": organization,
+    }
+    async with AsyncClient(base_url=origin, timeout=15, trust_env=False) as client:
+        planned = await client.post(
+            f"/v1/organizations/{organization}/project-link-plans",
+            headers=link_headers,
+            json={
+                "local_project_id": new_id("project"),
+                "remote_project_id": project,
+                "local_revision": "native-outcome-fixture",
+                "remote_revision": target["remote_revision"],
+                "authorization_revision": target["authorization_revision"],
+                "idempotency_key": "native-link-outcome-plan",
+            },
+        )
+        assert planned.status_code == 201, planned.text
+        link_plan = planned.json()
+        ready = await observe("project", "link-outcome", "--plan-id", link_plan["plan_id"])
+        assert ready["state"] == "ready" and ready["link"] is None
+        assert ready["plan"] == link_plan and ready["observation_only"]
+        confirmed = await client.post(
+            "/v1/projects/links",
+            headers=link_headers,
+            json={
+                "plan_id": link_plan["plan_id"],
+                "plan_digest": link_plan["plan_digest"],
+                "authorization_revision": target["authorization_revision"],
+                "idempotency_key": "native-link-outcome-confirm",
+            },
+        )
+        assert confirmed.status_code == 201, confirmed.text
+    applied = await observe("project", "link-outcome", "--plan-id", link_plan["plan_id"])
+    assert applied["state"] == "applied" and applied["plan"] == link_plan
+    assert applied["link"] == confirmed.json()
+    await refused(
+        binary,
+        home,
+        [
+            "corporate",
+            "project",
+            "link-outcome",
+            "--plan-id",
+            link_plan["plan_id"],
+            "--context",
+            contexts[1],
+            *scoped,
+        ],
+    )
     assert team in {item["team_id"] for item in (await observe("teams"))["items"]}
     assert technology in {
         item["technology_id"]
@@ -670,6 +725,7 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
                 "legacy_session": "preserved",
                 "membership_revocation": "refused",
                 "read_operations_added": 0,
+                "link_plan_outcome": "exact_ready_and_applied_account_bound_reads",
                 "enrollment_recovery": "same_account_only",
             }
         ),

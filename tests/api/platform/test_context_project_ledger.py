@@ -248,6 +248,18 @@ async def test_link_plan_outcome_reads_lost_confirmation_without_mutation(
     )
     assert denied.status_code == 403
     assert await counts() == before
+    async with sessionmaker() as db:
+        retained_link = await db.get(ProjectLink, confirmed.json()["link_id"])
+        assert retained_link is not None
+        retained_link.state = "unlinked"
+        retained_link.revision += 1
+        await db.commit()
+    unlinked = await client.get(route, headers=replacement_headers)
+    assert unlinked.status_code == 200, unlinked.text
+    assert unlinked.json()["state"] == "applied" and unlinked.json()["plan"] == plan
+    assert unlinked.json()["link"]["link_id"] == confirmed.json()["link_id"]
+    assert unlinked.json()["link"]["state"] == "unlinked"
+    assert await counts() == before
 
 
 async def test_link_plan_outcome_expiry_account_tenant_and_corruption_fences(
