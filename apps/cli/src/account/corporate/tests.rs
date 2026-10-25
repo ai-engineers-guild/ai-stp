@@ -123,6 +123,46 @@ fn actual_contract_corpus_keeps_corporate_coordinates_and_drops_extensions() -> 
 }
 
 #[test]
+fn populated_team_pages_follow_the_servers_opaque_identity_contract() -> Result<()> {
+    let team = fixture(CORPORATE, "readCorporateTeam")?;
+    let mut page = json!({"schema_version":1,"items":[team]});
+    let projected = Request::Teams.project(&page, ORGANIZATION, ACCOUNT)?;
+    assert_eq!(
+        projected["items"][0]["team_id"],
+        page["items"][0]["team_id"]
+    );
+    page["items"][0]["team_id"] = "external-team-identifier".into();
+    Request::Teams.project(&page, ORGANIZATION, ACCOUNT)?;
+    for invalid_id in [String::new(), "x".repeat(129), "team\nidentity".into()] {
+        page["items"][0]["team_id"] = invalid_id.into();
+        assert!(
+            Request::Teams
+                .project(&page, ORGANIZATION, ACCOUNT)
+                .is_err()
+        );
+    }
+    page["items"][0]["team_id"] = "opaque-team".into();
+    let duplicate = page["items"][0].clone();
+    page["items"]
+        .as_array_mut()
+        .ok_or_else(invalid)?
+        .push(duplicate);
+    assert!(
+        Request::Teams
+            .project(&page, ORGANIZATION, ACCOUNT)
+            .is_err()
+    );
+    page["items"].as_array_mut().ok_or_else(invalid)?.pop();
+    page["items"][0]["organization_id"] = "organization_01ARZ3NDEKTSV4RRFFQ69G5FAV".into();
+    assert!(
+        Request::Teams
+            .project(&page, ORGANIZATION, ACCOUNT)
+            .is_err()
+    );
+    Ok(())
+}
+
+#[test]
 fn every_initial_harness_uses_the_current_account_and_no_mixed_installation_inventory() -> Result<()>
 {
     for target in [
