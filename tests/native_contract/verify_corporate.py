@@ -649,6 +649,71 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         assert (
             await db.scalar(select(func.count()).select_from(CorporateAssignmentDistribution)) == 0
         )
+    # Losing a local key permits preparation, never proof of server revocation.
+    # The real exchange must refuse while that previous server device is active.
+    retained = await run("account", "status", "--connection", replacement)
+    missing_key = state / "ai-stp-v2-connections" / f"device-key.{child['device_id']}"
+    assert missing_key.is_file() and not missing_key.is_symlink()
+    missing_key.unlink()
+    missing = await run(
+        "account",
+        "connections",
+        "recovery",
+        "plan",
+        "--connection",
+        replacement,
+        "--label",
+        "Missing-key company",
+    )
+    assert missing["plan"]["schema_version"] == 2
+    assert "revoked_receipt_digest" not in missing["plan"]
+    assert missing["plan"]["missing_key"]["session_receipt_digest"].startswith("sha256:")
+    pending = await enact(missing, "account", "connections", "recovery", "apply")
+    assert pending["state"] == "sign_in_required"
+    assert pending["preparation_reason"] == "missing_enrollment_key"
+    assert pending["server_preconditions"] == [
+        "same_account",
+        "revoked_previous_key",
+        "distinct_new_key",
+    ]
+    next_connection = pending["replacement_connection_id"]
+    next_child = missing["plan"]["replacement"]
+    await login(accounts[0], next_connection, authorized=False)
+    async with app.state.sessionmaker() as db:
+        previous = await db.get(Device, child["device_id"])
+        assert previous is not None and previous.state == "active"
+        assert await db.get(Device, next_child["device_id"]) is None
+        previous.state = "revoked"
+        await db.commit()
+    pending_recoveries = await run("account", "connections", "recovery", "list")
+    assert (
+        next(
+            recovery
+            for recovery in pending_recoveries["recoveries"]
+            if recovery["replacement_connection_id"] == next_connection
+        )["state"]
+        == "sign_in_required"
+    )
+    await login(accounts[0], next_connection)
+    assert (await enact(missing, "account", "connections", "recovery", "apply"))[
+        "state"
+    ] == "authorized"
+    assert await run("account", "status", "--connection", replacement) == retained
+    assert await run("context", "list") == snapshot
+    assert await run("device", "show") == original
+    assert (await run("account", "status"))["session"]["account_id"] == accounts[0]
+    assert (await run("account", "status", "--connection", connections[1]["connection_id"]))[
+        "session"
+    ]["account_id"] == accounts[1]
+    async with app.state.sessionmaker() as db:
+        previous = await db.get(Device, child["device_id"])
+        newest = await db.get(Device, next_child["device_id"])
+        assert previous is not None and previous.state == "revoked"
+        assert newest is not None and newest.state == "active"
+        assert newest.account_id == accounts[0] and newest.public_key != previous.public_key
+        assert (
+            await db.scalar(select(func.count()).select_from(CorporateAssignmentDistribution)) == 0
+        )
     print(
         json.dumps(
             {
@@ -668,6 +733,7 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
                 "membership_revocation": "refused",
                 "read_operations_added": 0,
                 "enrollment_recovery": "same_account_only",
+                "missing_key_recovery": "active_previous_device_refused_before_revocation",
             }
         ),
         flush=True,

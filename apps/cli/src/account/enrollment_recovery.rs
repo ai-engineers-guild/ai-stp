@@ -1,4 +1,4 @@
-//! Reviewed replacement of one revoked enrollment without rotating local identity.
+//! Reviewed enrollment replacement; local key absence never proves server revocation.
 
 use std::{collections::BTreeSet, path::Path};
 
@@ -25,6 +25,13 @@ const LIMIT: usize = 131072;
 
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
+pub struct MissingKeyEvidence {
+    pub session_receipt_digest: String,
+    pub observed_at: String,
+}
+
+#[derive(Clone, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct Plan {
     pub schema_version: u32,
     pub action: String,
@@ -34,7 +41,10 @@ pub struct Plan {
     pub previous: connections::Enrollment,
     pub account_id: String,
     pub session_revision: String,
-    pub revoked_receipt_digest: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revoked_receipt_digest: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub missing_key: Option<MissingKeyEvidence>,
     pub authorized_receipt_digest: String,
     pub registry_schema_before: u32,
     pub replacement: connections::Plan,
@@ -78,7 +88,18 @@ impl Plan {
     fn validate(&self) -> Result<()> {
         self.previous.validate()?;
         self.replacement.validate()?;
-        if self.schema_version != 1
+        let proof_matches = match (
+            self.schema_version,
+            &self.revoked_receipt_digest,
+            &self.missing_key,
+        ) {
+            (1, Some(receipt), None) => hash(receipt),
+            (2, None, Some(missing)) => {
+                hash(&missing.session_receipt_digest) && missing.observed_at == self.created_at
+            }
+            _ => false,
+        };
+        if !proof_matches
             || self.action != KIND
             || !passport::stable_id(&self.operation_id, "operation")
             || self.operation_id == self.replacement.operation_id
@@ -88,7 +109,6 @@ impl Plan {
             || self.expires_at != crate::authoring::expiry(&self.created_at)?
             || self.created_at != self.replacement.created_at
             || self.expires_at != self.replacement.expires_at
-            || !hash(&self.revoked_receipt_digest)
             || !hash(&self.authorized_receipt_digest)
             || ![PROFILE_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA].contains(&self.registry_schema_before)
             || self.replacement.registry_schema_before != ENROLLMENT_RECOVERY_SCHEMA
@@ -113,16 +133,31 @@ impl Plan {
     }
 }
 
-fn evidence(journal: &Journal, state: &State) -> Result<(String, String, String)> {
-    if !matches!(&state.session,Session::Closed{reason} if reason=="device_revoked")
-        || state.outcome != Outcome::Revoked
-        || state.plan.connection.is_none()
-    {
+fn evidence(
+    journal: &Journal,
+    state: &State,
+    missing_key: bool,
+) -> Result<(String, String, String)> {
+    let admissible = if missing_key {
+        matches!(&state.session, Session::Authorized { .. })
+    } else {
+        matches!(&state.session,Session::Closed{reason} if reason=="device_revoked")
+            && state.outcome == Outcome::Revoked
+    };
+    if !admissible || state.plan.connection.is_none() {
         return Err(Failure::precondition(
-            "refresh the original connection to retain positive device revocation evidence before recovery",
+            "recovery requires retained revocation evidence or an authorized session with a missing enrollment key",
         ));
     }
-    let revoked = receipt_digest(&state.receipt()?)?;
+    let current = state.receipt()?;
+    let observed = receipt_digest(&current)?;
+    if missing_key && state.outcome == Outcome::Authorized {
+        return Ok((
+            current.account_id.ok_or_else(invalid)?,
+            observed.clone(),
+            observed,
+        ));
+    }
     let mut next = state.plan.expected_revision.clone();
     let mut seen = BTreeSet::new();
     let mut before = state.plan.created_at.clone();
@@ -142,7 +177,10 @@ fn evidence(journal: &Journal, state: &State) -> Result<(String, String, String)
         }
         if receipt.outcome == Outcome::Authorized {
             let account = receipt.account_id.clone().ok_or_else(invalid)?;
-            return Ok((account, revoked, receipt_digest(&receipt)?));
+            if matches!(&state.session,Session::Authorized{account_id,..} if account_id!=&account) {
+                return Err(invalid());
+            }
+            return Ok((account, observed, receipt_digest(&receipt)?));
         }
         next = receipt.plan.expected_revision;
         before = receipt.plan.created_at;
@@ -277,8 +315,21 @@ pub fn plan(root: &Path, connection: &str, label: &str, at: &str) -> Result<Plan
     let state = journal.state()?.ok_or_else(invalid)?;
     super::check_binding(&id, &state.plan)?;
     super::check_enrollment_constraints(&id, &state.plan)?;
-    let (account_id, revoked_receipt_digest, authorized_receipt_digest) =
-        evidence(&journal, &state)?;
+    if at < state.completed_at.as_str() {
+        return Err(invalid());
+    }
+    let missing_key = if matches!(&state.session, Session::Authorized { .. }) {
+        if previous.key_present(&id)? {
+            return Err(Failure::precondition(
+                "the enrollment key is present; retain positive server revocation evidence before replacing it",
+            ));
+        }
+        true
+    } else {
+        false
+    };
+    let (account_id, observed_receipt_digest, authorized_receipt_digest) =
+        evidence(&journal, &state, missing_key)?;
     let mut replacement = connections::plan(root, label, &previous.origin, &previous.provider, at)?;
     let store = Store::planning_at(id.root_directory())?;
     if store.version()? == ENROLLMENT_RECOVERY_SCHEMA
@@ -295,7 +346,7 @@ pub fn plan(root: &Path, connection: &str, label: &str, at: &str) -> Result<Plan
     replacement.registry_schema_after = ENROLLMENT_RECOVERY_SCHEMA;
     replacement.recovery_operation_id = Some(operation_id.clone());
     let plan = Plan {
-        schema_version: 1,
+        schema_version: if missing_key { 2 } else { 1 },
         action: KIND.into(),
         operation_id,
         created_at: at.into(),
@@ -303,7 +354,19 @@ pub fn plan(root: &Path, connection: &str, label: &str, at: &str) -> Result<Plan
         previous,
         account_id,
         session_revision: state.revision,
-        revoked_receipt_digest,
+        revoked_receipt_digest: if missing_key {
+            None
+        } else {
+            Some(observed_receipt_digest.clone())
+        },
+        missing_key: if missing_key {
+            Some(MissingKeyEvidence {
+                session_receipt_digest: observed_receipt_digest,
+                observed_at: at.into(),
+            })
+        } else {
+            None
+        },
         authorized_receipt_digest,
         registry_schema_before,
         replacement,
@@ -326,13 +389,17 @@ fn public(connection: &Connection, held: &Held) -> Result<Value> {
     let plan = &held.record.plan;
     let child =
         connections::record(connection, &plan.replacement.connection_id)?.ok_or_else(invalid)?;
-    Ok(
-        json!({"schema_version":1,"plan":plan,"plan_digest":held.record.plan_digest,
+    let mut value = json!({"schema_version":1,"plan":plan,"plan_digest":held.record.plan_digest,
         "state":if held.confirmation.is_some(){"authorized"}else if child.public_key.is_some(){"sign_in_required"}else{"creating_key"},
         "previous_connection_id":plan.previous.connection_id,"replacement_connection_id":plan.replacement.connection_id,
         "account_id":plan.account_id,"confirmation":held.confirmation.as_ref().map(Receipt::public),
-        "local_identity_changed":false,"contexts_retargeted":false,"online_verified":false}),
-    )
+        "local_identity_changed":false,"contexts_retargeted":false,"online_verified":false});
+    if plan.missing_key.is_some() {
+        value["preparation_reason"] = "missing_enrollment_key".into();
+        value["server_preconditions"] =
+            json!(["same_account", "revoked_previous_key", "distinct_new_key"]);
+    }
+    Ok(value)
 }
 
 pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
@@ -349,12 +416,18 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
         return Err(invalid());
     }
     let state = journal.state()?.ok_or_else(invalid)?;
-    let proof = evidence(&journal, &state)?;
+    let proof = evidence(&journal, &state, plan.missing_key.is_some())?;
+    let observed = plan
+        .revoked_receipt_digest
+        .as_ref()
+        .or_else(|| plan.missing_key.as_ref().map(|e| &e.session_receipt_digest))
+        .ok_or_else(invalid)?;
     if state.revision != plan.session_revision
+        || plan.created_at < state.completed_at
         || proof
             != (
                 plan.account_id.clone(),
-                plan.revoked_receipt_digest.clone(),
+                observed.clone(),
                 plan.authorized_receipt_digest.clone(),
             )
     {
@@ -392,6 +465,11 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
             }
             if store.version()? != plan.registry_schema_before {
                 return Err(invalid());
+            }
+            if plan.missing_key.is_some() && vault.read_key(&plan.previous.device_id)?.is_some() {
+                return Err(Failure::precondition(
+                    "the original enrollment key is present again; review a new recovery plan",
+                ));
             }
             if vault.read_key(&plan.replacement.device_id)?.is_some() {
                 return Err(Failure::precondition(

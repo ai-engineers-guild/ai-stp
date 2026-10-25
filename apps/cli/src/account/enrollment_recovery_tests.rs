@@ -8,11 +8,11 @@ struct Fixture {
     at: String,
     account: String,
     connection: connections::Plan,
-    revoked: Plan,
+    retained: Plan,
     identity: Value,
 }
 
-fn revoked() -> std::result::Result<Fixture, Box<dyn Error>> {
+fn authorized() -> std::result::Result<Fixture, Box<dyn Error>> {
     let root = tempfile::tempdir()?;
     let at = after(&format!("{:.3}", jiff::Timestamp::now()), 60)?;
     let init = identity::plan(root.path(), identity::Storage::File, &at)?;
@@ -37,7 +37,7 @@ fn revoked() -> std::result::Result<Fixture, Box<dyn Error>> {
     )?;
     let state = State {
         revision: start.operation_id.clone(),
-        plan: start,
+        plan: start.clone(),
         session: Session::Authorized {
             account_id: account.clone(),
             access_token: model::Secret(Zeroizing::new(generated())),
@@ -53,13 +53,26 @@ fn revoked() -> std::result::Result<Fixture, Box<dyn Error>> {
         journal.write(&state)?;
         journal.complete(&state)?;
     }
-    let at = after(&at, 1)?;
+    Ok(Fixture {
+        root,
+        at,
+        account,
+        connection,
+        retained: start,
+        identity,
+    })
+}
+
+fn revoked() -> std::result::Result<Fixture, Box<dyn Error>> {
+    let mut fixture = authorized()?;
+    let local = identity_at(fixture.root.path())?;
+    let at = after(&fixture.at, 1)?;
     let revoked = plan_for_connection(
-        root.path(),
+        fixture.root.path(),
         Action::Refresh,
         None,
         None,
-        Some(&connection.connection_id),
+        Some(&fixture.connection.connection_id),
         &at,
     )?;
     let closed = State {
@@ -77,14 +90,9 @@ fn revoked() -> std::result::Result<Fixture, Box<dyn Error>> {
         journal.write(&closed)?;
         journal.complete(&closed)?;
     }
-    Ok(Fixture {
-        root,
-        at,
-        account,
-        connection,
-        revoked,
-        identity,
-    })
+    fixture.at = at;
+    fixture.retained = revoked;
+    Ok(fixture)
 }
 
 #[test]
@@ -183,7 +191,7 @@ fn replacement_keeps_native_identity_old_receipts_and_frozen_profile_plans()
         .is_err()
     );
     assert_eq!(
-        apply(&f.revoked, &f.revoked.digest()?, &f.at)?["outcome"],
+        apply(&f.retained, &f.retained.digest()?, &f.at)?["outcome"],
         "revoked"
     );
     let id = identity_at(f.root.path())?;
@@ -327,45 +335,137 @@ fn production_registry_keeps_its_original_filename_and_marker_after_recovery()
 }
 
 #[test]
-fn enrollment_recovery_preserves_the_stronger_windows_record_writer_fence()
+fn missing_key_preparation_preserves_authorized_history_and_rechecks_absence_before_admission()
 -> std::result::Result<(), Box<dyn Error>> {
-    let f = revoked()?;
+    let f = authorized()?;
+    assert!(
+        recovery::plan(
+            f.root.path(),
+            &f.connection.connection_id,
+            "Replacement",
+            &f.at
+        )
+        .is_err()
+    );
     let local = identity_at(f.root.path())?;
-    let namespace = format!("ai-stp-v2-account-{}", f.connection.connection_id);
-    {
-        let directory = crate::files::OwnedDirectory::open_compatible(
+    let enrollment = connections::enrollment(&local, &f.connection.connection_id)?;
+    let key = {
+        let directory = crate::files::OwnedDirectory::open_at(
             local.root_directory(),
-            &namespace,
-            b"ai-stp-cli-v2 isolated account sessions v1\n",
-            &[b"ai-stp-cli-v2 isolated account sessions v2\n"],
+            connections::NAMESPACE,
+            connections::OWNER,
             false,
         )?
-        .ok_or("journal")?;
-        directory.atomic("owner", identity::credentials::WINDOWS_ACCOUNT_OWNER)?;
-    }
+        .ok_or("credentials")?;
+        let vault = identity::credentials::Vault::new(&directory, identity::Storage::File)?;
+        let key = vault.read_key(&f.connection.device_id)?.ok_or("old key")?;
+        vault.retire(&format!("device-key.{}", f.connection.device_id))?;
+        key
+    };
+    let original = status_for_connection(f.root.path(), Some(&f.connection.connection_id), &f.at)?;
     let plan = recovery::plan(
         f.root.path(),
         &f.connection.connection_id,
         "Replacement",
         &f.at,
     )?;
-    recovery::apply(&plan, &plan.digest()?, &f.at)?;
-    assert_eq!(
-        fs::read(f.root.path().join(&namespace).join("owner"))?,
-        identity::credentials::WINDOWS_ACCOUNT_OWNER
-    );
-    assert!(
-        crate::files::OwnedDirectory::open_compatible(
+    assert_eq!(plan.schema_version, 2);
+    assert!(plan.revoked_receipt_digest.is_none());
+    assert!(plan.missing_key.is_some());
+    let value = serde_json::to_value(&plan)?;
+    assert!(value.get("revoked_receipt_digest").is_none());
+    {
+        let directory = crate::files::OwnedDirectory::open_at(
             local.root_directory(),
-            &namespace,
-            b"ai-stp-cli-v2 isolated account sessions v1\n",
-            &[
-                b"ai-stp-cli-v2 isolated account sessions v2\n",
-                b"ai-stp-cli-v2 isolated enrollment recovery v1\n"
-            ],
-            false
+            connections::NAMESPACE,
+            connections::OWNER,
+            false,
+        )?
+        .ok_or("credentials")?;
+        identity::credentials::Vault::new(&directory, identity::Storage::File)?
+            .create_key(&f.connection.device_id, &key)?;
+    }
+    assert!(recovery::apply(&plan, &plan.digest()?, &f.at).is_err());
+    assert!(
+        recovery::list(f.root.path())?["recoveries"]
+            .as_array()
+            .ok_or("recoveries")?
+            .is_empty()
+    );
+    {
+        let directory = crate::files::OwnedDirectory::open_at(
+            local.root_directory(),
+            connections::NAMESPACE,
+            connections::OWNER,
+            false,
+        )?
+        .ok_or("credentials")?;
+        identity::credentials::Vault::new(&directory, identity::Storage::File)?
+            .retire(&format!("device-key.{}", f.connection.device_id))?;
+    }
+    let result = recovery::apply(&plan, &plan.digest()?, &f.at)?;
+    assert_eq!(result["state"], "sign_in_required");
+    assert_eq!(result["preparation_reason"], "missing_enrollment_key");
+    assert_eq!(
+        result["server_preconditions"],
+        json!(["same_account", "revoked_previous_key", "distinct_new_key"])
+    );
+    assert_eq!(
+        status_for_connection(f.root.path(), Some(&f.connection.connection_id), &f.at)?,
+        original
+    );
+    {
+        let directory = crate::files::OwnedDirectory::open_at(
+            local.root_directory(),
+            connections::NAMESPACE,
+            connections::OWNER,
+            false,
+        )?
+        .ok_or("credentials")?;
+        identity::credentials::Vault::new(&directory, identity::Storage::File)?
+            .create_key(&f.connection.device_id, &key)?;
+    }
+    assert_eq!(
+        recovery::apply(&plan, &plan.digest()?, &plan.expires_at)?,
+        result
+    );
+    enrollment.verify_key(&local)?;
+    assert!(
+        plan_for_connection(
+            f.root.path(),
+            Action::Refresh,
+            None,
+            None,
+            Some(&f.connection.connection_id),
+            &f.at
         )
         .is_err()
+    );
+    assert_eq!(identity_at(f.root.path())?.report(), f.identity);
+    Ok(())
+}
+
+#[test]
+fn version_one_recovery_serialization_remains_canonical_without_missing_key_fields()
+-> std::result::Result<(), Box<dyn Error>> {
+    let f = revoked()?;
+    let plan = recovery::plan(
+        f.root.path(),
+        &f.connection.connection_id,
+        "Replacement",
+        &f.at,
+    )?;
+    let value = serde_json::to_value(&plan)?;
+    assert_eq!(value["schema_version"], 1);
+    assert!(value["revoked_receipt_digest"].is_string());
+    assert!(value.get("missing_key").is_none());
+    let digest = crate::digest::canonical("ai-stp:plan:v1", &value)?;
+    let decoded: recovery::Plan = serde_json::from_value(value)?;
+    assert_eq!(decoded.digest()?, digest);
+    recovery::apply(&decoded, &digest, &f.at)?;
+    assert_eq!(
+        recovery::list(f.root.path())?["recoveries"][0]["plan_digest"],
+        digest
     );
     Ok(())
 }
@@ -489,5 +589,49 @@ fn durable_authorized_receipt_finishes_recovery_after_a_crash_before_confirmatio
     );
     assert_eq!(recovery::list(f.root.path())?, done);
     assert_eq!(identity_at(f.root.path())?.report(), f.identity);
+    Ok(())
+}
+
+#[test]
+fn enrollment_recovery_preserves_the_stronger_windows_record_writer_fence()
+-> std::result::Result<(), Box<dyn Error>> {
+    let f = revoked()?;
+    let local = identity_at(f.root.path())?;
+    let namespace = format!("ai-stp-v2-account-{}", f.connection.connection_id);
+    {
+        let directory = crate::files::OwnedDirectory::open_compatible(
+            local.root_directory(),
+            &namespace,
+            b"ai-stp-cli-v2 isolated account sessions v1\n",
+            &[b"ai-stp-cli-v2 isolated account sessions v2\n"],
+            false,
+        )?
+        .ok_or("journal")?;
+        directory.atomic("owner", identity::credentials::WINDOWS_ACCOUNT_OWNER)?;
+    }
+    let plan = recovery::plan(
+        f.root.path(),
+        &f.connection.connection_id,
+        "Replacement",
+        &f.at,
+    )?;
+    recovery::apply(&plan, &plan.digest()?, &f.at)?;
+    assert_eq!(
+        fs::read(f.root.path().join(&namespace).join("owner"))?,
+        identity::credentials::WINDOWS_ACCOUNT_OWNER
+    );
+    assert!(
+        crate::files::OwnedDirectory::open_compatible(
+            local.root_directory(),
+            &namespace,
+            b"ai-stp-cli-v2 isolated account sessions v1\n",
+            &[
+                b"ai-stp-cli-v2 isolated account sessions v2\n",
+                b"ai-stp-cli-v2 isolated enrollment recovery v1\n"
+            ],
+            false
+        )
+        .is_err()
+    );
     Ok(())
 }
