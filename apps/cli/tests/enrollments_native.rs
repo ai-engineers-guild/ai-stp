@@ -6,6 +6,9 @@ use ai_stp_cli::{account::connections, identity};
 use keyring_core::api::CredentialStoreApi;
 use std::error::Error;
 
+#[path = "enrollments_native/recovery.rs"]
+mod recovery;
+
 struct TemporaryCredential(keyring_core::Entry);
 impl Drop for TemporaryCredential {
     fn drop(&mut self) {

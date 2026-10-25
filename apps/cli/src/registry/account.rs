@@ -25,6 +25,9 @@ pub(super) enum Handler {
     ConnectionPlan,
     ConnectionApply,
     Connections,
+    EnrollmentRecoveryPlan,
+    EnrollmentRecoveryApply,
+    EnrollmentRecoveries,
 }
 
 pub(super) fn warnings(result: &Result<Value>) -> Vec<String> {
@@ -45,14 +48,61 @@ pub(super) fn warnings(result: &Result<Value>) -> Vec<String> {
 impl Handler {
     pub fn mutability(self) -> &'static str {
         match self {
-            Self::Plan | Self::ConnectionPlan => "plan",
-            Self::Apply | Self::ConnectionApply => "apply",
-            Self::Status | Self::Providers | Self::Connections => "read",
+            Self::Plan | Self::ConnectionPlan | Self::EnrollmentRecoveryPlan => "plan",
+            Self::Apply | Self::ConnectionApply | Self::EnrollmentRecoveryApply => "apply",
+            Self::Status | Self::Providers | Self::Connections | Self::EnrollmentRecoveries => {
+                "read"
+            }
         }
     }
 }
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["account", "connections", "recovery", "plan"],
+        summary: "Plan a same-account replacement for one positively revoked enrollment; retain its local identity, original contexts and historical evidence.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "connection",
+                summary: "Exact revoked retained connection ID.",
+                kind: ParameterType::String,
+                required: true,
+            },
+            Parameter {
+                name: "label",
+                summary: "Label for the new independently owned replacement enrollment.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Account(Handler::EnrollmentRecoveryPlan),
+    },
+    Declaration {
+        path: &["account", "connections", "recovery", "apply"],
+        summary: "Admit or resume the reviewed registry-56 enrollment recovery and exact child key; sign in to its replacement connection to confirm the same account.",
+        parameters: &[
+            Parameter {
+                name: "plan",
+                summary: "Exact reviewed enrollment recovery plan JSON, at most 128 KiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Exact reviewed enrollment recovery plan digest.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Account(Handler::EnrollmentRecoveryApply),
+    },
+    Declaration {
+        path: &["account", "connections", "recovery", "list"],
+        summary: "Read retained recovery plans, child-key progress and same-account authorization receipts without network access or credentials.",
+        parameters: &[STATE_DIR],
+        handler: super::Handler::Account(Handler::EnrollmentRecoveries),
+    },
     Declaration {
         path: &["account", "connections", "plan"],
         summary: "Plan a retained server connection with its own enrollment key; review the registry format upgrade before applying.",
@@ -179,6 +229,24 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             .ok_or_else(|| Failure::input("required account path is absent"))
     };
     match handler {
+        Handler::EnrollmentRecoveryPlan => {
+            let plan = account::enrollment_recovery::plan(
+                path("state-dir")?,
+                args.get_one::<String>("connection")
+                    .ok_or_else(|| Failure::input("revoked connection is absent"))?,
+                args.get_one::<String>("label")
+                    .ok_or_else(|| Failure::input("replacement connection label is absent"))?,
+                &at,
+            )?;
+            Ok(json!({"plan_digest":plan.digest()?,"plan":plan}))
+        }
+        Handler::EnrollmentRecoveryApply => account::enrollment_recovery::apply(
+            &account::enrollment_recovery::read_plan(path("plan")?)?,
+            args.get_one::<String>("plan-digest")
+                .ok_or_else(|| Failure::input("enrollment recovery digest is absent"))?,
+            &at,
+        ),
+        Handler::EnrollmentRecoveries => account::enrollment_recovery::list(path("state-dir")?),
         Handler::ConnectionPlan => {
             let text = |name: &str| {
                 args.get_one::<String>(name)

@@ -85,9 +85,42 @@ HTTP contracts. The fixture never connects a live SSO account or runs a harness.
 The first applied connection/context plan explicitly upgrades the same authority
 registry to schema 55. Older clients refuse that format; keep a compatible client
 available. No database copy, key rotation, credential copying or implicit owner
-attachment occurs. Named enrollment key recovery and context-owned authoring,
-publication, sync and corporate delivery are separate operations; the legacy
-global attach/recover actions do not operate on a named enrollment.
+attachment occurs. The legacy global attach/recover actions do not operate on a
+named enrollment.
+
+`account connections recovery plan --connection ID --label LABEL` reviews a
+replacement for a named session whose status records `device_revoked`. It binds
+the original authorized account receipt, revocation receipt and exact new
+connection/key operation. `account connections recovery apply` explicitly
+admits schema 56 and both recovery and key creation in one registry commit.
+The child key plan cannot be applied separately before its parent admission.
+Use `account connections recovery list` to resume `creating_key` or inspect
+`sign_in_required` and the eventual `authorized` receipt. Admitted key creation
+can resume after plan expiry; an existing ready key is never silently replaced.
+
+Sign in through the reported replacement connection. Every authorization fixes
+the expected account and revoked public key, including later reauthorization.
+The server must accept that same account with a distinct replacement key before
+the native recovery completes. A stored positive receipt finishes confirmation
+after an interruption without repeating the single-use exchange. Original
+credentials, local identity and saved contexts retain their identities; create
+new context views explicitly through the replacement connection. New requests
+through the retired enrollment refuse, while exact historical receipt replay
+remains available.
+
+Schema 56 preserves the original database filename and production owner marker;
+older clients refuse its format. Unfinished publication/sync operations belonging
+to the original enrollment must be reconciled before this recovery can be
+admitted. Unrelated enrollment operations are retained. Recovery does not settle
+unknown remote effects or grant corporate installation authority.
+
+Windows account sessions use versioned compressed binary records in the native
+Credential Manager, avoiding its password API's UTF-16 expansion. The native
+blob is limited to 2,560 bytes and decoded records to 64 KiB; records that cannot
+fit refuse before credential publication. Existing password entries remain
+readable and device keys retain their encoding. New session writes fence older
+account-journal readers; retain a compatible client. No token file fallback is
+used.
 
 ## Release and supported platforms
 
