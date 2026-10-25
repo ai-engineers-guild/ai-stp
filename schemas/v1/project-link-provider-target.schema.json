@@ -1,0 +1,40 @@
+{
+  "$id": "urn:ai-stp:schema:v1:project-link-provider-target",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Current immutable repository coordinates for one authorized link target.",
+  "properties": {
+    "immutable_repository_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Immutable Repository Id",
+      "type": "string"
+    },
+    "provider": {
+      "enum": [
+        "github",
+        "gitlab"
+      ],
+      "title": "Provider",
+      "type": "string"
+    },
+    "provider_project_id": {
+      "pattern": "^provider_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Provider Project Id",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "immutable_repository_id",
+    "provider",
+    "provider_project_id",
+    "revision"
+  ],
+  "title": "ProjectLinkProviderTarget",
+  "type": "object"
+}

@@ -14,6 +14,8 @@ pub(super) enum Handler {
     Teams,
     Projects,
     Project,
+    LinkTarget,
+    LinkOutcome,
     Technologies,
     Mappings,
     Mapping,
@@ -98,6 +100,34 @@ pub(super) const COMMANDS: &[Declaration] = &[
             },
         ],
         handler: super::Handler::Corporate(Handler::Project),
+    },
+    Declaration {
+        path: &["corporate", "project", "link-target"],
+        summary: "Read exact current project and provider revisions before a separate link plan; create no link or installation authority.",
+        parameters: &[
+            STATE_DIR,
+            CONTEXT,
+            Parameter {
+                required: true,
+                ..PROJECT
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LinkTarget),
+    },
+    Declaration {
+        path: &["corporate", "project", "link-outcome"],
+        summary: "Read the original account-owned link plan outcome without retrying confirmation or binding a checkout.",
+        parameters: &[
+            STATE_DIR,
+            CONTEXT,
+            Parameter {
+                name: "plan-id",
+                summary: "Exact retained server link_plan identifier.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LinkOutcome),
     },
     Declaration {
         path: &["corporate", "technologies"],
@@ -194,6 +224,12 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         },
         Handler::Project => Request::Project {
             project_id: text("project")?,
+        },
+        Handler::LinkTarget => Request::LinkTarget {
+            project_id: text("project")?,
+        },
+        Handler::LinkOutcome => Request::LinkOutcome {
+            plan_id: text("plan-id")?,
         },
         Handler::Technologies => Request::Technologies {
             query: optional("query"),

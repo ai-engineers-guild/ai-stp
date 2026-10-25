@@ -602,8 +602,14 @@ import type {
   ReadProjectLinkErrors,
   ReadProjectLinkPlanData,
   ReadProjectLinkPlanErrors,
+  ReadProjectLinkPlanOutcomeData,
+  ReadProjectLinkPlanOutcomeErrors,
+  ReadProjectLinkPlanOutcomeResponses,
   ReadProjectLinkPlanResponses,
   ReadProjectLinkResponses,
+  ReadProjectLinkTargetData,
+  ReadProjectLinkTargetErrors,
+  ReadProjectLinkTargetResponses,
   ReadProjectTechnologyData,
   ReadProjectTechnologyErrors,
   ReadProjectTechnologyResponses,
@@ -5416,6 +5422,42 @@ export const readProjectLinkPlan = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/organizations/{organization_id}/project-link-plans/{plan_id}",
+    ...options,
+  });
+
+/**
+ * Read the current outcome of one original account-owned link plan.
+ */
+export const readProjectLinkPlanOutcome = <ThrowOnError extends boolean = false>(
+  options: Options<ReadProjectLinkPlanOutcomeData, ThrowOnError>,
+): RequestResult<
+  ReadProjectLinkPlanOutcomeResponses,
+  ReadProjectLinkPlanOutcomeErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadProjectLinkPlanOutcomeResponses,
+    ReadProjectLinkPlanOutcomeErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/organizations/{organization_id}/project-link-plans/{plan_id}/outcome",
+    ...options,
+  });
+
+/**
+ * Read current authorized project and provider revisions before link planning.
+ */
+export const readProjectLinkTarget = <ThrowOnError extends boolean = false>(
+  options: Options<ReadProjectLinkTargetData, ThrowOnError>,
+): RequestResult<ReadProjectLinkTargetResponses, ReadProjectLinkTargetErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadProjectLinkTargetResponses,
+    ReadProjectLinkTargetErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/organizations/{organization_id}/project-link-targets/{remote_project_id}",
     ...options,
   });
 

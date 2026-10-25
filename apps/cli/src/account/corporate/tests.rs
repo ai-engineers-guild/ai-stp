@@ -14,6 +14,10 @@ const CATALOG: &str = include_str!(concat!(
 ));
 const ORGANIZATION: &str = "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
 const ACCOUNT: &str = "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
+const CONTEXT: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/packages/contracts/src/ai_stp_contracts/fixtures/v1/context.json"
+));
 
 fn fixture(source: &str, operation: &str) -> Result<Value> {
     let source: Value = serde_json::from_str(source).map_err(|_| invalid())?;
@@ -24,6 +28,93 @@ fn fixture(source: &str, operation: &str) -> Result<Value> {
         .find(|case| case["operation_id"] == operation && case["kind"] == "positive")
         .map(|case| case["body"].clone())
         .ok_or_else(invalid)
+}
+
+#[test]
+fn link_outcomes_require_exact_plan_link_and_context_coordinates() -> Result<()> {
+    let value = fixture(CONTEXT, "readProjectLinkPlanOutcome")?;
+    let request = Request::LinkOutcome {
+        plan_id: text(&value["plan"], "plan_id")?.to_owned(),
+    };
+    let ready = request.project(&value, ORGANIZATION, ACCOUNT)?;
+    assert_eq!(ready["state"], "ready");
+    let (url, body) = request.wire("https://corporate.example.test", ORGANIZATION, ACCOUNT)?;
+    assert!(
+        url.path()
+            .ends_with(&format!("/{}/outcome", text(&value["plan"], "plan_id")?))
+    );
+    assert!(body.is_none() && url.query().is_none());
+    let mut applied = value.clone();
+    applied["state"] = "applied".into();
+    applied["link"] = fixture(CONTEXT, "createProjectLink")?;
+    applied["plan"]["plan_digest"] = applied["link"]["plan_digest"].clone();
+    applied["future_private"] = json!({"token":"canary"});
+    applied["plan"]["future_token"] = "canary".into();
+    applied["link"]["future_token"] = "canary".into();
+    let observed = request.project(&applied, ORGANIZATION, ACCOUNT)?;
+    assert!(!observed.to_string().contains("canary"));
+    for field in [
+        "plan_id",
+        "plan_digest",
+        "organization_id",
+        "local_project_id",
+        "remote_project_id",
+        "provider_project_id",
+    ] {
+        let mut wrong = observed.clone();
+        wrong["link"][field] = Value::Null;
+        if field == "provider_project_id" {
+            wrong["link"][field] = "provider_project_01ARZ3NDEKTSV4RRFFQ69G5FAV".into();
+        }
+        assert!(
+            request.project(&wrong, ORGANIZATION, ACCOUNT).is_err(),
+            "{field}"
+        );
+    }
+    let mut wrong = value.clone();
+    wrong["state"] = "applied".into();
+    assert!(request.project(&wrong, ORGANIZATION, ACCOUNT).is_err());
+    wrong = observed;
+    wrong["state"] = "ready".into();
+    assert!(request.project(&wrong, ORGANIZATION, ACCOUNT).is_err());
+    wrong = value;
+    wrong["plan"]["organization_id"] = "organization_01ARZ3NDEKTSV4RRFFQ69G5FAV".into();
+    assert!(request.project(&wrong, ORGANIZATION, ACCOUNT).is_err());
+    Ok(())
+}
+
+#[test]
+fn link_targets_drop_extensions_and_refuse_mixed_or_duplicate_coordinates() -> Result<()> {
+    let project = "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
+    let request = Request::LinkTarget {
+        project_id: project.into(),
+    };
+    let provider = json!({"provider_project_id":"provider_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "provider":"github","immutable_repository_id":"123456","revision":7,"future_token":"canary"});
+    let mut value = json!({"schema_version":1,"organization_id":ORGANIZATION,"remote_project_id":project,
+        "remote_revision":"initial","authorization_revision":format!("corporate:{ORGANIZATION}:1:1"),
+        "providers":[provider.clone()],"observed_at":"2026-10-25T00:00:00.000Z","observation_only":true,
+        "future_private":{"credential":"canary"}});
+    let observed = request.project(&value, ORGANIZATION, ACCOUNT)?;
+    assert!(!observed.to_string().contains("canary"));
+    let (url, body) = request.wire("https://corporate.example.test", ORGANIZATION, ACCOUNT)?;
+    assert_eq!(
+        url.path(),
+        format!("/v1/organizations/{ORGANIZATION}/project-link-targets/{project}")
+    );
+    assert!(body.is_none() && url.query().is_none());
+    value["providers"] = json!([provider.clone(), provider]);
+    assert!(request.project(&value, ORGANIZATION, ACCOUNT).is_err());
+    value = observed.clone();
+    value["remote_project_id"] = "remote_project_01ARZ3NDEKTSV4RRFFQ69G5FAV".into();
+    assert!(request.project(&value, ORGANIZATION, ACCOUNT).is_err());
+    value = observed.clone();
+    value["organization_id"] = "organization_01ARZ3NDEKTSV4RRFFQ69G5FAV".into();
+    assert!(request.project(&value, ORGANIZATION, ACCOUNT).is_err());
+    value = observed;
+    value["remote_revision"] = "sha256:short".into();
+    assert!(request.project(&value, ORGANIZATION, ACCOUNT).is_err());
+    Ok(())
 }
 
 #[test]

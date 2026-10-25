@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "standard_family": "ai-stp-standard/1",
-  "contract_digest": "sha256:fad26fc8b94f8454aaf580f70279958ec7d0a484ef771cc1dae1cf3d7aeacaeb",
+  "contract_digest": "sha256:62f907f89ac4c71eb3080dd2acb3090ec0971e66e0d4d6272eb364ba2ade545b",
   "axes": [
     {
       "name": "standard_family",
@@ -1746,6 +1746,10 @@
     },
     {
       "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-link-plan-outcome"
+    },
+    {
+      "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:project-link-plan-request"
     },
     {
@@ -1758,11 +1762,19 @@
     },
     {
       "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-link-provider-target"
+    },
+    {
+      "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:project-link-request"
     },
     {
       "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:project-link-response"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-link-target-response"
     },
     {
       "axis": "http_schema",

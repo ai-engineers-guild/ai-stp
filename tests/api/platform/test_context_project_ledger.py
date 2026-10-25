@@ -27,6 +27,7 @@ from ai_stp_platform.organization_models import (
     OrganizationMembership,
     ProjectIdentity,
     ProjectLink,
+    ProjectLinkPlan,
     ProjectLinkProposal,
     ProjectRevision,
     ProjectRevisionHead,
@@ -152,6 +153,318 @@ def revision_payload(
         "authorization_revision": authorization_revision,
         "idempotency_key": idempotency_key,
     }
+
+
+async def test_link_plan_outcome_reads_lost_confirmation_without_mutation(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+) -> None:
+    client, sessionmaker, token, organization, old_link_id, remote = project_harness
+    headers = {"Authorization": f"Bearer {token}", "X-AI-STP-Organization-Id": organization}
+    revision = f"personal:{organization}:1:1"
+    created = await client.post(
+        f"/v1/organizations/{organization}/project-link-plans",
+        headers=headers,
+        json={
+            "local_project_id": new_id("project"),
+            "remote_project_id": remote,
+            "local_revision": "local-1",
+            "remote_revision": "initial",
+            "authorization_revision": revision,
+            "idempotency_key": "outcome-plan-0001",
+        },
+    )
+    assert created.status_code == 201, created.text
+    plan = created.json()
+    route = f"/v1/organizations/{organization}/project-link-plans/{plan['plan_id']}/outcome"
+
+    async def counts() -> list[int | None]:
+        async with sessionmaker() as db:
+            return [
+                await db.scalar(select(func.count()).select_from(model))
+                for model in (ProjectLinkPlan, ProjectLink, AuditEvent)
+            ]
+
+    before = await counts()
+    ready = await client.get(route, headers=headers)
+    assert ready.status_code == 200, ready.text
+    assert ready.headers["cache-control"] == "private, no-store"
+    assert ready.json()["plan"] == plan
+    assert ready.json()["state"] == "ready" and ready.json()["link"] is None
+    assert ready.json()["observation_only"] is True
+    assert ready.json()["authorization_revision"] == revision
+    assert await counts() == before
+    # The client could lose this response; the read below identifies its exact link.
+    confirmed = await client.post(
+        "/v1/projects/links",
+        headers=headers,
+        json={
+            "plan_id": plan["plan_id"],
+            "plan_digest": plan["plan_digest"],
+            "authorization_revision": revision,
+            "idempotency_key": "outcome-confirm-0001",
+        },
+    )
+    assert confirmed.status_code == 201, confirmed.text
+    before = await counts()
+    applied = await client.get(route, headers=headers)
+    assert applied.status_code == 200, applied.text
+    assert applied.json()["plan"] == plan
+    assert applied.json()["state"] == "applied"
+    assert applied.json()["link"] == confirmed.json()
+    assert await counts() == before
+
+    async with sessionmaker() as db:
+        original = await db.get(ProjectLink, old_link_id)
+        assert original is not None
+        old_device = await db.get(Device, original.device_id)
+        assert old_device is not None
+        old_device.state = "revoked"
+        replacement = Device(
+            id=new_id("device"),
+            account_id=original.actor_account_id,
+            public_key="outcome-replacement-key",
+            state="active",
+        )
+        db.add(replacement)
+        await db.flush()
+        issued = await issue_session(
+            db, account_id=original.actor_account_id, device_id=replacement.id, ttl_seconds=3600
+        )
+        await db.commit()
+    replacement_headers = {**headers, "Authorization": f"Bearer {issued.raw_token}"}
+    assert (await client.get(route, headers=headers)).status_code == 403
+    retained = await client.get(route, headers=replacement_headers)
+    assert retained.status_code == 200, retained.text
+    assert retained.json()["plan"] == plan and retained.json()["link"] == confirmed.json()
+    denied = await client.post(
+        "/v1/projects/links",
+        headers=replacement_headers,
+        json={
+            "plan_id": plan["plan_id"],
+            "plan_digest": plan["plan_digest"],
+            "authorization_revision": revision,
+            "idempotency_key": "outcome-new-device-0001",
+        },
+    )
+    assert denied.status_code == 403
+    assert await counts() == before
+    async with sessionmaker() as db:
+        retained_link = await db.get(ProjectLink, confirmed.json()["link_id"])
+        assert retained_link is not None
+        retained_link.state = "unlinked"
+        retained_link.revision += 1
+        await db.commit()
+    unlinked = await client.get(route, headers=replacement_headers)
+    assert unlinked.status_code == 200, unlinked.text
+    assert unlinked.json()["state"] == "applied" and unlinked.json()["plan"] == plan
+    assert unlinked.json()["link"]["link_id"] == confirmed.json()["link_id"]
+    assert unlinked.json()["link"]["state"] == "unlinked"
+    assert await counts() == before
+
+
+async def test_link_plan_outcome_expiry_account_tenant_and_corruption_fences(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+) -> None:
+    client, sessionmaker, token, organization, link_id, remote = project_harness
+    headers = {"Authorization": f"Bearer {token}", "X-AI-STP-Organization-Id": organization}
+    async with sessionmaker() as db:
+        link = await db.get(ProjectLink, link_id)
+        assert link is not None
+        expires = datetime.now(UTC) - timedelta(seconds=1)
+        plan = ProjectLinkPlan(
+            id=new_id("link_plan"),
+            organization_id=organization,
+            actor_account_id=link.actor_account_id,
+            device_id=link.device_id,
+            local_project_id=new_id("project"),
+            remote_project_id=remote,
+            local_revision="local-1",
+            remote_revision="initial",
+            authorization_revision=f"personal:{organization}:1:1",
+            idempotency_key="outcome-expired-0001",
+            plan_digest="sha256:" + "b" * 64,
+            state="ready",
+            expires_at=expires,
+        )
+        db.add(plan)
+        await db.commit()
+        plan_id = plan.id
+    route = f"/v1/organizations/{organization}/project-link-plans/{plan_id}/outcome"
+    expired = await client.get(route, headers=headers)
+    assert expired.status_code == 200, expired.text
+    assert expired.json()["state"] == "expired" and expired.json()["link"] is None
+    async with sessionmaker() as db:
+        plan = await db.get(ProjectLinkPlan, plan_id)
+        assert plan is not None and plan.state == "ready"  # Observation did not write expiry.
+        plan.actor_account_id = new_id("account")
+        db.add(Account(id=plan.actor_account_id))
+        await db.flush()
+        await db.commit()
+    assert (await client.get(route, headers=headers)).status_code == 404
+    wrong_tenant = route.replace(organization, new_id("organization"))
+    assert (await client.get(wrong_tenant, headers=headers)).status_code in (403, 404)
+    async with sessionmaker() as db:
+        plan = await db.get(ProjectLinkPlan, plan_id)
+        link = await db.get(ProjectLink, link_id)
+        assert plan is not None and link is not None
+        plan.actor_account_id = link.actor_account_id
+        plan.state = "applied"
+        plan.link_id = link_id  # Existing link belongs to another plan, never report success.
+        await db.commit()
+    assert (await client.get(route, headers=headers)).status_code == 412
+    async with sessionmaker() as db:
+        member = await db.scalar(
+            select(OrganizationMembership).where(
+                OrganizationMembership.organization_id == organization,
+                OrganizationMembership.account_id == link.actor_account_id,
+            )
+        )
+        assert member is not None
+        member.state = "suspended"
+        await db.commit()
+    assert (await client.get(route, headers=headers)).status_code == 403
+
+
+async def test_link_target_metadata_is_fresh_read_only_and_device_qualified(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+) -> None:
+    client, sessionmaker, token, organization, link_id, remote = project_harness
+    headers = {"Authorization": f"Bearer {token}", "X-AI-STP-Organization-Id": organization}
+    route = f"/v1/organizations/{organization}/project-link-targets/{remote}"
+    initial = await client.get(route, headers=headers)
+    assert initial.status_code == 200, initial.text
+    assert initial.headers["cache-control"] == "private, no-store"
+    assert initial.json()["remote_revision"] == "initial"
+    assert initial.json()["providers"] == [] and initial.json()["observation_only"] is True
+    revision = revision_payload(
+        remote_project_id=remote,
+        parents=[],
+        expected=None,
+        event_id="link-target-observed-head",
+        idempotency_key="link-target-observed-head",
+        authorization_revision=initial.json()["authorization_revision"],
+    )
+    pushed = await client.post(
+        f"/v1/projects/links/{link_id}/revisions", headers=headers, json=revision
+    )
+    assert pushed.status_code == 200, pushed.text
+    provider_id = new_id("provider_project")
+    async with sessionmaker() as db:
+        provider = ProjectIdentity(
+            id=provider_id,
+            organization_id=organization,
+            namespace="provider",
+            external_key="immutable-link-target-repo",
+            display_name="Repository",
+            provider_kind="github",
+            immutable_repository_id="123456",
+            revision=4,
+        )
+        db.add(provider)
+        await db.flush()
+        link = await db.get(ProjectLink, link_id)
+        assert link is not None
+        link.provider_project_id = provider_id
+        await db.commit()
+        before = [
+            await db.scalar(select(func.count()).select_from(model))
+            for model in (AuditEvent, ProjectLink, ProjectLinkPlan)
+        ]
+    observed = await client.get(route, headers=headers)
+    assert observed.status_code == 200, observed.text
+    assert observed.json()["remote_revision"] == revision["revision_id"]
+    assert observed.json()["providers"] == [
+        {
+            "provider_project_id": provider_id,
+            "provider": "github",
+            "immutable_repository_id": "123456",
+            "revision": 4,
+        }
+    ]
+    async with sessionmaker() as db:
+        after = [
+            await db.scalar(select(func.count()).select_from(model))
+            for model in (AuditEvent, ProjectLink, ProjectLinkPlan)
+        ]
+        assert after == before
+        provider = await db.get(ProjectIdentity, provider_id)
+        assert provider is not None
+        provider.revision += 1
+        await db.commit()
+    refreshed = await client.get(route, headers=headers)
+    assert refreshed.status_code == 200 and refreshed.json()["providers"][0]["revision"] == 5
+    async with sessionmaker() as db:
+        provider = await db.get(ProjectIdentity, provider_id)
+        assert provider is not None
+        provider.immutable_repository_id = None
+        await db.commit()
+    assert (await client.get(route, headers=headers)).status_code == 412
+    async with sessionmaker() as db:
+        link = await db.get(ProjectLink, link_id)
+        assert link is not None
+        device = await db.get(Device, link.device_id)
+        assert device is not None
+        device.state = "revoked"
+        await db.commit()
+    assert (await client.get(route, headers=headers)).status_code == 403
+
+
+async def test_corporate_link_target_metadata_keeps_personal_context_and_tenant_boundaries(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+) -> None:
+    client, sessionmaker, token, personal, link_id, personal_project = project_harness
+    async with sessionmaker() as db:
+        link = await db.get(ProjectLink, link_id)
+        assert link is not None
+        owner = link.actor_account_id
+    bootstrapped = await client.post(
+        "/v1/corporate/bootstrap",
+        json={
+            "organization_name": "Link targets",
+            "superadmin_account_id": owner,
+            "idempotency_key": "link-target-corporate-bootstrap",
+        },
+        headers={"X-AI-STP-Bootstrap-Secret": "corporate-bootstrap-test-secret"},
+    )
+    assert bootstrapped.status_code == 200, bootstrapped.text
+    organization = bootstrapped.json()["organization_id"]
+    headers = {"Authorization": f"Bearer {token}"}
+    project = await client.post(
+        f"/v1/corporate/organizations/{organization}/projects",
+        headers=headers,
+        json={
+            "name": "Shared checkout",
+            "authorization_revision": 1,
+            "idempotency_key": "link-target-corporate-project",
+        },
+    )
+    assert project.status_code == 200, project.text
+    route = f"/v1/organizations/{organization}/project-link-targets/{project.json()['project_id']}"
+    observed = await client.get(route, headers=headers)
+    assert observed.status_code == 200, observed.text
+    assert observed.json()["organization_id"] == organization
+    assert observed.json()["authorization_revision"].startswith(f"corporate:{organization}:")
+    wrong_tenant = await client.get(
+        f"/v1/organizations/{personal}/project-link-targets/{project.json()['project_id']}",
+        headers=headers,
+    )
+    assert wrong_tenant.status_code == 404
+    async with sessionmaker() as db:
+        membership = await db.scalar(
+            select(OrganizationMembership).where(
+                OrganizationMembership.organization_id == organization,
+                OrganizationMembership.account_id == owner,
+            )
+        )
+        assert membership is not None
+        membership.state = "suspended"
+        membership.revision += 1
+        await db.commit()
+    assert (await client.get(route, headers=headers)).status_code == 403
+    personal_read = await client.get(
+        f"/v1/organizations/{personal}/project-link-targets/{personal_project}", headers=headers
+    )
+    assert personal_read.status_code == 200
 
 
 async def test_project_ledger_replay_fast_forward_conflict_and_resolution(

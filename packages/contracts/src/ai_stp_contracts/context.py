@@ -314,6 +314,32 @@ class ActiveContext(ContractModel):
         return self
 
 
+class ProjectLinkProviderTarget(ContractModel):
+    """Current immutable repository coordinates for one authorized link target."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    provider_project_id: ProviderProjectId
+    provider: Literal["github", "gitlab"]
+    immutable_repository_id: Annotated[str, Field(min_length=1, max_length=128)]
+    revision: Annotated[int, Field(ge=1)]
+
+
+class ProjectLinkTargetResponse(ContractModel):
+    """Fresh link-planning coordinates; no link or installation is authorized."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    organization_id: OrganizationId
+    remote_project_id: RemoteProjectId
+    remote_revision: Annotated[str, Field(pattern=r"^(initial|sha256:[0-9a-f]{64})$")]
+    authorization_revision: Annotated[str, Field(min_length=1, max_length=128)]
+    providers: Annotated[list[ProjectLinkProviderTarget], Field(max_length=256)]
+    observed_at: Timestamp
+    observation_only: Literal[True] = True
+
+
 class ProjectLinkPlanRequest(ContractModel):
     """Request a server-authored exact link plan without changing state."""
 
@@ -412,6 +438,35 @@ class ProjectLinkResponse(ContractModel):
     conflict_common_ancestor: ProjectRevisionId | None = None
     revision: Annotated[int, Field(ge=1)]
     updated_at: Timestamp
+
+
+class ProjectLinkPlanOutcome(ContractModel):
+    """Current evidence for one original plan, without authority to confirm it."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    plan: ProjectLinkPlanResponse
+    state: Literal["ready", "applied", "expired"]
+    link: ProjectLinkResponse | None
+    authorization_revision: Annotated[str, Field(min_length=1, max_length=128)]
+    observed_at: Timestamp
+    observation_only: Literal[True] = True
+
+    @model_validator(mode="after")
+    def validate_outcome_binding(self) -> "ProjectLinkPlanOutcome":
+        if (self.state == "applied") != (self.link is not None):
+            raise ValueError("only an applied plan has a retained link")
+        if self.link is not None and (
+            self.link.plan_id != self.plan.plan_id
+            or self.link.plan_digest != self.plan.plan_digest
+            or self.link.organization_id != self.plan.organization_id
+            or self.link.local_project_id != self.plan.local_project_id
+            or self.link.remote_project_id != self.plan.remote_project_id
+            or self.link.provider_project_id != self.plan.provider_project_id
+        ):
+            raise ValueError("the outcome link must belong to the original plan")
+        return self
 
 
 class ProjectUnlinkRequest(ContractModel):

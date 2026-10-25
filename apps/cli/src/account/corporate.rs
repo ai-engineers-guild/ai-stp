@@ -38,6 +38,14 @@ contract!(
     "/resources/schemas/v1/corporate-project-view.schema.json"
 );
 contract!(
+    LINK_TARGET,
+    "/resources/schemas/v1/project-link-target-response.schema.json"
+);
+contract!(
+    LINK_OUTCOME,
+    "/resources/schemas/v1/project-link-plan-outcome.schema.json"
+);
+contract!(
     TECHNOLOGIES,
     "/resources/schemas/v1/technology-list.schema.json"
 );
@@ -78,6 +86,12 @@ pub enum Request {
     },
     Project {
         project_id: String,
+    },
+    LinkTarget {
+        project_id: String,
+    },
+    LinkOutcome {
+        plan_id: String,
     },
     Technologies {
         query: Option<String>,
@@ -126,7 +140,12 @@ fn harness(value: &str) -> Result<()> {
 impl Request {
     pub(crate) fn validate(&self) -> Result<()> {
         match self {
-            Self::Project { project_id } if !passport::stable_id(project_id, "remote_project") => {
+            Self::Project { project_id } | Self::LinkTarget { project_id }
+                if !passport::stable_id(project_id, "remote_project") =>
+            {
+                Err(invalid())
+            }
+            Self::LinkOutcome { plan_id } if !passport::stable_id(plan_id, "link_plan") => {
                 Err(invalid())
             }
             Self::Technologies {
@@ -197,6 +216,12 @@ impl Request {
                 membership_only: false,
             } => format!("{base}/projects"),
             Self::Project { project_id } => format!("{base}/projects/{project_id}"),
+            Self::LinkTarget { project_id } => {
+                format!("/v1/organizations/{organization}/project-link-targets/{project_id}")
+            }
+            Self::LinkOutcome { plan_id } => {
+                format!("/v1/organizations/{organization}/project-link-plans/{plan_id}/outcome")
+            }
             Self::Technologies { .. } => format!("{base}/technologies"),
             Self::Mappings => format!("{base}/technology-mappings"),
             Self::Mapping { version } => format!("{base}/technology-mappings/{version}"),
@@ -259,6 +284,8 @@ impl Request {
             Self::Teams => &TEAMS,
             Self::Projects { .. } => &PROJECTS,
             Self::Project { .. } => &PROJECT,
+            Self::LinkTarget { .. } => &LINK_TARGET,
+            Self::LinkOutcome { .. } => &LINK_OUTCOME,
             Self::Technologies { .. } => &TECHNOLOGIES,
             Self::Mappings => &MAPPINGS,
             Self::Mapping { .. } => &MAPPING,
@@ -276,6 +303,7 @@ impl Request {
         if matches!(
             self,
             Self::Project { .. }
+                | Self::LinkTarget { .. }
                 | Self::Mappings
                 | Self::Mapping { .. }
                 | Self::AssignmentPreview { .. }
@@ -287,6 +315,42 @@ impl Request {
             && value["project_id"] != *project_id
         {
             return Err(invalid());
+        }
+        if let Self::LinkTarget { project_id } = self {
+            if value["remote_project_id"] != *project_id {
+                return Err(invalid());
+            }
+            let mut providers = BTreeSet::new();
+            for provider in value["providers"].as_array().ok_or_else(invalid)? {
+                let id = text(provider, "provider_project_id")?;
+                if !passport::stable_id(id, "provider_project") || !providers.insert(id) {
+                    return Err(invalid());
+                }
+            }
+        }
+        if let Self::LinkOutcome { plan_id } = self {
+            let plan = &value["plan"];
+            let link = &value["link"];
+            if plan["plan_id"] != *plan_id
+                || plan["organization_id"] != organization
+                || (value["state"] == "applied") == link.is_null()
+            {
+                return Err(invalid());
+            }
+            if !link.is_null() {
+                for field in [
+                    "plan_id",
+                    "plan_digest",
+                    "organization_id",
+                    "local_project_id",
+                    "remote_project_id",
+                    "provider_project_id",
+                ] {
+                    if link[field] != plan[field] {
+                        return Err(invalid());
+                    }
+                }
+            }
         }
         if let Self::Mapping { version } = self
             && value["version"] != *version
@@ -383,6 +447,16 @@ pub fn observe(root: &Path, context: Option<&str>, request: Request) -> Result<V
     if authority(&organization, &observation) != authority(&current, &current_observation) {
         return Err(Failure::precondition(
             "corporate membership or capabilities changed during the observation; read the original context again",
+        ));
+    }
+    if matches!(
+        request,
+        Request::LinkTarget { .. } | Request::LinkOutcome { .. }
+    ) && data["authorization_revision"]
+        != current_observation["capabilities"]["authorization_revision"]
+    {
+        return Err(Failure::precondition(
+            "project link observation policy differs from the current corporate context",
         ));
     }
     context.bind()?.revalidate()?;
