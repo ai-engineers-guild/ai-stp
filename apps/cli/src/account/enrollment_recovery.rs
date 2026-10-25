@@ -597,7 +597,8 @@ pub(super) fn constraints(
 }
 
 /// Prove a completed same-account chain without opening a second registry lease.
-/// Callers already hold the current account journal and the supplied registry.
+/// Fresh readers hold the current account journal; historical receipt checks
+/// need only the supplied registry and never confer online authority.
 pub(crate) fn completed_retirement(
     connection: &Connection,
     current: &super::access::Binding,
