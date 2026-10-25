@@ -18,6 +18,8 @@ mod attestation_tests;
 mod context_http_tests;
 #[path = "corporate_http_tests.rs"]
 mod corporate_http_tests;
+#[path = "enrollment_recovery_tests.rs"]
+mod enrollment_recovery_tests;
 #[path = "enrollments_tests.rs"]
 mod enrollments_tests;
 #[path = "github_tests.rs"]

@@ -500,7 +500,14 @@ async fn profile_apply(
 ) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        if !confirmed || !matches!(path.as_str(), "account connections apply" | "context apply") {
+        if !confirmed
+            || !matches!(
+                path.as_str(),
+                "account connections apply"
+                    | "account connections recovery apply"
+                    | "context apply"
+            )
+        {
             return CmdResult::failed(
                 "DESKTOP_CONFIRMATION_REQUIRED",
                 "Review and confirm the exact native profile plan",
