@@ -10,6 +10,10 @@ use std::{
 };
 use zeroize::Zeroizing;
 
+#[cfg(test)]
+#[path = "activation_tests.rs"]
+mod tests;
+
 use super::{Plan, roots};
 use crate::{
     error::{ErrorKind, Failure, Result},
