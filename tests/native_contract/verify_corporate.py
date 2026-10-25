@@ -32,6 +32,7 @@ from tests.support.postgres import isolated_database
 from ai_stp_api.app import create_app
 from ai_stp_api.session import issue_session
 from ai_stp_api.slices.auth.device_flow import approve_device_authorization
+from ai_stp_contracts.technology import normalize_technology_name
 from ai_stp_foundation.envelope import ErrorEnvelope
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.catalog_search import upsert_catalog_search_projection
@@ -45,7 +46,7 @@ from ai_stp_platform.organization_models import (
     OrganizationMembership,
     ProjectIdentity,
 )
-from ai_stp_platform.technology_models import Technology
+from ai_stp_platform.technology_models import Technology, TechnologyAlias
 
 
 async def refused(binary: Path, home: Path, arguments: list[str]) -> None:
@@ -115,6 +116,11 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
             new_id("operation"),
             new_id("technology"),
         )
+        unjoined_project = new_id("remote_project")
+        project_rows = [
+            (project, "Native shared project"),
+            (unjoined_project, "Visible nonmember project"),
+        ]
         async with app.state.sessionmaker() as db:
             db.add(
                 OrganizationMembership(
@@ -133,21 +139,19 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
                     origin="membership",
                 )
             )
-            db.add(
-                ProjectIdentity(
-                    id=project,
-                    organization_id=organization,
-                    namespace="remote",
-                    external_key=f"native:{project}",
-                    display_name="Native shared project",
+            for project_id, name in project_rows:
+                db.add(
+                    ProjectIdentity(
+                        id=project_id,
+                        organization_id=organization,
+                        namespace="remote",
+                        external_key=f"native:{project_id}",
+                        display_name=name,
+                    )
                 )
-            )
             await db.flush()
-            db.add(
-                CorporateProject(
-                    id=project, organization_id=organization, name="Native shared project"
-                )
-            )
+            for project_id, name in project_rows:
+                db.add(CorporateProject(id=project_id, organization_id=organization, name=name))
             db.add(CorporateTeam(id=team, organization_id=organization, name="Native team"))
             db.add(
                 Technology(
@@ -155,9 +159,19 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
                     organization_id=organization,
                     name="Native technology",
                     provenance="manual",
+                    lifecycle="active",
                 )
             )
             await db.flush()
+            db.add(
+                TechnologyAlias(
+                    organization_id=organization,
+                    technology_id=technology,
+                    name="Native technology",
+                    normalized_name=normalize_technology_name("Native technology"),
+                    canonical=True,
+                )
+            )
             db.add(
                 CorporateProjectMember(
                     organization_id=organization,
@@ -327,6 +341,10 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
 
     projects = await observe("projects", "--membership-only")
     assert [item["project_id"] for item in projects["items"]] == [project]
+    assert {item["project_id"] for item in (await observe("projects"))["items"]} == {
+        project,
+        unjoined_project,
+    }
     assert (await observe("project", "show", "--project", project))["project_id"] == project
     assert team in {item["team_id"] for item in (await observe("teams"))["items"]}
     assert technology in {
@@ -366,7 +384,7 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
             assert item["action"] == "install" and item["source_scope"] == "organization"
         else:
             assert item["version"] is None and item["action"] == "none"
-    assert not (await observe("projects", "--membership-only", context=contexts[1]))["items"]
+    assert not (await observe("projects", context=contexts[1]))["items"]
     await refused(
         binary,
         home,
@@ -377,16 +395,15 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
             "--harness",
             "claude-code",
             "--project",
-            project,
+            unjoined_project,
             "--context",
-            contexts[1],
+            contexts[0],
             *scoped,
         ],
     )
     await observe("teams", context=legacy["plan"]["change"]["context"]["context_id"])
-    assert (await run("corporate", "projects", "--membership-only"))["observation"]["context"][
-        "context_id"
-    ] == contexts[1]
+    default_read = await run("corporate", "projects")
+    assert default_read["observation"]["context"]["context_id"] == contexts[1]
     await refused(
         binary,
         home,
@@ -412,7 +429,7 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         member.state, member.revision = "suspended", member.revision + 1
         await db.commit()
     await refused(binary, home, ["corporate", "teams", "--context", contexts[0], *scoped])
-    await observe("projects", "--membership-only", context=contexts[1])
+    await observe("projects", context=contexts[1])
     assert await run("context", "list") == snapshot
     assert await run("device", "show") == original
     with closing(sqlite3.connect(f"file:{registry}?mode=ro", uri=True)) as local:
