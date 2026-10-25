@@ -131,7 +131,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
-          python-version: "3.14"
+          python-version: "3.14.9"
       # Promotion and deployment are separate events, so an immediate check
       # would measure whether the target had already deployed a commit promoted
       # seconds earlier — it never has. Waiting a bounded time is what makes a

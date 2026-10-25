@@ -23,28 +23,28 @@ import zipfile
 from collections.abc import Callable
 from pathlib import Path
 
-VERSION = "1.58.0"
+VERSION = "1.59.0"
 
 # SHA256 values for official archives, keyed case-sensitively by GitHub Release
 # asset name. Update this table before updating its consumers.
 SHA256 = {
-    "just-1.58.0-x86_64-unknown-linux-musl.tar.gz": (
-        "4a5cc2f53e6f0f8c59092a6cc38291eb729d46a7dd95d3ae582008881b84931d"
+    "just-1.59.0-x86_64-unknown-linux-musl.tar.gz": (
+        "409044617b6f06517c1035e55ca38c8c856ff8b650e41bc2aa1ef82d5903a23e"
     ),
-    "just-1.58.0-aarch64-unknown-linux-musl.tar.gz": (
-        "748237128c4c40cbdabc65e841d05ceba13cc23a91eaba395495894c1d9764df"
+    "just-1.59.0-aarch64-unknown-linux-musl.tar.gz": (
+        "23871b1702bfd550fb5f901778fd4290ecf2ee034a45a889fbe96d89b188086d"
     ),
-    "just-1.58.0-aarch64-apple-darwin.tar.gz": (
-        "50ae3e996c974a0bf32ea7d10f495070df33f1b43e0616b2769e3d4821ed8f48"
+    "just-1.59.0-aarch64-apple-darwin.tar.gz": (
+        "6574cea774ed4cae12e24b6aa11857de33e80dab4667cf628fd5840df96a2a9d"
     ),
-    "just-1.58.0-x86_64-apple-darwin.tar.gz": (
-        "9a09cfef66aaa79da58203970103a0684307716caaabd3e9844cacc4dc0f4023"
+    "just-1.59.0-x86_64-apple-darwin.tar.gz": (
+        "036ead9df9bc31dbae9934ae3b4236ed124d0bafcffd33439460ae084d5c9cb7"
     ),
-    "just-1.58.0-x86_64-pc-windows-msvc.zip": (
-        "759f16fb7aa17c5c8b9594b6d4a8c1a6630dfd042cf2b3ff84841454d3d188dc"
+    "just-1.59.0-x86_64-pc-windows-msvc.zip": (
+        "9c5463e2d0974e31bee71346aa5cbf19167de1585a4abc1bae7b3b04604ea9c0"
     ),
-    "just-1.58.0-aarch64-pc-windows-msvc.zip": (
-        "3a39ed629eb67678976c811a4da46f7985a2c22f4dbabe017b8b2eb5ceb5d01c"
+    "just-1.59.0-aarch64-pc-windows-msvc.zip": (
+        "a72808bc8f8028c25aaae87cf26405d2bd85d2769a779380b344c69607216971"
     ),
 }
 
