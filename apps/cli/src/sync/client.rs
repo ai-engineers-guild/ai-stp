@@ -222,7 +222,14 @@ impl Client {
         })?;
         self.store.transaction(|t| {
             run.check(t, &self.scope)?;
-            let result = super::recovery::retire(t, &self.scope, capture, operation_id, digest)?;
+            let result = super::recovery::retire(
+                t,
+                &self.scope,
+                capture,
+                self.account.binding(),
+                operation_id,
+                digest,
+            )?;
             run.save(
                 t,
                 &self.scope,

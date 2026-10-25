@@ -374,6 +374,8 @@ fn missing_key_preparation_preserves_authorized_history_and_rechecks_absence_bef
     assert!(plan.missing_key.is_some());
     let value = serde_json::to_value(&plan)?;
     assert!(value.get("revoked_receipt_digest").is_none());
+    assert!(value.get("interrupted_publications").is_none());
+    assert!(value.get("interrupted_sync").is_none());
     {
         let directory = crate::files::OwnedDirectory::open_at(
             local.root_directory(),
@@ -459,6 +461,8 @@ fn version_one_recovery_serialization_remains_canonical_without_missing_key_fiel
     assert_eq!(value["schema_version"], 1);
     assert!(value["revoked_receipt_digest"].is_string());
     assert!(value.get("missing_key").is_none());
+    assert!(value.get("interrupted_publications").is_none());
+    assert!(value.get("interrupted_sync").is_none());
     let digest = crate::digest::canonical("ai-stp:plan:v1", &value)?;
     let decoded: recovery::Plan = serde_json::from_value(value)?;
     assert_eq!(decoded.digest()?, digest);

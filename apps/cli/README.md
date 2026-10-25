@@ -114,10 +114,23 @@ new context views explicitly through the replacement connection. New requests
 through the retired enrollment refuse, while exact historical receipt replay
 remains available.
 
+Version 3 additionally binds exact unfinished publication/sync checkpoints from
+the original enrollment. Their local interruption and recovery admission commit
+together. Original wire requests and idempotency keys remain unchanged, and the
+interrupted result explicitly retains `remote_outcome: unknown`. Unrelated
+enrollment operations are retained. Empty checkpoint fields remain omitted from
+version-1/2 plans, preserving their serialization and digests.
+
+After replacement sign-in, `publication reconcile --connection ID --operation-id ID`
+reads remote evidence through a confirmed same-account replacement chain. It
+never resumes old-device writes or changes historical interruption receipts.
+`sync recover plan --connection ID --event-id ID` reviews local retirement of one
+pending request covered by that verified chain. Applying the plan preserves its
+bytes and unknown remote outcome; it does not create a server acknowledgement.
+A later pull can still observe the actual accepted event.
+
 Schema 56 preserves the original database filename and production owner marker;
-older clients refuse its format. Unfinished publication/sync operations belonging
-to the original enrollment must be reconciled before this recovery can be
-admitted. Unrelated enrollment operations are retained. Recovery does not settle
+older clients refuse unsupported recovery records. Recovery does not settle
 unknown remote effects or grant corporate installation authority.
 
 Windows account sessions use versioned compressed binary records in the native
