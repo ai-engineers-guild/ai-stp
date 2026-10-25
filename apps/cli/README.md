@@ -25,8 +25,11 @@ Omitting the selector explicitly retains the legacy session behavior.
 graph from that connection's origin. Authorization uses its remote enrollment;
 the local identity records acquired bytes without an owner or key transfer.
 
-`account organizations --connection ID` reads available organizations. Create a
-native offline context with `context create plan --label NAME`, or add an explicit
+`account organizations --connection ID` reads available organizations; use
+`--legacy-account` instead to explicitly read through the existing local-owner
+session. `context create plan --legacy-account --label NAME` admits that session
+as a context without creating another enrollment or copying its credentials.
+Create a native offline context with `context create plan --label NAME`, or add an explicit
 connection and organization for a server-resolved personal/corporate observation.
 Apply the exact plan with `context apply`. `context select plan --context ID`
 plans a revision-checked view preference; selection changes no harness files or

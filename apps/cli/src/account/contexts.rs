@@ -39,6 +39,12 @@ pub enum Authority {
     },
 }
 
+enum SessionSource<'a> {
+    Local,
+    Legacy,
+    Connection(&'a str),
+}
+
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Context {
@@ -212,8 +218,7 @@ impl Context {
             }
             ORGANIZATIONS.validate(&json!({"schema_version":1,"items":[organization]}))?;
             let projection = &observation["capabilities"];
-            if account.connection.is_none()
-                || account.root_identity != self.root_identity
+            if account.root_identity != self.root_identity
                 || organization["organization_id"] != observation["organization_id"]
                 || organization["kind"] != observation["mode"]
                 || projection["mode"] != observation["mode"]
@@ -408,7 +413,14 @@ fn record(connection: &Connection, id: &str) -> Result<Context> {
 }
 
 pub fn organizations(root: &Path, connection: &str) -> Result<Value> {
-    let mut access = Access::for_connection(root, None, Some(connection), false)?;
+    organizations_with_access(Access::for_connection(root, None, Some(connection), false)?)
+}
+
+pub fn legacy_organizations(root: &Path) -> Result<Value> {
+    organizations_with_access(Access::for_account(root, None)?)
+}
+
+fn organizations_with_access(mut access: Access) -> Result<Value> {
     access.verify()?;
     let items = organizations_projection(&access.context_read("/v1/organizations", None)?)?;
     Ok(json!({"account":access.binding(),"organizations":items,"online_verified":true}))
@@ -456,14 +468,45 @@ pub fn create_plan(
     organization: Option<&str>,
     at: &str,
 ) -> Result<Plan> {
-    if connection.is_none() && organization.is_some() {
+    create_with_source(
+        root,
+        label,
+        connection.map_or(SessionSource::Local, SessionSource::Connection),
+        organization,
+        at,
+    )
+}
+
+pub fn create_legacy_plan(
+    root: &Path,
+    label: &str,
+    organization: Option<&str>,
+    at: &str,
+) -> Result<Plan> {
+    create_with_source(root, label, SessionSource::Legacy, organization, at)
+}
+
+fn create_with_source(
+    root: &Path,
+    label: &str,
+    source: SessionSource<'_>,
+    organization: Option<&str>,
+    at: &str,
+) -> Result<Plan> {
+    if matches!(source, SessionSource::Local) && organization.is_some() {
         return Err(Failure::input(
             "a remote organization requires an explicit retained connection",
         ));
     }
     let id = super::identity_at(root)?;
-    let authority = if let Some(connection) = connection {
-        let mut access = Access::for_connection(root, None, Some(connection), false)?;
+    let authority = if !matches!(source, SessionSource::Local) {
+        let mut access = match source {
+            SessionSource::Legacy => Access::for_account(root, None)?,
+            SessionSource::Connection(connection) => {
+                Access::for_connection(root, None, Some(connection), false)?
+            }
+            SessionSource::Local => return Err(invalid()),
+        };
         let (organization, observation) = remote(&mut access, organization)?;
         Authority::Remote {
             account: Box::new(access.binding().clone()),

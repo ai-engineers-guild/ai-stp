@@ -30,6 +30,8 @@ harness files. Harness executables remain user/vendor managed.
   personal and corporate context observations. It exposes the exact registry
   format upgrade before application. View selection preserves existing operations
   and harness files; current organization access is an explicit online read.
+  The existing local-owner session can be admitted as a context through the same
+  reviewed flow, preserving its original key and credential journal.
 - **Targets**, **Discovery** and **Commands** render the connected engine's
   command descriptors with read/plan/apply gates and explicit apply confirmation.
 - **Diagnostics** offers an optional, bounded in-memory trace and an explicitly
