@@ -115,7 +115,7 @@ jobs:
           )"
           printf 'AI_STP_TEST_CLI_BINARY=%s\n' "$binary" >> "${GITHUB_ENV}"
           uv run --no-sync python tests/native_contract/verify.py "$binary"
-      - name: Ownership transfer through exact native setup acquisition
+      - name: Ownership and corporate journeys through the native HTTP client
         if: runner.os == 'Linux'
         shell: bash
         env:
@@ -136,6 +136,8 @@ jobs:
           docker exec ai-stp-native-ownership pg_isready -U ai_stp -d ai_stp
           uv sync --locked
           uv run --locked python -m tests.native_contract.verify_ownership \
+            "${AI_STP_TEST_CLI_BINARY}"
+          uv run --locked python -m tests.native_contract.verify_corporate \
             "${AI_STP_TEST_CLI_BINARY}"
       - name: Cache the successful native build
         if: steps.native-cache.outputs.cache-hit != 'true'

@@ -527,6 +527,12 @@ cli-ownership-regress: cli-build
     test -n "${AI_STP_TEST_DB_URL:-}"
     binary="$({{ native }} cli-binary)" && {{ run }} python -m tests.native_contract.verify_ownership "$binary"
 
+[doc('Qualify native enrollments and corporate reads against a disposable API database')]
+[group('cli')]
+cli-corporate-regress: cli-build
+    test -n "${AI_STP_TEST_DB_URL:-}"
+    binary="$({{ native }} cli-binary)" && {{ run }} python -m tests.native_contract.verify_corporate "$binary"
+
 # Native CLI boundary gate (also part of the repository gate)
 [group('cli')]
 cli-check: cli-static cli-test cli-build cli-regress

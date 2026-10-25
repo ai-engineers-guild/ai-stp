@@ -1,0 +1,84 @@
+{
+  "$defs": {
+    "TechnologyMappingEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "coordinate": {
+          "maxLength": 512,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._:/@+*-]+$",
+          "title": "Coordinate",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "package",
+            "image",
+            "executable",
+            "configuration",
+            "alias"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "provenance": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._:/+-]+$",
+          "title": "Provenance",
+          "type": "string"
+        },
+        "technology_id": {
+          "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Technology Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "coordinate",
+        "technology_id",
+        "provenance"
+      ],
+      "title": "TechnologyMappingEntry",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:technology-mapping-view",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Digest",
+      "type": "string"
+    },
+    "entries": {
+      "items": {
+        "$ref": "#/$defs/TechnologyMappingEntry"
+      },
+      "title": "Entries",
+      "type": "array"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "version": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._+-]+$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "digest",
+    "entries",
+    "organization_id",
+    "version"
+  ],
+  "title": "TechnologyMappingView",
+  "type": "object"
+}

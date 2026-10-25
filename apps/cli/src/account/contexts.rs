@@ -242,7 +242,7 @@ impl Context {
         id.revalidate()
     }
 
-    fn bind(&self) -> Result<identity::Identity> {
+    pub(super) fn bind(&self) -> Result<identity::Identity> {
         let id = super::identity_at(&self.root)?;
         self.check(&id)?;
         Ok(id)
@@ -426,7 +426,7 @@ fn organizations_with_access(mut access: Access) -> Result<Value> {
     Ok(json!({"account":access.binding(),"organizations":items,"online_verified":true}))
 }
 
-fn remote(access: &mut Access, organization: Option<&str>) -> Result<(Value, Value)> {
+pub(super) fn remote(access: &mut Access, organization: Option<&str>) -> Result<(Value, Value)> {
     if organization.is_some_and(|id| !passport::stable_id(id, "organization")) {
         return Err(invalid());
     }
@@ -765,4 +765,29 @@ pub fn show(root: &Path, context: &str, refresh: bool) -> Result<Value> {
     }
     id.revalidate()?;
     Ok(result)
+}
+
+/// Resolve a new command's preference once; retained commands carry their own
+/// context. Loading a view never creates membership or installation authority.
+pub(super) fn resolve(root: &Path, context: Option<&str>) -> Result<Context> {
+    let id = super::identity_at(root)?;
+    let held = {
+        let store = Store::planning_at(id.root_directory())?;
+        if !store.profiles_enabled()? {
+            return Err(Failure::precondition(
+                "create an explicit native context first",
+            ));
+        }
+        let context = match context {
+            Some(context) => context.to_owned(),
+            None => selection(&store.connection)?
+                .map(|value| value.context_id)
+                .ok_or_else(|| {
+                    Failure::precondition("select a context or supply its exact identifier")
+                })?,
+        };
+        record(&store.connection, &context)?
+    };
+    held.check(&id)?;
+    Ok(held)
 }
