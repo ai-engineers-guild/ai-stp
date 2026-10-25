@@ -1,4 +1,4 @@
-//! Confined native state: schemas 53/54 and explicitly enabled profile schema 55.
+//! Confined native state with explicitly enabled profiles and enrollment recovery.
 //! Production transfer preserves its original registry file and data model.
 
 pub(crate) mod journal;
@@ -26,8 +26,10 @@ const PRODUCTION_OWNER: &[u8] = b"ai-stp native production registry v1\n";
 const TRANSFER_OWNER: &[u8] = b"ai-stp native production transfer v1\n";
 pub(crate) const PRODUCTION_SCHEMA: u32 = 54;
 pub(crate) const PROFILE_SCHEMA: u32 = 55;
+pub(crate) const ENROLLMENT_RECOVERY_SCHEMA: u32 = 56;
 const BOOTSTRAP: &str = include_str!("schema.sql");
 const PROFILES: &str = include_str!("profiles.sql");
+const ENROLLMENT_RECOVERY: &str = include_str!("enrollment_recovery.sql");
 type Schema = Vec<(String, String, String, String)>;
 
 pub struct Store {
@@ -139,6 +141,35 @@ fn expected_profile_schema() -> Result<&'static Schema> {
                 "the embedded profile registry schema is invalid",
             )
         })
+}
+
+fn expected_recovery_schema() -> Result<&'static Schema> {
+    static EXPECTED: OnceLock<Result<Schema>> = OnceLock::new();
+    EXPECTED
+        .get_or_init(|| {
+            let connection = Connection::open_in_memory().map_err(database)?;
+            connection.execute_batch(BOOTSTRAP).map_err(database)?;
+            connection.execute_batch(PROFILES).map_err(database)?;
+            connection
+                .execute_batch(ENROLLMENT_RECOVERY)
+                .map_err(database)?;
+            schema(&connection)
+        })
+        .as_ref()
+        .map_err(|_| {
+            Failure::new(
+                ErrorKind::Internal,
+                "the embedded enrollment recovery registry schema is invalid",
+            )
+        })
+}
+
+pub(crate) fn profile_schema_after(before: u32) -> Result<u32> {
+    match before {
+        53 | PRODUCTION_SCHEMA | PROFILE_SCHEMA => Ok(PROFILE_SCHEMA),
+        ENROLLMENT_RECOVERY_SCHEMA => Ok(ENROLLMENT_RECOVERY_SCHEMA),
+        _ => Err(Failure::precondition("the profile registry schema changed")),
+    }
 }
 
 impl Store {
@@ -331,16 +362,21 @@ impl Store {
         } else if if production {
             version != PRODUCTION_SCHEMA
                 && version != PROFILE_SCHEMA
+                && version != ENROLLMENT_RECOVERY_SCHEMA
                 && !(transfer && version == SCHEMA_VERSION)
         } else {
-            version != SCHEMA_VERSION && version != PROFILE_SCHEMA
+            version != SCHEMA_VERSION
+                && version != PROFILE_SCHEMA
+                && version != ENROLLMENT_RECOVERY_SCHEMA
         } {
             return Err(Failure::precondition(
                 "the local registry schema is unsupported",
             ));
         }
         if &schema(&connection)?
-            != if version == PROFILE_SCHEMA {
+            != if version == ENROLLMENT_RECOVERY_SCHEMA {
+                expected_recovery_schema()?
+            } else if version == PROFILE_SCHEMA {
                 expected_profile_schema()?
             } else {
                 expected_schema()?
@@ -437,7 +473,7 @@ impl Store {
             let version: u32 = transaction
                 .query_row("PRAGMA user_version", [], |row| row.get(0))
                 .map_err(database)?;
-            if version != PROFILE_SCHEMA {
+            if version != PROFILE_SCHEMA && version != ENROLLMENT_RECOVERY_SCHEMA {
                 if ![SCHEMA_VERSION, PRODUCTION_SCHEMA].contains(&version) {
                     return Err(Failure::precondition("the profile registry schema changed"));
                 }
@@ -451,10 +487,38 @@ impl Store {
     }
 
     pub(crate) fn profiles_enabled(&self) -> Result<bool> {
-        Ok(self
-            .connection
-            .query_row("PRAGMA user_version", [], |row| row.get::<_, u32>(0))
-            .map_err(database)?
-            == PROFILE_SCHEMA)
+        Ok([PROFILE_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA].contains(&self.version()?))
+    }
+
+    pub(crate) fn version(&self) -> Result<u32> {
+        self.connection
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .map_err(database)
+    }
+
+    /// The epoch fence, parent recovery and child enrollment are admitted in
+    /// one commit. The caller holds the original account and credential locks.
+    pub(crate) fn enrollment_recovery_transaction<T>(
+        &mut self,
+        operation: impl FnOnce(&Transaction<'_>) -> Result<T>,
+    ) -> Result<T> {
+        self.transaction(|transaction| {
+            let version: u32 = transaction
+                .query_row("PRAGMA user_version", [], |row| row.get(0))
+                .map_err(database)?;
+            if version == PROFILE_SCHEMA {
+                transaction
+                    .execute_batch(ENROLLMENT_RECOVERY)
+                    .map_err(database)?;
+                transaction
+                    .pragma_update(None, "user_version", ENROLLMENT_RECOVERY_SCHEMA)
+                    .map_err(database)?;
+            } else if version != ENROLLMENT_RECOVERY_SCHEMA {
+                return Err(Failure::precondition(
+                    "retained profiles are required before enrollment recovery",
+                ));
+            }
+            operation(transaction)
+        })
     }
 }

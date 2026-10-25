@@ -316,7 +316,10 @@ export function cmdAuthResume(connection?: string): Promise<CmdResult> {
 }
 
 export function cmdProfileApply(
-  path: "account connections apply" | "context apply",
+  path:
+    | "account connections apply"
+    | "account connections recovery apply"
+    | "context apply",
   plan: unknown,
   digest: string,
   confirmed: boolean,

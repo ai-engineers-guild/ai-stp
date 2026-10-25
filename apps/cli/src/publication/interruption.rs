@@ -218,6 +218,30 @@ pub(crate) fn capture(
         .collect()
 }
 
+pub(crate) fn pending_enrollment(connection: &Connection, enrollment: &str) -> Result<bool> {
+    let mut query=connection.prepare("SELECT operation_id FROM operation WHERE kind IN ('publication.run','publication.set') AND finished_at IS NULL ORDER BY operation_id LIMIT 129").map_err(database)?;
+    let ids = query
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(database)?
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .map_err(database)?;
+    if ids.len() > 128 {
+        return Err(invalid());
+    }
+    for id in ids {
+        let subject = Subject::load(connection, &id)?;
+        if subject
+            .binding()
+            .connection
+            .as_ref()
+            .is_some_and(|value| value.connection_id == enrollment)
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 pub(crate) fn validate(connection: &Connection, recovery: &account::Plan) -> Result<()> {
     let intent = recovery.recovery.as_ref().ok_or_else(invalid)?;
     let current = capture(connection, recovery, intent.account_id.as_deref())?;

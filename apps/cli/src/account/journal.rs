@@ -14,6 +14,7 @@ use crate::{
 
 const OWNER: &[u8] = b"ai-stp-cli-v2 isolated account sessions v1\n";
 const RECOVERED: &[u8] = b"ai-stp-cli-v2 isolated account sessions v2\n";
+const ENROLLMENT_RECOVERY: &[u8] = b"ai-stp-cli-v2 isolated enrollment recovery v1\n";
 const NAME: &str = "ai-stp-v2-account";
 
 #[derive(Deserialize, Serialize)]
@@ -79,8 +80,17 @@ impl Journal {
         connection: Option<super::connections::Enrollment>,
         create: bool,
     ) -> Result<Option<Self>> {
-        let Some(directory) =
-            OwnedDirectory::open_compatible(parent, namespace, OWNER, &[RECOVERED], create)?
+        let Some(directory) = OwnedDirectory::open_compatible(
+            parent,
+            namespace,
+            OWNER,
+            if connection.is_some() {
+                &[RECOVERED, ENROLLMENT_RECOVERY]
+            } else {
+                &[RECOVERED]
+            },
+            create,
+        )?
         else {
             return Ok(None);
         };
@@ -111,6 +121,15 @@ impl Journal {
     pub fn fence(&self) -> Result<()> {
         self.validate()?;
         self.directory.atomic("owner", RECOVERED)?;
+        self.validate()
+    }
+
+    pub(super) fn fence_enrollment(&self) -> Result<()> {
+        if self.connection.is_none() {
+            return Err(super::invalid());
+        }
+        self.validate()?;
+        self.directory.atomic("owner", ENROLLMENT_RECOVERY)?;
         self.validate()
     }
 

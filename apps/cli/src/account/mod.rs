@@ -6,6 +6,7 @@ pub(crate) mod attachment;
 pub mod connections;
 pub mod contexts;
 pub mod corporate;
+pub mod enrollment_recovery;
 pub mod github;
 pub mod grants;
 mod journal;
@@ -80,9 +81,26 @@ fn check_binding(identity: &identity::Identity, plan: &Plan) -> Result<()> {
     Ok(())
 }
 
+// Call only after acquiring the account journal and before opening a registry.
+// Holding that journal drains recovery; later revalidation must not recursively
+// acquire the registry lock while an authoring/acquisition transaction owns it.
+fn check_enrollment_constraints(identity: &identity::Identity, plan: &Plan) -> Result<()> {
+    if let Some(connection) = &plan.connection {
+        let constraints = enrollment_recovery::constraints(identity, connection)?;
+        if constraints.as_ref().map(|v| v.0.as_str()) != plan.expected_account_id.as_deref()
+            || constraints.as_ref().map(|v| v.1.as_str()) != plan.revoked_public_key.as_deref()
+        {
+            return Err(invalid());
+        }
+    }
+    Ok(())
+}
+
 fn check_state(state: &State, plan: &Plan) -> Result<()> {
     if state.plan.connection.is_some() || plan.connection.is_some() {
         if state.plan.connection != plan.connection
+            || state.plan.expected_account_id != plan.expected_account_id
+            || state.plan.revoked_public_key != plan.revoked_public_key
             || state.plan.root != plan.root
             || state.plan.root_identity != plan.root_identity
             || state.plan.identity.account_id != plan.identity.account_id
@@ -135,6 +153,12 @@ pub fn plan_for_connection(
     let (root, root_identity) = identity.root_binding();
     let (root, root_identity) = (root.to_owned(), root_identity.clone());
     let journal = Journal::for_connection(&identity, connection.as_ref(), false)?;
+    let enrollment_constraints = if let Some(connection) = &connection {
+        enrollment_recovery::fresh(&identity, connection)?;
+        enrollment_recovery::constraints(&identity, connection)?
+    } else {
+        None
+    };
     if journal
         .as_ref()
         .map(Journal::pending)
@@ -191,10 +215,17 @@ pub fn plan_for_connection(
         expected_revision: state.as_ref().map(|s| s.revision.clone()),
         attachment: None,
         recovery: None,
-        expected_account_id: recovered
-            .and_then(|e| e.plan.recovery.as_ref())
-            .and_then(|r| r.account_id.clone()),
-        revoked_public_key: recovered.map(|e| e.plan.public_key.clone()),
+        expected_account_id: enrollment_constraints
+            .as_ref()
+            .map(|value| value.0.clone())
+            .or_else(|| {
+                recovered
+                    .and_then(|e| e.plan.recovery.as_ref())
+                    .and_then(|r| r.account_id.clone())
+            }),
+        revoked_public_key: enrollment_constraints
+            .map(|value| value.1)
+            .or_else(|| recovered.map(|e| e.plan.public_key.clone())),
         connection,
     };
     if action == Action::Recover {
@@ -335,10 +366,12 @@ pub fn status_for_connection(root: &Path, connection: Option<&str>, at: &str) ->
     let state = journal.state()?;
     if let Some(state) = &state {
         check_binding(&identity, &state.plan)?;
+        check_enrollment_constraints(&identity, &state.plan)?;
     }
     let pending = journal.pending()?;
     if let Some(pending) = &pending {
         check_binding(&identity, &pending.plan)?;
+        check_enrollment_constraints(&identity, &pending.plan)?;
     }
     let mut result=state.map_or_else(||json!({"schema_version":1,"session":{"state":"absent"},"owner_attached":false,"online_verified":false}),|s|s.public(at));
     result["owner_attached"] = (owner != identity.context()).into();
@@ -390,18 +423,25 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
         None => Journal::for_connection(&identity, plan.connection.as_ref(), true)?
             .ok_or_else(invalid)?,
     };
+    check_enrollment_constraints(&identity, plan)?;
     if let Some(receipt) = journal.receipt(plan)? {
         if journal.pending()?.is_some_and(|p| p.plan == *plan) {
             journal.clear_pending(plan)?;
         }
+        enrollment_recovery::confirm(&identity, &receipt)?;
         return Ok(receipt.public());
     }
     let state = journal.state()?;
     if let Some(state) = &state {
         check_state(state, plan)?;
         if state.plan == *plan {
-            return Ok(journal.complete(state)?.public());
+            let receipt = journal.complete(state)?;
+            enrollment_recovery::confirm(&identity, &receipt)?;
+            return Ok(receipt.public());
         }
+    }
+    if let Some(connection) = &plan.connection {
+        enrollment_recovery::fresh(&identity, connection)?;
     }
     let pending = journal.pending()?;
     let resumed = pending.is_some();
@@ -469,7 +509,9 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
         completed_at: now_after(at),
     };
     journal.write(&state)?;
-    Ok(journal.complete(&state)?.public())
+    let receipt = journal.complete(&state)?;
+    enrollment_recovery::confirm(&identity, &receipt)?;
+    Ok(receipt.public())
 }
 
 fn now_after(at: &str) -> String {

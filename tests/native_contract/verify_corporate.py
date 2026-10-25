@@ -232,7 +232,7 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         )
         assert response.status_code == 200, response.text
 
-    async def login(account: str, connection: str | None) -> None:
+    async def login(account: str, connection: str | None, *, authorized: bool = True) -> None:
         qualifier = ["--connection", connection] if connection else []
         start = await run(
             "account",
@@ -260,7 +260,10 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         await asyncio.sleep(max(0, delay) + 0.02)
         poll = await run("account", "plan", "--action", "poll", *qualifier)
         receipt = await enact(poll, "account", "apply")
-        assert receipt["outcome"] == "authorized" and receipt["account_id"] == account
+        if authorized:
+            assert receipt["outcome"] == "authorized" and receipt["account_id"] == account
+        else:
+            assert receipt["outcome"] != "authorized" and receipt["account_id"] is None
 
     connections: list[dict[str, Any]] = []
     contexts: list[str] = []
@@ -443,6 +446,79 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
     assert not any(
         (home / name).exists() for name in (".codex", ".claude", ".cursor", ".config/opencode")
     )
+
+    # Recover only one server-revoked enrollment. Original company views and
+    # the native/legacy identity remain frozen while the child authenticates.
+    async with app.state.sessionmaker() as db:
+        device = await db.get(Device, connections[0]["device_id"])
+        assert device is not None
+        device.state = "revoked"
+        await db.commit()
+    refresh = await run(
+        "account", "plan", "--action", "refresh", "--connection", connections[0]["connection_id"]
+    )
+    assert (await enact(refresh, "account", "apply"))["outcome"] == "revoked"
+    recovery = await run(
+        "account",
+        "connections",
+        "recovery",
+        "plan",
+        "--connection",
+        connections[0]["connection_id"],
+        "--label",
+        "Recovered company",
+    )
+    prepared = await enact(recovery, "account", "connections", "recovery", "apply")
+    assert prepared["state"] == "sign_in_required" and prepared["account_id"] == accounts[0]
+    replacement = prepared["replacement_connection_id"]
+    child = recovery["plan"]["replacement"]
+    assert child["connection_id"] == replacement
+    assert child["device_id"] != connections[0]["device_id"]
+    # Approval by a different synthetic person must fail at the actual server
+    # exchange, without registering a device or completing the local recovery.
+    await login(accounts[1], replacement, authorized=False)
+    async with app.state.sessionmaker() as db:
+        assert await db.get(Device, child["device_id"]) is None
+    pending_recoveries = await run("account", "connections", "recovery", "list")
+    assert pending_recoveries["recoveries"][0]["state"] == "sign_in_required"
+    await login(accounts[0], replacement)
+    completed = await run("account", "connections", "recovery", "list")
+    assert completed["recoveries"][0]["state"] == "authorized"
+    assert completed["recoveries"][0]["confirmation"]["account_id"] == accounts[0]
+    assert (await apply(binary, home, recovery, ["account", "connections", "recovery", "apply"]))[
+        "state"
+    ] == "authorized"
+    await refused(
+        binary,
+        home,
+        [
+            "account",
+            "plan",
+            "--action",
+            "start",
+            "--connection",
+            connections[0]["connection_id"],
+            *scoped,
+        ],
+    )
+    assert await run("context", "list") == snapshot
+    assert await run("device", "show") == original
+    assert (await run("account", "status"))["session"]["account_id"] == accounts[0]
+    assert (await run("account", "status", "--connection", connections[1]["connection_id"]))[
+        "session"
+    ]["account_id"] == accounts[1]
+    with closing(sqlite3.connect(f"file:{registry}?mode=ro", uri=True)) as local:
+        assert local.execute("PRAGMA user_version").fetchone() == (56,)
+    async with app.state.sessionmaker() as db:
+        old = await db.get(Device, connections[0]["device_id"])
+        new = await db.get(Device, child["device_id"])
+        assert old is not None and new is not None
+        assert old.state == "revoked" and old.public_key == connections[0]["public_key"]
+        assert new.state == "active" and new.account_id == accounts[0]
+        assert new.public_key not in {connections[0]["public_key"], original["public_key"]}
+        assert (
+            await db.scalar(select(func.count()).select_from(CorporateAssignmentDistribution)) == 0
+        )
     print(
         json.dumps(
             {
@@ -452,6 +528,7 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
                 "legacy_session": "preserved",
                 "membership_revocation": "refused",
                 "read_operations_added": 0,
+                "enrollment_recovery": "same_account_only",
             }
         ),
         flush=True,
