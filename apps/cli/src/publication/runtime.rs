@@ -360,7 +360,7 @@ fn apply_confirmed(plan: &Plan, at: &str) -> Result<Value> {
     if !passport::timestamp(at) || at < plan.created_at.as_str() || at > plan.expires_at.as_str() {
         return Err(invalid());
     }
-    let mut client = Client::connect(&intent.state_parent, Some(&plan.account.origin))?;
+    let mut client = Client::for_binding(&intent.state_parent, &plan.account)?;
     if client.binding() != &plan.account {
         return Err(invalid());
     }

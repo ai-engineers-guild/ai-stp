@@ -176,20 +176,28 @@ export function cmdRunRead(
 export function cmdAuthLogin(
   provider: string,
   origin?: string,
+  connection?: string,
 ): Promise<CmdResult> {
-  return call("auth_login", { provider, ...(origin ? { origin } : {}) });
+  return call("auth_login", {
+    provider,
+    ...(origin ? { origin } : {}),
+    ...(connection ? { connection } : {}),
+  });
 }
 
-export function cmdAuthComplete(wait: boolean): Promise<CmdResult> {
-  return call("auth_complete", { wait });
+export function cmdAuthComplete(
+  wait: boolean,
+  connection?: string,
+): Promise<CmdResult> {
+  return call("auth_complete", { wait, ...(connection ? { connection } : {}) });
 }
 
-export function cmdAuthStatus(): Promise<CmdResult> {
-  return call("auth_status");
+export function cmdAuthStatus(connection?: string): Promise<CmdResult> {
+  return call("auth_status", connection ? { connection } : undefined);
 }
 
-export function cmdAuthLogout(): Promise<CmdResult> {
-  return call("auth_logout");
+export function cmdAuthLogout(connection?: string): Promise<CmdResult> {
+  return call("auth_logout", connection ? { connection } : undefined);
 }
 
 export function cmdDeviceShow(): Promise<CmdResult> {
@@ -300,9 +308,18 @@ export function cmdTaskList(): Promise<CmdResult> {
   return call("task_list");
 }
 
-export function cmdAuthRefresh(): Promise<CmdResult> {
-  return call("auth_refresh");
+export function cmdAuthRefresh(connection?: string): Promise<CmdResult> {
+  return call("auth_refresh", connection ? { connection } : undefined);
 }
-export function cmdAuthResume(): Promise<CmdResult> {
-  return call("auth_resume");
+export function cmdAuthResume(connection?: string): Promise<CmdResult> {
+  return call("auth_resume", connection ? { connection } : undefined);
+}
+
+export function cmdProfileApply(
+  path: "account connections apply" | "context apply",
+  plan: unknown,
+  digest: string,
+  confirmed: boolean,
+): Promise<CmdResult> {
+  return call("profile_apply", { path, plan, digest, confirmed });
 }

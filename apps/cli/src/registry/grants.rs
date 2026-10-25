@@ -1,6 +1,6 @@
 //! Complete remote grant management through one exact request plan.
 
-use super::{Declaration, Parameter, ParameterType, STATE_DIR};
+use super::{Declaration, Parameter, ParameterType, STATE_DIR, account::CONNECTION};
 use crate::{
     account::grants,
     error::{Failure, Result},
@@ -37,7 +37,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
         path: &["grant", "list"],
         summary: "Observe current invitations and owned or received grants through fresh same-device authentication, without caching authority or changing local objects.",
-        parameters: &[STATE_DIR, API],
+        parameters: &[STATE_DIR, API, CONNECTION],
         handler: super::Handler::Grant(Handler::List),
     },
     Declaration {
@@ -46,6 +46,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
         parameters: &[
             STATE_DIR,
             API,
+            CONNECTION,
             Parameter {
                 name: "request",
                 summary: "Closed JSON action/body request; target_id identifies a grant/invitation and token_env names the acceptance token variable. Never put a token in the JSON body.",
@@ -84,14 +85,16 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     };
     let at = format!("{:.3}", jiff::Timestamp::now());
     match handler {
-        Handler::List => grants::list(
+        Handler::List => grants::list_for_connection(
             path("state-dir")?,
             args.get_one::<String>("api-url").map(String::as_str),
+            args.get_one::<String>("connection").map(String::as_str),
         ),
         Handler::Plan => {
-            let plan = grants::plan(
+            let plan = grants::plan_for_connection(
                 path("state-dir")?,
                 args.get_one::<String>("api-url").map(String::as_str),
+                args.get_one::<String>("connection").map(String::as_str),
                 path("request")?,
                 &at,
             )?;

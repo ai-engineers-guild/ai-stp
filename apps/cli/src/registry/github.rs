@@ -1,6 +1,6 @@
 //! Existing selected-source outcomes over the isolated account API.
 
-use super::{Declaration, Parameter, ParameterType, STATE_DIR};
+use super::{Declaration, Parameter, ParameterType, STATE_DIR, account::CONNECTION};
 use crate::{
     account::github,
     error::{Failure, Result},
@@ -37,7 +37,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
         path: &["github", "status"],
         summary: "Read current selected GitHub repositories through the authenticated account API; no GitHub credential is accepted or stored by this command.",
-        parameters: &[STATE_DIR, API],
+        parameters: &[STATE_DIR, API, CONNECTION],
         handler: super::Handler::Github(Handler::Status),
     },
     Declaration {
@@ -46,6 +46,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
         parameters: &[
             STATE_DIR,
             API,
+            CONNECTION,
             Parameter {
                 name: "request",
                 summary: "Closed JSON installation_id, repository_id, full commit, canonical subpath and explicit idempotency_key. Preserve this exact request on retry.",
@@ -84,14 +85,16 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     };
     let at = format!("{:.3}", jiff::Timestamp::now());
     match handler {
-        Handler::Status => github::status(
+        Handler::Status => github::status_for_connection(
             path("state-dir")?,
             args.get_one::<String>("api-url").map(String::as_str),
+            args.get_one::<String>("connection").map(String::as_str),
         ),
         Handler::Plan => {
-            let plan = github::plan(
+            let plan = github::plan_for_connection(
                 path("state-dir")?,
                 args.get_one::<String>("api-url").map(String::as_str),
+                args.get_one::<String>("connection").map(String::as_str),
                 path("request")?,
                 &at,
             )?;

@@ -12,6 +12,10 @@ mod access_tests;
 mod attachment_tests;
 #[path = "attestation_tests.rs"]
 mod attestation_tests;
+#[path = "context_http_tests.rs"]
+mod context_http_tests;
+#[path = "enrollments_tests.rs"]
+mod enrollments_tests;
 #[path = "github_tests.rs"]
 mod github_tests;
 #[path = "publication_recovery_tests.rs"]

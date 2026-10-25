@@ -70,6 +70,39 @@ struct ErrorEnvelope {
 }
 
 impl Api {
+    pub fn context_read(
+        &self,
+        route: &str,
+        organization: Option<&str>,
+        credential: &Secret,
+    ) -> Result<Reply<serde_json::Value>> {
+        if !matches!(route, "/v1/context" | "/v1/organizations")
+            || organization.is_some_and(|id| !crate::passport::stable_id(id, "organization"))
+            || (route != "/v1/context" && organization.is_some())
+        {
+            return Err(super::invalid());
+        }
+        let authorization = Zeroizing::new(format!("Bearer {}", credential.0.as_str()));
+        let agent = self.agent.borrow();
+        let request = agent
+            .get(format!("{}{route}", self.origin))
+            .header("Accept", "application/json")
+            .header("Accept-Encoding", "identity")
+            .header("X-AI-STP-Schema-Version", "1")
+            .header("Authorization", authorization.as_str());
+        let response = if let Some(id) = organization {
+            request.header("X-AI-STP-Organization-Id", id).call()
+        } else {
+            request.call()
+        }
+        .map_err(|_| unavailable())?;
+        drop(agent);
+        match self.response(response, 131072)? {
+            Reply::Resource(bytes) => crate::wire::parse(&bytes).map(Reply::Resource),
+            Reply::Refused(code) => Ok(Reply::Refused(code)),
+        }
+    }
+
     pub fn providers(&self) -> Result<Reply<super::providers::Providers>> {
         let agent = self.agent.borrow();
         let response = agent

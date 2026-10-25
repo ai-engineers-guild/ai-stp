@@ -3,6 +3,7 @@
 mod account;
 mod attestation;
 mod catalog;
+mod contexts;
 mod distribution;
 mod github;
 mod grants;
@@ -35,6 +36,7 @@ enum Handler {
     Distribution(distribution::Handler),
     Migration(migration::Handler),
     Account(account::Handler),
+    Context(contexts::Handler),
     Attestation(attestation::Handler),
     Grant(grants::Handler),
     Github(github::Handler),
@@ -642,6 +644,12 @@ const COMMANDS: &[Declaration] = &[
             OFFLINE,
             PRIVATE,
             Parameter {
+                name: "connection",
+                summary: "Retained connection for an explicit private read; its origin selects the authenticated server.",
+                kind: ParameterType::String,
+                required: false,
+            },
+            Parameter {
                 name: "state-dir",
                 summary: "Isolated device/account state; required for private access and its bounded private cache.",
                 kind: ParameterType::Path,
@@ -726,6 +734,7 @@ fn declarations() -> impl Iterator<Item = &'static Declaration> {
         .chain(providers::COMMANDS)
         .chain(selections::COMMANDS)
         .chain(account::COMMANDS)
+        .chain(contexts::COMMANDS)
         .chain(migration::COMMANDS)
         .chain(grants::COMMANDS)
         .chain(github::COMMANDS)
@@ -802,6 +811,7 @@ fn mutability(handler: Handler) -> &'static str {
         Handler::Selection(handler) => handler.mutability(),
         Handler::Provider(handler) => handler.mutability(),
         Handler::Account(handler) => handler.mutability(),
+        Handler::Context(handler) => handler.mutability(),
         Handler::Migration(handler) => handler.mutability(),
         Handler::Grant(handler) => handler.mutability(),
         Handler::Github(handler) => handler.mutability(),
@@ -907,6 +917,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::Local(handler) => local::dispatch(handler, leaf),
         Handler::Report(handler) => reports::dispatch(handler, leaf),
         Handler::Account(handler) => account::dispatch(handler, leaf),
+        Handler::Context(handler) => contexts::dispatch(handler, leaf),
         Handler::Migration(handler) => migration::dispatch(handler, leaf),
         Handler::Grant(handler) => grants::dispatch(handler, leaf),
         Handler::Github(handler) => github::dispatch(handler, leaf),

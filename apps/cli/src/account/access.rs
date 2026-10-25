@@ -26,6 +26,8 @@ pub struct Binding {
     pub root_identity: [String; 2],
     pub public_key: String,
     pub credential_store: identity::Storage,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub connection: Option<Box<super::connections::Enrollment>>,
 }
 
 fn refused(reason: &str) -> Failure {
@@ -47,17 +49,57 @@ pub(crate) struct Access {
 
 impl Access {
     pub fn load(root: &Path, origin: &str, offline: bool) -> Result<Self> {
-        Self::load_at(root, Some(origin), offline)
+        Self::load_at(root, Some(origin), offline, None)
     }
 
     pub fn for_account(root: &Path, origin: Option<&str>) -> Result<Self> {
-        Self::load_at(root, origin, false)
+        Self::load_at(root, origin, false, None)
     }
 
-    fn load_at(root: &Path, origin: Option<&str>, offline: bool) -> Result<Self> {
+    pub fn for_connection(
+        root: &Path,
+        origin: Option<&str>,
+        connection: Option<&str>,
+        offline: bool,
+    ) -> Result<Self> {
+        Self::load_at(root, origin, offline, connection)
+    }
+
+    pub fn for_binding(root: &Path, binding: &Binding, offline: bool) -> Result<Self> {
+        binding.validate()?;
+        let held = Self::load_at(
+            root,
+            Some(&binding.origin),
+            offline,
+            binding
+                .connection
+                .as_ref()
+                .map(|value| value.connection_id.as_str()),
+        )?;
+        if held.binding.account_id != binding.account_id
+            || held.binding.device_id != binding.device_id
+            || held.binding.public_key != binding.public_key
+            || held.binding.root_identity != binding.root_identity
+            || held.binding.credential_store != binding.credential_store
+            || held.binding.connection != binding.connection
+        {
+            return Err(refused("account_binding_changed"));
+        }
+        Ok(held)
+    }
+
+    fn load_at(
+        root: &Path,
+        origin: Option<&str>,
+        offline: bool,
+        connection: Option<&str>,
+    ) -> Result<Self> {
         let identity = super::identity_at(root)?;
-        let journal =
-            Journal::open(&identity, false)?.ok_or_else(|| refused("account_required"))?;
+        let connection = connection
+            .map(|value| super::connections::enrollment(&identity, value))
+            .transpose()?;
+        let journal = Journal::for_connection(&identity, connection.as_ref(), false)?
+            .ok_or_else(|| refused("account_required"))?;
         if journal.pending()?.is_some() {
             return Err(refused("account_operation_unfinished"));
         }
@@ -78,11 +120,12 @@ impl Access {
         let binding = Binding {
             origin: state.plan.origin.clone(),
             account_id: account_id.clone(),
-            device_id: state.plan.identity.device_id.clone(),
+            device_id: state.plan.device_id().to_owned(),
             revision: state.revision.clone(),
             root_identity: state.plan.root_identity.clone(),
-            public_key: state.plan.public_key.clone(),
+            public_key: state.plan.enrollment_public_key().to_owned(),
             credential_store: state.plan.credential_store,
+            connection: state.plan.connection.clone().map(Box::new),
         };
         let access = Self {
             identity,
@@ -176,6 +219,26 @@ impl Access {
             b"ai-stp-cli-v2 private catalog cache v1\n",
             create,
         )
+    }
+
+    pub(super) fn context_read(
+        &self,
+        route: &str,
+        organization: Option<&str>,
+    ) -> Result<serde_json::Value> {
+        self.revalidate()?;
+        if !self.verified || self.offline {
+            return Err(refused("account_origin_or_authorization_mismatch"));
+        }
+        let Session::Authorized { access_token, .. } = &self.state.session else {
+            return Err(refused("account_required"));
+        };
+        let reply = self.api.context_read(route, organization, access_token)?;
+        self.revalidate()?;
+        match reply {
+            Reply::Resource(value) => Ok(value),
+            Reply::Refused(code) => Err(super::grants::refusal(code)),
+        }
     }
 
     pub(super) fn grants(&self, route: &str, body: Option<&[u8]>) -> Result<serde_json::Value> {
@@ -295,9 +358,10 @@ impl Access {
         {
             return Err(refused("attestation_authorization_changed"));
         }
-        let signature = self
-            .identity
-            .sign(crate::attestation::contract::hash(record)?.as_bytes())?;
+        let signature = self.state.plan.sign(
+            &self.identity,
+            crate::attestation::contract::hash(record)?.as_bytes(),
+        )?;
         self.revalidate()?;
         Ok(signature)
     }
@@ -320,6 +384,11 @@ impl Access {
         receipt: &crate::publication::interruption::Receipt,
     ) -> Result<()> {
         self.revalidate()?;
+        if self.binding.connection.is_some() || binding.connection.is_some() {
+            return Err(refused(
+                "enrollment_recovery_requires_its_original_connection",
+            ));
+        }
         if self.binding.account_id != binding.account_id
             || self.binding.origin != binding.origin
             || self.binding.root_identity != binding.root_identity
@@ -343,6 +412,16 @@ impl Access {
 
 impl Binding {
     pub fn validate(&self) -> Result<()> {
+        if let Some(connection) = &self.connection {
+            connection.validate()?;
+            if connection.origin != self.origin
+                || connection.device_id != self.device_id
+                || connection.public_key != self.public_key
+                || connection.credential_store != self.credential_store
+            {
+                return Err(refused("account_binding_invalid"));
+            }
+        }
         if super::transport::origin(&self.origin)? != self.origin
             || !passport::stable_id(&self.account_id, "account")
             || !passport::stable_id(&self.device_id, "device")

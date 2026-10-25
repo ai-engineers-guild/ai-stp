@@ -1,4 +1,4 @@
-//! Confined native state: isolated schema 53 or explicitly transferred schema 54.
+//! Confined native state: schemas 53/54 and explicitly enabled profile schema 55.
 //! Production transfer preserves its original registry file and data model.
 
 pub(crate) mod journal;
@@ -25,7 +25,9 @@ const RECOVERED_OWNER: &[u8] = b"ai-stp-cli-v2 local registry v3\n";
 const PRODUCTION_OWNER: &[u8] = b"ai-stp native production registry v1\n";
 const TRANSFER_OWNER: &[u8] = b"ai-stp native production transfer v1\n";
 pub(crate) const PRODUCTION_SCHEMA: u32 = 54;
+pub(crate) const PROFILE_SCHEMA: u32 = 55;
 const BOOTSTRAP: &str = include_str!("schema.sql");
+const PROFILES: &str = include_str!("profiles.sql");
 type Schema = Vec<(String, String, String, String)>;
 
 pub struct Store {
@@ -117,6 +119,24 @@ fn expected_schema() -> Result<&'static Schema> {
             Failure::new(
                 ErrorKind::Internal,
                 "the embedded registry schema is invalid",
+            )
+        })
+}
+
+fn expected_profile_schema() -> Result<&'static Schema> {
+    static EXPECTED: OnceLock<Result<Schema>> = OnceLock::new();
+    EXPECTED
+        .get_or_init(|| {
+            let connection = Connection::open_in_memory().map_err(database)?;
+            connection.execute_batch(BOOTSTRAP).map_err(database)?;
+            connection.execute_batch(PROFILES).map_err(database)?;
+            schema(&connection)
+        })
+        .as_ref()
+        .map_err(|_| {
+            Failure::new(
+                ErrorKind::Internal,
+                "the embedded profile registry schema is invalid",
             )
         })
 }
@@ -309,15 +329,23 @@ impl Store {
                 .map_err(database)?;
             transaction.commit().map_err(database)?;
         } else if if production {
-            version != PRODUCTION_SCHEMA && !(transfer && version == SCHEMA_VERSION)
+            version != PRODUCTION_SCHEMA
+                && version != PROFILE_SCHEMA
+                && !(transfer && version == SCHEMA_VERSION)
         } else {
-            version != SCHEMA_VERSION
+            version != SCHEMA_VERSION && version != PROFILE_SCHEMA
         } {
             return Err(Failure::precondition(
                 "the local registry schema is unsupported",
             ));
         }
-        if &schema(&connection)? != expected_schema()? {
+        if &schema(&connection)?
+            != if version == PROFILE_SCHEMA {
+                expected_profile_schema()?
+            } else {
+                expected_schema()?
+            }
+        {
             return Err(Failure::precondition(
                 "the local registry schema differs from its declared format",
             ));
@@ -397,5 +425,36 @@ impl Store {
                 .map_err(|_| Failure::precondition("the registry binding changed"))?;
         }
         Ok(result)
+    }
+
+    /// Upgrade and the first profile admission share one SQLite commit. No
+    /// existing rows or unfinished operations are rewritten or discarded.
+    pub(crate) fn profile_transaction<T>(
+        &mut self,
+        operation: impl FnOnce(&Transaction<'_>) -> Result<T>,
+    ) -> Result<T> {
+        self.transaction(|transaction| {
+            let version: u32 = transaction
+                .query_row("PRAGMA user_version", [], |row| row.get(0))
+                .map_err(database)?;
+            if version != PROFILE_SCHEMA {
+                if ![SCHEMA_VERSION, PRODUCTION_SCHEMA].contains(&version) {
+                    return Err(Failure::precondition("the profile registry schema changed"));
+                }
+                transaction.execute_batch(PROFILES).map_err(database)?;
+                transaction
+                    .pragma_update(None, "user_version", PROFILE_SCHEMA)
+                    .map_err(database)?;
+            }
+            operation(transaction)
+        })
+    }
+
+    pub(crate) fn profiles_enabled(&self) -> Result<bool> {
+        Ok(self
+            .connection
+            .query_row("PRAGMA user_version", [], |row| row.get::<_, u32>(0))
+            .map_err(database)?
+            == PROFILE_SCHEMA)
     }
 }

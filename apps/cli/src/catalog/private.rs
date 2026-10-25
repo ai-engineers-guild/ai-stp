@@ -42,18 +42,36 @@ pub(crate) fn version(
     version: &str,
     offline: bool,
 ) -> Result<Value> {
+    let endpoint = Endpoint::configured(config)?;
+    let access = Access::load(
+        state,
+        &endpoint.base.origin().ascii_serialization(),
+        offline,
+    )?;
+    version_with_access(config, cache_root, kind, id, version, offline, access)
+}
+
+pub(crate) fn version_with_access(
+    config: Option<&Path>,
+    cache_root: Option<&Path>,
+    kind: Kind,
+    id: &str,
+    version: &str,
+    offline: bool,
+    mut access: Access,
+) -> Result<Value> {
     // Public observations keep their existing cache and validation. An exact
     // private read is the only authenticated fallback; searches stay anonymous.
+    let configured = Endpoint::configured(config)?;
     let reader = Reader {
-        endpoint: Endpoint::configured(config)?,
+        endpoint: if access.binding().connection.is_some() {
+            Endpoint::new(&access.binding().origin)?
+        } else {
+            configured
+        },
         cache: cache_root,
         offline,
     };
-    let mut access = Access::load(
-        state,
-        &reader.endpoint.base.origin().ascii_serialization(),
-        offline,
-    )?;
     let public_unavailable = match reader.show(kind, id, Some(version)) {
         Ok(value) => return Ok(value),
         Err(failure) if matches!(failure.kind, ErrorKind::NotFound) => false,
