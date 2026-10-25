@@ -110,6 +110,8 @@ RUN GOBIN=/out CGO_ENABLED=0 go install \
 # tools: install OS packages + pinned scanner binaries. FROM base so the
 # installer resolves with the same pinned uv the workspace was synced by.
 FROM base AS tools
+# The digest-pinned base owns the CA bundle; older scanner snapshots must not
+# downgrade it while installing their separately pinned tools.
 # `tools` is intermediate and never runs as a service; it ends as root and
 # only its copied artifacts reach the non-root worker-safety stage.
 # hadolint ignore=DL3002
@@ -124,8 +126,8 @@ RUN sed -i \
       -e 's|http://deb.debian.org/debian|https://snapshot.debian.org/archive/debian/20260927T000000Z|g' \
       /etc/apt/sources.list.d/debian.sources \
     && apt-get -o Acquire::Check-Valid-Until=false update \
+    && test -s /etc/ssl/certs/ca-certificates.crt \
     && apt-get install -y --no-install-recommends \
-      ca-certificates=20250419 \
       curl=8.14.1-2+deb13u5 \
       git=1:2.47.3-0+deb13u1 \
       xz-utils=5.8.1-1+deb13u1 \
@@ -161,8 +163,8 @@ RUN sed -i \
       -e 's|http://deb.debian.org/debian|https://snapshot.debian.org/archive/debian/20260927T000000Z|g' \
       /etc/apt/sources.list.d/debian.sources \
     && apt-get -o Acquire::Check-Valid-Until=false update \
+    && test -s /etc/ssl/certs/ca-certificates.crt \
     && apt-get install -y --no-install-recommends \
-      ca-certificates=20250419 \
       curl=8.14.1-2+deb13u5 \
       bubblewrap=0.12.0-1~deb13u1 \
       clamav=1.4.3+dfsg-1 \
