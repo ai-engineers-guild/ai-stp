@@ -38947,6 +38947,26 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "readAuthProviders.configured": {
+                    "summary": "Anonymous discovery reports only provider IDs enabled by this deployment; compiled support is not configuration availability.",
+                    "value": {
+                      "providers": [
+                        "google",
+                        "github",
+                        "keycloak"
+                      ],
+                      "schema_version": 1
+                    }
+                  },
+                  "readAuthProviders.empty": {
+                    "summary": "A deployment with no enabled sign-in providers returns an empty list; the client cannot substitute its compiled choices.",
+                    "value": {
+                      "providers": [],
+                      "schema_version": 1
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/AuthProvidersResponse"
                 }
