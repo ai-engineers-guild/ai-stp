@@ -99,6 +99,7 @@ from ai_stp_contracts.context import (
     ProjectLinkProposalRequest,
     ProjectLinkRequest,
     ProjectLinkResponse,
+    ProjectLinkTargetResponse,
     ProjectRevisionPullResponse,
     ProjectRevisionPushRequest,
     ProjectRevisionPushResponse,
@@ -2192,6 +2193,23 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         query=CapabilityScopeQuery,
         authenticated=True,
         path_params=(_ORGANIZATION_ID,),
+        errors=("AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED", "AI_STP_PRECONDITION_FAILED"),
+    ),
+    Operation(
+        method="get",
+        path="/organizations/{organization_id}/project-link-targets/{remote_project_id}",
+        operation_id="readProjectLinkTarget",
+        summary="Read current authorized project and provider revisions before link planning.",
+        response=ProjectLinkTargetResponse,
+        authenticated=True,
+        path_params=(
+            _ORGANIZATION_ID,
+            PathParam(
+                "remote_project_id",
+                "Authorized remote project identifier.",
+                stable_id_pattern("remote_project"),
+            ),
+        ),
         errors=("AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED", "AI_STP_PRECONDITION_FAILED"),
     ),
     Operation(

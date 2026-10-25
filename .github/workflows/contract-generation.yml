@@ -1,0 +1,92 @@
+name: contract-generation
+
+on:
+  pull_request:
+    paths:
+      - "packages/contracts/**"
+      - "apps/web/openapi-ts.config.ts"
+      - ".github/workflows/contract-generation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: contract-generation-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.14.9"
+  NODE_VERSION: "26.12.1"
+  UV_VERSION: "0.13.5"
+  BUN_VERSION: "1.4.4"
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Isolate generator tools and native package caches
+        run: |
+          set -euo pipefail
+          {
+            echo "UV_PYTHON=$(python -c 'import sys; print(sys.executable)')"
+            echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-contract-generation"
+            echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
+          } >> "${GITHUB_ENV}"
+          bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
+          bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
+          echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
+          echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ${{ runner.temp }}/uv-cache
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: ${{ runner.os }}-uv-
+      - name: Generate canonical schemas and typed consumers
+        run: |
+          set -euo pipefail
+          source .github/scripts/provider-safe-path.sh
+          ai_stp_use_provider_safe_path
+          uv sync --locked --group docs --group dev
+          uv run --locked python -m ai_stp_contracts.schemas schemas/v1
+          uv run --locked python -m ai_stp_contracts.inventory_record
+          uv run --locked python -m ai_stp_contracts.web_projections
+          uv run --locked python -m ai_stp_contracts.technology_seed
+          uv run --locked python release_scripts/provider_kit.py provider-kit/v3
+          uv run --locked python release_scripts/first_party_corpus_digests.py
+          uv run --locked --group docs python docs_scripts/skill_projections.py
+          cd apps/web
+          bun install --frozen-lockfile
+          bun run api:generate
+          bun run format
+      - name: Retain an exact source patch for review
+        env:
+          SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          git add --intent-to-add -- .
+          git diff --binary > "${RUNNER_TEMP}/contract-source.patch"
+          {
+            echo "source_head=${SOURCE_HEAD}"
+            echo "checkout=$(git rev-parse HEAD)"
+            sha256sum "${RUNNER_TEMP}/contract-source.patch"
+            git diff --stat
+          } > "${RUNNER_TEMP}/contract-source.txt"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: contract-source-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/contract-source.patch
+            ${{ runner.temp }}/contract-source.txt
+          if-no-files-found: error
+          retention-days: 3

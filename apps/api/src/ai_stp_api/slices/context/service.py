@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import UTC, datetime, timedelta
-from typing import cast
+from typing import Literal, cast
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -20,8 +20,10 @@ from ai_stp_contracts.context import (
     ProjectLinkPlanRequest,
     ProjectLinkPlanResponse,
     ProjectLinkProposalRequest,
+    ProjectLinkProviderTarget,
     ProjectLinkRequest,
     ProjectLinkResponse,
+    ProjectLinkTargetResponse,
     ProjectRevisionPullResponse,
     ProjectRevisionPushRequest,
     ProjectRevisionPushResponse,
@@ -621,6 +623,104 @@ def unlink_plan_body(plan: ProjectUnlinkPlan) -> ProjectUnlinkPlanResponse:
         authorization_revision=plan.authorization_revision,
         plan_digest=plan.plan_digest,
         expires_at=_timestamp(plan.expires_at),
+    )
+
+
+async def read_project_link_target(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    remote_project_id: str,
+) -> ProjectLinkTargetResponse:
+    """Observe existing identities under the same current policy as link planning."""
+    from ai_stp_api.slices.corporate import service as corporate
+
+    await require_active_device(db, ctx=ctx)
+    projection = await remote_projection(db, ctx=ctx, organization_id=organization_id)
+    await require_capability(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        capability="project.link",
+        authorization_revision=projection.authorization_revision,
+    )
+    if projection.mode == "corporate":
+        project = await corporate.read_project(
+            db,
+            ctx=ctx,
+            organization_id=organization_id,
+            project_id=remote_project_id,
+            request_id=None,
+        )
+        if project.state != "active" or project.lifecycle not in (None, "active"):
+            raise ApiError(ErrorCategory.PRECONDITION, "project link target is not active")
+    remote = await db.scalar(
+        select(ProjectIdentity).where(
+            ProjectIdentity.organization_id == organization_id,
+            ProjectIdentity.id == remote_project_id,
+            ProjectIdentity.namespace == "remote",
+            ProjectIdentity.state == "active",
+        )
+    )
+    if remote is None:
+        raise ApiError(ErrorCategory.NOT_FOUND, "remote project not found")
+    head = await db.scalar(
+        select(ProjectRevisionHead).where(
+            ProjectRevisionHead.organization_id == organization_id,
+            ProjectRevisionHead.remote_project_id == remote_project_id,
+        )
+    )
+    sources = repository_links().c
+    identities = list(
+        await db.scalars(
+            select(ProjectIdentity)
+            .where(
+                ProjectIdentity.organization_id == organization_id,
+                ProjectIdentity.namespace == "provider",
+                ProjectIdentity.id.in_(
+                    select(sources.provider_project_id).where(
+                        sources.organization_id == organization_id,
+                        sources.remote_project_id == remote_project_id,
+                        sources.state == "linked",
+                        sources.provider_project_id.is_not(None),
+                    )
+                ),
+            )
+            .order_by(ProjectIdentity.id)
+            .limit(257)
+        )
+    )
+    if len(identities) > 256 or any(
+        row.state != "active"
+        or row.provider_kind not in ("github", "gitlab")
+        or not row.immutable_repository_id
+        for row in identities
+    ):
+        raise ApiError(ErrorCategory.PRECONDITION, "provider repository observation is incomplete")
+    providers = [
+        ProjectLinkProviderTarget(
+            provider_project_id=row.id,
+            provider=cast(Literal["github", "gitlab"], row.provider_kind),
+            immutable_repository_id=row.immutable_repository_id or "",
+            revision=row.revision,
+        )
+        for row in identities
+    ]
+    await require_capability(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        capability="project.link",
+        authorization_revision=projection.authorization_revision,
+    )
+    return ProjectLinkTargetResponse(
+        organization_id=organization_id,
+        remote_project_id=remote_project_id,
+        remote_revision=head.revision_id if head is not None else "initial",
+        authorization_revision=projection.authorization_revision,
+        providers=providers,
+        observed_at=format_timestamp(datetime.now(UTC)),
     )
 
 
