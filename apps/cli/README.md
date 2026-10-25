@@ -72,6 +72,13 @@ diff and observation digest cannot be applied as an installation plan. Checkout
 linking, context-owned installation receipts and actual corporate delivery remain
 separate operations.
 
+`just cli-corporate-regress` runs the optimized native engine against a real
+loopback API and a disposable PostgreSQL database selected by
+`AI_STP_TEST_DB_URL`. Linux CI runs this gate without an optional skip. Only
+approval of synthetic device codes is supplied by the fixture; enrollment,
+session isolation, corporate reads and seven-harness previews use the actual
+HTTP contracts. The fixture never connects a live SSO account or runs a harness.
+
 The first applied connection/context plan explicitly upgrades the same authority
 registry to schema 55. Older clients refuse that format; keep a compatible client
 available. No database copy, key rotation, credential copying or implicit owner

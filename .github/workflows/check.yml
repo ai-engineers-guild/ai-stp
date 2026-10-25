@@ -137,6 +137,8 @@ jobs:
           uv sync --locked
           uv run --locked python -m tests.native_contract.verify_ownership \
             "${AI_STP_TEST_CLI_BINARY}"
+          uv run --locked python -m tests.native_contract.verify_corporate \
+            "${AI_STP_TEST_CLI_BINARY}"
       - name: Cache the successful native build
         if: steps.native-cache.outputs.cache-hit != 'true'
         # Cache availability must not prevent or invalidate the checks above.
