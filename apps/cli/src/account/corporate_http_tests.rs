@@ -14,6 +14,7 @@ struct Control {
     revision: u32,
     bump: bool,
     wrong_organization: bool,
+    stale_link_policy: bool,
     revoked: bool,
     stop: bool,
     gate: Option<(mpsc::SyncSender<()>, mpsc::Receiver<()>)>,
@@ -91,7 +92,12 @@ fn serve(
             "capabilities":["organization.read"],"unavailable":{}}}),
         );
     }
-    assert!(route.starts_with(&format!("/v1/corporate/organizations/{organization}/")));
+    assert!(
+        route.starts_with(&format!("/v1/corporate/organizations/{organization}/"))
+            || route.starts_with(&format!(
+                "/v1/organizations/{organization}/project-link-targets/"
+            ))
+    );
     let gate = {
         let mut control = control
             .lock()
@@ -111,6 +117,25 @@ fn serve(
     if control.bump {
         control.revision += 1;
         control.bump = false;
+    }
+    if route.contains("/project-link-targets/") {
+        let revision = if control.stale_link_policy {
+            control.stale_link_policy = false;
+            control.revision + 1
+        } else {
+            control.revision
+        };
+        let project = route
+            .rsplit('/')
+            .next()
+            .ok_or_else(|| std::io::Error::other("project"))?;
+        return respond(
+            socket,
+            200,
+            json!({"schema_version":1,"organization_id":organization,
+            "remote_project_id":project,"remote_revision":"initial","authorization_revision":format!("corporate:{organization}:1:{revision}"),
+            "providers":[],"observed_at":at,"observation_only":true,"future_token":"canary"}),
+        );
     }
     if route.ends_with("/catalog-assignments/plan") {
         assert!(header.starts_with("POST "));
@@ -186,6 +211,7 @@ fn exercise(named: bool) -> std::result::Result<(), Box<dyn Error>> {
         revision: 1,
         bump: false,
         wrong_organization: false,
+        stale_link_policy: false,
         revoked: false,
         stop: false,
         gate: None,
@@ -282,6 +308,17 @@ fn exercise(named: bool) -> std::result::Result<(), Box<dyn Error>> {
                 .query_row("SELECT count(*) FROM operation", [], |row| row.get(0))?)
         };
         let before = operation_count()?;
+        let request = Request::LinkTarget {
+            project_id: FIRST.replacen("organization_", "remote_project_", 1),
+        };
+        let target = corporate::observe(root.path(), Some(&contexts[0]), request.clone())?;
+        assert_eq!(target["observation"]["data"]["remote_revision"], "initial");
+        assert_eq!(target["observation"]["installation_authority"], false);
+        assert!(!target.to_string().contains("canary"));
+        control.lock().map_err(|_| "fixture")?.stale_link_policy = true;
+        assert!(corporate::observe(root.path(), Some(&contexts[0]), request.clone()).is_err());
+        control.lock().map_err(|_| "fixture")?.bump = true;
+        assert!(corporate::observe(root.path(), Some(&contexts[0]), request).is_err());
         for target in [
             "codex",
             "claude-code",

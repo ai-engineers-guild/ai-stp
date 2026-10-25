@@ -11090,6 +11090,31 @@ export type ProjectLinkProposalRequest = {
 };
 
 /**
+ * ProjectLinkProviderTarget
+ *
+ * Current immutable repository coordinates for one authorized link target.
+ */
+export type ProjectLinkProviderTarget = {
+  /**
+   * Immutable Repository Id
+   */
+  immutable_repository_id: string;
+  /**
+   * Provider
+   */
+  provider: "github" | "gitlab";
+  /**
+   * Provider Project Id
+   */
+  provider_project_id: string;
+  /**
+   * Revision
+   */
+  revision: number;
+  [key: string]: unknown;
+};
+
+/**
  * ProjectLinkRequest
  *
  * Confirm one exact server-authored link plan.
@@ -11185,6 +11210,44 @@ export type ProjectLinkResponse = {
    */
   state: "linked" | "unlinked" | "conflict";
   updated_at: Timestamp;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectLinkTargetResponse
+ *
+ * Fresh link-planning coordinates; no link or installation is authorized.
+ */
+export type ProjectLinkTargetResponse = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  /**
+   * Observation Only
+   */
+  observation_only: true;
+  observed_at: Timestamp;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Providers
+   */
+  providers: Array<ProjectLinkProviderTarget>;
+  /**
+   * Remote Project Id
+   */
+  remote_project_id: string;
+  /**
+   * Remote Revision
+   */
+  remote_revision: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
   [key: string]: unknown;
 };
 
@@ -32978,6 +33041,76 @@ export type ReadProjectLinkPlanResponses = {
 
 export type ReadProjectLinkPlanResponse =
   ReadProjectLinkPlanResponses[keyof ReadProjectLinkPlanResponses];
+
+export type ReadProjectLinkTargetData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Authorized remote project identifier.
+     */
+    remote_project_id: string;
+  };
+  query?: never;
+  url: "/v1/organizations/{organization_id}/project-link-targets/{remote_project_id}";
+};
+
+export type ReadProjectLinkTargetErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_PRECONDITION_FAILED.
+   */
+  412: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadProjectLinkTargetError =
+  ReadProjectLinkTargetErrors[keyof ReadProjectLinkTargetErrors];
+
+export type ReadProjectLinkTargetResponses = {
+  /**
+   * Read current authorized project and provider revisions before link planning.
+   */
+  200: ProjectLinkTargetResponse;
+};
+
+export type ReadProjectLinkTargetResponse =
+  ReadProjectLinkTargetResponses[keyof ReadProjectLinkTargetResponses];
 
 export type CreateProjectUnlinkPlanData = {
   body: ProjectUnlinkPlanRequest;

@@ -60,6 +60,12 @@ That page projects the public catalog's authoritative lane. An organization
 assignment does not publish a private setup or make an experimental version
 authoritative; private assigned coordinates are resolved separately in previews.
 
+`corporate project link-target --project ID` reads the exact remote ledger head,
+current immutable provider identities/revisions and authorization revision needed
+by a separate server-authored link plan. It creates no link or local binding.
+Provider duplicates, mixed coordinates and a policy revision inconsistent with
+the current context refuse; incomplete provider observations must be refreshed.
+
 These commands accept `--context ID`; omission resolves the selected view once
 for that new read. The result retains its original context, current account
 revision and bounded observations. Changing the view during a delayed reply does

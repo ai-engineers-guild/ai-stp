@@ -356,6 +356,9 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         unjoined_project,
     }
     assert (await observe("project", "show", "--project", project))["project_id"] == project
+    target = await observe("project", "link-target", "--project", project)
+    assert target["remote_project_id"] == project and target["remote_revision"] == "initial"
+    assert target["providers"] == [] and target["observation_only"] is True
     assert team in {item["team_id"] for item in (await observe("teams"))["items"]}
     assert technology in {
         item["technology_id"]
