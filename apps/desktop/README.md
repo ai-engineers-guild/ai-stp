@@ -32,10 +32,20 @@ harness files. Harness executables remain user/vendor managed.
   and harness files; current organization access is an explicit online read.
   The existing local-owner session can be admitted as a context through the same
   reviewed flow, preserving its original key and credential journal.
+- The sidebar selects an existing personal or corporate context for new company
+  reads. Selection is a local preference; retained tasks keep their original
+  authority. The account shortcut opens the selected named connection.
+- **Company** explicitly reads projects, teams, technologies, immutable mappings
+  and the organization catalog. Assignment previews offer every harness reported
+  by the engine and use an empty company-managed inventory. They do not apply
+  installations or include personal setup files. Replies from an earlier context
+  are discarded, including after switching away and back to the same context.
 - **Targets**, **Discovery** and **Commands** render the connected engine's
   command descriptors with read/plan/apply gates and explicit apply confirmation.
 - **Diagnostics** offers an optional, bounded in-memory trace and an explicitly
   copied redacted report. No telemetry or automatic diagnostic upload.
+  Context and corporate commands retain only transport outcome and timing in
+  this shared trace; their arguments, replies and error prose are omitted.
 
 The engine reports installation availability. Isolated setup execution is
 currently Linux-only; authoring and catalog reads remain available on macOS and

@@ -1,6 +1,13 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
-import { cliApplyConfirmed, cmdTaskStart, cmdVersion } from "./transport";
+import {
+  cliApplyConfirmed,
+  cliPlan,
+  cmdProfileApply,
+  cmdRunRead,
+  cmdTaskStart,
+  cmdVersion,
+} from "./transport";
 import { useDebug } from "./store";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 afterEach(() => {
@@ -40,4 +47,54 @@ it("does not retain form content or generic task answers in a diagnostic trace",
   expect(log).not.toContain("another private answer");
   expect(log).toContain("[task input]");
   expect(log).toContain("[user answer]");
+});
+
+it("keeps company content out of the shared trace while returning the full reply to its caller", async () => {
+  useDebug.setState({ debugMode: true });
+  const reply = {
+    ok: true,
+    data: {
+      name: "canary-company-directory",
+      root: "/canary/private/repository",
+    },
+    error: null,
+    error_code: null,
+    warnings: ["canary-company-warning"],
+    continuations: [],
+  };
+  vi.mocked(invoke).mockResolvedValue(reply);
+  expect(
+    await cmdRunRead("corporate catalog search", {
+      context: "context_fixture",
+      query: "canary-company-query",
+    }),
+  ).toBe(reply);
+  await cliPlan("corporate assignments preview", {
+    context: "context_fixture",
+    project: "canary-company-project",
+  });
+  await cmdRunRead("context list");
+  await cmdProfileApply(
+    "context apply",
+    { label: "canary-company-label" },
+    "sha256:fixture",
+    true,
+  );
+  vi.mocked(invoke).mockResolvedValue({
+    ...reply,
+    ok: false,
+    error: "canary-company-error",
+    error_code: "FORBIDDEN",
+  });
+  expect((await cmdRunRead("corporate teams")).error).toBe(
+    "canary-company-error",
+  );
+  vi.mocked(invoke).mockRejectedValue(new Error("canary-company-transport"));
+  expect((await cmdRunRead("corporate projects")).error_code).toBe("IPC_THROW");
+  const entries = useDebug.getState().log;
+  expect(entries).toHaveLength(6);
+  expect(JSON.stringify(entries)).not.toContain("canary");
+  expect(entries.every((entry) => entry.result === undefined)).toBe(true);
+  expect(entries.some((entry) => entry.error_code === "FORBIDDEN")).toBe(true);
+  expect(entries[0].error_code).toBe("IPC_THROW");
 });
