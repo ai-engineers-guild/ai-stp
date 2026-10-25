@@ -20,6 +20,15 @@ use serde_json::{Value, json};
 pub(super) struct Capture {
     pub request: Value,
     pub replacement_device_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enrollment_recovery: Option<EnrollmentRecovery>,
+}
+
+#[derive(Clone, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub(super) struct EnrollmentRecovery {
+    pub operation_id: String,
+    pub plan_digest: String,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -49,24 +58,41 @@ pub(super) fn capture(
     connection: &Connection,
     scope: &Scope,
     owner: &Owner,
+    binding: &crate::account::access::Binding,
     event_id: &str,
 ) -> Result<Capture> {
     let held = ledger::recorded(connection, scope, event_id)?;
     let event = Event::push(&held.request, scope.account())?;
-    if held.state != "pending"
-        || event.device_id == owner.device_id
-        || !owner.historical(&Identity {
-            account_id: owner.account_id.clone(),
-            device_id: event.device_id,
-        })
-    {
-        return Err(Failure::precondition(
-            "only a pending request from this installation's retired device can be recovered",
-        ));
+    if held.state != "pending" || event.device_id == binding.device_id {
+        return Err(invalid());
     }
+    let enrollment_recovery = if binding.connection.is_some() {
+        let plan = crate::account::enrollment_recovery::completed_retirement(
+            connection,
+            binding,
+            &event.device_id,
+        )?;
+        Some(EnrollmentRecovery {
+            operation_id: plan.operation_id.clone(),
+            plan_digest: plan.digest()?,
+        })
+    } else {
+        if binding.device_id != owner.device_id
+            || !owner.historical(&Identity {
+                account_id: owner.account_id.clone(),
+                device_id: event.device_id.clone(),
+            })
+        {
+            return Err(Failure::precondition(
+                "only a pending request from this installation's verified retired device can be recovered",
+            ));
+        }
+        None
+    };
     Ok(Capture {
         request: held.request,
-        replacement_device_id: owner.device_id.clone(),
+        replacement_device_id: binding.device_id.clone(),
+        enrollment_recovery,
     })
 }
 
@@ -75,6 +101,7 @@ pub(super) fn retire(
     t: &Transaction<'_>,
     scope: &Scope,
     capture: &Capture,
+    binding: &crate::account::access::Binding,
     operation_id: &str,
     plan_digest: &str,
 ) -> Result<Value> {
@@ -84,6 +111,18 @@ pub(super) fn retire(
         || held.request != capture.request
         || event.device_id == capture.replacement_device_id
     {
+        return Err(invalid());
+    }
+    if let Some(expected) = &capture.enrollment_recovery {
+        let plan = crate::account::enrollment_recovery::completed_retirement(
+            t,
+            binding,
+            &event.device_id,
+        )?;
+        if expected.operation_id != plan.operation_id || expected.plan_digest != plan.digest()? {
+            return Err(invalid());
+        }
+    } else if binding.connection.is_some() {
         return Err(invalid());
     }
     let evidence = Retirement {
@@ -117,6 +156,20 @@ pub(super) fn validate(
         || capture.replacement_device_id != plan.account.device_id
         || run.result != Some(capture.outcome())
     {
+        return Err(invalid());
+    }
+    if let Some(expected) = &capture.enrollment_recovery {
+        let recovery = crate::account::enrollment_recovery::completed_retirement(
+            connection,
+            &plan.account,
+            request["device_id"].as_str().ok_or_else(invalid)?,
+        )?;
+        if recovery.operation_id != expected.operation_id
+            || recovery.digest()? != expected.plan_digest
+        {
+            return Err(invalid());
+        }
+    } else if plan.account.connection.is_some() {
         return Err(invalid());
     }
     Scope::new(account, &plan.account.origin)?.require(connection)

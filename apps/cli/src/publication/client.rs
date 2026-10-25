@@ -154,6 +154,22 @@ impl Client {
         )
     }
 
+    pub(super) fn recovered_status(
+        &mut self,
+        request: &Create,
+        previous: &Value,
+        receipt: &super::interruption::Receipt,
+    ) -> Result<Value> {
+        request.response(previous, None)?;
+        self.recovered(request, receipt)?;
+        self.access.verify()?;
+        self.exchange(
+            request,
+            Some(previous),
+            Request::Status(super::text(previous, "plan_id")?),
+        )
+    }
+
     pub fn bind(
         &mut self,
         request: &Create,

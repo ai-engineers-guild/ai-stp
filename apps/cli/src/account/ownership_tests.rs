@@ -43,9 +43,12 @@ pub(super) fn authorize(
 
 struct Fixture {
     account: String,
+    origin: String,
     tokens: BTreeMap<String, String>,
     metadata: Option<Value>,
     events: Vec<Value>,
+    publications: Vec<Value>,
+    previous_key: Option<String>,
     lose: bool,
     stop: bool,
 }
@@ -60,6 +63,46 @@ impl Fixture {
             .split_whitespace()
             .nth(1)
             .ok_or_else(|| std::io::Error::other("path"))?;
+        if route == "/v1/auth/device/refresh" {
+            return respond(
+                socket,
+                403,
+                json!({"schema_version":1,"ok":false,"error":{"code":"AI_STP_DEVICE_REVOKED"}}),
+            );
+        }
+        if route == "/v1/auth/device" {
+            return respond(
+                socket,
+                201,
+                json!({"schema_version":1,
+                "device_code":"named_recovery_fixture_code_0123456789","user_code":"ABCD-1234",
+                "verification_uri":format!("{}/en/device-login",self.origin),
+                "verification_uri_complete":format!("{}/en/device-login?user_code=ABCD-1234",self.origin),
+                "expires_in":600,"interval":1}),
+            );
+        }
+        if route == "/v1/auth/device/token" {
+            let wire: Value = serde_json::from_slice(&body)?;
+            assert_eq!(wire["expected_account_id"], self.account);
+            assert_eq!(
+                wire["revoked_public_key"].as_str(),
+                self.previous_key.as_deref()
+            );
+            assert_ne!(wire["public_key"], wire["revoked_public_key"]);
+            let device = wire["device_id"]
+                .as_str()
+                .ok_or_else(|| std::io::Error::other("device"))?;
+            let token = generated();
+            self.tokens.insert(token.clone(), device.to_owned());
+            self.previous_key = wire["public_key"].as_str().map(str::to_owned);
+            return respond(
+                socket,
+                200,
+                json!({"schema_version":1,"access_token":token,
+                "refresh_token":generated(),"token_type":"Bearer","expires_in":3600,
+                "account_id":self.account,"device_id":device}),
+            );
+        }
         if route.starts_with("/v1/catalog/") && !route.ends_with("/private") {
             assert!(!headers.to_ascii_lowercase().contains("authorization:"));
             return respond(socket, 404, json!({}));
@@ -83,13 +126,14 @@ impl Fixture {
             );
         }
         if route.starts_with("/v1/catalog/") {
-            return respond(
-                socket,
-                200,
-                self.metadata
-                    .clone()
-                    .ok_or_else(|| std::io::Error::other("metadata"))?,
-            );
+            return match &self.metadata {
+                Some(metadata) => respond(socket, 200, metadata.clone()),
+                None => respond(socket, 404, json!({})),
+            };
+        }
+        if route == "/v1/publications/plans" {
+            self.publications.push(serde_json::from_slice(&body)?);
+            return Ok(()); // Retain an unknown result after the write was received.
         }
         assert_eq!(route, "/v1/sync/push");
         let wire: Value = serde_json::from_slice(&body)?;
@@ -121,6 +165,16 @@ impl Fixture {
 #[test]
 fn named_owner_operations_keep_native_actor_remote_sender_and_original_origin()
 -> std::result::Result<(), Box<dyn Error>> {
+    owner_journey(false)
+}
+
+#[test]
+fn named_recovery_interrupts_only_its_delivery_and_reconciles_with_same_account_ancestry()
+-> std::result::Result<(), Box<dyn Error>> {
+    owner_journey(true)
+}
+
+fn owner_journey(recover: bool) -> std::result::Result<(), Box<dyn Error>> {
     let root = tempfile::tempdir()?;
     let at = format!("{:.3}", jiff::Timestamp::now());
     let init = identity::plan(root.path(), identity::Storage::File, &at)?;
@@ -134,9 +188,12 @@ fn named_owner_operations_keep_native_actor_remote_sender_and_original_origin()
     authorize(root.path(), &origin, None, &account, &token, &at)?;
     let shared = Arc::new(Mutex::new(Fixture {
         account: account.clone(),
+        origin: origin.clone(),
         tokens: BTreeMap::from([(token, local.context().device_id)]),
         metadata: None,
         events: vec![],
+        publications: vec![],
+        previous_key: None,
         lose: true,
         stop: false,
     }));
@@ -176,6 +233,15 @@ fn named_owner_operations_keep_native_actor_remote_sender_and_original_origin()
             .map_err(|_| "fixture")?
             .tokens
             .insert(named_token, connection.device_id.clone());
+        if recover {
+            let journal = Journal::for_connection(
+                &local,
+                Some(&connections::enrollment(&local, &connection.connection_id)?),
+                false,
+            )?
+            .ok_or("journal")?;
+            journal.complete(&journal.state()?.ok_or("session")?)?;
+        }
         assert_ne!(connection.device_id, local.context().device_id);
         phase = "local authoring";
         let owner = authoring::owner(root.path())?;
@@ -217,10 +283,13 @@ fn named_owner_operations_keep_native_actor_remote_sender_and_original_origin()
         let snapshot = publication::prepare(&mut store, &id, "1.0", None, None)?
             .pop()
             .ok_or("snapshot")?;
-        shared.lock().map_err(|_| "fixture")?.metadata = Some(json!({"schema_version":1,
+        let metadata = json!({"schema_version":1,
             "visibility":"private","lifecycle":"active","published_at":at,
             "passport":snapshot.passport,"passport_digest":snapshot.passport_digest,
-            "trust":{"author_verified":false,"component_verified":false,"trust_lane":"local_owner_or_pinned"}}));
+            "trust":{"author_verified":false,"component_verified":false,"trust_lane":"local_owner_or_pinned"}});
+        if !recover {
+            shared.lock().map_err(|_| "fixture")?.metadata = Some(metadata);
+        }
         drop(store);
         phase = "named attestation";
         let signing = attestation::plan_for_connection(
@@ -261,7 +330,17 @@ fn named_owner_operations_keep_native_actor_remote_sender_and_original_origin()
                 version: "1.0".into(),
                 visibility: Visibility::Private,
                 component_root: None,
-                evidence: BTreeMap::new(),
+                evidence: if recover {
+                    BTreeMap::from([(
+                        id.clone(),
+                        publication_runtime::Evidence {
+                            source_binding_id: Some("source_binding_01".into()),
+                            ..Default::default()
+                        },
+                    )])
+                } else {
+                    BTreeMap::new()
+                },
             },
             &at,
         )?;
@@ -282,6 +361,228 @@ fn named_owner_operations_keep_native_actor_remote_sender_and_original_origin()
             &at,
         )?;
         assert!(sync_runtime::apply(&sync, &sync.digest()?, Some(&configuration), &at).is_err());
+        if recover {
+            phase = "named delivery recovery";
+            assert!(publication_runtime::apply(&publication, &publication.digest()?, &at).is_err());
+            let other = connections::plan(root.path(), "Unrelated", &origin, "github", &at)?;
+            connections::apply(&other, &other.digest()?, &at)?;
+            let token = generated();
+            authorize(
+                root.path(),
+                &origin,
+                Some(&other.connection_id),
+                &account,
+                &token,
+                &at,
+            )?;
+            {
+                let mut fixture = shared.lock().map_err(|_| "fixture")?;
+                fixture.tokens.insert(token, other.device_id.clone());
+                fixture.lose = true;
+            }
+            let other_sync = sync_runtime::plan_for_connection(
+                root.path(),
+                None,
+                Some(&other.connection_id),
+                Some(&configuration),
+                sync_runtime::Request::Push {
+                    id: local.context().device_id,
+                },
+                &at,
+            )?;
+            assert!(
+                sync_runtime::apply(
+                    &other_sync,
+                    &other_sync.digest()?,
+                    Some(&configuration),
+                    &at
+                )
+                .is_err()
+            );
+            let retained_events = shared.lock().map_err(|_| "fixture")?.events.clone();
+            assert_eq!(retained_events.len(), 2);
+            let original_event = shared.lock().map_err(|_| "fixture")?.events[0].clone();
+            let original_publication =
+                shared.lock().map_err(|_| "fixture")?.publications[0].clone();
+            let at = format!("{:.3}", jiff::Timestamp::now());
+            let refresh = plan_for_connection(
+                root.path(),
+                Action::Refresh,
+                None,
+                None,
+                Some(&connection.connection_id),
+                &at,
+            )?;
+            assert_eq!(
+                apply(&refresh, &refresh.digest()?, &at)?["outcome"],
+                "revoked"
+            );
+            let at = after(&format!("{:.3}", jiff::Timestamp::now()), 60)?;
+            phase = "named recovery plan";
+            let recovery =
+                enrollment_recovery::plan(root.path(), &connection.connection_id, "Recovered", &at)
+                    .map_err(|failure| format!("{failure:?}"))?;
+            assert_eq!(recovery.schema_version, 3);
+            assert_eq!(recovery.interrupted_publications.len(), 2);
+            assert_eq!(recovery.interrupted_sync.len(), 1);
+            let mut incomplete = recovery.clone();
+            incomplete.interrupted_publications.pop();
+            assert!(enrollment_recovery::apply(&incomplete, &incomplete.digest()?, &at).is_err());
+            phase = "named recovery admission";
+            let prepared = enrollment_recovery::apply(&recovery, &recovery.digest()?, &at)?;
+            assert_eq!(prepared["state"], "sign_in_required");
+            let interrupted = sync_runtime::apply(&sync, &sync.digest()?, None, &at)?;
+            assert_eq!(interrupted["result"]["state"], "interrupted");
+            assert_eq!(interrupted["result"]["remote_outcome"], "unknown");
+            let stopped = publication_runtime::apply(&publication, &publication.digest()?, &at)?;
+            assert_eq!(stopped["state"], "interrupted");
+            let old_public = connections::enrollment(&local, &connection.connection_id)?.public_key;
+            shared.lock().map_err(|_| "fixture")?.previous_key = Some(old_public);
+            let child = &recovery.replacement.connection_id;
+            phase = "named replacement sign-in";
+            let start =
+                plan_for_connection(root.path(), Action::Start, None, None, Some(child), &at)?;
+            apply(&start, &start.digest()?, &at)?;
+            let later = after(&at, 2)?;
+            let poll =
+                plan_for_connection(root.path(), Action::Poll, None, None, Some(child), &later)?;
+            assert_eq!(
+                apply(&poll, &poll.digest()?, &later)?["outcome"],
+                "authorized"
+            );
+            let operation = serde_json::to_value(&publication)?["intent"]["operation_id"]
+                .as_str()
+                .ok_or("operation")?
+                .to_owned();
+            phase = "named publication readback";
+            let reconciled = publication_runtime::reconcile_for_connection(
+                root.path(),
+                None,
+                Some(child),
+                &operation,
+            )?;
+            assert!(
+                reconciled["members"]
+                    .as_array()
+                    .ok_or("members")?
+                    .iter()
+                    .all(|member| member["remote_outcome"] == "unknown")
+            );
+            let event = original_event["event_id"].as_str().ok_or("event")?;
+            phase = "named sync retirement";
+            let retirement_at = format!("{:.3}", jiff::Timestamp::now());
+            let retire = sync_runtime::plan_for_connection(
+                root.path(),
+                None,
+                Some(child),
+                Some(&configuration),
+                sync_runtime::Request::Recover {
+                    event_id: event.into(),
+                },
+                &retirement_at,
+            )?;
+            let retired = sync_runtime::apply(
+                &retire,
+                &retire.digest()?,
+                Some(&configuration),
+                &retirement_at,
+            )?;
+            assert_eq!(retired["result"]["remote_outcome"], "unknown");
+            let unrelated_event = retained_events[1]["event_id"]
+                .as_str()
+                .ok_or("unrelated event")?;
+            assert!(
+                sync_runtime::plan_for_connection(
+                    root.path(),
+                    None,
+                    Some(child),
+                    Some(&configuration),
+                    sync_runtime::Request::Recover {
+                        event_id: unrelated_event.into()
+                    },
+                    &retirement_at
+                )
+                .is_err()
+            );
+            phase = "successive named recovery";
+            let refresh = plan_for_connection(
+                root.path(),
+                Action::Refresh,
+                None,
+                None,
+                Some(child),
+                &later,
+            )?;
+            assert_eq!(
+                apply(&refresh, &refresh.digest()?, &later)?["outcome"],
+                "revoked"
+            );
+            let next_at = after(&later, 1)?;
+            let next = enrollment_recovery::plan(root.path(), child, "Next replacement", &next_at)?;
+            assert!(next.interrupted_publications.is_empty() && next.interrupted_sync.is_empty());
+            enrollment_recovery::apply(&next, &next.digest()?, &next_at)?;
+            let next_child = &next.replacement.connection_id;
+            let start = plan_for_connection(
+                root.path(),
+                Action::Start,
+                None,
+                None,
+                Some(next_child),
+                &next_at,
+            )?;
+            apply(&start, &start.digest()?, &next_at)?;
+            let poll_at = after(&next_at, 2)?;
+            let poll = plan_for_connection(
+                root.path(),
+                Action::Poll,
+                None,
+                None,
+                Some(next_child),
+                &poll_at,
+            )?;
+            assert_eq!(
+                apply(&poll, &poll.digest()?, &poll_at)?["outcome"],
+                "authorized"
+            );
+            let latest = publication_runtime::reconcile_for_connection(
+                root.path(),
+                None,
+                Some(next_child),
+                &operation,
+            )?;
+            assert_eq!(latest, reconciled);
+            let store = owner.planning()?;
+            let scope = crate::sync::ledger::Scope::new(&account, &origin)?;
+            let unrelated = crate::sync::ledger::pending(
+                &store.connection,
+                &scope,
+                retained_events[1]["entity_id"]
+                    .as_str()
+                    .ok_or("unrelated entity")?,
+            )?
+            .ok_or("retained unrelated request")?;
+            assert_eq!(unrelated.state, "pending");
+            assert_eq!(unrelated.request, retained_events[1]);
+            assert!(unrelated.receipt.is_none());
+            drop(store);
+            assert_eq!(
+                sync_runtime::apply(&retire, &retire.digest()?, None, &later)?,
+                retired
+            );
+            assert_eq!(
+                publication_runtime::apply(&publication, &publication.digest()?, &later)?,
+                stopped
+            );
+            assert_eq!(
+                sync_runtime::apply(&sync, &sync.digest()?, None, &later)?,
+                interrupted
+            );
+            let fixture = shared.lock().map_err(|_| "fixture")?;
+            assert_eq!(fixture.events, retained_events);
+            assert_eq!(fixture.publications, vec![original_publication]);
+            assert_eq!(local.report(), original);
+            return Ok(());
+        }
         let offline = contexts::create_plan(root.path(), "Offline", None, None, &at)?;
         let offline = contexts::apply(&offline, &offline.digest()?, &at)?;
         let select = contexts::select_plan(

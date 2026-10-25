@@ -100,7 +100,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
         path: &["publication", "reconcile"],
         summary: "Read fresh remote evidence for a group interrupted by device replacement, without old-device writes or changing historical receipts.",
-        parameters: &[STATE_DIR, API, OPERATION],
+        parameters: &[STATE_DIR, API, super::account::CONNECTION, OPERATION],
         handler: super::Handler::Publication(Handler::Reconcile),
     },
 ];
@@ -141,7 +141,14 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             &at,
         )?,
         Handler::Resume => runtime::resume(root, origin, text("operation-id")?, &at)?,
-        Handler::Reconcile => return runtime::reconcile(root, origin, text("operation-id")?),
+        Handler::Reconcile => {
+            return runtime::reconcile_for_connection(
+                root,
+                origin,
+                args.get_one::<String>("connection").map(String::as_str),
+                text("operation-id")?,
+            );
+        }
         _ => return Err(Failure::input("invalid publication command")),
     };
     Ok(json!({"plan_digest":plan.digest()?,"plan":plan}))
