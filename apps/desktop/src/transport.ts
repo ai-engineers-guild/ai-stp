@@ -45,14 +45,18 @@ function call(
 ): Promise<CmdResult> {
   const t0 = performance.now();
   const argsRec = args ?? {};
-  const namespace =
-    typeof argsRec.path === "string"
-      ? argsRec.path.trim().split(/\s+/)[0]
-      : null;
+  const pathTokens =
+    typeof argsRec.path === "string" ? argsRec.path.trim().split(/\s+/) : [];
+  const namespace = pathTokens[0] ?? null;
   // The trace is shared across views and may be copied as a report. Context
   // plans and company replies contain directory, repository and policy data;
   // key-name redaction cannot make that content safe for this shared log.
-  const contextTrace = namespace === "context" || namespace === "corporate";
+  const contextTrace =
+    namespace === "context" ||
+    namespace === "corporate" ||
+    (namespace === "account" &&
+      pathTokens[1] === "connections" &&
+      pathTokens[2] === "recovery");
   // args go through redact like results — plus `task answer`'s `value`,
   // which is free user text the debug bundle would otherwise carry
   // verbatim; key-name redaction cannot see it, so it is named here.

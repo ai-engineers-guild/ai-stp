@@ -279,15 +279,18 @@ fn execute(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
             return Err(invalid());
         }
         account.verify()?;
+        // The enrollment credential lock precedes the registry lock. Stage the
+        // exact signature first, then check the subject/output predicates under
+        // the registry lock before retaining or exporting any evidence.
+        let mut record = plan.record.clone();
+        record["signature"] = STANDARD.encode(account.sign_attestation(&record)?).into();
+        contract::verify(&record, &plan.account.public_key)?;
         let mut store = account.owned_registry()?;
         if let Some(receipt) = journal::load(&store.connection, &plan.operation_id)? {
             receipt.matches(plan)?;
         } else {
             plan.subject(&mut store)?;
             files::document::unused(&plan.output, &plan.parent_identity)?;
-            let mut record = plan.record.clone();
-            record["signature"] = STANDARD.encode(account.sign_attestation(&record)?).into();
-            contract::verify(&record, &plan.account.public_key)?;
             store.transaction(|t| journal::retain(t, plan, record, at))?;
         }
     }
