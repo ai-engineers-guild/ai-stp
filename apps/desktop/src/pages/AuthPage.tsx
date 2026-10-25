@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { Link, useSearchParams } from "react-router";
 import { ExternalLink, LogOut, RefreshCw, ShieldCheck } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -44,10 +50,13 @@ export default function AuthPage() {
   const connection = params.get("connection") || undefined;
   const activeConnection = useRef(connection);
   const viewEpoch = useRef(0);
-  if (activeConnection.current !== connection) {
+  useLayoutEffect(() => {
     viewEpoch.current++;
     activeConnection.current = connection;
-  }
+    return () => {
+      viewEpoch.current++;
+    };
+  }, [connection]);
   const {
     auth: legacyAuth,
     authResult: legacyResult,
@@ -304,6 +313,7 @@ export default function AuthPage() {
         <p className="text-sm leading-6 text-muted-foreground">
           Sign in through your browser. The CLI keeps credentials in your
           selected local store; this app only receives public session status.
+          Session status is cached. Account actions check the selected server.
         </p>
         {signedIn && (
           <p className="break-all font-mono text-xs text-muted-foreground">
