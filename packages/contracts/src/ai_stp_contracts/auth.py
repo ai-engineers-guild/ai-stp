@@ -48,6 +48,16 @@ type OAuthProvider = Literal["google", "github", "authentik", "keycloak", "gitla
 #: shape `HARNESS_IDS` already uses for the harness enum.
 OAUTH_PROVIDERS: Final[tuple[OAuthProvider, ...]] = get_args(OAuthProvider.__value__)
 
+
+class AuthProvidersResponse(ContractModel):
+    """Configured device sign-in providers at this origin, without IdP secrets."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    providers: Annotated[list[OAuthProvider], Field(max_length=len(OAUTH_PROVIDERS))]
+
+
 #: Opaque to the CLI, which echoes it back verbatim while polling. Bounded so it
 #: cannot become an unbounded key on either side.
 DEVICE_CODE_PATTERN: Final[str] = r"^[A-Za-z0-9_-]{32,256}$"

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "standard_family": "ai-stp-standard/1",
-  "contract_digest": "sha256:4f1a71278c2d64421d48c5d0e3e615c5e3bbc1eaa2edf681ea3c3f31b8a2f458",
+  "contract_digest": "sha256:fad26fc8b94f8454aaf580f70279958ec7d0a484ef771cc1dae1cf3d7aeacaeb",
   "axes": [
     {
       "name": "standard_family",
@@ -763,6 +763,10 @@
     {
       "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:auth-oauth-callback-result"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:auth-providers-response"
     },
     {
       "axis": "http_schema",

@@ -950,6 +950,32 @@
         "title": "AuthMeResponse",
         "type": "object"
       },
+      "AuthProvidersResponse": {
+        "additionalProperties": true,
+        "description": "Configured device sign-in providers at this origin, without IdP secrets.",
+        "properties": {
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/OAuthProvider"
+            },
+            "maxItems": 6,
+            "title": "Providers",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "providers",
+          "schema_version"
+        ],
+        "title": "AuthProvidersResponse",
+        "type": "object"
+      },
       "AuthorAttestation": {
         "additionalProperties": false,
         "description": "Full closed author attestation on the /v1 wire (ADR-0092).",
@@ -36850,7 +36876,7 @@
             "name": "provider",
             "required": true,
             "schema": {
-              "pattern": "^(google|github)$",
+              "pattern": "^(google|github|authentik|keycloak|gitlab|saml)$",
               "type": "string"
             }
           },
@@ -38902,6 +38928,142 @@
         "summary": "Accept the current legal revisions and activate the account."
       }
     },
+    "/v1/auth/providers": {
+      "get": {
+        "operationId": "readAuthProviders",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readAuthProviders.configured": {
+                    "summary": "Anonymous discovery reports only provider IDs enabled by this deployment; compiled support is not configuration availability.",
+                    "value": {
+                      "providers": [
+                        "google",
+                        "github",
+                        "keycloak"
+                      ],
+                      "schema_version": 1
+                    }
+                  },
+                  "readAuthProviders.empty": {
+                    "summary": "A deployment with no enabled sign-in providers returns an empty list; the client cannot substitute its compiled choices.",
+                    "value": {
+                      "providers": [],
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/AuthProvidersResponse"
+                }
+              }
+            },
+            "description": "Read configured device sign-in providers at this origin.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "Read configured device sign-in providers at this origin."
+      }
+    },
     "/v1/auth/{provider}/callback": {
       "get": {
         "operationId": "readOAuthCallbackResult",
@@ -38912,7 +39074,7 @@
             "name": "provider",
             "required": true,
             "schema": {
-              "pattern": "^(google|github)$",
+              "pattern": "^(google|github|authentik|keycloak|gitlab|saml)$",
               "type": "string"
             }
           },

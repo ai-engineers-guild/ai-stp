@@ -25,6 +25,7 @@ from ai_stp_contracts.assurance import (
 from ai_stp_contracts.auth import (
     AuthLogoutResponse,
     AuthMeResponse,
+    AuthProvidersResponse,
     DeviceApproveRequest,
     DeviceApproveResponse,
     DeviceAuthorizationRequest,
@@ -721,6 +722,7 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "catalog-reaction-state": CatalogReactionState,
     "catalog-setup-context-budget": SetupContextBudget,
     "catalog-setup-context-budget-query": SetupContextBudgetQuery,
+    "auth-providers-response": AuthProvidersResponse,
     "auth-device-authorization-request": DeviceAuthorizationRequest,
     "auth-device-authorization-response": DeviceAuthorizationResponse,
     "auth-device-approve-request": DeviceApproveRequest,

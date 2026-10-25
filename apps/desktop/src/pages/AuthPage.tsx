@@ -9,6 +9,7 @@ import {
   cmdAuthRefresh,
   cmdAuthResume,
   cmdMachineHelp,
+  cmdRunRead,
   descriptorChoices,
   type CmdResult,
 } from "../transport";
@@ -19,6 +20,10 @@ import { useApp } from "../store";
 const PROVIDERS: Record<string, string> = {
   google: "Google",
   github: "GitHub",
+  authentik: "Authentik",
+  keycloak: "Keycloak",
+  gitlab: "GitLab",
+  saml: "SAML",
 };
 function pause(ms: number, signal: AbortSignal) {
   return new Promise<void>((resolve) => {
@@ -38,6 +43,9 @@ export default function AuthPage() {
   const [provider, setProvider] = useState("github");
   const [providers, setProviders] = useState<string[]>([]);
   const [help, setHelp] = useState<CmdResult | null>(null);
+  const [availability, setAvailability] = useState<CmdResult | null>(null);
+  const [discoveredFor, setDiscoveredFor] = useState<string | undefined>();
+  const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<CmdResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(false);
@@ -45,19 +53,16 @@ export default function AuthPage() {
   const [openError, setOpenError] = useState(false);
   const controller = useRef<AbortController | null>(null);
   const mounted = useRef(true);
+  const origin = typeof auth?.origin === "string" ? auth.origin : undefined;
+  const signInOrigin =
+    discoveredFor === origin &&
+    availability?.ok &&
+    typeof availability.data?.origin === "string"
+      ? availability.data.origin
+      : undefined;
   useEffect(() => {
     mounted.current = true;
     void refreshAuth();
-    void cmdMachineHelp().then((response) => {
-      if (!mounted.current) return;
-      setHelp(response);
-      const choices =
-        descriptorChoices(response, "account plan", "provider") ?? [];
-      setProviders(choices);
-      setProvider((value) =>
-        choices.includes(value) ? value : (choices[0] ?? ""),
-      );
-    });
     const clock = setInterval(() => setNow(Date.now()), 1000);
     return () => {
       mounted.current = false;
@@ -65,6 +70,37 @@ export default function AuthPage() {
       clearInterval(clock);
     };
   }, [refreshAuth]);
+  useEffect(() => {
+    let current = true;
+    setProviders([]);
+    setAvailability(null);
+    void Promise.all([
+      cmdMachineHelp(),
+      cmdRunRead("account providers", origin ? { "api-url": origin } : {}),
+    ]).then(([descriptor, response]) => {
+      if (!current) return;
+      setHelp(descriptor);
+      setAvailability(response);
+      setDiscoveredFor(origin);
+      const supported = descriptor.ok
+        ? (descriptorChoices(descriptor, "account plan", "provider") ?? [])
+        : [];
+      const enabled =
+        response.ok && Array.isArray(response.data?.providers)
+          ? response.data.providers.filter(
+              (value): value is string => typeof value === "string",
+            )
+          : [];
+      const choices = supported.filter((value) => enabled.includes(value));
+      setProviders(choices);
+      setProvider((value) =>
+        choices.includes(value) ? value : (choices[0] ?? ""),
+      );
+    });
+    return () => {
+      current = false;
+    };
+  }, [origin, attempt]);
   const session = (auth?.session ?? {}) as Record<string, unknown>;
   const pending = auth?.pending_operation as
     { plan?: { action?: string } } | undefined;
@@ -238,6 +274,25 @@ export default function AuthPage() {
         )}
         {!authorized && !pendingCode && !pending && (
           <div className="space-y-4">
+            {!availability && (
+              <Spinner label="Checking server sign-in methods" />
+            )}
+            {availability && !providers.length && (
+              <div className="space-y-2" role="status">
+                <p className="text-sm text-muted-foreground">
+                  {availability.ok
+                    ? "This server has no sign-in methods supported by this engine."
+                    : "Server sign-in methods could not be loaded. Retry before starting sign-in."}
+                </p>
+                {!availability.ok && <ResultMeta r={availability} />}
+                <button
+                  className="btn-outline"
+                  onClick={() => setAttempt((value) => value + 1)}
+                >
+                  Retry sign-in methods
+                </button>
+              </div>
+            )}
             <div className="flex gap-2">
               {providers.map((value) => (
                 <button
@@ -260,9 +315,14 @@ export default function AuthPage() {
             <button
               className="btn-primary"
               disabled={
-                busy || !providers.includes(provider) || !authResult?.ok
+                busy ||
+                !providers.includes(provider) ||
+                !authResult?.ok ||
+                !signInOrigin
               }
-              onClick={() => void action(() => cmdAuthLogin(provider))}
+              onClick={() =>
+                void action(() => cmdAuthLogin(provider, signInOrigin))
+              }
             >
               {busy ? "Starting…" : "Start sign-in"}
               <ExternalLink size={14} />

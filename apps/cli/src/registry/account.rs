@@ -14,6 +14,7 @@ pub(super) enum Handler {
     Plan,
     Apply,
     Status,
+    Providers,
 }
 
 pub(super) fn warnings(result: &Result<Value>) -> Vec<String> {
@@ -36,12 +37,23 @@ impl Handler {
         match self {
             Self::Plan => "plan",
             Self::Apply => "apply",
-            Self::Status => "read",
+            Self::Status | Self::Providers => "read",
         }
     }
 }
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["account", "providers"],
+        summary: "Read the sign-in providers enabled by the chosen server; no credentials, browser flow or local writes.",
+        parameters: &[Parameter {
+            name: "api-url",
+            summary: "HTTPS account API origin, or explicit loopback HTTP; defaults to the public service.",
+            kind: ParameterType::String,
+            required: false,
+        }],
+        handler: super::Handler::Account(Handler::Providers),
+    },
     Declaration {
         path: &["account", "plan"],
         summary: "Plan a session action, owner attachment or revoked-key recovery against the exact isolated account revision and device key.",
@@ -63,8 +75,8 @@ pub(super) const COMMANDS: &[Declaration] = &[
             },
             Parameter {
                 name: "provider",
-                summary: "Public sign-in provider; defaults to the retained session provider or GitHub.",
-                kind: ParameterType::Choice(&["github", "google"]),
+                summary: "Sign-in provider; use account providers to discover this server's enabled choices. Defaults to the retained provider or GitHub.",
+                kind: ParameterType::Choice(account::providers::IDS),
                 required: false,
             },
         ],
@@ -131,5 +143,8 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             &at,
         ),
         Handler::Status => account::status(path("state-dir")?, &at),
+        Handler::Providers => {
+            account::providers::read(args.get_one::<String>("api-url").map(String::as_str))
+        }
     }
 }

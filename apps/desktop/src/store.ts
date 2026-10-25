@@ -33,11 +33,21 @@ interface DebugState {
   clear: () => void;
 }
 
+function debugPreference(): boolean {
+  try {
+    return (
+      typeof localStorage !== "undefined" &&
+      typeof localStorage.getItem === "function" &&
+      localStorage.getItem("ai-stp.debug") === "1"
+    );
+  } catch {
+    return false;
+  }
+}
+
 export const useDebug = create<DebugState>((set) => ({
   log: [],
-  debugMode:
-    typeof localStorage !== "undefined" &&
-    localStorage.getItem("ai-stp.debug") === "1",
+  debugMode: debugPreference(),
   push: (e) =>
     set((s) => ({
       log: [{ ...e, id: ++ipcSeq, ts: Date.now() }, ...s.log].slice(
@@ -46,7 +56,16 @@ export const useDebug = create<DebugState>((set) => ({
       ),
     })),
   setDebugMode: (v) => {
-    localStorage.setItem("ai-stp.debug", v ? "1" : "0");
+    try {
+      if (
+        typeof localStorage !== "undefined" &&
+        typeof localStorage.setItem === "function"
+      ) {
+        localStorage.setItem("ai-stp.debug", v ? "1" : "0");
+      }
+    } catch {
+      // An optional preference cannot prevent startup or an explicit toggle.
+    }
     set({ debugMode: v });
   },
   clear: () => set({ log: [] }),

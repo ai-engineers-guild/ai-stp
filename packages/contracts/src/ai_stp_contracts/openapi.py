@@ -31,8 +31,10 @@ from ai_stp_contracts.assurance import (
     TargetAssessmentIngestResponse,
 )
 from ai_stp_contracts.auth import (
+    OAUTH_PROVIDERS,
     AuthLogoutResponse,
     AuthMeResponse,
+    AuthProvidersResponse,
     DeviceApproveRequest,
     DeviceApproveResponse,
     DeviceAuthorizationRequest,
@@ -596,7 +598,7 @@ _DEVICE_ID = PathParam(
 _PROVIDER = PathParam(
     name="provider",
     description="Identity provider that completed the browser half.",
-    pattern=r"^(google|github)$",
+    pattern="^(" + "|".join(OAUTH_PROVIDERS) + ")$",
 )
 _ORGANIZATION_ID = PathParam(
     name="organization_id",
@@ -2682,6 +2684,13 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         query=SetupContextBudgetQuery,
         path_params=(_OBJECT_ID, _VERSION),
         errors=("AI_STP_NOT_FOUND", "AI_STP_CATALOG_INTEGRITY", "AI_STP_VALIDATION_ERROR"),
+    ),
+    Operation(
+        method="get",
+        path="/auth/providers",
+        operation_id="readAuthProviders",
+        summary="Read configured device sign-in providers at this origin.",
+        response=AuthProvidersResponse,
     ),
     Operation(
         method="post",

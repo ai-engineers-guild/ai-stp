@@ -7,6 +7,7 @@ pub mod github;
 pub mod grants;
 mod journal;
 mod model;
+pub mod providers;
 mod recovery;
 pub mod reports;
 #[cfg(all(test, unix))]
