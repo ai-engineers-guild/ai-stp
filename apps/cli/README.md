@@ -11,6 +11,32 @@ methods enabled by that deployment without credentials or local state writes.
 Machine help lists the engine's supported methods; it does not claim that a
 server has configured them. Starting sign-in remains subject to server policy.
 
+Retain independent server/account sessions with `account connections plan`
+(`--label`, `--api-url`, `--provider`) and `account connections apply` using the
+reviewed plan and digest. Each enrollment has its own remote device ID and native
+credential slot; the offline authoring identity and existing session remain intact.
+`account connections list` exposes metadata and any interrupted creation intent.
+Use its exact `--connection` ID with account plan/status, private catalog version
+reads, grants, GitHub source requests, visibility requests and report previews.
+Their retained plans keep that original connection across view changes and retries.
+Omitting the selector explicitly retains the legacy session behavior.
+
+`account organizations --connection ID` reads available organizations. Create a
+native offline context with `context create plan --label NAME`, or add an explicit
+connection and organization for a server-resolved personal/corporate observation.
+Apply the exact plan with `context apply`. `context select plan --context ID`
+plans a revision-checked view preference; selection changes no harness files or
+existing operation binding. `context list` and `context show` are local reads;
+`context show --refresh` checks current access through the original connection.
+Cached capabilities never authorize installation or publication.
+
+The first applied connection/context plan explicitly upgrades the same authority
+registry to schema 55. Older clients refuse that format; keep a compatible client
+available. No database copy, key rotation, credential copying or implicit owner
+attachment occurs. Named enrollment key recovery and context-owned authoring,
+publication, sync and corporate delivery are separate operations; the legacy
+global attach/recover actions do not operate on a named enrollment.
+
 ## Release and supported platforms
 
 Stable archives use `cli-v<version>` tags and the exact `Cargo.toml` version.

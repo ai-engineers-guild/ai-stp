@@ -47,6 +47,8 @@ pub struct Plan {
     pub expected_account_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub revoked_public_key: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub connection: Option<super::connections::Enrollment>,
 }
 
 impl Plan {
@@ -59,6 +61,21 @@ impl Plan {
 
     pub(crate) fn validate(&self) -> Result<()> {
         self.identity.validate()?;
+        if let Some(connection) = &self.connection {
+            connection.validate()?;
+            if connection.origin != self.origin
+                || connection.provider != self.provider
+                || connection.credential_store != self.credential_store
+                || matches!(
+                    self.action,
+                    Action::Attach | Action::Recover | Action::Import
+                )
+                || self.expected_account_id.is_some()
+                || self.revoked_public_key.is_some()
+            {
+                return Err(super::invalid());
+            }
+        }
         match (&self.attachment, self.action) {
             (Some(selection), Action::Attach) => selection.validate(&self.identity)?,
             (None, action) if action != Action::Attach => {}
@@ -87,6 +104,27 @@ impl Plan {
             return Err(super::invalid());
         }
         Ok(())
+    }
+
+    pub(crate) fn device_id(&self) -> &str {
+        self.connection
+            .as_ref()
+            .map_or(self.identity.device_id.as_str(), |value| {
+                value.device_id.as_str()
+            })
+    }
+
+    pub(crate) fn enrollment_public_key(&self) -> &str {
+        self.connection
+            .as_ref()
+            .map_or(self.public_key.as_str(), |value| value.public_key.as_str())
+    }
+
+    pub(crate) fn sign(&self, identity: &identity::Identity, payload: &[u8]) -> Result<[u8; 64]> {
+        match &self.connection {
+            Some(connection) => connection.sign(identity, payload),
+            None => identity.sign(payload),
+        }
     }
 }
 
@@ -194,7 +232,7 @@ impl State {
             }
             Session::Closed { reason } => json!({"state":"closed","reason":reason}),
         };
-        json!({"schema_version":1,"revision":self.revision,"origin":self.plan.origin,"provider":self.plan.provider,"device_id":self.plan.identity.device_id,"local_owner_id":self.plan.identity.account_id,"owner_attached":false,"online_verified":false,"session":session})
+        json!({"schema_version":1,"revision":self.revision,"origin":self.plan.origin,"provider":self.plan.provider,"device_id":self.plan.device_id(),"local_owner_id":self.plan.identity.account_id,"owner_attached":false,"online_verified":false,"session":session})
     }
 
     pub fn receipt(&self) -> Result<Receipt> {
@@ -239,6 +277,10 @@ impl Receipt {
     }
     pub fn public(&self) -> Value {
         let mut value = json!({"schema_version":1,"operation_id":self.plan.operation_id,"plan_digest":self.plan_digest,"action":self.plan.action,"outcome":self.outcome,"completed_at":self.completed_at,"account_id":self.account_id,"owner_attached":false,"warnings":if self.outcome==Outcome::LogoutUnconfirmed {vec!["remote_logout_unconfirmed"]} else {vec![]}});
+        if let Some(connection) = &self.plan.connection {
+            value["connection_id"] = connection.connection_id.clone().into();
+            value["device_id"] = connection.device_id.clone().into();
+        }
         if let Some(intent) = &self.plan.recovery {
             value["device_id"] = intent.device_id.clone().into();
             value["retired_device_id"] = self.plan.identity.device_id.clone().into();

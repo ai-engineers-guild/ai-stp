@@ -26,6 +26,7 @@ import {
 import { useApp, useDebug } from "./store";
 import OverviewPage from "./pages/OverviewPage";
 import AuthPage from "./pages/AuthPage";
+import ProfilesPage from "./pages/ProfilesPage";
 import CatalogPage from "./pages/CatalogPage";
 import TasksPage from "./pages/TasksPage";
 import InstallPage from "./pages/InstallPage";
@@ -57,6 +58,7 @@ const GROUPS = [
     label: "System",
     items: [
       { to: "/auth", icon: ShieldCheck, label: "Account" },
+      { to: "/profiles", icon: ShieldCheck, label: "Connections" },
       { to: "/settings", icon: Settings, label: "Settings" },
       { to: "/debug", icon: Bug, label: "Diagnostics" },
     ],
@@ -182,6 +184,7 @@ function Shell() {
           <Routes>
             <Route path="/" element={<OverviewPage />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/profiles" element={<ProfilesPage />} />
             <Route path="/catalog" element={<CatalogPage />} />
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/install" element={<InstallPage />} />

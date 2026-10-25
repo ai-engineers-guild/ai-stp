@@ -74,9 +74,10 @@ impl Snapshot {
         let schema: u32 = connection
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .map_err(invalid)?;
-        if schema != SCHEMA_VERSION {
+        if schema != SCHEMA_VERSION && schema != crate::store::PROFILE_SCHEMA {
             return Err(Failure::precondition(format!(
-                "snapshot schema {schema} is unsupported; expected {SCHEMA_VERSION}"
+                "snapshot schema {schema} is unsupported; expected {SCHEMA_VERSION} or {}",
+                crate::store::PROFILE_SCHEMA
             )));
         }
         let integrity: String = connection

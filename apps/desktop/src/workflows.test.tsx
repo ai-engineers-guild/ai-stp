@@ -8,11 +8,12 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, useNavigate } from "react-router";
 import CatalogPage from "./pages/CatalogPage";
 import RegistryPage from "./pages/RegistryPage";
 import InstallPage from "./pages/InstallPage";
 import AuthPage from "./pages/AuthPage";
+import ProfilesPage from "./pages/ProfilesPage";
 import { useApp } from "./store";
 import { useTaskStart } from "./taskStart";
 import * as transport from "./transport";
@@ -30,6 +31,10 @@ vi.mock("./transport", async (original) => ({
   cmdTaskAnswer: vi.fn(),
   cmdAuthComplete: vi.fn(),
   cmdAuthLogin: vi.fn(),
+  cmdAuthStatus: vi.fn(),
+  cmdAuthLogout: vi.fn(),
+  cmdProfileApply: vi.fn(),
+  cliPlan: vi.fn(),
   cliApplyConfirmed: vi.fn(),
 }));
 const ok = (data: Record<string, unknown> = {}): CmdResult => ({
@@ -94,6 +99,191 @@ beforeEach(() => {
   vi.mocked(transport.cmdRunRead).mockResolvedValue(ok({ properties: {} }));
 });
 afterEach(cleanup);
+
+it("keeps a named account reply and sign-in action fenced to its connection", async () => {
+  const first = "connection_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    second = "connection_01ARZ3NDEKTSV4RRFFQ69G5FAW";
+  let oldReply!: (result: CmdResult) => void;
+  vi.mocked(transport.cmdAuthStatus).mockImplementation(async (connection) =>
+    connection === first
+      ? new Promise((resolve) => {
+          oldReply = resolve;
+        })
+      : ok({
+          connection_id: second,
+          origin: "https://company.example.test",
+          provider: "keycloak",
+          session: { state: "absent" },
+        }),
+  );
+  vi.mocked(transport.cmdMachineHelp).mockResolvedValue(
+    ok({
+      commands: [
+        command(["account", "plan"], "plan", [
+          { name: "provider", choices: ["github", "keycloak"] },
+        ]),
+      ],
+    }),
+  );
+  vi.mocked(transport.cmdRunRead).mockImplementation(async (_path, values) =>
+    ok({ origin: values?.["api-url"], providers: ["github", "keycloak"] }),
+  );
+  vi.mocked(transport.cmdAuthLogin).mockResolvedValue(ok());
+  function Journey() {
+    const navigate = useNavigate();
+    return (
+      <>
+        <button onClick={() => navigate(`/auth?connection=${second}`)}>
+          Choose company session
+        </button>
+        <AuthPage />
+      </>
+    );
+  }
+  mount(<Journey />, `/auth?connection=${first}`);
+  await waitFor(() =>
+    expect(transport.cmdAuthStatus).toHaveBeenCalledWith(first),
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Choose company session" }),
+  );
+  await screen.findByRole("button", { name: "Keycloak" });
+  await act(async () =>
+    oldReply(
+      ok({
+        connection_id: first,
+        origin: "https://previous.example.test",
+        provider: "github",
+        session: { state: "authorized", account_id: "old-account" },
+      }),
+    ),
+  );
+  expect(screen.queryByText("old-account")).toBeNull();
+  expect(screen.queryByRole("button", { name: "GitHub" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Start sign-in" }));
+  await waitFor(() =>
+    expect(transport.cmdAuthLogin).toHaveBeenCalledWith(
+      "keycloak",
+      "https://company.example.test",
+      second,
+    ),
+  );
+  expect(useApp.getState().auth?.session).toEqual({ state: "absent" });
+});
+
+it("discards a previous account response even after returning to the same connection", async () => {
+  const first = "connection_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    second = "connection_01ARZ3NDEKTSV4RRFFQ69G5FAW";
+  let oldReply!: (result: CmdResult) => void;
+  let calls = 0;
+  vi.mocked(transport.cmdAuthStatus).mockImplementation(async (connection) => {
+    if (connection === first && calls++ === 0)
+      return new Promise((resolve) => {
+        oldReply = resolve;
+      });
+    return ok({
+      origin: "https://company.example.test",
+      provider: "github",
+      session: {
+        state: "authorized",
+        account_id:
+          connection === first ? "current-personal" : "current-company",
+      },
+    });
+  });
+  function Journey() {
+    const navigate = useNavigate();
+    return (
+      <>
+        <button onClick={() => navigate(`/auth?connection=${second}`)}>
+          Company view
+        </button>
+        <button onClick={() => navigate(`/auth?connection=${first}`)}>
+          Personal view
+        </button>
+        <AuthPage />
+      </>
+    );
+  }
+  mount(<Journey />, `/auth?connection=${first}`);
+  await waitFor(() =>
+    expect(transport.cmdAuthStatus).toHaveBeenCalledWith(first),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Company view" }));
+  await screen.findByText("current-company");
+  fireEvent.click(screen.getByRole("button", { name: "Personal view" }));
+  await screen.findByText("current-personal");
+  await act(async () =>
+    oldReply(
+      ok({
+        origin: "https://old.example.test",
+        provider: "github",
+        session: { state: "authorized", account_id: "previous-personal" },
+      }),
+    ),
+  );
+  expect(screen.queryByText("previous-personal")).toBeNull();
+  expect(screen.getByText("current-personal")).toBeTruthy();
+});
+
+it("reviews an exact enrollment plan and requires confirmation before applying", async () => {
+  const plan = {
+    schema_version: 1,
+    operation_id: "operation_reviewed",
+    registry_schema_before: 53,
+    registry_schema_after: 55,
+  };
+  vi.mocked(transport.cmdMachineHelp).mockResolvedValue(
+    ok({
+      commands: [
+        command(["account", "connections", "plan"], "plan", [
+          { name: "provider", choices: ["github"] },
+        ]),
+      ],
+    }),
+  );
+  vi.mocked(transport.cmdRunRead).mockImplementation(async (path) =>
+    path === "account providers"
+      ? ok({ origin: "https://chosen.example.test", providers: ["github"] })
+      : path === "context list"
+        ? ok({ contexts: [], selected: null })
+        : ok({ connections: [] }),
+  );
+  vi.mocked(transport.cliPlan).mockResolvedValue(
+    ok({ plan, plan_digest: "sha256:reviewed" }),
+  );
+  vi.mocked(transport.cmdProfileApply).mockResolvedValue(ok());
+  mount(<ProfilesPage />);
+  fireEvent.change(screen.getByLabelText("Connection label"), {
+    target: { value: "Personal" },
+  });
+  fireEvent.change(screen.getByLabelText("Server origin"), {
+    target: { value: "https://chosen.example.test" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Check server sign-in methods" }),
+  );
+  await screen.findByLabelText("Sign-in method");
+  fireEvent.click(
+    screen.getByRole("button", { name: "Review connection creation" }),
+  );
+  await screen.findByText("sha256:reviewed");
+  const apply = screen.getByRole("button", {
+    name: "Apply reviewed change",
+  }) as HTMLButtonElement;
+  expect(apply.disabled).toBe(true);
+  expect(transport.cmdProfileApply).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(apply);
+  await waitFor(() =>
+    expect(transport.cmdProfileApply).toHaveBeenCalledWith(
+      "account connections apply",
+      plan,
+      "sha256:reviewed",
+      true,
+    ),
+  );
+});
 
 it("offers only sign-in methods configured at the chosen origin", async () => {
   vi.mocked(transport.cmdMachineHelp).mockResolvedValue(

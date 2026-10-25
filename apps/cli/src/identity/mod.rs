@@ -493,7 +493,7 @@ pub fn apply(plan: &Plan, expected_digest: &str, at: &str) -> Result<Identity> {
     load(&directory, &record, root)
 }
 
-fn generate() -> Result<SigningKey> {
+pub(crate) fn generate() -> Result<SigningKey> {
     let mut seed = Zeroizing::new([0u8; 32]);
     getrandom::fill(seed.as_mut()).map_err(|_| {
         Failure::new(

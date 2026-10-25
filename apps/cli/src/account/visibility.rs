@@ -178,6 +178,16 @@ impl Plan {
 }
 
 pub fn plan(root: &Path, origin: Option<&str>, input: &Path, at: &str) -> Result<Plan> {
+    plan_for_connection(root, origin, None, input, at)
+}
+
+pub fn plan_for_connection(
+    root: &Path,
+    origin: Option<&str>,
+    connection: Option<&str>,
+    input: &Path,
+    at: &str,
+) -> Result<Plan> {
     let mut body = wire::parse(&files::read(input, LIMIT)?)?;
     let object = body.as_object_mut().ok_or_else(invalid)?;
     // Identity is supplied exclusively by the retained isolated account session.
@@ -185,7 +195,7 @@ pub fn plan(root: &Path, origin: Option<&str>, input: &Path, at: &str) -> Result
         return Err(invalid());
     }
     let state_parent = PathBuf::from(files::location(root)?);
-    let mut access = Access::for_account(&state_parent, origin)?;
+    let mut access = Access::for_connection(&state_parent, origin, connection, false)?;
     object.insert("schema_version".into(), 1.into());
     object.insert(
         "device_id".into(),
@@ -226,10 +236,19 @@ fn observed(access: &Access, response: Value) -> Result<Value> {
 }
 
 pub fn status(root: &Path, origin: Option<&str>, id: &str) -> Result<Value> {
+    status_for_connection(root, origin, None, id)
+}
+
+pub fn status_for_connection(
+    root: &Path,
+    origin: Option<&str>,
+    connection: Option<&str>,
+    id: &str,
+) -> Result<Value> {
     if !passport::stable_id(id, "plan") {
         return Err(invalid());
     }
-    let mut access = Access::for_account(root, origin)?;
+    let mut access = Access::for_connection(root, origin, connection, false)?;
     access.verify()?;
     let value = response(&access.visibility(id, None)?, access.binding())?;
     if value["plan_id"] != id {
@@ -252,7 +271,7 @@ pub fn apply(plan: &Plan, expected: &str, confirmed: bool, at: &str) -> Result<V
             "the visibility plan expired; re-plan the original request with its unchanged idempotency key",
         ));
     }
-    let mut access = Access::for_account(&plan.state_parent, Some(&plan.account.origin))?;
+    let mut access = Access::for_binding(&plan.state_parent, &plan.account, false)?;
     if access.binding() != &plan.account {
         return Err(Failure::precondition(
             "the visibility account, device, session or physical state changed after planning",
