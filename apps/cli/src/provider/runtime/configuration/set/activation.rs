@@ -220,8 +220,7 @@ fn overlaps(paths: &[PathBuf], targets: &[Target]) -> Result<bool> {
     Ok(false)
 }
 
-fn observe(plan: &Plan) -> Result<Vec<Session>> {
-    let targets = roots(plan, false)?;
+fn observe(targets: &[Target]) -> Result<Vec<Session>> {
     let boot_id = boot()?;
     let mut sessions = Vec::new();
     for entry in fs::read_dir("/proc").map_err(|_| invalid())? {
@@ -267,7 +266,7 @@ fn observe(plan: &Plan) -> Result<Vec<Session>> {
                     continue;
                 }
                 if matches(definition, &before, &executable, &arguments)
-                    && overlaps(&context(pid, definition)?, &targets)?
+                    && overlaps(&context(pid, definition)?, targets)?
                 {
                     return Ok(Some(Session {
                         pid,
@@ -296,9 +295,9 @@ fn observe(plan: &Plan) -> Result<Vec<Session>> {
     Ok(sessions)
 }
 
-pub(super) fn sessions(plan: &Plan) -> Result<Vec<Session>> {
+fn retry(mut observation: impl FnMut() -> Result<Vec<Session>>) -> Result<Vec<Session>> {
     for attempt in 0..3 {
-        match observe(plan) {
+        match observation() {
             Err(error) if matches!(error.kind, ErrorKind::Unavailable) && attempt < 2 => {
                 // A process can disappear between stat, exe and environ reads.
                 // Retry the entire read-only observation; never infer quiescence
@@ -309,6 +308,19 @@ pub(super) fn sessions(plan: &Plan) -> Result<Vec<Session>> {
         }
     }
     Err(invalid())
+}
+
+pub(super) fn sessions(plan: &Plan) -> Result<Vec<Session>> {
+    retry(|| observe(&roots(plan, false)?))
+}
+
+pub(super) fn require_inactive(target: &Target) -> Result<()> {
+    if !retry(|| observe(std::slice::from_ref(target)))?.is_empty() {
+        return Err(Failure::precondition(
+            "a harness is using the target; stage the configuration and finish that session before activation",
+        ));
+    }
+    Ok(())
 }
 
 pub(super) fn prepare(plan: &Plan) -> Result<Handoff> {

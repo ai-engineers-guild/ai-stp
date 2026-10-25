@@ -6,18 +6,26 @@ use std::{
     ffi::OsStr,
     process::{Command, Stdio},
     result::Result,
+    sync::{Mutex, MutexGuard},
 };
 
-struct Consumer(std::process::Child);
+// Invalid-root consumers must not overlap the process-wide observer's control.
+static CONSUMERS: Mutex<()> = Mutex::new(());
+
+struct Consumer {
+    child: std::process::Child,
+    _admission: MutexGuard<'static, ()>,
+}
 
 impl Drop for Consumer {
     fn drop(&mut self) {
-        let _ = self.0.kill();
-        let _ = self.0.wait();
+        let _ = self.child.kill();
+        let _ = self.child.wait();
     }
 }
 
 fn consumer(root: &Path, override_root: Option<&OsStr>) -> Result<Consumer, Box<dyn Error>> {
+    let admission = CONSUMERS.lock().map_err(|_| "consumer fixture lock")?;
     let home = root.join("home");
     let project = root.join("project");
     fs::create_dir_all(&home)?;
@@ -37,8 +45,11 @@ fn consumer(root: &Path, override_root: Option<&OsStr>) -> Result<Consumer, Box<
     if let Some(path) = override_root {
         command.env("CLAUDE_CONFIG_DIR", path);
     }
-    let mut child = Consumer(command.spawn()?);
-    let output = child.0.stdout.take().ok_or("consumer stdout")?;
+    let mut child = Consumer {
+        child: command.spawn()?,
+        _admission: admission,
+    };
+    let output = child.child.stdout.take().ok_or("consumer stdout")?;
     let mut ready = String::new();
     BufReader::new(output.take(64)).read_line(&mut ready)?;
     if ready != "consumer-ready\n" {
@@ -57,7 +68,7 @@ fn claude_consumer_uses_its_explicit_configuration_root() -> Result<(), Box<dyn 
     fs::create_dir_all(&default)?;
     let child = consumer(root, Some(configured.as_os_str()))?;
     let definition = harnesses::definition("claude-code")?;
-    let pid = child.0.id();
+    let pid = child.child.id();
     let process = process(pid)?.ok_or("consumer exited")?;
     let executable = fs::read_link(format!("/proc/{pid}/exe"))?;
     assert!(matches(definition, &process, &executable, &[]));
@@ -78,7 +89,7 @@ fn claude_consumer_without_an_override_uses_the_default_root() -> Result<(), Box
     fs::create_dir_all(&default)?;
     for value in [None, Some(OsStr::new(""))] {
         let child = consumer(root, value)?;
-        let observed = context(child.0.id(), harnesses::definition("claude-code")?)?;
+        let observed = context(child.child.id(), harnesses::definition("claude-code")?)?;
         assert!(overlaps(&observed, &[Target::open(&default)?])?);
     }
     Ok(())
@@ -91,7 +102,7 @@ fn claude_consumer_with_an_invalid_override_cannot_imply_quiescence() -> Result<
     let oversized = format!("/{}", "x".repeat(4096));
     for value in [OsStr::new("relative-config"), OsStr::new(&oversized)] {
         let child = consumer(temporary.path(), Some(value))?;
-        assert!(context(child.0.id(), harnesses::definition("claude-code")?).is_err());
+        assert!(context(child.child.id(), harnesses::definition("claude-code")?).is_err());
     }
     Ok(())
 }
@@ -136,5 +147,24 @@ fn explicit_claude_configuration_root_requires_staged_activation() -> Result<(),
         String::from_utf8_lossy(&output.stdout)
     );
     assert!(String::from_utf8_lossy(&output.stdout).contains("custom-claude-root-refused"));
+    Ok(())
+}
+
+#[test]
+fn active_claude_root_requires_handoff_from_an_unrelated_caller() -> Result<(), Box<dyn Error>> {
+    use crate::provider::runtime::execution::Mode;
+    let temporary = tempfile::tempdir()?;
+    let configured = temporary.path().join("corporate-config");
+    let unrelated = temporary.path().join("unrelated");
+    fs::create_dir(&configured)?;
+    fs::create_dir(&unrelated)?;
+    let child = consumer(temporary.path(), Some(configured.as_os_str()))?;
+    let target = Target::open(&configured)?;
+    let result = super::super::inactive(&target, Mode::Apply, None);
+    let refused = result.err().ok_or("active consumer bypassed activation")?;
+    assert!(matches!(refused.kind, ErrorKind::Precondition));
+    super::super::inactive(&Target::open(&unrelated)?, Mode::Apply, None)?;
+    drop(child);
+    super::super::inactive(&target, Mode::Apply, None)?;
     Ok(())
 }
