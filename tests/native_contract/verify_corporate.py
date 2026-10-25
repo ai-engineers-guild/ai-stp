@@ -238,7 +238,8 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         receipt = await enact(poll, "account", "apply")
         assert receipt["outcome"] == "authorized" and receipt["account_id"] == account
 
-    connections, contexts = [], []
+    connections: list[dict[str, Any]] = []
+    contexts: list[str] = []
     for index, account in enumerate(accounts):
         planned = await run(
             "account",
