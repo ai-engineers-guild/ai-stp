@@ -1,4 +1,4 @@
-//! Reviewed replacement of one revoked enrollment without rotating local identity.
+//! Reviewed enrollment replacement; local key absence never proves server revocation.
 
 use std::{collections::BTreeSet, path::Path};
 
