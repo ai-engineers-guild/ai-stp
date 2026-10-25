@@ -210,7 +210,7 @@
       "npm_packages": [
         "@anthropic-ai/claude-code"
       ],
-      "root_override": null,
+      "root_override": "CLAUDE_CONFIG_DIR",
       "scoop_app": null,
       "source": "code.claude.com/docs/en/settings",
       "state_paths": [

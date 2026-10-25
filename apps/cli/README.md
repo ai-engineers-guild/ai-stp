@@ -164,6 +164,8 @@ consumers exiting, publishes while stopped and confirms from a newly started
 consumer. Unsupported launchers must be stopped explicitly. Process observation
 is not a global process-start lock. Only the public component writes final
 harness state; no in-place half-update of the active agent is authorized.
+Direct apply also checks observed consumers when its caller uses a different
+configuration home, including the desktop's filtered CLI environment.
 
 ## Build and verification
 
