@@ -74,6 +74,23 @@ impl Checkpoint {
 }
 
 impl Receipt {
+    pub(crate) fn for_named(
+        checkpoint: &Checkpoint,
+        recovery: &account::enrollment_recovery::Plan,
+    ) -> Result<Self> {
+        if !recovery.interrupted_publications.contains(checkpoint) {
+            return Err(invalid());
+        }
+        let receipt = Self {
+            checkpoint: checkpoint.clone(),
+            recovery_operation_id: recovery.operation_id.clone(),
+            recovery_plan_digest: recovery.digest()?,
+            replacement_device_id: recovery.replacement.device_id.clone(),
+        };
+        receipt.validate()?;
+        Ok(receipt)
+    }
+
     pub(crate) fn for_plan(checkpoint: &Checkpoint, recovery: &account::Plan) -> Result<Self> {
         let intent = recovery.recovery.as_ref().ok_or_else(invalid)?;
         if recovery.action != account::Action::Recover
@@ -218,7 +235,10 @@ pub(crate) fn capture(
         .collect()
 }
 
-pub(crate) fn pending_enrollment(connection: &Connection, enrollment: &str) -> Result<bool> {
+pub(crate) fn capture_named(
+    connection: &Connection,
+    recovery: &account::enrollment_recovery::Plan,
+) -> Result<Vec<Checkpoint>> {
     let mut query=connection.prepare("SELECT operation_id FROM operation WHERE kind IN ('publication.run','publication.set') AND finished_at IS NULL ORDER BY operation_id LIMIT 129").map_err(database)?;
     let ids = query
         .query_map([], |row| row.get::<_, String>(0))
@@ -228,18 +248,55 @@ pub(crate) fn pending_enrollment(connection: &Connection, enrollment: &str) -> R
     if ids.len() > 128 {
         return Err(invalid());
     }
+    let mut captured = Vec::new();
     for id in ids {
         let subject = Subject::load(connection, &id)?;
         if subject
             .binding()
             .connection
             .as_ref()
-            .is_some_and(|value| value.connection_id == enrollment)
+            .is_some_and(|value| value.connection_id == recovery.previous.connection_id)
         {
-            return Ok(true);
+            recovery.check_previous_binding(subject.binding())?;
+            captured.push(subject.checkpoint(connection)?);
         }
     }
-    Ok(false)
+    Ok(captured)
+}
+
+pub(crate) fn validate_named(
+    connection: &Connection,
+    recovery: &account::enrollment_recovery::Plan,
+) -> Result<()> {
+    let current = capture_named(connection, recovery)?;
+    if current
+        .iter()
+        .any(|checkpoint| !recovery.interrupted_publications.contains(checkpoint))
+    {
+        return Err(invalid());
+    }
+    for checkpoint in &recovery.interrupted_publications {
+        let subject = Subject::load(connection, &checkpoint.operation_id)?;
+        recovery.check_previous_binding(subject.binding())?;
+        if !current.contains(checkpoint)
+            && subject.receipt(connection)? != Some(Receipt::for_named(checkpoint, recovery)?)
+        {
+            return Err(invalid());
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn apply_named(
+    transaction: &Transaction<'_>,
+    recovery: &account::enrollment_recovery::Plan,
+) -> Result<()> {
+    validate_named(transaction, recovery)?;
+    for checkpoint in &recovery.interrupted_publications {
+        Subject::load(transaction, &checkpoint.operation_id)?
+            .interrupt(transaction, &Receipt::for_named(checkpoint, recovery)?)?;
+    }
+    Ok(())
 }
 
 pub(crate) fn validate(connection: &Connection, recovery: &account::Plan) -> Result<()> {

@@ -102,6 +102,22 @@ impl Enrollment {
         self.sign(identity, b"ai-stp:local-enrollment-key-proof:v1")
             .map(|_| ())
     }
+
+    pub(super) fn key_present(&self, identity: &identity::Identity) -> Result<bool> {
+        self.check(identity)?;
+        let directory =
+            OwnedDirectory::open_at(identity.root_directory(), NAMESPACE, OWNER, false)?
+                .ok_or_else(invalid)?;
+        let key = Vault::new(&directory, self.credential_store)?.read_key(&self.device_id)?;
+        let present = match key {
+            None => false,
+            Some(key) if STANDARD.encode(key.verifying_key().as_bytes()) == self.public_key => true,
+            Some(_) => return Err(invalid()),
+        };
+        identity.revalidate()?;
+        check_namespace(identity, &self.credential_namespace)?;
+        Ok(present)
+    }
 }
 
 pub(super) fn enrollment(identity: &identity::Identity, connection_id: &str) -> Result<Enrollment> {

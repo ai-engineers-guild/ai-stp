@@ -363,12 +363,14 @@ impl Attempt {
                 "only a retained interrupted publication can be reconciled",
             ));
         };
-        client.recovered(&self.request, recovery)?;
+        let recovery = recovery.clone();
+        drop(store);
+        client.recovered(&self.request, &recovery)?;
         let plan = held
             .progress
             .plan
             .as_ref()
-            .map(|plan| client.status(&self.request, plan))
+            .map(|plan| client.recovered_status(&self.request, plan, &recovery))
             .transpose()?;
         let visibility: Visibility =
             serde_json::from_value(self.request.body()["visibility"].clone())

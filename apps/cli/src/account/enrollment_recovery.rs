@@ -1,4 +1,4 @@
-//! Reviewed replacement of one revoked enrollment without rotating local identity.
+//! Reviewed enrollment replacement; local key absence never proves server revocation.
 
 use std::{collections::BTreeSet, path::Path};
 
@@ -25,6 +25,13 @@ const LIMIT: usize = 131072;
 
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
+pub struct MissingKeyEvidence {
+    pub session_receipt_digest: String,
+    pub observed_at: String,
+}
+
+#[derive(Clone, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct Plan {
     pub schema_version: u32,
     pub action: String,
@@ -34,8 +41,15 @@ pub struct Plan {
     pub previous: connections::Enrollment,
     pub account_id: String,
     pub session_revision: String,
-    pub revoked_receipt_digest: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revoked_receipt_digest: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub missing_key: Option<MissingKeyEvidence>,
     pub authorized_receipt_digest: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub interrupted_publications: Vec<crate::publication::interruption::Checkpoint>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub interrupted_sync: Vec<crate::sync::interruption::Checkpoint>,
     pub registry_schema_before: u32,
     pub replacement: connections::Plan,
 }
@@ -78,7 +92,48 @@ impl Plan {
     fn validate(&self) -> Result<()> {
         self.previous.validate()?;
         self.replacement.validate()?;
-        if self.schema_version != 1
+        let proof_version = match (&self.revoked_receipt_digest, &self.missing_key) {
+            (Some(receipt), None) if hash(receipt) => Some(1),
+            (None, Some(missing))
+                if hash(&missing.session_receipt_digest)
+                    && missing.observed_at == self.created_at =>
+            {
+                Some(2)
+            }
+            _ => None,
+        };
+        let deliveries = self.interrupted_publications.len() + self.interrupted_sync.len();
+        let mut operations = BTreeSet::new();
+        for checkpoint in &self.interrupted_publications {
+            checkpoint.validate()?;
+            if !operations.insert(&checkpoint.operation_id) {
+                return Err(invalid());
+            }
+        }
+        for checkpoint in &self.interrupted_sync {
+            checkpoint.validate()?;
+            if !operations.insert(&checkpoint.operation_id) {
+                return Err(invalid());
+            }
+        }
+        if proof_version.is_none()
+            || self.schema_version
+                != if deliveries == 0 {
+                    proof_version.unwrap_or(0)
+                } else {
+                    3
+                }
+            || deliveries > 128
+            || self
+                .interrupted_publications
+                .windows(2)
+                .any(|v| v[0].operation_id >= v[1].operation_id)
+            || self
+                .interrupted_sync
+                .windows(2)
+                .any(|v| v[0].operation_id >= v[1].operation_id)
+            || operations.contains(&self.operation_id)
+            || operations.contains(&self.replacement.operation_id)
             || self.action != KIND
             || !passport::stable_id(&self.operation_id, "operation")
             || self.operation_id == self.replacement.operation_id
@@ -88,7 +143,6 @@ impl Plan {
             || self.expires_at != crate::authoring::expiry(&self.created_at)?
             || self.created_at != self.replacement.created_at
             || self.expires_at != self.replacement.expires_at
-            || !hash(&self.revoked_receipt_digest)
             || !hash(&self.authorized_receipt_digest)
             || ![PROFILE_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA].contains(&self.registry_schema_before)
             || self.replacement.registry_schema_before != ENROLLMENT_RECOVERY_SCHEMA
@@ -104,6 +158,21 @@ impl Plan {
         Ok(())
     }
 
+    pub(crate) fn check_previous_binding(&self, binding: &super::access::Binding) -> Result<()> {
+        binding.validate()?;
+        if binding.connection.as_deref() != Some(&self.previous)
+            || binding.root_identity != self.replacement.root_identity
+            || binding.account_id != self.account_id
+            || binding.origin != self.previous.origin
+            || binding.device_id != self.previous.device_id
+            || binding.public_key != self.previous.public_key
+            || binding.credential_store != self.previous.credential_store
+        {
+            return Err(invalid());
+        }
+        Ok(())
+    }
+
     pub fn digest(&self) -> Result<String> {
         self.validate()?;
         digest::canonical(
@@ -113,16 +182,31 @@ impl Plan {
     }
 }
 
-fn evidence(journal: &Journal, state: &State) -> Result<(String, String, String)> {
-    if !matches!(&state.session,Session::Closed{reason} if reason=="device_revoked")
-        || state.outcome != Outcome::Revoked
-        || state.plan.connection.is_none()
-    {
+fn evidence(
+    journal: &Journal,
+    state: &State,
+    missing_key: bool,
+) -> Result<(String, String, String)> {
+    let admissible = if missing_key {
+        matches!(&state.session, Session::Authorized { .. })
+    } else {
+        matches!(&state.session,Session::Closed{reason} if reason=="device_revoked")
+            && state.outcome == Outcome::Revoked
+    };
+    if !admissible || state.plan.connection.is_none() {
         return Err(Failure::precondition(
-            "refresh the original connection to retain positive device revocation evidence before recovery",
+            "recovery requires retained revocation evidence or an authorized session with a missing enrollment key",
         ));
     }
-    let revoked = receipt_digest(&state.receipt()?)?;
+    let current = state.receipt()?;
+    let observed = receipt_digest(&current)?;
+    if missing_key && state.outcome == Outcome::Authorized {
+        return Ok((
+            current.account_id.ok_or_else(invalid)?,
+            observed.clone(),
+            observed,
+        ));
+    }
     let mut next = state.plan.expected_revision.clone();
     let mut seen = BTreeSet::new();
     let mut before = state.plan.created_at.clone();
@@ -142,7 +226,10 @@ fn evidence(journal: &Journal, state: &State) -> Result<(String, String, String)
         }
         if receipt.outcome == Outcome::Authorized {
             let account = receipt.account_id.clone().ok_or_else(invalid)?;
-            return Ok((account, revoked, receipt_digest(&receipt)?));
+            if matches!(&state.session,Session::Authorized{account_id,..} if account_id!=&account) {
+                return Err(invalid());
+            }
+            return Ok((account, observed, receipt_digest(&receipt)?));
         }
         next = receipt.plan.expected_revision;
         before = receipt.plan.created_at;
@@ -254,14 +341,9 @@ fn load(connection: &Connection, id: &str) -> Result<Held> {
     })
 }
 
-fn pending_delivery(connection: &Connection, enrollment: &connections::Enrollment) -> Result<()> {
-    if crate::publication::interruption::pending_enrollment(connection, &enrollment.connection_id)?
-        || crate::sync::interruption::pending_enrollment(connection, &enrollment.connection_id)?
-    {
-        return Err(Failure::precondition(
-            "the original enrollment has an unfinished publication or sync; its exact remote outcome must be reconciled before this recovery",
-        ));
-    }
+fn validate_deliveries(connection: &Connection, plan: &Plan) -> Result<()> {
+    crate::publication::interruption::validate_named(connection, plan)?;
+    crate::sync::interruption::validate_named(connection, plan)?;
     Ok(())
 }
 
@@ -277,8 +359,23 @@ pub fn plan(root: &Path, connection: &str, label: &str, at: &str) -> Result<Plan
     let state = journal.state()?.ok_or_else(invalid)?;
     super::check_binding(&id, &state.plan)?;
     super::check_enrollment_constraints(&id, &state.plan)?;
-    let (account_id, revoked_receipt_digest, authorized_receipt_digest) =
-        evidence(&journal, &state)?;
+    if at < state.completed_at.as_str() {
+        return Err(invalid());
+    }
+    let missing_key = if matches!(&state.session, Session::Authorized { .. }) {
+        if previous.key_present(&id)? {
+            return Err(Failure::precondition(
+                "the enrollment key is present; retain positive server revocation evidence before replacing it",
+            ));
+        }
+        true
+    } else {
+        false
+    };
+    let (account_id, observed_receipt_digest, authorized_receipt_digest) =
+        evidence(&journal, &state, missing_key).map_err(|failure| {
+            failure.with_details([("reason".into(), "retained_account_evidence_changed".into())])
+        })?;
     let mut replacement = connections::plan(root, label, &previous.origin, &previous.provider, at)?;
     let store = Store::planning_at(id.root_directory())?;
     if store.version()? == ENROLLMENT_RECOVERY_SCHEMA
@@ -288,14 +385,13 @@ pub fn plan(root: &Path, connection: &str, label: &str, at: &str) -> Result<Plan
             "resume the retained enrollment recovery instead of planning another replacement",
         ));
     }
-    pending_delivery(&store.connection, &previous)?;
     let registry_schema_before = store.version()?;
     let operation_id = format!("operation_{}", ulid::Ulid::generate());
     replacement.registry_schema_before = ENROLLMENT_RECOVERY_SCHEMA;
     replacement.registry_schema_after = ENROLLMENT_RECOVERY_SCHEMA;
     replacement.recovery_operation_id = Some(operation_id.clone());
-    let plan = Plan {
-        schema_version: 1,
+    let mut plan = Plan {
+        schema_version: if missing_key { 2 } else { 1 },
         action: KIND.into(),
         operation_id,
         created_at: at.into(),
@@ -303,11 +399,41 @@ pub fn plan(root: &Path, connection: &str, label: &str, at: &str) -> Result<Plan
         previous,
         account_id,
         session_revision: state.revision,
-        revoked_receipt_digest,
+        revoked_receipt_digest: if missing_key {
+            None
+        } else {
+            Some(observed_receipt_digest.clone())
+        },
+        missing_key: if missing_key {
+            Some(MissingKeyEvidence {
+                session_receipt_digest: observed_receipt_digest,
+                observed_at: at.into(),
+            })
+        } else {
+            None
+        },
         authorized_receipt_digest,
+        interrupted_publications: Vec::new(),
+        interrupted_sync: Vec::new(),
         registry_schema_before,
         replacement,
     };
+    plan.interrupted_publications =
+        crate::publication::interruption::capture_named(&store.connection, &plan).map_err(
+            |failure| {
+                failure.with_details([(
+                    "reason".into(),
+                    "publication_checkpoint_binding_changed".into(),
+                )])
+            },
+        )?;
+    plan.interrupted_sync = crate::sync::interruption::capture_named(&store.connection, &plan)
+        .map_err(|failure| {
+            failure.with_details([("reason".into(), "sync_checkpoint_binding_changed".into())])
+        })?;
+    if !plan.interrupted_publications.is_empty() || !plan.interrupted_sync.is_empty() {
+        plan.schema_version = 3;
+    }
     plan.validate()?;
     id.revalidate()?;
     Ok(plan)
@@ -326,13 +452,17 @@ fn public(connection: &Connection, held: &Held) -> Result<Value> {
     let plan = &held.record.plan;
     let child =
         connections::record(connection, &plan.replacement.connection_id)?.ok_or_else(invalid)?;
-    Ok(
-        json!({"schema_version":1,"plan":plan,"plan_digest":held.record.plan_digest,
+    let mut value = json!({"schema_version":1,"plan":plan,"plan_digest":held.record.plan_digest,
         "state":if held.confirmation.is_some(){"authorized"}else if child.public_key.is_some(){"sign_in_required"}else{"creating_key"},
         "previous_connection_id":plan.previous.connection_id,"replacement_connection_id":plan.replacement.connection_id,
         "account_id":plan.account_id,"confirmation":held.confirmation.as_ref().map(Receipt::public),
-        "local_identity_changed":false,"contexts_retargeted":false,"online_verified":false}),
-    )
+        "local_identity_changed":false,"contexts_retargeted":false,"online_verified":false});
+    if plan.missing_key.is_some() {
+        value["preparation_reason"] = "missing_enrollment_key".into();
+        value["server_preconditions"] =
+            json!(["same_account", "revoked_previous_key", "distinct_new_key"]);
+    }
+    Ok(value)
 }
 
 pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
@@ -349,12 +479,18 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
         return Err(invalid());
     }
     let state = journal.state()?.ok_or_else(invalid)?;
-    let proof = evidence(&journal, &state)?;
+    let proof = evidence(&journal, &state, plan.missing_key.is_some())?;
+    let observed = plan
+        .revoked_receipt_digest
+        .as_ref()
+        .or_else(|| plan.missing_key.as_ref().map(|e| &e.session_receipt_digest))
+        .ok_or_else(invalid)?;
     if state.revision != plan.session_revision
+        || plan.created_at < state.completed_at
         || proof
             != (
                 plan.account_id.clone(),
-                plan.revoked_receipt_digest.clone(),
+                observed.clone(),
                 plan.authorized_receipt_digest.clone(),
             )
     {
@@ -384,6 +520,7 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
             if held.record.plan != *plan || held.record.plan_digest != expected {
                 return Err(invalid());
             }
+            validate_deliveries(&store.connection, plan)?;
         } else {
             if at >= plan.expires_at.as_str() {
                 return Err(Failure::precondition(
@@ -393,12 +530,17 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
             if store.version()? != plan.registry_schema_before {
                 return Err(invalid());
             }
+            if plan.missing_key.is_some() && vault.read_key(&plan.previous.device_id)?.is_some() {
+                return Err(Failure::precondition(
+                    "the original enrollment key is present again; review a new recovery plan",
+                ));
+            }
             if vault.read_key(&plan.replacement.device_id)?.is_some() {
                 return Err(Failure::precondition(
                     "the replacement credential slot is already owned",
                 ));
             }
-            pending_delivery(&store.connection, &plan.previous)?;
+            validate_deliveries(&store.connection, plan)?;
             let record = Record {
                 plan: plan.clone(),
                 plan_digest: expected.into(),
@@ -417,6 +559,8 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
                 connections::admit(tx,&plan.replacement,&plan.replacement.digest()?,&plan.previous.credential_namespace,at)?;
                 tx.execute("INSERT INTO operation(operation_id,kind,state,started_at,detail) VALUES (?1,?2,'applying',?3,?4)",params![plan.operation_id,KIND,at,detail]).map_err(database)?;
                 tx.execute("INSERT INTO native_enrollment_recovery(operation_id,previous_connection_id,replacement_connection_id,detail) VALUES (?1,?2,?3,?4)",params![plan.operation_id,plan.previous.connection_id,plan.replacement.connection_id,detail]).map_err(database)?;
+                crate::publication::interruption::apply_named(tx, plan)?;
+                crate::sync::interruption::apply_named(tx, plan, at)?;
                 Ok(())
             })?;
         }
@@ -450,6 +594,65 @@ pub(super) fn constraints(
             ))
         })
         .transpose()
+}
+
+/// Prove a completed same-account chain without opening a second registry lease.
+/// Fresh readers hold the current account journal; historical receipt checks
+/// need only the supplied registry and never confer online authority.
+pub(crate) fn completed_retirement(
+    connection: &Connection,
+    current: &super::access::Binding,
+    retired_device: &str,
+) -> Result<Plan> {
+    current.validate()?;
+    let version: u32 = connection
+        .pragma_query_value(None, "user_version", |row| row.get(0))
+        .map_err(database)?;
+    if version != ENROLLMENT_RECOVERY_SCHEMA {
+        return Err(invalid());
+    }
+    let enrollment = current.connection.as_ref().ok_or_else(invalid)?;
+    let mut next = enrollment.connection_id.clone();
+    let mut seen = BTreeSet::new();
+    for _ in 0..64 {
+        if !seen.insert(next.clone()) {
+            return Err(invalid());
+        }
+        let operation = find(connection, &next, false)?.ok_or_else(invalid)?;
+        let held = load(connection, &operation)?;
+        let plan = held.record.plan;
+        let confirmation = held.confirmation.ok_or_else(invalid)?;
+        let child = confirmation.plan.connection.as_ref().ok_or_else(invalid)?;
+        if plan.account_id != current.account_id
+            || plan.previous.origin != current.origin
+            || plan.replacement.root_identity != current.root_identity
+            || plan.previous.credential_store != current.credential_store
+            || child.connection_id != next
+            || next == enrollment.connection_id && child != enrollment.as_ref()
+        {
+            return Err(invalid());
+        }
+        if plan.previous.device_id == retired_device {
+            return Ok(plan);
+        }
+        next = plan.previous.connection_id.clone();
+    }
+    Err(invalid())
+}
+
+pub(crate) fn publication_retirement(
+    connection: &Connection,
+    current: &super::access::Binding,
+    original: &super::access::Binding,
+    receipt: &crate::publication::interruption::Receipt,
+) -> Result<()> {
+    let plan = completed_retirement(connection, current, &original.device_id)?;
+    plan.check_previous_binding(original)?;
+    if receipt != &crate::publication::interruption::Receipt::for_named(&receipt.checkpoint, &plan)?
+    {
+        return Err(invalid());
+    }
+    Ok(())
 }
 
 pub(super) fn check_child(id: &identity::Identity, child: &connections::Plan) -> Result<()> {

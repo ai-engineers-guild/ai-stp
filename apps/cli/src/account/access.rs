@@ -440,17 +440,26 @@ impl Access {
         receipt: &crate::publication::interruption::Receipt,
     ) -> Result<()> {
         self.revalidate()?;
-        if self.binding.connection.is_some() || binding.connection.is_some() {
-            return Err(refused(
-                "enrollment_recovery_requires_its_original_connection",
-            ));
-        }
         if self.binding.account_id != binding.account_id
             || self.binding.origin != binding.origin
             || self.binding.root_identity != binding.root_identity
             || self.binding.device_id == binding.device_id
         {
             return Err(refused("publication_recovery_binding_changed"));
+        }
+        if self.binding.connection.is_some() || binding.connection.is_some() {
+            if self.binding.connection.is_none() || binding.connection.is_none() {
+                return Err(refused(
+                    "enrollment_recovery_requires_its_original_connection",
+                ));
+            }
+            let store = crate::store::Store::planning_at(self.identity.root_directory())?;
+            return super::enrollment_recovery::publication_retirement(
+                &store.connection,
+                &self.binding,
+                binding,
+                receipt,
+            );
         }
         let recovery = self.identity.completed_recovery(
             &receipt.recovery_operation_id,
