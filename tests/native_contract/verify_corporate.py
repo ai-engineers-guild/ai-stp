@@ -404,6 +404,11 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
             revision: int = 0,
             retired: bool = False,
         ) -> dict[str, Any]:
+            context = await client.get(
+                f"/v1/corporate/organizations/{organization}/context", headers=auth
+            )
+            assert context.status_code == 200, context.text
+            authorization = context.json()["organization"]["authorization_revision"]
             body: dict[str, Any] = {
                 "subject_kind": scope,
                 "subject_id": subject,
@@ -411,7 +416,7 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
                 "stable_id": FIXTURE_SETUP_ID,
                 "harness": harness,
                 "expected_revision": revision,
-                "authorization_revision": 1,
+                "authorization_revision": authorization,
                 "state": "retired" if retired else "current",
                 "idempotency_key": (f"native-precedence-{scope}-{harness or 'all'}-{revision}"),
                 **({"selector": "latest"} if latest else {"version": "1.0"}),
