@@ -40,7 +40,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
             Parameter {
                 name: "provider",
                 summary: "Existing account sign-in provider; the previous session format does not store it.",
-                kind: ParameterType::Choice(&["github", "google"]),
+                kind: ParameterType::Choice(crate::account::providers::IDS),
                 required: true,
             },
             Parameter {

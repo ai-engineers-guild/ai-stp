@@ -22,7 +22,9 @@ harness files. Harness executables remain user/vendor managed.
   identity in memory across navigation. After restarting the app, inspect
   Activity before starting again.
 - **Account** drives device login, expiration, session refresh and retained
-  operation recovery. Credentials stay in the CLI's selected store.
+  operation recovery. It offers only methods reported by the selected server
+  and supported by the native engine; discovery failure requires an explicit
+  retry. Credentials stay in the CLI's selected store.
 - **Targets**, **Discovery** and **Commands** render the connected engine's
   command descriptors with read/plan/apply gates and explicit apply confirmation.
 - **Diagnostics** offers an optional, bounded in-memory trace and an explicitly

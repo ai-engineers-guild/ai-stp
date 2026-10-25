@@ -289,7 +289,12 @@ impl Drop for PublicPlanFile {
     }
 }
 
-fn account_action(state: &AppState, action: &str, provider: Option<&str>) -> CmdResult {
+fn account_action(
+    state: &AppState,
+    action: &str,
+    provider: Option<&str>,
+    origin: Option<&str>,
+) -> CmdResult {
     let _mutation = match state.mutation_lock.lock() {
         Ok(lock) => lock,
         Err(_) => return CmdResult::failed("DESKTOP_TRANSPORT", "mutation lock poisoned"),
@@ -306,6 +311,7 @@ fn account_action(state: &AppState, action: &str, provider: Option<&str>) -> Cmd
     let reviewed = if let Some(pending) = pending {
         if pending["plan"]["action"] != action
             || provider.is_some_and(|provider| pending["plan"]["provider"] != provider)
+            || origin.is_some_and(|origin| pending["plan"]["origin"] != origin)
         {
             return CmdResult::failed(
                 "DESKTOP_PENDING_OPERATION",
@@ -318,6 +324,9 @@ fn account_action(state: &AppState, action: &str, provider: Option<&str>) -> Cmd
         arguments.extend(["--action".into(), action.into()]);
         if let Some(provider) = provider {
             arguments.extend(["--provider".into(), provider.into()]);
+        }
+        if let Some(origin) = origin {
+            arguments.extend(["--api-url".into(), origin.into()]);
         }
         let result = run_cli(state, &arguments);
         if !result.ok {
@@ -589,11 +598,14 @@ async fn debug_info(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult,
 async fn auth_login(
     state: tauri::State<'_, Arc<AppState>>,
     provider: String,
+    origin: Option<String>,
 ) -> Result<CmdResult, String> {
     let st = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || account_action(&st, "start", Some(&provider)))
-        .await
-        .map_err(|e| e.to_string())
+    tauri::async_runtime::spawn_blocking(move || {
+        account_action(&st, "start", Some(&provider), origin.as_deref())
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -606,7 +618,7 @@ async fn auth_complete(
         if wait {
             return CmdResult::failed("DESKTOP_USAGE", "Use bounded polling without wait");
         }
-        account_action(&st, "poll", None)
+        account_action(&st, "poll", None, None)
     })
     .await
     .map_err(|e| e.to_string())
@@ -623,7 +635,7 @@ async fn auth_status(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult
 #[tauri::command]
 async fn auth_logout(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, String> {
     let st = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || account_action(&st, "logout", None))
+    tauri::async_runtime::spawn_blocking(move || account_action(&st, "logout", None, None))
         .await
         .map_err(|e| e.to_string())
 }
@@ -631,7 +643,7 @@ async fn auth_logout(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult
 #[tauri::command]
 async fn auth_refresh(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, String> {
     let st = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || account_action(&st, "refresh", None))
+    tauri::async_runtime::spawn_blocking(move || account_action(&st, "refresh", None, None))
         .await
         .map_err(|e| e.to_string())
 }
@@ -661,7 +673,7 @@ async fn auth_resume(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult
         } else {
             None
         };
-        account_action(&st, action, provider)
+        account_action(&st, action, provider, None)
     })
     .await
     .map_err(|e| e.to_string())

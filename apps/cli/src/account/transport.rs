@@ -70,6 +70,19 @@ struct ErrorEnvelope {
 }
 
 impl Api {
+    pub fn providers(&self) -> Result<Reply<super::providers::Providers>> {
+        let agent = self.agent.borrow();
+        let response = agent
+            .get(format!("{}/v1/auth/providers", self.origin))
+            .header("Accept", "application/json")
+            .header("Accept-Encoding", "identity")
+            .header("X-AI-STP-Schema-Version", "1")
+            .call()
+            .map_err(|_| unavailable())?;
+        drop(agent);
+        self.read(response)
+    }
+
     pub fn reports(
         &self,
         id: Option<&str>,

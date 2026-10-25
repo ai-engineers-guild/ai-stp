@@ -96,7 +96,7 @@ impl Plan {
             || self.expires_at != authoring::expiry(&self.created_at)?
             || self.registry.rows.len() != 51
             || account::adoption::origin(&self.origin)? != self.origin
-            || !matches!(self.provider.as_str(), "github" | "google")
+            || !crate::account::providers::IDS.contains(&self.provider.as_str())
         {
             return Err(invalid());
         }
