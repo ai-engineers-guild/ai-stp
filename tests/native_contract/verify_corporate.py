@@ -32,6 +32,7 @@ from tests.support.postgres import isolated_database
 from ai_stp_api.app import create_app
 from ai_stp_api.session import issue_session
 from ai_stp_api.slices.auth.device_flow import approve_device_authorization
+from ai_stp_api.slices.devices.crypto import normalize_public_key
 from ai_stp_contracts.technology import normalize_technology_name
 from ai_stp_foundation.envelope import ErrorEnvelope
 from ai_stp_foundation.ids import new_id
@@ -637,9 +638,14 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         old = await db.get(Device, connections[0]["device_id"])
         new = await db.get(Device, child["device_id"])
         assert old is not None and new is not None
-        assert old.state == "revoked" and old.public_key == connections[0]["public_key"]
+        assert old.state == "revoked" and old.public_key == normalize_public_key(
+            connections[0]["public_key"]
+        )
         assert new.state == "active" and new.account_id == accounts[0]
-        assert new.public_key not in {connections[0]["public_key"], original["public_key"]}
+        assert new.public_key not in {
+            normalize_public_key(connections[0]["public_key"]),
+            normalize_public_key(original["public_key"]),
+        }
         assert (
             await db.scalar(select(func.count()).select_from(CorporateAssignmentDistribution)) == 0
         )

@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use zeroize::Zeroizing;
 
 use super::model::{Plan, Receipt, State};
+use crate::identity::credentials::WINDOWS_ACCOUNT_OWNER;
 use crate::{
     canonical,
     error::Result,
@@ -85,9 +86,9 @@ impl Journal {
             namespace,
             OWNER,
             if connection.is_some() {
-                &[RECOVERED, ENROLLMENT_RECOVERY]
+                &[RECOVERED, ENROLLMENT_RECOVERY, WINDOWS_ACCOUNT_OWNER]
             } else {
-                &[RECOVERED]
+                &[RECOVERED, WINDOWS_ACCOUNT_OWNER]
             },
             create,
         )?
@@ -119,8 +120,14 @@ impl Journal {
     }
 
     pub fn fence(&self) -> Result<()> {
+        self.fence_to(RECOVERED)
+    }
+
+    fn fence_to(&self, marker: &[u8]) -> Result<()> {
         self.validate()?;
-        self.directory.atomic("owner", RECOVERED)?;
+        if self.directory.read_file("owner", 256)?.as_deref() != Some(WINDOWS_ACCOUNT_OWNER) {
+            self.directory.atomic("owner", marker)?;
+        }
         self.validate()
     }
 
@@ -128,9 +135,7 @@ impl Journal {
         if self.connection.is_none() {
             return Err(super::invalid());
         }
-        self.validate()?;
-        self.directory.atomic("owner", ENROLLMENT_RECOVERY)?;
-        self.validate()
+        self.fence_to(ENROLLMENT_RECOVERY)
     }
 
     pub fn retire(&self) -> Result<()> {
@@ -168,6 +173,11 @@ impl Journal {
         super::validate_session(state)?;
         let serialized =
             Zeroizing::new(serde_json::to_string(state).map_err(|_| super::invalid())?);
+        #[cfg(windows)]
+        if self.storage == identity::Storage::OsKeyring {
+            self.validate()?;
+            self.directory.atomic("owner", WINDOWS_ACCOUNT_OWNER)?;
+        }
         self.vault()?.write_account(&self.name, &serialized)
     }
 

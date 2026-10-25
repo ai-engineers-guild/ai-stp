@@ -591,3 +591,169 @@ fn durable_authorized_receipt_finishes_recovery_after_a_crash_before_confirmatio
     assert_eq!(identity_at(f.root.path())?.report(), f.identity);
     Ok(())
 }
+
+#[test]
+fn enrollment_recovery_preserves_the_stronger_windows_record_writer_fence()
+-> std::result::Result<(), Box<dyn Error>> {
+    let f = revoked()?;
+    let local = identity_at(f.root.path())?;
+    let namespace = format!("ai-stp-v2-account-{}", f.connection.connection_id);
+    {
+        let directory = crate::files::OwnedDirectory::open_compatible(
+            local.root_directory(),
+            &namespace,
+            b"ai-stp-cli-v2 isolated account sessions v1\n",
+            &[b"ai-stp-cli-v2 isolated account sessions v2\n"],
+            false,
+        )?
+        .ok_or("journal")?;
+        directory.atomic("owner", identity::credentials::WINDOWS_ACCOUNT_OWNER)?;
+    }
+    let plan = recovery::plan(
+        f.root.path(),
+        &f.connection.connection_id,
+        "Replacement",
+        &f.at,
+    )?;
+    recovery::apply(&plan, &plan.digest()?, &f.at)?;
+    assert_eq!(
+        fs::read(f.root.path().join(&namespace).join("owner"))?,
+        identity::credentials::WINDOWS_ACCOUNT_OWNER
+    );
+    assert!(
+        crate::files::OwnedDirectory::open_compatible(
+            local.root_directory(),
+            &namespace,
+            b"ai-stp-cli-v2 isolated account sessions v1\n",
+            &[
+                b"ai-stp-cli-v2 isolated account sessions v2\n",
+                b"ai-stp-cli-v2 isolated enrollment recovery v1\n"
+            ],
+            false
+        )
+        .is_err()
+    );
+    Ok(())
+}
+
+#[test]
+fn child_key_write_failure_keeps_atomic_parent_and_child_admission_for_expired_replay()
+-> std::result::Result<(), Box<dyn Error>> {
+    let f = revoked()?;
+    let plan = recovery::plan(
+        f.root.path(),
+        &f.connection.connection_id,
+        "Replacement",
+        &f.at,
+    )?;
+    let path = f.root.path().join(connections::NAMESPACE);
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o500))?;
+    let result = recovery::apply(&plan, &plan.digest()?, &f.at);
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o700))?;
+    assert!(result.is_err());
+    let pending = recovery::list(f.root.path())?;
+    assert_eq!(pending["recoveries"][0]["state"], "creating_key");
+    assert_eq!(pending["recoveries"][0]["plan_digest"], plan.digest()?);
+    assert_eq!(
+        recovery::apply(&plan, &plan.digest()?, &plan.expires_at)?["state"],
+        "sign_in_required"
+    );
+    assert!(
+        recovery::plan(
+            f.root.path(),
+            &f.connection.connection_id,
+            "Other replacement",
+            &f.at
+        )
+        .is_err()
+    );
+    assert_eq!(identity_at(f.root.path())?.report(), f.identity);
+    Ok(())
+}
+
+#[test]
+fn durable_authorized_receipt_finishes_recovery_after_a_crash_before_confirmation()
+-> std::result::Result<(), Box<dyn Error>> {
+    let f = revoked()?;
+    let recovery = recovery::plan(
+        f.root.path(),
+        &f.connection.connection_id,
+        "Replacement",
+        &f.at,
+    )?;
+    recovery::apply(&recovery, &recovery.digest()?, &f.at)?;
+    let connection = &recovery.replacement.connection_id;
+    let start = plan_for_connection(
+        f.root.path(),
+        Action::Start,
+        None,
+        None,
+        Some(connection),
+        &f.at,
+    )?;
+    let local = identity_at(f.root.path())?;
+    {
+        let journal =
+            Journal::for_connection(&local, start.connection.as_ref(), true)?.ok_or("journal")?;
+        let state = State {
+            revision: start.operation_id.clone(),
+            plan: start,
+            session: Session::Pending {
+                device_code: model::Secret(Zeroizing::new(generated())),
+                user_code: "ABCD-1234".into(),
+                verification_uri: "https://recovery.example.test/en/device-login".into(),
+                verification_uri_complete:
+                    "https://recovery.example.test/en/device-login?user_code=ABCD-1234".into(),
+                expires_at: after(&f.at, 600)?,
+                interval: 1,
+                next_poll_at: after(&f.at, 1)?,
+            },
+            outcome: Outcome::Pending,
+            completed_at: f.at.clone(),
+        };
+        journal.write(&state)?;
+        journal.complete(&state)?;
+    }
+    let later = after(&f.at, 2)?;
+    let poll = plan_for_connection(
+        f.root.path(),
+        Action::Poll,
+        None,
+        None,
+        Some(connection),
+        &later,
+    )?;
+    let receipt = {
+        let journal =
+            Journal::for_connection(&local, poll.connection.as_ref(), false)?.ok_or("journal")?;
+        let state = State {
+            revision: poll.operation_id.clone(),
+            plan: poll.clone(),
+            session: Session::Authorized {
+                account_id: f.account.clone(),
+                access_token: model::Secret(Zeroizing::new(generated())),
+                refresh_token: model::Secret(Zeroizing::new(generated())),
+                expires_at: after(&later, 3600)?,
+            },
+            outcome: Outcome::Authorized,
+            completed_at: later.clone(),
+        };
+        journal.write(&state)?;
+        journal.complete(&state)?
+    };
+    assert_eq!(
+        recovery::list(f.root.path())?["recoveries"][0]["state"],
+        "sign_in_required"
+    );
+    assert_eq!(apply(&poll, &poll.digest()?, &later)?, receipt.public());
+    let done = recovery::list(f.root.path())?;
+    assert_eq!(done["recoveries"][0]["state"], "authorized");
+    assert_eq!(done["recoveries"][0]["confirmation"], receipt.public());
+    assert_eq!(
+        apply(&poll, &poll.digest()?, &poll.expires_at)?,
+        receipt.public()
+    );
+    assert_eq!(recovery::list(f.root.path())?, done);
+    assert_eq!(identity_at(f.root.path())?.report(), f.identity);
+    Ok(())
+}
