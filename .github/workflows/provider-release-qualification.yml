@@ -58,6 +58,9 @@ jobs:
         if: inputs.lifecycle
         working-directory: .qualification-baseline/apps/cli
         env:
+          # xtask embeds its source root; never reuse its binary across checkouts.
+          CARGO_TARGET_DIR: ${{ runner.temp }}/ai-stp-provider-baseline-target
+          CARGO_BUILD_BUILD_DIR: ${{ runner.temp }}/ai-stp-provider-baseline-build
           AI_STP_BUNDLE_PROOF_DIR: ${{ runner.temp }}/provider-baseline-bundles
           AI_STP_BUNDLE_PROOF_STATE: ${{ runner.temp }}/provider-baseline-registry
         run: |
@@ -79,6 +82,7 @@ jobs:
         env:
           COMPONENT_VERSION: ${{ inputs.component_version }}
           CONSUMER_COMMIT: ${{ github.sha }}
+          REQUIRE_MANAGED_DEFAULT: ${{ inputs.lifecycle }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -86,9 +90,14 @@ jobs:
             cd apps/cli
             cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- cli-binary
           )"
+          default_check=()
+          if [[ "${REQUIRE_MANAGED_DEFAULT}" == true ]]; then
+            default_check=(--require-managed-default)
+          fi
           python .github/scripts/inspect-provider-release.py \
             --binary "${binary}" --version "${COMPONENT_VERSION}" \
             --consumer-commit "${CONSUMER_COMMIT}" \
+            "${default_check[@]}" \
             --out "${RUNNER_TEMP}/provider-observations"
       - name: Compile disposable canonical fixture bundles
         if: inputs.lifecycle

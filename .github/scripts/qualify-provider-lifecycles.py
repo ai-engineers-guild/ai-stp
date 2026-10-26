@@ -412,6 +412,18 @@ def main() -> None:
     results = []
     with tempfile.TemporaryDirectory(prefix="ai-stp-authenticated-lifecycles-") as temporary:
         home = Path(temporary).resolve(strict=True)
+        require(
+            INSPECTION.invoke(binary, home, ["capabilities"])["managed_provider_version"]
+            == version,
+            "the lifecycle binary is not the candidate",
+        )
+        require(
+            INSPECTION.invoke(args.baseline_binary.resolve(strict=True), home, ["capabilities"])[
+                "managed_provider_version"
+            ]
+            == "0.0.94",
+            "the baseline binary does not have the original managed default",
+        )
         compatibility = []
         for harness in ("claude-code", "codex"):
             compatibility.append(
