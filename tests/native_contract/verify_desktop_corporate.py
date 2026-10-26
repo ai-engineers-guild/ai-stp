@@ -11,6 +11,7 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 import runpy
 import socket
 import sqlite3
@@ -101,13 +102,125 @@ def choose(driver: Any, label: str, value: str, *, scope: str = "main") -> None:
 
 
 def public_plan(driver: Any, scope: str) -> dict[str, Any]:
-    driver.find(scope)
+    def ready() -> bool:
+        observed = driver.read(
+            "return {ready:!!document.querySelector(arguments[0]),"
+            "codes:[...document.querySelectorAll('main [role=alert]')]"
+            ".flatMap(x=>x.textContent.match(/\\b(?:AI_STP_|DESKTOP_)[A-Z_]+|\\bCONTEXT_VIEW\\b/g)??[])};",
+            scope,
+        )
+        if observed["ready"]:
+            return True
+        if observed["codes"]:
+            raise ValueError("Public native review refused: " + observed["codes"][0])
+        return False
+
+    driver.wait(ready, "public native plan review")
     driver.click(driver.find(scope + " details summary"))
     value = json.loads(
         driver.read("return document.querySelector(arguments[0]+' pre').textContent;", scope)
     )
     assert isinstance(value, dict)
     return cast(dict[str, Any], value)
+
+
+def diagnose_request_review(
+    driver: Any,
+    binary: Path,
+    environment: dict[str, str],
+    *,
+    context: str,
+    organization: str,
+    account: str,
+    connection: str,
+    project: str,
+    checkout: Path,
+) -> None:
+    """Only public error categories and equality booleans; never raw plan data.
+
+    The independent native invocation is a read-only planning diagnostic after
+    an already failed UI review. Its result is never applied or used to pass.
+    """
+    try:
+        completed = subprocess.run(
+            [
+                str(binary),
+                "corporate",
+                "project",
+                "link-request",
+                "plan",
+                "--context",
+                context,
+                "--project",
+                project,
+                "--root",
+                str(checkout),
+                "--git-executable",
+                "/usr/bin/git",
+                "--json",
+            ],
+            env=environment,
+            capture_output=True,
+            timeout=30,
+            check=False,
+        )
+        assert len(completed.stdout) <= 262144
+        envelope = json.loads(completed.stdout)
+        value = envelope.get("data") or {}
+        plan = value.get("plan") or {}
+        snapshot = (plan.get("change") or {}).get("snapshot") or {}
+        anchor = driver.read(
+            "return JSON.parse(document.querySelector("
+            "'section[aria-label=\"Corporate checkout preview\"] details pre')"
+            ".textContent).preview;"
+        )
+        local = snapshot.get("local_project") or {}
+        original_local = anchor.get("local_project") or {}
+        code = (envelope.get("error") or {}).get("code")
+        code = code if isinstance(code, str) and re.fullmatch(r"AI_STP_[A-Z_]+", code) else None
+        print(
+            json.dumps(
+                {
+                    "diagnostic": "installed_checkout_request_review",
+                    "native_plan_ok": completed.returncode == 0 and envelope.get("ok") is True,
+                    "native_error_code": code,
+                    "matches": {
+                        "digest_shape": isinstance(value.get("plan_digest"), str)
+                        and bool(re.fullmatch(r"sha256:[0-9a-f]{64}", value["plan_digest"])),
+                        "operation_id_shape": isinstance(plan.get("operation_id"), str),
+                        "action": (plan.get("change") or {}).get("action") == "request",
+                        "context": (snapshot.get("context") or {}).get("context_id") == context,
+                        "origin": (snapshot.get("account") or {}).get("origin")
+                        == anchor["account"]["origin"],
+                        "account": (snapshot.get("account") or {}).get("account_id") == account,
+                        "connection": ((snapshot.get("account") or {}).get("connection") or {}).get(
+                            "connection_id"
+                        )
+                        == connection,
+                        "organization": (snapshot.get("organization") or {}).get("organization_id")
+                        == organization,
+                        "project": (snapshot.get("target") or {}).get("remote_project_id")
+                        == project,
+                        "local_project": local.get("local_project_id")
+                        == original_local.get("local_project_id"),
+                        "root_path": plan.get("checkout_root")
+                        == original_local.get("root", {}).get("path"),
+                        "physical_identity": local.get("root", {}).get("identity")
+                        == original_local.get("root", {}).get("identity"),
+                        "provider": (snapshot.get("request_coordinates") or {}).get(
+                            "provider_project_id"
+                        )
+                        == anchor["request_coordinates"]["provider_project_id"],
+                    },
+                }
+            ),
+            flush=True,
+        )
+    except Exception:
+        print(
+            json.dumps({"diagnostic": "installed_checkout_request_review", "available": False}),
+            flush=True,
+        )
 
 
 def authorize(driver: Any, scope: str, button: str) -> None:
@@ -341,7 +454,21 @@ def installed_journey(
             "actual checkout preview",
         )
         driver.click(driver.button("Review link request"))
-        request = public_plan(driver, CHECKOUT_REVIEW)
+        try:
+            request = public_plan(driver, CHECKOUT_REVIEW)
+        except ValueError:
+            diagnose_request_review(
+                driver,
+                binary,
+                environment,
+                context=company,
+                organization=organization,
+                account=account,
+                connection=connection,
+                project=project,
+                checkout=checkout,
+            )
+            raise
         assert request["change"]["snapshot"]["target"]["remote_project_id"] == project
         authorize(driver, CHECKOUT_REVIEW, "Apply reviewed checkout change")
         driver.click(driver.button("Review link confirmation"))
