@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "standard_family": "ai-stp-standard/1",
-  "contract_digest": "sha256:27cdbc2e4b60b846dabda6216ed6811d4534e3497f895cbed032d1fcc2631a6c",
+  "contract_digest": "sha256:62f907f89ac4c71eb3080dd2acb3090ec0971e66e0d4d6272eb364ba2ade545b",
   "axes": [
     {
       "name": "standard_family",
@@ -1743,6 +1743,10 @@
     {
       "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:project-conflict-resolution-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-link-plan-outcome"
     },
     {
       "axis": "http_schema",

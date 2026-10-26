@@ -15,6 +15,7 @@ pub(super) enum Handler {
     Projects,
     Project,
     LinkTarget,
+    LinkOutcome,
     Technologies,
     Mappings,
     Mapping,
@@ -114,6 +115,21 @@ pub(super) const COMMANDS: &[Declaration] = &[
         handler: super::Handler::Corporate(Handler::LinkTarget),
     },
     Declaration {
+        path: &["corporate", "project", "link-outcome"],
+        summary: "Read the original account-owned link plan outcome without retrying confirmation or binding a checkout.",
+        parameters: &[
+            STATE_DIR,
+            CONTEXT,
+            Parameter {
+                name: "plan-id",
+                summary: "Exact retained server link_plan identifier.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LinkOutcome),
+    },
+    Declaration {
         path: &["corporate", "technologies"],
         summary: "Read organization-owned technologies; bundled local seeds grant no corporate authority.",
         parameters: &[
@@ -211,6 +227,9 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         },
         Handler::LinkTarget => Request::LinkTarget {
             project_id: text("project")?,
+        },
+        Handler::LinkOutcome => Request::LinkOutcome {
+            plan_id: text("plan-id")?,
         },
         Handler::Technologies => Request::Technologies {
             query: optional("query"),
