@@ -77,6 +77,11 @@ jobs:
       - name: Select an external native artifact directory
         shell: bash
         run: echo "CARGO_TARGET_DIR=${RUNNER_TEMP}/ai-stp-native-target" >> "${GITHUB_ENV}"
+      - name: Install the pinned native CLI toolchain
+        shell: bash
+        run: >-
+          bash .github/scripts/install-rust-toolchain.sh
+          apps/cli/rust-toolchain.toml clippy rustfmt
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         id: native-cache
         with:

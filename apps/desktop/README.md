@@ -42,6 +42,10 @@ harness files. Harness executables remain user/vendor managed.
   are discarded, including after switching away and back to the same context.
   Catalog and technology pages retain their search filters for explicit next-page
   reads; catalog versions and assignment digests are visible in the result cards.
+  A project can open a native checkout review with an existing registered root
+  and optional trusted Git executable. A successful preview exposes current
+  corporate repository choices for a separate recheck. Editing inputs or switching
+  contexts clears the observation; saving a checkout link remains a separate operation.
 - **Targets**, **Discovery** and **Commands** render the connected engine's
   command descriptors with read/plan/apply gates and explicit apply confirmation.
 - **Diagnostics** offers an optional, bounded in-memory trace and an explicitly

@@ -961,8 +961,8 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
             "state_access": "native_registry_with_explicit_legacy_transfer", "cache_access": "explicit_public_catalog_cache",
             "identity_access": "native_device",
             "managed_provider_version": crate::provider::managed::RELEASE,
-            "authoring_access": "identity_bound_local_plans", "readable_local_schema_versions": [snapshot::SCHEMA_VERSION, crate::store::PRODUCTION_SCHEMA],
-            "production_transfer": "explicit_in_place_plan", "snapshot_schema_versions": [snapshot::SCHEMA_VERSION]})),
+            "authoring_access": "identity_bound_local_plans", "readable_local_schema_versions": snapshot::SUPPORTED_SCHEMA_VERSIONS,
+            "production_transfer": "explicit_in_place_plan", "snapshot_schema_versions": snapshot::SUPPORTED_SCHEMA_VERSIONS})),
         Handler::Help => help(
             leaf.get_one::<String>("path").map_or("", String::as_str),
             leaf.get_one::<String>("find").map_or("", String::as_str),

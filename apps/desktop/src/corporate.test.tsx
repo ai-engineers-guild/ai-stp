@@ -82,6 +82,11 @@ beforeEach(() => {
           mutability: "plan",
           parameters: [{ name: "harness", choices: HARNESSES }],
         },
+        {
+          path: ["corporate", "project", "link-preview"],
+          mutability: "plan",
+          parameters: [],
+        },
       ],
     }),
   );
@@ -103,6 +108,47 @@ async function ready() {
     ).toBe(false),
   );
 }
+
+it("opens the selected project's advertised native checkout review", async () => {
+  vi.mocked(transport.cmdRunRead).mockResolvedValue(reply(A.id, "Our project"));
+  mount();
+  await ready();
+  fireEvent.click(screen.getByRole("button", { name: "Read projects" }));
+  await screen.findByText("Our project");
+  fireEvent.click(
+    screen.getByRole("button", { name: "Review local checkout" }),
+  );
+  expect(
+    screen.getByRole("region", { name: "Corporate checkout preview" }),
+  ).toBeTruthy();
+  expect(screen.getByText("Review checkout for Our project")).toBeTruthy();
+  expect(transport.cliPlan).not.toHaveBeenCalled();
+  act(() => useContexts.setState({ selected: B }));
+  expect(screen.queryByLabelText("Checkout directory")).toBe(null);
+});
+
+it("keeps checkout review unavailable with an older engine descriptor", async () => {
+  vi.mocked(transport.cmdMachineHelp).mockResolvedValue(
+    ok({
+      commands: [
+        {
+          path: ["corporate", "assignments", "preview"],
+          mutability: "plan",
+          parameters: [{ name: "harness", choices: HARNESSES }],
+        },
+      ],
+    }),
+  );
+  vi.mocked(transport.cmdRunRead).mockResolvedValue(reply(A.id, "Our project"));
+  mount();
+  await ready();
+  fireEvent.click(screen.getByRole("button", { name: "Read projects" }));
+  await screen.findByText("Our project");
+  expect(screen.queryByRole("button", { name: "Review local checkout" })).toBe(
+    null,
+  );
+  expect(transport.cliPlan).not.toHaveBeenCalled();
+});
 
 it("uses the explicit view and selected project for a read-only seven-harness preview", async () => {
   vi.mocked(transport.cmdRunRead).mockResolvedValue(reply(A.id, "Our project"));

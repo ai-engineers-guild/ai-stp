@@ -143,6 +143,8 @@ def prove(binary: Path, root: Path) -> None:
     assert capabilities["task_intents"] == ["author", "install"]
     assert bool(capabilities["supported_harnesses"]) == (sys.platform == "linux")
     assert capabilities["release_channel"] == "stable"
+    assert capabilities["readable_local_schema_versions"] == [53, 54, 55, 56]
+    assert capabilities["snapshot_schema_versions"] == [53, 54, 55, 56]
     assert run(binary, home, ["version"])["data"]["runtime"] == "rust"
     assert (
         "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v"
@@ -225,8 +227,42 @@ def prove(binary: Path, root: Path) -> None:
         assert before == after, "native reads changed database bytes or created sidecars"
     finally:
         source.close()
+    # Advance only this disposable fixture through the actual native layouts.
+    # A transferred registry retains the base tables at epoch 54; profiles and
+    # enrollment recovery add their own tables at epochs 55 and 56.
+    for version, migration in [(54, None), (55, "profiles.sql"), (56, "enrollment_recovery.sql")]:
+        with closing(sqlite3.connect(backup)) as fixture:
+            if migration is not None:
+                fixture.executescript(bootstrap.with_name(migration).read_text(encoding="utf-8"))
+            fixture.execute(f"PRAGMA user_version={version}")
+            fixture.commit()
+            expected_tables = fixture.execute(
+                "SELECT count(*) FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            ).fetchone()[0]
+        fixture_digest = "sha256:" + hashlib.sha256(backup.read_bytes()).hexdigest()
+        before = {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in root.iterdir()
+            if path.is_file()
+        }
+        inspected = run(
+            binary,
+            home,
+            ["snapshot", "inspect", "--snapshot", str(backup), "--sha256", fixture_digest],
+        )["data"]
+        assert inspected["local_schema_version"] == version and inspected["read_only"] is True
+        assert (
+            inspected["row_counts"]["entity"] == 1 and inspected["table_count"] == expected_tables
+        )
+        after = {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in root.iterdir()
+            if path.is_file()
+        }
+        assert before == after, "snapshot reads changed fixture bytes or created sidecars"
     with closing(sqlite3.connect(backup)) as newer:
-        newer.execute("PRAGMA user_version=54")
+        newer.execute("PRAGMA user_version=57")
+        newer.commit()
     newer_digest = "sha256:" + hashlib.sha256(backup.read_bytes()).hexdigest()
     run(
         binary,

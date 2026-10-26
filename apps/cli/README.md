@@ -276,6 +276,8 @@ State-taking commands accept `--state-dir`. Otherwise the CLI uses
 `AI_STP_STATE_DIR`, then `$XDG_DATA_HOME/ai-stp`, with
 `$HOME/.local/share/ai-stp` as the XDG fallback. This preserves the previous
 cross-platform location. `state path`, `doctor` and metadata reads create nothing.
+`capabilities` lists readable registry and snapshot schemas 53–56. `snapshot inspect`
+reads an explicitly supplied standalone SQLite backup with its exact SHA-256 digest.
 
 ```sh
 ai-stp init --credential-store os_keyring --json
