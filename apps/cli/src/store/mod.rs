@@ -27,9 +27,11 @@ const TRANSFER_OWNER: &[u8] = b"ai-stp native production transfer v1\n";
 pub(crate) const PRODUCTION_SCHEMA: u32 = 54;
 pub(crate) const PROFILE_SCHEMA: u32 = 55;
 pub(crate) const ENROLLMENT_RECOVERY_SCHEMA: u32 = 56;
+pub(crate) const CHECKOUT_LINK_SCHEMA: u32 = 57;
 const BOOTSTRAP: &str = include_str!("schema.sql");
 const PROFILES: &str = include_str!("profiles.sql");
 const ENROLLMENT_RECOVERY: &str = include_str!("enrollment_recovery.sql");
+const CHECKOUT_LINKS: &str = include_str!("checkout_links.sql");
 type Schema = Vec<(String, String, String, String)>;
 
 pub struct Store {
@@ -164,12 +166,39 @@ fn expected_recovery_schema() -> Result<&'static Schema> {
         })
 }
 
+fn expected_checkout_schema() -> Result<&'static Schema> {
+    static EXPECTED: OnceLock<Result<Schema>> = OnceLock::new();
+    EXPECTED
+        .get_or_init(|| {
+            let connection = Connection::open_in_memory().map_err(database)?;
+            connection.execute_batch(BOOTSTRAP).map_err(database)?;
+            connection.execute_batch(PROFILES).map_err(database)?;
+            connection
+                .execute_batch(ENROLLMENT_RECOVERY)
+                .map_err(database)?;
+            connection.execute_batch(CHECKOUT_LINKS).map_err(database)?;
+            schema(&connection)
+        })
+        .as_ref()
+        .map_err(|_| {
+            Failure::new(
+                ErrorKind::Internal,
+                "the embedded checkout registry schema is invalid",
+            )
+        })
+}
+
 pub(crate) fn profile_schema_after(before: u32) -> Result<u32> {
     match before {
         53 | PRODUCTION_SCHEMA | PROFILE_SCHEMA => Ok(PROFILE_SCHEMA),
         ENROLLMENT_RECOVERY_SCHEMA => Ok(ENROLLMENT_RECOVERY_SCHEMA),
+        CHECKOUT_LINK_SCHEMA => Ok(CHECKOUT_LINK_SCHEMA),
         _ => Err(Failure::precondition("the profile registry schema changed")),
     }
+}
+
+pub(crate) fn has_enrollment_recovery(version: u32) -> bool {
+    [ENROLLMENT_RECOVERY_SCHEMA, CHECKOUT_LINK_SCHEMA].contains(&version)
 }
 
 impl Store {
@@ -363,18 +392,22 @@ impl Store {
             version != PRODUCTION_SCHEMA
                 && version != PROFILE_SCHEMA
                 && version != ENROLLMENT_RECOVERY_SCHEMA
+                && version != CHECKOUT_LINK_SCHEMA
                 && !(transfer && version == SCHEMA_VERSION)
         } else {
             version != SCHEMA_VERSION
                 && version != PROFILE_SCHEMA
                 && version != ENROLLMENT_RECOVERY_SCHEMA
+                && version != CHECKOUT_LINK_SCHEMA
         } {
             return Err(Failure::precondition(
                 "the local registry schema is unsupported",
             ));
         }
         if &schema(&connection)?
-            != if version == ENROLLMENT_RECOVERY_SCHEMA {
+            != if version == CHECKOUT_LINK_SCHEMA {
+                expected_checkout_schema()?
+            } else if version == ENROLLMENT_RECOVERY_SCHEMA {
                 expected_recovery_schema()?
             } else if version == PROFILE_SCHEMA {
                 expected_profile_schema()?
@@ -473,7 +506,13 @@ impl Store {
             let version: u32 = transaction
                 .query_row("PRAGMA user_version", [], |row| row.get(0))
                 .map_err(database)?;
-            if version != PROFILE_SCHEMA && version != ENROLLMENT_RECOVERY_SCHEMA {
+            if ![
+                PROFILE_SCHEMA,
+                ENROLLMENT_RECOVERY_SCHEMA,
+                CHECKOUT_LINK_SCHEMA,
+            ]
+            .contains(&version)
+            {
                 if ![SCHEMA_VERSION, PRODUCTION_SCHEMA].contains(&version) {
                     return Err(Failure::precondition("the profile registry schema changed"));
                 }
@@ -487,7 +526,12 @@ impl Store {
     }
 
     pub(crate) fn profiles_enabled(&self) -> Result<bool> {
-        Ok([PROFILE_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA].contains(&self.version()?))
+        Ok([
+            PROFILE_SCHEMA,
+            ENROLLMENT_RECOVERY_SCHEMA,
+            CHECKOUT_LINK_SCHEMA,
+        ]
+        .contains(&self.version()?))
     }
 
     pub(crate) fn version(&self) -> Result<u32> {
@@ -513,10 +557,42 @@ impl Store {
                 transaction
                     .pragma_update(None, "user_version", ENROLLMENT_RECOVERY_SCHEMA)
                     .map_err(database)?;
-            } else if version != ENROLLMENT_RECOVERY_SCHEMA {
+            } else if ![ENROLLMENT_RECOVERY_SCHEMA, CHECKOUT_LINK_SCHEMA].contains(&version) {
                 return Err(Failure::precondition(
                     "retained profiles are required before enrollment recovery",
                 ));
+            }
+            operation(transaction)
+        })
+    }
+
+    /// Admission and its physical reservation share the explicit format upgrade.
+    /// No admitted profile or recovery plan is rewritten into the newer format.
+    pub(crate) fn checkout_transaction<T>(
+        &mut self,
+        operation: impl FnOnce(&Transaction<'_>) -> Result<T>,
+    ) -> Result<T> {
+        self.transaction(|transaction| {
+            let version: u32 = transaction
+                .pragma_query_value(None, "user_version", |row| row.get(0))
+                .map_err(database)?;
+            if version != CHECKOUT_LINK_SCHEMA {
+                if ![PROFILE_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA].contains(&version) {
+                    return Err(Failure::precondition(
+                        "retained profiles are required before corporate checkout admission",
+                    ));
+                }
+                if version == PROFILE_SCHEMA {
+                    transaction
+                        .execute_batch(ENROLLMENT_RECOVERY)
+                        .map_err(database)?;
+                }
+                transaction
+                    .execute_batch(CHECKOUT_LINKS)
+                    .map_err(database)?;
+                transaction
+                    .pragma_update(None, "user_version", CHECKOUT_LINK_SCHEMA)
+                    .map_err(database)?;
             }
             operation(transaction)
         })

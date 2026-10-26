@@ -6,7 +6,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use super::{Binding, Context, corporate, invalid};
-use crate::{authoring, canonical, digest, error::Result, files, passport, wire};
+use crate::{
+    authoring, canonical, digest,
+    error::Result,
+    files, passport,
+    store::{CHECKOUT_LINK_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA, PROFILE_SCHEMA},
+    wire,
+};
 
 pub(super) const LIMIT: u64 = 262144;
 pub(super) const KIND: &str = "corporate.project_link";
@@ -25,6 +31,49 @@ static SERVER_PLAN: wire::Schema = wire::Schema::definition(
     )),
     "ProjectLinkPlanResponse",
 );
+const OUTCOME_SOURCE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/resources/schemas/v1/project-link-plan-outcome.schema.json"
+));
+static SERVER_LINK: wire::Schema = wire::Schema::definition(OUTCOME_SOURCE, "ProjectLinkResponse");
+
+pub(super) fn validate_write(confirm: bool, value: &Value) -> Result<()> {
+    if confirm {
+        CONFIRM.validate(value)
+    } else {
+        REQUEST.validate(value)
+    }
+}
+
+pub(super) fn hash(value: &str) -> bool {
+    value.strip_prefix("sha256:").is_some_and(|value| {
+        value.len() == 64
+            && value
+                .bytes()
+                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+    })
+}
+
+pub(super) fn project_link(value: &Value) -> Result<Value> {
+    use std::sync::OnceLock;
+    static FIELDS: OnceLock<Value> = OnceLock::new();
+    SERVER_LINK.validate(value)?;
+    let fields = FIELDS.get_or_init(|| serde_json::from_str(OUTCOME_SOURCE).unwrap_or(Value::Null));
+    let fields = fields["$defs"]["ProjectLinkResponse"]["properties"]
+        .as_object()
+        .ok_or_else(invalid)?;
+    let projected = Value::Object(
+        value
+            .as_object()
+            .ok_or_else(invalid)?
+            .iter()
+            .filter(|(key, _)| fields.contains_key(*key))
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect(),
+    );
+    SERVER_LINK.validate(&projected)?;
+    Ok(projected)
+}
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -72,9 +121,23 @@ impl Snapshot {
             .ok_or_else(invalid)
     }
 
+    pub fn physical_root(&self) -> Result<[String; 2]> {
+        let value: [String; 2] =
+            serde_json::from_value(self.local_project["root"]["identity"].clone())
+                .map_err(|_| invalid())?;
+        if value
+            .iter()
+            .any(|s| !s.parse::<u64>().is_ok_and(|n| n.to_string() == *s))
+        {
+            return Err(invalid());
+        }
+        Ok(value)
+    }
+
     pub fn validate(&self) -> Result<()> {
         self.context.digest()?;
         self.account.validate()?;
+        self.physical_root()?;
         let organizations = super::contexts::organizations_projection(
             &json!({"schema_version":1,"items":[self.organization]}),
         )?;
@@ -255,6 +318,145 @@ impl ServerPlan {
         }
         Ok(())
     }
+
+    pub fn verify_link(&self, link: &Value) -> Result<()> {
+        if project_link(link)? != *link
+            || link["plan_id"] != self.plan_id
+            || link["plan_digest"] != self.plan_digest
+        {
+            return Err(invalid());
+        }
+        let value = serde_json::to_value(self).map_err(|_| invalid())?;
+        for field in [
+            "organization_id",
+            "local_project_id",
+            "remote_project_id",
+            "provider_project_id",
+            "local_revision",
+            "remote_revision",
+            "provider_revision",
+        ] {
+            if link[field] != value[field] {
+                return Err(invalid());
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum RetirementKind {
+    Root,
+    Enrollment,
+}
+
+#[derive(Clone, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Interruption {
+    pub kind: RetirementKind,
+    pub checkpoint: super::journal::Checkpoint,
+    pub recovery_operation_id: String,
+    pub recovery_plan_digest: String,
+    pub replacement_device_id: String,
+}
+
+impl Interruption {
+    pub fn validate(&self) -> Result<()> {
+        self.checkpoint.validate()?;
+        if !passport::stable_id(&self.recovery_operation_id, "operation")
+            || !passport::stable_id(&self.replacement_device_id, "device")
+            || !hash(&self.recovery_plan_digest)
+        {
+            return Err(invalid());
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(tag = "effect", rename_all = "snake_case", deny_unknown_fields)]
+pub(super) enum Effect {
+    Requested {
+        server_plan: ServerPlan,
+        outcome_reader: Option<Binding>,
+    },
+    Confirmed {
+        link: Value,
+        outcome_reader: Option<Binding>,
+    },
+    Adopted {
+        link: Value,
+    },
+    Interrupted {
+        retirement: Interruption,
+    },
+}
+
+impl Effect {
+    fn reader(reader: &Option<Binding>, snapshot: &Snapshot) -> Result<()> {
+        if let Some(reader) = reader {
+            reader.validate()?;
+            if reader.origin != snapshot.account.origin
+                || reader.account_id != snapshot.account.account_id
+                || reader.root_identity != snapshot.account.root_identity
+            {
+                return Err(invalid());
+            }
+        }
+        Ok(())
+    }
+
+    pub fn validate(&self, plan: &Plan) -> Result<()> {
+        match (self, &plan.change) {
+            (
+                Self::Requested {
+                    server_plan,
+                    outcome_reader,
+                },
+                Change::Request { snapshot },
+            ) => {
+                Self::reader(outcome_reader, snapshot)?;
+                server_plan.verify(snapshot)
+            }
+            (
+                Self::Confirmed {
+                    link,
+                    outcome_reader,
+                },
+                Change::Confirm {
+                    snapshot,
+                    server_plan,
+                    ..
+                },
+            ) => {
+                server_plan.verify(snapshot)?;
+                server_plan.verify_link(link)?;
+                Self::reader(outcome_reader, snapshot)?;
+                Ok(())
+            }
+            (Self::Adopted { link }, Change::Adopt { outcome, .. }) => {
+                if project_link(link)? != *link
+                    || *link != outcome["link"]
+                    || link["state"] != "linked"
+                {
+                    return Err(invalid());
+                }
+                Ok(())
+            }
+            (Self::Interrupted { retirement }, Change::Request { .. } | Change::Confirm { .. }) => {
+                retirement.validate()?;
+                if retirement.checkpoint.operation_id != plan.operation_id
+                    || retirement.checkpoint.plan_digest != plan.digest()?
+                    || retirement.replacement_device_id == plan.snapshot().account.device_id
+                {
+                    return Err(invalid());
+                }
+                Ok(())
+            }
+            _ => Err(invalid()),
+        }
+    }
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -293,6 +495,7 @@ pub struct Plan {
     pub(super) created_at: String,
     pub(super) expires_at: String,
     pub(super) registry_schema_before: u32,
+    pub(super) registry_schema_after: u32,
     pub(super) change: Change,
 }
 
@@ -314,7 +517,13 @@ impl Plan {
             || !self.checkout_root.is_absolute()
             || snapshot.context.root != self.state_parent
             || authoring::expiry(&self.created_at)? != self.expires_at
-            || ![55, 56, 57].contains(&self.registry_schema_before)
+            || ![
+                PROFILE_SCHEMA,
+                ENROLLMENT_RECOVERY_SCHEMA,
+                CHECKOUT_LINK_SCHEMA,
+            ]
+            .contains(&self.registry_schema_before)
+            || self.registry_schema_after != CHECKOUT_LINK_SCHEMA
         {
             return Err(invalid());
         }
