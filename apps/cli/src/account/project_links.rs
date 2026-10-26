@@ -1,7 +1,7 @@
 //! Registered checkout inspection and separately reviewed durable corporate linking.
 
-pub(crate) mod interruption;
 pub(crate) mod binding;
+pub(crate) mod interruption;
 mod journal;
 mod model;
 pub mod retirement;

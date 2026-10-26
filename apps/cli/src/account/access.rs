@@ -48,6 +48,30 @@ pub(crate) struct Access {
 }
 
 impl Access {
+    pub(super) fn project_unlink(
+        &self,
+        organization: &str,
+        link: &str,
+        confirm: bool,
+        body: &[u8],
+    ) -> Result<serde_json::Value> {
+        self.revalidate()?;
+        if !self.verified || self.offline {
+            return Err(refused("account_origin_or_authorization_mismatch"));
+        }
+        let Session::Authorized { access_token, .. } = &self.state.session else {
+            return Err(refused("account_required"));
+        };
+        let reply = self
+            .api
+            .project_unlink(organization, link, confirm, body, access_token)?;
+        self.revalidate()?;
+        match reply {
+            Reply::Resource(value) => Ok(value),
+            Reply::Refused(code) => Err(super::grants::refusal(code)),
+        }
+    }
+
     pub(super) fn project_link(
         &self,
         organization: &str,

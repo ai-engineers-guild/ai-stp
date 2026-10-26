@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 
 use super::{Binding, Context, contexts, corporate, invalid, project_links};
 use crate::{
@@ -16,6 +17,22 @@ use crate::{
 
 pub(super) const KIND: &str = "corporate.project_unlink";
 pub(super) const LIMIT: u64 = 262144;
+
+pub(super) fn confirmation_id(request: &str) -> Result<String> {
+    if !passport::stable_id(request, "operation") {
+        return Err(invalid());
+    }
+    // All reviews of one original request share one confirmation slot/key.
+    // Admission binds its exact plan digest; later reviews cannot mint a retry.
+    let hash: [u8; 32] = Sha256::digest(canonical::bytes(&json!([
+        "ai-stp-native-project-unlink-confirmation/1",
+        request
+    ]))?)
+    .into();
+    let mut identity = [0; 16];
+    identity.copy_from_slice(&hash[..16]);
+    Ok(format!("operation_{}", ulid::Ulid::from_bytes(identity)))
+}
 static REQUEST: wire::Schema = wire::Schema::new(include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/resources/schemas/v1/project-unlink-plan-request.schema.json"
@@ -342,6 +359,7 @@ impl Plan {
         {
             if !passport::stable_id(request_operation_id, "operation")
                 || request_operation_id == &self.operation_id
+                || self.operation_id != confirmation_id(request_operation_id)?
                 || !request_plan_digest
                     .strip_prefix("sha256:")
                     .is_some_and(|s| {

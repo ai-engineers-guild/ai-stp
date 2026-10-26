@@ -53,7 +53,10 @@ contract!(
     UNLINK_OUTCOME,
     "/resources/schemas/v1/project-unlink-plan-outcome.schema.json"
 );
-contract!(UNLINK_PLAN, "/resources/schemas/v1/project-unlink-plan-response.schema.json");
+contract!(
+    UNLINK_PLAN,
+    "/resources/schemas/v1/project-unlink-plan-response.schema.json"
+);
 contract!(
     TECHNOLOGIES,
     "/resources/schemas/v1/technology-list.schema.json"

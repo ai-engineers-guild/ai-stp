@@ -5,12 +5,34 @@ use rusqlite::{Connection, OptionalExtension, Transaction};
 use super::database;
 use crate::error::{ErrorKind, Failure, Result};
 
+pub(crate) fn checkout_unlink_epoch(connection: &Connection) -> Result<bool> {
+    let version: u32 = connection
+        .pragma_query_value(None, "user_version", |row| row.get(0))
+        .map_err(database)?;
+    let enabled = version == super::CHECKOUT_UNLINK_SCHEMA;
+    if !enabled
+        && connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM operation WHERE kind='corporate.project_unlink')",
+                [],
+                |row| row.get::<_, bool>(0),
+            )
+            .map_err(database)?
+    {
+        return Err(Failure::precondition(
+            "native unlink records require their explicit registry epoch",
+        ));
+    }
+    Ok(enabled)
+}
+
 /// Keep every admitted remote intent within the device-replacement receipt's
 /// existing bound. Check only new admissions: retained work can still settle.
 pub(crate) fn recovery_capacity(t: &Transaction<'_>, additional: i64) -> Result<()> {
+    let unlink = checkout_unlink_epoch(t)?;
     let pending: i64 = t.query_row(
-        "SELECT count(*) FROM operation WHERE kind IN ('sync.run','publication.run','publication.set','corporate.project_link') AND finished_at IS NULL",
-        [], |r| r.get(0)).map_err(database)?;
+        "SELECT count(*) FROM operation WHERE (kind IN ('sync.run','publication.run','publication.set','corporate.project_link') OR (kind='corporate.project_unlink' AND ?)) AND finished_at IS NULL",
+        [unlink], |r| r.get(0)).map_err(database)?;
     if !(1..=2).contains(&additional) || pending > 128 - additional {
         return Err(Failure::precondition(
             "finish an outstanding operation before admitting another recoverable remote intent",

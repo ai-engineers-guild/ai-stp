@@ -70,6 +70,49 @@ struct ErrorEnvelope {
 }
 
 impl Api {
+    pub fn project_unlink(
+        &self,
+        organization: &str,
+        link: &str,
+        confirm: bool,
+        body: &[u8],
+        credential: &Secret,
+    ) -> Result<Reply<serde_json::Value>> {
+        if !crate::passport::stable_id(organization, "organization")
+            || !crate::passport::stable_id(link, "project_link")
+            || body.len() > 8192
+        {
+            return Err(super::invalid());
+        }
+        super::project_unlinks::validate_write(confirm, &crate::wire::parse(body)?)?;
+        let authorization = Zeroizing::new(format!("Bearer {}", credential.0.as_str()));
+        let agent = self.agent.borrow();
+        let request = if confirm {
+            agent
+                .delete(format!("{}/v1/projects/links/{link}", self.origin))
+                .force_send_body()
+        } else {
+            agent.post(format!(
+                "{}/v1/organizations/{organization}/project-unlink-plans",
+                self.origin
+            ))
+        };
+        let response = request
+            .header("Accept", "application/json")
+            .header("Content-Type", "application/json")
+            .header("Accept-Encoding", "identity")
+            .header("X-AI-STP-Schema-Version", "1")
+            .header("X-AI-STP-Organization-Id", organization)
+            .header("Authorization", authorization.as_str())
+            .send(body)
+            .map_err(|_| unavailable())?;
+        drop(agent);
+        match self.response(response, 262144)? {
+            Reply::Resource(bytes) => crate::wire::parse(&bytes).map(Reply::Resource),
+            Reply::Refused(code) => Ok(Reply::Refused(code)),
+        }
+    }
+
     pub fn project_link(
         &self,
         organization: &str,

@@ -20,7 +20,10 @@ use crate::{
     error::{ErrorKind, Failure, Result},
     files, identity, passport,
     projects::{checkout, passports},
-    store::{CHECKOUT_RETIREMENT_SCHEMA, CHECKOUT_UNLINK_SCHEMA, checkout_schema_after, database, has_checkout_links},
+    store::{
+        CHECKOUT_RETIREMENT_SCHEMA, CHECKOUT_UNLINK_SCHEMA, checkout_schema_after, database,
+        has_checkout_links,
+    },
 };
 
 fn uncertain(id: &str) -> Failure {

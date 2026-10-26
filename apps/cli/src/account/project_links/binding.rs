@@ -12,7 +12,12 @@ use super::{
     model::{Change, Effect, project_link},
     workflow,
 };
-use crate::{authoring::runtime::Owner, files, projects::passports, store::database};
+use crate::{
+    authoring::runtime::{self, Owner},
+    files,
+    projects::passports,
+    store::{database, has_checkout_links},
+};
 
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -45,7 +50,27 @@ pub(crate) struct Snapshot {
 }
 
 pub(crate) fn capture(root: &Path, binding_id: &str) -> crate::error::Result<(Owner, Snapshot)> {
-    let (owner, binding) = workflow::load(root, binding_id)?;
+    let owner = runtime::owner(root)?;
+    let snapshot = read(root, &owner, binding_id)?;
+    Ok((owner, snapshot))
+}
+
+pub(crate) fn revalidate(root: &Path, owner: &Owner, held: &Snapshot) -> crate::error::Result<()> {
+    if read(root, owner, &held.source.operation_id)? != *held {
+        return Err(invalid());
+    }
+    Ok(())
+}
+
+fn read(root: &Path, owner: &Owner, binding_id: &str) -> crate::error::Result<Snapshot> {
+    let binding = {
+        let store = owner.planning()?;
+        if !has_checkout_links(store.version()?) {
+            return Err(invalid());
+        }
+        Record::load(&store.connection, binding_id)?.ok_or_else(invalid)?
+    };
+    workflow::owned(root, owner, &binding.plan)?;
     let Change::Adopt {
         request_operation_id,
         ..
@@ -61,12 +86,12 @@ pub(crate) fn capture(root: &Path, binding_id: &str) -> crate::error::Result<(Ow
     }
     let store = owner.planning()?;
     let request = Record::load(&store.connection, request_operation_id)?.ok_or_else(invalid)?;
-    workflow::owned(root, &owner, &request.plan)?;
+    workflow::owned(root, owner, &request.plan)?;
     if !matches!(&request.plan.change, Change::Request { .. }) || request.state == "retired" {
         return Err(invalid());
     }
     let source = binding.plan.snapshot();
-    let registered = passports::registered(&store.connection, &binding.plan.checkout_root, &owner)?;
+    let registered = passports::registered(&store.connection, &binding.plan.checkout_root, owner)?;
     if registered.project["stable_id"] != source.project_id()?
         || registered.identity != source.physical_root()?
         || request.plan.snapshot().project_id()? != source.project_id()?
@@ -127,5 +152,5 @@ pub(crate) fn capture(root: &Path, binding_id: &str) -> crate::error::Result<(Ow
         link,
         reservation,
     };
-    Ok((owner, snapshot))
+    Ok(snapshot)
 }

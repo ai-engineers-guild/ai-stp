@@ -11,8 +11,8 @@ use crate::{
     error::{Failure, Result},
     files, identity, passport,
     store::{
-        CHECKOUT_LINK_SCHEMA, CHECKOUT_RETIREMENT_SCHEMA, CHECKOUT_UNLINK_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA,
-        PROFILE_SCHEMA, Store, database, profile_schema_after,
+        CHECKOUT_LINK_SCHEMA, CHECKOUT_RETIREMENT_SCHEMA, CHECKOUT_UNLINK_SCHEMA,
+        ENROLLMENT_RECOVERY_SCHEMA, PROFILE_SCHEMA, Store, database, profile_schema_after,
     },
     wire,
 };

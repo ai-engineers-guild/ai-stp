@@ -256,7 +256,10 @@ pub(super) struct ServerPlan {
 /// Match the server's Python JSON encoding, including its default ASCII escape
 /// policy. This is deliberately distinct from the native canonical-plan format.
 fn server_bytes(value: &Value) -> Result<Vec<u8>> {
-    if value.as_object().ok_or_else(invalid)?.values()
+    if value
+        .as_object()
+        .ok_or_else(invalid)?
+        .values()
         .any(|value| !value.is_string() && !value.is_null())
     {
         return Err(invalid());
