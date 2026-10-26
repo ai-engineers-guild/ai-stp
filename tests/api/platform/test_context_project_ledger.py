@@ -11,12 +11,13 @@ from typing import Any, cast
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient, Response
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ai_stp_api.app import create_app
-from ai_stp_api.session import issue_session
+from ai_stp_api.session import AuthContext, issue_session
 from ai_stp_api.settings import Settings
+from ai_stp_api.slices.context import service as context_service
 from ai_stp_api.slices.context.service import _plan_digest, _sync_plan_preimage
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
@@ -153,6 +154,81 @@ def revision_payload(
         "authorization_revision": authorization_revision,
         "idempotency_key": idempotency_key,
     }
+
+
+async def test_context_mutation_waits_for_revocation_and_refuses_without_plan_or_audit(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, sessionmaker, token, organization, link_id, remote = project_harness
+    local_project = new_id("project")
+    entered: asyncio.Future[int] = asyncio.get_running_loop().create_future()
+    original = context_service.require_active_device
+
+    async def observe_guard(
+        db: AsyncSession, *, ctx: AuthContext, for_update: bool = False
+    ) -> Device:
+        pid = await db.scalar(text("SELECT pg_backend_pid()"))
+        assert isinstance(pid, int)
+        if not entered.done():
+            entered.set_result(pid)
+        return await original(db, ctx=ctx, for_update=for_update)
+
+    monkeypatch.setattr(context_service, "require_active_device", observe_guard)
+    request: asyncio.Task[Response] | None = None
+    try:
+        async with sessionmaker() as revoker:
+            link = await revoker.get(ProjectLink, link_id)
+            assert link is not None
+            device = await revoker.scalar(
+                select(Device).where(Device.id == link.device_id).with_for_update()
+            )
+            assert device is not None
+            device.state = "revoked"
+            await revoker.flush()
+            audits = await revoker.scalar(select(func.count()).select_from(AuditEvent))
+            request = asyncio.create_task(
+                client.post(
+                    f"/v1/organizations/{organization}/project-link-plans",
+                    headers={"Authorization": f"Bearer {token}"},
+                    json={
+                        "local_project_id": local_project,
+                        "remote_project_id": remote,
+                        "local_revision": "local-1",
+                        "remote_revision": "initial",
+                        "authorization_revision": f"personal:{organization}:1:1",
+                        "idempotency_key": "revocation-barrier-plan",
+                    },
+                )
+            )
+            pid = await asyncio.wait_for(asyncio.shield(entered), timeout=5)
+            deadline = asyncio.get_running_loop().time() + 5
+            while not await revoker.scalar(
+                text("SELECT EXISTS (SELECT 1 FROM pg_locks WHERE pid = :pid AND NOT granted)"),
+                {"pid": pid},
+            ):
+                assert not request.done(), "mutation crossed an uncommitted device revocation"
+                assert asyncio.get_running_loop().time() < deadline
+                await asyncio.sleep(0.01)
+            await revoker.commit()
+        refused = await asyncio.wait_for(asyncio.shield(request), timeout=5)
+        assert refused.status_code == 403, refused.text
+        async with sessionmaker() as db:
+            assert (
+                await db.scalar(
+                    select(func.count())
+                    .select_from(ProjectLinkPlan)
+                    .where(
+                        ProjectLinkPlan.local_project_id == local_project,
+                    )
+                )
+                == 0
+            )
+            assert await db.scalar(select(func.count()).select_from(AuditEvent)) == audits
+    finally:
+        if request is not None and not request.done():
+            request.cancel()
+            await asyncio.gather(request, return_exceptions=True)
 
 
 async def test_link_plan_outcome_reads_lost_confirmation_without_mutation(

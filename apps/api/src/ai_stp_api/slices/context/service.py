@@ -512,11 +512,23 @@ async def require_capability(
     return organization
 
 
-async def require_active_device(db: AsyncSession, *, ctx: AuthContext) -> Device:
+async def require_active_device(
+    db: AsyncSession, *, ctx: AuthContext, for_update: bool = False
+) -> Device:
     """Project links and syncs are device-bound, like the existing sync ledger."""
     if ctx.device_id is None:
         raise ApiError(ErrorCategory.AUTH_REQUIRED, "device-bound session required")
-    device = await db.get(Device, ctx.device_id)
+    if for_update:
+        # A confirmed revocation must fence every earlier device-bound mutation.
+        # Refresh a device the authentication dependency may already have loaded.
+        device = await db.scalar(
+            select(Device)
+            .where(Device.id == ctx.device_id, Device.account_id == ctx.account_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    else:
+        device = await db.get(Device, ctx.device_id)
     if device is None or device.account_id != ctx.account_id:
         raise ApiError(ErrorCategory.AUTH_REQUIRED, "device-bound session required")
     if device.state != "active":
@@ -733,7 +745,7 @@ async def create_project_link_plan(
     payload: ProjectLinkPlanRequest,
 ) -> ProjectLinkPlanResponse:
     """Create or replay the server-authored link decision."""
-    device = await require_active_device(db, ctx=ctx)
+    device = await require_active_device(db, ctx=ctx, for_update=True)
     await require_capability(
         db,
         ctx=ctx,
@@ -822,7 +834,7 @@ async def observe_provider_project(
     payload: ProviderProjectObservationRequest,
 ) -> ProjectIdentity:
     """Record provider evidence without matching or mutating a project link."""
-    await require_active_device(db, ctx=ctx)
+    await require_active_device(db, ctx=ctx, for_update=True)
     await require_capability(
         db,
         ctx=ctx,
@@ -879,7 +891,7 @@ async def create_project_link_proposal(
     payload: ProjectLinkProposalRequest,
 ) -> ProjectLinkProposal:
     """Persist an observation as a proposal; link creation remains explicit."""
-    await require_active_device(db, ctx=ctx)
+    await require_active_device(db, ctx=ctx, for_update=True)
     await require_capability(
         db,
         ctx=ctx,
@@ -1076,7 +1088,7 @@ async def create_project_unlink_plan(
     payload: ProjectUnlinkPlanRequest,
 ) -> ProjectUnlinkPlanResponse:
     """Create or replay the server-authored unlink decision."""
-    device = await require_active_device(db, ctx=ctx)
+    device = await require_active_device(db, ctx=ctx, for_update=True)
     link = await _link_for_member(
         db, ctx=ctx, organization_id=organization_id, link_id=payload.link_id
     )
@@ -1167,7 +1179,7 @@ async def create_project_link(
     payload: ProjectLinkRequest,
 ) -> ProjectLinkResponse:
     """Confirm one exact server-authored link plan."""
-    device = await require_active_device(db, ctx=ctx)
+    device = await require_active_device(db, ctx=ctx, for_update=True)
     await require_capability(
         db,
         ctx=ctx,
@@ -1301,7 +1313,7 @@ async def unlink_project_link(
     payload: ProjectUnlinkRequest,
 ) -> ProjectLinkResponse:
     """Confirm one exact unlink plan, retaining identities and history."""
-    device = await require_active_device(db, ctx=ctx)
+    device = await require_active_device(db, ctx=ctx, for_update=True)
     plan = await db.scalar(
         select(ProjectUnlinkPlan).where(ProjectUnlinkPlan.id == payload.plan_id).with_for_update()
     )
@@ -1532,7 +1544,7 @@ async def push_project_revision(
     resolution: bool = False,
 ) -> ProjectRevisionPushResponse:
     """Store one project revision, accepting only initial/fast-forward pushes."""
-    device = await require_active_device(db, ctx=ctx)
+    device = await require_active_device(db, ctx=ctx, for_update=True)
     link = _require_linked(
         await _link_for_member(
             db,
@@ -1835,7 +1847,7 @@ async def create_sync_plan(
     payload: ProjectSyncPlanRequest,
 ) -> ProjectSyncPlanResponse:
     """Persist a deterministic sync decision without changing either endpoint."""
-    device = await require_active_device(db, ctx=ctx)
+    device = await require_active_device(db, ctx=ctx, for_update=True)
     link = _require_linked(
         await _link_for_member(
             db,
@@ -2040,7 +2052,7 @@ async def apply_sync_plan(
     payload: ProjectSyncApplyRequest,
 ) -> ProjectSyncPlanResponse:
     """Apply one exact ready plan and record an idempotent receipt."""
-    device = await require_active_device(db, ctx=ctx)
+    device = await require_active_device(db, ctx=ctx, for_update=True)
     plan = await db.scalar(
         select(ProjectSyncPlan).where(ProjectSyncPlan.id == plan_id).with_for_update()
     )
