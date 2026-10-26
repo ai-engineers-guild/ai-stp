@@ -50,10 +50,14 @@ def field(driver: Any, label: str, *, kind: str = "input", scope: str = "main") 
     return driver.wait(
         lambda: driver.read(
             "const root=document.querySelector(arguments[0]);"
-            "const label=[...(root?.querySelectorAll('label')??[])]"
-            ".find(x=>[...x.childNodes].filter(n=>n.nodeType===3)"
-            ".map(n=>n.textContent).join('').trim()===arguments[1]);"
-            "const input=label?.querySelector(arguments[2]);"
+            "const labels=[...(root?.querySelectorAll('label')??[])]"
+            ".filter(label=>{"
+            "const walker=document.createTreeWalker(label,NodeFilter.SHOW_TEXT);"
+            "const text=[];let node;while(node=walker.nextNode()){"
+            "if(!node.parentElement.closest('select,textarea,svg,button'))"
+            "text.push(node.textContent);}"
+            "return text.join(' ').replace(/\\s+/g,' ').trim()===arguments[1];});"
+            "const input=labels.length===1?labels[0].querySelector(arguments[2]):null;"
             "return input&&!input.disabled&&"
             "(arguments[2]!=='select'||input.options.length)?input:null;",
             scope,
