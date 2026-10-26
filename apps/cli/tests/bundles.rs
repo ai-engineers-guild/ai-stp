@@ -15,6 +15,8 @@ use serde_json::{Value, json};
 use std::{collections::BTreeMap, error::Error};
 
 const AT: &str = "2026-10-08T00:00:00.000Z";
+#[path = "bundles/project_kinds.rs"]
+mod project_kinds;
 #[path = "bundles/scopes.rs"]
 mod scopes;
 fn identity() -> Identity {
@@ -984,7 +986,8 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
     }
     let mut store = Store::open(export_state.as_deref().unwrap_or(root.path()), true)?;
     let declarations: Vec<Value> =
-        serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+        serde_json::from_str(include_str!("fixtures/provider-declarations-0.0.95.json"))?;
+    project_kinds::journey(&mut store, root.path(), &declarations)?;
     scopes::journey(&mut store, &declarations)?;
     opencode_namespaces(&mut store, &declarations)?;
     pi_namespaces(&mut store, &declarations)?;
@@ -1023,12 +1026,12 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
                     .ok_or("instruction namespace missing")?
                     .into()
             };
-            let component = component(
+            let original_component = component(
                 &mut store,
                 &provider,
                 scope,
                 File {
-                    path,
+                    path: path.clone(),
                     bytes: if skill.is_some() {
                         b"---\nname: review\ndescription: Inspect project conventions.\n---\n# Review\nInspect project conventions.\n".to_vec()
                     } else {
@@ -1038,7 +1041,7 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
                 },
                 None,
             )?;
-            let (setup, evidence) = compose(&mut store, harness, &[component])?;
+            let (setup, evidence) = compose(&mut store, harness, &[original_component])?;
             let target = target(harness, scope);
             let bundle = bundle::compile(
                 &mut store,
@@ -1096,10 +1099,42 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
                 digest::canonical("ai-stp:bundle:v1", &payload)?
             );
             export(&format!("{harness}-{}", scope.as_str()), &bundle)?;
+            let replacement = component(
+                &mut store,
+                &provider,
+                scope,
+                File {
+                    path,
+                    bytes: if skill.is_some() {
+                        b"---\nname: review\ndescription: Inspect changed conventions.\n---\n# Replacement\nInspect changed conventions.\n".to_vec()
+                    } else {
+                        b"# Replacement\nInspect changed conventions.\n".to_vec()
+                    },
+                    mode: 0o644,
+                },
+                None,
+            )?;
+            let (replacement, evidence) = compose(&mut store, harness, &[replacement])?;
+            let replacement = bundle::compile(
+                &mut store,
+                &replacement,
+                &target,
+                &evidence,
+                &provider,
+                &Hosts::new(),
+            )?;
+            assert_ne!(
+                bundle.manifest["files"][0]["digest"],
+                replacement.manifest["files"][0]["digest"]
+            );
+            export(
+                &format!("{harness}-{}-replacement", scope.as_str()),
+                &replacement,
+            )?;
             profiles += 1;
         }
     }
-    assert_eq!(profiles, 16);
+    assert_eq!(profiles, 19);
     let claude = declarations
         .iter()
         .find(|p| p["harness_id"] == "claude-code")
@@ -1544,7 +1579,7 @@ fn declared_exclusions_are_symmetric_and_do_not_conflict_with_their_owner()
     let root = tempfile::tempdir()?;
     let mut store = Store::open(root.path(), true)?;
     let declarations: Vec<Value> =
-        serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+        serde_json::from_str(include_str!("fixtures/provider-declarations-0.0.95.json"))?;
     let declaration = declarations
         .iter()
         .find(|value| value["harness_id"] == "claude-code")

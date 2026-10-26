@@ -19,6 +19,12 @@ on:
     branches: [dev, main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      native_vault_rounds:
+        description: Number of concurrent real Linux vault rounds (1-100)
+        required: false
+        default: "10"
+        type: string
 
 permissions:
   contents: read
@@ -120,6 +126,8 @@ jobs:
       - name: Actual Linux Secret Service enrollment and recovery
         if: runner.os == 'Linux'
         shell: bash
+        env:
+          AI_STP_NATIVE_VAULT_ROUNDS: ${{ inputs.native_vault_rounds || '10' }}
         run: bash .github/scripts/check-native-secret-service.sh
       - name: Existing consumers and real SQLite backup
         shell: bash
