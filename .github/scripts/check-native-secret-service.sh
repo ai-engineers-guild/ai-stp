@@ -44,9 +44,29 @@ test "$(gdbus call --session --dest org.freedesktop.DBus \
   --object-path /org/freedesktop/DBus \
   --method org.freedesktop.DBus.GetConnectionUnixProcessID org.freedesktop.secrets)" \
   = "(uint32 ${fixture_pid},)"
-gdbus call --session --dest org.freedesktop.secrets \
-  --object-path /org/freedesktop/secrets \
-  --method org.freedesktop.Secret.Service.ReadAlias default >/dev/null
+# Owning the bus name does not establish that the existing default collection
+# has finished loading and is unlocked. Observe readiness without creating a
+# collection or asking the product to display an unlock prompt.
+fixture_collection=""
+fixture_locked=""
+for ((attempt=0; attempt<40; attempt++)); do
+  kill -0 "${fixture_pid}"
+  fixture_alias="$(timeout 3s gdbus call --session --dest org.freedesktop.secrets \
+    --object-path /org/freedesktop/secrets \
+    --method org.freedesktop.Secret.Service.ReadAlias default)"
+  fixture_collection="${fixture_alias#*\'}"
+  fixture_collection="${fixture_collection%%\'*}"
+  if [[ "${fixture_collection}" == /org/freedesktop/secrets/collection/* ]]; then
+    fixture_locked="$(timeout 3s gdbus call --session --dest org.freedesktop.secrets \
+      --object-path "${fixture_collection}" \
+      --method org.freedesktop.DBus.Properties.Get org.freedesktop.Secret.Collection Locked)"
+    if [[ "${fixture_locked}" == '(<false>,)' ]]; then
+      break
+    fi
+  fi
+  sleep 0.25
+done
+test "${fixture_collection}" != / && test "${fixture_locked}" = '(<false>,)'
 
 cd apps/cli
 checks=(cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
@@ -60,4 +80,7 @@ while IFS= read -r line; do
   fi
 done <<<"${listing}"
 test "${selected}" -eq 2
-"${checks[@]}" --ignored
+for ((round=1; round<=10; round++)); do
+  printf 'Native vault fixture round %s/10\n' "${round}"
+  "${checks[@]}" --ignored
+done
