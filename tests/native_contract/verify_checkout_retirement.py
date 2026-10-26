@@ -14,7 +14,11 @@ from typing import TYPE_CHECKING, Any, Self
 from unittest.mock import patch
 
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from ai_stp_api.session import AuthContext
+from ai_stp_api.slices.context import service as context_service
+from ai_stp_contracts.context import ProjectLinkPlanOutcome
 from ai_stp_foundation.envelope import ErrorEnvelope
 from ai_stp_platform.models import Device
 from ai_stp_platform.organization_models import ProjectLink, ProjectLinkPlan
@@ -245,16 +249,27 @@ async def qualify(
         def now(cls, tz: tzinfo | None = None) -> Self:
             return cls.fromtimestamp(advanced.timestamp(), tz)
 
-    # Only the isolated service clock advances; auth/session clocks and the
-    # original plan/digest/database rows remain unchanged.
-    with patch("ai_stp_api.slices.context.service.datetime", AfterExpiry):
+    original_settlement = context_service.read_project_link_plan_settlement
+
+    async def after_expiry(
+        db: AsyncSession, *, ctx: AuthContext, organization_id: str, plan_id: str
+    ) -> ProjectLinkPlanOutcome:
+        # Advance only the real settlement transaction. The preceding native
+        # capability refresh must retain the current wall clock; its timestamps
+        # deliberately reject future observations. No response or plan is forged.
+        with patch("ai_stp_api.slices.context.service.datetime", AfterExpiry):
+            return await original_settlement(
+                db, ctx=ctx, organization_id=organization_id, plan_id=plan_id
+            )
+
+    with patch.object(context_service, "read_project_link_plan_settlement", after_expiry):
         retiring = await run(*retirement_arguments)
     await reject(retiring)  # Fresh barrier says ready again: preserve reservation.
     assert reservations() == reserved
     displaced = expiring.with_name(expiring.name + "-displaced")
     expiring.rename(displaced)
     try:
-        with patch("ai_stp_api.slices.context.service.datetime", AfterExpiry):
+        with patch.object(context_service, "read_project_link_plan_settlement", after_expiry):
             retired = await enact(retiring, "corporate", "project", "link-retire", "apply")
         assert not expiring.exists()
         assert (
