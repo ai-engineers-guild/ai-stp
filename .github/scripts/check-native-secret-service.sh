@@ -108,6 +108,10 @@ done
 test "${fixture_collection}" != / && test "${fixture_locked}" = '(<false>,)'
 
 cd apps/cli
+cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
+  cargo test --locked --lib \
+  identity::secret_service::tests::transport_reuse_stays_with_the_exact_existing_unix_bus \
+  -- --ignored --exact
 checks=(cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
   cargo test --locked --test enrollments_native --)
 listing="$("${checks[@]}" --ignored --list)"
