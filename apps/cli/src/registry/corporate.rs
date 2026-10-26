@@ -2,7 +2,10 @@
 
 use super::{Declaration, Parameter, ParameterType, STATE_DIR};
 use crate::{
-    account::corporate::{self, ObjectKind, Request},
+    account::{
+        corporate::{self, ObjectKind, Request},
+        project_links,
+    },
     error::{Failure, Result},
 };
 use clap::ArgMatches;
@@ -14,6 +17,10 @@ pub(super) enum Handler {
     Teams,
     Projects,
     Project,
+    LinkTarget,
+    LinkPreview,
+    LinkOutcome,
+    LinkRequestOutcome,
     Technologies,
     Mappings,
     Mapping,
@@ -23,7 +30,7 @@ pub(super) enum Handler {
 
 impl Handler {
     pub fn mutability(self) -> &'static str {
-        if matches!(self, Self::Preview) {
+        if matches!(self, Self::Preview | Self::LinkPreview) {
             "plan"
         } else {
             "read"
@@ -98,6 +105,75 @@ pub(super) const COMMANDS: &[Declaration] = &[
             },
         ],
         handler: super::Handler::Corporate(Handler::Project),
+    },
+    Declaration {
+        path: &["corporate", "project", "link-target"],
+        summary: "Read exact current project and provider revisions before a separate link plan; create no link or installation authority.",
+        parameters: &[
+            STATE_DIR,
+            CONTEXT,
+            Parameter {
+                required: true,
+                ..PROJECT
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LinkTarget),
+    },
+    Declaration {
+        path: &["corporate", "project", "link-preview"],
+        summary: "Preview registered checkout and current corporate link coordinates without admitting a request, linking a project or granting installation authority.",
+        parameters: &[
+            STATE_DIR,
+            CONTEXT,
+            super::ROOT,
+            Parameter {
+                required: true,
+                ..PROJECT
+            },
+            Parameter {
+                name: "provider-project",
+                summary: "Optional exact authorized provider_project ID; never inferred from Git URLs.",
+                kind: ParameterType::String,
+                required: false,
+            },
+            Parameter {
+                name: "git-executable",
+                summary: "Existing trusted Git executable at an absolute path; no installation or update.",
+                kind: ParameterType::Path,
+                required: false,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LinkPreview),
+    },
+    Declaration {
+        path: &["corporate", "project", "link-outcome"],
+        summary: "Read the original account-owned link plan outcome without retrying confirmation or binding a checkout.",
+        parameters: &[
+            STATE_DIR,
+            CONTEXT,
+            Parameter {
+                name: "plan-id",
+                summary: "Exact retained server link_plan identifier.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LinkOutcome),
+    },
+    Declaration {
+        path: &["corporate", "project", "link-request-outcome"],
+        summary: "Read an original account-owned link request outcome by its retained idempotency key; an absent result leaves in-flight effects unknown.",
+        parameters: &[
+            STATE_DIR,
+            CONTEXT,
+            Parameter {
+                name: "request-key",
+                summary: "Original link-plan request idempotency key, 16 to 128 ASCII letters, digits or ._~-.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LinkRequestOutcome),
     },
     Declaration {
         path: &["corporate", "technologies"],
@@ -187,6 +263,19 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         optional(name)
             .ok_or_else(|| Failure::input("a required corporate read coordinate is absent"))
     };
+    if matches!(handler, Handler::LinkPreview) {
+        return project_links::preview(
+            args.get_one::<PathBuf>("state-dir")
+                .ok_or_else(|| Failure::input("state-dir is required"))?,
+            optional("context").as_deref(),
+            args.get_one::<PathBuf>("root")
+                .ok_or_else(|| Failure::input("root is required"))?,
+            &text("project")?,
+            optional("provider-project").as_deref(),
+            args.get_one::<PathBuf>("git-executable")
+                .map(|path| path.as_path()),
+        );
+    }
     let request = match handler {
         Handler::Teams => Request::Teams,
         Handler::Projects => Request::Projects {
@@ -194,6 +283,15 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         },
         Handler::Project => Request::Project {
             project_id: text("project")?,
+        },
+        Handler::LinkTarget => Request::LinkTarget {
+            project_id: text("project")?,
+        },
+        Handler::LinkOutcome => Request::LinkOutcome {
+            plan_id: text("plan-id")?,
+        },
+        Handler::LinkRequestOutcome => Request::LinkRequestOutcome {
+            request_key: text("request-key")?,
         },
         Handler::Technologies => Request::Technologies {
             query: optional("query"),
@@ -222,6 +320,7 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             project_id: optional("project"),
             technology_id: optional("technology"),
         },
+        Handler::LinkPreview => return Err(Failure::input("link preview coordinates are absent")),
     };
     corporate::observe(
         args.get_one::<PathBuf>("state-dir")

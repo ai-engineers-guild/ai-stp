@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import Db, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.corporate import entity_profiles, service
@@ -321,7 +321,7 @@ async def get_catalog_ownership(
     organization_id: OrganizationId,
     subject: Annotated[CorporateCatalogOwnershipQuery, Query()],
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateCatalogOwnership:
     return await read_ownership(
@@ -338,7 +338,7 @@ async def put_catalog_ownership(
     organization_id: OrganizationId,
     payload: CorporateCatalogOwnershipRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateCatalogOwnership:
     return await write_ownership(

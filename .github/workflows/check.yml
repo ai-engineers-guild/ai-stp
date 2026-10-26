@@ -105,6 +105,17 @@ jobs:
           cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build cargo test --locked
           cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
             cargo build --locked --release --bins --examples
+      - name: Install the isolated Linux credential fixture
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install --yes --no-install-recommends \
+            dbus-daemon gnome-keyring libglib2.0-bin
+      - name: Actual Linux Secret Service enrollment and recovery
+        if: runner.os == 'Linux'
+        shell: bash
+        run: bash .github/scripts/check-native-secret-service.sh
       - name: Existing consumers and real SQLite backup
         shell: bash
         run: |
