@@ -226,7 +226,7 @@ async def qualify(
     faults.unsupported_settlement = True
     try:
         unavailable = await refused(binary, home, retirement_arguments)
-        assert unavailable.error.code == "AI_STP_UNAVAILABLE"
+        assert unavailable.error.code == "AI_STP_DEPENDENCY_UNAVAILABLE"
     finally:
         faults.unsupported_settlement = False
     assert reservations() == reserved
