@@ -662,7 +662,11 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         assert await unlink_counts() == counts
         async with app.state.sessionmaker() as db:
             audit_before = await db.scalar(select(func.max(AuditEvent.id))) or 0
-        for reader in readers:
+        denial_readers = [
+            *readers,
+            ["link-current", "--link-id", confirmed.json()["link_id"]],
+        ]
+        for reader in denial_readers:
             await refused(
                 binary,
                 home,
@@ -697,7 +701,7 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         # The global HTTP error handler deliberately audits rejected requests.
         # Successful observations stay audit-free; denials retain their own
         # security evidence without creating any project business rows.
-        assert len(missing_keys) <= len(audits) <= 2 * len(readers) + len(missing_keys)
+        assert len(missing_keys) <= len(audits) <= 2 * len(denial_readers) + len(missing_keys)
         assert len(audits) == after_refusals[3] - counts[3]
         for audit in audits:
             assert audit.target_table == "http_route" and audit.actor_account_id in accounts
@@ -1169,6 +1173,7 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
                 "membership_revocation": "refused",
                 "read_operations_added": 0,
                 "link_plan_outcome": "exact_ready_and_applied_account_bound_reads",
+                "link_current": "linked_unlinked_and_tenant_fences_without_admission",
                 "unlink_plan_readers": "ready_applied_settlement_unknown_and_account_tenant_fences",
                 "link_preview": "registered_checkout_and_current_context_without_writes",
                 "enrollment_recovery": "same_account_only",
