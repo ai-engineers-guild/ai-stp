@@ -326,7 +326,7 @@ def installed_journey(
             environment,
             ["local", "apply", "--plan", str(plan_file), "--plan-digest", passport["plan_digest"]],
         )
-        driver.navigate("corporate")
+        driver.navigate("corporate", keyboard=True)
         driver.click(driver.button("Read projects"))
         driver.click(driver.button("Review local checkout"))
         fill(driver, "Checkout directory", str(checkout))
@@ -365,7 +365,7 @@ def installed_journey(
     try:
         driver.start()
         driver.selected(company)
-        driver.navigate("tasks")
+        driver.navigate("tasks", keyboard=True)
         driver.click(driver.button("Inspect " + confirmation["operation_id"], HISTORY))
         scope = HISTORY + ' [aria-label="Original checkout operation"]'
         authorize(driver, scope, "Reconcile original outcome")
