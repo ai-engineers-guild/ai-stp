@@ -47,7 +47,7 @@ fn actual_passport_scopes_and_provider_profiles_control_eligibility() -> Result<
     // Public declaration captured from claude-setup-system 0.0.88; no invocation
     // or package provenance is inferred merely from accepting these bytes.
     let declarations: Vec<Value> =
-        serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+        serde_json::from_str(include_str!("fixtures/provider-declarations-0.0.95.json"))?;
     let original = declarations
         .iter()
         .find(|value| value["harness_id"] == "claude-code")

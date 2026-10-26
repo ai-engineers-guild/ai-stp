@@ -112,6 +112,8 @@ pub(super) fn journey(
         ("opencode", "pi", Scope::Global),
         ("pi", "claude-code", Scope::Global),
         ("claude-code", "codex", Scope::Project),
+        ("claude-code", "pi", Scope::Project),
+        ("claude-code", "opencode", Scope::Project),
     ]
     .into_iter()
     .enumerate()
@@ -241,19 +243,22 @@ pub(super) fn journey(
         identity,
         "# Same scope\nRead code.\n",
     )?;
-    for target in ["pi", "opencode", "cursor", "antigravity", "grok-build"] {
+    for target in ["cursor", "antigravity", "grok-build"] {
         let initial = counts(store)?;
-        assert!(
-            derivation::plan(
-                store,
-                field(&before, "stable_id")?,
-                field(&before, "revision_id")?,
-                "claude-code",
-                provider(target)?,
-                identity.clone(),
-                AT
-            )
-            .is_err()
+        let refusal = derivation::plan(
+            store,
+            field(&before, "stable_id")?,
+            field(&before, "revision_id")?,
+            "claude-code",
+            provider(target)?,
+            identity.clone(),
+            AT,
+        )
+        .err()
+        .ok_or("unsupported instruction derivation accepted")?;
+        assert_eq!(
+            refusal.details["constraint"],
+            "native_derivation_unsupported"
         );
         assert_eq!(counts(store)?, initial);
     }

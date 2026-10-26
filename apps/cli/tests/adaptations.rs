@@ -25,7 +25,7 @@ fn portable_sources_preserve_behavior_and_bind_exact_native_surfaces() -> Result
         .is_err()
     );
     let declarations: Vec<Value> =
-        serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+        serde_json::from_str(include_str!("fixtures/provider-declarations-0.0.95.json"))?;
     let providers = declarations
         .iter()
         .map(|value| {

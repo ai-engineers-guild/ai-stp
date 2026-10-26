@@ -271,7 +271,7 @@ fn portable_project_retains_one_identity_and_an_atomic_exact_graph() -> Result<(
     let body = "---\nname: review\ndescription: Review code.\n---\nReview changed files and report findings.\n";
     fs::write(root.join("source/SKILL.md"), body)?;
     let declarations: Vec<Value> =
-        serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+        serde_json::from_str(include_str!("fixtures/provider-declarations-0.0.95.json"))?;
     let providers = declarations
         .iter()
         .filter(|v| ["cursor", "codex"].contains(&v["harness_id"].as_str().unwrap_or("")))

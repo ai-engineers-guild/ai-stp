@@ -1023,7 +1023,7 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
                     .ok_or("instruction namespace missing")?
                     .into()
             };
-            let component = component(
+            let original_component = component(
                 &mut store,
                 &provider,
                 scope,
@@ -1038,7 +1038,7 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
                 },
                 None,
             )?;
-            let (setup, evidence) = compose(&mut store, harness, &[component])?;
+            let (setup, evidence) = compose(&mut store, harness, &[original_component])?;
             let target = target(harness, scope);
             let bundle = bundle::compile(
                 &mut store,
