@@ -91923,6 +91923,249 @@
         "summary": "Read the current outcome of one original account-owned link plan."
       }
     },
+    "/v1/organizations/{organization_id}/project-link-plans/{plan_id}/settlement": {
+      "get": {
+        "operationId": "readProjectLinkPlanSettlement",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Original link plan; expiry is observed after concurrent confirmation completes.",
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "pattern": "^link_plan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readProjectLinkPlanSettlement.context": {
+                    "summary": "Settlement reads the original outcome after serializing with confirmation and unlink.",
+                    "value": {
+                      "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+                      "link": null,
+                      "observation_only": true,
+                      "observed_at": "2026-01-01T00:00:00.000Z",
+                      "plan": {
+                        "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+                        "expires_at": "2026-01-01T00:15:00.000Z",
+                        "local_project_id": "project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "local_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "plan_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                        "plan_id": "link_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "provider_project_id": null,
+                        "provider_revision": null,
+                        "remote_project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "remote_revision": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                        "schema_version": 1
+                      },
+                      "schema_version": 1,
+                      "state": "ready"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectLinkPlanOutcome"
+                }
+              }
+            },
+            "description": "Read an original link outcome after serializing with confirmation and unlink.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_PRECONDITION_FAILED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read an original link outcome after serializing with confirmation and unlink."
+      }
+    },
     "/v1/organizations/{organization_id}/project-link-targets/{remote_project_id}": {
       "get": {
         "operationId": "readProjectLinkTarget",

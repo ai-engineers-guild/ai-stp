@@ -2262,6 +2262,23 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
     ),
     Operation(
         method="get",
+        path="/organizations/{organization_id}/project-link-plans/{plan_id}/settlement",
+        operation_id="readProjectLinkPlanSettlement",
+        summary="Read an original link outcome after serializing with confirmation and unlink.",
+        response=ProjectLinkPlanOutcome,
+        authenticated=True,
+        path_params=(
+            _ORGANIZATION_ID,
+            PathParam(
+                "plan_id",
+                "Original link plan; expiry is observed after concurrent confirmation completes.",
+                stable_id_pattern("link_plan"),
+            ),
+        ),
+        errors=("AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED", "AI_STP_PRECONDITION_FAILED"),
+    ),
+    Operation(
+        method="get",
         path="/organizations/{organization_id}/project-link-plan-requests/{request_key}",
         operation_id="readProjectLinkRequestOutcome",
         summary="Recover original account-owned plan evidence by its exact request key.",
