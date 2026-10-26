@@ -9,13 +9,13 @@ from __future__ import annotations
 import argparse
 import contextlib
 import hashlib
+import http.client
 import json
 import os
 import signal
 import subprocess
+import sys
 import time
-import urllib.error
-import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -30,8 +30,13 @@ def require(condition: bool, message: str) -> None:
 
 class Driver:
     def __init__(self, executable: Path, environment: dict[str, str], log: Path):
-        self.http = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        # urllib forces Connection: close, which the intermediary forwards to
+        # its pooled WebKit connection. Keep this owned HTTP/1.1 transport alive;
+        # never replay a failed command, including clicks or session creation.
+        self.http = http.client.HTTPConnection("127.0.0.1", 4444, timeout=90)
         self.session: str | None = None
+        self.log_path = log
+        self.stage = "starting"
         self.log = log.open("wb")
         self.process = subprocess.Popen(
             [
@@ -51,17 +56,31 @@ class Driver:
         )
 
     def request(self, method: str, path: str, data: Any = None) -> Any:
-        request = urllib.request.Request(
-            "http://127.0.0.1:4444" + path,
-            data=None if data is None else json.dumps(data).encode(),
-            headers={"Content-Type": "application/json"},
-            method=method,
+        self.stage = (
+            "session_stop"
+            if method == "DELETE"
+            else {
+                "status": "status",
+                "session": "session_start",
+                "sync": "dom_read",
+                "click": "click",
+                "clear": "clear",
+                "value": "keys",
+            }.get(path.rsplit("/", 1)[-1], "command")
         )
-        with self.http.open(request, timeout=90) as reply:
-            result = json.load(reply)
+        self.http.request(
+            method,
+            path,
+            body=None if data is None else json.dumps(data).encode(),
+            headers={"Content-Type": "application/json", "Accept": "application/json"},
+        )
+        with self.http.getresponse() as reply:
+            result = json.loads(reply.read())
+            status = reply.status
         value = result["value"]
         if isinstance(value, dict) and "error" in value:
-            raise ValueError(f"WebDriver refused: {value['error']}")
+            raise ValueError(f"WebDriver protocol refusal (HTTP {status})")
+        require(200 <= status < 300, f"WebDriver HTTP status {status}")
         return value
 
     def wait(self, predicate: Any, label: str) -> Any:
@@ -78,7 +97,9 @@ class Driver:
         def ready() -> bool:
             try:
                 return bool(self.request("GET", "/status")["ready"])
-            except (OSError, urllib.error.URLError):
+            except (OSError, http.client.HTTPException):
+                # Readiness is an observation before any application session.
+                self.http.close()
                 return False
 
         self.wait(ready, "WebDriver readiness")
@@ -201,11 +222,15 @@ class Driver:
         )
 
     def close(self) -> None:
+        if sys.exception() is not None:
+            with contextlib.suppress(OSError):
+                self.diagnostics()
         try:
             if self.session is not None:
-                with contextlib.suppress(OSError, ValueError, urllib.error.URLError):
+                with contextlib.suppress(OSError, ValueError, http.client.HTTPException):
                     self.command("DELETE", "")
         finally:
+            self.http.close()
             # Only this fixture's own process group contains the driver and app.
             with contextlib.suppress(ProcessLookupError):
                 os.killpg(self.process.pid, signal.SIGTERM)
@@ -216,6 +241,33 @@ class Driver:
                     os.killpg(self.process.pid, signal.SIGKILL)
                 self.process.wait(timeout=10)
             self.log.close()
+
+    def diagnostics(self) -> None:
+        self.log.flush()
+        with self.log_path.open("rb") as log:
+            log.seek(0, os.SEEK_END)
+            log.seek(max(0, log.tell() - 65536))
+            tail = log.read().decode(errors="replace")
+        # Only fixed marker booleans and the owned process's exit code leave
+        # this fixture. Do not print request bodies, raw logs or DOM contents.
+        print(
+            json.dumps(
+                {
+                    "diagnostic": "installed_webdriver",
+                    "stage": self.stage,
+                    "driver_exit_code": self.process.poll(),
+                    "markers": {
+                        "proxy_connection_error": "Error serving connection:" in tail,
+                        "canceled": "Canceled" in tail or "canceled" in tail,
+                        "incomplete_message": "IncompleteMessage" in tail,
+                        "connection_reset": "Connection reset" in tail,
+                        "rust_panic": "panicked at" in tail,
+                        "webkit_process_terminated": "WebProcess terminated" in tail,
+                    },
+                }
+            ),
+            flush=True,
+        )
 
 
 def native(binary: Path, environment: dict[str, str], arguments: list[str]) -> dict[str, Any]:
@@ -371,6 +423,7 @@ def main() -> None:
                 "evidence_type": "installed_linux_desktop",
                 "consumer_commit": os.environ["GITHUB_SHA"],
                 "native_version": version,
+                "webdriver_transport": "persistent_http1",
                 "installed_cli_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
                 "actual_release_package": True,
                 "actual_bundled_cli_ipc": True,

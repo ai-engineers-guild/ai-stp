@@ -96,6 +96,8 @@ GNOME credential service and private home. The journey initializes the native
 vault through Settings, reviews two offline personal contexts, switches views,
 restarts the app and compares the retained state with the installed bundled CLI.
 It verifies the default credential store and preserves unrelated home files.
+Three fresh private sessions must each pass the complete journey. The external
+driver uses one persistent HTTP connection; failed UI commands are not replayed.
 This gate does not establish corporate enrollment or harness activation.
 
 Release bundles require their own `cli/ai-stp-desktop-cli` resource. A missing
