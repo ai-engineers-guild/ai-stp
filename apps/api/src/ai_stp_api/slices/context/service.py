@@ -639,26 +639,12 @@ def unlink_plan_body(plan: ProjectUnlinkPlan) -> ProjectUnlinkPlanResponse:
     )
 
 
-async def read_project_link_target(
-    db: AsyncSession,
-    *,
-    ctx: AuthContext,
-    organization_id: str,
-    remote_project_id: str,
-) -> ProjectLinkTargetResponse:
-    """Observe existing identities under the same current policy as link planning."""
-    from ai_stp_api.slices.corporate import service as corporate
+async def _require_link_project(
+    db: AsyncSession, *, ctx: AuthContext, organization_id: str, remote_project_id: str, mode: str
+) -> None:
+    if mode == "corporate":
+        from ai_stp_api.slices.corporate import service as corporate
 
-    await require_active_device(db, ctx=ctx)
-    projection = await remote_projection(db, ctx=ctx, organization_id=organization_id)
-    await require_capability(
-        db,
-        ctx=ctx,
-        organization_id=organization_id,
-        capability="project.link",
-        authorization_revision=projection.authorization_revision,
-    )
-    if projection.mode == "corporate":
         project = await corporate.read_project(
             db,
             ctx=ctx,
@@ -668,6 +654,32 @@ async def read_project_link_target(
         )
         if project.state != "active" or project.lifecycle not in (None, "active"):
             raise ApiError(ErrorCategory.PRECONDITION, "project link target is not active")
+
+
+async def read_project_link_target(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    remote_project_id: str,
+) -> ProjectLinkTargetResponse:
+    """Observe existing identities under the same current policy as link planning."""
+    await require_active_device(db, ctx=ctx)
+    projection = await remote_projection(db, ctx=ctx, organization_id=organization_id)
+    await require_capability(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        capability="project.link",
+        authorization_revision=projection.authorization_revision,
+    )
+    await _require_link_project(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        remote_project_id=remote_project_id,
+        mode=projection.mode,
+    )
     remote = await db.scalar(
         select(ProjectIdentity).where(
             ProjectIdentity.organization_id == organization_id,
@@ -746,7 +758,7 @@ async def create_project_link_plan(
 ) -> ProjectLinkPlanResponse:
     """Create or replay the server-authored link decision."""
     device = await require_active_device(db, ctx=ctx, for_update=True)
-    await require_capability(
+    organization = await require_capability(
         db,
         ctx=ctx,
         organization_id=organization_id,
@@ -780,6 +792,13 @@ async def create_project_link_plan(
             raise ApiError(ErrorCategory.CONFLICT, "idempotency key belongs to another link plan")
         return link_plan_body(replay)
 
+    await _require_link_project(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        remote_project_id=payload.remote_project_id,
+        mode=organization.kind,
+    )
     await _validate_link_target_revisions(db, organization_id=organization_id, payload=payload)
     active_link = await db.scalar(
         select(ProjectLink).where(
@@ -1211,7 +1230,7 @@ async def create_project_link(
 ) -> ProjectLinkResponse:
     """Confirm one exact server-authored link plan."""
     device = await require_active_device(db, ctx=ctx, for_update=True)
-    await require_capability(
+    organization = await require_capability(
         db,
         ctx=ctx,
         organization_id=organization_id,
@@ -1265,6 +1284,13 @@ async def create_project_link(
     if plan.state != "ready" or expires_at <= datetime.now(UTC):
         raise ApiError(ErrorCategory.PRECONDITION, "project link plan is no longer active")
 
+    await _require_link_project(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        remote_project_id=plan.remote_project_id,
+        mode=organization.kind,
+    )
     await _validate_link_target_revisions(
         db,
         organization_id=organization_id,

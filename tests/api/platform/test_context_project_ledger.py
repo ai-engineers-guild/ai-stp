@@ -24,6 +24,7 @@ from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.models import Account, AuditEvent, Device
 from ai_stp_platform.organization_models import (
+    CorporateProject,
     Organization,
     OrganizationMembership,
     ProjectIdentity,
@@ -564,6 +565,72 @@ async def test_corporate_link_target_metadata_keeps_personal_context_and_tenant_
         headers=headers,
     )
     assert wrong_tenant.status_code == 404
+    scoped_headers = {**headers, "X-AI-STP-Organization-Id": organization}
+    plan_payload = {
+        "local_project_id": new_id("project"),
+        "remote_project_id": project.json()["project_id"],
+        "local_revision": "local-1",
+        "remote_revision": observed.json()["remote_revision"],
+        "authorization_revision": observed.json()["authorization_revision"],
+        "idempotency_key": "corporate-link-target-plan",
+    }
+    planned = await client.post(
+        f"/v1/organizations/{organization}/project-link-plans",
+        headers=scoped_headers,
+        json=plan_payload,
+    )
+    assert planned.status_code == 201, planned.text
+    async with sessionmaker() as db:
+        card = await db.get(CorporateProject, project.json()["project_id"])
+        assert card is not None
+        card.state = "archived"
+        await db.commit()
+    inactive = await client.get(route, headers=headers)
+    assert inactive.status_code in (404, 412)
+    new_plan = await client.post(
+        f"/v1/organizations/{organization}/project-link-plans",
+        headers=scoped_headers,
+        json={**plan_payload, "idempotency_key": "archived-link-target-plan"},
+    )
+    assert new_plan.status_code == inactive.status_code, new_plan.text
+    confirmation = await client.post(
+        "/v1/projects/links",
+        headers=scoped_headers,
+        json={
+            "plan_id": planned.json()["plan_id"],
+            "plan_digest": planned.json()["plan_digest"],
+            "authorization_revision": plan_payload["authorization_revision"],
+            "idempotency_key": "archived-link-confirmation",
+        },
+    )
+    assert confirmation.status_code == inactive.status_code, confirmation.text
+    historical = await client.get(
+        f"/v1/organizations/{organization}/project-link-plan-requests/corporate-link-target-plan",
+        headers=scoped_headers,
+    )
+    assert historical.status_code == 200 and historical.json()["plan"] == planned.json()
+    assert historical.json()["state"] == "ready" and historical.json()["link"] is None
+    async with sessionmaker() as db:
+        assert (
+            await db.scalar(
+                select(func.count())
+                .select_from(ProjectLinkPlan)
+                .where(
+                    ProjectLinkPlan.remote_project_id == project.json()["project_id"],
+                )
+            )
+            == 1
+        )
+        assert (
+            await db.scalar(
+                select(func.count())
+                .select_from(ProjectLink)
+                .where(
+                    ProjectLink.remote_project_id == project.json()["project_id"],
+                )
+            )
+            == 0
+        )
     async with sessionmaker() as db:
         membership = await db.scalar(
             select(OrganizationMembership).where(
