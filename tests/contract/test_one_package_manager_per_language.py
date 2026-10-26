@@ -33,18 +33,31 @@ WATCHED = ("npm", "npx", "pip", "pipx", "pnpm", "poetry", "yarn")
 
 
 #: Files that make up the toolchain: what CI runs and what a developer runs.
-def _toolchain() -> dict[str, str]:
-    paths: list[Path] = [ROOT / "justfile"]
-    for directory in (ROOT / ".github" / "workflows", ROOT / ".github" / "scripts"):
+def _toolchain(root: Path = ROOT) -> dict[str, str]:
+    paths: list[Path] = [root / "justfile"]
+    for directory in (root / ".github" / "workflows", root / ".github" / "scripts"):
         if directory.is_dir():
             paths.extend(sorted(directory.rglob("*")))
-    paths.extend(sorted((ROOT / "release_scripts").glob("*.sh")))
-    paths.extend(sorted((ROOT / "docs_scripts").glob("*.py")))
+    paths.extend(sorted((root / "release_scripts").glob("*.sh")))
+    paths.extend(sorted((root / "docs_scripts").glob("*.py")))
     return {
-        str(path.relative_to(ROOT)): path.read_text(encoding="utf-8")
+        str(path.relative_to(root)): path.read_text(encoding="utf-8")
         for path in paths
-        if path.is_file()
+        if path.is_file() and "__pycache__" not in path.relative_to(root).parts
     }
+
+
+def test_toolchain_reads_source_without_decoding_generated_bytecode(tmp_path: Path) -> None:
+    scripts = tmp_path / ".github" / "scripts"
+    cache = scripts / "__pycache__"
+    cache.mkdir(parents=True)
+    (cache / "probe.cpython-314.pyc").write_bytes(b"\xf6\x00\xff")
+    (tmp_path / "justfile").write_text("check:\n    uv run check\n")
+    source = "pip install forbidden-package\n"
+    (scripts / "probe.py").write_text(source)
+    observed = _toolchain(tmp_path)
+    assert set(observed) == {"justfile", ".github/scripts/probe.py"}
+    assert observed[".github/scripts/probe.py"] == source
 
 
 def _commands(text: str, suffix: str) -> str:

@@ -56,7 +56,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          binary="$(cd apps/cli && cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- cli-binary)"
+          binary="$(
+            cd apps/cli
+            cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- cli-binary
+          )"
           python .github/scripts/inspect-provider-release.py \
             --binary "${binary}" --version "${COMPONENT_VERSION}" \
             --consumer-commit "${CONSUMER_COMMIT}" \

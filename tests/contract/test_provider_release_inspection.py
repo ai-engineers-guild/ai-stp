@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import importlib.util
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -17,7 +18,7 @@ SPEC.loader.exec_module(INSPECTION)
 COMMIT = "a" * 40
 
 
-def report() -> dict:
+def report() -> dict[str, Any]:
     return {
         "artifact": {
             "harness_id": "codex",
