@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
 import hashlib
 import json
 import os
@@ -15,6 +16,7 @@ import runpy
 import socket
 import sqlite3
 import subprocess
+import unicodedata
 from collections.abc import Callable
 from contextlib import closing
 from pathlib import Path
@@ -305,40 +307,76 @@ def installed_journey(
         company = profile_review(driver, company_plan)["change"]["context"]["context_id"]
         choose(driver, "Selected context view", company, scope='section[aria-label="Context view"]')
         driver.selected(company)
-        checkout = root / "registered-checkout"
-        checkout.mkdir()
-        (checkout / ".env").write_bytes(b"PRIVATE=installed-corporate-unowned\n")
-        (checkout / ".env").chmod(0o640)
-        for args in (
-            ["init", "--initial-branch=main"],
-            ["commit", "--allow-empty", "-m", "installed corporate fixture"],
-        ):
-            subprocess.run(
-                [
-                    "/usr/bin/git",
-                    "-C",
-                    str(checkout),
-                    "-c",
-                    "user.name=Installed fixture",
-                    "-c",
-                    "user.email=installed@example.invalid",
-                    *args,
-                ],
-                check=True,
-                capture_output=True,
-                env={**environment, "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull},
-                timeout=15,
+        checkout = root / unicodedata.normalize("NFD", "café-checkout")
+        neighbor = root / unicodedata.normalize("NFC", "café-checkout")
+        assert str(checkout) != str(neighbor)
+        assert unicodedata.normalize("NFC", str(checkout)) == str(neighbor)
+        project_ids: list[str] = []
+        for index, directory in enumerate((checkout, neighbor)):
+            directory.mkdir()
+            (directory / ".env").write_bytes(
+                b"PRIVATE=installed-corporate-unowned\n"
+                if index == 0
+                else b"PRIVATE=installed-nfc-neighbor\n"
             )
-        passport = native(
-            binary, environment, ["project", "passport", "plan", "--root", str(checkout)]
-        )
-        plan_file = root / "registered-passport.json"
-        plan_file.write_text(json.dumps(passport["plan"]), encoding="utf-8")
-        native(
-            binary,
-            environment,
-            ["local", "apply", "--plan", str(plan_file), "--plan-digest", passport["plan_digest"]],
-        )
+            (directory / ".env").chmod(0o640)
+            for args in (
+                ["init", "--initial-branch=main"],
+                ["commit", "--allow-empty", "-m", f"installed corporate fixture {index}"],
+            ):
+                subprocess.run(
+                    [
+                        "/usr/bin/git",
+                        "-C",
+                        str(directory),
+                        "-c",
+                        "user.name=Installed fixture",
+                        "-c",
+                        "user.email=installed@example.invalid",
+                        *args,
+                    ],
+                    check=True,
+                    capture_output=True,
+                    env={
+                        **environment,
+                        "GIT_CONFIG_NOSYSTEM": "1",
+                        "GIT_CONFIG_GLOBAL": os.devnull,
+                    },
+                    timeout=15,
+                )
+            passport = native(
+                binary, environment, ["project", "passport", "plan", "--root", str(directory)]
+            )
+            project_id = passport["plan"]["operation"]["passport"]["stable_id"]
+            assert isinstance(project_id, str)
+            project_ids.append(project_id)
+            plan_file = root / f"registered-passport-{index}.json"
+            plan_file.write_text(json.dumps(passport["plan"]), encoding="utf-8")
+            native(
+                binary,
+                environment,
+                [
+                    "local",
+                    "apply",
+                    "--plan",
+                    str(plan_file),
+                    "--plan-digest",
+                    passport["plan_digest"],
+                ],
+            )
+        assert len(set(project_ids)) == 2
+        physical = [(path.stat().st_dev, path.stat().st_ino) for path in (checkout, neighbor)]
+        assert physical[0] != physical[1]
+
+        def original_path(plan: dict[str, Any]) -> None:
+            for path in (
+                plan["checkout_root"],
+                plan["change"]["snapshot"]["local_project"]["root"]["path"],
+            ):
+                assert path["display"] == str(neighbor)
+                assert base64.b64decode(path["utf8_base64"], validate=True) == os.fsencode(checkout)
+            assert plan["change"]["snapshot"]["local_project"]["local_project_id"] == project_ids[0]
+
         driver.navigate("corporate", keyboard=True)
         driver.click(driver.button("Read projects"))
         driver.click(driver.button("Review local checkout"))
@@ -355,10 +393,12 @@ def installed_journey(
         )
         driver.click(driver.button("Review link request"))
         request = public_plan(driver, CHECKOUT_REVIEW)
+        original_path(request)
         assert request["change"]["snapshot"]["target"]["remote_project_id"] == project
         authorize(driver, CHECKOUT_REVIEW, "Apply reviewed checkout change")
         driver.click(driver.button("Review link confirmation"))
         confirmation = public_plan(driver, CHECKOUT_REVIEW)
+        original_path(confirmation)
         assert confirmation["change"]["request_operation_id"] == request["operation_id"]
         lose_confirmation()
         authorize(driver, CHECKOUT_REVIEW, "Apply reviewed checkout change")
@@ -382,9 +422,28 @@ def installed_journey(
         driver.click(driver.button("Inspect " + confirmation["operation_id"], HISTORY))
         scope = HISTORY + ' [aria-label="Original checkout operation"]'
         authorize(driver, scope, "Reconcile original outcome")
+        root_field = field(driver, "Registered checkout for binding", scope=HISTORY)
+        assert driver.read("return arguments[0].value;", root_field) == str(checkout)
+        fill(driver, "Registered checkout for binding", str(neighbor), scope=HISTORY)
+        driver.click(driver.button("Review original local binding", HISTORY))
+        codes = driver.wait(
+            lambda: driver.read(
+                "return [...document.querySelectorAll(arguments[0]+' [role=alert]')]"
+                ".flatMap(x=>x.textContent.match(/\\b(?:AI_STP_|DESKTOP_)[A-Z_]+|\\bCONTEXT_VIEW\\b/g)??[]);",
+                HISTORY,
+            ),
+            "same-display physical checkout refusal",
+        )
+        assert set(codes) == {"AI_STP_PRECONDITION_FAILED"}
+        # Reinspect through the actual read control, clearing the refusal and
+        # proving that the original byte-preserving root is prefilled again.
+        driver.click(driver.button("Inspect " + confirmation["operation_id"], HISTORY))
+        root_field = field(driver, "Registered checkout for binding", scope=HISTORY)
+        assert driver.read("return arguments[0].value;", root_field) == str(checkout)
         driver.click(driver.button("Review original local binding", HISTORY))
         next_scope = HISTORY + ' [aria-label="Review retained checkout next change"]'
         adoption = public_plan(driver, next_scope)
+        original_path(adoption)
         assert adoption["change"]["request_operation_id"] == request["operation_id"]
         authorize(driver, next_scope, "Apply reviewed original checkout change")
         driver.wait(
@@ -410,13 +469,16 @@ def installed_journey(
         )
         assert (checkout / ".env").read_bytes() == b"PRIVATE=installed-corporate-unowned\n"
         assert (checkout / ".env").stat().st_mode & 0o777 == 0o640
+        assert (neighbor / ".env").read_bytes() == b"PRIVATE=installed-nfc-neighbor\n"
+        assert (neighbor / ".env").stat().st_mode & 0o777 == 0o640
         state_directory = native(binary, environment, ["state", "path"])["state_dir"]
         assert isinstance(state_directory, str) and Path(state_directory).is_absolute()
         registry = Path(state_directory) / "ai-stp-v2-state" / "registry.sqlite3"
         with closing(sqlite3.connect(f"file:{registry}?mode=ro", uri=True)) as db:
             row = db.execute(
                 "SELECT p.state,p.organization_id,p.remote_project_id,r.request_operation_id,"
-                "r.confirmation_operation_id,r.binding_operation_id,r.context_id "
+                "r.confirmation_operation_id,r.binding_operation_id,r.context_id,"
+                "r.root_device,r.root_inode,p.local_project_id "
                 "FROM project_link p JOIN native_checkout_reservation r "
                 "ON r.local_project_id=p.local_project_id"
             ).fetchone()
@@ -428,7 +490,20 @@ def installed_journey(
                 confirmation["operation_id"],
                 adoption["operation_id"],
                 company,
+                str(physical[0][0]),
+                str(physical[0][1]),
+                project_ids[0],
             )
+            assert db.execute(
+                "SELECT count(*) FROM native_checkout_reservation WHERE local_project_id=?",
+                (project_ids[1],),
+            ).fetchone() == (0,)
+            assert db.execute(
+                "SELECT count(*) FROM project_link WHERE local_project_id=?", (project_ids[1],)
+            ).fetchone() == (0,)
+            assert db.execute(
+                "SELECT count(*) FROM operation WHERE kind='corporate.project_link'"
+            ).fetchone() == (3,)
         return {
             "schema_version": 1,
             "evidence_type": "installed_linux_corporate_checkout",
@@ -445,6 +520,8 @@ def installed_journey(
             "restart_and_original_reconciliation": True,
             "active_binding_adoption": True,
             "unowned_files_preserved": True,
+            "distinct_nfd_nfc_roots": True,
+            "same_display_checkout_substitution_refused": True,
             "installation_authority": False,
             "harness_activation_qualified": False,
         }

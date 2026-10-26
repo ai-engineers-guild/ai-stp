@@ -357,7 +357,7 @@ fn checkout_case(
     let remote_token = token.clone();
     let worker = thread::spawn(move || -> std::io::Result<()> {
         let deadline = Instant::now() + Duration::from_secs(120);
-        for _ in 0..2048 {
+        for request in 0..=2048 {
             let mut socket = accept_until(&listener, deadline)?;
             if remote
                 .lock()
@@ -366,6 +366,9 @@ fn checkout_case(
             {
                 return Ok(());
             }
+            if request == 2048 {
+                return Err(std::io::Error::other("fixture HTTP request bound: 2048"));
+            }
             peer(
                 &mut socket,
                 &remote,
@@ -373,7 +376,10 @@ fn checkout_case(
                 &service_device,
                 &remote_token,
                 &remote_at,
-            )?;
+            )
+            .map_err(|error| {
+                std::io::Error::other(format!("fixture request {}: {error}", request + 1))
+            })?;
         }
         Err(std::io::Error::other("request bound"))
     });
@@ -740,7 +746,9 @@ fn checkout_case(
         Ok(())
     })();
     control.lock().map_err(|_| "peer")?.stop = true;
-    TcpStream::connect(address)?;
-    worker.join().map_err(|_| "peer thread")??;
-    journey
+    let _wake = TcpStream::connect(address);
+    let served = worker.join().map_err(|_| "peer thread")?;
+    journey.map_err(|error| format!("named={named}: {error}; fixture server: {served:?}"))?;
+    served?;
+    Ok(())
 }
