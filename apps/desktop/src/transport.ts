@@ -52,6 +52,7 @@ function call(
   // plans and company replies contain directory, repository and policy data;
   // key-name redaction cannot make that content safe for this shared log.
   const contextTrace =
+    command === "checkout_apply" ||
     namespace === "context" ||
     namespace === "corporate" ||
     (namespace === "account" &&
@@ -338,4 +339,20 @@ export function cmdProfileApply(
   confirmed: boolean,
 ): Promise<CmdResult> {
   return call("profile_apply", { path, plan, digest, confirmed });
+}
+
+export function cmdCheckoutApply(
+  plan: unknown,
+  digest: string,
+  confirmed: boolean,
+  context?: string,
+  gitExecutable?: string,
+): Promise<CmdResult> {
+  return call("checkout_apply", {
+    plan,
+    digest,
+    confirmed,
+    context: context ?? null,
+    gitExecutable: gitExecutable ?? null,
+  });
 }

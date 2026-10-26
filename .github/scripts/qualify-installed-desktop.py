@@ -79,7 +79,27 @@ class Driver:
             status = reply.status
         value = result["value"]
         if isinstance(value, dict) and "error" in value:
-            raise ValueError(f"WebDriver protocol refusal (HTTP {status})")
+            # W3C categories are fixed public protocol data. Never include the
+            # driver's free-form message, stack, DOM or application arguments.
+            known = {
+                "element click intercepted",
+                "element not interactable",
+                "invalid argument",
+                "invalid element state",
+                "invalid session id",
+                "javascript error",
+                "no such element",
+                "no such window",
+                "stale element reference",
+                "timeout",
+                "unknown command",
+                "unknown error",
+                "unsupported operation",
+            }
+            code = value["error"] if isinstance(value["error"], str) else "unknown error"
+            if code not in known:
+                code = "unknown error"
+            raise ValueError(f"WebDriver protocol refusal (HTTP {status}; {code})")
         require(200 <= status < 300, f"WebDriver HTTP status {status}")
         return value
 
@@ -149,8 +169,18 @@ class Driver:
             )
         )
 
-    def navigate(self, route: str) -> None:
-        self.click(self.find(f'nav[aria-label="Main navigation"] a[href="#/{route}"]'))
+    def navigate(self, route: str, *, keyboard: bool = False) -> None:
+        link = self.find(f'nav[aria-label="Main navigation"] a[href="#/{route}"]')
+        if keyboard:
+            # Exercise actual accessible link activation, including when a
+            # retained company identity changes the scrollable sidebar height.
+            self.command("POST", f"/element/{link[ELEMENT]}/value", {"text": "\ue007"})
+            self.wait(
+                lambda: self.read("return location.hash===arguments[0];", "#/" + route),
+                "keyboard navigation",
+            )
+        else:
+            self.click(link)
 
     def review(self, action: str, label: str, expected_id: str | None = None) -> str:
         self.find(REVIEW)

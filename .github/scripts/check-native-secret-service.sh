@@ -12,6 +12,9 @@ if [[ "${1:-}" != --inside-fixture ]]; then
   if [[ "${1:-}" == --installed-desktop ]]; then
     test "$#" -eq 1
     fixture_mode=desktop
+  elif [[ "${1:-}" == --installed-corporate-desktop ]]; then
+    test "$#" -eq 1
+    fixture_mode=corporate-desktop
   else
     test "$#" -eq 0
   fi
@@ -30,7 +33,7 @@ fi
 
 test "$#" -eq 2
 fixture_mode="$2"
-[[ "${fixture_mode}" == native || "${fixture_mode}" == desktop ]]
+[[ "${fixture_mode}" == native || "${fixture_mode}" == desktop || "${fixture_mode}" == corporate-desktop ]]
 test -d "${AI_STP_TEST_SECRET_SERVICE_ROOT}"
 test "${AI_STP_TEST_SECRET_SERVICE}" = isolated
 
@@ -119,6 +122,13 @@ if [[ "${fixture_mode}" == desktop ]]; then
   xvfb-run --auto-servernum python .github/scripts/qualify-installed-desktop.py \
     --driver "${RUNNER_TEMP}/ai-stp-webdriver/bin/tauri-driver" \
     --out "${RUNNER_TEMP}/installed-desktop-proof.json"
+  exit
+fi
+
+if [[ "${fixture_mode}" == corporate-desktop ]]; then
+  xvfb-run --auto-servernum uv run --no-sync python -m tests.native_contract.verify_desktop_corporate \
+    --driver "${RUNNER_TEMP}/ai-stp-webdriver/bin/tauri-driver" \
+    --out "${RUNNER_TEMP}/installed-corporate-desktop-proof.json"
   exit
 fi
 
