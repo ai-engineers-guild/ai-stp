@@ -267,6 +267,16 @@ fn durable_revision_history_replay_conflict_and_atomic_rollback() -> Result<(), 
     connection.pragma_update(None, "user_version", 54)?;
     drop(connection);
     let before = fs::read(&path)?;
+    let transferred = Snapshot::from_bytes(&before, &digest::sha256(&before))?;
+    assert_eq!(transferred.report()["local_schema_version"], 54);
+    assert_eq!(
+        transferred.passport("component", Some(id))?,
+        snapshot.passport("component", Some(id))?
+    );
+    assert_eq!(
+        transferred.exact_version(id, "1.0", None)?,
+        snapshot.exact_version(id, "1.0", None)?
+    );
     assert!(Store::open(root.path(), true).is_err());
     assert_eq!(
         fs::read(&path)?,

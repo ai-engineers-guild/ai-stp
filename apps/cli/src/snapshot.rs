@@ -12,6 +12,12 @@ use crate::{
 };
 
 pub const SCHEMA_VERSION: u32 = 53;
+pub const SUPPORTED_SCHEMA_VERSIONS: [u32; 4] = [
+    SCHEMA_VERSION,
+    crate::store::PRODUCTION_SCHEMA,
+    crate::store::PROFILE_SCHEMA,
+    crate::store::ENROLLMENT_RECOVERY_SCHEMA,
+];
 const MAX_BYTES: u64 = 128 * 1024 * 1024;
 
 pub struct Snapshot {
@@ -74,17 +80,9 @@ impl Snapshot {
         let schema: u32 = connection
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .map_err(invalid)?;
-        if ![
-            SCHEMA_VERSION,
-            crate::store::PROFILE_SCHEMA,
-            crate::store::ENROLLMENT_RECOVERY_SCHEMA,
-        ]
-        .contains(&schema)
-        {
+        if !SUPPORTED_SCHEMA_VERSIONS.contains(&schema) {
             return Err(Failure::precondition(format!(
-                "snapshot schema {schema} is unsupported; expected {SCHEMA_VERSION}, {} or {}",
-                crate::store::PROFILE_SCHEMA,
-                crate::store::ENROLLMENT_RECOVERY_SCHEMA
+                "snapshot schema {schema} is unsupported; expected one of {SUPPORTED_SCHEMA_VERSIONS:?}"
             )));
         }
         let integrity: String = connection
