@@ -14,6 +14,7 @@ mod model;
 pub mod project_links;
 pub mod providers;
 mod recovery;
+mod server_plans;
 pub mod reports;
 #[cfg(all(test, unix))]
 mod tests;

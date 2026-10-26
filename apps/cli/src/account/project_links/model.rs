@@ -10,7 +10,7 @@ use crate::{
     authoring, canonical, digest,
     error::Result,
     files, passport,
-    store::{CHECKOUT_RETIREMENT_SCHEMA, checkout_schema_after},
+    store::{CHECKOUT_RETIREMENT_SCHEMA, CHECKOUT_UNLINK_SCHEMA, checkout_schema_after},
     wire,
 };
 
@@ -256,28 +256,12 @@ pub(super) struct ServerPlan {
 /// Match the server's Python JSON encoding, including its default ASCII escape
 /// policy. This is deliberately distinct from the native canonical-plan format.
 fn server_bytes(value: &Value) -> Result<Vec<u8>> {
-    use std::fmt::Write;
-    let fields: std::collections::BTreeMap<_, _> =
-        value.as_object().ok_or_else(invalid)?.iter().collect();
-    if fields
-        .values()
+    if value.as_object().ok_or_else(invalid)?.values()
         .any(|value| !value.is_string() && !value.is_null())
     {
         return Err(invalid());
     }
-    let text = serde_json::to_string(&fields).map_err(|_| invalid())?;
-    let mut encoded = String::with_capacity(text.len());
-    for character in text.chars() {
-        if character >= '\u{7f}' {
-            let mut units = [0; 2];
-            for unit in character.encode_utf16(&mut units) {
-                write!(&mut encoded, "\\u{unit:04x}").map_err(|_| invalid())?;
-            }
-        } else {
-            encoded.push(character);
-        }
-    }
-    Ok(encoded.into_bytes())
+    crate::account::server_plans::bytes(value).map_err(|_| invalid())
 }
 
 impl ServerPlan {
@@ -523,7 +507,9 @@ impl Plan {
         let snapshot = self.snapshot();
         snapshot.validate()?;
         if self.schema_version
-            != if self.registry_schema_after == CHECKOUT_RETIREMENT_SCHEMA {
+            != if self.registry_schema_after == CHECKOUT_UNLINK_SCHEMA {
+                3
+            } else if self.registry_schema_after == CHECKOUT_RETIREMENT_SCHEMA {
                 2
             } else {
                 1

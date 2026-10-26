@@ -29,6 +29,9 @@ pub(crate) const PROFILE_SCHEMA: u32 = 55;
 pub(crate) const ENROLLMENT_RECOVERY_SCHEMA: u32 = 56;
 pub(crate) const CHECKOUT_LINK_SCHEMA: u32 = 57;
 pub(crate) const CHECKOUT_RETIREMENT_SCHEMA: u32 = 58;
+// The SQL layout stays at 58; the new durable unlink journal encoding needs an
+// explicit epoch so earlier clients cannot write alongside unknown operations.
+pub(crate) const CHECKOUT_UNLINK_SCHEMA: u32 = 59;
 const BOOTSTRAP: &str = include_str!("schema.sql");
 const PROFILES: &str = include_str!("profiles.sql");
 const ENROLLMENT_RECOVERY: &str = include_str!("enrollment_recovery.sql");
@@ -221,6 +224,7 @@ pub(crate) fn profile_schema_after(before: u32) -> Result<u32> {
         ENROLLMENT_RECOVERY_SCHEMA => Ok(ENROLLMENT_RECOVERY_SCHEMA),
         CHECKOUT_LINK_SCHEMA => Ok(CHECKOUT_LINK_SCHEMA),
         CHECKOUT_RETIREMENT_SCHEMA => Ok(CHECKOUT_RETIREMENT_SCHEMA),
+        CHECKOUT_UNLINK_SCHEMA => Ok(CHECKOUT_UNLINK_SCHEMA),
         _ => Err(Failure::precondition("the profile registry schema changed")),
     }
 }
@@ -230,12 +234,17 @@ pub(crate) fn has_enrollment_recovery(version: u32) -> bool {
         ENROLLMENT_RECOVERY_SCHEMA,
         CHECKOUT_LINK_SCHEMA,
         CHECKOUT_RETIREMENT_SCHEMA,
+        CHECKOUT_UNLINK_SCHEMA,
     ]
     .contains(&version)
 }
 
 pub(crate) fn has_checkout_links(version: u32) -> bool {
-    [CHECKOUT_LINK_SCHEMA, CHECKOUT_RETIREMENT_SCHEMA].contains(&version)
+    [CHECKOUT_LINK_SCHEMA, CHECKOUT_RETIREMENT_SCHEMA, CHECKOUT_UNLINK_SCHEMA].contains(&version)
+}
+
+pub(crate) fn has_checkout_retirement(version: u32) -> bool {
+    [CHECKOUT_RETIREMENT_SCHEMA, CHECKOUT_UNLINK_SCHEMA].contains(&version)
 }
 
 pub(crate) fn checkout_schema_after(before: u32) -> Result<u32> {
@@ -244,6 +253,7 @@ pub(crate) fn checkout_schema_after(before: u32) -> Result<u32> {
             Ok(CHECKOUT_LINK_SCHEMA)
         }
         CHECKOUT_RETIREMENT_SCHEMA => Ok(CHECKOUT_RETIREMENT_SCHEMA),
+        CHECKOUT_UNLINK_SCHEMA => Ok(CHECKOUT_UNLINK_SCHEMA),
         _ => Err(Failure::precondition(
             "the corporate checkout registry schema changed",
         )),
@@ -443,6 +453,7 @@ impl Store {
                 && version != ENROLLMENT_RECOVERY_SCHEMA
                 && version != CHECKOUT_LINK_SCHEMA
                 && version != CHECKOUT_RETIREMENT_SCHEMA
+                && version != CHECKOUT_UNLINK_SCHEMA
                 && !(transfer && version == SCHEMA_VERSION)
         } else {
             version != SCHEMA_VERSION
@@ -450,13 +461,14 @@ impl Store {
                 && version != ENROLLMENT_RECOVERY_SCHEMA
                 && version != CHECKOUT_LINK_SCHEMA
                 && version != CHECKOUT_RETIREMENT_SCHEMA
+                && version != CHECKOUT_UNLINK_SCHEMA
         } {
             return Err(Failure::precondition(
                 "the local registry schema is unsupported",
             ));
         }
         if &schema(&connection)?
-            != if version == CHECKOUT_RETIREMENT_SCHEMA {
+            != if has_checkout_retirement(version) {
                 expected_retirement_schema()?
             } else if version == CHECKOUT_LINK_SCHEMA {
                 expected_checkout_schema()?
@@ -564,6 +576,7 @@ impl Store {
                 ENROLLMENT_RECOVERY_SCHEMA,
                 CHECKOUT_LINK_SCHEMA,
                 CHECKOUT_RETIREMENT_SCHEMA,
+                CHECKOUT_UNLINK_SCHEMA,
             ]
             .contains(&version)
             {
@@ -585,6 +598,7 @@ impl Store {
             ENROLLMENT_RECOVERY_SCHEMA,
             CHECKOUT_LINK_SCHEMA,
             CHECKOUT_RETIREMENT_SCHEMA,
+            CHECKOUT_UNLINK_SCHEMA,
         ]
         .contains(&self.version()?))
     }
@@ -670,10 +684,32 @@ impl Store {
                 transaction
                     .pragma_update(None, "user_version", CHECKOUT_RETIREMENT_SCHEMA)
                     .map_err(database)?;
-            } else if version != CHECKOUT_RETIREMENT_SCHEMA {
+            } else if !has_checkout_retirement(version) {
                 return Err(Failure::precondition(
                     "an admitted checkout intent is required before retirement",
                 ));
+            }
+            operation(transaction)
+        })
+    }
+
+    /// Fence old writers and admit the original unlink intent in one commit.
+    /// No binding or physical reservation is released by unlink admission.
+    pub(crate) fn checkout_unlink_transaction<T>(
+        &mut self,
+        operation: impl FnOnce(&Transaction<'_>) -> Result<T>,
+    ) -> Result<T> {
+        self.transaction(|transaction| {
+            let version: u32 = transaction
+                .pragma_query_value(None, "user_version", |row| row.get(0))
+                .map_err(database)?;
+            if version == CHECKOUT_LINK_SCHEMA {
+                transaction.execute_batch(CHECKOUT_RETIREMENT).map_err(database)?;
+            } else if !has_checkout_retirement(version) {
+                return Err(Failure::precondition("an active native checkout binding is required before unlink"));
+            }
+            if version != CHECKOUT_UNLINK_SCHEMA {
+                transaction.pragma_update(None, "user_version", CHECKOUT_UNLINK_SCHEMA).map_err(database)?;
             }
             operation(transaction)
         })

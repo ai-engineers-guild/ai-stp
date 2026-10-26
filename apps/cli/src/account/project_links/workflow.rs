@@ -20,7 +20,7 @@ use crate::{
     error::{ErrorKind, Failure, Result},
     files, identity, passport,
     projects::{checkout, passports},
-    store::{CHECKOUT_RETIREMENT_SCHEMA, checkout_schema_after, database, has_checkout_links},
+    store::{CHECKOUT_RETIREMENT_SCHEMA, CHECKOUT_UNLINK_SCHEMA, checkout_schema_after, database, has_checkout_links},
 };
 
 fn uncertain(id: &str) -> Failure {
@@ -176,7 +176,9 @@ fn make(
     at: &str,
 ) -> Result<Plan> {
     let plan = Plan {
-        schema_version: if before == CHECKOUT_RETIREMENT_SCHEMA {
+        schema_version: if before == CHECKOUT_UNLINK_SCHEMA {
+            3
+        } else if before == CHECKOUT_RETIREMENT_SCHEMA {
             2
         } else {
             1

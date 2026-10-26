@@ -12,13 +12,14 @@ use crate::{
 };
 
 pub const SCHEMA_VERSION: u32 = 53;
-pub const SUPPORTED_SCHEMA_VERSIONS: [u32; 6] = [
+pub const SUPPORTED_SCHEMA_VERSIONS: [u32; 7] = [
     SCHEMA_VERSION,
     crate::store::PRODUCTION_SCHEMA,
     crate::store::PROFILE_SCHEMA,
     crate::store::ENROLLMENT_RECOVERY_SCHEMA,
     crate::store::CHECKOUT_LINK_SCHEMA,
     crate::store::CHECKOUT_RETIREMENT_SCHEMA,
+    crate::store::CHECKOUT_UNLINK_SCHEMA,
 ];
 const MAX_BYTES: u64 = 128 * 1024 * 1024;
 
