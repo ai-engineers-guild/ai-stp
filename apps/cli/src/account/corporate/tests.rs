@@ -66,6 +66,45 @@ fn original_link_request_keys_are_bounded_and_only_read_retained_outcomes() -> R
 }
 
 #[test]
+fn settlement_uses_its_explicit_barrier_route_and_exact_original_plan() -> Result<()> {
+    let mut value = fixture(CONTEXT, "readProjectLinkPlanSettlement")?;
+    let request = Request::LinkSettlement {
+        plan_id: text(&value["plan"], "plan_id")?.into(),
+    };
+    let (url, body) = request.wire("https://corporate.example.test", ORGANIZATION, ACCOUNT)?;
+    assert_eq!(
+        url.path(),
+        format!(
+            "/v1/organizations/{ORGANIZATION}/project-link-plans/{}/settlement",
+            text(&value["plan"], "plan_id")?
+        )
+    );
+    assert!(body.is_none() && url.query().is_none());
+    value["future_private"] = "canary".into();
+    let observed = request.project(&value, ORGANIZATION, ACCOUNT)?;
+    assert!(!observed.to_string().contains("canary"));
+    value = observed.clone();
+    value["plan"]["plan_id"] = "link_plan_01ARZ3NDEKTSV4RRFFQ69G5FAV".into();
+    assert!(request.project(&value, ORGANIZATION, ACCOUNT).is_err());
+    value = observed.clone();
+    value["plan"]["organization_id"] = "organization_01ARZ3NDEKTSV4RRFFQ69G5FAV".into();
+    assert!(request.project(&value, ORGANIZATION, ACCOUNT).is_err());
+    value = observed;
+    value["state"] = "applied".into();
+    assert!(request.project(&value, ORGANIZATION, ACCOUNT).is_err());
+    for plan_id in ["link_plan_short", "link_plan/unsafe", "link_plan_%2f"] {
+        assert!(
+            Request::LinkSettlement {
+                plan_id: plan_id.into()
+            }
+            .wire("https://corporate.example.test", ORGANIZATION, ACCOUNT)
+            .is_err()
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn link_outcomes_require_exact_plan_link_and_context_coordinates() -> Result<()> {
     let value = fixture(CONTEXT, "readProjectLinkPlanOutcome")?;
     let request = Request::LinkOutcome {

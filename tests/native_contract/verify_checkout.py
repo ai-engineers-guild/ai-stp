@@ -39,6 +39,9 @@ class LostAcknowledgements:
         self.app = app
         self.lose_next: str | None = None
         self.hide_outcome = False
+        self.unsupported_settlement = False
+        self.settlement_reads = 0
+        self.refuse_next: str | None = None
         self.writes: list[str] = []
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -46,6 +49,14 @@ class LostAcknowledgements:
             await self.app(scope, receive, send)
             return
         path, method = scope["path"], scope["method"]
+        if method == "GET" and path.endswith("/settlement"):
+            self.settlement_reads += 1
+        if self.unsupported_settlement and method == "GET" and path.endswith("/settlement"):
+            await JSONResponse(
+                {"schema_version": 1, "ok": False, "error": {"code": "AI_STP_NOT_FOUND"}},
+                status_code=404,
+            )(scope, receive, send)
+            return
         if self.hide_outcome and method == "GET" and "/project-link-plan-requests/" in path:
             await JSONResponse(
                 {"schema_version": 1, "ok": False, "error": {"code": "AI_STP_NOT_FOUND"}},
@@ -59,6 +70,11 @@ class LostAcknowledgements:
             await self.app(scope, receive, send)
             return
         self.writes.append(path)
+        if self.refuse_next == path:
+            self.refuse_next = None
+            # Transport refusal before the real application receives this POST.
+            await JSONResponse({}, status_code=503)(scope, receive, send)
+            return
         if self.lose_next != path:
             await self.app(scope, receive, send)
             return
@@ -95,7 +111,7 @@ async def journey(
     offline_context: str,
     git_executable: str,
     label: str,
-) -> None:
+) -> tuple[str, str | None]:
     checkout = root / f"checkout-{label}"
     checkout.mkdir()
     canary = checkout / ".env"
@@ -213,6 +229,20 @@ async def journey(
     ] == "applying"
     requested = await enact(planned, "corporate", "project", "link", "apply")
     assert requested["state"] == "completed" and len(faults.writes) == writes_before + 1
+    server_plan = requested["effect"]["server_plan"]
+    ready = await run(
+        "corporate",
+        "project",
+        "link-settlement",
+        "--context",
+        context,
+        "--plan-id",
+        server_plan["plan_id"],
+    )
+    assert ready["observation"]["data"]["plan"] == server_plan
+    assert ready["observation"]["data"]["state"] == "ready"
+    assert ready["observation"]["data"]["link"] is None
+    assert await counts() == (before[0] + 1, before[1])
     confirmation = await run(
         "corporate",
         "project",
@@ -339,6 +369,19 @@ async def journey(
     adopted = await enact(adoption, "corporate", "project", "link", "apply")
     assert adopted["state"] == "completed" and not adopted["installation_authority"]
     assert reservation() == (original_request, confirmation_id, adoption["plan"]["operation_id"])
+    applied = await run(
+        "corporate",
+        "project",
+        "link-settlement",
+        "--context",
+        reader,
+        "--plan-id",
+        server_plan["plan_id"],
+    )
+    assert applied["observation"]["data"]["plan"] == server_plan
+    assert applied["observation"]["data"]["state"] == "applied"
+    assert applied["observation"]["data"]["link"] == adopted["effect"]["link"]
+    assert reservation() == (original_request, confirmation_id, adoption["plan"]["operation_id"])
     assert len(faults.writes) == writes_before + 2
     assert await counts() == (before[0] + 1, before[1] + 1)
     assert (await run("context", "list"))["selected"] == selected_before
@@ -363,6 +406,7 @@ async def journey(
         ),
         flush=True,
     )
+    return reader, replacement
 
 
 async def qualify(
@@ -441,7 +485,10 @@ async def qualify(
         "offline_context": offline_context,
         "git_executable": git_executable,
     }
-    await journey(**common, connection=connection, device=device, label="named")
+    _, retained_connection = await journey(
+        **common, connection=connection, device=device, label="named"
+    )
+    assert retained_connection is not None
     after_refusal = await refused(binary, home, old_arguments)
     assert after_refusal.error == baseline_refusal.error and not old_key.exists()
     after_receipts = {
@@ -457,7 +504,9 @@ async def qualify(
             "state"
         ] == "authorized"
     legacy_device = (await run("device", "show"))["device_id"]
-    await journey(**common, connection=None, device=legacy_device, label="root")
+    current_context, _ = await journey(
+        **common, connection=None, device=legacy_device, label="root"
+    )
     print(
         json.dumps(
             {
@@ -479,3 +528,6 @@ async def qualify(
         ),
         flush=True,
     )
+    from tests.native_contract.verify_checkout_retirement import qualify as qualify_retirement
+
+    await qualify_retirement(**common, context=current_context, connection=retained_connection)

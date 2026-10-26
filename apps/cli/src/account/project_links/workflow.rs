@@ -20,7 +20,7 @@ use crate::{
     error::{ErrorKind, Failure, Result},
     files, identity, passport,
     projects::{checkout, passports},
-    store::{CHECKOUT_LINK_SCHEMA, database},
+    store::{CHECKOUT_RETIREMENT_SCHEMA, checkout_schema_after, database, has_checkout_links},
 };
 
 fn uncertain(id: &str) -> Failure {
@@ -37,7 +37,7 @@ fn outcome_coordinates(value: &Value) -> Value {
     ])
 }
 
-fn owned(root: &Path, owner: &Owner, plan: &Plan) -> Result<()> {
+pub(super) fn owned(root: &Path, owner: &Owner, plan: &Plan) -> Result<()> {
     let (path, physical) = identity::root(root)?;
     if plan.state_parent != path
         || plan.snapshot().account.root_identity != physical
@@ -48,11 +48,11 @@ fn owned(root: &Path, owner: &Owner, plan: &Plan) -> Result<()> {
     Ok(())
 }
 
-fn load(root: &Path, id: &str) -> Result<(Owner, Record)> {
+pub(super) fn load(root: &Path, id: &str) -> Result<(Owner, Record)> {
     let owner = runtime::owner(root)?;
     let record = {
         let store = owner.planning()?;
-        if store.version()? != CHECKOUT_LINK_SCHEMA {
+        if !has_checkout_links(store.version()?) {
             return Err(Failure::new(
                 ErrorKind::NotFound,
                 "the native checkout operation has not been admitted",
@@ -82,13 +82,20 @@ fn request(root: &Path, plan: &Plan) -> Result<Record> {
         } => request_operation_id,
     };
     let (_, record) = load(root, id)?;
-    if !matches!(&record.plan.change, Change::Request { .. }) {
+    check_request_open(root, id)?;
+    if !matches!(&record.plan.change, Change::Request { .. }) || record.state == "retired" {
         return Err(invalid());
     }
     Ok(record)
 }
 
-fn reader_matches(context: &Context, original: &Snapshot) -> Result<()> {
+fn check_request_open(root: &Path, id: &str) -> Result<()> {
+    let owner = runtime::owner(root)?;
+    let store = owner.planning()?;
+    super::retirement::request_open(&store.connection, id)
+}
+
+pub(super) fn reader_matches(context: &Context, original: &Snapshot) -> Result<()> {
     let contexts::Authority::Remote {
         account,
         organization,
@@ -169,14 +176,18 @@ fn make(
     at: &str,
 ) -> Result<Plan> {
     let plan = Plan {
-        schema_version: 1,
+        schema_version: if before == CHECKOUT_RETIREMENT_SCHEMA {
+            2
+        } else {
+            1
+        },
         operation_id: format!("operation_{}", ulid::Ulid::generate()),
         state_parent: identity::root(root)?.0,
         checkout_root: checkout_root.into(),
         created_at: at.into(),
         expires_at: authoring::expiry(at)?,
         registry_schema_before: before,
-        registry_schema_after: CHECKOUT_LINK_SCHEMA,
+        registry_schema_after: checkout_schema_after(before)?,
         change: change(Box::new(snapshot)),
     };
     plan.digest()?;
@@ -230,7 +241,8 @@ pub fn confirmation_plan(
     at: &str,
 ) -> Result<Plan> {
     let (_, original) = load(root, request_id)?;
-    if !matches!(&original.plan.change, Change::Request { .. }) {
+    check_request_open(root, request_id)?;
+    if !matches!(&original.plan.change, Change::Request { .. }) || original.state == "retired" {
         return Err(invalid());
     }
     let (observed, _) = read_original(root, &original.plan, None)?;
@@ -283,7 +295,8 @@ pub fn adoption_plan(
     at: &str,
 ) -> Result<Plan> {
     let (_, original) = load(root, request_id)?;
-    if !matches!(&original.plan.change, Change::Request { .. }) {
+    check_request_open(root, request_id)?;
+    if !matches!(&original.plan.change, Change::Request { .. }) || original.state == "retired" {
         return Err(invalid());
     }
     let selected = contexts::resolve(root, context)?;
@@ -342,7 +355,7 @@ pub fn list(root: &Path, after: Option<&str>, limit: u16) -> Result<Value> {
     let store = owner.planning()?;
     let mut items = Vec::new();
     let mut next = None;
-    if store.version()? == CHECKOUT_LINK_SCHEMA {
+    if has_checkout_links(store.version()?) {
         let mut query = store.connection.prepare("SELECT operation_id FROM operation WHERE kind=? AND operation_id>? ORDER BY operation_id LIMIT ?").map_err(database)?;
         let ids = query
             .query_map(
@@ -414,6 +427,7 @@ struct Reservation {
 }
 
 fn reserve(t: &Transaction<'_>, plan: &Plan, request_id: &str) -> Result<()> {
+    super::retirement::request_open(t, request_id)?;
     let snapshot = plan.snapshot();
     let physical = snapshot.physical_root()?;
     let held: Option<Reservation> = t.query_row(
@@ -529,7 +543,7 @@ pub fn apply(
         if record.plan.digest()? != expected {
             return Err(invalid());
         }
-        return if record.state == "completed" {
+        return if matches!(record.state.as_str(), "completed" | "retired") {
             record.output()
         } else {
             reconcile(root, record, context, at)
