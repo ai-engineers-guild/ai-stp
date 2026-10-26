@@ -598,3 +598,75 @@ impl Store {
         })
     }
 }
+
+#[cfg(test)]
+mod checkout_epoch_tests {
+    use super::*;
+
+    fn schema(connection: &Connection) -> rusqlite::Result<Vec<(String, String)>> {
+        let mut query = connection.prepare(
+            "SELECT name,coalesce(sql,'') FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%' ORDER BY name",
+        )?;
+        query
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect()
+    }
+
+    #[test]
+    fn checkout_epoch_admission_rolls_back_ddl_version_and_previous_journal_together()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
+        for before in [PROFILE_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA] {
+            let parent = tempfile::tempdir()?;
+            let mut store = Store::open(parent.path(), true)?;
+            store.profile_transaction(|_| Ok(()))?;
+            if before == ENROLLMENT_RECOVERY_SCHEMA {
+                store.enrollment_recovery_transaction(|_| Ok(()))?;
+            }
+            store.connection.execute(
+                "INSERT INTO operation(operation_id,kind,state,started_at,finished_at,detail) VALUES ('original-receipt','fixture','verified','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z','original-bytes')",
+                [],
+            )?;
+            let original_schema = schema(&store.connection)?;
+            let failed: Result<()> = store.checkout_transaction(|transaction| {
+                transaction.execute(
+                    "UPDATE operation SET detail='uncommitted-change' WHERE operation_id='original-receipt'",
+                    [],
+                ).map_err(database)?;
+                Err(Failure::precondition("fixture admission failed after the format upgrade"))
+            });
+            assert!(failed.is_err());
+            assert_eq!(store.version()?, before);
+            assert_eq!(schema(&store.connection)?, original_schema);
+            let receipt: String = store.connection.query_row(
+                "SELECT detail FROM operation WHERE operation_id='original-receipt'",
+                [],
+                |row| row.get(0),
+            )?;
+            assert_eq!(receipt, "original-bytes");
+            drop(store);
+            // Reopen through the real layout validator, rather than trusting
+            // only PRAGMA or an in-memory transaction result.
+            let mut store = Store::open(parent.path(), false)?;
+            assert_eq!(store.version()?, before);
+            store.checkout_transaction(|_| Ok(()))?;
+            assert_eq!(store.version()?, CHECKOUT_LINK_SCHEMA);
+            store.profile_transaction(|_| Ok(()))?;
+            store.enrollment_recovery_transaction(|_| Ok(()))?;
+            assert_eq!(store.version()?, CHECKOUT_LINK_SCHEMA);
+            drop(store);
+            let store = Store::open(parent.path(), false)?;
+            assert_eq!(store.version()?, CHECKOUT_LINK_SCHEMA);
+            assert!(store.connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name='native_checkout_reservation')",
+                [], |row| row.get::<_, bool>(0),
+            )?);
+            let receipt: String = store.connection.query_row(
+                "SELECT detail FROM operation WHERE operation_id='original-receipt'",
+                [],
+                |row| row.get(0),
+            )?;
+            assert_eq!(receipt, "original-bytes");
+        }
+        Ok(())
+    }
+}
