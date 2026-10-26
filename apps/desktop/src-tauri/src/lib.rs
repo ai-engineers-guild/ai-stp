@@ -530,6 +530,48 @@ async fn profile_apply(
     .map_err(|e| e.to_string())
 }
 
+/// The fixed checkout command consumes only the exact reviewed public plan.
+/// Its original journal, actor and retry semantics remain inside the CLI.
+#[tauri::command]
+async fn checkout_apply(
+    state: tauri::State<'_, Arc<AppState>>,
+    plan: serde_json::Value,
+    digest: String,
+    confirmed: bool,
+    context: Option<String>,
+    git_executable: Option<String>,
+) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        if !confirmed {
+            return CmdResult::failed(
+                "DESKTOP_CONFIRMATION_REQUIRED",
+                "Review and confirm the exact native checkout plan",
+            );
+        }
+        let file = match PublicPlanFile::bounded(&plan, 262144) {
+            Ok(file) => file,
+            Err(error) => return CmdResult::failed("DESKTOP_USAGE", error),
+        };
+        let mut arguments = argv("corporate project link apply");
+        arguments.extend([
+            "--plan".into(),
+            file.0.to_string_lossy().into_owned(),
+            "--plan-digest".into(),
+            digest,
+        ]);
+        if let Some(context) = context {
+            arguments.extend(["--context".into(), context]);
+        }
+        if let Some(git) = git_executable {
+            arguments.extend(["--git-executable".into(), git]);
+        }
+        run_cli_mutating(&st, &arguments)
+    })
+    .await
+    .map_err(|error| error.to_string())
+}
+
 /// Apply-tier passthrough: requires the explicit `confirmed` flag — the
 /// frontend sets it only after the user approved the exact plan digest on
 /// screen. Descriptor `parameter_rules` and `confirmation` still apply.
@@ -1039,6 +1081,7 @@ pub fn run() {
             cli_plan,
             cli_apply_confirmed,
             profile_apply,
+            checkout_apply,
             auth_login,
             auth_complete,
             auth_status,

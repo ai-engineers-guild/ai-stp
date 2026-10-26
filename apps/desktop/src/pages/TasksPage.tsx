@@ -4,6 +4,7 @@ import { ArrowRight, RefreshCw } from "lucide-react";
 import { cmdTaskList, type CmdResult } from "../transport";
 import { ResultMeta, Spinner } from "../components/Result";
 import { EmptyState, PageHeader, StatusBadge } from "../components/Layout";
+import CheckoutOperations from "../components/CheckoutOperations";
 
 export default function TasksPage() {
   const [list, setList] = useState<CmdResult | null>(null);
@@ -120,6 +121,7 @@ export default function TasksPage() {
           </ul>
         )}
       </section>
+      <CheckoutOperations />
     </div>
   );
 }
