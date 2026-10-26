@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/cli-release.yml
+      - .github/scripts/install-rust-toolchain.sh
       - apps/cli/Cargo.toml
       - apps/cli/Cargo.lock
       - apps/cli/xtask/**
@@ -60,12 +61,7 @@ jobs:
           persist-credentials: false
       - name: Install the native CLI toolchain
         shell: bash
-        run: |
-          set -euo pipefail
-          toolchain="$(sed -n 's/^channel = "\(.*\)"/\1/p' apps/cli/rust-toolchain.toml)"
-          test -n "${toolchain}"
-          rustup toolchain install "${toolchain}" --profile minimal
-          echo "RUSTUP_TOOLCHAIN=${toolchain}" >> "${GITHUB_ENV}"
+        run: bash .github/scripts/install-rust-toolchain.sh apps/cli/rust-toolchain.toml
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: "3.14.9"
