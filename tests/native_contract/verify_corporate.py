@@ -617,14 +617,14 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
     # The fixture creates/confirms one unlink; every native command below is a
     # read. Observe counts around those reads rather than treating a fixture POST
     # as native mutation or active local-binding retirement acceptance.
-    async def unlink_counts() -> tuple[int | None, ...]:
+    async def unlink_counts() -> tuple[int, ...]:
         async with app.state.sessionmaker() as db:
-            return tuple(
-                [
-                    await db.scalar(select(func.count()).select_from(model))
-                    for model in (ProjectLinkPlan, ProjectLink, ProjectUnlinkPlan, AuditEvent)
-                ]
-            )
+            counts: list[int] = []
+            for model in (ProjectLinkPlan, ProjectLink, ProjectUnlinkPlan, AuditEvent):
+                count = await db.scalar(select(func.count()).select_from(model))
+                assert isinstance(count, int)
+                counts.append(count)
+            return tuple(counts)
 
     async with AsyncClient(base_url=origin, timeout=15, trust_env=False) as client:
         planned = await client.post(
@@ -649,6 +649,10 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
             result = await observe("project", *reader)
             assert result["plan"] == unlink_plan and result["state"] == "ready"
             assert result["link"] is None and result["observation_only"]
+        assert await unlink_counts() == counts
+        async with app.state.sessionmaker() as db:
+            audit_before = await db.scalar(select(func.max(AuditEvent.id))) or 0
+        for reader in readers:
             await refused(
                 binary,
                 home,
@@ -674,7 +678,45 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
             ],
         )
         assert absent.error.code == "AI_STP_NOT_FOUND", absent.error.code
-        assert await unlink_counts() == counts
+        after_refusals = await unlink_counts()
+        assert after_refusals[:3] == counts[:3]
+        async with app.state.sessionmaker() as db:
+            audits = list(await db.scalars(select(AuditEvent).where(AuditEvent.id > audit_before)))
+        # The global HTTP error handler deliberately audits rejected requests.
+        # Successful observations stay audit-free; denials retain their own
+        # security evidence without creating any project business rows.
+        assert 1 <= len(audits) <= 2 * len(readers) + 1
+        assert len(audits) == after_refusals[3] - counts[3]
+        for audit in audits:
+            assert audit.target_table == "http_route" and audit.actor_account_id in accounts
+            assert audit.payload["method"] == "GET"
+            assert (
+                audit.action,
+                audit.outcome,
+                audit.reason,
+                audit.payload["http_status"],
+                audit.payload["error"],
+            ) in {
+                ("http.get.failed", "failed", "not_found", 404, "AI_STP_NOT_FOUND"),
+                (
+                    "http.get.denied",
+                    "denied",
+                    "capability_forbidden",
+                    403,
+                    "AI_STP_PERMISSION_DENIED",
+                ),
+            }
+        assert (
+            sum(
+                audit.actor_account_id == accounts[0]
+                and audit.target_id
+                == f"/v1/organizations/{organization}/project-unlink-plan-requests/"
+                "native-unlink-missing-request"
+                and audit.payload["error"] == "AI_STP_NOT_FOUND"
+                for audit in audits
+            )
+            == 1
+        )
         unlinked = await client.request(
             "DELETE",
             f"/v1/projects/links/{confirmed.json()['link_id']}",
