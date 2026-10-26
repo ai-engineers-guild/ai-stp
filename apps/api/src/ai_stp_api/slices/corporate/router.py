@@ -6,9 +6,8 @@ import secrets
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, Query, Request
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, get_settings, require_auth
+from ai_stp_api.deps import Db, get_settings, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
@@ -129,7 +128,7 @@ async def read_directory(
     organization_id: OrganizationId,
     query: Annotated[CorporateDirectoryQuery, Query()],
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateDirectoryView:
     return await directory.read_directory(
@@ -145,7 +144,7 @@ async def read_directory(
 async def read_overview(
     organization_id: OrganizationId,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateOverview:
     return await overview.read_overview(
@@ -162,7 +161,7 @@ async def update_member_profile(
     account_id: AccountId,
     payload: CorporateMemberProfileRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateMember:
     return await profiles.update_member_profile(
@@ -187,7 +186,7 @@ async def list_project_members(
     organization_id: str,
     project_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateMemberList:
     return await service.list_project_members(
@@ -207,7 +206,7 @@ async def list_member_projects(
     organization_id: str,
     account_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateProjectList:
     return await service.list_member_projects(
@@ -227,7 +226,7 @@ async def list_catalog_assignments(
     organization_id: str,
     query: Annotated[CorporateCatalogAssignmentQuery, Query()],
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateCatalogAssignmentList:
     return await assignments.list_assignments(
@@ -243,7 +242,7 @@ async def read_effective_assignment(
     organization_id: str,
     query: Annotated[CorporateEffectiveAssignmentQuery, Query()],
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateEffectiveAssignment:
     return await assignments.resolve_effective(
@@ -259,7 +258,7 @@ async def list_catalog_usage(
     organization_id: str,
     query: Annotated[CorporateCatalogUsageQuery, Query()],
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateCatalogUsageList:
     return await assignments.list_usage(
@@ -275,7 +274,7 @@ async def write_catalog_assignment(
     organization_id: str,
     payload: CorporateCatalogAssignmentRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateCatalogAssignment:
     return await assignments.write_assignment(
@@ -295,7 +294,7 @@ async def distribute_catalog_assignment(
     organization_id: str,
     payload: CorporateDistributionRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateDistributionResult:
     return await assignments.distribute_assignment(
@@ -315,7 +314,7 @@ async def list_catalog_assignment_distribution(
     organization_id: str,
     query: Annotated[CorporateDistributionStateQuery, Query()],
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateDistributionStateList:
     return await assignments.list_distribution(
@@ -331,7 +330,7 @@ async def plan_catalog_assignments(
     organization_id: str,
     payload: CorporateAssignmentPlanRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateAssignmentPlan:
     return await assignments.plan_assignments(
@@ -349,7 +348,7 @@ async def bootstrap(
     request: Request,
     bootstrap_secret: Annotated[str, Header(alias="X-AI-STP-Bootstrap-Secret")],
     settings: Annotated[Settings, Depends(get_settings)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> CorporateOrganization:
     configured = settings.corporate.bootstrap_secret
     if not configured or not secrets.compare_digest(bootstrap_secret, configured):
@@ -361,7 +360,7 @@ async def bootstrap(
 async def read_context(
     organization_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateContext:
     return await service.read_context(
@@ -374,7 +373,7 @@ async def create_member(
     organization_id: str,
     payload: CorporateMemberCreateRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateMember:
     return await service.create_member(
@@ -394,7 +393,7 @@ async def create_job_title(
     organization_id: str,
     payload: CorporateJobTitleCreateRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateJobTitleView:
     return await service.create_job_title(
@@ -413,7 +412,7 @@ async def create_job_title(
 async def list_job_titles(
     organization_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateJobTitleList:
     return await service.list_job_titles(
@@ -433,7 +432,7 @@ async def update_job_title(
     job_title_id: str,
     payload: CorporateJobTitleUpdateRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateJobTitleView:
     return await service.update_job_title(
@@ -452,7 +451,7 @@ async def update_job_title(
 async def list_members(
     organization_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateMemberList:
     return await service.list_members(
@@ -466,7 +465,7 @@ async def list_members(
 )
 async def list_teammates(
     organization_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateTeammates:
     return await service.list_teammates(db, ctx=ctx, organization_id=organization_id)
@@ -481,7 +480,7 @@ async def update_member(
     account_id: str,
     payload: CorporateMemberUpdateRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateMember:
     return await service.update_member(
@@ -503,7 +502,7 @@ async def change_project_lifecycle(
     project_id: str,
     payload: CorporateProjectLifecycleRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateProjectView:
     return await service.change_project_lifecycle(
@@ -525,7 +524,7 @@ async def delete_member(
     account_id: str,
     payload: CorporateDeleteRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateDeleteResult:
     return await service.delete_member(
@@ -546,7 +545,7 @@ async def read_member(
     organization_id: str,
     account_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateMember:
     return await service.read_member(
@@ -566,7 +565,7 @@ async def read_member_access(
     organization_id: str,
     account_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     scope_kind: Annotated[
         Literal["organization", "team", "project", "technology", "catalog_object", "member"],
@@ -590,7 +589,7 @@ async def create_binding(
     organization_id: str,
     payload: CorporateBindingRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateBinding:
     return await service.create_binding(
@@ -608,7 +607,7 @@ async def create_binding(
 async def list_bindings(
     organization_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateBindingList:
     return await service.list_bindings(
@@ -624,7 +623,7 @@ async def read_binding(
     organization_id: str,
     binding_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateBinding:
     return await service.read_binding(
@@ -645,7 +644,7 @@ async def update_binding(
     binding_id: str,
     payload: CorporateBindingUpdateRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateBinding:
     return await service.update_binding(
@@ -667,7 +666,7 @@ async def delete_binding(
     binding_id: str,
     payload: CorporateDeleteRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateDeleteResult:
     return await service.delete_binding(
@@ -687,7 +686,7 @@ async def delete_binding(
 async def read_delegation(
     organization_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateDelegationView:
     return await service.read_delegation(
@@ -703,7 +702,7 @@ async def create_permission_grant(
     organization_id: str,
     payload: CorporatePermissionGrantRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporatePermissionGrant:
     return await service.create_permission_grant(
@@ -722,7 +721,7 @@ async def create_permission_grant(
 async def list_permission_grants(
     organization_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     account_id: Annotated[str | None, Query()] = None,
 ) -> CorporatePermissionGrantList:
@@ -744,7 +743,7 @@ async def revoke_permission_grant(
     grant_id: str,
     payload: CorporateDeleteRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporatePermissionGrant:
     return await service.revoke_permission_grant(
@@ -762,7 +761,7 @@ async def create_role(
     organization_id: str,
     payload: CorporateRoleCreateRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateRoleView:
     return await service.create_role(
@@ -778,7 +777,7 @@ async def create_role(
 async def list_roles(
     organization_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateRoleList:
     return await service.list_roles(
@@ -794,7 +793,7 @@ async def read_role(
     organization_id: str,
     role_name: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateRoleView:
     return await service.read_role(
@@ -815,7 +814,7 @@ async def update_role(
     role_name: str,
     payload: CorporateRoleUpdateRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateRoleView:
     return await service.update_role(
@@ -837,7 +836,7 @@ async def delete_role(
     role_name: str,
     payload: CorporateRoleDeleteRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateDeleteResult:
     return await service.delete_role(
@@ -858,7 +857,7 @@ async def assign_member(
     organization_id: str,
     payload: CorporateMembershipAssignmentRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateMembershipAssignment:
     return await service.assign_member(
@@ -877,7 +876,7 @@ async def create_project(
     organization_id: str,
     payload: CorporateProjectCreateRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateProjectView:
     return await service.create_project(
@@ -895,7 +894,7 @@ async def create_project(
 async def list_projects(
     organization_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateProjectList:
     return await service.list_projects(
@@ -911,7 +910,7 @@ async def read_project(
     organization_id: str,
     project_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateProjectView:
     return await service.read_project(
@@ -932,7 +931,7 @@ async def update_project(
     project_id: str,
     payload: CorporateProjectUpdateRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateProjectView:
     return await service.update_project(
@@ -954,7 +953,7 @@ async def delete_project(
     project_id: str,
     payload: CorporateDeleteRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateDeleteResult:
     return await service.delete_project(
@@ -972,7 +971,7 @@ async def create_team(
     organization_id: str,
     payload: CorporateTeamCreateRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateTeamView:
     return await service.create_team(
@@ -988,7 +987,7 @@ async def create_team(
 async def list_teams(
     organization_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateTeamList:
     return await service.list_teams(
@@ -1004,7 +1003,7 @@ async def read_team(
     organization_id: str,
     team_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateTeamView:
     return await service.read_team(
@@ -1025,7 +1024,7 @@ async def update_team(
     team_id: str,
     payload: CorporateTeamUpdateRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateTeamView:
     return await service.update_team(
@@ -1047,7 +1046,7 @@ async def delete_team(
     team_id: str,
     payload: CorporateDeleteRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateDeleteResult:
     return await service.delete_team(
@@ -1068,7 +1067,7 @@ async def create_service_principal(
     organization_id: str,
     payload: CorporateServicePrincipalCreateRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateServicePrincipalView:
     return await service.create_service_principal(
@@ -1087,7 +1086,7 @@ async def create_service_principal(
 async def list_service_principals(
     organization_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateServicePrincipalList:
     return await service.list_service_principals(
@@ -1103,7 +1102,7 @@ async def read_service_principal(
     organization_id: str,
     service_principal_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateServicePrincipalView:
     return await service.read_service_principal(
@@ -1124,7 +1123,7 @@ async def update_service_principal(
     service_principal_id: str,
     payload: CorporateServicePrincipalUpdateRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateServicePrincipalView:
     return await service.update_service_principal(
@@ -1146,7 +1145,7 @@ async def delete_service_principal(
     service_principal_id: str,
     payload: CorporateDeleteRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateDeleteResult:
     return await service.delete_service_principal(
@@ -1163,7 +1162,7 @@ async def delete_service_principal(
 async def list_audit(
     organization_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     before_id: Annotated[int | None, Query(ge=1)] = None,
     before_created_at: Timestamp | None = None,
@@ -1205,7 +1204,7 @@ async def list_audit(
 async def export_audit(
     organization_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     before_id: Annotated[int | None, Query(ge=1)] = None,
     before_created_at: Timestamp | None = None,

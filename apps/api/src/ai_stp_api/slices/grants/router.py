@@ -6,9 +6,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import Db, require_auth
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.grants import service
 from ai_stp_contracts.grants import (
@@ -29,7 +28,7 @@ def _resource(model: object, *, status_code: int = 200) -> JSONResponse:
 @router.post("/grants/invitations", response_model=None)
 async def create_grant_invitation(
     body: GrantInvitationCreateRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.create_invitation(db, ctx=ctx, body=body)
@@ -38,7 +37,7 @@ async def create_grant_invitation(
 
 @router.get("/grants", response_model=None)
 async def list_grants(
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.list_grants(db, ctx=ctx)
@@ -48,7 +47,7 @@ async def list_grants(
 @router.post("/grants/direct", response_model=None)
 async def create_direct_grant(
     body: DirectGrantCreateRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.create_direct_grant(db, ctx=ctx, body=body)
@@ -59,7 +58,7 @@ async def create_direct_grant(
 async def accept_grant_invitation(
     invitation_id: str,
     body: GrantAcceptRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.accept_invitation(db, ctx=ctx, invitation_id=invitation_id, body=body)
@@ -70,7 +69,7 @@ async def accept_grant_invitation(
 async def revoke_grant_invitation(
     invitation_id: str,
     body: GrantRevokeRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.revoke_invitation(db, ctx=ctx, invitation_id=invitation_id, body=body)
@@ -81,7 +80,7 @@ async def revoke_grant_invitation(
 async def revoke_access_grant(
     grant_id: str,
     body: GrantRevokeRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.revoke_grant(db, ctx=ctx, grant_id=grant_id, body=body)

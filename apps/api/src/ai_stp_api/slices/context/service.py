@@ -512,11 +512,23 @@ async def require_capability(
     return organization
 
 
-async def require_active_device(db: AsyncSession, *, ctx: AuthContext) -> Device:
+async def require_active_device(
+    db: AsyncSession, *, ctx: AuthContext, for_update: bool = False
+) -> Device:
     """Project links and syncs are device-bound, like the existing sync ledger."""
     if ctx.device_id is None:
         raise ApiError(ErrorCategory.AUTH_REQUIRED, "device-bound session required")
-    device = await db.get(Device, ctx.device_id)
+    if for_update:
+        # A confirmed revocation must fence every earlier device-bound mutation.
+        # Refresh a device the authentication dependency may already have loaded.
+        device = await db.scalar(
+            select(Device)
+            .where(Device.id == ctx.device_id, Device.account_id == ctx.account_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    else:
+        device = await db.get(Device, ctx.device_id)
     if device is None or device.account_id != ctx.account_id:
         raise ApiError(ErrorCategory.AUTH_REQUIRED, "device-bound session required")
     if device.state != "active":
@@ -627,26 +639,12 @@ def unlink_plan_body(plan: ProjectUnlinkPlan) -> ProjectUnlinkPlanResponse:
     )
 
 
-async def read_project_link_target(
-    db: AsyncSession,
-    *,
-    ctx: AuthContext,
-    organization_id: str,
-    remote_project_id: str,
-) -> ProjectLinkTargetResponse:
-    """Observe existing identities under the same current policy as link planning."""
-    from ai_stp_api.slices.corporate import service as corporate
+async def _require_link_project(
+    db: AsyncSession, *, ctx: AuthContext, organization_id: str, remote_project_id: str, mode: str
+) -> None:
+    if mode == "corporate":
+        from ai_stp_api.slices.corporate import service as corporate
 
-    await require_active_device(db, ctx=ctx)
-    projection = await remote_projection(db, ctx=ctx, organization_id=organization_id)
-    await require_capability(
-        db,
-        ctx=ctx,
-        organization_id=organization_id,
-        capability="project.link",
-        authorization_revision=projection.authorization_revision,
-    )
-    if projection.mode == "corporate":
         project = await corporate.read_project(
             db,
             ctx=ctx,
@@ -656,6 +654,32 @@ async def read_project_link_target(
         )
         if project.state != "active" or project.lifecycle not in (None, "active"):
             raise ApiError(ErrorCategory.PRECONDITION, "project link target is not active")
+
+
+async def read_project_link_target(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    remote_project_id: str,
+) -> ProjectLinkTargetResponse:
+    """Observe existing identities under the same current policy as link planning."""
+    await require_active_device(db, ctx=ctx)
+    projection = await remote_projection(db, ctx=ctx, organization_id=organization_id)
+    await require_capability(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        capability="project.link",
+        authorization_revision=projection.authorization_revision,
+    )
+    await _require_link_project(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        remote_project_id=remote_project_id,
+        mode=projection.mode,
+    )
     remote = await db.scalar(
         select(ProjectIdentity).where(
             ProjectIdentity.organization_id == organization_id,
@@ -733,8 +757,8 @@ async def create_project_link_plan(
     payload: ProjectLinkPlanRequest,
 ) -> ProjectLinkPlanResponse:
     """Create or replay the server-authored link decision."""
-    device = await require_active_device(db, ctx=ctx)
-    await require_capability(
+    device = await require_active_device(db, ctx=ctx, for_update=True)
+    organization = await require_capability(
         db,
         ctx=ctx,
         organization_id=organization_id,
@@ -768,6 +792,13 @@ async def create_project_link_plan(
             raise ApiError(ErrorCategory.CONFLICT, "idempotency key belongs to another link plan")
         return link_plan_body(replay)
 
+    await _require_link_project(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        remote_project_id=payload.remote_project_id,
+        mode=organization.kind,
+    )
     await _validate_link_target_revisions(db, organization_id=organization_id, payload=payload)
     active_link = await db.scalar(
         select(ProjectLink).where(
@@ -822,7 +853,7 @@ async def observe_provider_project(
     payload: ProviderProjectObservationRequest,
 ) -> ProjectIdentity:
     """Record provider evidence without matching or mutating a project link."""
-    await require_active_device(db, ctx=ctx)
+    await require_active_device(db, ctx=ctx, for_update=True)
     await require_capability(
         db,
         ctx=ctx,
@@ -879,7 +910,7 @@ async def create_project_link_proposal(
     payload: ProjectLinkProposalRequest,
 ) -> ProjectLinkProposal:
     """Persist an observation as a proposal; link creation remains explicit."""
-    await require_active_device(db, ctx=ctx)
+    await require_active_device(db, ctx=ctx, for_update=True)
     await require_capability(
         db,
         ctx=ctx,
@@ -1068,6 +1099,37 @@ async def read_project_link_plan_outcome(
     )
 
 
+async def read_project_link_request_outcome(
+    db: AsyncSession, *, ctx: AuthContext, organization_id: str, request_key: str
+) -> ProjectLinkPlanOutcome:
+    """Find retained evidence when the client lost the original plan response."""
+    await require_active_device(db, ctx=ctx)
+    projection = await remote_projection(db, ctx=ctx, organization_id=organization_id)
+    await require_capability(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        capability="project.link",
+        authorization_revision=projection.authorization_revision,
+    )
+    plan_id = await db.scalar(
+        select(ProjectLinkPlan.id).where(
+            ProjectLinkPlan.organization_id == organization_id,
+            ProjectLinkPlan.actor_account_id == ctx.account_id,
+            ProjectLinkPlan.idempotency_key == request_key,
+        )
+    )
+    if plan_id is None:
+        # This read is not a terminal acknowledgement of an in-flight request.
+        raise ApiError(ErrorCategory.NOT_FOUND, "project link request outcome not found")
+    return await read_project_link_plan_outcome(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        plan_id=plan_id,
+    )
+
+
 async def create_project_unlink_plan(
     db: AsyncSession,
     *,
@@ -1076,7 +1138,7 @@ async def create_project_unlink_plan(
     payload: ProjectUnlinkPlanRequest,
 ) -> ProjectUnlinkPlanResponse:
     """Create or replay the server-authored unlink decision."""
-    device = await require_active_device(db, ctx=ctx)
+    device = await require_active_device(db, ctx=ctx, for_update=True)
     link = await _link_for_member(
         db, ctx=ctx, organization_id=organization_id, link_id=payload.link_id
     )
@@ -1167,8 +1229,8 @@ async def create_project_link(
     payload: ProjectLinkRequest,
 ) -> ProjectLinkResponse:
     """Confirm one exact server-authored link plan."""
-    device = await require_active_device(db, ctx=ctx)
-    await require_capability(
+    device = await require_active_device(db, ctx=ctx, for_update=True)
+    organization = await require_capability(
         db,
         ctx=ctx,
         organization_id=organization_id,
@@ -1222,6 +1284,13 @@ async def create_project_link(
     if plan.state != "ready" or expires_at <= datetime.now(UTC):
         raise ApiError(ErrorCategory.PRECONDITION, "project link plan is no longer active")
 
+    await _require_link_project(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        remote_project_id=plan.remote_project_id,
+        mode=organization.kind,
+    )
     await _validate_link_target_revisions(
         db,
         organization_id=organization_id,
@@ -1301,7 +1370,7 @@ async def unlink_project_link(
     payload: ProjectUnlinkRequest,
 ) -> ProjectLinkResponse:
     """Confirm one exact unlink plan, retaining identities and history."""
-    device = await require_active_device(db, ctx=ctx)
+    device = await require_active_device(db, ctx=ctx, for_update=True)
     plan = await db.scalar(
         select(ProjectUnlinkPlan).where(ProjectUnlinkPlan.id == payload.plan_id).with_for_update()
     )
@@ -1532,7 +1601,7 @@ async def push_project_revision(
     resolution: bool = False,
 ) -> ProjectRevisionPushResponse:
     """Store one project revision, accepting only initial/fast-forward pushes."""
-    device = await require_active_device(db, ctx=ctx)
+    device = await require_active_device(db, ctx=ctx, for_update=True)
     link = _require_linked(
         await _link_for_member(
             db,
@@ -1835,7 +1904,7 @@ async def create_sync_plan(
     payload: ProjectSyncPlanRequest,
 ) -> ProjectSyncPlanResponse:
     """Persist a deterministic sync decision without changing either endpoint."""
-    device = await require_active_device(db, ctx=ctx)
+    device = await require_active_device(db, ctx=ctx, for_update=True)
     link = _require_linked(
         await _link_for_member(
             db,
@@ -2040,7 +2109,7 @@ async def apply_sync_plan(
     payload: ProjectSyncApplyRequest,
 ) -> ProjectSyncPlanResponse:
     """Apply one exact ready plan and record an idempotent receipt."""
-    device = await require_active_device(db, ctx=ctx)
+    device = await require_active_device(db, ctx=ctx, for_update=True)
     plan = await db.scalar(
         select(ProjectSyncPlan).where(ProjectSyncPlan.id == plan_id).with_for_update()
     )

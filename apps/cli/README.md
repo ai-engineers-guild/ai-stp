@@ -73,6 +73,11 @@ device of the same account may recover this evidence; confirmation remains bound
 to the original device. This read neither retries confirmation nor binds a local
 checkout, and membership and policy are checked again for every observation.
 
+If the original plan response was lost, use `corporate project link-request-outcome`
+with `--request-key KEY` and that request's exact retained idempotency key. The read
+finds only the same account's original plan; it does not submit or confirm it.
+An absent result leaves an in-flight request unknown and cannot prove rollback.
+
 These commands accept `--context ID`; omission resolves the selected view once
 for that new read. The result retains its original context, current account
 revision and bounded observations. Changing the view during a delayed reply does
@@ -87,6 +92,24 @@ managed inventory, without personal or other-context installations. Its server
 diff and observation digest cannot be applied as an installation plan. Checkout
 linking, context-owned installation receipts and actual corporate delivery remain
 separate operations.
+
+`project checkout inspect --root PATH` observes a Git checkout without an account,
+registry or marker. Git remains user-managed; `--git-executable /absolute/path`
+selects an existing trusted executable when ordinary PATH discovery is unavailable.
+The bounded local queries disable prompts, optional locks, lazy fetch and Git
+transport protocols, and exclude ambient Git overrides and global/system config.
+Repository config includes refuse; enabled worktree config is observed separately.
+Remote/routing values appear only as opaque fingerprints, never as raw URLs.
+
+The result separates physical root/Git directory/common-directory identities,
+branch and routing topology from the current SHA-1/SHA-256 commit. An ordinary
+commit on the same branch changes the observation but preserves the topology
+digest; relocation, replaced roots, branch/detached changes and remapping do not.
+Two matching reads detect observed races; this is not a filesystem lock or a
+provider confinement boundary. Name each nested repository's own root explicitly.
+Unborn and detached states are observations, not authorization to enroll them.
+No provider repository identity is inferred and no local/corporate binding or
+installation authority is created.
 
 `just cli-corporate-regress` runs the optimized native engine against a real
 loopback API and a disposable PostgreSQL database selected by

@@ -386,6 +386,10 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         ready = await observe("project", "link-outcome", "--plan-id", link_plan["plan_id"])
         assert ready["state"] == "ready" and ready["link"] is None
         assert ready["plan"] == link_plan and ready["observation_only"]
+        request_outcome = await observe(
+            "project", "link-request-outcome", "--request-key", "native-link-outcome-plan"
+        )
+        assert request_outcome["plan"] == link_plan and request_outcome["state"] == "ready"
         confirmed = await client.post(
             "/v1/projects/links",
             headers=link_headers,
@@ -400,6 +404,10 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
     applied = await observe("project", "link-outcome", "--plan-id", link_plan["plan_id"])
     assert applied["state"] == "applied" and applied["plan"] == link_plan
     assert applied["link"] == confirmed.json()
+    request_outcome = await observe(
+        "project", "link-request-outcome", "--request-key", "native-link-outcome-plan"
+    )
+    assert request_outcome["plan"] == link_plan and request_outcome["link"] == confirmed.json()
     await refused(
         binary,
         home,
@@ -409,6 +417,20 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
             "link-outcome",
             "--plan-id",
             link_plan["plan_id"],
+            "--context",
+            contexts[1],
+            *scoped,
+        ],
+    )
+    await refused(
+        binary,
+        home,
+        [
+            "corporate",
+            "project",
+            "link-request-outcome",
+            "--request-key",
+            "native-link-outcome-plan",
             "--context",
             contexts[1],
             *scoped,

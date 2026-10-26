@@ -16,6 +16,7 @@ pub(super) enum Handler {
     Project,
     LinkTarget,
     LinkOutcome,
+    LinkRequestOutcome,
     Technologies,
     Mappings,
     Mapping,
@@ -130,6 +131,21 @@ pub(super) const COMMANDS: &[Declaration] = &[
         handler: super::Handler::Corporate(Handler::LinkOutcome),
     },
     Declaration {
+        path: &["corporate", "project", "link-request-outcome"],
+        summary: "Read an original account-owned link request outcome by its retained idempotency key; an absent result leaves in-flight effects unknown.",
+        parameters: &[
+            STATE_DIR,
+            CONTEXT,
+            Parameter {
+                name: "request-key",
+                summary: "Original link-plan request idempotency key, 16 to 128 ASCII letters, digits or ._~-.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LinkRequestOutcome),
+    },
+    Declaration {
         path: &["corporate", "technologies"],
         summary: "Read organization-owned technologies; bundled local seeds grant no corporate authority.",
         parameters: &[
@@ -230,6 +246,9 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         },
         Handler::LinkOutcome => Request::LinkOutcome {
             plan_id: text("plan-id")?,
+        },
+        Handler::LinkRequestOutcome => Request::LinkRequestOutcome {
+            request_key: text("request-key")?,
         },
         Handler::Technologies => Request::Technologies {
             query: optional("query"),
