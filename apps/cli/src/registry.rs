@@ -61,6 +61,7 @@ enum Handler {
     ProjectSymbols,
     ProjectTechnology,
     ProjectDiscover,
+    ProjectCheckout,
     CatalogSearch,
     CatalogShow,
     CatalogVersion,
@@ -579,6 +580,20 @@ const COMMANDS: &[Declaration] = &[
         handler: Handler::ProjectDiscover,
     },
     Declaration {
+        path: &["project", "checkout", "inspect"],
+        summary: "Observe the exact local Git checkout with bounded user-managed Git queries, opaque routing fingerprints and no binding or installation authority.",
+        parameters: &[
+            ROOT,
+            Parameter {
+                name: "git-executable",
+                summary: "Existing trusted Git executable at an absolute path; omission resolves Git from absolute PATH entries without installing it.",
+                kind: ParameterType::Path,
+                required: false,
+            },
+        ],
+        handler: Handler::ProjectCheckout,
+    },
+    Declaration {
         path: &["project", "index"],
         summary: "Describe and hash bounded project files without following symlinks or reading credentials.",
         parameters: &[ROOT],
@@ -1080,6 +1095,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         ),
         Handler::ProjectIndex
         | Handler::ProjectDiscover
+        | Handler::ProjectCheckout
         | Handler::ProjectSymbols
         | Handler::ProjectTechnology => {
             let root = leaf
@@ -1087,6 +1103,11 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
                 .ok_or_else(|| Failure::input("root is required"))?;
             match declaration.handler {
                 Handler::ProjectIndex => projects::index(root),
+                Handler::ProjectCheckout => projects::checkout::observe(
+                    root,
+                    leaf.get_one::<std::path::PathBuf>("git-executable")
+                        .map(|path| path.as_path()),
+                ),
                 Handler::ProjectSymbols => projects::symbols(root),
                 Handler::ProjectTechnology => projects::technology::inspect(root),
                 _ => projects::discover(root),

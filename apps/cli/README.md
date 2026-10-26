@@ -93,6 +93,24 @@ diff and observation digest cannot be applied as an installation plan. Checkout
 linking, context-owned installation receipts and actual corporate delivery remain
 separate operations.
 
+`project checkout inspect --root PATH` observes a Git checkout without an account,
+registry or marker. Git remains user-managed; `--git-executable /absolute/path`
+selects an existing trusted executable when ordinary PATH discovery is unavailable.
+The bounded local queries disable prompts, optional locks, lazy fetch and Git
+transport protocols, and exclude ambient Git overrides and global/system config.
+Repository config includes refuse; enabled worktree config is observed separately.
+Remote/routing values appear only as opaque fingerprints, never as raw URLs.
+
+The result separates physical root/Git directory/common-directory identities,
+branch and routing topology from the current SHA-1/SHA-256 commit. An ordinary
+commit on the same branch changes the observation but preserves the topology
+digest; relocation, replaced roots, branch/detached changes and remapping do not.
+Two matching reads detect observed races; this is not a filesystem lock or a
+provider confinement boundary. Name each nested repository's own root explicitly.
+Unborn and detached states are observations, not authorization to enroll them.
+No provider repository identity is inferred and no local/corporate binding or
+installation authority is created.
+
 `just cli-corporate-regress` runs the optimized native engine against a real
 loopback API and a disposable PostgreSQL database selected by
 `AI_STP_TEST_DB_URL`. Linux CI runs this gate without an optional skip. Only

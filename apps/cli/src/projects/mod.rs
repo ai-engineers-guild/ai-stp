@@ -1,5 +1,6 @@
 //! Bounded project evidence through held directory handles, without writes.
 
+pub mod checkout;
 mod discovery;
 mod index;
 pub mod passports;
