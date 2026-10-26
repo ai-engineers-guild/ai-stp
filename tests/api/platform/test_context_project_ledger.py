@@ -15,6 +15,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ai_stp_api.app import create_app
+from ai_stp_api.audit import emit_audit
 from ai_stp_api.session import AuthContext, issue_session
 from ai_stp_api.settings import Settings
 from ai_stp_api.slices.context import service as context_service
@@ -282,7 +283,7 @@ async def test_link_settlement_waits_for_confirmation_that_crosses_expiry(
     mutated: asyncio.Future[None] = loop.create_future()
     release: asyncio.Future[None] = loop.create_future()
     reader_entered: asyncio.Future[int] = loop.create_future()
-    original_audit = context_service.emit_audit
+    original_audit = emit_audit
     original_read = context_service._project_link_plan_outcome
 
     async def block_commit(db: AsyncSession, **arguments: Any) -> AuditEvent:
