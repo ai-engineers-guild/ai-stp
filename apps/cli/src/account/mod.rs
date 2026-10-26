@@ -11,6 +11,7 @@ pub mod github;
 pub mod grants;
 mod journal;
 mod model;
+pub mod project_links;
 pub mod providers;
 mod recovery;
 pub mod reports;

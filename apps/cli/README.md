@@ -66,6 +66,20 @@ by a separate server-authored link plan. It creates no link or local binding.
 Provider duplicates, mixed coordinates and a policy revision inconsistent with
 the current context refuse; incomplete provider observations must be refreshed.
 
+`corporate project link-preview --project ID --root PATH` joins those current
+coordinates with an existing owned private project passport and an attached,
+committed Git checkout. Record the passport first with `project passport plan`
+and `local apply`. Optional `--provider-project ID` selects an exact current server
+provider identity; it is never guessed from a remote URL. `--git-executable` may
+name an existing trusted Git executable. The preview keeps the original context
+and enrollment and rechecks session, membership/policy, target revisions, physical
+root, passport head and Git evidence. Switching the selected view cannot retarget
+it. It sends no local passport, Git routing data or installation inventory.
+Unregistered, unborn/detached or changed checkouts require explicit reconciliation.
+The preview digest and request coordinates are observations: no idempotent request
+is admitted, no server plan/link or local binding is created, and they cannot be
+applied as an installation or confirmation plan.
+
 `corporate project link-outcome --plan-id ID` reads the original account-owned
 plan and its current ready, expired or applied outcome. Applied evidence includes
 the exact retained link, including its current unlinked/conflict state. A fresh
