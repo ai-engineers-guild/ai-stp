@@ -1,5 +1,6 @@
 //! Offline authoring surfaces captured from the authenticated managed release.
-//! The shared first-alpha catalog remains immutable historical input.
+//! The shared catalog retains historical profile anchors. Managed release
+//! surfaces own the current authoring digests rather than rewriting anchors.
 
 use std::{collections::BTreeSet, sync::OnceLock};
 

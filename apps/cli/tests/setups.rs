@@ -493,7 +493,7 @@ fn seed(
         revisions::commit(t,&json!({"kind":"component","stable_id":format!("component_{}",ulid::Ulid::generate()),"owner_id":identity.account_id,"created_at":AT,"facts":facts}),&identity.device_id,None,Write::Advance {expected_heads:&[]})
     })?;
     let declarations: Vec<Value> =
-        serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+        serde_json::from_str(include_str!("fixtures/provider-declarations-0.0.95.json"))?;
     let providers = declarations
         .iter()
         .map(|value| {
@@ -750,7 +750,7 @@ fn exact_setup_closure_constraints_atomicity_and_replay() -> Result<(), Box<dyn 
         for_redistribution: false,
     };
     let declarations: Vec<Value> =
-        serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+        serde_json::from_str(include_str!("fixtures/provider-declarations-0.0.95.json"))?;
     let declaration = declarations
         .iter()
         .find(|value| value["harness_id"] == "claude-code")

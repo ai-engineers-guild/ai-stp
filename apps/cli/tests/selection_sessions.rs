@@ -122,7 +122,7 @@ fn durable_selection_rechecks_context_and_commits_one_complete_effect() -> Resul
         device_id: "device_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
     };
     let declarations: Vec<Value> =
-        serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+        serde_json::from_str(include_str!("fixtures/provider-declarations-0.0.95.json"))?;
     let provider = Info::parse(&serde_json::to_vec(
         declarations
             .iter()
