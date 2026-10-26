@@ -1,0 +1,48 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:project-link-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Confirm one exact server-authored link plan.",
+  "properties": {
+    "authorization_revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Authorization Revision",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "plan_digest": {
+      "maxLength": 71,
+      "minLength": 71,
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "plan_id": {
+      "pattern": "^link_plan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Plan Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "plan_id",
+    "plan_digest",
+    "authorization_revision",
+    "idempotency_key"
+  ],
+  "title": "ProjectLinkRequest",
+  "type": "object"
+}

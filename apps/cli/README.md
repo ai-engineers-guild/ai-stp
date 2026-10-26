@@ -92,6 +92,29 @@ with `--request-key KEY` and that request's exact retained idempotency key. The 
 finds only the same account's original plan; it does not submit or confirm it.
 An absent result leaves an in-flight request unknown and cannot prove rollback.
 
+`corporate project link-request plan --context ID --root PATH --project ID`
+reviews the original request without creating a remote plan. Apply its exact
+JSON/digest with `corporate project link apply`. A separate
+`corporate project link-confirm plan --request-operation ID` reviews the ready
+server decision through its original device and a freshly observed checkout.
+Apply that second exact plan to confirm. Retained intents keep their original
+context, account/device, request key, policy and physical checkout across view
+changes. After a lost response, applying the same intent reads its original
+outcome; it never repeats the POST. A 404 preserves the unknown result.
+
+After positive active-link evidence, `corporate project link-adopt plan
+--request-operation ID --context ID --root PATH` reviews the local binding.
+Its apply grants no installation authority. Confirmation reserves the private
+project and physical checkout across all contexts until the original outcome
+is reconciled. A missing checkout does not prevent outcome reconciliation or
+offline replay of a completed receipt; adoption requires the original physical
+checkout again. Use `corporate project link show/list` for retained local state
+and `corporate project link outcome --operation ID` for a fresh observation.
+An explicit matching replacement `--context` on an already admitted apply
+only reads the original effect; it cannot admit the previous device's unused
+confirmation plan. Binding retirement and relocation are separate operations;
+an expired observation alone does not release a reservation.
+
 These commands accept `--context ID`; omission resolves the selected view once
 for that new read. The result retains its original context, current account
 revision and bounded observations. Changing the view during a delayed reply does
@@ -130,7 +153,9 @@ loopback API and a disposable PostgreSQL database selected by
 `AI_STP_TEST_DB_URL`. Linux CI runs this gate without an optional skip. Only
 approval of synthetic device codes is supplied by the fixture; enrollment,
 session isolation, corporate reads and seven-harness previews use the actual
-HTTP contracts. The fixture never connects a live SSO account or runs a harness.
+HTTP contracts. It also withholds committed create/confirmation replies and
+checks original-outcome recovery, named/root device replacement and reviewed
+binding adoption. The fixture never connects a live SSO account or runs a harness.
 
 The first applied connection/context plan explicitly upgrades the same authority
 registry to schema 55. Older clients refuse that format; keep a compatible client
@@ -182,6 +207,15 @@ A later pull can still observe the actual accepted event.
 Schema 56 preserves the original database filename and production owner marker;
 older clients refuse unsupported recovery records. Recovery does not settle
 unknown remote effects or grant corporate installation authority.
+
+The first checkout mutation admission explicitly upgrades that same registry to
+schema 57, atomically with its original intent and any physical reservation.
+Format-55/56 retained profile and recovery plans keep their original encoding;
+new enrollment recovery at format 57 uses version 4 and captures original
+checkout checkpoints. Root and named recovery retire the original writer while
+retaining unknown effects and reservations. A current authorized context may
+read positive original evidence afterward; that read does not restore old-device
+write authority. No registry copy, automatic relinking or harness write occurs.
 
 Windows account sessions use versioned compressed binary records in the native
 Credential Manager, avoiding its password API's UTF-16 expansion. The native

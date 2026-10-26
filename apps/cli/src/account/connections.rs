@@ -218,8 +218,8 @@ impl Plan {
             || profile_schema_after(self.registry_schema_before)? != self.registry_schema_after
             || self.recovery_operation_id.as_ref().is_some_and(|id| {
                 !passport::stable_id(id, "operation")
-                    || self.registry_schema_before != crate::store::ENROLLMENT_RECOVERY_SCHEMA
-                    || self.registry_schema_after != crate::store::ENROLLMENT_RECOVERY_SCHEMA
+                    || !crate::store::has_enrollment_recovery(self.registry_schema_before)
+                    || self.registry_schema_after != self.registry_schema_before
             })
         {
             return Err(invalid());

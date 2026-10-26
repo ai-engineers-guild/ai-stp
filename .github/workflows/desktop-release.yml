@@ -150,9 +150,16 @@ jobs:
         # The native tool is shared with `just desktop-regress`.
         run: cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- desktop-probe
       - name: Tauri build
-        working-directory: apps/desktop
         shell: bash
-        run: bun x tauri build
+        run: bash .github/scripts/build-desktop-bundles.sh
+      - name: Verify the macOS disk image
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          images=(apps/desktop/src-tauri/target/release/bundle/dmg/*.dmg)
+          test "${#images[@]}" -eq 1 && test -f "${images[0]}"
+          /usr/bin/hdiutil verify "${images[0]}"
       - name: Probe the packaged CLI resource tree
         shell: bash
         run: >-
