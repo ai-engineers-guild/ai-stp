@@ -91962,6 +91962,33 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "readProjectLinkPlanSettlement.context": {
+                    "summary": "Settlement reads the original outcome after serializing with confirmation and unlink.",
+                    "value": {
+                      "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+                      "link": null,
+                      "observation_only": true,
+                      "observed_at": "2026-01-01T00:00:00.000Z",
+                      "plan": {
+                        "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+                        "expires_at": "2026-01-01T00:15:00.000Z",
+                        "local_project_id": "project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "local_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "plan_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                        "plan_id": "link_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "provider_project_id": null,
+                        "provider_revision": null,
+                        "remote_project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "remote_revision": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                        "schema_version": 1
+                      },
+                      "schema_version": 1,
+                      "state": "ready"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/ProjectLinkPlanOutcome"
                 }
