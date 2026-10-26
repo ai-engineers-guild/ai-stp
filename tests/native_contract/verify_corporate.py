@@ -17,6 +17,7 @@ import sys
 import tempfile
 from contextlib import closing
 from datetime import UTC, datetime
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -663,21 +664,23 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
                 home,
                 ["corporate", "project", *reader, "--context", second_context, *scoped],
             )
-        absent = await refused(
-            binary,
-            home,
-            [
-                "corporate",
-                "project",
-                "unlink-request-outcome",
-                "--request-key",
-                "native-unlink-missing-request",
-                "--context",
-                contexts[0],
-                *scoped,
-            ],
-        )
-        assert absent.error.code == "AI_STP_NOT_FOUND", absent.error.code
+        missing_keys = ["native-unlink-missing-request", "n" * 128]
+        for key in missing_keys:
+            absent = await refused(
+                binary,
+                home,
+                [
+                    "corporate",
+                    "project",
+                    "unlink-request-outcome",
+                    "--request-key",
+                    key,
+                    "--context",
+                    contexts[0],
+                    *scoped,
+                ],
+            )
+            assert absent.error.code == "AI_STP_NOT_FOUND", absent.error.code
         after_refusals = await unlink_counts()
         assert after_refusals[:3] == counts[:3]
         async with app.state.sessionmaker() as db:
@@ -685,7 +688,7 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         # The global HTTP error handler deliberately audits rejected requests.
         # Successful observations stay audit-free; denials retain their own
         # security evidence without creating any project business rows.
-        assert 1 <= len(audits) <= 2 * len(readers) + 1
+        assert len(missing_keys) <= len(audits) <= 2 * len(readers) + len(missing_keys)
         assert len(audits) == after_refusals[3] - counts[3]
         for audit in audits:
             assert audit.target_table == "http_route" and audit.actor_account_id in accounts
@@ -706,17 +709,19 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
                     "AI_STP_PERMISSION_DENIED",
                 ),
             }
-        assert (
-            sum(
-                audit.actor_account_id == accounts[0]
-                and audit.target_id
-                == f"/v1/organizations/{organization}/project-unlink-plan-requests/"
-                "native-unlink-missing-request"
-                and audit.payload["error"] == "AI_STP_NOT_FOUND"
-                for audit in audits
+        for key in missing_keys:
+            path = f"/v1/organizations/{organization}/project-unlink-plan-requests/{key}"
+            target = path if len(path) <= 128 else f"sha256:{sha256(path.encode()).hexdigest()}"
+            assert (
+                sum(
+                    audit.actor_account_id == accounts[0]
+                    and audit.organization_id == organization
+                    and audit.target_id == target
+                    and audit.payload["error"] == "AI_STP_NOT_FOUND"
+                    for audit in audits
+                )
+                == 1
             )
-            == 1
-        )
         unlinked = await client.request(
             "DELETE",
             f"/v1/projects/links/{confirmed.json()['link_id']}",
