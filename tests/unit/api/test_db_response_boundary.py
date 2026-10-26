@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, cast
@@ -12,7 +12,7 @@ import pytest
 from fastapi import Depends, FastAPI
 from fastapi.dependencies.models import Dependant
 from fastapi.responses import JSONResponse, Response, StreamingResponse
-from fastapi.routing import APIRoute
+from fastapi.routing import APIRoute, iter_route_contexts
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.types import Message, Receive, Scope, Send
@@ -46,7 +46,7 @@ class Transaction:
         self.events.append("rolled_back")
 
     @asynccontextmanager
-    async def session(self) -> AsyncIterator[AsyncSession]:
+    async def session(self) -> AsyncGenerator[AsyncSession]:
         self.events.append("opened")
         try:
             yield cast(AsyncSession, self)
@@ -126,8 +126,11 @@ def test_all_mounted_database_dependencies_share_the_pre_response_lifetime(
         for child in dependency.dependencies:
             walk(child, path)
 
-    for route in app.routes:
-        if isinstance(route, APIRoute):
-            walk(route.dependant, route.path)
+    for route in iter_route_contexts(app.routes):
+        if isinstance(route.original_route, APIRoute):
+            dependency: object = route.dependant
+            assert isinstance(dependency, Dependant)
+            assert route.path is not None
+            walk(dependency, route.path)
     assert len(checked) > 100, "the audit must inspect mounted product routes"
     assert any(path == "/v1/corporate/bootstrap" for path, _ in checked)
