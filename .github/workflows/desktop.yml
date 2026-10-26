@@ -177,16 +177,23 @@ jobs:
         run: >-
           cargo install tauri-driver --version 2.1.0 --locked
           --root "${RUNNER_TEMP}/ai-stp-webdriver"
-      - name: Actual installed Linux Desktop with bundled CLI and native vault
+      - name: Three installed Linux Desktop journeys with bundled CLI and native vault
         if: runner.os == 'Linux'
         shell: bash
-        run: bash .github/scripts/check-native-secret-service.sh --installed-desktop
+        run: |
+          set -euo pipefail
+          for round in 1 2 3; do
+            printf 'Installed Desktop journey %s/3\n' "${round}"
+            bash .github/scripts/check-native-secret-service.sh --installed-desktop
+            mv "${RUNNER_TEMP}/installed-desktop-proof.json" \
+              "${RUNNER_TEMP}/installed-desktop-proof-${round}.json"
+          done
       - name: Retain public installed Desktop results
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: installed-linux-desktop-proof
-          path: ${{ runner.temp }}/installed-desktop-proof.json
+          path: ${{ runner.temp }}/installed-desktop-proof-*.json
           if-no-files-found: error
           retention-days: 7
       - name: Upload bundles
