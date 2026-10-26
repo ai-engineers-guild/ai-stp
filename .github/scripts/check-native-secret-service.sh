@@ -6,7 +6,13 @@ test "${RUNNER_OS:-}" = Linux
 test -n "${RUNNER_TEMP:-}"
 
 if [[ "${1:-}" != --inside-fixture ]]; then
-  test "$#" -eq 0
+  fixture_mode=native
+  if [[ "${1:-}" == --installed-desktop ]]; then
+    test "$#" -eq 1
+    fixture_mode=desktop
+  else
+    test "$#" -eq 0
+  fi
   export AI_STP_TEST_SECRET_SERVICE_ROOT
   AI_STP_TEST_SECRET_SERVICE_ROOT="$(mktemp -d "${RUNNER_TEMP}/ai-stp-secret-service.XXXXXXXX")"
   chmod 700 "${AI_STP_TEST_SECRET_SERVICE_ROOT}"
@@ -17,10 +23,12 @@ if [[ "${1:-}" != --inside-fixture ]]; then
   export AI_STP_TEST_SECRET_SERVICE=isolated
   mkdir -m 700 "${XDG_DATA_HOME}" "${XDG_CONFIG_HOME}" "${XDG_RUNTIME_DIR}" \
     "${AI_STP_TEST_SECRET_SERVICE_ROOT}/control"
-  exec dbus-run-session -- bash "$0" --inside-fixture
+  exec dbus-run-session -- bash "$0" --inside-fixture "${fixture_mode}"
 fi
 
-test "$#" -eq 1
+test "$#" -eq 2
+fixture_mode="$2"
+[[ "${fixture_mode}" == native || "${fixture_mode}" == desktop ]]
 test -d "${AI_STP_TEST_SECRET_SERVICE_ROOT}"
 test "${AI_STP_TEST_SECRET_SERVICE}" = isolated
 
@@ -67,6 +75,13 @@ for ((attempt=0; attempt<40; attempt++)); do
   sleep 0.25
 done
 test "${fixture_collection}" != / && test "${fixture_locked}" = '(<false>,)'
+
+if [[ "${fixture_mode}" == desktop ]]; then
+  xvfb-run --auto-servernum python .github/scripts/qualify-installed-desktop.py \
+    --driver "${RUNNER_TEMP}/ai-stp-webdriver/bin/tauri-driver" \
+    --out "${RUNNER_TEMP}/installed-desktop-proof.json"
+  exit
+fi
 
 cd apps/cli
 checks=(cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
