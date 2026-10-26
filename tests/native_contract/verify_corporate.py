@@ -25,6 +25,7 @@ from alembic import command
 from alembic.config import Config
 from httpx import AsyncClient
 from sqlalchemy import func, select
+from tests.native_contract import verify_checkout
 from tests.native_contract.verify_ownership import apply, native
 from tests.support.api_settings import make_settings, make_test_auth
 from tests.support.catalog_seed import FIXTURE_SETUP_ID, load_fixture_seed
@@ -1033,6 +1034,27 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         flush=True,
     )
 
+    await verify_checkout.qualify(
+        binary=binary,
+        home=home,
+        state=state,
+        root=root,
+        app=app,
+        faults=app.state.checkout_faults,
+        run=run,
+        enact=enact,
+        login=login,
+        refused=refused,
+        organization=organization,
+        project=project,
+        account=accounts[0],
+        connection=next_connection,
+        device=next_child["device_id"],
+        offline_context=offline["plan"]["change"]["context"]["context_id"],
+        git_executable=git_executable,
+        old_recoveries=[recovery, missing],
+    )
+
 
 async def prove(binary: Path, database_url: str, root: Path) -> None:
     with socket.socket() as listener:
@@ -1043,9 +1065,11 @@ async def prove(binary: Path, database_url: str, root: Path) -> None:
                 root / "api", database_url=database_url, auth=make_test_auth(public_base_url=origin)
             )
         )
+        faults = verify_checkout.LostAcknowledgements(app)
+        app.state.checkout_faults = faults
         async with app.router.lifespan_context(app):
             server = uvicorn.Server(
-                uvicorn.Config(app, lifespan="off", access_log=False, log_level="error")
+                uvicorn.Config(faults, lifespan="off", access_log=False, log_level="error")
             )
             serving = asyncio.create_task(server.serve(sockets=[listener]))
             try:

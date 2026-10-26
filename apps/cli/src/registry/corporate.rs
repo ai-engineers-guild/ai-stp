@@ -103,7 +103,7 @@ const LINK_REQUEST: Parameter = Parameter {
 
 pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
-        path: &["corporate", "project", "link", "request", "plan"],
+        path: &["corporate", "project", "link-request", "plan"],
         summary: "Review a durable original request for a server-authored link plan; create no link or installation authority.",
         parameters: &[
             STATE_DIR,
@@ -124,13 +124,13 @@ pub(super) const COMMANDS: &[Declaration] = &[
         handler: super::Handler::Corporate(Handler::LinkRequestPlan),
     },
     Declaration {
-        path: &["corporate", "project", "link", "confirm", "plan"],
+        path: &["corporate", "project", "link-confirm", "plan"],
         summary: "Review confirmation of the original ready server plan through its original device and a freshly checked checkout.",
         parameters: &[STATE_DIR, LINK_REQUEST, GIT],
         handler: super::Handler::Corporate(Handler::LinkConfirmPlan),
     },
     Declaration {
-        path: &["corporate", "project", "link", "adopt", "plan"],
+        path: &["corporate", "project", "link-adopt", "plan"],
         summary: "Review local binding adoption from an exact active applied link and a fresh current context/checkout; grant no installation authority.",
         parameters: &[STATE_DIR, LINK_REQUEST, CONTEXT, super::ROOT, GIT],
         handler: super::Handler::Corporate(Handler::LinkAdoptPlan),
