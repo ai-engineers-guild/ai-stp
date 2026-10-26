@@ -3,9 +3,8 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, optional_auth
+from ai_stp_api.deps import Db, optional_auth
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.entity_actions.service import read_menu
 from ai_stp_contracts.entity_actions import EntityActionMenus, EntityActionQuery
@@ -17,7 +16,7 @@ router = APIRouter(tags=["entity-actions"])
 async def query_entity_actions(
     payload: EntityActionQuery,
     response: Response,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext | None, Depends(optional_auth)],
 ) -> EntityActionMenus:
     response.headers["Cache-Control"] = "no-store, private"

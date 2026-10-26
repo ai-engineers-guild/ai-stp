@@ -4,9 +4,8 @@ from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import RedirectResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, get_settings, require_auth
+from ai_stp_api.deps import Db, get_settings, require_auth
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
 from ai_stp_api.slices.corporate import service as corporate_service
@@ -29,7 +28,6 @@ from ai_stp_platform.gitlab_settings import GitLabConnection
 from ai_stp_platform.storage.object_store import ImmutableObjectStore
 
 router = APIRouter(tags=["gitlab-connector"])
-Db = Annotated[AsyncSession, Depends(get_db)]
 Auth = Annotated[AuthContext, Depends(require_auth)]
 Config = Annotated[Settings, Depends(get_settings)]
 

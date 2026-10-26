@@ -6,7 +6,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import Db, require_auth
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.technology import competences, detection, merge, service
 from ai_stp_contracts.context import OrganizationId, RemoteProjectId
@@ -78,7 +78,6 @@ from ai_stp_contracts.technology import (
 )
 
 router = APIRouter(prefix="/corporate/organizations/{organization_id}", tags=["technology"])
-Db = Annotated[AsyncSession, Depends(get_db)]
 Auth = Annotated[AuthContext, Depends(require_auth)]
 
 
@@ -1130,7 +1129,7 @@ async def delete_scan(
     scan_id: TechnologyScanId,
     payload: TechnologyMutation,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateDeleteResult:
     return await detection.delete_scan(

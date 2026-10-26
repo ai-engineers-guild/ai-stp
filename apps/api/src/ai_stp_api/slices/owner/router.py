@@ -6,9 +6,8 @@ from typing import Annotated, Literal, cast
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse, Response
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, get_settings, optional_auth, require_auth
+from ai_stp_api.deps import Db, get_settings, optional_auth, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.media_upload import read_media_upload
 from ai_stp_api.session import AuthContext
@@ -44,7 +43,7 @@ async def replace_object_external_products(
     object_kind: Literal["component", "setup"],
     stable_id: str,
     body: OwnerExternalProductAttachRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     return _resource(
@@ -58,7 +57,7 @@ async def replace_object_external_products(
 async def read_object_external_products(
     object_kind: Literal["component", "setup"],
     stable_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     return _resource(
@@ -71,7 +70,7 @@ async def read_object_external_products(
 @router.get("/owner/objects", response_model=None)
 async def list_owner_objects(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     page_size: Annotated[int, Query(ge=1, le=PAGE_SIZE_MAX)] = PAGE_SIZE_DEFAULT,
     object_kind: Annotated[Literal["component", "setup"] | None, Query()] = None,
@@ -92,7 +91,7 @@ async def list_owner_objects(
 async def read_component_presentation(
     object_kind: Literal["component", "setup"],
     stable_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     return _resource(
@@ -107,7 +106,7 @@ async def update_component_presentation(
     object_kind: Literal["component", "setup"],
     stable_id: str,
     body: OwnerPresentationUpdateRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     return _resource(
@@ -122,7 +121,7 @@ async def upload_component_presentation_media(
     object_kind: Literal["component", "setup"],
     stable_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     """Upload author image/video for the mutable component gallery (SPEC-035)."""
@@ -143,7 +142,7 @@ async def upload_component_presentation_media(
 async def get_component_media(
     media_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext | None, Depends(optional_auth)],
 ) -> Response:
     """Serve media only when its component is public or visible to the caller."""
@@ -168,7 +167,7 @@ async def delete_owner_object(
     object_kind: Literal["component", "setup"],
     stable_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> Response:
     await service.delete_owner_object(
@@ -186,7 +185,7 @@ async def delete_owner_object(
 async def read_owner_object_capabilities(
     object_kind: Literal["component", "setup"],
     stable_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.read_owner_object_capabilities(
@@ -199,7 +198,7 @@ async def read_owner_object_capabilities(
 async def read_owner_object(
     object_kind: Literal["component", "setup"],
     stable_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.read_owner_object(
@@ -216,7 +215,7 @@ async def read_owner_version(
     object_kind: Literal["component", "setup"],
     stable_id: str,
     version: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.read_owner_version(
@@ -238,7 +237,7 @@ async def start_owner_publication(
     stable_id: str,
     version: str,
     body: OwnerStartPublicationRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.start_publication(
@@ -261,7 +260,7 @@ async def set_owner_version_lifecycle(
     stable_id: str,
     version: str,
     body: OwnerLifecycleRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.set_owner_lifecycle(
@@ -278,7 +277,7 @@ async def set_owner_version_lifecycle(
 @router.get("/owner/setup-families/{family_id}", response_model=None)
 async def read_owner_setup_family(
     family_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     return _resource(await service.read_owner_family(db, ctx=ctx, family_id=family_id))
@@ -287,7 +286,7 @@ async def read_owner_setup_family(
 @router.post("/owner/setup-families", response_model=None)
 async def create_owner_setup_family(
     body: SetupFamilyCreateRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     return _resource(await service.create_owner_family(db, ctx=ctx, body=body), status_code=201)
@@ -297,7 +296,7 @@ async def create_owner_setup_family(
 async def patch_owner_setup_family(
     family_id: str,
     body: SetupFamilyPatchRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     return _resource(await service.patch_owner_family(db, ctx=ctx, family_id=family_id, body=body))

@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, get_settings, optional_auth, require_auth
+from ai_stp_api.deps import Db, get_settings, optional_auth, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
@@ -263,23 +263,17 @@ def _reject_unknown_query(request: Request, allowed: frozenset[str]) -> None:
 
 
 @router.get("/catalog/services", response_model=None)
-async def list_external_products(
-    request: Request, db: Annotated[AsyncSession, Depends(get_db)]
-) -> JSONResponse:
+async def list_external_products(request: Request, db: Db) -> JSONResponse:
     return _resource(request, await service.list_external_products(db))
 
 
 @router.get("/catalog/authors", response_model=None)
-async def list_catalog_authors(
-    request: Request, db: Annotated[AsyncSession, Depends(get_db)]
-) -> JSONResponse:
+async def list_catalog_authors(request: Request, db: Db) -> JSONResponse:
     return _resource(request, await service.list_catalog_authors(db))
 
 
 @router.get("/catalog/services/{domain}", response_model=None)
-async def read_external_product(
-    request: Request, domain: str, db: Annotated[AsyncSession, Depends(get_db)]
-) -> JSONResponse:
+async def read_external_product(request: Request, domain: str, db: Db) -> JSONResponse:
     try:
         result = await service.read_external_product(db, domain)
     except service.CatalogNotFound as exc:
@@ -288,16 +282,12 @@ async def read_external_product(
 
 
 @router.get("/catalog/countries", response_model=None)
-async def list_countries(
-    request: Request, db: Annotated[AsyncSession, Depends(get_db)]
-) -> JSONResponse:
+async def list_countries(request: Request, db: Db) -> JSONResponse:
     return _resource(request, await service.list_countries(db))
 
 
 @router.get("/catalog/countries/{code}", response_model=None)
-async def read_country(
-    request: Request, code: str, db: Annotated[AsyncSession, Depends(get_db)]
-) -> JSONResponse:
+async def read_country(request: Request, code: str, db: Db) -> JSONResponse:
     try:
         result = await service.read_country(db, code)
     except service.CatalogNotFound as exc:
@@ -517,7 +507,7 @@ async def _corporate_search_account(
 @router.get("/catalog/components", response_model=None)
 async def search_components(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     settings: Annotated[Settings, Depends(get_settings)],
     search: Annotated[ComponentSearchRequest, Depends(_component_search_request)],
     ctx: Annotated[AuthContext | None, Depends(optional_auth)],
@@ -543,7 +533,7 @@ async def search_components(
 @router.get("/account/catalog-reactions", response_model=None)
 async def list_reactions(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     return _resource(request, await service.list_reactions(db, account_id=ctx.account_id))
@@ -554,7 +544,7 @@ async def like_catalog_object(
     request: Request,
     object_kind: str,
     stable_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     kind, target = require_catalog_target(object_kind, stable_id)
@@ -572,7 +562,7 @@ async def unlike_catalog_object(
     request: Request,
     object_kind: str,
     stable_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     kind, target = require_catalog_target(object_kind, stable_id)
@@ -589,7 +579,7 @@ async def unlike_catalog_object(
 async def read_component(
     request: Request,
     stable_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext | None, Depends(optional_auth)],
 ) -> JSONResponse:
     """GET /v1/catalog/components/{stable_id}."""
@@ -614,7 +604,7 @@ async def read_component_version(
     request: Request,
     stable_id: str,
     version: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext | None, Depends(optional_auth)],
 ) -> JSONResponse:
     """GET /v1/catalog/components/{stable_id}/versions/{version}."""
@@ -645,7 +635,7 @@ async def read_private_component_version(
     request: Request,
     stable_id: str,
     version: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     """Return an authorized private passport for CLI acquisition."""
@@ -677,7 +667,7 @@ async def read_access_component_version(
     request: Request,
     stable_id: str,
     version: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     """Compatibility alias for authenticated private component acquisition."""
@@ -689,7 +679,7 @@ async def read_component_version_checks(
     request: Request,
     stable_id: str,
     version: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> JSONResponse:
     """GET /v1/catalog/components/{stable_id}/versions/{version}/checks (#270)."""
     stable_id = require_component_id(stable_id)
@@ -708,7 +698,7 @@ async def read_component_artifact(
     request: Request,
     stable_id: str,
     version: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     settings: Annotated[Settings, Depends(get_settings)],
     ctx: Annotated[AuthContext | None, Depends(optional_auth)],
     digest: Annotated[str | None, Query(pattern=DIGEST_PATTERN)] = None,
@@ -744,7 +734,7 @@ async def read_component_artifact(
 @router.get("/catalog/setups", response_model=None)
 async def search_setups(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     settings: Annotated[Settings, Depends(get_settings)],
     search: Annotated[SetupSearchRequest, Depends(_setup_search_request)],
     ctx: Annotated[AuthContext | None, Depends(optional_auth)],
@@ -771,7 +761,7 @@ async def search_setups(
 async def read_setup(
     request: Request,
     stable_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> JSONResponse:
     """GET /v1/catalog/setups/{stable_id}."""
     stable_id = require_setup_id(stable_id)
@@ -792,7 +782,7 @@ async def read_setup(
 async def read_setup_family(
     request: Request,
     family_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> JSONResponse:
     if _FAMILY_ID_RE.fullmatch(family_id) is None:
         raise ApiError(ErrorCategory.VALIDATION, "request validation failed")
@@ -808,7 +798,7 @@ async def read_setup_version(
     request: Request,
     stable_id: str,
     version: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> JSONResponse:
     """GET /v1/catalog/setups/{stable_id}/versions/{version}."""
     stable_id = require_setup_id(stable_id)
@@ -833,7 +823,7 @@ async def read_private_setup_version(
     request: Request,
     stable_id: str,
     version: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     """Return an authorized private passport for CLI acquisition."""
@@ -865,7 +855,7 @@ async def read_access_setup_version(
     request: Request,
     stable_id: str,
     version: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     """Compatibility alias for authenticated private setup acquisition."""
@@ -877,7 +867,7 @@ async def read_setup_version_checks(
     request: Request,
     stable_id: str,
     version: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> JSONResponse:
     """GET /v1/catalog/setups/{stable_id}/versions/{version}/checks (#270)."""
     stable_id = require_setup_id(stable_id)
@@ -896,7 +886,7 @@ async def read_setup_artifact(
     request: Request,
     stable_id: str,
     version: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     settings: Annotated[Settings, Depends(get_settings)],
     ctx: Annotated[AuthContext | None, Depends(optional_auth)],
 ) -> StreamingResponse:
@@ -942,7 +932,7 @@ async def read_component_github_metadata(
     request: Request,
     stable_id: str,
     version: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext | None, Depends(optional_auth)],
 ) -> JSONResponse:
     stable_id = require_component_id(stable_id)
@@ -967,7 +957,7 @@ async def read_setup_github_metadata(
     request: Request,
     stable_id: str,
     version: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext | None, Depends(optional_auth)],
 ) -> JSONResponse:
     stable_id = require_setup_id(stable_id)
@@ -992,7 +982,7 @@ async def read_setup_context_budget(
     request: Request,
     stable_id: str,
     version: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext | None, Depends(optional_auth)],
     estimator_profile: Annotated[str, Query()] = "ai-stp:unicode-chars-div4/1",
 ) -> JSONResponse:
@@ -1035,7 +1025,7 @@ async def read_component_context_budget(
     request: Request,
     stable_id: str,
     version: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext | None, Depends(optional_auth)],
     estimator_profile: Annotated[str, Query()] = "ai-stp:unicode-chars-div4/1",
 ) -> JSONResponse:

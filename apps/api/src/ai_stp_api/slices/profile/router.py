@@ -6,9 +6,8 @@ from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, Header, Request
 from fastapi.responses import JSONResponse, Response
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, request_json, require_auth
+from ai_stp_api.deps import Db, request_json, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.media_upload import read_media_upload
 from ai_stp_api.session import AuthContext
@@ -35,7 +34,7 @@ async def _json_object(request: Request) -> dict[str, Any]:
 
 @router.get("/account/public-profile", response_model=None)
 async def owner_public_profile(
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     body = await profile_service.get_owner_profile(db, account_id=ctx.account_id)
@@ -45,7 +44,7 @@ async def owner_public_profile(
 @router.put("/account/public-profile/draft", response_model=None)
 async def put_public_profile_draft(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     if_match: Annotated[str | None, Header(alias="If-Match")] = None,
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
@@ -63,7 +62,7 @@ async def put_public_profile_draft(
 
 @router.get("/account/public-profile/preview", response_model=None)
 async def preview_public_profile(
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     body = await profile_service.owner_preview(db, account_id=ctx.account_id)
@@ -73,7 +72,7 @@ async def preview_public_profile(
 @router.post("/account/public-profile/publish", response_model=None)
 async def publish_public_profile(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> JSONResponse:
@@ -95,7 +94,7 @@ async def publish_public_profile(
 @router.post("/account/public-profile/avatar", response_model=None)
 async def upload_avatar(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     """Upload avatar image bytes; writes processed object to S3/RustFS."""
@@ -115,7 +114,7 @@ async def upload_avatar(
 @router.post("/account/public-profile/avatar/from-identity", response_model=None)
 async def avatar_from_identity(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     payload = await _json_object(request)
@@ -136,7 +135,7 @@ async def avatar_from_identity(
 async def get_avatar_media(
     asset_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> Response:
     """Serve processed avatar bytes; never provider source URL."""
     store = _avatar_store(request)
@@ -154,7 +153,7 @@ async def get_avatar_media(
 @router.get("/publishers/{account_id}", response_model=None)
 async def public_publisher(
     account_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> JSONResponse:
     if not account_id.startswith("account_"):
         raise ApiError(ErrorCategory.NOT_FOUND, "not found")

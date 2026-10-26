@@ -7,9 +7,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import Db, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_contracts.impact import AccountSelectionImpactQuery
@@ -40,7 +39,7 @@ def _store(request: Request) -> ImmutableObjectStore | None:
 @router.get("/selection/impact", response_model=None)
 async def read_selection_impact(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     candidate_id: Annotated[str, Query()],
     candidate_version: Annotated[str, Query()],

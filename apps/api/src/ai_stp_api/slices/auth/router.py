@@ -14,9 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
 from ai_stp_api.deps import (
+    Db,
     clear_session_cookies,
     get_auth_settings,
-    get_db,
     new_csrf_token,
     require_auth,
     require_onboarding_auth,
@@ -217,7 +217,7 @@ async def _saml_start(
 async def oauth_login(
     provider: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
     client: str | None = Query(default=None, description="cli or web"),
     return_to: str | None = Query(
@@ -267,7 +267,7 @@ async def oauth_login(
 async def oauth_callback(
     provider: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
     response_mode: str | None = Query(default=None),
 ) -> JSONResponse | RedirectResponse:
@@ -490,7 +490,7 @@ async def _saml_org_admits(db: AsyncSession, auth: AuthSettings, email: str) -> 
 @router.post("/auth/saml/acs", response_model=None)
 async def saml_acs(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> JSONResponse | RedirectResponse:
     """Consume the IdP's SAMLResponse POST and issue a session (ADR-0226).
@@ -592,7 +592,7 @@ async def saml_sp_metadata(
 @compatibility_router.get("/api/auth/callback/google", response_model=None)
 async def google_oauth_callback_compatibility(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
     response_mode: str | None = Query(default=None),
 ) -> JSONResponse | RedirectResponse:
@@ -612,7 +612,7 @@ async def start_step_up_link(
     request: Request,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     return_to: str | None = Query(
         default=None,
         description="Relative post-link path for web clients (must start with /)",
@@ -674,7 +674,7 @@ async def start_step_up_link(
 @router.post("/auth/logout", response_model=None)
 async def logout(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_onboarding_auth)],
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> JSONResponse:
@@ -722,7 +722,7 @@ async def current_account(
 
 @router.get("/auth/onboarding", response_model=None)
 async def read_legal_onboarding(
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_onboarding_auth)],
     locale: Annotated[str, Query()] = "en",
 ) -> JSONResponse:
@@ -735,7 +735,7 @@ async def read_legal_onboarding(
 @router.post("/auth/onboarding/complete", response_model=None)
 async def complete_legal_onboarding(
     payload: LegalOnboardingCompleteRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_onboarding_auth)],
     locale: Annotated[str, Query()] = "en",
 ) -> JSONResponse:
@@ -754,7 +754,7 @@ async def complete_legal_onboarding(
 @router.post("/auth/device", response_model=None)
 async def start_device_auth(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> JSONResponse:
     """Start RFC 8628 device-code authorization (CLI)."""
@@ -798,7 +798,7 @@ async def start_device_auth(
 @router.post("/auth/device/token", response_model=None)
 async def exchange_device_auth(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> JSONResponse:
     """Poll device-code exchange and bind the device public key."""
@@ -837,7 +837,7 @@ async def refresh_device_auth(
     payload: DeviceRefreshRequest,
     request: Request,
     ctx: Annotated[AuthContext, Depends(require_refresh_auth)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> DeviceTokenResponse:
     """Renew a device session using its stored credential and key."""
@@ -888,7 +888,7 @@ async def refresh_device_auth(
 @router.post("/auth/device/approve", response_model=None)
 async def approve_device_auth(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     """Browser-approved binding of a user_code to the signed-in account."""
@@ -971,7 +971,7 @@ async def _account_profile_body(db: AsyncSession, account_id: str) -> dict[str, 
 @router.get("/account", response_model=None)
 async def read_account(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     """Read the current account profile (OpenAPI identity-account-profile).
@@ -986,7 +986,7 @@ async def read_account(
 @router.put("/account/privacy", response_model=None)
 async def update_account_privacy(
     payload: AccountPrivacyUpdate,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     """Replace the authenticated account's privacy preferences."""
@@ -1013,7 +1013,7 @@ def _identity_api_error(exc: IdentityError) -> ApiError:
 @router.put("/account/identity", response_model=None)
 async def update_account_identity(
     payload: AccountIdentityUpdate,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     """Replace the authenticated account's unique public handle and display name."""
@@ -1031,7 +1031,7 @@ async def update_account_identity(
 async def unlink_account_identity(
     provider: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     """Unlink one OAuth identity. The last active identity cannot be removed."""

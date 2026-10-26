@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
-from ai_stp_api.deps import get_db, get_settings, require_auth
+from ai_stp_api.deps import Db, get_settings, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
@@ -156,7 +156,7 @@ def _fingerprint(operation: str, target: str, payload: GitLabMutationRequest) ->
 async def list_repositories(
     organization_id: OrganizationId,
     ctx: Annotated[AuthContext, Depends(require_auth)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     settings: Annotated[Settings, Depends(get_settings)],
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> GitLabRepositoryList:
@@ -206,7 +206,7 @@ async def register_repository(
     repository_id: int,
     payload: GitLabMutationRequest,
     ctx: Annotated[AuthContext, Depends(require_auth)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> GitLabRepositoryView:
     await service.authorize(
@@ -354,7 +354,7 @@ async def refresh_repository(
     provider_project_id: ProviderProjectId,
     payload: GitLabMutationRequest,
     ctx: Annotated[AuthContext, Depends(require_auth)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> GitLabRepositoryView:
     await service.authorize(
@@ -433,7 +433,7 @@ async def disconnect_repository(
     provider_project_id: ProviderProjectId,
     payload: GitLabMutationRequest,
     ctx: Annotated[AuthContext, Depends(require_auth)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> GitLabRepositoryView:
     await service.authorize(
@@ -487,7 +487,7 @@ async def enrich_languages(
     project_id: RemoteProjectId,
     payload: GitLabEnrichRequest,
     ctx: Annotated[AuthContext, Depends(require_auth)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> TechnologyScanResult:
     await service.authorize(
@@ -607,7 +607,7 @@ async def research_project(
     project_id: RemoteProjectId,
     payload: GitLabEnrichRequest,
     ctx: Annotated[AuthContext, Depends(require_auth)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> GitLabResearchAccepted:
     """Queue an asynchronous technology scan through the worker.

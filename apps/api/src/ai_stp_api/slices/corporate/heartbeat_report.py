@@ -11,9 +11,8 @@ from typing import Annotated, Literal, cast
 
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import Db, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.corporate import service
@@ -142,7 +141,7 @@ async def heartbeat_report(
     organization_id: OrganizationId,
     request: Request,
     ctx: Annotated[AuthContext, Depends(require_auth)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     view: View = "current",
     period: Period = "7d",
     from_date: date | None = None,
