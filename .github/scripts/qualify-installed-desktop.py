@@ -161,7 +161,8 @@ class Driver:
                 lambda: self.read(
                     "const labels=[...document.querySelectorAll('main label')];"
                     "const label=labels.find(x=>x.textContent.trim()==='Context label');"
-                    "return label?.querySelector('input')??null;"
+                    "const input=label?.querySelector('input');"
+                    "return input&&!input.disabled?input:null;"
                 ),
                 "context label input",
             )
@@ -299,7 +300,15 @@ def main() -> None:
             "bundled Rust engine through actual IPC",
         )
         driver.navigate("settings")
-        storage = driver.find("main form select")
+        storage = dict(
+            driver.wait(
+                lambda: driver.read(
+                    "const select=document.querySelector('main form select');"
+                    "return select&&!select.disabled&&select.options.length?select:null;"
+                ),
+                "loaded credential store choices",
+            )
+        )
         require(
             driver.read("return arguments[0].value;", storage) == "os_keyring",
             "vault is not the default",

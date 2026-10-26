@@ -90,6 +90,14 @@ From `apps/desktop`, `bun run tauri dev` starts the native app. `bun run dev`
 starts the frontend only and cannot perform operations without Tauri IPC.
 Tests isolate IPC responses; sidecar regressions execute the actual native CLI.
 
+Linux CI also installs its release Debian package and drives the installed app
+through external WebKit WebDriver under Xvfb. The disposable session has its own
+GNOME credential service and private home. The journey initializes the native
+vault through Settings, reviews two offline personal contexts, switches views,
+restarts the app and compares the retained state with the installed bundled CLI.
+It verifies the default credential store and preserves unrelated home files.
+This gate does not establish corporate enrollment or harness activation.
+
 Release bundles require their own `cli/ai-stp-desktop-cli` resource. A missing
 bundled engine fails closed. Development can use `AI_STP_CLI` or PATH when no
 bundled resource is present; a missing configured executable also fails closed.
