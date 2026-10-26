@@ -9,7 +9,7 @@ use crate::error::{ErrorKind, Failure, Result};
 /// existing bound. Check only new admissions: retained work can still settle.
 pub(crate) fn recovery_capacity(t: &Transaction<'_>, additional: i64) -> Result<()> {
     let pending: i64 = t.query_row(
-        "SELECT count(*) FROM operation WHERE kind IN ('sync.run','publication.run','publication.set') AND finished_at IS NULL",
+        "SELECT count(*) FROM operation WHERE kind IN ('sync.run','publication.run','publication.set','corporate.project_link') AND finished_at IS NULL",
         [], |r| r.get(0)).map_err(database)?;
     if !(1..=2).contains(&additional) || pending > 128 - additional {
         return Err(Failure::precondition(

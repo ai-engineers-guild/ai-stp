@@ -25,6 +25,8 @@ pub struct Intent {
     pub interrupted_sync: Vec<crate::sync::runtime::Checkpoint>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub interrupted_publications: Vec<crate::publication::interruption::Checkpoint>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub interrupted_checkout_links: Vec<crate::account::project_links::Checkpoint>,
 }
 
 impl Intent {
@@ -40,7 +42,10 @@ impl Intent {
         for checkpoint in &self.interrupted_sync {
             checkpoint.validate()?;
         }
-        if self.interrupted_sync.len() + self.interrupted_publications.len() > 128
+        if self.interrupted_sync.len()
+            + self.interrupted_publications.len()
+            + self.interrupted_checkout_links.len()
+            > 128
             || self
                 .interrupted_publications
                 .windows(2)
@@ -49,6 +54,36 @@ impl Intent {
             return Err(invalid());
         }
         for checkpoint in &self.interrupted_publications {
+            checkpoint.validate()?;
+        }
+        if self
+            .interrupted_checkout_links
+            .windows(2)
+            .any(|v| v[0].operation_id >= v[1].operation_id)
+        {
+            return Err(invalid());
+        }
+        let mut operations = BTreeSet::new();
+        for id in self
+            .interrupted_sync
+            .iter()
+            .map(|c| &c.operation_id)
+            .chain(
+                self.interrupted_publications
+                    .iter()
+                    .map(|c| &c.operation_id),
+            )
+            .chain(
+                self.interrupted_checkout_links
+                    .iter()
+                    .map(|c| &c.operation_id),
+            )
+        {
+            if !operations.insert(id) {
+                return Err(invalid());
+            }
+        }
+        for checkpoint in &self.interrupted_checkout_links {
             checkpoint.validate()?;
         }
         if !passport::stable_id(&self.device_id, "device")

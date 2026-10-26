@@ -21,6 +21,7 @@ on:
       - ".github/scripts/install-rust-toolchain.sh"
       - ".github/scripts/check-native-secret-service.sh"
       - ".github/scripts/qualify-installed-desktop.py"
+      - ".github/scripts/build-desktop-bundles.sh"
   pull_request:
     paths:
       - "apps/desktop/**"
@@ -32,6 +33,7 @@ on:
       - ".github/scripts/install-rust-toolchain.sh"
       - ".github/scripts/check-native-secret-service.sh"
       - ".github/scripts/qualify-installed-desktop.py"
+      - ".github/scripts/build-desktop-bundles.sh"
   workflow_dispatch:
 
 permissions:
@@ -152,9 +154,16 @@ jobs:
         # The native tool is shared with `just desktop-regress`.
         run: cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- desktop-probe
       - name: Tauri build
-        working-directory: apps/desktop
         shell: bash
-        run: bun x tauri build
+        run: bash .github/scripts/build-desktop-bundles.sh
+      - name: Verify the macOS disk image
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          images=(apps/desktop/src-tauri/target/release/bundle/dmg/*.dmg)
+          test "${#images[@]}" -eq 1 && test -f "${images[0]}"
+          /usr/bin/hdiutil verify "${images[0]}"
       - name: Probe the packaged CLI resource tree
         shell: bash
         run: >-

@@ -128,6 +128,15 @@
       "body": {"schema_version": 1, "plan": {"schema_version": 1, "plan_id": "link_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "local_project_id": "project_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "remote_project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "provider_project_id": null, "local_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "remote_revision": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "provider_revision": null, "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1", "plan_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "expires_at": "2026-01-01T00:15:00.000Z"}, "state": "ready", "link": null, "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1", "observed_at": "2026-01-01T00:00:00.000Z", "observation_only": true}
     },
     {
+      "case_id": "readProjectLinkPlanSettlement.context",
+      "operation_id": "readProjectLinkPlanSettlement",
+      "kind": "positive",
+      "why": "Settlement reads the original outcome after serializing with confirmation and unlink.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "plan_id": "link_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "headers": {"Authorization": "Bearer fixture-access-token"}},
+      "status": 200,
+      "body": {"schema_version": 1, "plan": {"schema_version": 1, "plan_id": "link_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "local_project_id": "project_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "remote_project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "provider_project_id": null, "local_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "remote_revision": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "provider_revision": null, "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1", "plan_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "expires_at": "2026-01-01T00:15:00.000Z"}, "state": "ready", "link": null, "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1", "observed_at": "2026-01-01T00:00:00.000Z", "observation_only": true}
+    },
+    {
       "case_id": "readProjectLinkPlan.context",
       "operation_id": "readProjectLinkPlan",
       "kind": "positive",
