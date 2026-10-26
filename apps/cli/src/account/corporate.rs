@@ -46,6 +46,10 @@ contract!(
     "/resources/schemas/v1/project-link-plan-outcome.schema.json"
 );
 contract!(
+    UNLINK_OUTCOME,
+    "/resources/schemas/v1/project-unlink-plan-outcome.schema.json"
+);
+contract!(
     TECHNOLOGIES,
     "/resources/schemas/v1/technology-list.schema.json"
 );
@@ -97,6 +101,15 @@ pub enum Request {
         plan_id: String,
     },
     LinkRequestOutcome {
+        request_key: String,
+    },
+    UnlinkOutcome {
+        plan_id: String,
+    },
+    UnlinkSettlement {
+        plan_id: String,
+    },
+    UnlinkRequestOutcome {
         request_key: String,
     },
     Technologies {
@@ -156,7 +169,13 @@ impl Request {
             {
                 Err(invalid())
             }
+            Self::UnlinkOutcome { plan_id } | Self::UnlinkSettlement { plan_id }
+                if !passport::stable_id(plan_id, "unlink_plan") =>
+            {
+                Err(invalid())
+            }
             Self::LinkRequestOutcome { request_key }
+            | Self::UnlinkRequestOutcome { request_key }
                 if !(16..=128).contains(&request_key.len())
                     || !request_key
                         .bytes()
@@ -244,6 +263,19 @@ impl Request {
             Self::LinkRequestOutcome { request_key } => {
                 format!("/v1/organizations/{organization}/project-link-plan-requests/{request_key}")
             }
+            Self::UnlinkOutcome { plan_id } => {
+                format!("/v1/organizations/{organization}/project-unlink-plans/{plan_id}/outcome")
+            }
+            Self::UnlinkSettlement { plan_id } => {
+                format!(
+                    "/v1/organizations/{organization}/project-unlink-plans/{plan_id}/settlement"
+                )
+            }
+            Self::UnlinkRequestOutcome { request_key } => {
+                format!(
+                    "/v1/organizations/{organization}/project-unlink-plan-requests/{request_key}"
+                )
+            }
             Self::Technologies { .. } => format!("{base}/technologies"),
             Self::Mappings => format!("{base}/technology-mappings"),
             Self::Mapping { version } => format!("{base}/technology-mappings/{version}"),
@@ -315,6 +347,9 @@ impl Request {
             Self::LinkOutcome { .. }
             | Self::LinkSettlement { .. }
             | Self::LinkRequestOutcome { .. } => &LINK_OUTCOME,
+            Self::UnlinkOutcome { .. }
+            | Self::UnlinkSettlement { .. }
+            | Self::UnlinkRequestOutcome { .. } => &UNLINK_OUTCOME,
             Self::Technologies { .. } => &TECHNOLOGIES,
             Self::Mappings => &MAPPINGS,
             Self::Mapping { .. } => &MAPPING,
@@ -361,6 +396,50 @@ impl Request {
             && value["plan"]["plan_id"] != *plan_id
         {
             return Err(invalid());
+        }
+        if let Self::UnlinkOutcome { plan_id } | Self::UnlinkSettlement { plan_id } = self
+            && value["plan"]["plan_id"] != *plan_id
+        {
+            return Err(invalid());
+        }
+        if matches!(
+            self,
+            Self::UnlinkOutcome { .. }
+                | Self::UnlinkSettlement { .. }
+                | Self::UnlinkRequestOutcome { .. }
+        ) {
+            let plan = &value["plan"];
+            let link = &value["link"];
+            if plan["organization_id"] != organization
+                || (value["state"] == "applied") == link.is_null()
+            {
+                return Err(invalid());
+            }
+            if !link.is_null() {
+                for field in [
+                    "link_id",
+                    "organization_id",
+                    "local_project_id",
+                    "remote_project_id",
+                    "provider_project_id",
+                    "local_revision",
+                    "remote_revision",
+                    "provider_revision",
+                ] {
+                    if link[field] != plan[field] {
+                        return Err(invalid());
+                    }
+                }
+                let expected = plan["expected_link_revision"]
+                    .as_u64()
+                    .and_then(|revision| revision.checked_add(1));
+                if link["state"] != "unlinked"
+                    || expected.is_none()
+                    || link["revision"].as_u64() != expected
+                {
+                    return Err(invalid());
+                }
+            }
         }
         if matches!(
             self,
@@ -479,6 +558,17 @@ pub fn observe(root: &Path, context: Option<&str>, request: Request) -> Result<V
     if organization["kind"] != "corporate" {
         return Err(invalid());
     }
+    if matches!(
+        request,
+        Request::UnlinkOutcome { .. }
+            | Request::UnlinkSettlement { .. }
+            | Request::UnlinkRequestOutcome { .. }
+    ) && !observation["capabilities"]["capabilities"]
+        .as_array()
+        .is_some_and(|values| values.iter().any(|value| value == "project.unlink"))
+    {
+        return Err(invalid());
+    }
     let data = access.corporate(&request, organization_id)?;
     let data = request.project(&data, organization_id, &access.binding().account_id)?;
     let (current, current_observation) = contexts::remote(&mut access, Some(organization_id))?;
@@ -493,6 +583,9 @@ pub fn observe(root: &Path, context: Option<&str>, request: Request) -> Result<V
             | Request::LinkOutcome { .. }
             | Request::LinkSettlement { .. }
             | Request::LinkRequestOutcome { .. }
+            | Request::UnlinkOutcome { .. }
+            | Request::UnlinkSettlement { .. }
+            | Request::UnlinkRequestOutcome { .. }
     ) && data["authorization_revision"]
         != current_observation["capabilities"]["authorization_revision"]
     {

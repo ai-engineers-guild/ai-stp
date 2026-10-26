@@ -15,6 +15,7 @@ struct Control {
     bump: bool,
     wrong_organization: bool,
     stale_link_policy: bool,
+    unlink_allowed: bool,
     revoked: bool,
     stop: bool,
     gate: Option<(mpsc::SyncSender<()>, mpsc::Receiver<()>)>,
@@ -89,7 +90,7 @@ fn serve(
             "capabilities":{"schema_version":1,"registry_version":2,"mode":"corporate","context_kind":"corporate",
             "organization_id":organization,"authorization_revision":format!("corporate:{organization}:1:{}",control.revision),
             "issued_at":at,"generated_at":at,"expires_at":after(at,300).map_err(std::io::Error::other)?,
-            "capabilities":["organization.read"],"unavailable":{}}}),
+            "capabilities":if control.unlink_allowed {json!(["organization.read","project.unlink"])} else {json!(["organization.read"])},"unavailable":{}}}),
         );
     }
     assert!(
@@ -102,6 +103,12 @@ fn serve(
             ))
             || route.starts_with(&format!(
                 "/v1/organizations/{organization}/project-link-plan-requests/"
+            ))
+            || route.starts_with(&format!(
+                "/v1/organizations/{organization}/project-unlink-plans/"
+            ))
+            || route.starts_with(&format!(
+                "/v1/organizations/{organization}/project-unlink-plan-requests/"
             ))
     );
     let gate = {
@@ -143,17 +150,26 @@ fn serve(
             "providers":[],"observed_at":at,"observation_only":true,"future_token":"canary"}),
         );
     }
-    if route.ends_with("/outcome") || route.contains("/project-link-plan-requests/") {
+    if route.ends_with("/outcome")
+        || route.ends_with("/settlement")
+        || route.contains("/project-link-plan-requests/")
+        || route.contains("/project-unlink-plan-requests/")
+    {
         assert!(header.starts_with("GET "));
         let corpus: Value = serde_json::from_str(include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/resources/packages/contracts/src/ai_stp_contracts/fixtures/v1/context.json"
         )))?;
+        let operation = if route.contains("/project-unlink-") {
+            "readProjectUnlinkPlanOutcome"
+        } else {
+            "readProjectLinkPlanOutcome"
+        };
         let mut value = corpus["cases"]
             .as_array()
             .ok_or_else(|| std::io::Error::other("corpus"))?
             .iter()
-            .find(|case| case["operation_id"] == "readProjectLinkPlanOutcome")
+            .find(|case| case["operation_id"] == operation)
             .ok_or_else(|| std::io::Error::other("outcome"))?["body"]
             .clone();
         let revision = if control.stale_link_policy {
@@ -162,7 +178,7 @@ fn serve(
         } else {
             control.revision
         };
-        if route.ends_with("/outcome") {
+        if route.ends_with("/outcome") || route.ends_with("/settlement") {
             value["plan"]["plan_id"] = route
                 .split('/')
                 .rev()
@@ -251,6 +267,7 @@ fn exercise(named: bool) -> std::result::Result<(), Box<dyn Error>> {
         bump: false,
         wrong_organization: false,
         stale_link_policy: false,
+        unlink_allowed: true,
         revoked: false,
         stop: false,
         gate: None,
@@ -261,7 +278,7 @@ fn exercise(named: bool) -> std::result::Result<(), Box<dyn Error>> {
     let (server_account, server_token, server_at) = (account.clone(), token.clone(), at.clone());
     let worker = thread::spawn(move || -> std::io::Result<()> {
         let deadline = Instant::now() + Duration::from_secs(90);
-        for _ in 0..256 {
+        for _ in 0..512 {
             let mut socket = accept_until(&listener, deadline)?;
             if server_control
                 .lock()
@@ -358,6 +375,31 @@ fn exercise(named: bool) -> std::result::Result<(), Box<dyn Error>> {
         assert!(corporate::observe(root.path(), Some(&contexts[0]), request.clone()).is_err());
         control.lock().map_err(|_| "fixture")?.bump = true;
         assert!(corporate::observe(root.path(), Some(&contexts[0]), request).is_err());
+        for request in [
+            Request::UnlinkOutcome {
+                plan_id: FIRST.replacen("organization_", "unlink_plan_", 1),
+            },
+            Request::UnlinkSettlement {
+                plan_id: FIRST.replacen("organization_", "unlink_plan_", 1),
+            },
+            Request::UnlinkRequestOutcome {
+                request_key: "context-unlink-original-request".into(),
+            },
+        ] {
+            let observed = corporate::observe(root.path(), Some(&contexts[0]), request.clone())?;
+            assert_eq!(observed["observation"]["data"]["state"], "ready");
+            assert_eq!(observed["observation"]["installation_authority"], false);
+            assert!(!observed.to_string().contains("canary"));
+            let count = control.lock().map_err(|_| "fixture")?.reads.len();
+            control.lock().map_err(|_| "fixture")?.unlink_allowed = false;
+            assert!(corporate::observe(root.path(), Some(&contexts[0]), request.clone()).is_err());
+            assert_eq!(control.lock().map_err(|_| "fixture")?.reads.len(), count);
+            control.lock().map_err(|_| "fixture")?.unlink_allowed = true;
+            control.lock().map_err(|_| "fixture")?.stale_link_policy = true;
+            assert!(corporate::observe(root.path(), Some(&contexts[0]), request.clone()).is_err());
+            control.lock().map_err(|_| "fixture")?.bump = true;
+            assert!(corporate::observe(root.path(), Some(&contexts[0]), request).is_err());
+        }
         let request = Request::LinkRequestOutcome {
             request_key: "context-link-plan-0001".into(),
         };

@@ -39,7 +39,7 @@ from ai_stp_contracts.technology import normalize_technology_name
 from ai_stp_foundation.envelope import ErrorEnvelope
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.catalog_search import upsert_catalog_search_projection
-from ai_stp_platform.models import Account, CatalogMetadata, Device
+from ai_stp_platform.models import Account, AuditEvent, CatalogMetadata, Device
 from ai_stp_platform.organization_models import (
     CorporateAssignmentDistribution,
     CorporateProject,
@@ -54,6 +54,7 @@ from ai_stp_platform.organization_models import (
     ProjectIdentity,
     ProjectLink,
     ProjectLinkPlan,
+    ProjectUnlinkPlan,
 )
 from ai_stp_platform.technology_models import Technology, TechnologyAlias
 
@@ -612,6 +613,88 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         "project", "link-request-outcome", "--request-key", "native-link-outcome-plan"
     )
     assert request_outcome["plan"] == link_plan and request_outcome["link"] == confirmed.json()
+
+    # The fixture creates/confirms one unlink; every native command below is a
+    # read. Observe counts around those reads rather than treating a fixture POST
+    # as native mutation or active local-binding retirement acceptance.
+    async def unlink_counts() -> tuple[int | None, ...]:
+        async with app.state.sessionmaker() as db:
+            return tuple(
+                [
+                    await db.scalar(select(func.count()).select_from(model))
+                    for model in (ProjectLinkPlan, ProjectLink, ProjectUnlinkPlan, AuditEvent)
+                ]
+            )
+
+    async with AsyncClient(base_url=origin, timeout=15, trust_env=False) as client:
+        planned = await client.post(
+            f"/v1/organizations/{organization}/project-unlink-plans",
+            headers=link_headers,
+            json={
+                "link_id": confirmed.json()["link_id"],
+                "expected_link_revision": confirmed.json()["revision"],
+                "authorization_revision": target["authorization_revision"],
+                "idempotency_key": "native-unlink-outcome-plan",
+            },
+        )
+        assert planned.status_code == 201, planned.text
+        unlink_plan = planned.json()
+        readers = [
+            ["unlink-outcome", "--plan-id", unlink_plan["plan_id"]],
+            ["unlink-settlement", "--plan-id", unlink_plan["plan_id"]],
+            ["unlink-request-outcome", "--request-key", "native-unlink-outcome-plan"],
+        ]
+        counts = await unlink_counts()
+        for reader in readers:
+            result = await observe("project", *reader)
+            assert result["plan"] == unlink_plan and result["state"] == "ready"
+            assert result["link"] is None and result["observation_only"]
+            await refused(
+                binary,
+                home,
+                ["corporate", "project", *reader, "--context", contexts[1], *scoped],
+            )
+            await refused(
+                binary,
+                home,
+                ["corporate", "project", *reader, "--context", second_context, *scoped],
+            )
+        absent = await refused(
+            binary,
+            home,
+            [
+                "corporate",
+                "project",
+                "unlink-request-outcome",
+                "--request-key",
+                "native-unlink-missing-request",
+                "--context",
+                contexts[0],
+                *scoped,
+            ],
+        )
+        assert absent.error.code == "AI_STP_NOT_FOUND", absent.error.code
+        assert await unlink_counts() == counts
+        unlinked = await client.request(
+            "DELETE",
+            f"/v1/projects/links/{confirmed.json()['link_id']}",
+            headers=link_headers,
+            json={
+                "plan_id": unlink_plan["plan_id"],
+                "plan_digest": unlink_plan["plan_digest"],
+                "authorization_revision": target["authorization_revision"],
+                "idempotency_key": "native-unlink-outcome-confirm",
+            },
+        )
+        assert unlinked.status_code == 200, unlinked.text
+        counts = await unlink_counts()
+        for reader in readers:
+            result = await observe("project", *reader)
+            assert result["plan"] == unlink_plan and result["state"] == "applied"
+            assert result["link"] == unlinked.json()
+            assert result["link"]["revision"] == unlink_plan["expected_link_revision"] + 1
+            assert result["link"]["state"] == "unlinked"
+        assert await unlink_counts() == counts
     await refused(
         binary,
         home,
@@ -1026,6 +1109,7 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
                 "membership_revocation": "refused",
                 "read_operations_added": 0,
                 "link_plan_outcome": "exact_ready_and_applied_account_bound_reads",
+                "unlink_plan_readers": "ready_applied_settlement_unknown_and_account_tenant_fences",
                 "link_preview": "registered_checkout_and_current_context_without_writes",
                 "enrollment_recovery": "same_account_only",
                 "missing_key_recovery": "active_previous_device_refused_before_revocation",

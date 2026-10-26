@@ -97,6 +97,15 @@ with `--request-key KEY` and that request's exact retained idempotency key. The 
 finds only the same account's original plan; it does not submit or confirm it.
 An absent result leaves an in-flight request unknown and cannot prove rollback.
 
+`corporate project unlink-outcome --plan-id ID`, `unlink-settlement --plan-id ID`
+and `unlink-request-outcome --request-key KEY` observe an original account-owned
+unlink through its exact retained coordinates. They require current
+`project.unlink` capability and preserve the current context/policy fences.
+Settlement waits for the original confirmation barrier; applied evidence must
+identify the exact unlinked relationship at the expected next revision. An
+absent/unsupported response stays unknown. These reads submit no unlink and
+release no local binding, reservation, task or harness files.
+
 Use `corporate project link-retire plan --operation ID` to review stopping a
 retained unknown request locally. Its remote outcome stays unknown; the original
 key and receipt remain. For an unknown confirmation, name its exact current
