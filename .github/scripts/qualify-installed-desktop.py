@@ -79,7 +79,27 @@ class Driver:
             status = reply.status
         value = result["value"]
         if isinstance(value, dict) and "error" in value:
-            raise ValueError(f"WebDriver protocol refusal (HTTP {status})")
+            # W3C categories are fixed public protocol data. Never include the
+            # driver's free-form message, stack, DOM or application arguments.
+            known = {
+                "element click intercepted",
+                "element not interactable",
+                "invalid argument",
+                "invalid element state",
+                "invalid session id",
+                "javascript error",
+                "no such element",
+                "no such window",
+                "stale element reference",
+                "timeout",
+                "unknown command",
+                "unknown error",
+                "unsupported operation",
+            }
+            code = value["error"] if isinstance(value["error"], str) else "unknown error"
+            if code not in known:
+                code = "unknown error"
+            raise ValueError(f"WebDriver protocol refusal (HTTP {status}; {code})")
         require(200 <= status < 300, f"WebDriver HTTP status {status}")
         return value
 

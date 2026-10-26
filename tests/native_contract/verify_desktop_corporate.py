@@ -76,8 +76,8 @@ def fill(driver: Any, label: str, value: str, *, scope: str = "main") -> None:
     )
 
 
-def choose(driver: Any, label: str, value: str) -> None:
-    select_element = field(driver, label, kind="select")
+def choose(driver: Any, label: str, value: str, *, scope: str = "main") -> None:
+    select_element = field(driver, label, kind="select", scope=scope)
     option = driver.wait(
         lambda: driver.read(
             "return [...arguments[0].options].find(x=>x.value===arguments[1]);",
@@ -87,6 +87,13 @@ def choose(driver: Any, label: str, value: str) -> None:
         label,
     )
     driver.click(option)
+    # Dismiss the native select popup through a real key event before leaving
+    # the control; reading its selected value alone does not close that popup.
+    driver.command(
+        "POST",
+        f"/element/{select_element['element-6066-11e4-a52e-4f735466cecf']}/value",
+        {"text": "\ue00c"},
+    )
 
 
 def public_plan(driver: Any, scope: str) -> dict[str, Any]:
@@ -279,12 +286,7 @@ def installed_journey(
             assert context["authority"]["account"]["account_id"] == account
 
         company = profile_review(driver, company_plan)["change"]["context"]["context_id"]
-        selected = driver.find('section[aria-label="Context view"] select')
-        option = driver.read(
-            "return [...arguments[0].options].find(x=>x.value===arguments[1]);", selected, company
-        )
-        assert option is not None
-        driver.click(option)
+        choose(driver, "Selected context view", company, scope='section[aria-label="Context view"]')
         driver.selected(company)
         checkout = root / "registered-checkout"
         checkout.mkdir()
