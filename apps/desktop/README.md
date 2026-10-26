@@ -106,7 +106,14 @@ restarts the app and compares the retained state with the installed bundled CLI.
 It verifies the default credential store and preserves unrelated home files.
 Three fresh private sessions must each pass the complete journey. The external
 driver uses one persistent HTTP connection; failed UI commands are not replayed.
-This gate does not establish corporate enrollment or harness activation.
+Those three journeys qualify personal contexts. A separate mandatory Linux
+journey uses the same installed package and driver with an isolated actual
+API/PostgreSQL: named OS-vault enrollment, synthetic browser approval, corporate
+context creation, registered checkout review, explicit request/confirmation,
+lost committed reply, application restart, original-outcome reconciliation and
+reviewed local binding adoption. Installed CLI, SQL rows and unowned files are
+read back independently. Its separate proof does not qualify live SSO account
+linking, harness installation or activation.
 
 Release bundles require their own `cli/ai-stp-desktop-cli` resource. A missing
 bundled engine fails closed. Development can use `AI_STP_CLI` or PATH when no

@@ -18,7 +18,7 @@ import subprocess
 from collections.abc import Callable
 from contextlib import closing
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import uvicorn
 from alembic import command
@@ -92,7 +92,7 @@ def public_plan(driver: Any, scope: str) -> dict[str, Any]:
         driver.read("return document.querySelector(arguments[0]+' pre').textContent;", scope)
     )
     assert isinstance(value, dict)
-    return value
+    return cast(dict[str, Any], value)
 
 
 def authorize(driver: Any, scope: str, button: str) -> None:
