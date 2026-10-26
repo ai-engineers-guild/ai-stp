@@ -278,7 +278,9 @@ fn owner_journey(recover: bool) -> std::result::Result<(), Box<dyn Error>> {
     let fixture = shared.clone();
     let server = thread::spawn(move || -> std::io::Result<()> {
         let deadline = Instant::now() + Duration::from_secs(90);
-        for _ in 0..100 {
+        // Keep the 100-request bound, with a separate accept for the teardown
+        // wake. Serving exactly 100 HTTP requests must not consume that wake.
+        for request in 0..=100 {
             let mut socket = accept_until(&listener, deadline)?;
             let mut fixture = fixture
                 .lock()
@@ -286,7 +288,12 @@ fn owner_journey(recover: bool) -> std::result::Result<(), Box<dyn Error>> {
             if fixture.stop {
                 return Ok(());
             }
-            fixture.serve(&mut socket)?;
+            if request == 100 {
+                return Err(std::io::Error::other("fixture HTTP request bound: 100"));
+            }
+            fixture.serve(&mut socket).map_err(|error| {
+                std::io::Error::other(format!("fixture request {}: {error}", request + 1))
+            })?;
         }
         Err(std::io::Error::other("request bound"))
     });
@@ -821,9 +828,11 @@ fn owner_journey(recover: bool) -> std::result::Result<(), Box<dyn Error>> {
         Ok(())
     })();
     shared.lock().map_err(|_| "fixture")?.stop = true;
-    let _wake = TcpStream::connect(address)?;
+    // A worker that already failed has closed its listener. Joining it must
+    // report that original result instead of replacing it with a wake error.
+    let _wake = TcpStream::connect(address);
     let served = server.join().map_err(|_| "server thread")?;
-    journey.map_err(|error| format!("{phase}: {error}"))?;
+    journey.map_err(|error| format!("{phase}: {error}; fixture server: {served:?}"))?;
     served?;
     Ok(())
 }

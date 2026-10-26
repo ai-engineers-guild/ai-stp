@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from enum import StrEnum
+from hashlib import sha256
 from http import HTTPStatus
 from typing import cast
 
@@ -247,6 +248,12 @@ async def _audit_http_outcome(request: Request, error: ApiError) -> None:
                         OrganizationMembership.account_id == ctx.account_id,
                     )
                 )
+            target = request.url.path if organization_id is not None else "redacted"
+            # AuditEvent.target_id is VARCHAR(128); valid request keys can make
+            # a longer path. Preserve short identities and nonmember redaction,
+            # and fingerprint long paths without truncating distinct targets.
+            if len(target) > 128:
+                target = f"sha256:{sha256(target.encode('utf-8')).hexdigest()}"
             await emit_audit(
                 db,
                 actor_account_id=ctx.account_id,
@@ -254,7 +261,7 @@ async def _audit_http_outcome(request: Request, error: ApiError) -> None:
                 action=f"http.{request.method.lower()}."
                 f"{'denied' if error.category is ErrorCategory.PERMISSION else 'failed'}",
                 target_table="http_route",
-                target_id=request.url.path if organization_id is not None else "redacted",
+                target_id=target,
                 outcome="denied" if error.category is ErrorCategory.PERMISSION else "failed",
                 reason=(
                     "capability_forbidden"
