@@ -507,6 +507,78 @@ async def test_publication_plan_confirm_validate_publish(
     assert create2.json()["error"]["message"] == "version already published with different digest"
 
 
+async def test_replacement_device_reads_old_publication_without_inheriting_write_authority(
+    harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
+) -> None:
+    client, sessionmaker, _settings = harness
+    account, original, token = await _seed_account_device(sessionmaker)
+    created = await client.post(
+        "/v1/publications/plans",
+        headers=_auth(token),
+        json={
+            "schema_version": 1,
+            "object_kind": "component",
+            "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "version": "1.0",
+            "content_digest": DIGEST,
+            "policy_version": POLICY_VERSION,
+            "passport": _passport(owner_id=account),
+            "attestations": [],
+            "idempotency_key": "recovery-read-only-create",
+            "device_id": original,
+        },
+    )
+    assert created.status_code == 201, created.text
+    plan = created.json()
+    await _bind_plan_bytes(client, token, plan["plan_id"], CLEAN_ARTIFACT)
+    async with sessionmaker() as db:
+        old = await db.get(Device, original)
+        assert old is not None
+        old.state = "revoked"
+        replacement = Device(
+            id=new_id("device"),
+            account_id=account,
+            public_key=f"replacement-publication-read-{new_id('device')}",
+            state="active",
+        )
+        db.add(replacement)
+        await db.flush()
+        session = await issue_session(
+            db, account_id=account, device_id=replacement.id, ttl_seconds=3600
+        )
+        await db.commit()
+    headers = _auth(session.raw_token)
+    observed = await client.get(f"/v1/publications/plans/{plan['plan_id']}", headers=headers)
+    assert observed.status_code == 200
+    assert observed.json()["device_id"] == original and observed.json()["state"] == "ready"
+    rebound = await client.put(
+        f"/v1/publications/plans/{plan['plan_id']}/artifact",
+        headers={**headers, "Content-Type": "application/octet-stream"},
+        content=CLEAN_ARTIFACT,
+    )
+    assert rebound.status_code == 400
+    confirmed = await client.post(
+        f"/v1/publications/plans/{plan['plan_id']}/confirm",
+        headers=headers,
+        json={
+            "schema_version": 1,
+            "plan_hash": plan["plan_hash"],
+            "confirmed": True,
+            "idempotency_key": "replacement-must-not-confirm",
+        },
+    )
+    assert confirmed.status_code == 400
+    _other_account, _other_device, other_token = await _seed_account_device(sessionmaker)
+    hidden = await client.get(
+        f"/v1/publications/plans/{plan['plan_id']}", headers=_auth(other_token)
+    )
+    assert hidden.status_code == 404
+    async with sessionmaker() as db:
+        retained = await db.get(PublicationPlan, plan["plan_id"])
+        assert retained is not None and retained.device_id == original
+        assert retained.state == "ready" and retained.confirm_idempotency_key is None
+
+
 async def test_publication_requires_every_declared_projection_artifact(
     harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
 ) -> None:

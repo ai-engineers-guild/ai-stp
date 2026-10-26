@@ -108,7 +108,8 @@ fn native_vault_recovery_preserves_other_sessions_and_uses_same_account_key_cons
     let native_public = original["public_key"].clone();
     let worker = thread::spawn(move || -> std::io::Result<()> {
         let deadline = Instant::now() + Duration::from_secs(60);
-        for _ in 0..8 {
+        let mut previous_public = Value::String(old_public);
+        for _ in 0..10 {
             let mut stream = loop {
                 match listener.accept() {
                     Ok((stream, _)) => break stream,
@@ -144,9 +145,10 @@ fn native_vault_recovery_preserves_other_sessions_and_uses_same_account_key_cons
                 };
                 if device != old_device && device != other_device {
                     assert_eq!(body["expected_account_id"], service_account);
-                    assert_eq!(body["revoked_public_key"], old_public);
-                    assert_ne!(body["public_key"], old_public);
+                    assert_eq!(body["revoked_public_key"], previous_public);
+                    assert_ne!(body["public_key"], previous_public);
                     assert_ne!(body["public_key"], native_public);
+                    previous_public = body["public_key"].clone();
                 }
                 respond(
                     &mut stream,
@@ -194,8 +196,8 @@ fn native_vault_recovery_preserves_other_sessions_and_uses_same_account_key_cons
         "Replacement",
         &clock(&at, 10)?,
     )?;
-    let _replacement_key = owned_slot(&format!("device-key.{}", plan.replacement.device_id))?;
-    let _replacement_session = owned_slot(&format!("account-{}", plan.replacement.device_id))?;
+    let replacement_key = owned_slot(&format!("device-key.{}", plan.replacement.device_id))?;
+    let replacement_session = owned_slot(&format!("account-{}", plan.replacement.device_id))?;
     enrollment_recovery::apply(&plan, &plan.digest()?, &clock(&at, 10)?)?;
     authorize(
         root.path(),
@@ -215,19 +217,53 @@ fn native_vault_recovery_preserves_other_sessions_and_uses_same_account_key_cons
         digest::sha256(&second_session.0.get_secret()?),
         other_session
     );
+    let replacement_before = digest::sha256(&replacement_session.0.get_secret()?);
+    replacement_key.0.delete_credential()?;
+    let missing = enrollment_recovery::plan(
+        root.path(),
+        &plan.replacement.connection_id,
+        "Missing-key replacement",
+        &clock(&at, 16)?,
+    )?;
+    assert_eq!(missing.schema_version, 2);
+    assert!(missing.revoked_receipt_digest.is_none());
+    assert!(missing.missing_key.is_some());
+    let _missing_key = owned_slot(&format!("device-key.{}", missing.replacement.device_id))?;
+    let _missing_session = owned_slot(&format!("account-{}", missing.replacement.device_id))?;
+    enrollment_recovery::apply(&missing, &missing.digest()?, &clock(&at, 16)?)?;
+    authorize(
+        root.path(),
+        &missing.replacement.connection_id,
+        &clock(&at, 18)?,
+    )?;
+    assert_eq!(
+        digest::sha256(&replacement_session.0.get_secret()?),
+        replacement_before
+    );
+    assert!(matches!(
+        replacement_key.0.get_password(),
+        Err(keyring_core::Error::NoEntry)
+    ));
+    assert!(
+        enrollment_recovery::list(root.path())?["recoveries"]
+            .as_array()
+            .ok_or("recoveries")?
+            .iter()
+            .all(|recovery| recovery["state"] == "authorized")
+    );
     let logout = account::plan_for_connection(
         root.path(),
         Action::Logout,
         None,
         None,
         Some(&second.connection_id),
-        &clock(&at, 16)?,
+        &clock(&at, 22)?,
     )?;
-    account::apply(&logout, &logout.digest()?, &clock(&at, 16)?)?;
+    account::apply(&logout, &logout.digest()?, &clock(&at, 22)?)?;
     let status = account::status_for_connection(
         root.path(),
-        Some(&plan.replacement.connection_id),
-        &clock(&at, 18)?,
+        Some(&missing.replacement.connection_id),
+        &clock(&at, 24)?,
     )?;
     assert_eq!(status["session"]["state"], "authorized");
     assert_eq!(status["session"]["account_id"], account);

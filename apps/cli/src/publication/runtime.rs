@@ -527,14 +527,23 @@ pub fn status(root: &Path, operation_id: Option<&str>) -> Result<Value> {
 /// Read current remote evidence through the replacement account, preserving the
 /// stopped group's historical receipt and all original per-object requests.
 pub fn reconcile(root: &Path, origin: Option<&str>, operation_id: &str) -> Result<Value> {
-    let mut client = Client::connect(root, origin)?;
+    reconcile_for_connection(root, origin, None, operation_id)
+}
+
+pub fn reconcile_for_connection(
+    root: &Path,
+    origin: Option<&str>,
+    connection: Option<&str>,
+    operation_id: &str,
+) -> Result<Value> {
+    let mut client = Client::for_connection(root, origin, connection)?;
     let store = client.registry()?;
     let intent = Run::intent(&store.connection, operation_id)?;
     let run = Run::load(&store.connection, &intent)?.ok_or_else(invalid)?;
     let Some(Terminal::Interrupted { recovery }) = &run.terminal else {
         return Err(invalid());
     };
-    client.recovered_binding(&intent.account, recovery)?;
+    let recovery = recovery.clone();
     let mut members = Vec::new();
     for member in &intent.members {
         let interrupted = match member {
@@ -546,6 +555,7 @@ pub fn reconcile(root: &Path, origin: Option<&str>, operation_id: &str) -> Resul
         members.push((member.clone(), interrupted));
     }
     drop(store);
+    client.recovered_binding(&intent.account, &recovery)?;
     let mut observations = Vec::new();
     for (member, interrupted) in members {
         if let Member::Publish { attempt } = &member

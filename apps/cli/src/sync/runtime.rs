@@ -166,7 +166,7 @@ impl Plan {
             ));
         }
         if let (Request::Recover { event_id }, Some(expected)) = (&self.request, &self.retirement)
-            && recovery::capture(connection, scope, owner, event_id)? != *expected
+            && recovery::capture(connection, scope, owner, &self.account, event_id)? != *expected
         {
             return Err(Failure::precondition(
                 "the retired-device request changed after planning",
@@ -198,11 +198,6 @@ pub fn plan_for_connection(
     client::enabled(configuration)?;
     let state_parent = PathBuf::from(files::location(root)?);
     let mut account = Access::for_connection(&state_parent, origin, connection, false)?;
-    if account.binding().connection.is_some() && matches!(request, Request::Recover { .. }) {
-        return Err(Failure::precondition(
-            "named enrollment recovery requires its own retirement evidence; local device recovery does not apply",
-        ));
-    }
     account.verify()?;
     let owner = authoring::runtime::owner(&state_parent)?;
     let store = owner.planning()?;
@@ -226,6 +221,7 @@ pub fn plan_for_connection(
             &store.connection,
             &scope,
             &owner,
+            account.binding(),
             event_id,
         )?),
         _ => None,
