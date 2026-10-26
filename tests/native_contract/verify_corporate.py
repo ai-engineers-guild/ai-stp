@@ -711,12 +711,14 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
             }
         for key in missing_keys:
             path = f"/v1/organizations/{organization}/project-unlink-plan-requests/{key}"
-            target = path if len(path) <= 128 else f"sha256:{sha256(path.encode()).hexdigest()}"
+            audit_target = (
+                path if len(path) <= 128 else f"sha256:{sha256(path.encode()).hexdigest()}"
+            )
             assert (
                 sum(
                     audit.actor_account_id == accounts[0]
                     and audit.organization_id == organization
-                    and audit.target_id == target
+                    and audit.target_id == audit_target
                     and audit.payload["error"] == "AI_STP_NOT_FOUND"
                     for audit in audits
                 )
