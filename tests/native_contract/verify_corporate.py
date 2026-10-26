@@ -628,6 +628,15 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
             return tuple(counts)
 
     async with AsyncClient(base_url=origin, timeout=15, trust_env=False) as client:
+        current_response = await client.get(
+            f"/v1/projects/links/{confirmed.json()['link_id']}", headers=link_headers
+        )
+        assert current_response.status_code == 200, current_response.text
+        assert current_response.headers["cache-control"] == "private, no-store"
+        current_counts = await unlink_counts()
+        current = await observe("project", "link-current", "--link-id", confirmed.json()["link_id"])
+        assert current == confirmed.json() and current["state"] == "linked"
+        assert await unlink_counts() == current_counts
         planned = await client.post(
             f"/v1/organizations/{organization}/project-unlink-plans",
             headers=link_headers,
@@ -737,6 +746,8 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         )
         assert unlinked.status_code == 200, unlinked.text
         counts = await unlink_counts()
+        current = await observe("project", "link-current", "--link-id", confirmed.json()["link_id"])
+        assert current == unlinked.json() and current["state"] == "unlinked"
         for reader in readers:
             result = await observe("project", *reader)
             assert result["plan"] == unlink_plan and result["state"] == "applied"

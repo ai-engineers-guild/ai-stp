@@ -326,7 +326,9 @@ async def read_project_link(
     body = await service.read_project_link(
         db, ctx=ctx, organization_id=organization_id, link_id=link_id
     )
-    return JSONResponse(content=body.model_dump(mode="json"))
+    return JSONResponse(
+        content=body.model_dump(mode="json"), headers={"Cache-Control": "private, no-store"}
+    )
 
 
 @router.post("/organizations/{organization_id}/project-unlink-plans", response_model=None)
