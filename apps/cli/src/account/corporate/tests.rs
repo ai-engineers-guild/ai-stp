@@ -27,6 +27,40 @@ fn fixture(source: &str, operation: &str) -> Result<Value> {
 }
 
 #[test]
+fn link_targets_drop_extensions_and_refuse_mixed_or_duplicate_coordinates() -> Result<()> {
+    let project = "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
+    let request = Request::LinkTarget {
+        project_id: project.into(),
+    };
+    let provider = json!({"provider_project_id":"provider_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "provider":"github","immutable_repository_id":"123456","revision":7,"future_token":"canary"});
+    let mut value = json!({"schema_version":1,"organization_id":ORGANIZATION,"remote_project_id":project,
+        "remote_revision":"initial","authorization_revision":format!("corporate:{ORGANIZATION}:1:1"),
+        "providers":[provider.clone()],"observed_at":"2026-10-25T00:00:00.000Z","observation_only":true,
+        "future_private":{"credential":"canary"}});
+    let observed = request.project(&value, ORGANIZATION, ACCOUNT)?;
+    assert!(!observed.to_string().contains("canary"));
+    let (url, body) = request.wire("https://corporate.example.test", ORGANIZATION, ACCOUNT)?;
+    assert_eq!(
+        url.path(),
+        format!("/v1/organizations/{ORGANIZATION}/project-link-targets/{project}")
+    );
+    assert!(body.is_none() && url.query().is_none());
+    value["providers"] = json!([provider.clone(), provider]);
+    assert!(request.project(&value, ORGANIZATION, ACCOUNT).is_err());
+    value = observed.clone();
+    value["remote_project_id"] = "remote_project_01ARZ3NDEKTSV4RRFFQ69G5FAV".into();
+    assert!(request.project(&value, ORGANIZATION, ACCOUNT).is_err());
+    value = observed.clone();
+    value["organization_id"] = "organization_01ARZ3NDEKTSV4RRFFQ69G5FAV".into();
+    assert!(request.project(&value, ORGANIZATION, ACCOUNT).is_err());
+    value = observed;
+    value["remote_revision"] = "sha256:short".into();
+    assert!(request.project(&value, ORGANIZATION, ACCOUNT).is_err());
+    Ok(())
+}
+
+#[test]
 fn actual_contract_corpus_keeps_corporate_coordinates_and_drops_extensions() -> Result<()> {
     let cases = [
         (Request::Teams, fixture(CORPORATE, "listCorporateTeams")?),

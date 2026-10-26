@@ -604,6 +604,9 @@ import type {
   ReadProjectLinkPlanErrors,
   ReadProjectLinkPlanResponses,
   ReadProjectLinkResponses,
+  ReadProjectLinkTargetData,
+  ReadProjectLinkTargetErrors,
+  ReadProjectLinkTargetResponses,
   ReadProjectTechnologyData,
   ReadProjectTechnologyErrors,
   ReadProjectTechnologyResponses,
@@ -5416,6 +5419,22 @@ export const readProjectLinkPlan = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/organizations/{organization_id}/project-link-plans/{plan_id}",
+    ...options,
+  });
+
+/**
+ * Read current authorized project and provider revisions before link planning.
+ */
+export const readProjectLinkTarget = <ThrowOnError extends boolean = false>(
+  options: Options<ReadProjectLinkTargetData, ThrowOnError>,
+): RequestResult<ReadProjectLinkTargetResponses, ReadProjectLinkTargetErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadProjectLinkTargetResponses,
+    ReadProjectLinkTargetErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/organizations/{organization_id}/project-link-targets/{remote_project_id}",
     ...options,
   });
 

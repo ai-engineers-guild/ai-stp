@@ -314,6 +314,32 @@ class ActiveContext(ContractModel):
         return self
 
 
+class ProjectLinkProviderTarget(ContractModel):
+    """Current immutable repository coordinates for one authorized link target."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    provider_project_id: ProviderProjectId
+    provider: Literal["github", "gitlab"]
+    immutable_repository_id: Annotated[str, Field(min_length=1, max_length=128)]
+    revision: Annotated[int, Field(ge=1)]
+
+
+class ProjectLinkTargetResponse(ContractModel):
+    """Fresh link-planning coordinates; no link or installation is authorized."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    organization_id: OrganizationId
+    remote_project_id: RemoteProjectId
+    remote_revision: Annotated[str, Field(pattern=r"^(initial|sha256:[0-9a-f]{64})$")]
+    authorization_revision: Annotated[str, Field(min_length=1, max_length=128)]
+    providers: Annotated[list[ProjectLinkProviderTarget], Field(max_length=256)]
+    observed_at: Timestamp
+    observation_only: Literal[True] = True
+
+
 class ProjectLinkPlanRequest(ContractModel):
     """Request a server-authored exact link plan without changing state."""
 
