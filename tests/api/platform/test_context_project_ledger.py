@@ -247,7 +247,8 @@ async def test_link_plan_outcome_reads_lost_confirmation_without_mutation(
         },
     )
     assert denied.status_code == 403
-    assert await counts() == before
+    assert (await counts())[:2] == before[:2]
+    before = await counts()  # Failed requests retain their standard security audit.
     async with sessionmaker() as db:
         retained_link = await db.get(ProjectLink, confirmed.json()["link_id"])
         assert retained_link is not None
