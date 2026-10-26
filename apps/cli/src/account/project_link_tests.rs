@@ -54,6 +54,13 @@ fn peer(
         .filter_map(|s| s.split_once(':'))
         .map(|(key, value)| (key.to_ascii_lowercase(), value.trim().to_owned()))
         .collect();
+    if path == "/v1/auth/device/refresh" {
+        return respond(
+            socket,
+            403,
+            json!({"schema_version":1,"ok":false,"error":{"code":"AI_STP_DEVICE_REVOKED"}}),
+        );
+    }
     assert_eq!(
         headers.get("authorization").map(String::as_str),
         Some(format!("Bearer {token}").as_str())
@@ -225,6 +232,16 @@ fn git(root: &Path, arguments: &[&str]) -> std::result::Result<(), Box<dyn Error
 #[test]
 fn checkout_intents_preserve_unknown_effects_context_and_physical_reservations()
 -> std::result::Result<(), Box<dyn Error>> {
+    checkout_journey(true)
+}
+
+#[test]
+fn root_checkout_recovery_captures_original_intent_before_constructing_replacement()
+-> std::result::Result<(), Box<dyn Error>> {
+    checkout_journey(false)
+}
+
+fn checkout_journey(named: bool) -> std::result::Result<(), Box<dyn Error>> {
     let root = tempfile::tempdir()?;
     let tree = tempfile::tempdir()?;
     let checkout = tree.path().join("checkout");
@@ -257,11 +274,20 @@ fn checkout_intents_preserve_unknown_effects_context_and_physical_reservations()
     super::ownership_tests::authorize(
         root.path(),
         &origin,
-        Some(&connection.connection_id),
+        named.then_some(connection.connection_id.as_str()),
         &account,
         &token,
         &at,
     )?;
+    if !named {
+        let journal = Journal::open(&local, false)?.ok_or("legacy journal")?;
+        journal.complete(&journal.state()?.ok_or("legacy authorization")?)?;
+    }
+    let service_device = if named {
+        connection.device_id.clone()
+    } else {
+        local.context().device_id
+    };
     let control = Arc::new(Mutex::new(Peer::default()));
     let remote = control.clone();
     let remote_at = at.clone();
@@ -281,7 +307,7 @@ fn checkout_intents_preserve_unknown_effects_context_and_physical_reservations()
                 &mut socket,
                 &remote,
                 &account,
-                &connection.device_id,
+                &service_device,
                 &remote_token,
                 &remote_at,
             )?;
@@ -291,13 +317,17 @@ fn checkout_intents_preserve_unknown_effects_context_and_physical_reservations()
     let journey = (|| -> std::result::Result<(), Box<dyn Error>> {
         let mut contexts = Vec::new();
         for org in [FIRST, SECOND] {
-            let plan = contexts::create_plan(
-                root.path(),
-                org,
-                Some(&connection.connection_id),
-                Some(org),
-                &at,
-            )?;
+            let plan = if named {
+                contexts::create_plan(
+                    root.path(),
+                    org,
+                    Some(&connection.connection_id),
+                    Some(org),
+                    &at,
+                )?
+            } else {
+                contexts::create_legacy_plan(root.path(), org, Some(org), &at)?
+            };
             let value = contexts::apply(&plan, &plan.digest()?, &at)?;
             contexts.push(value["context_id"].as_str().ok_or("context")?.to_owned());
         }
@@ -377,6 +407,48 @@ fn checkout_intents_preserve_unknown_effects_context_and_physical_reservations()
             )
             .is_err()
         );
+        if !named {
+            let later = format!("{:.3}", jiff::Timestamp::now());
+            let refresh = plan(root.path(), Action::Refresh, None, None, &later)?;
+            assert_eq!(
+                apply(&refresh, &refresh.digest()?, &later)?["outcome"],
+                "revoked"
+            );
+            let later = format!("{:.3}", jiff::Timestamp::now());
+            let recovery = plan(root.path(), Action::Recover, None, None, &later)?;
+            let intent = recovery.recovery.as_ref().ok_or("root recovery intent")?;
+            assert_eq!(intent.interrupted_checkout_links.len(), 1);
+            assert_eq!(
+                intent.interrupted_checkout_links[0].operation_id,
+                confirmation_id
+            );
+            assert_eq!(
+                intent.interrupted_checkout_links[0].plan_digest,
+                confirmation.digest()?
+            );
+            let mut incomplete = recovery.clone();
+            incomplete
+                .recovery
+                .as_mut()
+                .ok_or("intent")?
+                .interrupted_checkout_links
+                .clear();
+            assert!(apply(&incomplete, &incomplete.digest()?, &later).is_err());
+            assert_eq!(identity_at(root.path())?.context(), local.context());
+            assert_eq!(
+                project_links::status(root.path(), &confirmation_id)?["state"],
+                "applying"
+            );
+            let store = Store::planning_at(local.root_directory())?;
+            let reservations: i64 = store.connection.query_row(
+                "SELECT count(*) FROM native_checkout_reservation",
+                [],
+                |r| r.get(0),
+            )?;
+            assert_eq!(reservations, 1);
+            assert_eq!(control.lock().map_err(|_| "peer")?.writes.len(), 2);
+            return Ok(());
+        }
         let second = project_links::request_plan(
             root.path(),
             Some(&contexts[1]),

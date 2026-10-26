@@ -143,7 +143,7 @@ pub(crate) fn capture(
             && binding.device_id == recovery.identity.device_id
             && binding.origin == recovery.origin
         {
-            crate::publication::interruption::belongs(binding, recovery)?;
+            root_binding(binding, recovery, account_id)?;
             if record.plan.state_parent != recovery.root
                 || Some(binding.account_id.as_str()) != account_id
             {
@@ -153,6 +153,29 @@ pub(crate) fn capture(
         }
     }
     Ok(checkpoints)
+}
+
+fn root_binding(
+    binding: &super::Binding,
+    original: &account::Plan,
+    account_id: Option<&str>,
+) -> Result<()> {
+    binding.validate()?;
+    // Capture runs while constructing the replacement intent, before the
+    // account plan contains that intent. Compare the retained original actor
+    // directly, using the account recovered from its authenticated receipts.
+    if original.connection.is_some()
+        || binding.connection.is_some()
+        || binding.root_identity != original.root_identity
+        || binding.device_id != original.identity.device_id
+        || binding.public_key != original.public_key
+        || binding.credential_store != original.credential_store
+        || binding.origin != original.origin
+        || Some(binding.account_id.as_str()) != account_id
+    {
+        return Err(invalid());
+    }
+    Ok(())
 }
 
 pub(crate) fn validate(connection: &Connection, recovery: &account::Plan) -> Result<()> {
@@ -166,7 +189,11 @@ pub(crate) fn validate(connection: &Connection, recovery: &account::Plan) -> Res
     }
     for checkpoint in &intent.interrupted_checkout_links {
         let record = Record::load(connection, &checkpoint.operation_id)?.ok_or_else(invalid)?;
-        crate::publication::interruption::belongs(&record.plan.snapshot().account, recovery)?;
+        root_binding(
+            &record.plan.snapshot().account,
+            recovery,
+            intent.account_id.as_deref(),
+        )?;
         if record.plan.state_parent != recovery.root
             || record.plan.digest()? != checkpoint.plan_digest
             || !current.contains(checkpoint)
