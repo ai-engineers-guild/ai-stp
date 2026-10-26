@@ -17,21 +17,25 @@ use zbus::{
 use zeroize::Zeroizing;
 
 use super::credentials::unavailable;
-use crate::error::Result;
+use crate::error::{Failure, Result};
 
 const SERVICE: &str = "org.freedesktop.secrets";
 type Secret = (OwnedObjectPath, Vec<u8>, Vec<u8>, String);
 
+fn unavailable_at(stage: &'static str) -> Failure {
+    unavailable().with_details([("credential_stage".into(), stage.into())])
+}
+
 async fn connection() -> Result<Connection> {
-    let address = Address::session().map_err(|_| unavailable())?;
+    let address = Address::session().map_err(|_| unavailable_at("session_address"))?;
     if !matches!(address.transport(), Transport::Unix(_)) {
-        return Err(unavailable());
+        return Err(unavailable_at("session_transport"));
     }
     Builder::address(address)
         .method_timeout(Duration::from_secs(3))
         .build()
         .await
-        .map_err(|_| unavailable())
+        .map_err(|_| unavailable_at("connect"))
 }
 
 async fn proxy<'a>(conn: &'a Connection, path: &'a str, interface: &'a str) -> Result<Proxy<'a>> {
@@ -42,7 +46,7 @@ async fn proxy<'a>(conn: &'a Connection, path: &'a str, interface: &'a str) -> R
         .cache_properties(CacheProperties::No)
         .build()
         .await
-        .map_err(|_| unavailable())
+        .map_err(|_| unavailable_at("proxy"))
 }
 
 async fn service(conn: &Connection) -> Result<Proxy<'_>> {
@@ -75,9 +79,9 @@ async fn find_attributes(
     let (mut unlocked, locked): (Vec<OwnedObjectPath>, Vec<OwnedObjectPath>) = service
         .call("SearchItems", &(selected,))
         .await
-        .map_err(|_| unavailable())?;
+        .map_err(|_| unavailable_at("search_items"))?;
     if !locked.is_empty() || unlocked.len() > 1 {
-        return Err(unavailable());
+        return Err(unavailable_at("search_locked_or_ambiguous"));
     }
     Ok(unlocked.pop())
 }
@@ -86,9 +90,9 @@ async fn session(service: &Proxy<'_>) -> Result<OwnedObjectPath> {
     let (output, session): (OwnedVariant, OwnedObjectPath) = service
         .call("OpenSession", &("plain", Variant::from("")))
         .await
-        .map_err(|_| unavailable())?;
+        .map_err(|_| unavailable_at("open_session"))?;
     if <&str>::try_from(&output).ok() != Some("") || session.as_str() == "/" {
-        return Err(unavailable());
+        return Err(unavailable_at("open_session_shape"));
     }
     Ok(session)
 }
@@ -115,10 +119,10 @@ async fn read_attributes(selected: HashMap<&str, &str>) -> Result<Option<Zeroizi
     let (returned_session, parameters, bytes, content_type): Secret = item
         .call("GetSecret", &(&session,))
         .await
-        .map_err(|_| unavailable())?;
+        .map_err(|_| unavailable_at("get_secret"))?;
     let bytes = Zeroizing::new(bytes);
     if returned_session != session || !parameters.is_empty() || content_type != "text/plain" {
-        return Err(unavailable());
+        return Err(unavailable_at("get_secret_shape"));
     }
     Ok(Some(bytes))
 }
@@ -140,7 +144,7 @@ async fn write_inner(id: &str, value: &str, replace: bool) -> Result<()> {
         let (): () = item
             .call("SetSecret", &(secret,))
             .await
-            .map_err(|_| unavailable())?;
+            .map_err(|_| unavailable_at("set_secret"))?;
         return Ok(());
     }
     if replace {
@@ -149,9 +153,9 @@ async fn write_inner(id: &str, value: &str, replace: bool) -> Result<()> {
     let collection: OwnedObjectPath = service
         .call("ReadAlias", &("default",))
         .await
-        .map_err(|_| unavailable())?;
+        .map_err(|_| unavailable_at("read_default_alias"))?;
     if collection.as_str() == "/" {
-        return Err(unavailable());
+        return Err(unavailable_at("default_collection_absent"));
     }
     let collection = proxy(
         &conn,
@@ -162,9 +166,9 @@ async fn write_inner(id: &str, value: &str, replace: bool) -> Result<()> {
     if collection
         .get_property::<bool>("Locked")
         .await
-        .map_err(|_| unavailable())?
+        .map_err(|_| unavailable_at("read_collection_lock"))?
     {
-        return Err(unavailable());
+        return Err(unavailable_at("collection_locked"));
     }
     let session = session(&service).await?;
     let properties = HashMap::from([
@@ -185,10 +189,10 @@ async fn write_inner(id: &str, value: &str, replace: bool) -> Result<()> {
     let (item, prompt): (OwnedObjectPath, OwnedObjectPath) = collection
         .call("CreateItem", &(properties, secret, false))
         .await
-        .map_err(|_| unavailable())?;
+        .map_err(|_| unavailable_at("create_item"))?;
     // A prompt becomes invalid when this connection closes. Never display it.
     if item.as_str() == "/" || prompt.as_str() != "/" {
-        return Err(unavailable());
+        return Err(unavailable_at("create_item_prompt"));
     }
     Ok(())
 }
@@ -211,9 +215,12 @@ async fn remove_attributes(selected: HashMap<&str, &str>) -> Result<()> {
         return Ok(());
     };
     let item = proxy(&conn, path.as_str(), "org.freedesktop.Secret.Item").await?;
-    let prompt: OwnedObjectPath = item.call("Delete", &()).await.map_err(|_| unavailable())?;
+    let prompt: OwnedObjectPath = item
+        .call("Delete", &())
+        .await
+        .map_err(|_| unavailable_at("delete_item"))?;
     if prompt.as_str() != "/" {
-        return Err(unavailable());
+        return Err(unavailable_at("delete_item_prompt"));
     }
     Ok(())
 }
