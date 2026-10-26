@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import Db, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.corporate import catalog_ownership, service
@@ -558,7 +558,7 @@ async def put_maintainer(
     organization_id: OrganizationId,
     payload: CorporateCatalogMaintainerRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateCatalogMaintainer:
     return await write_maintainer(
@@ -578,7 +578,7 @@ async def put_verification(
     organization_id: OrganizationId,
     payload: CorporateCatalogVerificationRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateCatalogVerification:
     return await write_verification(
@@ -598,7 +598,7 @@ async def put_lifecycle(
     organization_id: OrganizationId,
     payload: CorporateCatalogLifecycleRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateCatalogLifecycle:
     return await write_lifecycle(
@@ -620,7 +620,7 @@ async def get_governance(
     stable_id: str,
     version: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     include_retired: Annotated[bool, Query()] = False,
     include_history: Annotated[bool, Query()] = False,
