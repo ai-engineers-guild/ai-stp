@@ -314,14 +314,10 @@ async def test_link_plan_outcome_expiry_account_tenant_and_corruption_fences(
         await db.commit()
     assert (await client.get(route, headers=headers)).status_code == 412
     async with sessionmaker() as db:
-        member = await db.scalar(
-            select(OrganizationMembership).where(
-                OrganizationMembership.organization_id == organization,
-                OrganizationMembership.account_id == link.actor_account_id,
-            )
-        )
-        assert member is not None
-        member.state = "suspended"
+        tenant = await db.get(Organization, organization)
+        assert tenant is not None
+        # A personal tenant must retain its one active owner membership.
+        tenant.state = "suspended"
         await db.commit()
     assert (await client.get(route, headers=headers)).status_code == 403
 
