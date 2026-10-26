@@ -1502,7 +1502,7 @@ async def test_unlink_settlement_waits_for_confirmation_held_across_expiry(
     mutated: asyncio.Future[None] = loop.create_future()
     release: asyncio.Future[None] = loop.create_future()
     entered: asyncio.Future[int] = loop.create_future()
-    original_audit = context_service.emit_audit
+    original_audit = emit_audit
     original_read = context_service._project_unlink_plan_outcome
 
     async def hold_commit(db: AsyncSession, **arguments: Any) -> Any:
