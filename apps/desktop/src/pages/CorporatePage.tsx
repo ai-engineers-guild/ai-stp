@@ -11,6 +11,7 @@ import {
 } from "../transport";
 import { EmptyState, PageHeader } from "../components/Layout";
 import { Details, ResultMeta, Spinner } from "../components/Result";
+import CheckoutPreview from "../components/CheckoutPreview";
 
 const TABS = [
   "Projects",
@@ -41,6 +42,10 @@ export default function CorporatePage() {
   );
   const [project, setProject] = useState("");
   const [technology, setTechnology] = useState("");
+  const [checkoutProject, setCheckoutProject] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const epoch = useRef(0);
   const request = useRef(0);
@@ -56,6 +61,7 @@ export default function CorporatePage() {
     setTechnology("");
     setProjects([]);
     setTechnologies([]);
+    setCheckoutProject(null);
     return () => {
       active.current = false;
       epoch.current++;
@@ -198,6 +204,12 @@ export default function CorporatePage() {
       : null;
   const unavailable =
     help?.ok === false || (help?.ok === true && !harnesses.length);
+  const checkoutSupported = records(help?.data?.commands).some(
+    (command) =>
+      Array.isArray(command.path) &&
+      command.path.join(" ") === "corporate project link-preview" &&
+      command.mutability === "plan",
+  );
   return (
     <div className="page-stack">
       <PageHeader
@@ -251,6 +263,7 @@ export default function CorporatePage() {
                   invalidate();
                   setTab(value);
                   setQuery("");
+                  setCheckoutProject(null);
                 }}
               >
                 {value}
@@ -413,6 +426,14 @@ export default function CorporatePage() {
                 : `Read ${tab.toLowerCase()}`}
             </button>
           </form>
+          {checkoutProject && checkoutSupported && (
+            <CheckoutPreview
+              key={`${context.id}:${checkoutProject.id}`}
+              context={context}
+              project={checkoutProject}
+              disabled={contextLoading}
+            />
+          )}
           {busy && (
             <Spinner label="Checking current company access and reading this view" />
           )}
@@ -497,10 +518,20 @@ export default function CorporatePage() {
                             onClick={() => {
                               invalidate();
                               setProject(String(item.project_id));
+                              setCheckoutProject(null);
                               setTab("Assignments");
                             }}
                           >
                             Preview this project's assignments
+                          </button>
+                        )}
+                        {tab === "Projects" && checkoutSupported && (
+                          <button
+                            className="btn-outline"
+                            disabled={busy || contextLoading}
+                            onClick={() => setCheckoutProject({ id, name })}
+                          >
+                            Review local checkout
                           </button>
                         )}
                         {tab === "Mappings" && !mapping && (
