@@ -73,6 +73,11 @@ device of the same account may recover this evidence; confirmation remains bound
 to the original device. This read neither retries confirmation nor binds a local
 checkout, and membership and policy are checked again for every observation.
 
+If the original plan response was lost, use `corporate project link-request-outcome`
+with `--request-key KEY` and that request's exact retained idempotency key. The read
+finds only the same account's original plan; it does not submit or confirm it.
+An absent result leaves an in-flight request unknown and cannot prove rollback.
+
 These commands accept `--context ID`; omission resolves the selected view once
 for that new read. The result retains its original context, current account
 revision and bounded observations. Changing the view during a delayed reply does

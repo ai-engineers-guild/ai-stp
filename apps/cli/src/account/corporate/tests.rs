@@ -31,6 +31,41 @@ fn fixture(source: &str, operation: &str) -> Result<Value> {
 }
 
 #[test]
+fn original_link_request_keys_are_bounded_and_only_read_retained_outcomes() -> Result<()> {
+    let request = Request::LinkRequestOutcome {
+        request_key: "context-link-plan-0001".into(),
+    };
+    let value = fixture(CONTEXT, "readProjectLinkRequestOutcome")?;
+    assert_eq!(
+        request.project(&value, ORGANIZATION, ACCOUNT)?["state"],
+        "ready"
+    );
+    let (url, body) = request.wire("https://corporate.example.test", ORGANIZATION, ACCOUNT)?;
+    assert_eq!(
+        url.path(),
+        format!(
+            "/v1/organizations/{ORGANIZATION}/project-link-plan-requests/context-link-plan-0001"
+        )
+    );
+    assert!(body.is_none() && url.query().is_none());
+    for key in [
+        "short",
+        "context/request-key",
+        "context%2frequest-key",
+        "context-request-key\n",
+    ] {
+        assert!(
+            Request::LinkRequestOutcome {
+                request_key: key.into()
+            }
+            .wire("https://corporate.example.test", ORGANIZATION, ACCOUNT)
+            .is_err()
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn link_outcomes_require_exact_plan_link_and_context_coordinates() -> Result<()> {
     let value = fixture(CONTEXT, "readProjectLinkPlanOutcome")?;
     let request = Request::LinkOutcome {

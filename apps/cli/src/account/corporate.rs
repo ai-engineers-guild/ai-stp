@@ -93,6 +93,9 @@ pub enum Request {
     LinkOutcome {
         plan_id: String,
     },
+    LinkRequestOutcome {
+        request_key: String,
+    },
     Technologies {
         query: Option<String>,
         offset: u32,
@@ -146,6 +149,14 @@ impl Request {
                 Err(invalid())
             }
             Self::LinkOutcome { plan_id } if !passport::stable_id(plan_id, "link_plan") => {
+                Err(invalid())
+            }
+            Self::LinkRequestOutcome { request_key }
+                if !(16..=128).contains(&request_key.len())
+                    || !request_key
+                        .bytes()
+                        .all(|b| b.is_ascii_alphanumeric() || b"._~-".contains(&b)) =>
+            {
                 Err(invalid())
             }
             Self::Technologies {
@@ -222,6 +233,9 @@ impl Request {
             Self::LinkOutcome { plan_id } => {
                 format!("/v1/organizations/{organization}/project-link-plans/{plan_id}/outcome")
             }
+            Self::LinkRequestOutcome { request_key } => {
+                format!("/v1/organizations/{organization}/project-link-plan-requests/{request_key}")
+            }
             Self::Technologies { .. } => format!("{base}/technologies"),
             Self::Mappings => format!("{base}/technology-mappings"),
             Self::Mapping { version } => format!("{base}/technology-mappings/{version}"),
@@ -285,7 +299,7 @@ impl Request {
             Self::Projects { .. } => &PROJECTS,
             Self::Project { .. } => &PROJECT,
             Self::LinkTarget { .. } => &LINK_TARGET,
-            Self::LinkOutcome { .. } => &LINK_OUTCOME,
+            Self::LinkOutcome { .. } | Self::LinkRequestOutcome { .. } => &LINK_OUTCOME,
             Self::Technologies { .. } => &TECHNOLOGIES,
             Self::Mappings => &MAPPINGS,
             Self::Mapping { .. } => &MAPPING,
@@ -328,11 +342,18 @@ impl Request {
                 }
             }
         }
-        if let Self::LinkOutcome { plan_id } = self {
+        if let Self::LinkOutcome { plan_id } = self
+            && value["plan"]["plan_id"] != *plan_id
+        {
+            return Err(invalid());
+        }
+        if matches!(
+            self,
+            Self::LinkOutcome { .. } | Self::LinkRequestOutcome { .. }
+        ) {
             let plan = &value["plan"];
             let link = &value["link"];
-            if plan["plan_id"] != *plan_id
-                || plan["organization_id"] != organization
+            if plan["organization_id"] != organization
                 || (value["state"] == "applied") == link.is_null()
             {
                 return Err(invalid());
@@ -451,7 +472,9 @@ pub fn observe(root: &Path, context: Option<&str>, request: Request) -> Result<V
     }
     if matches!(
         request,
-        Request::LinkTarget { .. } | Request::LinkOutcome { .. }
+        Request::LinkTarget { .. }
+            | Request::LinkOutcome { .. }
+            | Request::LinkRequestOutcome { .. }
     ) && data["authorization_revision"]
         != current_observation["capabilities"]["authorization_revision"]
     {
