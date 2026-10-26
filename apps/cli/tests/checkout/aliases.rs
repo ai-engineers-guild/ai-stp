@@ -53,7 +53,8 @@ fn physical_aliases_keep_one_project_and_refuse_a_replaced_registered_root()
         // Keep shell syntax fixed and pass fully qualified paths as quoted
         // environment data. Junction setup must not depend on cmd's cwd.
         let cmd = PathBuf::from(std::env::var_os("SystemRoot").ok_or("SystemRoot absent")?)
-            .join("System32/cmd.exe");
+            .join("System32")
+            .join("cmd.exe");
         let canonical = root.canonicalize()?;
         let value = canonical.to_str().ok_or("fixture target is not Unicode")?;
         let target = PathBuf::from(value.strip_prefix(r"\\?\").unwrap_or(value));
@@ -62,15 +63,15 @@ fn physical_aliases_keep_one_project_and_refuse_a_replaced_registered_root()
             .parent()
             .ok_or("fixture target parent")?
             .join("Junction");
-        let result = Command::new(cmd)
+        let result = Command::new(&cmd)
             .env("AI_STP_CHECKOUT_JUNCTION_LINK", &junction)
             .env("AI_STP_CHECKOUT_JUNCTION_TARGET", &target)
-            .args(["/D", "/V:OFF", "/C"])
-            .raw_arg(r#"mklink /J "%AI_STP_CHECKOUT_JUNCTION_LINK%" "%AI_STP_CHECKOUT_JUNCTION_TARGET%""#)
+            .args(["/D", "/V:OFF", "/S", "/C"])
+            .raw_arg(r#""mklink /J "%AI_STP_CHECKOUT_JUNCTION_LINK%" "%AI_STP_CHECKOUT_JUNCTION_TARGET%"""#)
             .output()?;
         assert!(
             result.status.success(),
-            "fixture directory junction creation failed: {}; link={junction:?}; target={target:?}; stdout={}; stderr={}",
+            "fixture directory junction creation failed: {}; exe={cmd:?}; link={junction:?}; target={target:?}; stdout={}; stderr={}",
             result.status,
             String::from_utf8_lossy(&result.stdout)
                 .chars()
