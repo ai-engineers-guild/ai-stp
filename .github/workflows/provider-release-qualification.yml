@@ -1,0 +1,72 @@
+name: provider-release-qualification
+
+on:
+  workflow_dispatch:
+    inputs:
+      component_version:
+        description: Exact published installation-component family version
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: provider-release-qualification-${{ inputs.component_version }}
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.14.9"
+      - name: Prepare the disposable Linux confinement host
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install --yes --no-install-recommends bubblewrap libclang-dev
+          if sysctl -n kernel.apparmor_restrict_unprivileged_userns >/dev/null 2>&1; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+      - name: Use an external native artifact directory
+        run: |
+          echo "CARGO_TARGET_DIR=${RUNNER_TEMP}/ai-stp-provider-proof-target" >> "${GITHUB_ENV}"
+          echo "CARGO_BUILD_BUILD_DIR=${RUNNER_TEMP}/ai-stp-provider-proof-build" >> "${GITHUB_ENV}"
+      - name: Install the existing native compiler pin
+        run: bash .github/scripts/install-rust-toolchain.sh apps/cli/rust-toolchain.toml
+      - name: Build the native engine from this exact source
+        working-directory: apps/cli
+        run: |
+          set -euo pipefail
+          cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- resources --check
+          cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
+            cargo build --locked --release --bin ai-stp
+      - name: Authenticate and inspect all seven released components
+        env:
+          COMPONENT_VERSION: ${{ inputs.component_version }}
+          CONSUMER_COMMIT: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          binary="$(cd apps/cli && cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- cli-binary)"
+          python .github/scripts/inspect-provider-release.py \
+            --binary "${binary}" --version "${COMPONENT_VERSION}" \
+            --consumer-commit "${CONSUMER_COMMIT}" \
+            --out "${RUNNER_TEMP}/provider-observations"
+      - name: Retain public observations only
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: provider-observations
+          path: |
+            ${{ runner.temp }}/provider-observations/observations.json
+            ${{ runner.temp }}/provider-observations/provider-declarations.json
+          if-no-files-found: error
+          retention-days: 7
