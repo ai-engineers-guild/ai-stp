@@ -44,6 +44,26 @@ pub fn preview(
     provider_project: Option<&str>,
     git_executable: Option<&Path>,
 ) -> Result<Value> {
+    inspect(
+        root,
+        context_id,
+        checkout_root,
+        remote_project,
+        provider_project,
+        git_executable,
+        |result, _, _, _| Ok(result),
+    )
+}
+
+fn inspect<T>(
+    root: &Path,
+    context_id: Option<&str>,
+    checkout_root: &Path,
+    remote_project: &str,
+    provider_project: Option<&str>,
+    git_executable: Option<&Path>,
+    finish: impl FnOnce(Value, &mut Access, &runtime::Owner, &passports::Registered) -> Result<T>,
+) -> Result<T> {
     if !passport::stable_id(remote_project, "remote_project")
         || provider_project.is_some_and(|id| !passport::stable_id(id, "provider_project"))
     {
@@ -155,6 +175,7 @@ pub fn preview(
         "request_coordinates":request_coordinates,"online_verified":true,
         "observation_only":true,"installation_authority":false,"provider_identity_verified":false,
         "link_created":false,"binding_created":false,"request_admitted":false});
-    Ok(json!({"preview_digest":digest::sha256(&canonical::bytes(
-        &json!(["ai-stp-native-project-link-preview/1",result]))?),"preview":result}))
+    let result = json!({"preview_digest":digest::sha256(&canonical::bytes(
+        &json!(["ai-stp-native-project-link-preview/1",result]))?),"preview":result});
+    finish(result, &mut access, &owner, &registered)
 }

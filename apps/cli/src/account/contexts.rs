@@ -104,7 +104,7 @@ fn fields(value: &Value, names: &[&str]) -> Value {
             .collect(),
     )
 }
-fn organizations_projection(value: &Value) -> Result<Value> {
+pub(super) fn organizations_projection(value: &Value) -> Result<Value> {
     ORGANIZATIONS.validate(value)?;
     let mut ids = std::collections::BTreeSet::new();
     let mut items = Vec::new();
@@ -125,7 +125,7 @@ fn organizations_projection(value: &Value) -> Result<Value> {
     }
     Ok(json!({"schema_version":1,"items":items}))
 }
-fn active_projection(value: &Value) -> Result<Value> {
+pub(super) fn active_projection(value: &Value) -> Result<Value> {
     ACTIVE.validate(value)?;
     let mut active = fields(
         value,
