@@ -32,7 +32,44 @@ printf '%s' 'ai-stp-disposable-ci-fixture' | gnome-keyring-daemon \
   --control-directory="${AI_STP_TEST_SECRET_SERVICE_ROOT}/control" \
   >"${AI_STP_TEST_SECRET_SERVICE_ROOT}/daemon.log" 2>&1 &
 fixture_pid=$!
-trap 'kill "${fixture_pid}" 2>/dev/null || true; wait "${fixture_pid}" 2>/dev/null || true' EXIT
+fixture_cleanup() {
+  fixture_status=$?
+  trap - EXIT
+  if [[ "${fixture_status}" -ne 0 ]]; then
+    fixture_alive=false
+    if kill -0 "${fixture_pid}" 2>/dev/null; then fixture_alive=true; fi
+    fixture_owner="$(gdbus call --session --dest org.freedesktop.DBus \
+      --object-path /org/freedesktop/DBus \
+      --method org.freedesktop.DBus.GetConnectionUnixProcessID \
+      org.freedesktop.secrets 2>/dev/null || true)"
+    fixture_owner_unchanged=false
+    if [[ "${fixture_owner}" = "(uint32 ${fixture_pid},)" ]]; then
+      fixture_owner_unchanged=true
+    fi
+    # Print only fixed marker presence, never raw service prose or payloads.
+    fixture_client_assertion=false
+    fixture_session_assertion=false
+    fixture_null_variant=false
+    while IFS= read -r fixture_line; do
+      if [[ "${fixture_line}" == *gkd_secret_service_get_pkcs11_session*assertion* ]]; then
+        fixture_client_assertion=true
+      fi
+      if [[ "${fixture_line}" == *aes_negotiate*assertion* ]]; then
+        fixture_session_assertion=true
+      fi
+      if [[ "${fixture_line}" == *g_variant_new*"(null)"* ]]; then
+        fixture_null_variant=true
+      fi
+    done < "${AI_STP_TEST_SECRET_SERVICE_ROOT}/daemon.log"
+    printf 'Vault fixture alive=%s owner_unchanged=%s client_assertion=%s session_assertion=%s null_variant=%s\n' \
+      "${fixture_alive}" "${fixture_owner_unchanged}" "${fixture_client_assertion}" \
+      "${fixture_session_assertion}" "${fixture_null_variant}"
+  fi
+  kill "${fixture_pid}" 2>/dev/null || true
+  wait "${fixture_pid}" 2>/dev/null || true
+  exit "${fixture_status}"
+}
+trap fixture_cleanup EXIT
 for ((attempt=0; attempt<40; attempt++)); do
   kill -0 "${fixture_pid}"
   if [[ "$(gdbus call --session --dest org.freedesktop.DBus \
