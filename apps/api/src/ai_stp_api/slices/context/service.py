@@ -32,6 +32,7 @@ from ai_stp_contracts.context import (
     ProjectSyncApplyRequest,
     ProjectSyncPlanRequest,
     ProjectSyncPlanResponse,
+    ProjectUnlinkPlanOutcome,
     ProjectUnlinkPlanRequest,
     ProjectUnlinkPlanResponse,
     ProjectUnlinkRequest,
@@ -1249,6 +1250,126 @@ async def read_project_unlink_plan(
     if plan is None:
         raise ApiError(ErrorCategory.NOT_FOUND, "project unlink plan not found")
     return unlink_plan_body(plan)
+
+
+async def read_project_unlink_plan_outcome(
+    db: AsyncSession, *, ctx: AuthContext, organization_id: str, plan_id: str
+) -> ProjectUnlinkPlanOutcome:
+    """Observe the original unlink without repeating a request or confirmation."""
+    return await _project_unlink_plan_outcome(
+        db, ctx=ctx, organization_id=organization_id, plan_id=plan_id, serialize_confirmation=False
+    )
+
+
+async def read_project_unlink_plan_settlement(
+    db: AsyncSession, *, ctx: AuthContext, organization_id: str, plan_id: str
+) -> ProjectUnlinkPlanOutcome:
+    """Observe expiry only after owning the confirmation's plan-row lock."""
+    return await _project_unlink_plan_outcome(
+        db, ctx=ctx, organization_id=organization_id, plan_id=plan_id, serialize_confirmation=True
+    )
+
+
+async def _project_unlink_plan_outcome(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    plan_id: str,
+    serialize_confirmation: bool,
+) -> ProjectUnlinkPlanOutcome:
+    await require_active_device(db, ctx=ctx)
+    projection = await remote_projection(db, ctx=ctx, organization_id=organization_id)
+    await require_capability(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        capability="project.unlink",
+        authorization_revision=projection.authorization_revision,
+    )
+    statement = select(ProjectUnlinkPlan).where(
+        ProjectUnlinkPlan.id == plan_id,
+        ProjectUnlinkPlan.organization_id == organization_id,
+        ProjectUnlinkPlan.actor_account_id == ctx.account_id,
+    )
+    if serialize_confirmation:
+        statement = statement.with_for_update()
+    plan = await db.scalar(statement)
+    if plan is None:
+        raise ApiError(ErrorCategory.NOT_FOUND, "project unlink plan not found")
+    now = datetime.now(UTC)
+    expires = plan.expires_at
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=UTC)
+    state = "expired" if plan.state == "ready" and expires <= now else plan.state
+    link = None
+    if state == "applied":
+        # The unlink actor may differ from the original link creator. Bind the
+        # exact retained confirmation key and decision instead of that creator.
+        if plan.confirmation_idempotency_key is None:
+            raise ApiError(ErrorCategory.PRECONDITION, "project unlink outcome is inconsistent")
+        link_statement = select(ProjectLink).where(
+            ProjectLink.id == plan.link_id,
+            ProjectLink.organization_id == plan.organization_id,
+            ProjectLink.local_project_id == plan.local_project_id,
+            ProjectLink.remote_project_id == plan.remote_project_id,
+            ProjectLink.provider_project_id == plan.provider_project_id,
+            ProjectLink.local_revision == plan.local_revision,
+            ProjectLink.remote_revision == plan.remote_revision,
+            ProjectLink.provider_revision == plan.provider_revision,
+            ProjectLink.state == "unlinked",
+            ProjectLink.revision == plan.expected_link_revision + 1,
+            ProjectLink.unlink_idempotency_key == plan.confirmation_idempotency_key,
+        )
+        if serialize_confirmation:
+            link_statement = link_statement.with_for_update()
+        link = await db.scalar(link_statement)
+    if state not in ("ready", "applied", "expired") or (
+        (state == "applied") != (link is not None)
+        or (state != "applied" and plan.confirmation_idempotency_key is not None)
+    ):
+        raise ApiError(ErrorCategory.PRECONDITION, "project unlink outcome is inconsistent")
+    await require_capability(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        capability="project.unlink",
+        authorization_revision=projection.authorization_revision,
+    )
+    return ProjectUnlinkPlanOutcome(
+        plan=unlink_plan_body(plan),
+        state=state,
+        link=link_body(link) if link is not None else None,
+        authorization_revision=projection.authorization_revision,
+        observed_at=format_timestamp(now),
+    )
+
+
+async def read_project_unlink_request_outcome(
+    db: AsyncSession, *, ctx: AuthContext, organization_id: str, request_key: str
+) -> ProjectUnlinkPlanOutcome:
+    """A missing original request remains unknown; this read creates no plan."""
+    await require_active_device(db, ctx=ctx)
+    projection = await remote_projection(db, ctx=ctx, organization_id=organization_id)
+    await require_capability(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        capability="project.unlink",
+        authorization_revision=projection.authorization_revision,
+    )
+    plan_id = await db.scalar(
+        select(ProjectUnlinkPlan.id).where(
+            ProjectUnlinkPlan.organization_id == organization_id,
+            ProjectUnlinkPlan.actor_account_id == ctx.account_id,
+            ProjectUnlinkPlan.idempotency_key == request_key,
+        )
+    )
+    if plan_id is None:
+        raise ApiError(ErrorCategory.NOT_FOUND, "project unlink request outcome not found")
+    return await read_project_unlink_plan_outcome(
+        db, ctx=ctx, organization_id=organization_id, plan_id=plan_id
+    )
 
 
 async def create_project_link(
