@@ -20,6 +20,7 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from tests.native_contract.verify_ownership import apply
 
+from ai_stp_foundation.envelope import ErrorEnvelope
 from ai_stp_platform.models import Device
 from ai_stp_platform.organization_models import (
     CorporateAssignmentDistribution,
@@ -85,7 +86,7 @@ async def journey(
     run: Native,
     enact: Native,
     login: Callable[..., Awaitable[None]],
-    refused: Callable[..., Awaitable[None]],
+    refused: Callable[..., Awaitable[ErrorEnvelope]],
     organization: str,
     project: str,
     account: str,
@@ -351,6 +352,17 @@ async def journey(
         assert (
             await db.scalar(select(func.count()).select_from(CorporateAssignmentDistribution)) == 0
         )
+    print(
+        json.dumps(
+            {
+                "native_checkout_recovery": label,
+                "result": "passed",
+                "committed_mutation_posts": 2,
+                "installation_authority": False,
+            }
+        ),
+        flush=True,
+    )
 
 
 async def qualify(
@@ -364,7 +376,7 @@ async def qualify(
     run: Native,
     enact: Native,
     login: Callable[..., Awaitable[None]],
-    refused: Callable[..., Awaitable[None]],
+    refused: Callable[..., Awaitable[ErrorEnvelope]],
     organization: str,
     project: str,
     account: str,
@@ -384,6 +396,34 @@ async def qualify(
         assert membership is not None
         membership.state, membership.revision = "active", membership.revision + 1
         await db.commit()
+    # The older fixture deliberately removed the first replacement's key.
+    # Capture its refusal at format 56: a format upgrade must neither hide
+    # its completed receipt nor silently regenerate that missing key.
+    missing_recovery = old_recoveries[0]
+    old_key = (
+        state
+        / "ai-stp-v2-connections"
+        / ("device-key." + missing_recovery["plan"]["replacement"]["device_id"])
+    )
+    assert not old_key.exists()
+    old_plan = home / "older-recovery-plan.json"
+    old_plan.write_text(json.dumps(missing_recovery["plan"]), encoding="utf-8")
+    old_arguments = [
+        "account",
+        "connections",
+        "recovery",
+        "apply",
+        "--plan",
+        str(old_plan),
+        "--plan-digest",
+        missing_recovery["plan_digest"],
+    ]
+    baseline_refusal = await refused(binary, home, old_arguments)
+    assert baseline_refusal.error.code == "AI_STP_PRECONDITION_FAILED"
+    before_receipts = {
+        item["plan"]["operation_id"]: item
+        for item in (await run("account", "connections", "recovery", "list"))["recoveries"]
+    }
     common: dict[str, Any] = {
         "binary": binary,
         "home": home,
@@ -402,9 +442,17 @@ async def qualify(
         "git_executable": git_executable,
     }
     await journey(**common, connection=connection, device=device, label="named")
-    # Original format-56 recovery plans/receipts keep their exact digest and
-    # remain replayable after the explicit format-57 admission.
-    for recovery in old_recoveries:
+    after_refusal = await refused(binary, home, old_arguments)
+    assert after_refusal.error == baseline_refusal.error and not old_key.exists()
+    after_receipts = {
+        item["plan"]["operation_id"]: item
+        for item in (await run("account", "connections", "recovery", "list"))["recoveries"]
+    }
+    for operation, receipt in before_receipts.items():
+        assert after_receipts[operation] == receipt
+    # Plans with their retained key still present keep their original digest
+    # and replay successfully after format57; key absence keeps its refusal.
+    for recovery in old_recoveries[1:]:
         assert (await enact(recovery, "account", "connections", "recovery", "apply"))[
             "state"
         ] == "authorized"
@@ -421,7 +469,9 @@ async def qualify(
                 "unknown_404_remains_pending": True,
                 "recovery": ["named_enrollment", "root_device"],
                 "replacement_reads_original_only": True,
-                "old_format56_replay": True,
+                "old_format56_receipts_preserved": True,
+                "old_present_key_replay": True,
+                "old_missing_key_replay": "same_refusal_no_recreation",
                 "active_binding_adoption": True,
                 "harness_configuration_writes": 0,
                 "installation_authority": False,

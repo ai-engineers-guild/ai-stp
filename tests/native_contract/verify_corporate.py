@@ -58,7 +58,7 @@ from ai_stp_platform.organization_models import (
 from ai_stp_platform.technology_models import Technology, TechnologyAlias
 
 
-async def refused(binary: Path, home: Path, arguments: list[str]) -> None:
+async def refused(binary: Path, home: Path, arguments: list[str]) -> ErrorEnvelope:
     process = await asyncio.create_subprocess_exec(
         str(binary),
         *arguments,
@@ -74,7 +74,7 @@ async def refused(binary: Path, home: Path, arguments: list[str]) -> None:
         await process.wait()
         raise
     assert process.returncode != 0 and not stderr
-    ErrorEnvelope.model_validate_json(stdout)
+    return ErrorEnvelope.model_validate_json(stdout)
 
 
 async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
