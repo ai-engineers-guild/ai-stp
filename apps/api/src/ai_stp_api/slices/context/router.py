@@ -33,6 +33,7 @@ from ai_stp_contracts.context import (
     ProjectUnlinkRequest,
     ProviderProjectObservationRequest,
 )
+from ai_stp_contracts.http import IdempotencyKey
 from ai_stp_foundation.timestamps import format_timestamp
 
 router = APIRouter(tags=["context"])
@@ -279,6 +280,24 @@ async def read_project_link_plan_outcome(
 ) -> JSONResponse:
     body = await service.read_project_link_plan_outcome(
         db, ctx=ctx, organization_id=organization_id, plan_id=plan_id
+    )
+    return JSONResponse(content=body.model_dump(mode="json"), headers=_NO_STORE)
+
+
+@router.get(
+    "/organizations/{organization_id}/project-link-plan-requests/{request_key}", response_model=None
+)
+async def read_project_link_request_outcome(
+    organization_id: str,
+    request_key: IdempotencyKey,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    body = await service.read_project_link_request_outcome(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        request_key=request_key,
     )
     return JSONResponse(content=body.model_dump(mode="json"), headers=_NO_STORE)
 

@@ -186,7 +186,13 @@ async def test_context_mutation_waits_for_revocation_and_refuses_without_plan_or
             assert device is not None
             device.state = "revoked"
             await revoker.flush()
-            audits = await revoker.scalar(select(func.count()).select_from(AuditEvent))
+            audits = await revoker.scalar(
+                select(func.count())
+                .select_from(AuditEvent)
+                .where(
+                    AuditEvent.action == "project.link_planned",
+                )
+            )
             request = asyncio.create_task(
                 client.post(
                     f"/v1/organizations/{organization}/project-link-plans",
@@ -224,7 +230,16 @@ async def test_context_mutation_waits_for_revocation_and_refuses_without_plan_or
                 )
                 == 0
             )
-            assert await db.scalar(select(func.count()).select_from(AuditEvent)) == audits
+            assert (
+                await db.scalar(
+                    select(func.count())
+                    .select_from(AuditEvent)
+                    .where(
+                        AuditEvent.action == "project.link_planned",
+                    )
+                )
+                == audits
+            )
     finally:
         if request is not None and not request.done():
             request.cancel()
@@ -252,6 +267,7 @@ async def test_link_plan_outcome_reads_lost_confirmation_without_mutation(
     assert created.status_code == 201, created.text
     plan = created.json()
     route = f"/v1/organizations/{organization}/project-link-plans/{plan['plan_id']}/outcome"
+    request_route = f"/v1/organizations/{organization}/project-link-plan-requests/outcome-plan-0001"
 
     async def counts() -> list[int | None]:
         async with sessionmaker() as db:
@@ -268,7 +284,22 @@ async def test_link_plan_outcome_reads_lost_confirmation_without_mutation(
     assert ready.json()["state"] == "ready" and ready.json()["link"] is None
     assert ready.json()["observation_only"] is True
     assert ready.json()["authorization_revision"] == revision
+    by_request = await client.get(request_route, headers=headers)
+    assert by_request.status_code == 200, by_request.text
+    assert by_request.headers["cache-control"] == "private, no-store"
+    assert by_request.json()["plan"] == plan
+    assert by_request.json()["state"] == "ready" and by_request.json()["link"] is None
     assert await counts() == before
+    absent = await client.get(
+        request_route.replace("outcome-plan-0001", "absent-plan-0001"),
+        headers=headers,
+    )
+    assert absent.status_code == 404
+    malformed = await client.get(
+        request_route.replace("outcome-plan-0001", "short"), headers=headers
+    )
+    assert malformed.status_code == 400
+    assert (await counts())[:2] == before[:2]
     # The client could lose this response; the read below identifies its exact link.
     confirmed = await client.post(
         "/v1/projects/links",
@@ -287,6 +318,9 @@ async def test_link_plan_outcome_reads_lost_confirmation_without_mutation(
     assert applied.json()["plan"] == plan
     assert applied.json()["state"] == "applied"
     assert applied.json()["link"] == confirmed.json()
+    recovered = await client.get(request_route, headers=headers)
+    assert recovered.status_code == 200
+    assert recovered.json()["link"] == confirmed.json() and recovered.json()["plan"] == plan
     assert await counts() == before
 
     async with sessionmaker() as db:
@@ -312,6 +346,8 @@ async def test_link_plan_outcome_reads_lost_confirmation_without_mutation(
     retained = await client.get(route, headers=replacement_headers)
     assert retained.status_code == 200, retained.text
     assert retained.json()["plan"] == plan and retained.json()["link"] == confirmed.json()
+    recovered = await client.get(request_route, headers=replacement_headers)
+    assert recovered.status_code == 200 and recovered.json()["plan"] == plan
     denied = await client.post(
         "/v1/projects/links",
         headers=replacement_headers,
@@ -323,7 +359,8 @@ async def test_link_plan_outcome_reads_lost_confirmation_without_mutation(
         },
     )
     assert denied.status_code == 403
-    assert await counts() == before
+    assert (await counts())[:2] == before[:2]
+    before = await counts()  # Failed requests retain their standard security audit.
     async with sessionmaker() as db:
         retained_link = await db.get(ProjectLink, confirmed.json()["link_id"])
         assert retained_link is not None
@@ -377,6 +414,8 @@ async def test_link_plan_outcome_expiry_account_tenant_and_corruption_fences(
         await db.flush()
         await db.commit()
     assert (await client.get(route, headers=headers)).status_code == 404
+    lookup = f"/v1/organizations/{organization}/project-link-plan-requests/outcome-expired-0001"
+    assert (await client.get(lookup, headers=headers)).status_code == 404
     wrong_tenant = route.replace(organization, new_id("organization"))
     assert (await client.get(wrong_tenant, headers=headers)).status_code in (403, 404)
     async with sessionmaker() as db:

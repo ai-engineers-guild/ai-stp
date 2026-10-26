@@ -302,6 +302,7 @@ from ai_stp_contracts.http import (
     API_VERSION,
     ETAG_HEADER,
     IDEMPOTENCY_KEY_HEADER,
+    IDEMPOTENCY_KEY_PATTERN,
     IF_MATCH_HEADER,
     OPERATION_ID_HEADER,
     REQUEST_ID_HEADER,
@@ -2255,6 +2256,21 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
                 "plan_id",
                 "Original project link plan identifier.",
                 stable_id_pattern("link_plan"),
+            ),
+        ),
+        errors=("AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED", "AI_STP_PRECONDITION_FAILED"),
+    ),
+    Operation(
+        method="get",
+        path="/organizations/{organization_id}/project-link-plan-requests/{request_key}",
+        operation_id="readProjectLinkRequestOutcome",
+        summary="Recover original account-owned plan evidence by its exact request key.",
+        response=ProjectLinkPlanOutcome,
+        authenticated=True,
+        path_params=(
+            _ORGANIZATION_ID,
+            PathParam(
+                "request_key", "Original link-plan idempotency key.", IDEMPOTENCY_KEY_PATTERN
             ),
         ),
         errors=("AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED", "AI_STP_PRECONDITION_FAILED"),

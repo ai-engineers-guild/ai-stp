@@ -1080,6 +1080,37 @@ async def read_project_link_plan_outcome(
     )
 
 
+async def read_project_link_request_outcome(
+    db: AsyncSession, *, ctx: AuthContext, organization_id: str, request_key: str
+) -> ProjectLinkPlanOutcome:
+    """Find retained evidence when the client lost the original plan response."""
+    await require_active_device(db, ctx=ctx)
+    projection = await remote_projection(db, ctx=ctx, organization_id=organization_id)
+    await require_capability(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        capability="project.link",
+        authorization_revision=projection.authorization_revision,
+    )
+    plan_id = await db.scalar(
+        select(ProjectLinkPlan.id).where(
+            ProjectLinkPlan.organization_id == organization_id,
+            ProjectLinkPlan.actor_account_id == ctx.account_id,
+            ProjectLinkPlan.idempotency_key == request_key,
+        )
+    )
+    if plan_id is None:
+        # This read is not a terminal acknowledgement of an in-flight request.
+        raise ApiError(ErrorCategory.NOT_FOUND, "project link request outcome not found")
+    return await read_project_link_plan_outcome(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        plan_id=plan_id,
+    )
+
+
 async def create_project_unlink_plan(
     db: AsyncSession,
     *,
