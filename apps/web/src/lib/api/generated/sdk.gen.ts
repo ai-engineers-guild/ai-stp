@@ -606,6 +606,9 @@ import type {
   ReadProjectLinkPlanOutcomeErrors,
   ReadProjectLinkPlanOutcomeResponses,
   ReadProjectLinkPlanResponses,
+  ReadProjectLinkPlanSettlementData,
+  ReadProjectLinkPlanSettlementErrors,
+  ReadProjectLinkPlanSettlementResponses,
   ReadProjectLinkRequestOutcomeData,
   ReadProjectLinkRequestOutcomeErrors,
   ReadProjectLinkRequestOutcomeResponses,
@@ -5465,6 +5468,26 @@ export const readProjectLinkPlanOutcome = <ThrowOnError extends boolean = false>
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/organizations/{organization_id}/project-link-plans/{plan_id}/outcome",
+    ...options,
+  });
+
+/**
+ * Read an original link outcome after serializing with confirmation and unlink.
+ */
+export const readProjectLinkPlanSettlement = <ThrowOnError extends boolean = false>(
+  options: Options<ReadProjectLinkPlanSettlementData, ThrowOnError>,
+): RequestResult<
+  ReadProjectLinkPlanSettlementResponses,
+  ReadProjectLinkPlanSettlementErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadProjectLinkPlanSettlementResponses,
+    ReadProjectLinkPlanSettlementErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/organizations/{organization_id}/project-link-plans/{plan_id}/settlement",
     ...options,
   });
 

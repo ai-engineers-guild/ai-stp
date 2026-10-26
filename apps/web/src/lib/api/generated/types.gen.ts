@@ -33210,6 +33210,76 @@ export type ReadProjectLinkPlanOutcomeResponses = {
 export type ReadProjectLinkPlanOutcomeResponse =
   ReadProjectLinkPlanOutcomeResponses[keyof ReadProjectLinkPlanOutcomeResponses];
 
+export type ReadProjectLinkPlanSettlementData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Original link plan; expiry is observed after concurrent confirmation completes.
+     */
+    plan_id: string;
+  };
+  query?: never;
+  url: "/v1/organizations/{organization_id}/project-link-plans/{plan_id}/settlement";
+};
+
+export type ReadProjectLinkPlanSettlementErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_PRECONDITION_FAILED.
+   */
+  412: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadProjectLinkPlanSettlementError =
+  ReadProjectLinkPlanSettlementErrors[keyof ReadProjectLinkPlanSettlementErrors];
+
+export type ReadProjectLinkPlanSettlementResponses = {
+  /**
+   * Read an original link outcome after serializing with confirmation and unlink.
+   */
+  200: ProjectLinkPlanOutcome;
+};
+
+export type ReadProjectLinkPlanSettlementResponse =
+  ReadProjectLinkPlanSettlementResponses[keyof ReadProjectLinkPlanSettlementResponses];
+
 export type ReadProjectLinkTargetData = {
   body?: never;
   headers?: {
