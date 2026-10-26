@@ -1028,7 +1028,7 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
                 &provider,
                 scope,
                 File {
-                    path,
+                    path: path.clone(),
                     bytes: if skill.is_some() {
                         b"---\nname: review\ndescription: Inspect project conventions.\n---\n# Review\nInspect project conventions.\n".to_vec()
                     } else {
@@ -1096,6 +1096,38 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
                 digest::canonical("ai-stp:bundle:v1", &payload)?
             );
             export(&format!("{harness}-{}", scope.as_str()), &bundle)?;
+            let replacement = component(
+                &mut store,
+                &provider,
+                scope,
+                File {
+                    path,
+                    bytes: if skill.is_some() {
+                        b"---\nname: review\ndescription: Inspect changed conventions.\n---\n# Replacement\nInspect changed conventions.\n".to_vec()
+                    } else {
+                        b"# Replacement\nInspect changed conventions.\n".to_vec()
+                    },
+                    mode: 0o644,
+                },
+                None,
+            )?;
+            let (replacement, evidence) = compose(&mut store, harness, &[replacement])?;
+            let replacement = bundle::compile(
+                &mut store,
+                &replacement,
+                &target,
+                &evidence,
+                &provider,
+                &Hosts::new(),
+            )?;
+            assert_ne!(
+                bundle.manifest["files"][0]["digest"],
+                replacement.manifest["files"][0]["digest"]
+            );
+            export(
+                &format!("{harness}-{}-replacement", scope.as_str()),
+                &replacement,
+            )?;
             profiles += 1;
         }
     }

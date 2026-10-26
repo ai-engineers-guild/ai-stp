@@ -7,6 +7,11 @@ on:
         description: Exact published installation-component family version
         required: true
         type: string
+      lifecycle:
+        description: Exercise canonical fixture lifecycles against authenticated artifacts
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -64,6 +69,30 @@ jobs:
             --binary "${binary}" --version "${COMPONENT_VERSION}" \
             --consumer-commit "${CONSUMER_COMMIT}" \
             --out "${RUNNER_TEMP}/provider-observations"
+      - name: Compile disposable canonical fixture bundles
+        if: inputs.lifecycle
+        working-directory: apps/cli
+        env:
+          AI_STP_BUNDLE_PROOF_DIR: ${{ runner.temp }}/provider-fixture-bundles
+          AI_STP_BUNDLE_PROOF_STATE: ${{ runner.temp }}/provider-fixture-registry
+        run: |
+          set -euo pipefail
+          cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
+            cargo test --locked --test bundles \
+            exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs -- --exact
+      - name: Exercise authenticated component profile lifecycles
+        if: inputs.lifecycle
+        run: |
+          set -euo pipefail
+          binary="$(
+            cd apps/cli
+            cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- cli-binary
+          )"
+          python .github/scripts/qualify-provider-lifecycles.py \
+            --binary "${binary}" --bundles "${RUNNER_TEMP}/provider-fixture-bundles" \
+            --state "${RUNNER_TEMP}/provider-fixture-registry" \
+            --observations "${RUNNER_TEMP}/provider-observations/observations.json" \
+            --out "${RUNNER_TEMP}/provider-lifecycle-results.json"
       - name: Retain public observations only
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
@@ -71,5 +100,13 @@ jobs:
           path: |
             ${{ runner.temp }}/provider-observations/observations.json
             ${{ runner.temp }}/provider-observations/provider-declarations.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Retain public lifecycle results only
+        if: inputs.lifecycle
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: provider-lifecycle-results
+          path: ${{ runner.temp }}/provider-lifecycle-results.json
           if-no-files-found: error
           retention-days: 7
