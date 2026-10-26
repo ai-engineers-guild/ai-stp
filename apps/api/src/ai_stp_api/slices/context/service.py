@@ -1038,6 +1038,34 @@ async def read_project_link_plan_outcome(
     db: AsyncSession, *, ctx: AuthContext, organization_id: str, plan_id: str
 ) -> ProjectLinkPlanOutcome:
     """Recover evidence through current authority without replaying a mutation."""
+    return await _project_link_plan_outcome(
+        db, ctx=ctx, organization_id=organization_id, plan_id=plan_id, serialize_confirmation=False
+    )
+
+
+async def read_project_link_plan_settlement(
+    db: AsyncSession, *, ctx: AuthContext, organization_id: str, plan_id: str
+) -> ProjectLinkPlanOutcome:
+    """Wait for a concurrent confirmation before reporting a terminal outcome.
+
+    An expired result is observed after owning the same plan-row lock as the
+    confirmer. A confirmer that already checked expiry must finish first;
+    a subsequent confirmer checks expiry only after this lock is released.
+    The transaction completes before the response is acknowledged.
+    """
+    return await _project_link_plan_outcome(
+        db, ctx=ctx, organization_id=organization_id, plan_id=plan_id, serialize_confirmation=True
+    )
+
+
+async def _project_link_plan_outcome(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    plan_id: str,
+    serialize_confirmation: bool,
+) -> ProjectLinkPlanOutcome:
     await require_active_device(db, ctx=ctx)
     projection = await remote_projection(db, ctx=ctx, organization_id=organization_id)
     await require_capability(
@@ -1047,13 +1075,14 @@ async def read_project_link_plan_outcome(
         capability="project.link",
         authorization_revision=projection.authorization_revision,
     )
-    plan = await db.scalar(
-        select(ProjectLinkPlan).where(
-            ProjectLinkPlan.id == plan_id,
-            ProjectLinkPlan.organization_id == organization_id,
-            ProjectLinkPlan.actor_account_id == ctx.account_id,
-        )
+    statement = select(ProjectLinkPlan).where(
+        ProjectLinkPlan.id == plan_id,
+        ProjectLinkPlan.organization_id == organization_id,
+        ProjectLinkPlan.actor_account_id == ctx.account_id,
     )
+    if serialize_confirmation:
+        statement = statement.with_for_update()
+    plan = await db.scalar(statement)
     if plan is None:
         raise ApiError(ErrorCategory.NOT_FOUND, "project link plan not found")
     now = datetime.now(UTC)
@@ -1065,19 +1094,20 @@ async def read_project_link_plan_outcome(
         state = "expired"
     link = None
     if state == "applied":
-        link = await db.scalar(
-            select(ProjectLink).where(
-                ProjectLink.id == plan.link_id,
-                ProjectLink.organization_id == organization_id,
-                ProjectLink.actor_account_id == ctx.account_id,
-                ProjectLink.device_id == plan.device_id,
-                ProjectLink.plan_id == plan.id,
-                ProjectLink.plan_digest == plan.plan_digest,
-                ProjectLink.local_project_id == plan.local_project_id,
-                ProjectLink.remote_project_id == plan.remote_project_id,
-                ProjectLink.provider_project_id == plan.provider_project_id,
-            )
+        link_statement = select(ProjectLink).where(
+            ProjectLink.id == plan.link_id,
+            ProjectLink.organization_id == organization_id,
+            ProjectLink.actor_account_id == ctx.account_id,
+            ProjectLink.device_id == plan.device_id,
+            ProjectLink.plan_id == plan.id,
+            ProjectLink.plan_digest == plan.plan_digest,
+            ProjectLink.local_project_id == plan.local_project_id,
+            ProjectLink.remote_project_id == plan.remote_project_id,
+            ProjectLink.provider_project_id == plan.provider_project_id,
         )
+        if serialize_confirmation:
+            link_statement = link_statement.with_for_update()
+        link = await db.scalar(link_statement)
     if state not in ("ready", "applied", "expired") or (
         (state == "applied") != (link is not None)
         or (state != "applied" and plan.link_id is not None)
