@@ -1,0 +1,885 @@
+[
+  {
+    "harness_id": "claude-code",
+    "permission_profiles": [
+      "default"
+    ],
+    "plan_request_fields": [
+      "target_scope",
+      "end_state",
+      "capture_mode",
+      "recovery_mode",
+      "instruction_section"
+    ],
+    "projection_profile": {
+      "bundle_formats": [
+        "ai-stp-bundle/2"
+      ],
+      "component_kinds": [
+        "instruction",
+        "skill",
+        "agent",
+        "command",
+        "setting",
+        "plugin"
+      ],
+      "digest": "sha256:11ce0a72b2c713f0dcfa77dc1bba2511fe281bbbe2e5614f9ee46998da5c283b",
+      "max_bytes": 67108864,
+      "max_files": 8192,
+      "native_namespaces": [
+        "CLAUDE.md",
+        "settings.json",
+        "skills",
+        "agents",
+        "commands",
+        "rules",
+        "workflows",
+        "output-styles",
+        "routines",
+        "themes"
+      ],
+      "profile_id": "claude/native-and-marketplace/1",
+      "projection_kinds": [
+        "native_files",
+        "marketplace",
+        "plugin"
+      ]
+    },
+    "protocol_version": 3,
+    "provider_build_digest": "sha256:ab625a060d0c768ee2a914e0879d042d9d2b9030cd8809f032c7977aa849ad6c",
+    "provider_id": "claude-setup-system",
+    "provider_version": "0.0.95",
+    "scoped_projection_profiles": [
+      {
+        "bundle_formats": [
+          "ai-stp-bundle/2"
+        ],
+        "component_kinds": [
+          "instruction",
+          "skill",
+          "agent",
+          "command",
+          "setting"
+        ],
+        "digest": "sha256:54f45434135118eeff1fa01fcf6ba9baee495076035ce5c0bd0d69a9999ab7d3",
+        "max_bytes": 67108864,
+        "max_files": 8192,
+        "native_namespaces": [
+          "CLAUDE.md",
+          ".claude/skills",
+          ".claude/agents",
+          ".claude/commands",
+          ".claude/settings.json"
+        ],
+        "profile_id": "claude/native-files/project/1",
+        "projection_kinds": [
+          "native_files"
+        ],
+        "target_scope": "project"
+      }
+    ],
+    "status_request_fields": [
+      "target_scope"
+    ],
+    "supported_arch": [
+      "x86_64",
+      "arm64"
+    ],
+    "supported_commands": [
+      "provider-info",
+      "validate-bundle",
+      "plan-operation",
+      "apply-operation",
+      "recover-operation",
+      "status",
+      "launch"
+    ],
+    "supported_operations": [
+      "install",
+      "replace",
+      "backup",
+      "restore",
+      "remove",
+      "reset",
+      "software_install",
+      "software_update",
+      "software_remove",
+      "launch",
+      "patch_instruction_region",
+      "detach_instruction_region"
+    ],
+    "supported_os": [
+      "linux",
+      "macos",
+      "windows"
+    ]
+  },
+  {
+    "harness_id": "codex",
+    "permission_profiles": [
+      "default"
+    ],
+    "plan_request_fields": [
+      "target_scope",
+      "end_state",
+      "capture_mode",
+      "recovery_mode",
+      "instruction_section"
+    ],
+    "projection_profile": {
+      "bundle_formats": [
+        "ai-stp-bundle/2"
+      ],
+      "component_kinds": [
+        "instruction",
+        "setting",
+        "hook",
+        "command",
+        "agent"
+      ],
+      "digest": "sha256:0b51b0ddd434f62c11b504102dafb62a28a59a6436104882355632e6d86f2585",
+      "max_bytes": 67108864,
+      "max_files": 8192,
+      "native_namespaces": [
+        "AGENTS.md",
+        "config.toml",
+        "hooks.json",
+        "prompts",
+        "agents"
+      ],
+      "profile_id": "codex/native-files/1",
+      "projection_kinds": [
+        "native_files"
+      ]
+    },
+    "protocol_version": 3,
+    "provider_build_digest": "sha256:bc8d63a95b6c1e20c03173a8f715bf0fbd5a467cd1aaf12989e3a821cf5f1737",
+    "provider_id": "codex-setup-system",
+    "provider_version": "0.0.95",
+    "scoped_projection_profiles": [
+      {
+        "bundle_formats": [
+          "ai-stp-bundle/2"
+        ],
+        "component_kinds": [
+          "skill"
+        ],
+        "digest": "sha256:d4a402e1ecb70feefee4c36e819c15c46dc4bed0d8f022da45e37047dbff0ee2",
+        "max_bytes": 67108864,
+        "max_files": 8192,
+        "native_namespaces": [
+          "skills"
+        ],
+        "profile_id": "codex/native-files/user-root/1",
+        "projection_kinds": [
+          "native_files"
+        ],
+        "target_scope": "user_root"
+      },
+      {
+        "bundle_formats": [
+          "ai-stp-bundle/2"
+        ],
+        "component_kinds": [
+          "instruction",
+          "hook",
+          "skill"
+        ],
+        "digest": "sha256:4899d54c7054c99273c454dd085c72f79b11148dda09af990581fe35a062ec10",
+        "max_bytes": 67108864,
+        "max_files": 8192,
+        "native_namespaces": [
+          "AGENTS.md",
+          ".codex/hooks.json",
+          ".agents/skills"
+        ],
+        "profile_id": "codex/native-files/project/1",
+        "projection_kinds": [
+          "native_files"
+        ],
+        "target_scope": "project"
+      }
+    ],
+    "status_request_fields": [
+      "target_scope"
+    ],
+    "supported_arch": [
+      "x86_64",
+      "arm64"
+    ],
+    "supported_commands": [
+      "provider-info",
+      "validate-bundle",
+      "plan-operation",
+      "apply-operation",
+      "recover-operation",
+      "status",
+      "launch"
+    ],
+    "supported_operations": [
+      "install",
+      "replace",
+      "backup",
+      "restore",
+      "remove",
+      "reset",
+      "software_install",
+      "software_update",
+      "software_remove",
+      "launch",
+      "patch_instruction_region",
+      "detach_instruction_region"
+    ],
+    "supported_os": [
+      "linux",
+      "macos",
+      "windows"
+    ]
+  },
+  {
+    "harness_id": "cursor",
+    "permission_profiles": [
+      "default"
+    ],
+    "plan_request_fields": [
+      "target_scope",
+      "end_state",
+      "capture_mode",
+      "recovery_mode",
+      "instruction_section"
+    ],
+    "projection_profile": {
+      "bundle_formats": [
+        "ai-stp-bundle/2"
+      ],
+      "component_kinds": [
+        "plugin",
+        "setting",
+        "instruction",
+        "command",
+        "hook",
+        "mcp",
+        "skill"
+      ],
+      "digest": "sha256:2cae2fea2245f5d816f86baa4843a70bdf915aef1e48e0902a6fd57f2b0fcca6",
+      "max_bytes": 67108864,
+      "max_files": 8192,
+      "native_namespaces": [
+        "cli-config.json",
+        "plugins/local",
+        "rules",
+        "commands",
+        "hooks.json",
+        "mcp.json",
+        "skills"
+      ],
+      "profile_id": "cursor/native-and-plugins/2",
+      "projection_kinds": [
+        "native_files",
+        "plugin"
+      ]
+    },
+    "protocol_version": 3,
+    "provider_build_digest": "sha256:b0fae085998af9015b505985d2d1adabb433c39c8a7a5ee75524e743182015c5",
+    "provider_id": "cursor-setup-system",
+    "provider_version": "0.0.95",
+    "scoped_projection_profiles": [
+      {
+        "bundle_formats": [
+          "ai-stp-bundle/2"
+        ],
+        "component_kinds": [
+          "skill"
+        ],
+        "digest": "sha256:0ef4a2820dc61341e293076c7ef81b4ee989c6c7132ce17d52f07d8e9e0a5c7a",
+        "max_bytes": 67108864,
+        "max_files": 8192,
+        "native_namespaces": [
+          "skills"
+        ],
+        "profile_id": "cursor/native-files/user-root/1",
+        "projection_kinds": [
+          "native_files"
+        ],
+        "target_scope": "user_root"
+      },
+      {
+        "bundle_formats": [
+          "ai-stp-bundle/2"
+        ],
+        "component_kinds": [
+          "instruction",
+          "command",
+          "hook",
+          "mcp",
+          "agent",
+          "skill"
+        ],
+        "digest": "sha256:08019697bf8116d466a20188dbadfb5d8d40fd75653179a34a87937a02e2ad77",
+        "max_bytes": 67108864,
+        "max_files": 8192,
+        "native_namespaces": [
+          ".cursor/rules",
+          ".cursor/commands",
+          ".cursor/hooks.json",
+          ".cursor/mcp.json",
+          ".cursor/agents",
+          ".cursor/skills"
+        ],
+        "profile_id": "cursor/native-files/project/1",
+        "projection_kinds": [
+          "native_files"
+        ],
+        "target_scope": "project"
+      }
+    ],
+    "status_request_fields": [
+      "target_scope"
+    ],
+    "supported_arch": [
+      "x86_64",
+      "arm64"
+    ],
+    "supported_commands": [
+      "provider-info",
+      "validate-bundle",
+      "plan-operation",
+      "apply-operation",
+      "recover-operation",
+      "status",
+      "launch"
+    ],
+    "supported_operations": [
+      "install",
+      "replace",
+      "backup",
+      "restore",
+      "remove",
+      "reset",
+      "software_install",
+      "software_update",
+      "software_remove",
+      "launch",
+      "patch_instruction_region",
+      "detach_instruction_region"
+    ],
+    "supported_os": [
+      "linux",
+      "macos",
+      "windows"
+    ]
+  },
+  {
+    "harness_id": "opencode",
+    "permission_profiles": [
+      "default"
+    ],
+    "plan_request_fields": [
+      "target_scope",
+      "end_state",
+      "capture_mode",
+      "recovery_mode",
+      "instruction_section"
+    ],
+    "projection_profile": {
+      "bundle_formats": [
+        "ai-stp-bundle/2"
+      ],
+      "component_kinds": [
+        "instruction",
+        "skill",
+        "agent",
+        "command",
+        "plugin",
+        "setting"
+      ],
+      "digest": "sha256:3598000e9206586d606faea1d12c1a3f80a0b7f812c350eb9236a44a303e19ac",
+      "max_bytes": 67108864,
+      "max_files": 8192,
+      "native_namespaces": [
+        "AGENTS.md",
+        "opencode.json",
+        "tui.json",
+        "skills",
+        "agents",
+        "commands",
+        "plugins"
+      ],
+      "profile_id": "opencode/native-files/1",
+      "projection_kinds": [
+        "native_files",
+        "plugin"
+      ]
+    },
+    "protocol_version": 3,
+    "provider_build_digest": "sha256:efc98c3918dbb0d14867ceeeb750134e4b6e0ebd308f418bc51104bc77808ece",
+    "provider_id": "opencode-setup-system",
+    "provider_version": "0.0.95",
+    "scoped_projection_profiles": [
+      {
+        "bundle_formats": [
+          "ai-stp-bundle/2"
+        ],
+        "component_kinds": [
+          "skill"
+        ],
+        "digest": "sha256:89088644bb23d353252a0c01088d7856af878ee10b3fef3097c95fb94d07ea77",
+        "max_bytes": 67108864,
+        "max_files": 8192,
+        "native_namespaces": [
+          "skills"
+        ],
+        "profile_id": "opencode/native-files/user-root/1",
+        "projection_kinds": [
+          "native_files"
+        ],
+        "target_scope": "user_root"
+      },
+      {
+        "bundle_formats": [
+          "ai-stp-bundle/2"
+        ],
+        "component_kinds": [
+          "instruction",
+          "skill",
+          "agent",
+          "command",
+          "plugin",
+          "setting"
+        ],
+        "digest": "sha256:f1d58287917d04ba9279d8c8c82c9e313a18c35fbeddb15514735ccde3d615ef",
+        "max_bytes": 67108864,
+        "max_files": 8192,
+        "native_namespaces": [
+          "AGENTS.md",
+          "opencode.json",
+          ".opencode/skills",
+          ".opencode/agents",
+          ".opencode/commands",
+          ".opencode/plugins"
+        ],
+        "profile_id": "opencode/native-files/project/1",
+        "projection_kinds": [
+          "native_files"
+        ],
+        "target_scope": "project"
+      }
+    ],
+    "status_request_fields": [
+      "target_scope"
+    ],
+    "supported_arch": [
+      "x86_64",
+      "arm64"
+    ],
+    "supported_commands": [
+      "provider-info",
+      "validate-bundle",
+      "plan-operation",
+      "apply-operation",
+      "recover-operation",
+      "status",
+      "launch"
+    ],
+    "supported_operations": [
+      "install",
+      "replace",
+      "backup",
+      "restore",
+      "remove",
+      "reset",
+      "software_install",
+      "software_update",
+      "software_remove",
+      "launch",
+      "patch_instruction_region",
+      "detach_instruction_region"
+    ],
+    "supported_os": [
+      "linux",
+      "macos",
+      "windows"
+    ]
+  },
+  {
+    "harness_id": "pi",
+    "permission_profiles": [
+      "default"
+    ],
+    "plan_request_fields": [
+      "target_scope",
+      "end_state",
+      "capture_mode",
+      "recovery_mode",
+      "instruction_section"
+    ],
+    "projection_profile": {
+      "bundle_formats": [
+        "ai-stp-bundle/2"
+      ],
+      "component_kinds": [
+        "instruction",
+        "skill",
+        "plugin",
+        "setting",
+        "command"
+      ],
+      "digest": "sha256:7e6131ce8c8386540cbd31c9c82b4e2db3ee865f1d8093ebf10b62337f234062",
+      "max_bytes": 67108864,
+      "max_files": 8192,
+      "native_namespaces": [
+        "AGENTS.md",
+        "SYSTEM.md",
+        "APPEND_SYSTEM.md",
+        "settings.json",
+        "skills",
+        "extensions",
+        "prompts",
+        "themes"
+      ],
+      "profile_id": "pi/native-files/2",
+      "projection_kinds": [
+        "native_files",
+        "package"
+      ]
+    },
+    "protocol_version": 3,
+    "provider_build_digest": "sha256:d253211a575cd2866d5044025ea3aa666c453e6ccb538160d1f6385c827f6fd8",
+    "provider_id": "pi-setup-system",
+    "provider_version": "0.0.95",
+    "scoped_projection_profiles": [
+      {
+        "bundle_formats": [
+          "ai-stp-bundle/2"
+        ],
+        "component_kinds": [
+          "skill"
+        ],
+        "digest": "sha256:f6e6851da4def264317162a6ba7ba11b9c873bf5cf4086694b34185e82bb7237",
+        "max_bytes": 67108864,
+        "max_files": 8192,
+        "native_namespaces": [
+          "skills"
+        ],
+        "profile_id": "pi/native-files/user-root/1",
+        "projection_kinds": [
+          "native_files"
+        ],
+        "target_scope": "user_root"
+      },
+      {
+        "bundle_formats": [
+          "ai-stp-bundle/2"
+        ],
+        "component_kinds": [
+          "instruction",
+          "skill",
+          "plugin",
+          "setting",
+          "command"
+        ],
+        "digest": "sha256:8ed52ffffadfdde6c5f6306e20c0a7ea0934f75b4f3cf6953a0610683019a949",
+        "max_bytes": 67108864,
+        "max_files": 8192,
+        "native_namespaces": [
+          "AGENTS.md",
+          ".pi/extensions",
+          ".pi/prompts",
+          ".pi/settings.json",
+          ".pi/skills"
+        ],
+        "profile_id": "pi/native-files/project/1",
+        "projection_kinds": [
+          "native_files"
+        ],
+        "target_scope": "project"
+      }
+    ],
+    "status_request_fields": [
+      "target_scope"
+    ],
+    "supported_arch": [
+      "x86_64",
+      "arm64"
+    ],
+    "supported_commands": [
+      "provider-info",
+      "validate-bundle",
+      "plan-operation",
+      "apply-operation",
+      "recover-operation",
+      "status",
+      "launch"
+    ],
+    "supported_operations": [
+      "install",
+      "replace",
+      "backup",
+      "restore",
+      "remove",
+      "reset",
+      "software_install",
+      "software_update",
+      "software_remove",
+      "launch",
+      "patch_instruction_region",
+      "detach_instruction_region"
+    ],
+    "supported_os": [
+      "linux",
+      "macos",
+      "windows"
+    ]
+  },
+  {
+    "harness_id": "grok-build",
+    "permission_profiles": [
+      "default"
+    ],
+    "plan_request_fields": [
+      "target_scope",
+      "end_state",
+      "capture_mode",
+      "recovery_mode",
+      "instruction_section"
+    ],
+    "projection_profile": {
+      "bundle_formats": [
+        "ai-stp-bundle/2"
+      ],
+      "component_kinds": [
+        "instruction",
+        "skill",
+        "agent",
+        "hook",
+        "plugin",
+        "setting"
+      ],
+      "digest": "sha256:616d9a0667abf01fdf1e8c756bbf9341f23bf57a41c4291b40f33add0b0f7590",
+      "max_bytes": 67108864,
+      "max_files": 8192,
+      "native_namespaces": [
+        "AGENTS.md",
+        "config.toml",
+        "sandbox.toml",
+        "skills",
+        "agents",
+        "plugins",
+        "hooks",
+        "workflows",
+        "rules",
+        "commands",
+        "personas",
+        "roles"
+      ],
+      "profile_id": "grok/native-and-plugins/1",
+      "projection_kinds": [
+        "native_files",
+        "marketplace",
+        "plugin"
+      ]
+    },
+    "protocol_version": 3,
+    "provider_build_digest": "sha256:3cec19b03dd1c0c28e9b6b937c6c21dcfa261b1fd30eca5f9b94e815caeaf9bb",
+    "provider_id": "grok-setup-system",
+    "provider_version": "0.0.95",
+    "scoped_projection_profiles": [
+      {
+        "bundle_formats": [
+          "ai-stp-bundle/2"
+        ],
+        "component_kinds": [
+          "skill"
+        ],
+        "digest": "sha256:53b7a1d11b6e9eafe870bbcd8b6f6a208e89929d674d50e3e436d7b984182845",
+        "max_bytes": 67108864,
+        "max_files": 8192,
+        "native_namespaces": [
+          "skills"
+        ],
+        "profile_id": "grok/native-files/user-root/1",
+        "projection_kinds": [
+          "native_files"
+        ],
+        "target_scope": "user_root"
+      },
+      {
+        "bundle_formats": [
+          "ai-stp-bundle/2"
+        ],
+        "component_kinds": [
+          "instruction",
+          "skill",
+          "agent",
+          "hook",
+          "plugin"
+        ],
+        "digest": "sha256:1e550d055a56f8ec22fc581e20365925dc815beef7c36066cafec42d4b37c4b4",
+        "max_bytes": 67108864,
+        "max_files": 8192,
+        "native_namespaces": [
+          "AGENTS.md",
+          ".grok/skills",
+          ".grok/agents",
+          ".grok/hooks",
+          ".grok/plugins"
+        ],
+        "profile_id": "grok/native-files/project/1",
+        "projection_kinds": [
+          "native_files"
+        ],
+        "target_scope": "project"
+      }
+    ],
+    "status_request_fields": [
+      "target_scope"
+    ],
+    "supported_arch": [
+      "x86_64",
+      "arm64"
+    ],
+    "supported_commands": [
+      "provider-info",
+      "validate-bundle",
+      "plan-operation",
+      "apply-operation",
+      "recover-operation",
+      "status",
+      "launch"
+    ],
+    "supported_operations": [
+      "install",
+      "replace",
+      "backup",
+      "restore",
+      "remove",
+      "reset",
+      "software_install",
+      "software_update",
+      "software_remove",
+      "launch",
+      "patch_instruction_region",
+      "detach_instruction_region"
+    ],
+    "supported_os": [
+      "linux",
+      "macos",
+      "windows"
+    ]
+  },
+  {
+    "harness_id": "antigravity",
+    "permission_profiles": [
+      "default"
+    ],
+    "plan_request_fields": [
+      "target_scope",
+      "end_state",
+      "capture_mode",
+      "recovery_mode",
+      "instruction_section"
+    ],
+    "projection_profile": {
+      "bundle_formats": [
+        "ai-stp-bundle/2"
+      ],
+      "component_kinds": [
+        "instruction",
+        "skill",
+        "agent",
+        "hook",
+        "mcp",
+        "plugin",
+        "setting",
+        "command"
+      ],
+      "digest": "sha256:d46222869ceecea45f4eb42a31e4309d5960e0d366345d1adb0ddc04e33fd5b9",
+      "max_bytes": 67108864,
+      "max_files": 8192,
+      "native_namespaces": [
+        "antigravity-cli/settings.json",
+        "antigravity-cli/keybindings.json",
+        "antigravity-cli/plugins",
+        "config/plugins",
+        "config/skills",
+        "config/agents",
+        "config/hooks.json",
+        "config/mcp_config.json",
+        "config/global_workflows",
+        "config/rules"
+      ],
+      "profile_id": "antigravity/native-files/1",
+      "projection_kinds": [
+        "native_files",
+        "plugin"
+      ]
+    },
+    "protocol_version": 3,
+    "provider_build_digest": "sha256:bc930aa08d7c606bc71ab36976db8b611f6ca216b4d8d456273a10fcfa3a82cd",
+    "provider_id": "antigravity-setup-system",
+    "provider_version": "0.0.95",
+    "scoped_projection_profiles": [
+      {
+        "bundle_formats": [
+          "ai-stp-bundle/2"
+        ],
+        "component_kinds": [
+          "skill",
+          "agent",
+          "hook",
+          "mcp",
+          "plugin"
+        ],
+        "digest": "sha256:6709b8225f55d2ce6753850ff80c973bf03959cc4aaba31c4d5fbe8128d5e0ea",
+        "max_bytes": 67108864,
+        "max_files": 8192,
+        "native_namespaces": [
+          ".agents/skills",
+          ".agents/agents",
+          ".agents/plugins",
+          ".agents/hooks.json",
+          ".agents/mcp_config.json"
+        ],
+        "profile_id": "antigravity/native-files/project/1",
+        "projection_kinds": [
+          "native_files",
+          "plugin"
+        ],
+        "target_scope": "project"
+      }
+    ],
+    "status_request_fields": [
+      "target_scope"
+    ],
+    "supported_arch": [
+      "x86_64",
+      "arm64"
+    ],
+    "supported_commands": [
+      "provider-info",
+      "validate-bundle",
+      "plan-operation",
+      "apply-operation",
+      "recover-operation",
+      "status",
+      "launch"
+    ],
+    "supported_operations": [
+      "install",
+      "replace",
+      "backup",
+      "restore",
+      "remove",
+      "reset",
+      "software_install",
+      "software_update",
+      "software_remove",
+      "launch"
+    ],
+    "supported_os": [
+      "linux",
+      "macos",
+      "windows"
+    ]
+  }
+]
