@@ -61,6 +61,7 @@ struct Server {
     lose_confirmation: Option<String>,
     revoked: bool,
     stop: bool,
+    progress: String,
     at: String,
 }
 
@@ -331,30 +332,38 @@ fn publication_groups_preserve_order_partial_progress_and_replacement_ancestry()
         lose_confirmation: None,
         revoked: false,
         stop: false,
+        progress: "awaiting first request".into(),
         at: at.clone(),
     }));
     let fixture = shared.clone();
     let server = thread::spawn(move || -> std::io::Result<()> {
         let deadline = Instant::now() + Duration::from_secs(600);
-        for _ in 0..1000 {
+        for request in 0..=1000 {
             // Offline journal validation and the previous executable may keep
             // this fixture idle; bound the journey, not those local pauses.
             let mut socket = accept_until(&listener, deadline)?;
-            if fixture
+            let mut fixture = fixture
                 .lock()
-                .map_err(|_| std::io::Error::other("fixture"))?
-                .stop
-            {
+                .map_err(|_| std::io::Error::other("fixture"))?;
+            if fixture.stop {
                 return Ok(());
             }
-            let (headers, body) = receive(&mut socket)?;
+            if request == 1000 {
+                return Err(std::io::Error::other("fixture HTTP request bound: 1000"));
+            }
+            fixture.progress = format!("receiving request {}", request + 1);
+            let (headers, body) = receive(&mut socket)
+                .map_err(|error| std::io::Error::other(format!("{}: {error}", fixture.progress)))?;
+            let route = headers.lines().next().unwrap_or("missing request line");
+            fixture.progress = format!("serving request {}: {route}", request + 1);
             fixture
-                .lock()
-                .map_err(|_| std::io::Error::other("fixture"))?
-                .serve(&mut socket, &headers, &body)?;
+                .serve(&mut socket, &headers, &body)
+                .map_err(|error| std::io::Error::other(format!("{}: {error}", fixture.progress)))?;
+            fixture.progress = format!("finished request {}: {route}", request + 1);
         }
         Err(std::io::Error::other("request bound"))
     });
+    let mut phase = "public publication preflight";
     let journey = (|| -> std::result::Result<(), Box<dyn Error>> {
         let request = |id: &str, evidence: BTreeMap<String, runtime::Evidence>| runtime::Request {
             stable_id: id.into(),
@@ -391,6 +400,7 @@ fn publication_groups_preserve_order_partial_progress_and_replacement_ancestry()
             .map_err(|_| "fixture")?
             .published
             .remove(&owned[0]);
+        phase = "group publication planning";
         let evidence = owned
             .iter()
             .map(|id| {
@@ -474,6 +484,7 @@ fn publication_groups_preserve_order_partial_progress_and_replacement_ancestry()
         })?;
             Ok(())
         };
+        phase = "group capacity admission";
         capacity(127)?;
         assert!(runtime::apply(&publication, &publication.digest()?, &moment()).is_err());
         assert!(shared.lock().map_err(|_| "fixture")?.writes.is_empty());
@@ -495,6 +506,7 @@ fn publication_groups_preserve_order_partial_progress_and_replacement_ancestry()
                 .len(),
             4
         );
+        phase = "member ordering";
         {
             let mut client = publication::client::Client::connect(root.path(), None)?;
             for member in serialized["intent"]["members"]
@@ -539,6 +551,7 @@ fn publication_groups_preserve_order_partial_progress_and_replacement_ancestry()
             )
             .is_err()
         );
+        phase = "session refresh fences";
         let resume = runtime::resume(root.path(), None, &operation, &moment())?;
         let refresh = plan(root.path(), Action::Refresh, None, None, &moment())?;
         apply(&refresh, &refresh.digest()?, &moment())?;
@@ -560,6 +573,7 @@ fn publication_groups_preserve_order_partial_progress_and_replacement_ancestry()
                 }
             }
         }
+        phase = "group completion";
         let complete = runtime::apply(&resumed, &resumed.digest()?, &moment())?;
         assert_eq!(complete["state"], "published");
         assert_eq!(
@@ -587,6 +601,7 @@ fn publication_groups_preserve_order_partial_progress_and_replacement_ancestry()
                 .1,
             setups_ids[0]
         );
+        phase = "partial refusal";
         shared.lock().map_err(|_| "fixture")?.refuse = Some(setups_ids[1].clone());
         let refused = runtime::plan(
             root.path(),
@@ -604,6 +619,7 @@ fn publication_groups_preserve_order_partial_progress_and_replacement_ancestry()
                 .len(),
             3
         );
+        phase = "lost confirmation planning";
         {
             let mut fixture = shared.lock().map_err(|_| "fixture")?;
             fixture.refuse = None;
@@ -618,6 +634,7 @@ fn publication_groups_preserve_order_partial_progress_and_replacement_ancestry()
         )?;
         let original = serde_json::to_value(&interrupted)?;
         let interrupted_id = string(&original["intent"], "operation_id")?;
+        phase = "intentional lost confirmation";
         let lost = runtime::apply(&interrupted, &interrupted.digest()?, &moment())
             .err()
             .ok_or("fixture must drop confirmation")?;
@@ -631,6 +648,7 @@ fn publication_groups_preserve_order_partial_progress_and_replacement_ancestry()
             assert!(result.status.success());
             assert_eq!(serde_json::from_slice::<Value>(&result.stdout)?["ok"], true);
         }
+        phase = "replacement admission";
         shared.lock().map_err(|_| "fixture")?.revoked = true;
         let refresh = plan(root.path(), Action::Refresh, None, None, &moment())?;
         assert_eq!(
@@ -663,6 +681,7 @@ fn publication_groups_preserve_order_partial_progress_and_replacement_ancestry()
         let receipt = runtime::apply(&interrupted, &interrupted.digest()?, &moment())?;
         assert_eq!(receipt["state"], "interrupted");
         assert_eq!(receipt["remote_outcome"], "unknown");
+        phase = "replacement sign-in and read-only reconciliation";
         let token = generated();
         authorize(root.path(), &origin, &context.account_id, &token)?;
         {
@@ -679,6 +698,7 @@ fn publication_groups_preserve_order_partial_progress_and_replacement_ancestry()
             runtime::apply(&interrupted, &interrupted.digest()?, &moment())?,
             receipt
         );
+        phase = "offline terminal receipts";
         let logout = plan(root.path(), Action::Logout, None, None, &moment())?;
         assert_eq!(
             apply(&logout, &logout.digest()?, &moment())?["outcome"],
@@ -711,10 +731,20 @@ fn publication_groups_preserve_order_partial_progress_and_replacement_ancestry()
         assert_eq!(runtime::status(root.path(), None)?["operations"], json!([]));
         Ok(())
     })();
-    shared.lock().map_err(|_| "fixture")?.stop = true;
+    let progress = match shared.lock() {
+        Ok(mut fixture) => {
+            fixture.stop = true;
+            fixture.progress.clone()
+        }
+        Err(_) => "fixture state poisoned".into(),
+    };
     let _wake = TcpStream::connect(address);
-    server
+    let served = server
         .join()
-        .map_err(|_| "publication group fixture panicked")??;
-    journey
+        .unwrap_or_else(|_| Err(std::io::Error::other("publication group fixture panicked")));
+    journey.map_err(|error| {
+        format!("{phase}: {error}; fixture server: {served:?}; last progress: {progress}")
+    })?;
+    served?;
+    Ok(())
 }
