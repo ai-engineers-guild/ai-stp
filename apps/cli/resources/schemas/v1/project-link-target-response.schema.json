@@ -1,0 +1,108 @@
+{
+  "$defs": {
+    "ProjectLinkProviderTarget": {
+      "additionalProperties": true,
+      "description": "Current immutable repository coordinates for one authorized link target.",
+      "properties": {
+        "immutable_repository_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Immutable Repository Id",
+          "type": "string"
+        },
+        "provider": {
+          "enum": [
+            "github",
+            "gitlab"
+          ],
+          "title": "Provider",
+          "type": "string"
+        },
+        "provider_project_id": {
+          "pattern": "^provider_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Provider Project Id",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "immutable_repository_id",
+        "provider",
+        "provider_project_id",
+        "revision"
+      ],
+      "title": "ProjectLinkProviderTarget",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:project-link-target-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Fresh link-planning coordinates; no link or installation is authorized.",
+  "properties": {
+    "authorization_revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Authorization Revision",
+      "type": "string"
+    },
+    "observation_only": {
+      "const": true,
+      "default": true,
+      "title": "Observation Only",
+      "type": "boolean"
+    },
+    "observed_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "providers": {
+      "items": {
+        "$ref": "#/$defs/ProjectLinkProviderTarget"
+      },
+      "maxItems": 256,
+      "title": "Providers",
+      "type": "array"
+    },
+    "remote_project_id": {
+      "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Remote Project Id",
+      "type": "string"
+    },
+    "remote_revision": {
+      "pattern": "^(initial|sha256:[0-9a-f]{64})$",
+      "title": "Remote Revision",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "authorization_revision",
+    "observation_only",
+    "observed_at",
+    "organization_id",
+    "providers",
+    "remote_project_id",
+    "remote_revision",
+    "schema_version"
+  ],
+  "title": "ProjectLinkTargetResponse",
+  "type": "object"
+}

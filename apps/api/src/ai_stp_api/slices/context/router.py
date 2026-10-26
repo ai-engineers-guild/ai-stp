@@ -33,6 +33,7 @@ from ai_stp_contracts.context import (
     ProjectUnlinkRequest,
     ProviderProjectObservationRequest,
 )
+from ai_stp_contracts.http import IdempotencyKey
 from ai_stp_foundation.timestamps import format_timestamp
 
 router = APIRouter(tags=["context"])
@@ -224,6 +225,24 @@ async def create_project_link(
     return JSONResponse(content=body.model_dump(mode="json"), status_code=201)
 
 
+@router.get(
+    "/organizations/{organization_id}/project-link-targets/{remote_project_id}", response_model=None
+)
+async def read_project_link_target(
+    organization_id: str,
+    remote_project_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    body = await service.read_project_link_target(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        remote_project_id=remote_project_id,
+    )
+    return JSONResponse(content=body.model_dump(mode="json"), headers=_NO_STORE)
+
+
 @router.post("/organizations/{organization_id}/project-link-plans", response_model=None)
 async def create_project_link_plan(
     organization_id: str,
@@ -248,6 +267,39 @@ async def read_project_link_plan(
         db, ctx=ctx, organization_id=organization_id, plan_id=plan_id
     )
     return JSONResponse(content=body.model_dump(mode="json"))
+
+
+@router.get(
+    "/organizations/{organization_id}/project-link-plans/{plan_id}/outcome", response_model=None
+)
+async def read_project_link_plan_outcome(
+    organization_id: str,
+    plan_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    body = await service.read_project_link_plan_outcome(
+        db, ctx=ctx, organization_id=organization_id, plan_id=plan_id
+    )
+    return JSONResponse(content=body.model_dump(mode="json"), headers=_NO_STORE)
+
+
+@router.get(
+    "/organizations/{organization_id}/project-link-plan-requests/{request_key}", response_model=None
+)
+async def read_project_link_request_outcome(
+    organization_id: str,
+    request_key: IdempotencyKey,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    body = await service.read_project_link_request_outcome(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        request_key=request_key,
+    )
+    return JSONResponse(content=body.model_dump(mode="json"), headers=_NO_STORE)
 
 
 @router.get("/projects/links/{link_id}", response_model=None)

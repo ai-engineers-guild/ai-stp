@@ -60,6 +60,24 @@ That page projects the public catalog's authoritative lane. An organization
 assignment does not publish a private setup or make an experimental version
 authoritative; private assigned coordinates are resolved separately in previews.
 
+`corporate project link-target --project ID` reads the exact remote ledger head,
+current immutable provider identities/revisions and authorization revision needed
+by a separate server-authored link plan. It creates no link or local binding.
+Provider duplicates, mixed coordinates and a policy revision inconsistent with
+the current context refuse; incomplete provider observations must be refreshed.
+
+`corporate project link-outcome --plan-id ID` reads the original account-owned
+plan and its current ready, expired or applied outcome. Applied evidence includes
+the exact retained link, including its current unlinked/conflict state. A fresh
+device of the same account may recover this evidence; confirmation remains bound
+to the original device. This read neither retries confirmation nor binds a local
+checkout, and membership and policy are checked again for every observation.
+
+If the original plan response was lost, use `corporate project link-request-outcome`
+with `--request-key KEY` and that request's exact retained idempotency key. The read
+finds only the same account's original plan; it does not submit or confirm it.
+An absent result leaves an in-flight request unknown and cannot prove rollback.
+
 These commands accept `--context ID`; omission resolves the selected view once
 for that new read. The result retains its original context, current account
 revision and bounded observations. Changing the view during a delayed reply does

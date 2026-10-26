@@ -101,6 +101,33 @@
       "body": {"schema_version": 1, "link_id": "project_link_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "plan_id": "link_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "plan_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "local_project_id": "project_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "remote_project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "provider_project_id": null, "state": "linked", "local_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "remote_revision": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "provider_revision": null, "conflict_server_revision": null, "conflict_client_revision": null, "conflict_common_ancestor": null, "revision": 1, "updated_at": "2026-01-01T00:00:00.000Z"}
     },
     {
+      "case_id": "readProjectLinkTarget.context",
+      "operation_id": "readProjectLinkTarget",
+      "kind": "positive",
+      "why": "Link planning reads the current authorized remote head and immutable provider coordinates without creating a link.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "remote_project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "headers": {"X-AI-STP-Product-Mode": "corporate", "X-AI-STP-Organization-Id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "X-AI-STP-Authorization-Revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1"}},
+      "status": 200,
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "remote_project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "remote_revision": "initial", "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1", "providers": [{"provider_project_id": "provider_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "provider": "github", "immutable_repository_id": "12345", "revision": 1}], "observed_at": "2026-01-01T00:00:00.000Z", "observation_only": true}
+    },
+    {
+      "case_id": "readProjectLinkRequestOutcome.context",
+      "operation_id": "readProjectLinkRequestOutcome",
+      "kind": "positive",
+      "why": "A lost plan response is recovered by the exact original account-owned request key without resubmission.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "request_key": "context-link-plan-0001"}, "headers": {"Authorization": "Bearer fixture-access-token"}},
+      "status": 200,
+      "body": {"schema_version": 1, "plan": {"schema_version": 1, "plan_id": "link_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "local_project_id": "project_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "remote_project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "provider_project_id": null, "local_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "remote_revision": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "provider_revision": null, "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1", "plan_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "expires_at": "2026-01-01T00:15:00.000Z"}, "state": "ready", "link": null, "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1", "observed_at": "2026-01-01T00:00:00.000Z", "observation_only": true}
+    },
+    {
+      "case_id": "readProjectLinkPlanOutcome.context",
+      "operation_id": "readProjectLinkPlanOutcome",
+      "kind": "positive",
+      "why": "An unconfirmed original account-owned plan is observed without creating or confirming a link.",
+      "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "plan_id": "link_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "headers": {"Authorization": "Bearer fixture-access-token"}},
+      "status": 200,
+      "body": {"schema_version": 1, "plan": {"schema_version": 1, "plan_id": "link_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "local_project_id": "project_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "remote_project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "provider_project_id": null, "local_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "remote_revision": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "provider_revision": null, "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1", "plan_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "expires_at": "2026-01-01T00:15:00.000Z"}, "state": "ready", "link": null, "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1", "observed_at": "2026-01-01T00:00:00.000Z", "observation_only": true}
+    },
+    {
       "case_id": "readProjectLinkPlan.context",
       "operation_id": "readProjectLinkPlan",
       "kind": "positive",
