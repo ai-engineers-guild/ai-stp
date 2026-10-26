@@ -166,3 +166,23 @@ it("does not authorize reconciliation under another account, even at the same se
   expect((screen.getByRole("button", { name: "Reconcile original outcome" }) as HTMLButtonElement).disabled).toBe(true);
   expect(transport.cmdCheckoutApply).not.toHaveBeenCalled();
 });
+
+it("continues a retained completed request through separately reviewed confirmation and binding", async () => {
+  const original = receipt("request");
+  vi.mocked(transport.cmdRunRead).mockImplementation(async (path) => path.endsWith("list") ? ok({ items: [original], next_cursor: null }) : ok(original));
+  render(<CheckoutOperations />);
+  fireEvent.click(await screen.findByRole("button", { name: "Inspect operation_request" }));
+  await screen.findByLabelText("Original checkout operation");
+  for (const [action, label] of [["confirm", "Review original confirmation"], ["adopt", "Review original local binding"]] as const) {
+    fireEvent.click(screen.getByRole("button", { name: label }));
+    await screen.findByLabelText("Review retained checkout next change");
+    expect(transport.cmdCheckoutApply).toHaveBeenCalledTimes(action === "confirm" ? 0 : 1);
+    fireEvent.click(screen.getByLabelText("I reviewed this exact retained checkout change and authorize it."));
+    fireEvent.click(screen.getByRole("button", { name: "Apply reviewed original checkout change" }));
+    await waitFor(() => expect(screen.queryByLabelText("Review retained checkout next change")).toBe(null));
+    expect(transport.cmdCheckoutApply).toHaveBeenLastCalledWith(proposal(action).data!.plan,
+      proposal(action).data!.plan_digest, true, context.id, undefined);
+  }
+  await screen.findByText("Corporate project binding saved.");
+  expect(transport.cmdCheckoutApply).toHaveBeenCalledTimes(2);
+});
