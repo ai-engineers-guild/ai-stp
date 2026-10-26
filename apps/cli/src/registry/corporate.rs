@@ -20,10 +20,13 @@ pub(super) enum Handler {
     LinkTarget,
     LinkPreview,
     LinkOutcome,
+    LinkSettlement,
     LinkRequestOutcome,
     LinkRequestPlan,
     LinkConfirmPlan,
     LinkAdoptPlan,
+    LinkRetirePlan,
+    LinkRetireApply,
     LinkApply,
     LinkStatus,
     LinkList,
@@ -43,7 +46,8 @@ impl Handler {
             | Self::LinkRequestPlan
             | Self::LinkConfirmPlan
             | Self::LinkAdoptPlan => "plan",
-            Self::LinkApply => "apply",
+            Self::LinkRetirePlan => "plan",
+            Self::LinkApply | Self::LinkRetireApply => "apply",
             _ => "read",
         }
     }
@@ -102,6 +106,38 @@ const LINK_REQUEST: Parameter = Parameter {
 };
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["corporate", "project", "link-retire", "plan"],
+        summary: "Review local retirement of an unknown request, or an unknown confirmation with exact expired settlement and no active binding.",
+        parameters: &[
+            STATE_DIR,
+            LINK_OPERATION,
+            Parameter {
+                summary: "Exact same-account current reader for expired confirmation settlement; omit for offline local request retirement.",
+                ..CONTEXT
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LinkRetirePlan),
+    },
+    Declaration {
+        path: &["corporate", "project", "link-retire", "apply"],
+        summary: "Apply an exact reviewed retirement; retain unknown request outcome, release only settled unbound confirmation reservations, and never resend a remote write.",
+        parameters: &[
+            Parameter {
+                name: "plan",
+                summary: "Exact reviewed native checkout retirement plan JSON, at most 256 KiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Digest of the exact reviewed native retirement plan.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LinkRetireApply),
+    },
     Declaration {
         path: &["corporate", "project", "link-request", "plan"],
         summary: "Review a durable original request for a server-authored link plan; create no link or installation authority.",
@@ -280,6 +316,21 @@ pub(super) const COMMANDS: &[Declaration] = &[
         handler: super::Handler::Corporate(Handler::LinkOutcome),
     },
     Declaration {
+        path: &["corporate", "project", "link-settlement"],
+        summary: "Read the original plan after its confirmation barrier; an observation alone never releases a local checkout reservation.",
+        parameters: &[
+            STATE_DIR,
+            CONTEXT,
+            Parameter {
+                name: "plan-id",
+                summary: "Exact retained server link_plan identifier.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LinkSettlement),
+    },
+    Declaration {
         path: &["corporate", "project", "link-request-outcome"],
         summary: "Read an original account-owned link request outcome by its retained idempotency key; an absent result leaves in-flight effects unknown.",
         parameters: &[
@@ -401,6 +452,27 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     };
     let at = format!("{:.3}", jiff::Timestamp::now());
     match handler {
+        Handler::LinkRetirePlan => {
+            let plan = project_links::retirement::plan(
+                state()?,
+                &text("operation")?,
+                optional("context").as_deref(),
+                &at,
+            )?;
+            return Ok(json!({"plan_digest":plan.digest()?,"plan":plan}));
+        }
+        Handler::LinkRetireApply => {
+            let plan = project_links::retirement::read_plan(
+                args.get_one::<PathBuf>("plan")
+                    .ok_or_else(|| Failure::input("plan is required"))?,
+            )?;
+            return project_links::retirement::apply(
+                plan.state_parent(),
+                &plan,
+                &text("plan-digest")?,
+                &at,
+            );
+        }
         Handler::LinkRequestPlan => {
             return output(project_links::request_plan(
                 state()?,
@@ -490,6 +562,9 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         Handler::LinkOutcome => Request::LinkOutcome {
             plan_id: text("plan-id")?,
         },
+        Handler::LinkSettlement => Request::LinkSettlement {
+            plan_id: text("plan-id")?,
+        },
         Handler::LinkRequestOutcome => Request::LinkRequestOutcome {
             request_key: text("request-key")?,
         },
@@ -524,6 +599,8 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         | Handler::LinkRequestPlan
         | Handler::LinkConfirmPlan
         | Handler::LinkAdoptPlan
+        | Handler::LinkRetirePlan
+        | Handler::LinkRetireApply
         | Handler::LinkApply
         | Handler::LinkStatus
         | Handler::LinkList
