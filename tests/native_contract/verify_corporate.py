@@ -42,9 +42,12 @@ from ai_stp_platform.organization_models import (
     CorporateAssignmentDistribution,
     CorporateProject,
     CorporateProjectMember,
+    CorporateRole,
     CorporateRoleBinding,
+    CorporateRolePermission,
     CorporateTeam,
     CorporateTeamMember,
+    Organization,
     OrganizationMembership,
     ProjectIdentity,
 )
@@ -112,6 +115,7 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         assert response.status_code == 200, response.text
 
         organization = response.json()["organization_id"]
+        second_organization, second_team = new_id("organization"), new_id("operation")
         auth = {"Authorization": f"Bearer {fixture_session.raw_token}"}
         project, team, technology = (
             new_id("remote_project"),
@@ -124,6 +128,64 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
             (unjoined_project, "Visible nonmember project"),
         ]
         async with app.state.sessionmaker() as db:
+            # Bootstrap is intentionally closed after its first tenant. Seed a
+            # second isolated tenant to exercise the existing multi-membership
+            # model; no production bootstrap or account-linking rule changes.
+            db.add(
+                Organization(
+                    id=second_organization,
+                    kind="corporate",
+                    owner_account_id=None,
+                    display_name="Second native fixture company",
+                    state="active",
+                    policy_revision=1,
+                )
+            )
+            await db.flush()
+            db.add(CorporateRole(organization_id=second_organization, name="staff"))
+            db.add(
+                OrganizationMembership(
+                    organization_id=second_organization, account_id=accounts[0], role="staff"
+                )
+            )
+            db.add(
+                CorporateTeam(
+                    id=second_team, organization_id=second_organization, name="Second native team"
+                )
+            )
+            await db.flush()
+            permissions = list(
+                await db.scalars(
+                    select(CorporateRolePermission.permission).where(
+                        CorporateRolePermission.organization_id == organization,
+                        CorporateRolePermission.role == "staff",
+                    )
+                )
+            )
+            assert permissions
+            db.add_all(
+                CorporateRolePermission(
+                    organization_id=second_organization, role="staff", permission=permission
+                )
+                for permission in permissions
+            )
+            db.add(
+                CorporateRoleBinding(
+                    id=new_id("operation"),
+                    organization_id=second_organization,
+                    account_id=accounts[0],
+                    role="staff",
+                    scope_kind="organization",
+                    scope_id=second_organization,
+                    origin="membership",
+                    coverage="descendants",
+                )
+            )
+            db.add(
+                CorporateTeamMember(
+                    organization_id=second_organization, team_id=second_team, account_id=accounts[0]
+                )
+            )
             db.add(
                 OrganizationMembership(
                     organization_id=organization, account_id=accounts[1], role="staff"
@@ -333,6 +395,43 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
     )
     assert personal["plan"]["change"]["context"]["authority"]["organization"]["kind"] == "personal"
     await enact(personal, "context", "apply")
+    retained_session = await run(
+        "account", "status", "--connection", connections[0]["connection_id"]
+    )
+    second_company = await run(
+        "context",
+        "create",
+        "plan",
+        "--label",
+        "Second company, same account",
+        "--connection",
+        connections[0]["connection_id"],
+        "--organization",
+        second_organization,
+    )
+    await enact(second_company, "context", "apply")
+    second_context = second_company["plan"]["change"]["context"]["context_id"]
+    shared_account = second_company["plan"]["change"]["context"]["authority"]["account"]
+    assert shared_account["account_id"] == accounts[0]
+    assert shared_account["connection"]["connection_id"] == connections[0]["connection_id"]
+    views = [
+        offline["plan"]["change"]["context"]["context_id"],
+        personal["plan"]["change"]["context"]["context_id"],
+        contexts[0],
+        second_context,
+    ]
+    assert len(set(views)) == 4
+    frozen_views = [await run("context", "show", "--context", view) for view in views]
+    for view in views:
+        await enact(await run("context", "select", "plan", "--context", view), "context", "apply")
+        selected_view = await run("context", "list")
+        assert selected_view["selected"]["context_id"] == view
+        assert not selected_view["selection_changes_harness_files"]
+    assert [await run("context", "show", "--context", view) for view in views] == frozen_views
+    assert (
+        await run("account", "status", "--connection", connections[0]["connection_id"])
+        == retained_session
+    )
     selected = await run("context", "select", "plan", "--context", contexts[1])
     await enact(selected, "context", "apply")
     snapshot = await run("context", "list")
@@ -348,6 +447,19 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         assert observation["observation_only"] and not observation["installation_authority"]
         assert observation["materialized_inventory"] == "none"
         return observation["data"]
+
+    async def observe_second_company() -> None:
+        result = await run("corporate", "teams", "--context", second_context)
+        observation = result["observation"]
+        assert observation["organization"]["organization_id"] == second_organization
+        assert observation["account"]["account_id"] == accounts[0]
+        assert observation["account"]["device_id"] == connections[0]["device_id"]
+        assert observation["context"]["context_id"] == second_context
+        assert observation["observation_only"] and not observation["installation_authority"]
+        assert {item["team_id"] for item in observation["data"]["items"]} == {second_team}
+        assert team not in {item["team_id"] for item in observation["data"]["items"]}
+
+    await observe_second_company()
 
     projects = await observe("projects", "--membership-only")
     assert [item["project_id"] for item in projects["items"]] == [project]
@@ -615,6 +727,7 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         member.state, member.revision = "suspended", member.revision + 1
         await db.commit()
     await refused(binary, home, ["corporate", "teams", "--context", contexts[0], *scoped])
+    await observe_second_company()
     await observe("projects", context=contexts[1])
     assert await run("context", "list") == snapshot
     assert await run("device", "show") == original
@@ -777,6 +890,13 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
             {
                 "native_corporate_http": "passed",
                 "independent_accounts": 2,
+                "one_account_coexisting_views": [
+                    "offline_personal",
+                    "authenticated_personal",
+                    "corporate_first",
+                    "corporate_second",
+                ],
+                "corporate_membership_revocation": "other_company_preserved",
                 "harness_previews": len(harnesses),
                 "assignment_precedence": [
                     "employee",
