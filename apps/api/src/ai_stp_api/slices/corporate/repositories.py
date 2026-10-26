@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
-from ai_stp_api.deps import get_db, get_settings, require_auth
+from ai_stp_api.deps import Db, get_settings, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
@@ -176,7 +176,7 @@ async def plan_repository(
     project_id: str,
     payload: CorporateRepositoryPlanRequest,
     ctx: Annotated[AuthContext, Depends(require_auth)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> CorporateRepositoryPlan:
     fingerprint = service.mutation_fingerprint(
@@ -258,7 +258,7 @@ async def bind_repository(
     project_id: str,
     payload: CorporateRepositoryBindRequest,
     ctx: Annotated[AuthContext, Depends(require_auth)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> CorporateProjectView:
     fingerprint = service.mutation_fingerprint(

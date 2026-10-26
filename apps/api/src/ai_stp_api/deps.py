@@ -31,7 +31,7 @@ def get_auth_settings(request: Request) -> AuthSettings:
 
 
 async def get_db(request: Request) -> AsyncIterator[AsyncSession]:
-    """Yield a request-scoped async DB session and commit on success."""
+    """Yield a transaction for Db; commit before acknowledging the response."""
     sessionmaker: async_sessionmaker[AsyncSession] = request.app.state.sessionmaker
     async with sessionmaker() as session:
         try:
@@ -40,6 +40,11 @@ async def get_db(request: Request) -> AsyncIterator[AsyncSession]:
         except Exception:
             await session.rollback()
             raise
+
+
+# Complete commit/rollback before the first HTTP response byte. All route/auth
+# consumers use one cached session with this same lifetime.
+Db = Annotated[AsyncSession, Depends(get_db, scope="function")]
 
 
 async def request_json(request: Request) -> object:
@@ -103,7 +108,7 @@ def ensure_csrf(
 
 async def optional_auth(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> AuthContext | None:
     """Resolve a session when present. Invalid credentials still fail."""
@@ -117,7 +122,7 @@ async def optional_auth(
 
 async def require_auth(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> AuthContext:
     """Resolve the opaque session from Bearer or cookie and enforce CSRF."""
@@ -143,7 +148,7 @@ async def require_auth(
 
 async def require_onboarding_auth(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> AuthContext:
     """Authenticate the one restricted path that completes legal onboarding."""
@@ -169,7 +174,7 @@ async def require_onboarding_auth(
 
 async def require_refresh_auth(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> AuthContext:
     """Authenticate the device-refresh route, where a refresh session is valid.

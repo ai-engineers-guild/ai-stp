@@ -6,10 +6,9 @@ from datetime import UTC, datetime
 from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import Db, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.corporate.service import (
@@ -75,7 +74,7 @@ async def record_telemetry_right(
     organization_id: str,
     payload: CorporateTelemetryRightRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateTelemetryRightView:
     fingerprint = mutation_fingerprint(payload.model_dump(mode="json"))
@@ -147,7 +146,7 @@ async def revoke_telemetry_right(
     subject_id: str,
     payload: CorporateTelemetryRevokeRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateTelemetryRightView:
     fingerprint = mutation_fingerprint(
@@ -222,7 +221,7 @@ async def delete_telemetry_subject(
     organization_id: str,
     payload: CorporateTelemetryDeleteRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateTelemetryDeleteResult:
     fingerprint = mutation_fingerprint(payload.model_dump(mode="json"))

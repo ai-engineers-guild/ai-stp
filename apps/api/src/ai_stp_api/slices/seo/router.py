@@ -6,9 +6,8 @@ from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import Db, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory, schema_unsupported
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
@@ -63,7 +62,7 @@ async def read_seo_profile(
     request: Request,
     subject_kind: str,
     subject_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     locale: Annotated[str, Query()] = "en",
     schema_version: Annotated[int, Query()] = 1,
 ) -> JSONResponse:
@@ -82,7 +81,7 @@ async def read_seo_profile(
 
 @router.get("/seo/sitemap", response_model=None)
 async def read_seo_sitemap_index(
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> JSONResponse:
     origin = load_seo_settings().public_origin
     index = await read_sitemap_index(db, origin=origin)
@@ -94,7 +93,7 @@ async def read_seo_sitemap_shard(
     subject_kind: str,
     locale: str,
     page: int,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> JSONResponse:
     if locale not in {"ru", "en"}:
         raise ApiError(ErrorCategory.VALIDATION, "invalid locale")
@@ -111,7 +110,7 @@ async def read_seo_sitemap_shard(
 @router.get("/seo/catalog", response_model=None)
 async def read_seo_catalog(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     locale: Annotated[str | None, Query()] = None,
     kind: Annotated[str | None, Query()] = None,
     cursor: Annotated[str | None, Query()] = None,
@@ -137,7 +136,7 @@ async def read_seo_catalog(
 @router.get("/seo/og/{revision_id}", response_model=None)
 async def read_seo_og_image(
     revision_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> Response:
     import re
 
@@ -170,7 +169,7 @@ async def rollback_seo_revision(
     subject_id: str,
     body: SeoRollbackRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     # Rolling back generated SEO rewrites another subject's public content;

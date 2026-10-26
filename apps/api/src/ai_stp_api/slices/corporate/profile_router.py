@@ -4,9 +4,8 @@ from typing import Annotated, Literal, cast
 
 from fastapi import APIRouter, Depends, Header, Query, Request
 from pydantic import ValidationError
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import Db, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.media_upload import read_media_upload
 from ai_stp_api.session import AuthContext
@@ -41,7 +40,7 @@ async def upload_profile_media(
     kind: EntityProfileKind,
     id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     purpose: Literal["avatar", "media"],
     expected_revision: Annotated[int, Query(ge=0)],
@@ -83,7 +82,7 @@ async def read_entity_profile(
     organization_id: OrganizationId,
     subject_kind: EntityProfileKind,
     subject_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> EntityProfileView:
     return await entity_profiles.read_profile(
@@ -98,7 +97,7 @@ async def write_entity_profile(
     subject_id: str,
     payload: EntityProfileWriteRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> EntityProfileView:
     return await entity_profiles.write_profile(
@@ -120,7 +119,7 @@ async def write_technology_owner(
     technology_id: TechnologyId,
     payload: TechnologyOwnerRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> EntityProfileView:
     return await entity_profiles.write_profile(

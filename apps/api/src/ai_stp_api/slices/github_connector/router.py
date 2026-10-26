@@ -4,9 +4,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import RedirectResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, get_settings, require_auth
+from ai_stp_api.deps import Db, get_settings, require_auth
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
 from ai_stp_api.slices.github_connector import actions, service
@@ -25,7 +24,6 @@ from ai_stp_platform.github_client import GitHubClient
 from ai_stp_platform.storage.object_store import ImmutableObjectStore
 
 router = APIRouter(prefix="/connectors/github", tags=["github-connector"])
-Db = Annotated[AsyncSession, Depends(get_db)]
 Auth = Annotated[AuthContext, Depends(require_auth)]
 Config = Annotated[Settings, Depends(get_settings)]
 
