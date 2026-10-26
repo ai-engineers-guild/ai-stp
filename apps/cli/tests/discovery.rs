@@ -32,7 +32,18 @@ fn declared_discovery_distinguishes_ownership_without_exposing_values() -> Resul
 
     let codex = discovery::at(&root, "codex", Scope::Project, Root::Config)?;
     assert!(codex.complete);
-    assert_eq!(codex.components.len(), 2);
+    assert_eq!(
+        codex
+            .components
+            .iter()
+            .map(|item| (item.component_type.as_str(), item.native_path.as_str()))
+            .collect::<Vec<_>>(),
+        [
+            ("instruction", "AGENTS.md"),
+            ("mcp", ".codex/config.toml"),
+            ("setting", ".codex/config.toml")
+        ]
+    );
     let mcp = codex
         .components
         .iter()
@@ -129,7 +140,7 @@ fn declared_discovery_distinguishes_ownership_without_exposing_values() -> Resul
         discovery::at(&root, "codex", Scope::Project, Root::Config)?
             .components
             .len(),
-        1
+        2
     );
     fs::write(
         root.join(".codex/config.toml"),
@@ -140,7 +151,9 @@ fn declared_discovery_distinguishes_ownership_without_exposing_values() -> Resul
     fs::hard_link(root.join(".codex/config.toml"), root.join("alias.toml"))?;
     let linked = discovery::at(&root, "codex", Scope::Project, Root::Config)?;
     assert!(!linked.complete);
-    assert!(linked.components.is_empty());
+    assert_eq!(linked.components.len(), 1);
+    assert_eq!(linked.components[0].component_type, "instruction");
+    assert_eq!(linked.components[0].native_path, "AGENTS.md");
     fs::remove_file(root.join("alias.toml"))?;
     #[cfg(unix)]
     {

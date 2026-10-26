@@ -80,13 +80,15 @@ def exercise(
     scope: str,
     version: str,
     observed: dict[str, Any],
+    kind: str | None = None,
 ) -> dict[str, Any]:
-    case = home / f"{harness}-{scope}"
+    name = f"{harness}-{scope}" + (f"-{kind}" if kind else "")
+    case = home / name
     case.mkdir()
     target = case / "checkout with spaces"
     target.mkdir()
-    original_bytes, original = payload(bundles / f"{harness}-{scope}.zip")
-    replacement_bytes, replacement = payload(bundles / f"{harness}-{scope}-replacement.zip")
+    original_bytes, original = payload(bundles / f"{name}.zip")
+    replacement_bytes, replacement = payload(bundles / f"{name}-replacement.zip")
     require(original != replacement, "replacement fixture has identical effects")
     canaries = {
         "owner-credentials.json": (b'{"private":"fixture-only-credential"}\n', 0o600),
@@ -94,6 +96,23 @@ def exercise(
         "sessions/preserved.json": (b'{"session":"fixture-only"}\n', 0o600),
         "src/preserved.txt": (b"unrelated source content\n", 0o644),
     }
+    if scope == "project":
+        private_paths = {
+            "claude-code": [".claude/settings.local.json"],
+            "codex": [".codex/auth.json"],
+            "pi": [".pi/auth.json", ".pi/trust.json", ".pi/sessions/session.jsonl"],
+            "opencode": [".opencode/auth.json", ".opencode/package.json", "opencode.jsonc"],
+            "grok-build": [
+                ".grok/auth.json",
+                ".grok/trusted_folders.toml",
+                ".grok/sessions/session.jsonl",
+                ".grok/plugins/known_marketplaces.json",
+            ],
+            "cursor": [".cursor/owner-credentials.json"],
+            "antigravity": [".agents/owner-credentials.json"],
+        }
+        for relative in private_paths[harness]:
+            canaries[relative] = (b"unowned-private-fixture-canary\n", 0o600)
     first = next(iter(original))
     parent = PurePosixPath(first).parent
     if str(parent) != ".":
@@ -217,6 +236,7 @@ def exercise(
     return {
         "harness_id": harness,
         "target_scope": scope,
+        "component_kind": kind,
         "install": True,
         "replace": True,
         "remove": True,
@@ -225,9 +245,144 @@ def exercise(
     }
 
 
+def retained_plan(
+    binary: Path,
+    baseline: Path,
+    home: Path,
+    state: Path,
+    bundles: Path,
+    harness: str,
+    current: dict[str, Any],
+) -> dict[str, Any]:
+    """Apply an unadmitted old-default plan, without rewriting its serialized bytes."""
+    case = home / f"retained-{harness}"
+    case.mkdir()
+    target = case / "original checkout"
+    target.mkdir()
+    source = case / "original.zip"
+    content, files = payload(bundles / f"{harness}-project.zip")
+    source.write_bytes(content)
+    canary = {"owner-source.txt": (b"unrelated retained source\n", 0o640)}
+    for name, (data, mode) in canary.items():
+        (target / name).write_bytes(data)
+        (target / name).chmod(mode)
+    observed = INSPECTION.invoke(
+        baseline,
+        home,
+        [
+            "provider",
+            "inspect",
+            "--state-dir",
+            str(state),
+            "--harness",
+            harness,
+            "--version",
+            "0.0.94",
+        ],
+    )
+    require(observed["artifact"]["trust_level"] == "verified_publisher", "old publisher unverified")
+    require(observed["provider_info"]["provider_version"] == "0.0.94", "old declaration differs")
+    previous_profile = next(
+        p
+        for p in observed["provider_info"]["scoped_projection_profiles"]
+        if p["target_scope"] == "project"
+    )
+    current_profile = next(
+        p
+        for p in current["provider_info"]["scoped_projection_profiles"]
+        if p["target_scope"] == "project"
+    )
+    require(previous_profile["digest"] != current_profile["digest"], "profile change not exercised")
+    result = INSPECTION.invoke(
+        baseline,
+        home,
+        [
+            "configuration",
+            "plan",
+            "--state-dir",
+            str(state),
+            "--harness",
+            harness,
+            "--target",
+            str(target),
+            "--scope",
+            "project",
+            "--operation",
+            "install",
+            "--bundle",
+            str(source),
+        ],
+    )
+    plan = result["plan"]
+    require(result["mutation_performed"] is False, "old planning mutated configuration")
+    require(
+        plan["provider_version"] == "0.0.94"
+        and plan["harness_id"] == harness
+        and plan["target_path"] == str(target)
+        and plan["target_scope"] == "project"
+        and plan["archive_digest"] == observed["artifact"]["archive_digest"]
+        and plan["executable_digest"] == observed["artifact"]["executable_digest"]
+        and plan["info_digest"] == observed["provider_info_digest"],
+        "old-default plan did not retain its authenticated coordinates",
+    )
+    path = case / "original-plan.json"
+    original_plan = json.dumps(plan).encode() + b"\n"
+    path.write_bytes(original_plan)
+    verify_files(target, canary)
+    require(all(not (target / name).exists() for name in files), "old planning wrote files")
+    arguments = [
+        "configuration",
+        "apply",
+        "--state-dir",
+        str(state),
+        "--plan",
+        str(path),
+        "--plan-digest",
+        result["plan_digest"],
+    ]
+    receipt = INSPECTION.invoke(binary, home, [*arguments, "--bundle", str(source)])
+    require(
+        receipt["state"] == "verified"
+        and receipt["provider_version"] == "0.0.94"
+        and receipt["harness_id"] == harness
+        and receipt["scope"] == "project"
+        and receipt["target"] == str(target)
+        and receipt["action"] == plan["action"]
+        and receipt["mutation_performed"] is True
+        and receipt["operation_id"] == plan["operation_id"]
+        and receipt["plan_digest"] == result["plan_digest"],
+        "candidate retargeted the original plan",
+    )
+    verify_files(target, files | canary)
+    source.unlink()
+    target.rename(case / "retired checkout")
+    require(INSPECTION.invoke(binary, home, arguments) == receipt, "old terminal receipt changed")
+    require(not target.exists(), "old replay recreated the target")
+    require(path.read_bytes() == original_plan, "original serialized plan was rewritten")
+    return {
+        "harness_id": harness,
+        "target_scope": "project",
+        "original_provider_version": "0.0.94",
+        "original_profile_digest": previous_profile["digest"],
+        "current_profile_digest": current_profile["digest"],
+        "old_default_plan_applied_by_candidate": True,
+        "original_plan_bytes_preserved": True,
+        "completed_receipt_replayed_without_source_or_target": True,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ("binary", "bundles", "state", "observations", "out"):
+    for name in (
+        "binary",
+        "bundles",
+        "state",
+        "observations",
+        "out",
+        "baseline-binary",
+        "baseline-bundles",
+        "baseline-state",
+    ):
         parser.add_argument("--" + name, type=Path, required=True)
     args = parser.parse_args()
     observation = json.loads(args.observations.read_text())
@@ -257,6 +412,20 @@ def main() -> None:
     results = []
     with tempfile.TemporaryDirectory(prefix="ai-stp-authenticated-lifecycles-") as temporary:
         home = Path(temporary).resolve(strict=True)
+        compatibility = []
+        for harness in ("claude-code", "codex"):
+            compatibility.append(
+                retained_plan(
+                    binary,
+                    args.baseline_binary.resolve(strict=True),
+                    home,
+                    args.baseline_state.resolve(strict=True),
+                    args.baseline_bundles.resolve(strict=True),
+                    harness,
+                    reports[harness],
+                )
+            )
+            print(f"Original 0.0.94 plan applied by candidate: {harness} project", flush=True)
         for harness, info in sorted(observed.items()):
             scopes = ["global", *[p["target_scope"] for p in info["scoped_projection_profiles"]]]
             for scope in scopes:
@@ -266,6 +435,26 @@ def main() -> None:
                     )
                 )
                 print(f"Authenticated component lifecycle: {harness} {scope}", flush=True)
+            project = next(
+                p for p in info["scoped_projection_profiles"] if p["target_scope"] == "project"
+            )
+            for kind in sorted(project["component_kinds"]):
+                require(re.fullmatch(r"[a-z]+", kind) is not None, "invalid project fixture kind")
+                results.append(
+                    exercise(
+                        binary,
+                        home,
+                        state,
+                        bundles,
+                        harness,
+                        "project",
+                        version,
+                        reports[harness],
+                        kind,
+                    )
+                )
+                print(f"Authenticated project-kind lifecycle: {harness} {kind}", flush=True)
+        require(len(results) == 54, "the complete profile/project-kind proof matrix differs")
     args.out.write_text(
         json.dumps(
             {
@@ -276,6 +465,7 @@ def main() -> None:
                 "harness_activation_qualified": False,
                 "corporate_binding_qualified": False,
                 "interrupted_publication_qualified": False,
+                "retained_plan_compatibility": compatibility,
                 "cases": results,
             },
             indent=2,
