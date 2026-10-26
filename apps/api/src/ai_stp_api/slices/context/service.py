@@ -17,6 +17,7 @@ from ai_stp_api.session import AuthContext
 from ai_stp_contracts.context import (
     CapabilityProjection,
     ProjectConflictResolutionRequest,
+    ProjectLinkPlanOutcome,
     ProjectLinkPlanRequest,
     ProjectLinkPlanResponse,
     ProjectLinkProposalRequest,
@@ -1000,6 +1001,71 @@ async def read_project_link_plan(
     if plan is None:
         raise ApiError(ErrorCategory.NOT_FOUND, "project link plan not found")
     return link_plan_body(plan)
+
+
+async def read_project_link_plan_outcome(
+    db: AsyncSession, *, ctx: AuthContext, organization_id: str, plan_id: str
+) -> ProjectLinkPlanOutcome:
+    """Recover evidence through current authority without replaying a mutation."""
+    await require_active_device(db, ctx=ctx)
+    projection = await remote_projection(db, ctx=ctx, organization_id=organization_id)
+    await require_capability(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        capability="project.link",
+        authorization_revision=projection.authorization_revision,
+    )
+    plan = await db.scalar(
+        select(ProjectLinkPlan).where(
+            ProjectLinkPlan.id == plan_id,
+            ProjectLinkPlan.organization_id == organization_id,
+            ProjectLinkPlan.actor_account_id == ctx.account_id,
+        )
+    )
+    if plan is None:
+        raise ApiError(ErrorCategory.NOT_FOUND, "project link plan not found")
+    now = datetime.now(UTC)
+    expires_at = plan.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=UTC)
+    state = plan.state
+    if state == "ready" and expires_at <= now:
+        state = "expired"
+    link = None
+    if state == "applied":
+        link = await db.scalar(
+            select(ProjectLink).where(
+                ProjectLink.id == plan.link_id,
+                ProjectLink.organization_id == organization_id,
+                ProjectLink.actor_account_id == ctx.account_id,
+                ProjectLink.device_id == plan.device_id,
+                ProjectLink.plan_id == plan.id,
+                ProjectLink.plan_digest == plan.plan_digest,
+                ProjectLink.local_project_id == plan.local_project_id,
+                ProjectLink.remote_project_id == plan.remote_project_id,
+                ProjectLink.provider_project_id == plan.provider_project_id,
+            )
+        )
+    if state not in ("ready", "applied", "expired") or (
+        (state == "applied") != (link is not None)
+        or (state != "applied" and plan.link_id is not None)
+    ):
+        raise ApiError(ErrorCategory.PRECONDITION, "project link outcome is inconsistent")
+    await require_capability(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        capability="project.link",
+        authorization_revision=projection.authorization_revision,
+    )
+    return ProjectLinkPlanOutcome(
+        plan=link_plan_body(plan),
+        state=state,
+        link=link_body(link) if link is not None else None,
+        authorization_revision=projection.authorization_revision,
+        observed_at=format_timestamp(now),
+    )
 
 
 async def create_project_unlink_plan(

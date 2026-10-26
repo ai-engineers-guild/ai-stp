@@ -94,6 +94,7 @@ from ai_stp_contracts.context import (
     OrganizationListResponse,
     OrganizationSummary,
     ProjectConflictResolutionRequest,
+    ProjectLinkPlanOutcome,
     ProjectLinkPlanRequest,
     ProjectLinkPlanResponse,
     ProjectLinkProposalRequest,
@@ -2240,6 +2241,23 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
                 pattern=stable_id_pattern("link_plan"),
             ),
         ),
+    ),
+    Operation(
+        method="get",
+        path="/organizations/{organization_id}/project-link-plans/{plan_id}/outcome",
+        operation_id="readProjectLinkPlanOutcome",
+        summary="Read the current outcome of one original account-owned link plan.",
+        response=ProjectLinkPlanOutcome,
+        authenticated=True,
+        path_params=(
+            _ORGANIZATION_ID,
+            PathParam(
+                "plan_id",
+                "Original project link plan identifier.",
+                stable_id_pattern("link_plan"),
+            ),
+        ),
+        errors=("AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED", "AI_STP_PRECONDITION_FAILED"),
     ),
     Operation(
         method="post",

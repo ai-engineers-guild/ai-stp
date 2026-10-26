@@ -268,6 +268,21 @@ async def read_project_link_plan(
     return JSONResponse(content=body.model_dump(mode="json"))
 
 
+@router.get(
+    "/organizations/{organization_id}/project-link-plans/{plan_id}/outcome", response_model=None
+)
+async def read_project_link_plan_outcome(
+    organization_id: str,
+    plan_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    body = await service.read_project_link_plan_outcome(
+        db, ctx=ctx, organization_id=organization_id, plan_id=plan_id
+    )
+    return JSONResponse(content=body.model_dump(mode="json"), headers=_NO_STORE)
+
+
 @router.get("/projects/links/{link_id}", response_model=None)
 async def read_project_link(
     link_id: str,

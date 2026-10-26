@@ -10961,6 +10961,34 @@ export type ProjectConflictResolutionRequest = {
 };
 
 /**
+ * ProjectLinkPlanOutcome
+ *
+ * Current evidence for one original plan, without authority to confirm it.
+ */
+export type ProjectLinkPlanOutcome = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  link: ProjectLinkResponse | null;
+  /**
+   * Observation Only
+   */
+  observation_only: true;
+  observed_at: Timestamp;
+  plan: ProjectLinkPlanResponse;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * State
+   */
+  state: "ready" | "applied" | "expired";
+  [key: string]: unknown;
+};
+
+/**
  * ProjectLinkPlanRequest
  *
  * Request a server-authored exact link plan without changing state.
@@ -33041,6 +33069,76 @@ export type ReadProjectLinkPlanResponses = {
 
 export type ReadProjectLinkPlanResponse =
   ReadProjectLinkPlanResponses[keyof ReadProjectLinkPlanResponses];
+
+export type ReadProjectLinkPlanOutcomeData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Original project link plan identifier.
+     */
+    plan_id: string;
+  };
+  query?: never;
+  url: "/v1/organizations/{organization_id}/project-link-plans/{plan_id}/outcome";
+};
+
+export type ReadProjectLinkPlanOutcomeErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_PRECONDITION_FAILED.
+   */
+  412: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadProjectLinkPlanOutcomeError =
+  ReadProjectLinkPlanOutcomeErrors[keyof ReadProjectLinkPlanOutcomeErrors];
+
+export type ReadProjectLinkPlanOutcomeResponses = {
+  /**
+   * Read the current outcome of one original account-owned link plan.
+   */
+  200: ProjectLinkPlanOutcome;
+};
+
+export type ReadProjectLinkPlanOutcomeResponse =
+  ReadProjectLinkPlanOutcomeResponses[keyof ReadProjectLinkPlanOutcomeResponses];
 
 export type ReadProjectLinkTargetData = {
   body?: never;
