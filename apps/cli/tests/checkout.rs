@@ -9,6 +9,9 @@ use std::{
 use ai_stp_cli::{invoke, projects::checkout};
 use serde_json::Value;
 
+#[path = "checkout/aliases.rs"]
+mod aliases;
+
 fn executable() -> Result<PathBuf, Box<dyn Error>> {
     let name = if cfg!(windows) { "git.exe" } else { "git" };
     std::env::split_paths(&std::env::var_os("PATH").ok_or("PATH absent")?)
