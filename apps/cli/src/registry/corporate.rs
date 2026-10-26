@@ -20,6 +20,7 @@ pub(super) enum Handler {
     LinkTarget,
     LinkPreview,
     LinkOutcome,
+    LinkSettlement,
     LinkRequestOutcome,
     LinkRequestPlan,
     LinkConfirmPlan,
@@ -280,6 +281,21 @@ pub(super) const COMMANDS: &[Declaration] = &[
         handler: super::Handler::Corporate(Handler::LinkOutcome),
     },
     Declaration {
+        path: &["corporate", "project", "link-settlement"],
+        summary: "Read the original plan after its confirmation barrier; an observation alone never releases a local checkout reservation.",
+        parameters: &[
+            STATE_DIR,
+            CONTEXT,
+            Parameter {
+                name: "plan-id",
+                summary: "Exact retained server link_plan identifier.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LinkSettlement),
+    },
+    Declaration {
         path: &["corporate", "project", "link-request-outcome"],
         summary: "Read an original account-owned link request outcome by its retained idempotency key; an absent result leaves in-flight effects unknown.",
         parameters: &[
@@ -488,6 +504,9 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             project_id: text("project")?,
         },
         Handler::LinkOutcome => Request::LinkOutcome {
+            plan_id: text("plan-id")?,
+        },
+        Handler::LinkSettlement => Request::LinkSettlement {
             plan_id: text("plan-id")?,
         },
         Handler::LinkRequestOutcome => Request::LinkRequestOutcome {

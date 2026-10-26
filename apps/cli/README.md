@@ -87,6 +87,11 @@ device of the same account may recover this evidence; confirmation remains bound
 to the original device. This read neither retries confirmation nor binds a local
 checkout, and membership and policy are checked again for every observation.
 
+`corporate project link-settlement --plan-id ID` waits on the server's original
+confirmation barrier before reading the outcome. An older server's unsupported
+response remains unknown. This observation does not release a native reservation;
+an ordinary expired outcome cannot substitute for the settlement barrier.
+
 If the original plan response was lost, use `corporate project link-request-outcome`
 with `--request-key KEY` and that request's exact retained idempotency key. The read
 finds only the same account's original plan; it does not submit or confirm it.

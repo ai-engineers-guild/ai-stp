@@ -213,6 +213,20 @@ async def journey(
     ] == "applying"
     requested = await enact(planned, "corporate", "project", "link", "apply")
     assert requested["state"] == "completed" and len(faults.writes) == writes_before + 1
+    server_plan = requested["effect"]["server_plan"]
+    ready = await run(
+        "corporate",
+        "project",
+        "link-settlement",
+        "--context",
+        context,
+        "--plan-id",
+        server_plan["plan_id"],
+    )
+    assert ready["observation"]["data"]["plan"] == server_plan
+    assert ready["observation"]["data"]["state"] == "ready"
+    assert ready["observation"]["data"]["link"] is None
+    assert await counts() == (before[0] + 1, before[1])
     confirmation = await run(
         "corporate",
         "project",
@@ -338,6 +352,19 @@ async def journey(
     )
     adopted = await enact(adoption, "corporate", "project", "link", "apply")
     assert adopted["state"] == "completed" and not adopted["installation_authority"]
+    assert reservation() == (original_request, confirmation_id, adoption["plan"]["operation_id"])
+    applied = await run(
+        "corporate",
+        "project",
+        "link-settlement",
+        "--context",
+        reader,
+        "--plan-id",
+        server_plan["plan_id"],
+    )
+    assert applied["observation"]["data"]["plan"] == server_plan
+    assert applied["observation"]["data"]["state"] == "applied"
+    assert applied["observation"]["data"]["link"] == adopted["effect"]["link"]
     assert reservation() == (original_request, confirmation_id, adoption["plan"]["operation_id"])
     assert len(faults.writes) == writes_before + 2
     assert await counts() == (before[0] + 1, before[1] + 1)
