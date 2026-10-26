@@ -18,7 +18,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import Db, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.auth.domain import normalize_email
@@ -424,7 +424,7 @@ async def create_invitation(
     organization_id: str,
     payload: CorporateInvitationCreateRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateInvitation:
     fingerprint = mutation_fingerprint(payload.model_dump(mode="json", exclude={"idempotency_key"}))
@@ -560,7 +560,7 @@ async def create_invitation(
 )
 async def list_invitations(
     organization_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateInvitationList:
     await authorize(db, ctx=ctx, organization_id=organization_id, permission="member.invite")
@@ -602,7 +602,7 @@ async def revoke_invitation(
     invitation_id: str,
     payload: CorporateInvitationRevokeRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateInvitation:
     fingerprint = mutation_fingerprint(payload.model_dump(mode="json", exclude={"idempotency_key"}))
@@ -651,7 +651,7 @@ async def accept_invitation(
     invitation_id: str,
     payload: CorporateInvitationAcceptRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateMember:
     request_id = _request_id(request)
@@ -745,7 +745,7 @@ async def confirm_invitation(
     invitation_id: str,
     payload: CorporateInvitationAcceptRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateMember:
     """Activate a claimed invitation after the invited inbox proves ownership.
@@ -804,7 +804,7 @@ async def confirm_invitation(
 )
 async def read_membership_policy(
     organization_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateMembershipPolicy:
     organization, _membership = await authorize(
@@ -826,7 +826,7 @@ async def write_membership_policy(
     organization_id: str,
     payload: CorporateMembershipPolicyRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateMembershipPolicy:
     fingerprint = mutation_fingerprint(payload.model_dump(mode="json", exclude={"idempotency_key"}))

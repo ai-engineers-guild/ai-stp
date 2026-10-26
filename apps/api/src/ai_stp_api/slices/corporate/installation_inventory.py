@@ -3,10 +3,9 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import Db, require_auth
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.corporate import service
 from ai_stp_contracts.corporate import OrganizationId
@@ -27,7 +26,7 @@ async def ingest_installation_inventory(
     organization_id: OrganizationId,
     payload: InstallationInventoryBatch,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> InstallationInventoryReceipt:
     await service.authorize(

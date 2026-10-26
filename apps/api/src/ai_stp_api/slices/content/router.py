@@ -7,10 +7,9 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import Db, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
@@ -92,7 +91,7 @@ def require_content_import(request: Request) -> None:
 
 @router.get("/content", response_model=None, operation_id="listContent")
 async def list_content(
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     locale: Annotated[Literal["ru", "en"], Query()],
     if_none_match: Annotated[str | None, Header(alias="If-None-Match")] = None,
 ) -> Response:
@@ -111,7 +110,7 @@ async def list_content(
 )
 async def read_content_repository_state(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> JSONResponse:
     require_content_import(request)
     try:
@@ -130,7 +129,7 @@ async def read_content_repository_state(
 async def import_content_repository(
     body: ContentRepositoryImportRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> JSONResponse:
     require_content_import(request)
     try:
@@ -160,7 +159,7 @@ async def import_content_repository(
 async def read_content(
     type: str,
     slug: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     locale: Annotated[Literal["ru", "en"], Query()],
     if_none_match: Annotated[str | None, Header(alias="If-None-Match")] = None,
 ) -> Response:
@@ -182,7 +181,7 @@ async def put_staff_content(
     slug: str,
     body: StaffContentPublishRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     await require_staff(ctx, _staff_ids(request))
@@ -218,7 +217,7 @@ async def delete_staff_content(
     slug: str,
     body: StaffContentUnpublishRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     await require_staff(ctx, _staff_ids(request))

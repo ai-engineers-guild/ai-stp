@@ -6,9 +6,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, get_settings, require_auth
+from ai_stp_api.deps import Db, get_settings, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
@@ -63,7 +62,7 @@ def _resource(model: object, *, status_code: int = 200) -> JSONResponse:
 @router.post("/publications/plans", response_model=None)
 async def create_publication_plan(
     body: PublicationPlanCreateRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     settings: Annotated[Settings, Depends(get_settings)],
     client: Client,
@@ -78,7 +77,7 @@ async def create_publication_plan(
 @router.get("/publications/plans/{plan_id}", response_model=None)
 async def read_publication_plan(
     plan_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.read_plan(db, ctx=ctx, plan_id=plan_id)
@@ -89,7 +88,7 @@ async def read_publication_plan(
 async def bind_publication_artifact(
     plan_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> JSONResponse:
@@ -104,7 +103,7 @@ async def bind_publication_projection_artifact(
     plan_id: str,
     projection_digest: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> JSONResponse:
@@ -126,7 +125,7 @@ async def confirm_publication_plan(
     plan_id: str,
     body: PublicationConfirmRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     settings: Annotated[Settings, Depends(get_settings)],
     client: Client,

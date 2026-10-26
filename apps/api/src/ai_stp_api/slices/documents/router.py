@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db
+from ai_stp_api.deps import Db
 from ai_stp_api.slices.documents import service as documents_service
 
 router = APIRouter(tags=["documents"])
@@ -17,7 +16,7 @@ router = APIRouter(tags=["documents"])
 @router.get("/documents/{slug}", response_model=None)
 async def read_document(
     slug: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     locale: Annotated[str, Query()] = "en",
     revision_id: Annotated[str | None, Query()] = None,
 ) -> JSONResponse:

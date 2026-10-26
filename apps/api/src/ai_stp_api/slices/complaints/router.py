@@ -6,9 +6,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, optional_auth
+from ai_stp_api.deps import Db, optional_auth
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
 from ai_stp_api.slices.complaints import service
@@ -21,7 +20,7 @@ router = APIRouter(tags=["complaints"])
 async def create_complaint(
     request: Request,
     body: ComplaintCreateRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext | None, Depends(optional_auth)],
 ) -> JSONResponse:
     settings: Settings = request.app.state.settings

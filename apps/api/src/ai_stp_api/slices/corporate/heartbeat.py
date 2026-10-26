@@ -16,7 +16,7 @@ from sqlalchemy import and_, func, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import Db, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.corporate import service
@@ -55,7 +55,7 @@ async def write_heartbeat(
     organization_id: OrganizationId,
     payload: InstallationHeartbeatRequest,
     ctx: Annotated[AuthContext, Depends(require_auth)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> InstallationHeartbeat:
     """Coalesce one heartbeat for the session's own device installation."""
     await service.organization_and_membership(db, ctx=ctx, organization_id=organization_id)
@@ -99,7 +99,7 @@ async def write_heartbeat(
 async def read_heartbeat_policy(
     organization_id: OrganizationId,
     ctx: Annotated[AuthContext, Depends(require_auth)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> InstallationHeartbeatPolicy:
     """Read heartbeat cadence visible to a member deciding whether to opt in."""
     await service.organization_and_membership(db, ctx=ctx, organization_id=organization_id)
@@ -113,7 +113,7 @@ async def read_heartbeat_policy(
 async def read_own_heartbeat(
     organization_id: OrganizationId,
     ctx: Annotated[AuthContext, Depends(require_auth)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> InstallationHeartbeatStatus:
     """The session device's evaluated health; `unknown` before the first beat."""
     await service.organization_and_membership(db, ctx=ctx, organization_id=organization_id)
@@ -140,7 +140,7 @@ async def list_heartbeats(
     organization_id: OrganizationId,
     request: Request,
     ctx: Annotated[AuthContext, Depends(require_auth)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     health_state: Annotated[HeartbeatHealthState | None, Query()] = None,
 ) -> InstallationHeartbeatList:
     """Installation health visible to the caller's role, health-filtered."""

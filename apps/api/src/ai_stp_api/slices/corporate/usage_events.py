@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import Db, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.corporate import service
@@ -79,7 +79,7 @@ async def ingest_usage_events(
     organization_id: OrganizationId,
     payload: RuntimeUsageEventBatch,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> RuntimeUsageIngestResult:
     await service.authorize(
@@ -122,7 +122,7 @@ async def list_usage_events(
     organization_id: OrganizationId,
     query: Annotated[RuntimeUsageEventQuery, Query()],
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> RuntimeUsageEventList:
     scope = await usage_scope(

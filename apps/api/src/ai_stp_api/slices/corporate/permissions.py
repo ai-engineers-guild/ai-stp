@@ -4,9 +4,8 @@ from typing import Annotated, Literal, cast
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import Db, require_auth
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.corporate import service
 from ai_stp_contracts.corporate import OrganizationId
@@ -73,7 +72,7 @@ def _definition(permission: str) -> CorporatePermissionDefinition:
 async def read_permission_matrix(
     organization_id: OrganizationId,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporatePermissionMatrix:
     await service.authorize(
