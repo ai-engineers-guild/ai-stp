@@ -1,18 +1,60 @@
-#![cfg(any(target_os = "macos", windows))]
+#![cfg(any(target_os = "linux", target_os = "macos", windows))]
 
 //! Native credential-store proof, using only previously absent random test slots.
 
 use ai_stp_cli::{account::connections, identity};
+#[cfg(any(target_os = "macos", windows))]
 use keyring_core::api::CredentialStoreApi;
 use std::error::Error;
 
 #[path = "enrollments_native/recovery.rs"]
 mod recovery;
+#[cfg(target_os = "linux")]
+#[path = "enrollments_native/secret_service.rs"]
+mod secret_service;
 
-struct TemporaryCredential(keyring_core::Entry);
+struct TemporaryCredential {
+    #[cfg(any(target_os = "macos", windows))]
+    entry: keyring_core::Entry,
+    #[cfg(target_os = "linux")]
+    name: String,
+}
+
+impl TemporaryCredential {
+    fn bytes(&self) -> Result<Option<Vec<u8>>, Box<dyn Error>> {
+        #[cfg(target_os = "linux")]
+        return secret_service::read(&self.name);
+        #[cfg(any(target_os = "macos", windows))]
+        match self.entry.get_secret() {
+            Ok(bytes) => Ok(Some(bytes)),
+            Err(keyring_core::Error::NoEntry) => Ok(None),
+            Err(error) => Err(error.into()),
+        }
+    }
+    fn secret(&self) -> Result<Vec<u8>, Box<dyn Error>> {
+        self.bytes()?
+            .ok_or_else(|| "owned credential is absent".into())
+    }
+    fn password(&self) -> Result<String, Box<dyn Error>> {
+        #[cfg(target_os = "linux")]
+        return Ok(String::from_utf8(self.secret()?)?);
+        #[cfg(any(target_os = "macos", windows))]
+        Ok(self.entry.get_password()?)
+    }
+    fn remove(&self) -> Result<(), Box<dyn Error>> {
+        #[cfg(target_os = "linux")]
+        return secret_service::remove(&self.name);
+        #[cfg(any(target_os = "macos", windows))]
+        match self.entry.delete_credential() {
+            Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
+            Err(error) => Err(error.into()),
+        }
+    }
+}
+
 impl Drop for TemporaryCredential {
     fn drop(&mut self) {
-        let _ = self.0.delete_credential();
+        let _ = self.remove();
     }
 }
 
@@ -26,13 +68,30 @@ fn owned_slot(name: &str) -> Result<TemporaryCredential, Box<dyn Error>> {
         name,
         Some(&std::collections::HashMap::from([("persistence", "Local")])),
     )?;
-    if !matches!(entry.get_password(), Err(keyring_core::Error::NoEntry)) {
+    #[cfg(any(target_os = "macos", windows))]
+    let absent = match entry.get_secret() {
+        Ok(_) => false,
+        Err(keyring_core::Error::NoEntry) => true,
+        Err(error) => return Err(error.into()),
+    };
+    #[cfg(target_os = "linux")]
+    let absent = secret_service::read(name)?.is_none();
+    if !absent {
         return Err("random test slot was not absent".into());
     }
-    Ok(TemporaryCredential(entry))
+    Ok(TemporaryCredential {
+        #[cfg(any(target_os = "macos", windows))]
+        entry,
+        #[cfg(target_os = "linux")]
+        name: name.into(),
+    })
 }
 
 #[test]
+#[cfg_attr(
+    target_os = "linux",
+    ignore = "requires the isolated CI Secret Service bus"
+)]
 fn native_connections_keep_independent_keys_and_never_recreate_a_missing_ready_key()
 -> Result<(), Box<dyn Error>> {
     let root = tempfile::tempdir()?;
@@ -76,12 +135,9 @@ fn native_connections_keep_independent_keys_and_never_recreate_a_missing_ready_k
         std::fs::read_dir(root.path().join("ai-stp-v2-connections"))?.count(),
         2
     );
-    first_slot.0.delete_credential()?;
+    first_slot.remove()?;
     assert!(connections::apply(&first, &first.digest()?, &at).is_err());
-    assert!(matches!(
-        first_slot.0.get_password(),
-        Err(keyring_core::Error::NoEntry)
-    ));
+    assert!(first_slot.bytes()?.is_none());
     assert_eq!(
         another,
         connections::apply(&second, &second.digest()?, &at)?

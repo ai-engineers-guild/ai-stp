@@ -1,4 +1,4 @@
-//! Actual macOS/Windows vault sessions and same-account replacement over HTTP.
+//! Actual platform vault sessions and same-account replacement over HTTP.
 
 use super::{Error, owned_slot};
 use ai_stp_cli::{
@@ -75,6 +75,10 @@ fn authorize(root: &Path, connection: &str, at: &str) -> Result<(), Box<dyn Erro
 }
 
 #[test]
+#[cfg_attr(
+    target_os = "linux",
+    ignore = "requires the isolated CI Secret Service bus"
+)]
 fn native_vault_recovery_preserves_other_sessions_and_uses_same_account_key_constraints()
 -> Result<(), Box<dyn Error>> {
     let root = tempfile::tempdir()?;
@@ -187,9 +191,9 @@ fn native_vault_recovery_preserves_other_sessions_and_uses_same_account_key_cons
         account::apply(&refresh, &refresh.digest()?, &clock(&at, 8)?)?["outcome"],
         "revoked"
     );
-    let old_session = digest::sha256(&first_session.0.get_secret()?);
-    let old_key = digest::sha256(first_key.0.get_password()?.as_bytes());
-    let other_session = digest::sha256(&second_session.0.get_secret()?);
+    let old_session = digest::sha256(&first_session.secret()?);
+    let old_key = digest::sha256(first_key.password()?.as_bytes());
+    let other_session = digest::sha256(&second_session.secret()?);
     let plan = enrollment_recovery::plan(
         root.path(),
         &first.connection_id,
@@ -208,17 +212,11 @@ fn native_vault_recovery_preserves_other_sessions_and_uses_same_account_key_cons
         enrollment_recovery::list(root.path())?["recoveries"][0]["state"],
         "authorized"
     );
-    assert_eq!(digest::sha256(&first_session.0.get_secret()?), old_session);
-    assert_eq!(
-        digest::sha256(first_key.0.get_password()?.as_bytes()),
-        old_key
-    );
-    assert_eq!(
-        digest::sha256(&second_session.0.get_secret()?),
-        other_session
-    );
-    let replacement_before = digest::sha256(&replacement_session.0.get_secret()?);
-    replacement_key.0.delete_credential()?;
+    assert_eq!(digest::sha256(&first_session.secret()?), old_session);
+    assert_eq!(digest::sha256(first_key.password()?.as_bytes()), old_key);
+    assert_eq!(digest::sha256(&second_session.secret()?), other_session);
+    let replacement_before = digest::sha256(&replacement_session.secret()?);
+    replacement_key.remove()?;
     let missing = enrollment_recovery::plan(
         root.path(),
         &plan.replacement.connection_id,
@@ -237,13 +235,10 @@ fn native_vault_recovery_preserves_other_sessions_and_uses_same_account_key_cons
         &clock(&at, 18)?,
     )?;
     assert_eq!(
-        digest::sha256(&replacement_session.0.get_secret()?),
+        digest::sha256(&replacement_session.secret()?),
         replacement_before
     );
-    assert!(matches!(
-        replacement_key.0.get_password(),
-        Err(keyring_core::Error::NoEntry)
-    ));
+    assert!(replacement_key.bytes()?.is_none());
     assert!(
         enrollment_recovery::list(root.path())?["recoveries"]
             .as_array()
