@@ -22,6 +22,8 @@ struct Peer {
     lose_request: bool,
     lose_confirmation: bool,
     hide_outcome: bool,
+    reject_confirmation: bool,
+    settlement: Option<String>,
     writes: Vec<(String, String, Value)>,
     reads: Vec<(String, String)>,
     plans: BTreeMap<String, Value>,
@@ -145,6 +147,33 @@ fn peer(
         }
         return respond(socket, 201, plan);
     }
+    if path.contains("/project-link-plans/") && path.ends_with("/settlement") {
+        if peer.settlement.as_deref() == Some("unsupported") {
+            return respond(
+                socket,
+                404,
+                json!({"schema_version":1,"ok":false,"error":{"code":"AI_STP_NOT_FOUND"}}),
+            );
+        }
+        let id = path
+            .split('/')
+            .nth_back(1)
+            .ok_or_else(|| std::io::Error::other("plan"))?;
+        let plan = peer
+            .plans
+            .values()
+            .find(|plan| plan["plan_id"] == id)
+            .ok_or_else(|| std::io::Error::other("plan"))?;
+        let link = peer.links.get(id);
+        let expired = peer.settlement.as_deref() == Some("expired");
+        return respond(
+            socket,
+            200,
+            json!({"schema_version":1,"plan":plan,
+            "state":if link.is_some(){"applied"}else if expired{"expired"}else{"ready"},"link":link,
+            "authorization_revision":policy,"observed_at":if expired {after(plan["expires_at"].as_str().ok_or_else(|| std::io::Error::other("expiry"))?,1).map_err(std::io::Error::other)?}else{format!("{:.3}",jiff::Timestamp::now())},"observation_only":true}),
+        );
+    }
     if path.contains("/project-link-plan-requests/") {
         let key = path
             .rsplit('/')
@@ -193,6 +222,9 @@ fn peer(
             .as_str()
             .ok_or_else(|| std::io::Error::other("plan"))?
             .to_owned();
+        if peer.reject_confirmation {
+            return respond(socket, 503, json!({}));
+        }
         peer.links.insert(id, link.clone());
         if peer.lose_confirmation {
             peer.lose_confirmation = false;
@@ -241,7 +273,38 @@ fn root_checkout_recovery_captures_original_intent_before_constructing_replaceme
     checkout_journey(false)
 }
 
+#[test]
+fn unknown_checkout_request_retirement_keeps_remote_outcome_unknown_and_fences_replay()
+-> std::result::Result<(), Box<dyn Error>> {
+    for named in [true, false] {
+        checkout_case(named, Some(RetirementCase::UnknownRequest))?;
+    }
+    Ok(())
+}
+
+#[test]
+fn checkout_confirmation_retirement_requires_fresh_expired_barrier_and_no_binding()
+-> std::result::Result<(), Box<dyn Error>> {
+    for named in [true, false] {
+        checkout_case(named, Some(RetirementCase::ExpiredConfirmation))?;
+    }
+    Ok(())
+}
+
 fn checkout_journey(named: bool) -> std::result::Result<(), Box<dyn Error>> {
+    checkout_case(named, None)
+}
+
+#[derive(Clone, Copy)]
+enum RetirementCase {
+    UnknownRequest,
+    ExpiredConfirmation,
+}
+
+fn checkout_case(
+    named: bool,
+    retirement: Option<RetirementCase>,
+) -> std::result::Result<(), Box<dyn Error>> {
     let root = tempfile::tempdir()?;
     let tree = tempfile::tempdir()?;
     let checkout = tree.path().join("checkout");
@@ -377,6 +440,57 @@ fn checkout_journey(named: bool) -> std::result::Result<(), Box<dyn Error>> {
             project_links::status(root.path(), &first_id)?["state"],
             "applying"
         );
+        if matches!(retirement, Some(RetirementCase::UnknownRequest)) {
+            let planned = project_links::retirement::plan(root.path(), &first_id, None, &at)?;
+            let mut wrong = serde_json::to_value(&planned)?;
+            wrong["source"]["progress_digest"] =
+                crate::digest::sha256(b"changed source checkpoint").into();
+            let wrong: project_links::retirement::Plan = serde_json::from_value(wrong)?;
+            assert!(
+                project_links::retirement::apply(root.path(), &wrong, &wrong.digest()?, &at)
+                    .is_err()
+            );
+            assert_eq!(version()?, CHECKOUT_LINK_SCHEMA);
+            let result =
+                project_links::retirement::apply(root.path(), &planned, &planned.digest()?, &at)?;
+            assert_eq!(result["remote_outcome"], "unknown");
+            assert_eq!(result["reservation_released"], false);
+            assert_eq!(version()?, crate::store::CHECKOUT_RETIREMENT_SCHEMA);
+            let reads = control.lock().map_err(|_| "peer")?.reads.len();
+            assert_eq!(
+                project_links::retirement::apply(
+                    root.path(),
+                    &planned,
+                    &planned.digest()?,
+                    &after(&at, 3600)?
+                )?,
+                result
+            );
+            assert_eq!(
+                project_links::apply(root.path(), &first, &first.digest()?, None, None, &at)?["state"],
+                "retired"
+            );
+            assert!(project_links::confirmation_plan(root.path(), &first_id, None, &at).is_err());
+            assert_eq!(control.lock().map_err(|_| "peer")?.reads.len(), reads);
+            assert_eq!(control.lock().map_err(|_| "peer")?.writes.len(), 1);
+            assert_eq!(
+                fs::read(checkout.join(".env"))?,
+                b"PRIVATE=unowned-file-canary\n"
+            );
+            let next = project_links::request_plan(
+                root.path(),
+                Some(&contexts[0]),
+                &checkout,
+                &remote_first,
+                None,
+                None,
+                &at,
+            )?;
+            assert_eq!(serde_json::to_value(&next)?["schema_version"], 2);
+            project_links::apply(root.path(), &next, &next.digest()?, None, None, &at)?;
+            assert_eq!(version()?, crate::store::CHECKOUT_RETIREMENT_SCHEMA);
+            return Ok(());
+        }
         let select = contexts::select_plan(root.path(), &contexts[1], &at)?;
         contexts::apply(&select, &select.digest()?, &at)?;
         control.lock().map_err(|_| "peer")?.hide_outcome = true;
@@ -396,6 +510,8 @@ fn checkout_journey(named: bool) -> std::result::Result<(), Box<dyn Error>> {
             .ok_or("confirmation")?
             .to_owned();
         control.lock().map_err(|_| "peer")?.lose_confirmation = true;
+        control.lock().map_err(|_| "peer")?.reject_confirmation =
+            matches!(retirement, Some(RetirementCase::ExpiredConfirmation));
         assert!(
             project_links::apply(
                 root.path(),
@@ -407,6 +523,89 @@ fn checkout_journey(named: bool) -> std::result::Result<(), Box<dyn Error>> {
             )
             .is_err()
         );
+        if matches!(retirement, Some(RetirementCase::ExpiredConfirmation)) {
+            assert!(
+                project_links::retirement::plan(
+                    root.path(),
+                    &confirmation_id,
+                    Some(&contexts[0]),
+                    &at
+                )
+                .is_err()
+            );
+            control.lock().map_err(|_| "peer")?.settlement = Some("unsupported".into());
+            assert!(
+                project_links::retirement::plan(
+                    root.path(),
+                    &confirmation_id,
+                    Some(&contexts[0]),
+                    &at
+                )
+                .is_err()
+            );
+            control.lock().map_err(|_| "peer")?.settlement = Some("expired".into());
+            let planned = project_links::retirement::plan(
+                root.path(),
+                &confirmation_id,
+                Some(&contexts[0]),
+                &at,
+            )?;
+            control.lock().map_err(|_| "peer")?.settlement = None;
+            assert!(
+                project_links::retirement::apply(root.path(), &planned, &planned.digest()?, &at)
+                    .is_err()
+            );
+            assert_eq!(version()?, CHECKOUT_LINK_SCHEMA);
+            control.lock().map_err(|_| "peer")?.settlement = Some("expired".into());
+            let result =
+                project_links::retirement::apply(root.path(), &planned, &planned.digest()?, &at)?;
+            assert_eq!(result["remote_outcome"], "expired_without_link");
+            assert_eq!(result["reservation_released"], true);
+            assert_eq!(version()?, crate::store::CHECKOUT_RETIREMENT_SCHEMA);
+            let store = Store::planning_at(local.root_directory())?;
+            assert_eq!(
+                store.connection.query_row(
+                    "SELECT count(*) FROM native_checkout_reservation",
+                    [],
+                    |r| r.get::<_, i64>(0)
+                )?,
+                0
+            );
+            drop(store);
+            let reads = control.lock().map_err(|_| "peer")?.reads.len();
+            assert_eq!(
+                project_links::retirement::apply(
+                    root.path(),
+                    &planned,
+                    &planned.digest()?,
+                    &after(&at, 3600)?
+                )?,
+                result
+            );
+            assert_eq!(control.lock().map_err(|_| "peer")?.reads.len(), reads);
+            assert_eq!(
+                project_links::apply(
+                    root.path(),
+                    &confirmation,
+                    &confirmation.digest()?,
+                    None,
+                    None,
+                    &at
+                )?["state"],
+                "retired"
+            );
+            // Even if a stale/upstream observation says ready again, retirement
+            // fences the original request before another confirmation review.
+            control.lock().map_err(|_| "peer")?.settlement = None;
+            assert!(project_links::confirmation_plan(root.path(), &first_id, None, &at).is_err());
+            assert_eq!(control.lock().map_err(|_| "peer")?.reads.len(), reads);
+            assert_eq!(control.lock().map_err(|_| "peer")?.writes.len(), 2);
+            assert_eq!(
+                fs::read(checkout.join(".env"))?,
+                b"PRIVATE=unowned-file-canary\n"
+            );
+            return Ok(());
+        }
         if !named {
             let later = format!("{:.3}", jiff::Timestamp::now());
             let refresh = plan(root.path(), Action::Refresh, None, None, &later)?;

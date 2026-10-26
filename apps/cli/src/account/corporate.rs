@@ -93,6 +93,9 @@ pub enum Request {
     LinkOutcome {
         plan_id: String,
     },
+    LinkSettlement {
+        plan_id: String,
+    },
     LinkRequestOutcome {
         request_key: String,
     },
@@ -148,7 +151,9 @@ impl Request {
             {
                 Err(invalid())
             }
-            Self::LinkOutcome { plan_id } if !passport::stable_id(plan_id, "link_plan") => {
+            Self::LinkOutcome { plan_id } | Self::LinkSettlement { plan_id }
+                if !passport::stable_id(plan_id, "link_plan") =>
+            {
                 Err(invalid())
             }
             Self::LinkRequestOutcome { request_key }
@@ -233,6 +238,9 @@ impl Request {
             Self::LinkOutcome { plan_id } => {
                 format!("/v1/organizations/{organization}/project-link-plans/{plan_id}/outcome")
             }
+            Self::LinkSettlement { plan_id } => {
+                format!("/v1/organizations/{organization}/project-link-plans/{plan_id}/settlement")
+            }
             Self::LinkRequestOutcome { request_key } => {
                 format!("/v1/organizations/{organization}/project-link-plan-requests/{request_key}")
             }
@@ -304,7 +312,9 @@ impl Request {
             Self::Projects { .. } => &PROJECTS,
             Self::Project { .. } => &PROJECT,
             Self::LinkTarget { .. } => &LINK_TARGET,
-            Self::LinkOutcome { .. } | Self::LinkRequestOutcome { .. } => &LINK_OUTCOME,
+            Self::LinkOutcome { .. }
+            | Self::LinkSettlement { .. }
+            | Self::LinkRequestOutcome { .. } => &LINK_OUTCOME,
             Self::Technologies { .. } => &TECHNOLOGIES,
             Self::Mappings => &MAPPINGS,
             Self::Mapping { .. } => &MAPPING,
@@ -347,14 +357,16 @@ impl Request {
                 }
             }
         }
-        if let Self::LinkOutcome { plan_id } = self
+        if let Self::LinkOutcome { plan_id } | Self::LinkSettlement { plan_id } = self
             && value["plan"]["plan_id"] != *plan_id
         {
             return Err(invalid());
         }
         if matches!(
             self,
-            Self::LinkOutcome { .. } | Self::LinkRequestOutcome { .. }
+            Self::LinkOutcome { .. }
+                | Self::LinkSettlement { .. }
+                | Self::LinkRequestOutcome { .. }
         ) {
             let plan = &value["plan"];
             let link = &value["link"];
@@ -479,6 +491,7 @@ pub fn observe(root: &Path, context: Option<&str>, request: Request) -> Result<V
         request,
         Request::LinkTarget { .. }
             | Request::LinkOutcome { .. }
+            | Request::LinkSettlement { .. }
             | Request::LinkRequestOutcome { .. }
     ) && data["authorization_revision"]
         != current_observation["capabilities"]["authorization_revision"]
