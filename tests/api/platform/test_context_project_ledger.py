@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta, tzinfo
+from hashlib import sha256
 from typing import Any, Self, cast
 
 import pytest
@@ -1339,6 +1340,70 @@ async def test_confirmed_unlink_preserves_identities_history_and_audit(
             )
             or 0
         ) >= 1
+
+
+@pytest.mark.parametrize("family", ["project-link-plan-requests", "project-unlink-plan-requests"])
+@pytest.mark.parametrize("key_length", [16, 128])
+async def test_original_request_rejection_audits_keep_bounded_distinct_targets(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+    family: str,
+    key_length: int,
+) -> None:
+    client, sessions, token, organization, link_id, _ = project_harness
+    headers = {"Authorization": f"Bearer {token}", "X-AI-STP-Organization-Id": organization}
+    paths = [
+        f"/v1/organizations/{organization}/{family}/{'m' * (key_length - 1)}{suffix}"
+        for suffix in ("a", "b")
+    ]
+
+    async def business_rows() -> list[int | None]:
+        async with sessions() as db:
+            return [
+                await db.scalar(
+                    select(func.count())
+                    .select_from(model)
+                    .where(model.organization_id == organization)
+                )
+                for model in (ProjectLinkPlan, ProjectUnlinkPlan, ProjectLink)
+            ]
+
+    before = await business_rows()
+    async with sessions() as db:
+        link = await db.get(ProjectLink, link_id)
+        assert link is not None
+        actor = link.actor_account_id
+        audit_before = await db.scalar(select(func.max(AuditEvent.id))) or 0
+    for path in paths:
+        response = await client.get(path, headers=headers)
+        assert response.status_code == 404, response.text
+        assert response.json()["error"]["code"] == "AI_STP_NOT_FOUND"
+    assert await business_rows() == before
+    async with sessions() as db:
+        audits = list(
+            await db.scalars(
+                select(AuditEvent).where(
+                    AuditEvent.id > audit_before,
+                    AuditEvent.organization_id == organization,
+                )
+            )
+        )
+    assert len(audits) == 2
+    expected_targets = {
+        path if key_length == 16 else f"sha256:{sha256(path.encode('utf-8')).hexdigest()}"
+        for path in paths
+    }
+    assert {audit.target_id for audit in audits} == expected_targets
+    assert len(expected_targets) == 2
+    for audit in audits:
+        assert len(audit.target_id) <= 128
+        assert audit.actor_account_id == actor
+        assert audit.target_table == "http_route"
+        assert (audit.action, audit.outcome, audit.reason) == (
+            "http.get.failed",
+            "failed",
+            "not_found",
+        )
+        assert audit.payload == {"method": "GET", "http_status": 404, "error": "AI_STP_NOT_FOUND"}
 
 
 @pytest.mark.parametrize("endpoint", ["outcome", "settlement", "request"])
