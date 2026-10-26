@@ -143,8 +143,8 @@ def prove(binary: Path, root: Path) -> None:
     assert capabilities["task_intents"] == ["author", "install"]
     assert bool(capabilities["supported_harnesses"]) == (sys.platform == "linux")
     assert capabilities["release_channel"] == "stable"
-    assert capabilities["readable_local_schema_versions"] == [53, 54, 55, 56]
-    assert capabilities["snapshot_schema_versions"] == [53, 54, 55, 56]
+    assert capabilities["readable_local_schema_versions"] == [53, 54, 55, 56, 57]
+    assert capabilities["snapshot_schema_versions"] == [53, 54, 55, 56, 57]
     assert run(binary, home, ["version"])["data"]["runtime"] == "rust"
     assert (
         "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v"
@@ -229,8 +229,14 @@ def prove(binary: Path, root: Path) -> None:
         source.close()
     # Advance only this disposable fixture through the actual native layouts.
     # A transferred registry retains the base tables at epoch 54; profiles and
-    # enrollment recovery add their own tables at epochs 55 and 56.
-    for version, migration in [(54, None), (55, "profiles.sql"), (56, "enrollment_recovery.sql")]:
+    # enrollment recovery and checkout reservations add their own tables at
+    # epochs 55, 56 and 57.
+    for version, migration in [
+        (54, None),
+        (55, "profiles.sql"),
+        (56, "enrollment_recovery.sql"),
+        (57, "checkout_links.sql"),
+    ]:
         with closing(sqlite3.connect(backup)) as fixture:
             if migration is not None:
                 fixture.executescript(bootstrap.with_name(migration).read_text(encoding="utf-8"))
@@ -261,7 +267,7 @@ def prove(binary: Path, root: Path) -> None:
         }
         assert before == after, "snapshot reads changed fixture bytes or created sidecars"
     with closing(sqlite3.connect(backup)) as newer:
-        newer.execute("PRAGMA user_version=57")
+        newer.execute("PRAGMA user_version=58")
         newer.commit()
     newer_digest = "sha256:" + hashlib.sha256(backup.read_bytes()).hexdigest()
     run(

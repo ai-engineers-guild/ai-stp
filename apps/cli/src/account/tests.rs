@@ -26,6 +26,8 @@ mod enrollments_tests;
 mod github_tests;
 #[path = "ownership_tests.rs"]
 mod ownership_tests;
+#[path = "project_link_tests.rs"]
+mod project_link_tests;
 #[path = "publication_recovery_tests.rs"]
 mod publication_recovery_tests;
 #[path = "publication_set_tests.rs"]

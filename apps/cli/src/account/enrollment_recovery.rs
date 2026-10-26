@@ -17,7 +17,10 @@ use crate::{
     files::{self, OwnedDirectory},
     identity::{self, credentials::Vault},
     passport,
-    store::{ENROLLMENT_RECOVERY_SCHEMA, PROFILE_SCHEMA, Store, database},
+    store::{
+        CHECKOUT_LINK_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA, PROFILE_SCHEMA, Store, database,
+        has_enrollment_recovery,
+    },
 };
 
 const KIND: &str = "account.connection.recover";
@@ -50,6 +53,8 @@ pub struct Plan {
     pub interrupted_publications: Vec<crate::publication::interruption::Checkpoint>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub interrupted_sync: Vec<crate::sync::interruption::Checkpoint>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub interrupted_checkout_links: Vec<super::project_links::Checkpoint>,
     pub registry_schema_before: u32,
     pub replacement: connections::Plan,
 }
@@ -102,7 +107,14 @@ impl Plan {
             }
             _ => None,
         };
-        let deliveries = self.interrupted_publications.len() + self.interrupted_sync.len();
+        let deliveries = self.interrupted_publications.len()
+            + self.interrupted_sync.len()
+            + self.interrupted_checkout_links.len();
+        let target_schema = if self.registry_schema_before == CHECKOUT_LINK_SCHEMA {
+            CHECKOUT_LINK_SCHEMA
+        } else {
+            ENROLLMENT_RECOVERY_SCHEMA
+        };
         let mut operations = BTreeSet::new();
         for checkpoint in &self.interrupted_publications {
             checkpoint.validate()?;
@@ -116,9 +128,17 @@ impl Plan {
                 return Err(invalid());
             }
         }
+        for checkpoint in &self.interrupted_checkout_links {
+            checkpoint.validate()?;
+            if !operations.insert(&checkpoint.operation_id) {
+                return Err(invalid());
+            }
+        }
         if proof_version.is_none()
             || self.schema_version
-                != if deliveries == 0 {
+                != if self.registry_schema_before == CHECKOUT_LINK_SCHEMA {
+                    4
+                } else if deliveries == 0 {
                     proof_version.unwrap_or(0)
                 } else {
                     3
@@ -132,6 +152,12 @@ impl Plan {
                 .interrupted_sync
                 .windows(2)
                 .any(|v| v[0].operation_id >= v[1].operation_id)
+            || self
+                .interrupted_checkout_links
+                .windows(2)
+                .any(|v| v[0].operation_id >= v[1].operation_id)
+            || !self.interrupted_checkout_links.is_empty()
+                && self.registry_schema_before != CHECKOUT_LINK_SCHEMA
             || operations.contains(&self.operation_id)
             || operations.contains(&self.replacement.operation_id)
             || self.action != KIND
@@ -144,9 +170,14 @@ impl Plan {
             || self.created_at != self.replacement.created_at
             || self.expires_at != self.replacement.expires_at
             || !hash(&self.authorized_receipt_digest)
-            || ![PROFILE_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA].contains(&self.registry_schema_before)
-            || self.replacement.registry_schema_before != ENROLLMENT_RECOVERY_SCHEMA
-            || self.replacement.registry_schema_after != ENROLLMENT_RECOVERY_SCHEMA
+            || ![
+                PROFILE_SCHEMA,
+                ENROLLMENT_RECOVERY_SCHEMA,
+                CHECKOUT_LINK_SCHEMA,
+            ]
+            .contains(&self.registry_schema_before)
+            || self.replacement.registry_schema_before != target_schema
+            || self.replacement.registry_schema_after != target_schema
             || self.previous.connection_id == self.replacement.connection_id
             || self.previous.device_id == self.replacement.device_id
             || self.previous.origin != self.replacement.origin
@@ -344,6 +375,7 @@ fn load(connection: &Connection, id: &str) -> Result<Held> {
 fn validate_deliveries(connection: &Connection, plan: &Plan) -> Result<()> {
     crate::publication::interruption::validate_named(connection, plan)?;
     crate::sync::interruption::validate_named(connection, plan)?;
+    super::project_links::interruption::validate_named(connection, plan)?;
     Ok(())
 }
 
@@ -378,7 +410,7 @@ pub fn plan(root: &Path, connection: &str, label: &str, at: &str) -> Result<Plan
         })?;
     let mut replacement = connections::plan(root, label, &previous.origin, &previous.provider, at)?;
     let store = Store::planning_at(id.root_directory())?;
-    if store.version()? == ENROLLMENT_RECOVERY_SCHEMA
+    if has_enrollment_recovery(store.version()?)
         && find(&store.connection, connection, true)?.is_some()
     {
         return Err(Failure::precondition(
@@ -387,8 +419,13 @@ pub fn plan(root: &Path, connection: &str, label: &str, at: &str) -> Result<Plan
     }
     let registry_schema_before = store.version()?;
     let operation_id = format!("operation_{}", ulid::Ulid::generate());
-    replacement.registry_schema_before = ENROLLMENT_RECOVERY_SCHEMA;
-    replacement.registry_schema_after = ENROLLMENT_RECOVERY_SCHEMA;
+    let target_schema = if registry_schema_before == CHECKOUT_LINK_SCHEMA {
+        CHECKOUT_LINK_SCHEMA
+    } else {
+        ENROLLMENT_RECOVERY_SCHEMA
+    };
+    replacement.registry_schema_before = target_schema;
+    replacement.registry_schema_after = target_schema;
     replacement.recovery_operation_id = Some(operation_id.clone());
     let mut plan = Plan {
         schema_version: if missing_key { 2 } else { 1 },
@@ -415,6 +452,7 @@ pub fn plan(root: &Path, connection: &str, label: &str, at: &str) -> Result<Plan
         authorized_receipt_digest,
         interrupted_publications: Vec::new(),
         interrupted_sync: Vec::new(),
+        interrupted_checkout_links: Vec::new(),
         registry_schema_before,
         replacement,
     };
@@ -431,7 +469,11 @@ pub fn plan(root: &Path, connection: &str, label: &str, at: &str) -> Result<Plan
         .map_err(|failure| {
             failure.with_details([("reason".into(), "sync_checkpoint_binding_changed".into())])
         })?;
-    if !plan.interrupted_publications.is_empty() || !plan.interrupted_sync.is_empty() {
+    plan.interrupted_checkout_links =
+        super::project_links::interruption::capture_named(&store.connection, &plan)?;
+    if registry_schema_before == CHECKOUT_LINK_SCHEMA {
+        plan.schema_version = 4;
+    } else if !plan.interrupted_publications.is_empty() || !plan.interrupted_sync.is_empty() {
         plan.schema_version = 3;
     }
     plan.validate()?;
@@ -509,7 +551,7 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
         }
         let vault = Vault::new(&directory, plan.previous.credential_store)?;
         let mut store = Store::open_at(id.root_directory(), false)?;
-        let held = if store.version()? == ENROLLMENT_RECOVERY_SCHEMA {
+        let held = if has_enrollment_recovery(store.version()?) {
             find(&store.connection, &plan.previous.connection_id, true)?
                 .map(|id| load(&store.connection, &id))
                 .transpose()?
@@ -561,6 +603,7 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
                 tx.execute("INSERT INTO native_enrollment_recovery(operation_id,previous_connection_id,replacement_connection_id,detail) VALUES (?1,?2,?3,?4)",params![plan.operation_id,plan.previous.connection_id,plan.replacement.connection_id,detail]).map_err(database)?;
                 crate::publication::interruption::apply_named(tx, plan)?;
                 crate::sync::interruption::apply_named(tx, plan, at)?;
+                super::project_links::interruption::apply_named(tx, plan, at)?;
                 Ok(())
             })?;
         }
@@ -582,7 +625,7 @@ pub(super) fn constraints(
     connection: &connections::Enrollment,
 ) -> Result<Option<(String, String)>> {
     let store = Store::planning_at(id.root_directory())?;
-    if store.version()? != ENROLLMENT_RECOVERY_SCHEMA {
+    if !has_enrollment_recovery(store.version()?) {
         return Ok(None);
     }
     find(&store.connection, &connection.connection_id, false)?
@@ -608,7 +651,7 @@ pub(crate) fn completed_retirement(
     let version: u32 = connection
         .pragma_query_value(None, "user_version", |row| row.get(0))
         .map_err(database)?;
-    if version != ENROLLMENT_RECOVERY_SCHEMA {
+    if !has_enrollment_recovery(version) {
         return Err(invalid());
     }
     let enrollment = current.connection.as_ref().ok_or_else(invalid)?;
@@ -660,7 +703,7 @@ pub(super) fn check_child(id: &identity::Identity, child: &connections::Plan) ->
         return Ok(());
     };
     let store = Store::planning_at(id.root_directory())?;
-    if store.version()? != ENROLLMENT_RECOVERY_SCHEMA {
+    if !has_enrollment_recovery(store.version()?) {
         return Err(Failure::precondition(
             "apply the reviewed parent enrollment recovery before its child key operation",
         ));
@@ -673,7 +716,7 @@ pub(super) fn check_child(id: &identity::Identity, child: &connections::Plan) ->
 
 pub(super) fn fresh(id: &identity::Identity, connection: &connections::Enrollment) -> Result<()> {
     let store = Store::planning_at(id.root_directory())?;
-    if store.version()? == ENROLLMENT_RECOVERY_SCHEMA
+    if has_enrollment_recovery(store.version()?)
         && find(&store.connection, &connection.connection_id, true)?.is_some()
     {
         return Err(Failure::precondition(
@@ -691,7 +734,7 @@ pub(super) fn confirm(id: &identity::Identity, receipt: &Receipt) -> Result<()> 
         return Ok(());
     }
     let mut store = Store::open_at(id.root_directory(), false)?;
-    if store.version()? != ENROLLMENT_RECOVERY_SCHEMA {
+    if !has_enrollment_recovery(store.version()?) {
         return Ok(());
     }
     let Some(operation) = find(&store.connection, &connection.connection_id, false)? else {
@@ -722,7 +765,7 @@ pub fn list(root: &Path) -> Result<Value> {
     let id = super::identity_at(root)?;
     let store = Store::planning_at(id.root_directory())?;
     let mut recoveries = Vec::new();
-    if store.version()? == ENROLLMENT_RECOVERY_SCHEMA {
+    if has_enrollment_recovery(store.version()?) {
         let mut statement=store.connection.prepare("SELECT operation_id FROM native_enrollment_recovery ORDER BY operation_id LIMIT 65").map_err(database)?;
         let ids = statement
             .query_map([], |row| row.get::<_, String>(0))
