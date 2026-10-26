@@ -22,6 +22,9 @@ pub(super) enum Handler {
     LinkOutcome,
     LinkSettlement,
     LinkRequestOutcome,
+    UnlinkOutcome,
+    UnlinkSettlement,
+    UnlinkRequestOutcome,
     LinkRequestPlan,
     LinkConfirmPlan,
     LinkAdoptPlan,
@@ -346,6 +349,51 @@ pub(super) const COMMANDS: &[Declaration] = &[
         handler: super::Handler::Corporate(Handler::LinkRequestOutcome),
     },
     Declaration {
+        path: &["corporate", "project", "unlink-outcome"],
+        summary: "Read original account-owned unlink evidence without confirming or releasing a local binding.",
+        parameters: &[
+            STATE_DIR,
+            CONTEXT,
+            Parameter {
+                name: "plan-id",
+                summary: "Exact retained server unlink_plan identifier.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::UnlinkOutcome),
+    },
+    Declaration {
+        path: &["corporate", "project", "unlink-settlement"],
+        summary: "Observe the original unlink after its confirmation barrier; never release local ownership from this read.",
+        parameters: &[
+            STATE_DIR,
+            CONTEXT,
+            Parameter {
+                name: "plan-id",
+                summary: "Exact retained server unlink_plan identifier.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::UnlinkSettlement),
+    },
+    Declaration {
+        path: &["corporate", "project", "unlink-request-outcome"],
+        summary: "Read the original unlink request by its retained key; an absent result leaves the original effect unknown.",
+        parameters: &[
+            STATE_DIR,
+            CONTEXT,
+            Parameter {
+                name: "request-key",
+                summary: "Original unlink-plan request key, 16 to 128 ASCII letters, digits or ._~-.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::UnlinkRequestOutcome),
+    },
+    Declaration {
         path: &["corporate", "technologies"],
         summary: "Read organization-owned technologies; bundled local seeds grant no corporate authority.",
         parameters: &[
@@ -566,6 +614,15 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             plan_id: text("plan-id")?,
         },
         Handler::LinkRequestOutcome => Request::LinkRequestOutcome {
+            request_key: text("request-key")?,
+        },
+        Handler::UnlinkOutcome => Request::UnlinkOutcome {
+            plan_id: text("plan-id")?,
+        },
+        Handler::UnlinkSettlement => Request::UnlinkSettlement {
+            plan_id: text("plan-id")?,
+        },
+        Handler::UnlinkRequestOutcome => Request::UnlinkRequestOutcome {
             request_key: text("request-key")?,
         },
         Handler::Technologies => Request::Technologies {
