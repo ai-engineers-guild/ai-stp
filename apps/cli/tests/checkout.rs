@@ -316,3 +316,65 @@ fn cli_ignores_ambient_git_routing_and_global_configuration() -> Result<(), Box<
     assert!(serde_json::to_string(&descriptor)?.contains("git-executable"));
     Ok(())
 }
+
+#[cfg(unix)]
+#[test]
+fn link_preview_requires_an_owned_registered_attached_checkout_before_remote_access()
+-> Result<(), Box<dyn Error>> {
+    use ai_stp_cli::{account::project_links, identity, projects::passports, store::Store};
+    let temp = tempfile::tempdir()?;
+    let state = temp.path().join("state");
+    let root = temp.path().join("repository");
+    fs::create_dir(&state)?;
+    fs::create_dir(&root)?;
+    let at = format!("{:.3}", jiff::Timestamp::now());
+    let initialization = identity::plan(&state, identity::Storage::File, &at)?;
+    let native = identity::apply(&initialization, &initialization.digest()?, &at)?;
+    let remote = "remote_project_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+    let git_executable = executable()?;
+    let attempt = |path: &Path| {
+        project_links::preview(&state, None, path, remote, None, Some(&git_executable))
+    };
+    assert!(attempt(&root).is_err());
+    assert!(!root.join(".ai-stp-v2-project").exists());
+    command(&root, &["init", "--initial-branch=main"])?;
+    let mut store = Store::open(&state, true)?;
+    let plan = passports::plan(&mut store, &root, native.context(), &at)?;
+    passports::apply(&mut store, &plan, &plan.digest()?, &native.context(), &at)?;
+    drop(store);
+    let count = || -> Result<i64, Box<dyn Error>> {
+        let mut store = Store::open(&state, false)?;
+        Ok(store.transaction(|t| {
+            t.query_row("SELECT count(*) FROM operation", [], |r| r.get(0))
+                .map_err(|_| ai_stp_cli::error::Failure::precondition("fixture registry count"))
+        })?)
+    };
+    let before = count()?;
+    assert!(
+        attempt(&root)
+            .err()
+            .ok_or("unborn checkout accepted")?
+            .message
+            .contains("attached committed")
+    );
+    command(&root, &["commit", "--allow-empty", "-m", "first"])?;
+    let refusal = attempt(&root)
+        .err()
+        .ok_or("missing corporate context accepted")?;
+    assert!(refusal.message.contains("context"));
+    command(&root, &["checkout", "--detach"])?;
+    assert!(
+        attempt(&root)
+            .err()
+            .ok_or("detached checkout accepted")?
+            .message
+            .contains("attached committed")
+    );
+    let moved = temp.path().join("moved");
+    fs::rename(&root, &moved)?;
+    assert!(attempt(&moved).is_err());
+    assert_eq!(count()?, before);
+    assert!(!state.join("ai-stp-v2-account").exists());
+    assert!(!state.join("ai-stp-v2-connections").exists());
+    Ok(())
+}

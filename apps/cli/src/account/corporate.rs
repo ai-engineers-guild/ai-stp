@@ -293,7 +293,12 @@ impl Request {
         Ok((url, body))
     }
 
-    fn project(&self, value: &Value, organization: &str, account: &str) -> Result<Value> {
+    pub(super) fn project(
+        &self,
+        value: &Value,
+        organization: &str,
+        account: &str,
+    ) -> Result<Value> {
         let schema = match self {
             Self::Teams => &TEAMS,
             Self::Projects { .. } => &PROJECTS,
@@ -424,7 +429,7 @@ impl Request {
     }
 }
 
-fn authority(organization: &Value, observation: &Value) -> Value {
+pub(super) fn authority(organization: &Value, observation: &Value) -> Value {
     let capabilities = &observation["capabilities"];
     json!([
         organization["organization_id"],

@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import shutil
 import socket
 import sqlite3
 import sys
@@ -47,6 +48,8 @@ from ai_stp_platform.organization_models import (
     CorporateTeamMember,
     OrganizationMembership,
     ProjectIdentity,
+    ProjectLink,
+    ProjectLinkPlan,
 )
 from ai_stp_platform.technology_models import Technology, TechnologyAlias
 
@@ -335,6 +338,45 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
     await enact(personal, "context", "apply")
     selected = await run("context", "select", "plan", "--context", contexts[1])
     await enact(selected, "context", "apply")
+    checkout = root / "native-checkout"
+    checkout.mkdir()
+    git_executable = shutil.which("git")
+    assert git_executable is not None
+
+    async def git(*arguments: str) -> None:
+        environment = {
+            key: value
+            for key, value in os.environ.items()
+            if key.upper() in {"PATH", "SYSTEMROOT", "WINDIR", "TEMP", "TMP"}
+        }
+        environment.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")
+        process = await asyncio.create_subprocess_exec(
+            git_executable,
+            "-C",
+            str(checkout),
+            "-c",
+            "user.name=Native checkout fixture",
+            "-c",
+            "user.email=checkout@example.invalid",
+            *arguments,
+            env=environment,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            await asyncio.wait_for(process.communicate(), timeout=10)
+        except TimeoutError:
+            process.kill()
+            await process.wait()
+            raise
+        assert process.returncode == 0
+
+    await git("init", "--initial-branch=main")
+    await git("commit", "--allow-empty", "-m", "native checkout fixture")
+    await git("config", "remote.origin.url", "https://native-checkout-secret@example.invalid/repo")
+    passport = await run("project", "passport", "plan", "--root", str(checkout))
+    await enact(passport, "local", "apply")
+    local_passport = passport["plan"]["operation"]["passport"]
     snapshot = await run("context", "list")
     registry = state / "ai-stp-v2-state" / "registry.sqlite3"
     with closing(sqlite3.connect(f"file:{registry}?mode=ro", uri=True)) as local:
@@ -359,6 +401,55 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
     target = await observe("project", "link-target", "--project", project)
     assert target["remote_project_id"] == project and target["remote_revision"] == "initial"
     assert target["providers"] == [] and target["observation_only"] is True
+    async with app.state.sessionmaker() as db:
+        business_before = (
+            await db.scalar(select(func.count()).select_from(ProjectLinkPlan)),
+            await db.scalar(select(func.count()).select_from(ProjectLink)),
+        )
+    preview_args = [
+        "corporate",
+        "project",
+        "link-preview",
+        "--project",
+        project,
+        "--root",
+        str(checkout),
+        "--context",
+        contexts[0],
+        "--git-executable",
+        git_executable,
+    ]
+    preview = (await run(*preview_args))["preview"]
+    assert preview["context"]["context_id"] == contexts[0]
+    assert preview["account"]["account_id"] == accounts[0]
+    assert preview["local_project"]["local_project_id"] == local_passport["stable_id"]
+    assert preview["local_project"]["owner_account_id"] == local_passport["owner_id"]
+    assert preview["request_coordinates"]["local_revision"] == local_passport["revision_id"]
+    assert preview["request_coordinates"]["remote_project_id"] == project
+    assert preview["request_coordinates"]["provider_project_id"] is None
+    assert preview["online_verified"] and preview["observation_only"]
+    assert not any(
+        preview[field]
+        for field in (
+            "link_created",
+            "binding_created",
+            "request_admitted",
+            "installation_authority",
+            "provider_identity_verified",
+        )
+    )
+    assert "native-checkout-secret" not in json.dumps(preview)
+    await refused(
+        binary, home, [*preview_args, "--provider-project", new_id("provider_project"), *scoped]
+    )
+    await git("checkout", "--detach")
+    await refused(binary, home, [*preview_args, *scoped])
+    await git("checkout", "main")
+    async with app.state.sessionmaker() as db:
+        assert (
+            await db.scalar(select(func.count()).select_from(ProjectLinkPlan)),
+            await db.scalar(select(func.count()).select_from(ProjectLink)),
+        ) == business_before
     async with app.state.sessionmaker() as db:
         link_session = await issue_session(
             db, account_id=accounts[0], device_id=connections[0]["device_id"], ttl_seconds=3600
@@ -637,6 +728,7 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         member.state, member.revision = "suspended", member.revision + 1
         await db.commit()
     await refused(binary, home, ["corporate", "teams", "--context", contexts[0], *scoped])
+    await refused(binary, home, [*preview_args, *scoped])
     await observe("projects", context=contexts[1])
     assert await run("context", "list") == snapshot
     assert await run("device", "show") == original
@@ -813,6 +905,7 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
                 "membership_revocation": "refused",
                 "read_operations_added": 0,
                 "link_plan_outcome": "exact_ready_and_applied_account_bound_reads",
+                "link_preview": "registered_checkout_and_current_context_without_writes",
                 "enrollment_recovery": "same_account_only",
                 "missing_key_recovery": "active_previous_device_refused_before_revocation",
             }
