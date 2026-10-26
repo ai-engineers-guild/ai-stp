@@ -163,6 +163,15 @@ async def test_context_mutation_waits_for_revocation_and_refuses_without_plan_or
 ) -> None:
     client, sessionmaker, token, organization, link_id, remote = project_harness
     local_project = new_id("project")
+    async with sessionmaker() as db:
+        link = await db.get(ProjectLink, link_id)
+        assert link is not None
+        device = await db.get(Device, link.device_id)
+        assert device is not None
+        # Authentication's optional last-seen update must not take the lock
+        # before the mutation guard whose revocation barrier this test observes.
+        device.last_seen_at = datetime.now(UTC)
+        await db.commit()
     entered: asyncio.Future[int] = asyncio.get_running_loop().create_future()
     original = context_service.require_active_device
 
@@ -429,14 +438,10 @@ async def test_link_plan_outcome_expiry_account_tenant_and_corruption_fences(
         await db.commit()
     assert (await client.get(route, headers=headers)).status_code == 412
     async with sessionmaker() as db:
-        member = await db.scalar(
-            select(OrganizationMembership).where(
-                OrganizationMembership.organization_id == organization,
-                OrganizationMembership.account_id == link.actor_account_id,
-            )
-        )
-        assert member is not None
-        member.state = "suspended"
+        tenant = await db.get(Organization, organization)
+        assert tenant is not None
+        # A personal tenant must retain its one active owner membership.
+        tenant.state = "suspended"
         await db.commit()
     assert (await client.get(route, headers=headers)).status_code == 403
 
