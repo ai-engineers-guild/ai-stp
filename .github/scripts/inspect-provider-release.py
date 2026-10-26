@@ -98,7 +98,13 @@ def invoke(binary: Path, home: Path, arguments: list[str]) -> dict[str, Any]:
         timeout=240,
         env=environment,
     )
-    require(result.returncode == 0, f"native observation failed: {arguments}")
+    if result.returncode != 0:
+        try:
+            error = json.loads(result.stdout)["error"]
+            detail = str(error.get("message", error.get("code", "refused")))[:1000]
+        except (ValueError, KeyError, TypeError):
+            detail = "the native engine returned no error envelope"
+        raise ValueError(f"native observation failed: {arguments}: {detail}")
     require(not result.stderr, "native observation emitted unexpected stderr")
     envelope = json.loads(result.stdout)
     require(envelope["ok"] is True, "native observation did not succeed")
