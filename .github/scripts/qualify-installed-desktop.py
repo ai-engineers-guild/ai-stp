@@ -280,7 +280,13 @@ def main() -> None:
     ]
     require(len(binaries) == 1 and binaries[0].is_file(), "one actual installed CLI is required")
     binary = binaries[0].resolve(strict=True)
-    version = native(binary, environment, ["version"])["version"]
+    version_response = native(binary, environment, ["version"])
+    require(
+        version_response["runtime"] == "rust" and version_response["wire_schema_version"] == 1,
+        "installed CLI returned an unsupported version contract",
+    )
+    version = version_response["cli_version"]
+    require(isinstance(version, str) and bool(version), "installed CLI version is absent")
     before = native(binary, environment, ["doctor"])
     require(
         any(
