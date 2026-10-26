@@ -7,9 +7,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_auth_settings, get_db, require_auth
+from ai_stp_api.deps import Db, get_auth_settings, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory, schema_unsupported
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import AuthSettings
@@ -31,7 +30,7 @@ def _resource(model: object, *, status_code: int = 200) -> JSONResponse:
 async def push_sync_events(
     request: Request,
     body: SyncPushRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> JSONResponse:
@@ -49,7 +48,7 @@ async def push_sync_events(
 @router.get("/sync/pull", response_model=None)
 async def pull_sync_events(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
     cursor: Annotated[str | None, Query()] = None,

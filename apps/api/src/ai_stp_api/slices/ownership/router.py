@@ -6,9 +6,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import Db, require_auth
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
 from ai_stp_api.slices.ownership import service
@@ -30,7 +29,7 @@ def _staff_ids(request: Request) -> frozenset[str]:
 @router.post("/ownership-claims", response_model=None)
 async def create_ownership_claim(
     body: OwnershipClaimCreateRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.create_claim(db, ctx=ctx, body=body)
@@ -41,7 +40,7 @@ async def create_ownership_claim(
 async def read_ownership_claim(
     claim_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.read_claim(db, ctx=ctx, claim_id=claim_id, staff_ids=_staff_ids(request))
@@ -52,7 +51,7 @@ async def read_ownership_claim(
 async def list_ownership_revisions(
     stable_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.list_revisions(

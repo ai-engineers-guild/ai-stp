@@ -10,10 +10,9 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import Db, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.corporate import service
@@ -41,7 +40,7 @@ def _request_id(request: Request) -> str | None:
 async def read_usage_report(
     organization_id: OrganizationId,
     query: Annotated[RuntimeUsageReportQuery, Query()],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> RuntimeUsageReport:
     scope = await usage_scope(
@@ -66,7 +65,7 @@ async def create_usage_export(
     organization_id: OrganizationId,
     payload: RuntimeUsageExportRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> RuntimeUsageExportView:
     try:
@@ -120,7 +119,7 @@ async def read_usage_export(
     organization_id: OrganizationId,
     export_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> RuntimeUsageExportView:
     await usage_scope(

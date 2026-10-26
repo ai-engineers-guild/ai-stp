@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import Db, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.corporate.service import (
@@ -175,7 +175,7 @@ async def ingest_telemetry_event(
     organization_id: str,
     payload: CorporateTelemetryEventRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateTelemetryEventView:
     fingerprint = mutation_fingerprint(payload.model_dump(mode="json"))
@@ -223,7 +223,7 @@ async def ingest_telemetry_event_batch(
     organization_id: str,
     payload: CorporateTelemetryEventBatchRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateTelemetryEventBatchResult:
     fingerprint = mutation_fingerprint(payload.model_dump(mode="json"))
@@ -282,7 +282,7 @@ async def list_telemetry_events(
     organization_id: str,
     query: Annotated[CorporateTelemetryEventQuery, Query()],
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateTelemetryEventList:
     organization, _membership = await authorize(
@@ -337,7 +337,7 @@ async def read_telemetry_aggregates(
     organization_id: str,
     query: Annotated[CorporateTelemetryAggregateQuery, Query()],
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateTelemetryAggregateList:
     organization, _membership = await authorize(
@@ -393,7 +393,7 @@ async def export_telemetry_events(
     organization_id: str,
     query: Annotated[CorporateTelemetryExportQuery, Query()],
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateTelemetryExport:
     organization, _membership = await authorize(
@@ -444,7 +444,7 @@ async def list_telemetry_audit(
     organization_id: str,
     query: Annotated[CorporateTelemetryAuditQuery, Query()],
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateTelemetryAuditList:
     organization, _membership = await authorize(
@@ -483,7 +483,7 @@ async def list_telemetry_audit(
 )
 async def read_telemetry_policy(
     organization_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateTelemetryPolicyView:
     organization, _membership = await authorize(
@@ -506,7 +506,7 @@ async def write_telemetry_policy(
     organization_id: str,
     payload: CorporateTelemetryPolicyRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateTelemetryPolicyView:
     fingerprint = mutation_fingerprint(payload.model_dump(mode="json"))
