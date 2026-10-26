@@ -117,6 +117,7 @@ def main() -> None:
     parser.add_argument("--version", required=True)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--consumer-commit", required=True)
+    parser.add_argument("--require-managed-default", action="store_true")
     args = parser.parse_args()
     require(
         re.fullmatch(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)", args.version)
@@ -140,6 +141,12 @@ def main() -> None:
         home = Path(temporary).resolve(strict=True)
         state = home / "state"
         state.mkdir()
+        if args.require_managed_default:
+            capabilities = invoke(binary, home, ["capabilities"])
+            require(
+                capabilities["managed_provider_version"] == args.version,
+                "the selected binary does not have the candidate's managed default",
+            )
         for harness in harnesses:
             report = invoke(
                 binary,

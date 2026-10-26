@@ -382,6 +382,19 @@
           "scope": "project",
           "shape": "file",
           "source": "learn.chatgpt.com/docs/hooks"
+        },
+        {
+          "component_type": "instruction",
+          "declared_key": "",
+          "evidence": "page",
+          "excluded_names": [],
+          "excludes_plugin_manifest": false,
+          "projection_kind": "native_files",
+          "relative": "AGENTS.md",
+          "root": "config",
+          "scope": "project",
+          "shape": "file",
+          "source": "learn.chatgpt.com/docs/config-file/config-reference"
         }
       ],
       "native_authoring": [
@@ -565,6 +578,19 @@
           "scope": "project",
           "shape": "file",
           "source": "pi.dev/docs/latest/settings"
+        },
+        {
+          "component_type": "instruction",
+          "declared_key": "",
+          "evidence": "page",
+          "excluded_names": [],
+          "excludes_plugin_manifest": false,
+          "projection_kind": "native_files",
+          "relative": "AGENTS.md",
+          "root": "config",
+          "scope": "project",
+          "shape": "file",
+          "source": "pi.dev/docs/latest/sdk"
         }
       ],
       "native_authoring": [
@@ -867,6 +893,19 @@
           "scope": "project",
           "shape": "file",
           "source": "opencode.ai/docs/config"
+        },
+        {
+          "component_type": "instruction",
+          "declared_key": "",
+          "evidence": "page",
+          "excluded_names": [],
+          "excludes_plugin_manifest": false,
+          "projection_kind": "native_files",
+          "relative": "AGENTS.md",
+          "root": "config",
+          "scope": "project",
+          "shape": "file",
+          "source": "opencode.ai/docs/rules"
         }
       ],
       "native_authoring": [
@@ -993,7 +1032,9 @@
           "component_type": "plugin",
           "declared_key": "",
           "evidence": "page",
-          "excluded_names": [],
+          "excluded_names": [
+            "known_marketplaces.json"
+          ],
           "excludes_plugin_manifest": false,
           "projection_kind": "native_files",
           "relative": ".grok/plugins",
@@ -1040,6 +1081,32 @@
           "scope": "project",
           "shape": "file",
           "source": "docs.x.ai/build/settings"
+        },
+        {
+          "component_type": "instruction",
+          "declared_key": "",
+          "evidence": "page",
+          "excluded_names": [],
+          "excludes_plugin_manifest": false,
+          "projection_kind": "native_files",
+          "relative": "AGENTS.md",
+          "root": "config",
+          "scope": "project",
+          "shape": "file",
+          "source": "docs.x.ai/build/features/project-rules"
+        },
+        {
+          "component_type": "agent",
+          "declared_key": "",
+          "evidence": "source",
+          "excluded_names": [],
+          "excludes_plugin_manifest": false,
+          "projection_kind": "native_files",
+          "relative": ".grok/agents",
+          "root": "config",
+          "scope": "project",
+          "shape": "directory",
+          "source": "github.com/NDDev-Technocracy-Archive/grok-setup-system/blob/ad87f0b5146784967f2e79e0e63a1a0948147135/crates/grok-setup-system/src/project_tests.rs"
         }
       ],
       "native_authoring": [
@@ -1454,7 +1521,7 @@
           "evidence": "page",
           "excluded_names": [],
           "excludes_plugin_manifest": false,
-          "projection_kind": "native_files",
+          "projection_kind": "plugin",
           "relative": ".agents/plugins",
           "root": "config",
           "scope": "project",
