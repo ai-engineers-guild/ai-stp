@@ -10,7 +10,10 @@ use crate::{
     authoring, canonical, digest,
     error::{Failure, Result},
     files, identity, passport,
-    store::{ENROLLMENT_RECOVERY_SCHEMA, PROFILE_SCHEMA, Store, database, profile_schema_after},
+    store::{
+        CHECKOUT_LINK_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA, PROFILE_SCHEMA, Store, database,
+        profile_schema_after,
+    },
     wire,
 };
 
@@ -281,7 +284,12 @@ impl Plan {
     fn validate(&self) -> Result<()> {
         self.context().validate()?;
         if self.schema_version != 1
-            || ![PROFILE_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA].contains(&self.registry_schema_after)
+            || ![
+                PROFILE_SCHEMA,
+                ENROLLMENT_RECOVERY_SCHEMA,
+                CHECKOUT_LINK_SCHEMA,
+            ]
+            .contains(&self.registry_schema_after)
             || !passport::stable_id(&self.operation_id, "operation")
             || !passport::timestamp(&self.created_at)
             || self.expires_at != authoring::expiry(&self.created_at)?

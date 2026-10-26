@@ -1,4 +1,15 @@
-//! Join native checkout and current corporate evidence without admitting a write.
+//! Registered checkout inspection and separately reviewed durable corporate linking.
+
+pub(crate) mod interruption;
+mod journal;
+mod model;
+mod workflow;
+
+pub use journal::Checkpoint;
+pub use model::Plan;
+pub use workflow::{
+    adoption_plan, apply, confirmation_plan, list, outcome, read_plan, request_plan, status,
+};
 
 use std::path::Path;
 
@@ -17,6 +28,10 @@ use crate::{
     passport,
     projects::{checkout, passports},
 };
+
+pub(super) fn validate_write(confirm: bool, value: &Value) -> Result<()> {
+    model::validate_write(confirm, value)
+}
 
 fn invalid() -> Failure {
     Failure::precondition(

@@ -194,6 +194,9 @@ impl Snapshot {
             || self.observation["organization_id"] != self.organization["organization_id"]
             || self.observation["capabilities"]["authorization_revision"]
                 != target["authorization_revision"]
+            || !self.observation["capabilities"]["capabilities"]
+                .as_array()
+                .is_some_and(|values| values.iter().any(|value| value == "project.link"))
             || self.local_project["owner_account_id"] != self.context.local_identity.account_id
             || !passport::stable_id(self.project_id()?, "project")
             || self.local_project["root"]["identity"]
@@ -378,7 +381,7 @@ impl Interruption {
 #[serde(tag = "effect", rename_all = "snake_case", deny_unknown_fields)]
 pub(super) enum Effect {
     Requested {
-        server_plan: ServerPlan,
+        server_plan: Box<ServerPlan>,
         outcome_reader: Option<Binding>,
     },
     Confirmed {
@@ -468,7 +471,7 @@ pub(super) enum Change {
     Confirm {
         request_operation_id: String,
         snapshot: Box<Snapshot>,
-        server_plan: ServerPlan,
+        server_plan: Box<ServerPlan>,
     },
     Adopt {
         request_operation_id: String,
@@ -500,6 +503,10 @@ pub struct Plan {
 }
 
 impl Plan {
+    pub fn state_parent(&self) -> &std::path::Path {
+        &self.state_parent
+    }
+
     pub(super) fn snapshot(&self) -> &Snapshot {
         match &self.change {
             Change::Request { snapshot }
@@ -592,5 +599,24 @@ impl Plan {
             format!("native.project-link.confirm.{}", self.operation_id).into();
         CONFIRM.validate(&value)?;
         Ok(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn server_digest_encoding_matches_python_ascii_escape_and_key_order() -> Result<()> {
+        let value =
+            json!({"z":null,"policy":"café 🚀\u{7f}","a":"line\nquote\"slash\\","空":"value"});
+        let bytes = server_bytes(&value)?;
+        assert_eq!(bytes, br#"{"a":"line\nquote\"slash\\","policy":"caf\u00e9 \ud83d\ude80\u007f","z":null,"\u7a7a":"value"}"#);
+        assert_eq!(
+            digest::sha256(&bytes),
+            "sha256:6ec621178fe3e099856ad12dd80745b7b3577c26635a737a6f72db234c1a63db"
+        );
+        assert!(server_bytes(&json!({"nested":{"a":"value"}})).is_err());
+        Ok(())
     }
 }
