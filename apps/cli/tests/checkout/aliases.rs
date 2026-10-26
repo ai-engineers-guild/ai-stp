@@ -49,17 +49,29 @@ fn physical_aliases_keep_one_project_and_refuse_a_replaced_registered_root()
     aliases.push(temp.path().join("Checkout-cafe\u{301}"));
     #[cfg(windows)]
     {
-        // Built-in /J creates a local directory junction. Fixed relative names
-        // avoid passing paths through cmd's expansion/quoting syntax.
+        use std::os::windows::process::CommandExt;
+        // Keep shell syntax fixed and pass fully qualified paths as quoted
+        // environment data. Junction setup must not depend on cmd's cwd.
         let cmd = PathBuf::from(std::env::var_os("SystemRoot").ok_or("SystemRoot absent")?)
             .join("System32/cmd.exe");
         let result = Command::new(cmd)
-            .current_dir(temp.path())
-            .args(["/D", "/C", "mklink", "/J", "Junction", "Checkout"])
+            .env("AI_STP_CHECKOUT_JUNCTION_LINK", temp.path().join("Junction"))
+            .env("AI_STP_CHECKOUT_JUNCTION_TARGET", &root)
+            .args(["/D", "/V:OFF", "/C"])
+            .raw_arg(r#"mklink /J "%AI_STP_CHECKOUT_JUNCTION_LINK%" "%AI_STP_CHECKOUT_JUNCTION_TARGET%""#)
             .output()?;
         assert!(
             result.status.success(),
-            "fixture directory junction creation failed"
+            "fixture directory junction creation failed: {}; stdout={}; stderr={}",
+            result.status,
+            String::from_utf8_lossy(&result.stdout)
+                .chars()
+                .take(1024)
+                .collect::<String>(),
+            String::from_utf8_lossy(&result.stderr)
+                .chars()
+                .take(1024)
+                .collect::<String>()
         );
         aliases.push(temp.path().join("Junction"));
         aliases.push(temp.path().join("checkout"));
