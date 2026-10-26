@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import re
 import stat
 import tempfile
 import zipfile
@@ -117,8 +118,6 @@ def exercise(
             str(state),
             "--harness",
             harness,
-            "--version",
-            version,
             "--target",
             str(target),
             "--scope",
@@ -232,8 +231,15 @@ def main() -> None:
         parser.add_argument("--" + name, type=Path, required=True)
     args = parser.parse_args()
     observation = json.loads(args.observations.read_text())
+    version = observation["component_version"]
+    require(
+        isinstance(version, str)
+        and re.fullmatch(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)", version)
+        is not None,
+        "an exact canonical fixture version is required",
+    )
     declarations = json.loads(
-        (ROOT / "apps/cli/tests/fixtures/provider-declarations.json").read_text()
+        (ROOT / f"apps/cli/tests/fixtures/provider-declarations-{version}.json").read_text()
     )
     observed = {
         r["provider_info"]["harness_id"]: r["provider_info"] for r in observation["reports"]
@@ -245,7 +251,6 @@ def main() -> None:
         "fixture declarations differ from authenticated observations",
     )
     require(observation["installation_qualified"] is False, "inspection was presented as a permit")
-    version = observation["component_version"]
     binary = args.binary.resolve(strict=True)
     state = args.state.resolve(strict=True)
     bundles = args.bundles.resolve(strict=True)

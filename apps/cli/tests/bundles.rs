@@ -984,7 +984,7 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
     }
     let mut store = Store::open(export_state.as_deref().unwrap_or(root.path()), true)?;
     let declarations: Vec<Value> =
-        serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+        serde_json::from_str(include_str!("fixtures/provider-declarations-0.0.95.json"))?;
     scopes::journey(&mut store, &declarations)?;
     opencode_namespaces(&mut store, &declarations)?;
     pi_namespaces(&mut store, &declarations)?;
@@ -1131,7 +1131,7 @@ fn exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs(
             profiles += 1;
         }
     }
-    assert_eq!(profiles, 16);
+    assert_eq!(profiles, 19);
     let claude = declarations
         .iter()
         .find(|p| p["harness_id"] == "claude-code")
@@ -1576,7 +1576,7 @@ fn declared_exclusions_are_symmetric_and_do_not_conflict_with_their_owner()
     let root = tempfile::tempdir()?;
     let mut store = Store::open(root.path(), true)?;
     let declarations: Vec<Value> =
-        serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+        serde_json::from_str(include_str!("fixtures/provider-declarations-0.0.95.json"))?;
     let declaration = declarations
         .iter()
         .find(|value| value["harness_id"] == "claude-code")
