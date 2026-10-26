@@ -40,6 +40,7 @@ class LostAcknowledgements:
         self.lose_next: str | None = None
         self.hide_outcome = False
         self.unsupported_settlement = False
+        self.settlement_reads = 0
         self.refuse_next: str | None = None
         self.writes: list[str] = []
 
@@ -48,6 +49,8 @@ class LostAcknowledgements:
             await self.app(scope, receive, send)
             return
         path, method = scope["path"], scope["method"]
+        if method == "GET" and path.endswith("/settlement"):
+            self.settlement_reads += 1
         if self.unsupported_settlement and method == "GET" and path.endswith("/settlement"):
             await JSONResponse(
                 {"schema_version": 1, "ok": False, "error": {"code": "AI_STP_NOT_FOUND"}},

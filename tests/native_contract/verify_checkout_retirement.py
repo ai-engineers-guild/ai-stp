@@ -222,11 +222,16 @@ async def qualify(
         "--context",
         context,
     ]
-    await refused(binary, home, retirement_arguments)
+    reads_before = faults.settlement_reads
+    await refused(binary, home, [*retirement_arguments, "--state-dir", str(state)])
+    assert faults.settlement_reads == reads_before + 1
     faults.unsupported_settlement = True
     try:
-        unavailable = await refused(binary, home, retirement_arguments)
-        assert unavailable.error.code == "AI_STP_DEPENDENCY_UNAVAILABLE"
+        unavailable = await refused(
+            binary, home, [*retirement_arguments, "--state-dir", str(state)]
+        )
+        assert unavailable.error.code == "AI_STP_DEPENDENCY_UNAVAILABLE", unavailable.error.code
+        assert faults.settlement_reads == reads_before + 2
     finally:
         faults.unsupported_settlement = False
     assert reservations() == reserved
@@ -275,6 +280,8 @@ async def qualify(
             source_id,
             "--git-executable",
             git_executable,
+            "--state-dir",
+            str(state),
         ],
     )
 
@@ -325,6 +332,8 @@ async def qualify(
             confirming["plan"]["operation_id"],
             "--context",
             context,
+            "--state-dir",
+            str(state),
         ],
     )
     assert (await run("context", "list"))["selected"] == selected
