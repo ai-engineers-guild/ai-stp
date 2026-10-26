@@ -621,7 +621,16 @@ import type {
   ReadProjectTechnologyResponses,
   ReadProjectUnlinkPlanData,
   ReadProjectUnlinkPlanErrors,
+  ReadProjectUnlinkPlanOutcomeData,
+  ReadProjectUnlinkPlanOutcomeErrors,
+  ReadProjectUnlinkPlanOutcomeResponses,
   ReadProjectUnlinkPlanResponses,
+  ReadProjectUnlinkPlanSettlementData,
+  ReadProjectUnlinkPlanSettlementErrors,
+  ReadProjectUnlinkPlanSettlementResponses,
+  ReadProjectUnlinkRequestOutcomeData,
+  ReadProjectUnlinkRequestOutcomeErrors,
+  ReadProjectUnlinkRequestOutcomeResponses,
   ReadPublicationPlanData,
   ReadPublicationPlanErrors,
   ReadPublicationPlanResponses,
@@ -5508,6 +5517,26 @@ export const readProjectLinkTarget = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Recover original account-owned unlink evidence by its exact request key.
+ */
+export const readProjectUnlinkRequestOutcome = <ThrowOnError extends boolean = false>(
+  options: Options<ReadProjectUnlinkRequestOutcomeData, ThrowOnError>,
+): RequestResult<
+  ReadProjectUnlinkRequestOutcomeResponses,
+  ReadProjectUnlinkRequestOutcomeErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadProjectUnlinkRequestOutcomeResponses,
+    ReadProjectUnlinkRequestOutcomeErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/organizations/{organization_id}/project-unlink-plan-requests/{request_key}",
+    ...options,
+  });
+
+/**
  * Create an exact no-side-effect project unlink plan.
  */
 export const createProjectUnlinkPlan = <ThrowOnError extends boolean = false>(
@@ -5540,6 +5569,46 @@ export const readProjectUnlinkPlan = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/organizations/{organization_id}/project-unlink-plans/{plan_id}",
+    ...options,
+  });
+
+/**
+ * Read original account-owned unlink evidence without replaying a mutation.
+ */
+export const readProjectUnlinkPlanOutcome = <ThrowOnError extends boolean = false>(
+  options: Options<ReadProjectUnlinkPlanOutcomeData, ThrowOnError>,
+): RequestResult<
+  ReadProjectUnlinkPlanOutcomeResponses,
+  ReadProjectUnlinkPlanOutcomeErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadProjectUnlinkPlanOutcomeResponses,
+    ReadProjectUnlinkPlanOutcomeErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/organizations/{organization_id}/project-unlink-plans/{plan_id}/outcome",
+    ...options,
+  });
+
+/**
+ * Read an original unlink outcome after serializing with its confirmation.
+ */
+export const readProjectUnlinkPlanSettlement = <ThrowOnError extends boolean = false>(
+  options: Options<ReadProjectUnlinkPlanSettlementData, ThrowOnError>,
+): RequestResult<
+  ReadProjectUnlinkPlanSettlementResponses,
+  ReadProjectUnlinkPlanSettlementErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadProjectUnlinkPlanSettlementResponses,
+    ReadProjectUnlinkPlanSettlementErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/organizations/{organization_id}/project-unlink-plans/{plan_id}/settlement",
     ...options,
   });
 

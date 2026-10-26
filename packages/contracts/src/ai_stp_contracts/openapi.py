@@ -110,6 +110,7 @@ from ai_stp_contracts.context import (
     ProjectSyncApplyRequest,
     ProjectSyncPlanRequest,
     ProjectSyncPlanResponse,
+    ProjectUnlinkPlanOutcome,
     ProjectUnlinkPlanRequest,
     ProjectUnlinkPlanResponse,
     ProjectUnlinkRequest,
@@ -2339,6 +2340,51 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
                 pattern=stable_id_pattern("unlink_plan"),
             ),
         ),
+    ),
+    Operation(
+        method="get",
+        path="/organizations/{organization_id}/project-unlink-plans/{plan_id}/outcome",
+        operation_id="readProjectUnlinkPlanOutcome",
+        summary="Read original account-owned unlink evidence without replaying a mutation.",
+        response=ProjectUnlinkPlanOutcome,
+        authenticated=True,
+        path_params=(
+            _ORGANIZATION_ID,
+            PathParam(
+                "plan_id", "Original unlink plan identifier.", stable_id_pattern("unlink_plan")
+            ),
+        ),
+        errors=("AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED", "AI_STP_PRECONDITION_FAILED"),
+    ),
+    Operation(
+        method="get",
+        path="/organizations/{organization_id}/project-unlink-plans/{plan_id}/settlement",
+        operation_id="readProjectUnlinkPlanSettlement",
+        summary="Read an original unlink outcome after serializing with its confirmation.",
+        response=ProjectUnlinkPlanOutcome,
+        authenticated=True,
+        path_params=(
+            _ORGANIZATION_ID,
+            PathParam(
+                "plan_id", "Original unlink plan identifier.", stable_id_pattern("unlink_plan")
+            ),
+        ),
+        errors=("AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED", "AI_STP_PRECONDITION_FAILED"),
+    ),
+    Operation(
+        method="get",
+        path="/organizations/{organization_id}/project-unlink-plan-requests/{request_key}",
+        operation_id="readProjectUnlinkRequestOutcome",
+        summary="Recover original account-owned unlink evidence by its exact request key.",
+        response=ProjectUnlinkPlanOutcome,
+        authenticated=True,
+        path_params=(
+            _ORGANIZATION_ID,
+            PathParam(
+                "request_key", "Original unlink-plan idempotency key.", IDEMPOTENCY_KEY_PATTERN
+            ),
+        ),
+        errors=("AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED", "AI_STP_PRECONDITION_FAILED"),
     ),
     Operation(
         method="delete",

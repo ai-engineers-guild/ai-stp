@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "standard_family": "ai-stp-standard/1",
-  "contract_digest": "sha256:62f907f89ac4c71eb3080dd2acb3090ec0971e66e0d4d6272eb364ba2ade545b",
+  "contract_digest": "sha256:bcede0ffb3f1ef19f6ce698ef2dbe46aef45fa8b6d871d6675c27c3f9a8ecf83",
   "axes": [
     {
       "name": "standard_family",
@@ -1831,6 +1831,10 @@
     {
       "axis": "http_schema",
       "identity": "urn:ai-stp:schema:v1:project-technology-write-request"
+    },
+    {
+      "axis": "http_schema",
+      "identity": "urn:ai-stp:schema:v1:project-unlink-plan-outcome"
     },
     {
       "axis": "http_schema",
