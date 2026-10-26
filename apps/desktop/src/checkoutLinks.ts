@@ -8,6 +8,23 @@ export interface CheckoutReview {
   digest: string;
 }
 
+/** Decode the CLI's byte-preserving LocalPath; display text cannot reopen it. */
+export function checkoutPath(value: unknown): string | null {
+  const path = record(value);
+  if (Object.keys(path).length !== 2 || typeof path.display !== "string" ||
+    typeof path.utf8_base64 !== "string" || path.utf8_base64.length > 43692) return null;
+  try {
+    const binary = atob(path.utf8_base64);
+    if (!binary.length || binary.length > 32768 || btoa(binary) !== path.utf8_base64) return null;
+    const decoded = new TextDecoder("utf-8", { fatal: true }).decode(
+      Uint8Array.from(binary, (character) => character.charCodeAt(0)),
+    );
+    if (decoded.includes("\0") || decoded.normalize("NFC") !== path.display ||
+      !(decoded.startsWith("/") || /^[A-Za-z]:[\\/]/.test(decoded) || decoded.startsWith("\\\\"))) return null;
+    return decoded;
+  } catch { return null; }
+}
+
 export function checkoutFailure(): CmdResult {
   return {
     ok: false,
@@ -36,6 +53,7 @@ export function checkoutReview(
     expectedLocal = record(anchor.local_project),
     organization = record(snapshot.organization);
   const digest = response.data?.plan_digest;
+  const expectedRoot = checkoutPath(record(expectedLocal.root).path);
   if (
     !response.ok || typeof digest !== "string" ||
     !/^sha256:[0-9a-f]{64}$/.test(digest) ||
@@ -43,7 +61,7 @@ export function checkoutReview(
     typeof original.account_id !== "string" ||
     typeof record(anchor.organization).organization_id !== "string" ||
     typeof expectedLocal.local_project_id !== "string" ||
-    typeof record(expectedLocal.root).path !== "string" ||
+    expectedRoot === null ||
     !Array.isArray(record(expectedLocal.root).identity) ||
     (record(expectedLocal.root).identity as unknown[]).length !== 2 ||
     record(snapshot.context).context_id !== context.id ||
@@ -52,7 +70,8 @@ export function checkoutReview(
     organization.organization_id !== record(anchor.organization).organization_id ||
     record(snapshot.target).remote_project_id !== project ||
     local.local_project_id !== expectedLocal.local_project_id ||
-    plan.checkout_root !== record(expectedLocal.root).path ||
+    checkoutPath(plan.checkout_root) !== expectedRoot ||
+    checkoutPath(record(local.root).path) !== expectedRoot ||
     JSON.stringify(record(local.root).identity) !== JSON.stringify(record(expectedLocal.root).identity) ||
     record(snapshot.request_coordinates).provider_project_id !== record(anchor.request_coordinates).provider_project_id ||
     (action !== "request" && change.request_operation_id !== request)
@@ -75,7 +94,7 @@ export function retainedCheckout(value: unknown): CheckoutReview | null {
     typeof data.plan_digest !== "string" || !/^sha256:[0-9a-f]{64}$/.test(data.plan_digest) ||
     !["request", "confirm", "adopt"].includes(String(action)) ||
     !["applying", "interrupted", "completed", "retired"].includes(String(data.state)) ||
-    data.installation_authority !== false) return null;
+    data.installation_authority !== false || checkoutPath(plan.checkout_root) === null) return null;
   const snapshot = record(record(plan.change).snapshot);
   if (typeof record(snapshot.context).context_id !== "string" ||
     typeof record(snapshot.account).origin !== "string" ||

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { record, records, type ContextView } from "../contexts";
 import { cliPlan, cmdCheckoutApply, type CmdResult } from "../transport";
-import { checkoutFailure, checkoutReceipt, checkoutReview, type CheckoutAction, type CheckoutReview } from "../checkoutLinks";
+import { checkoutFailure, checkoutPath, checkoutReceipt, checkoutReview, type CheckoutAction, type CheckoutReview } from "../checkoutLinks";
 import { Link } from "react-router";
 import { Details, ResultMeta, Spinner } from "./Result";
 
@@ -149,7 +149,7 @@ export default function CheckoutPreview({
   const data = record(result?.data?.preview);
   const checkout = record(record(data.checkout).checkout);
   const local = record(data.local_project);
-  const observedRoot = record(local.root).path;
+  const observedRoot = checkoutPath(record(local.root).path);
   return (
     <section className="card space-y-4" aria-label="Corporate checkout preview">
       <div className="space-y-2">

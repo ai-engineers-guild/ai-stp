@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { record, records, useContexts } from "../contexts";
-import { checkoutFailure, checkoutReader, checkoutReceipt, checkoutReview, retainedCheckout, type CheckoutReview } from "../checkoutLinks";
+import { checkoutFailure, checkoutPath, checkoutReader, checkoutReceipt, checkoutReview, retainedCheckout, type CheckoutReview } from "../checkoutLinks";
 import { cliPlan, cmdCheckoutApply, cmdMachineHelp, cmdRunRead, type CmdResult } from "../transport";
 import { Details, ResultMeta, Spinner } from "./Result";
 
@@ -77,7 +77,7 @@ export default function CheckoutOperations() {
       if (response.ok && exact) {
         setSelected(record(response.data));
         setReview(exact);
-        setRoot(typeof exact.plan.checkout_root === "string" ? exact.plan.checkout_root : "");
+        setRoot(checkoutPath(exact.plan.checkout_root) ?? "");
         setGit("");
       }
     } finally { if (active.current && sequence === epoch.current) setBusy(false); }

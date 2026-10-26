@@ -7,7 +7,7 @@ import CheckoutOperations from "./components/CheckoutOperations";
 import { record, useContexts, type ContextView } from "./contexts";
 import * as transport from "./transport";
 import type { CmdResult } from "./transport";
-import type { CheckoutAction } from "./checkoutLinks";
+import { checkoutPath, checkoutReview, type CheckoutAction } from "./checkoutLinks";
 
 vi.mock("./transport", async (original) => ({
   ...(await original<typeof import("./transport")>()),
@@ -17,12 +17,14 @@ const context: ContextView = { id: "context_A", label: "First", mode: "corporate
   organization: "First company", origin: "https://first.example.test", connection: "connection_A" };
 const project = { id: "remote_project_first", name: "First project" };
 const root = "/private/checkout";
+const wirePath = (value: string) => ({ display: value.normalize("NFC"),
+  utf8_base64: btoa(String.fromCharCode(...new TextEncoder().encode(value))) });
 const account = { origin: context.origin, account_id: "account_first", connection: { connection_id: context.connection } };
 const organization = { organization_id: "organization_first", display_name: "First company" };
 const snapshot = {
   context: { context_id: context.id, label: context.label, authority: { kind: "remote", account, organization } },
   account, organization, target: { remote_project_id: project.id, organization_id: organization.organization_id, providers: [] },
-  local_project: { local_project_id: "project_private", root: { path: root, identity: ["10", "20"] } },
+  local_project: { local_project_id: "project_private", root: { path: wirePath(root), identity: ["10", "20"] } },
   request_coordinates: { remote_project_id: project.id, provider_project_id: null },
   selected_provider: null, checkout: { checkout: { commit: "a".repeat(40) } },
 };
@@ -31,7 +33,7 @@ const ok = (data: Record<string, unknown> = {}): CmdResult => ({
 });
 function proposal(action: CheckoutAction): CmdResult {
   return ok({ plan_digest: "sha256:" + ({ request: "a", confirm: "b", adopt: "c" }[action]).repeat(64),
-    plan: { operation_id: "operation_" + action, checkout_root: root,
+    plan: { operation_id: "operation_" + action, checkout_root: wirePath(root),
       change: { action, snapshot, ...(action === "request" ? {} : { request_operation_id: "operation_request" }) } } });
 }
 function receipt(action: CheckoutAction, state = "completed"): Record<string, unknown> {
@@ -72,6 +74,34 @@ beforeEach(() => {
   vi.mocked(transport.cmdRunRead).mockResolvedValue(ok({ items: [], next_cursor: null }));
 });
 afterEach(cleanup);
+
+it.each(["/private/cafe\u0301", "C:\\Users\\fixture\\café", "\\\\server\\share\\project"])(
+  "preserves the exact native path bytes for %s", (path) => {
+    expect(checkoutPath(wirePath(path))).toBe(path);
+  },
+);
+
+it.each([
+  root,
+  { ...wirePath(root), display: "/another/root" },
+  { display: "/", utf8_base64: "L/8=" },
+  { display: "/\0", utf8_base64: "LwA=" },
+  { ...wirePath(root), utf8_base64: wirePath(root).utf8_base64.replace(/=+$/, "") },
+  wirePath("relative/root"),
+])("refuses malformed or unsupported native path evidence %#", (value) => {
+  expect(checkoutPath(value)).toBe(null);
+});
+
+it("refuses equal-display roots with different native UTF-8 bytes", () => {
+  const anchor = structuredClone(snapshot);
+  anchor.local_project.root.path = wirePath("/private/cafe\u0301");
+  const response = structuredClone(proposal("request"));
+  const plan = record(response.data!.plan);
+  const current = record(record(plan.change).snapshot);
+  record(current.local_project).root = { path: wirePath("/private/café"), identity: ["10", "20"] };
+  plan.checkout_root = wirePath("/private/café");
+  expect(checkoutReview(response, "request", context, project.id, anchor)).toBe(null);
+});
 
 it("separately reviews and authorizes request, confirmation and local binding through exact native plans", async () => {
   render(view());

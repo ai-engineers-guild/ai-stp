@@ -59,7 +59,7 @@ function response(root: string, selected = ""): CmdResult {
           provider_project_id: selected || null,
         },
         selected_provider: selected ? provider : null,
-        local_project: { root: { path: root } },
+        local_project: { root: { path: { display: root, utf8_base64: btoa(root) } } },
         checkout: { checkout: { commit: "a".repeat(40) } },
         online_verified: true,
         observation_only: true,
