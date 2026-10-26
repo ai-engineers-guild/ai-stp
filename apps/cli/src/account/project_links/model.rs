@@ -10,7 +10,7 @@ use crate::{
     authoring, canonical, digest,
     error::Result,
     files, passport,
-    store::{CHECKOUT_LINK_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA, PROFILE_SCHEMA},
+    store::{CHECKOUT_RETIREMENT_SCHEMA, checkout_schema_after},
     wire,
 };
 
@@ -394,6 +394,9 @@ pub(super) enum Effect {
     Interrupted {
         retirement: Interruption,
     },
+    Retired {
+        retirement: Box<super::retirement::Evidence>,
+    },
 }
 
 impl Effect {
@@ -457,6 +460,7 @@ impl Effect {
                 }
                 Ok(())
             }
+            (Self::Retired { retirement }, _) => retirement.validate(plan),
             _ => Err(invalid()),
         }
     }
@@ -518,19 +522,18 @@ impl Plan {
     pub fn digest(&self) -> Result<String> {
         let snapshot = self.snapshot();
         snapshot.validate()?;
-        if self.schema_version != 1
+        if self.schema_version
+            != if self.registry_schema_after == CHECKOUT_RETIREMENT_SCHEMA {
+                2
+            } else {
+                1
+            }
             || !passport::stable_id(&self.operation_id, "operation")
             || !self.state_parent.is_absolute()
             || !self.checkout_root.is_absolute()
             || snapshot.context.root != self.state_parent
             || authoring::expiry(&self.created_at)? != self.expires_at
-            || ![
-                PROFILE_SCHEMA,
-                ENROLLMENT_RECOVERY_SCHEMA,
-                CHECKOUT_LINK_SCHEMA,
-            ]
-            .contains(&self.registry_schema_before)
-            || self.registry_schema_after != CHECKOUT_LINK_SCHEMA
+            || self.registry_schema_after != checkout_schema_after(self.registry_schema_before)?
         {
             return Err(invalid());
         }

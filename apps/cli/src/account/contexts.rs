@@ -11,8 +11,8 @@ use crate::{
     error::{Failure, Result},
     files, identity, passport,
     store::{
-        CHECKOUT_LINK_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA, PROFILE_SCHEMA, Store, database,
-        profile_schema_after,
+        CHECKOUT_LINK_SCHEMA, CHECKOUT_RETIREMENT_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA,
+        PROFILE_SCHEMA, Store, database, profile_schema_after,
     },
     wire,
 };
@@ -288,6 +288,7 @@ impl Plan {
                 PROFILE_SCHEMA,
                 ENROLLMENT_RECOVERY_SCHEMA,
                 CHECKOUT_LINK_SCHEMA,
+                CHECKOUT_RETIREMENT_SCHEMA,
             ]
             .contains(&self.registry_schema_after)
             || !passport::stable_id(&self.operation_id, "operation")
