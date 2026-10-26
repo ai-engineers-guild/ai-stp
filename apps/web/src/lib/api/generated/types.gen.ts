@@ -11753,6 +11753,34 @@ export type ProjectTechnologyWriteRequest = {
 };
 
 /**
+ * ProjectUnlinkPlanOutcome
+ *
+ * Original account-owned unlink evidence, without new mutation authority.
+ */
+export type ProjectUnlinkPlanOutcome = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  link: ProjectLinkResponse | null;
+  /**
+   * Observation Only
+   */
+  observation_only: true;
+  observed_at: Timestamp;
+  plan: ProjectUnlinkPlanResponse;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * State
+   */
+  state: "ready" | "applied" | "expired";
+  [key: string]: unknown;
+};
+
+/**
  * ProjectUnlinkPlanRequest
  *
  * Request a no-side-effect plan for unlinking one exact link revision.
@@ -33350,6 +33378,76 @@ export type ReadProjectLinkTargetResponses = {
 export type ReadProjectLinkTargetResponse =
   ReadProjectLinkTargetResponses[keyof ReadProjectLinkTargetResponses];
 
+export type ReadProjectUnlinkRequestOutcomeData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Original unlink-plan idempotency key.
+     */
+    request_key: string;
+  };
+  query?: never;
+  url: "/v1/organizations/{organization_id}/project-unlink-plan-requests/{request_key}";
+};
+
+export type ReadProjectUnlinkRequestOutcomeErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_PRECONDITION_FAILED.
+   */
+  412: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadProjectUnlinkRequestOutcomeError =
+  ReadProjectUnlinkRequestOutcomeErrors[keyof ReadProjectUnlinkRequestOutcomeErrors];
+
+export type ReadProjectUnlinkRequestOutcomeResponses = {
+  /**
+   * Recover original account-owned unlink evidence by its exact request key.
+   */
+  200: ProjectUnlinkPlanOutcome;
+};
+
+export type ReadProjectUnlinkRequestOutcomeResponse =
+  ReadProjectUnlinkRequestOutcomeResponses[keyof ReadProjectUnlinkRequestOutcomeResponses];
+
 export type CreateProjectUnlinkPlanData = {
   body: ProjectUnlinkPlanRequest;
   headers: {
@@ -33473,6 +33571,146 @@ export type ReadProjectUnlinkPlanResponses = {
 
 export type ReadProjectUnlinkPlanResponse =
   ReadProjectUnlinkPlanResponses[keyof ReadProjectUnlinkPlanResponses];
+
+export type ReadProjectUnlinkPlanOutcomeData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Original unlink plan identifier.
+     */
+    plan_id: string;
+  };
+  query?: never;
+  url: "/v1/organizations/{organization_id}/project-unlink-plans/{plan_id}/outcome";
+};
+
+export type ReadProjectUnlinkPlanOutcomeErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_PRECONDITION_FAILED.
+   */
+  412: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadProjectUnlinkPlanOutcomeError =
+  ReadProjectUnlinkPlanOutcomeErrors[keyof ReadProjectUnlinkPlanOutcomeErrors];
+
+export type ReadProjectUnlinkPlanOutcomeResponses = {
+  /**
+   * Read original account-owned unlink evidence without replaying a mutation.
+   */
+  200: ProjectUnlinkPlanOutcome;
+};
+
+export type ReadProjectUnlinkPlanOutcomeResponse =
+  ReadProjectUnlinkPlanOutcomeResponses[keyof ReadProjectUnlinkPlanOutcomeResponses];
+
+export type ReadProjectUnlinkPlanSettlementData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Original unlink plan identifier.
+     */
+    plan_id: string;
+  };
+  query?: never;
+  url: "/v1/organizations/{organization_id}/project-unlink-plans/{plan_id}/settlement";
+};
+
+export type ReadProjectUnlinkPlanSettlementErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_PRECONDITION_FAILED.
+   */
+  412: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadProjectUnlinkPlanSettlementError =
+  ReadProjectUnlinkPlanSettlementErrors[keyof ReadProjectUnlinkPlanSettlementErrors];
+
+export type ReadProjectUnlinkPlanSettlementResponses = {
+  /**
+   * Read an original unlink outcome after serializing with its confirmation.
+   */
+  200: ProjectUnlinkPlanOutcome;
+};
+
+export type ReadProjectUnlinkPlanSettlementResponse =
+  ReadProjectUnlinkPlanSettlementResponses[keyof ReadProjectUnlinkPlanSettlementResponses];
 
 export type ListOwnerObjectsData = {
   body?: never;

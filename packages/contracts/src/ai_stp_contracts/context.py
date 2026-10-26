@@ -514,6 +514,39 @@ class ProjectUnlinkPlanResponse(ContractModel):
     expires_at: Timestamp
 
 
+class ProjectUnlinkPlanOutcome(ContractModel):
+    """Original account-owned unlink evidence, without new mutation authority."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    plan: ProjectUnlinkPlanResponse
+    state: Literal["ready", "applied", "expired"]
+    link: ProjectLinkResponse | None
+    authorization_revision: Annotated[str, Field(min_length=1, max_length=128)]
+    observed_at: Timestamp
+    observation_only: Literal[True] = True
+
+    @model_validator(mode="after")
+    def validate_outcome_binding(self) -> "ProjectUnlinkPlanOutcome":
+        if (self.state == "applied") != (self.link is not None):
+            raise ValueError("only an applied unlink plan has terminal link evidence")
+        if self.link is not None and (
+            self.link.link_id != self.plan.link_id
+            or self.link.organization_id != self.plan.organization_id
+            or self.link.local_project_id != self.plan.local_project_id
+            or self.link.remote_project_id != self.plan.remote_project_id
+            or self.link.provider_project_id != self.plan.provider_project_id
+            or self.link.local_revision != self.plan.local_revision
+            or self.link.remote_revision != self.plan.remote_revision
+            or self.link.provider_revision != self.plan.provider_revision
+            or self.link.state != "unlinked"
+            or self.link.revision != self.plan.expected_link_revision + 1
+        ):
+            raise ValueError("the terminal link must belong to the original unlink decision")
+        return self
+
+
 class ProjectSyncPlanRequest(ContractModel):
     """Request a deterministic sync plan for an existing explicit link."""
 

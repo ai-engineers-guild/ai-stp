@@ -355,6 +355,53 @@ async def read_project_unlink_plan(
     return JSONResponse(content=body.model_dump(mode="json"))
 
 
+@router.get(
+    "/organizations/{organization_id}/project-unlink-plans/{plan_id}/outcome", response_model=None
+)
+async def read_project_unlink_plan_outcome(
+    organization_id: str,
+    plan_id: str,
+    db: Db,
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    body = await service.read_project_unlink_plan_outcome(
+        db, ctx=ctx, organization_id=organization_id, plan_id=plan_id
+    )
+    return JSONResponse(content=body.model_dump(mode="json"), headers=_NO_STORE)
+
+
+@router.get(
+    "/organizations/{organization_id}/project-unlink-plans/{plan_id}/settlement",
+    response_model=None,
+)
+async def read_project_unlink_plan_settlement(
+    organization_id: str,
+    plan_id: str,
+    db: Db,
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    body = await service.read_project_unlink_plan_settlement(
+        db, ctx=ctx, organization_id=organization_id, plan_id=plan_id
+    )
+    return JSONResponse(content=body.model_dump(mode="json"), headers=_NO_STORE)
+
+
+@router.get(
+    "/organizations/{organization_id}/project-unlink-plan-requests/{request_key}",
+    response_model=None,
+)
+async def read_project_unlink_request_outcome(
+    organization_id: str,
+    request_key: IdempotencyKey,
+    db: Db,
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    body = await service.read_project_unlink_request_outcome(
+        db, ctx=ctx, organization_id=organization_id, request_key=request_key
+    )
+    return JSONResponse(content=body.model_dump(mode="json"), headers=_NO_STORE)
+
+
 @router.post("/projects/links/{link_id}/sync-plans", response_model=None)
 async def create_project_sync_plan(
     link_id: str,
