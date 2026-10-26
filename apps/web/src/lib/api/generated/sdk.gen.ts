@@ -606,6 +606,9 @@ import type {
   ReadProjectLinkPlanOutcomeErrors,
   ReadProjectLinkPlanOutcomeResponses,
   ReadProjectLinkPlanResponses,
+  ReadProjectLinkRequestOutcomeData,
+  ReadProjectLinkRequestOutcomeErrors,
+  ReadProjectLinkRequestOutcomeResponses,
   ReadProjectLinkResponses,
   ReadProjectLinkTargetData,
   ReadProjectLinkTargetErrors,
@@ -5386,6 +5389,26 @@ export const readOrganizationCapabilities = <ThrowOnError extends boolean = fals
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/organizations/{organization_id}/capabilities",
+    ...options,
+  });
+
+/**
+ * Recover original account-owned plan evidence by its exact request key.
+ */
+export const readProjectLinkRequestOutcome = <ThrowOnError extends boolean = false>(
+  options: Options<ReadProjectLinkRequestOutcomeData, ThrowOnError>,
+): RequestResult<
+  ReadProjectLinkRequestOutcomeResponses,
+  ReadProjectLinkRequestOutcomeErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadProjectLinkRequestOutcomeResponses,
+    ReadProjectLinkRequestOutcomeErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/organizations/{organization_id}/project-link-plan-requests/{request_key}",
     ...options,
   });
 

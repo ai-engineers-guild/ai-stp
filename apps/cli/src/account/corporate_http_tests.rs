@@ -100,6 +100,9 @@ fn serve(
             || route.starts_with(&format!(
                 "/v1/organizations/{organization}/project-link-plans/"
             ))
+            || route.starts_with(&format!(
+                "/v1/organizations/{organization}/project-link-plan-requests/"
+            ))
     );
     let gate = {
         let mut control = control
@@ -140,7 +143,7 @@ fn serve(
             "providers":[],"observed_at":at,"observation_only":true,"future_token":"canary"}),
         );
     }
-    if route.ends_with("/outcome") {
+    if route.ends_with("/outcome") || route.contains("/project-link-plan-requests/") {
         assert!(header.starts_with("GET "));
         let corpus: Value = serde_json::from_str(include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
@@ -159,12 +162,14 @@ fn serve(
         } else {
             control.revision
         };
-        value["plan"]["plan_id"] = route
-            .split('/')
-            .rev()
-            .nth(1)
-            .ok_or_else(|| std::io::Error::other("plan"))?
-            .into();
+        if route.ends_with("/outcome") {
+            value["plan"]["plan_id"] = route
+                .split('/')
+                .rev()
+                .nth(1)
+                .ok_or_else(|| std::io::Error::other("plan"))?
+                .into();
+        }
         value["plan"]["organization_id"] = organization.into();
         value["authorization_revision"] = format!("corporate:{organization}:1:{revision}").into();
         value["observed_at"] = at.into();
@@ -349,6 +354,16 @@ fn exercise(named: bool) -> std::result::Result<(), Box<dyn Error>> {
         assert_eq!(target["observation"]["data"]["remote_revision"], "initial");
         assert_eq!(target["observation"]["installation_authority"], false);
         assert!(!target.to_string().contains("canary"));
+        control.lock().map_err(|_| "fixture")?.stale_link_policy = true;
+        assert!(corporate::observe(root.path(), Some(&contexts[0]), request.clone()).is_err());
+        control.lock().map_err(|_| "fixture")?.bump = true;
+        assert!(corporate::observe(root.path(), Some(&contexts[0]), request).is_err());
+        let request = Request::LinkRequestOutcome {
+            request_key: "context-link-plan-0001".into(),
+        };
+        let outcome = corporate::observe(root.path(), Some(&contexts[0]), request.clone())?;
+        assert_eq!(outcome["observation"]["data"]["state"], "ready");
+        assert!(!outcome.to_string().contains("canary"));
         control.lock().map_err(|_| "fixture")?.stale_link_policy = true;
         assert!(corporate::observe(root.path(), Some(&contexts[0]), request.clone()).is_err());
         control.lock().map_err(|_| "fixture")?.bump = true;
