@@ -356,6 +356,14 @@ configuration home, including the desktop's filtered CLI environment.
 
 ## Build and verification
 
+The manual `provider-release-qualification` workflow authenticates an exact
+seven-component release and reads its declarations under measured Linux
+isolation on Ubuntu 24.04. It requires project profiles and compares each
+artifact's source with its published tag. Its public JSON observations support
+release review and catalog updates; they are not installation permits or proof
+of configuration application. Provider execution and report generation stay in
+the disposable CI environment.
+
 Rust 1.99.1 is pinned in `rust-toolchain.toml`. The SQLite capability VFS build
 needs libclang (the selected Xcode toolchain on macOS, the Visual Studio Clang
 component on Windows, or the system development library on Linux). The
