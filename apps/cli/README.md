@@ -97,6 +97,16 @@ with `--request-key KEY` and that request's exact retained idempotency key. The 
 finds only the same account's original plan; it does not submit or confirm it.
 An absent result leaves an in-flight request unknown and cannot prove rollback.
 
+Use `corporate project link-retire plan --operation ID` to review stopping a
+retained unknown request locally. Its remote outcome stays unknown; the original
+key and receipt remain. For an unknown confirmation, name its exact current
+same-account `--context`: only a fresh serialized expired settlement without a
+link can release its own unbound physical reservation. Ready, applied, forbidden,
+offline and unsupported-server outcomes retain the reservation. Apply the exact
+reviewed JSON/digest with `corporate project link-retire apply`. Terminal replay
+is offline and cannot remove a later request's reservation. Active bindings need
+separate unlink/reconciliation and cannot be retired through this command.
+
 `corporate project link-request plan --context ID --root PATH --project ID`
 reviews the original request without creating a remote plan. Apply its exact
 JSON/digest with `corporate project link apply`. A separate
@@ -221,6 +231,13 @@ checkout checkpoints. Root and named recovery retire the original writer while
 retaining unknown effects and reservations. A current authorized context may
 read positive original evidence afterward; that read does not restore old-device
 write authority. No registry copy, automatic relinking or harness write occurs.
+
+Reviewed checkout retirement advances the registry atomically to format 58,
+fencing older writers before releasing a settled reservation. Original plans,
+keys and format-55–57 receipts keep their bytes. New checkout plans use version 2
+and new enrollment recovery uses version 5 on format 58; neither profile changes
+nor recovery can downgrade it. Unknown request retirement closes only the local
+intent and makes no claim about its remote effect.
 
 Windows account sessions use versioned compressed binary records in the native
 Credential Manager, avoiding its password API's UTF-16 expansion. The native

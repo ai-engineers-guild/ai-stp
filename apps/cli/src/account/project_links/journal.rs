@@ -142,7 +142,12 @@ impl Record {
                 return Err(invalid());
             }
             evidence.effect.validate(&held.plan)?;
-            let after = if let Effect::Interrupted { retirement } = &evidence.effect {
+            let after = if let Effect::Retired { retirement } = &evidence.effect {
+                if retirement.source != held.checkpoint()? {
+                    return Err(invalid());
+                }
+                "retired"
+            } else if let Effect::Interrupted { retirement } = &evidence.effect {
                 if held.state != "applying"
                     || held.interruption.is_some()
                     || retirement.checkpoint.progress_digest != held.progress
@@ -209,7 +214,10 @@ impl Record {
 
     pub fn save(&mut self, t: &Transaction<'_>, effect: Effect, at: &str) -> Result<()> {
         effect.validate(&self.plan)?;
-        if self.state == "completed" || !passport::timestamp(at) || at < self.at.as_str() {
+        if matches!(self.state.as_str(), "completed" | "retired")
+            || !passport::timestamp(at)
+            || at < self.at.as_str()
+        {
             return Err(invalid());
         }
         if self.state == "interrupted"
@@ -221,7 +229,7 @@ impl Record {
                 } | Effect::Confirmed {
                     outcome_reader: Some(_),
                     ..
-                }
+                } | Effect::Retired { .. }
             )
         {
             return Err(invalid());
@@ -231,7 +239,14 @@ impl Record {
         {
             return Err(invalid());
         }
-        let after = if matches!(&effect, Effect::Interrupted { .. }) {
+        if let Effect::Retired { retirement } = &effect
+            && retirement.source != self.checkpoint()?
+        {
+            return Err(invalid());
+        }
+        let after = if matches!(&effect, Effect::Retired { .. }) {
+            "retired"
+        } else if matches!(&effect, Effect::Interrupted { .. }) {
             "interrupted"
         } else {
             "completed"
