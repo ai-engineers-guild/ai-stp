@@ -6,9 +6,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, get_settings, require_auth
+from ai_stp_api.deps import Db, get_settings, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
@@ -38,7 +37,7 @@ def _staff_ids(request: Request) -> frozenset[str]:
 @router.post("/reports", response_model=None)
 async def create_report_case(
     body: ReportCaseCreateRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.create_report(db, ctx=ctx, body=body)
@@ -48,7 +47,7 @@ async def create_report_case(
 @router.post("/requests", response_model=None)
 async def create_request_case(
     body: ReportCaseCreateRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.create_report(db, ctx=ctx, body=body)
@@ -58,7 +57,7 @@ async def create_request_case(
 @router.get("/reports", response_model=None)
 async def list_report_cases(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     page_size: Annotated[int, Query(ge=1, le=PAGE_SIZE_MAX)] = PAGE_SIZE_MAX,
     cursor: Annotated[str | None, Query()] = None,
@@ -76,7 +75,7 @@ async def list_report_cases(
 @router.get("/requests", response_model=None)
 async def list_request_cases(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     page_size: Annotated[int, Query(ge=1, le=PAGE_SIZE_MAX)] = PAGE_SIZE_MAX,
     cursor: Annotated[str | None, Query()] = None,
@@ -94,7 +93,7 @@ async def list_request_cases(
 @router.get("/requests/{case_id}", response_model=None)
 async def read_request_case(
     case_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.read_own_report(db, ctx=ctx, case_id=case_id)
@@ -104,7 +103,7 @@ async def read_request_case(
 @router.get("/staff/reports", response_model=None)
 async def list_staff_reports(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     page_size: Annotated[int, Query(ge=1, le=PAGE_SIZE_MAX)] = PAGE_SIZE_DEFAULT,
     cursor: Annotated[str | None, Query()] = None,
@@ -124,7 +123,7 @@ async def list_staff_reports(
 async def read_staff_report(
     case_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.read_staff_report(
@@ -138,7 +137,7 @@ async def staff_triage_report(
     case_id: str,
     body: StaffTriageRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.staff_triage(
@@ -155,7 +154,7 @@ async def staff_triage_report(
 async def staff_version_lifecycle(
     body: StaffLifecycleRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.staff_lifecycle(db, ctx=ctx, staff_ids=_staff_ids(request), body=body)
@@ -166,7 +165,7 @@ async def staff_version_lifecycle(
 async def staff_author_verification(
     body: StaffAuthorVerificationRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.staff_author_verification(
@@ -179,7 +178,7 @@ async def staff_author_verification(
 async def ingest_target_assessment(
     body: TargetAssessmentIngestRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     await service.require_staff(ctx, _staff_ids(request))

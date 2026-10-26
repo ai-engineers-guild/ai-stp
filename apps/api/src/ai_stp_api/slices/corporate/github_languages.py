@@ -5,9 +5,8 @@ from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, get_settings, require_auth
+from ai_stp_api.deps import Db, get_settings, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
@@ -47,7 +46,7 @@ async def enrich_languages(
     project_id: RemoteProjectId,
     payload: GitLabEnrichRequest,
     ctx: Annotated[AuthContext, Depends(require_auth)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     settings: Annotated[Settings, Depends(get_settings)],
     client: Annotated[GitHubClient, Depends(get_client)],
 ) -> TechnologyScanResult:

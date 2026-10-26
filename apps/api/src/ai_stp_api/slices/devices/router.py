@@ -8,9 +8,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, Query, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_auth_settings, get_db, get_settings, require_auth
+from ai_stp_api.deps import Db, get_auth_settings, get_settings, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import AuthSettings
@@ -109,7 +108,7 @@ async def device_challenge(
 async def device_register(
     request: Request,
     body: RegisterDeviceRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> JSONResponse:
@@ -140,7 +139,7 @@ async def device_register(
 @router.get("/devices", response_model=None)
 async def device_list(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     account_id: str | None = Query(default=None),
     page_size: Annotated[int, Query(ge=1, le=PAGE_SIZE_MAX)] = _DEVICE_PAGE_SIZE,
@@ -184,7 +183,7 @@ async def device_list(
 async def device_revoke(
     device_id: str,
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     if_match: Annotated[str | None, Header(alias="If-Match")] = None,
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,

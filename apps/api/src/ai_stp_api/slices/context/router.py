@@ -7,9 +7,8 @@ from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, Header, Query, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, optional_auth, require_auth
+from ai_stp_api.deps import Db, optional_auth, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.local_session import require as require_local_session
 from ai_stp_api.local_session import start as start_local_session
@@ -76,7 +75,7 @@ def _organization_body(organization: object) -> dict[str, object]:
 @router.get("/context", response_model=None)
 async def read_context(
     request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext | None, Depends(optional_auth)],
     organization_id: Annotated[str | None, Header(alias="X-AI-STP-Organization-Id")] = None,
     product_mode: Annotated[str | None, Header(alias="X-AI-STP-Product-Mode")] = None,
@@ -125,7 +124,7 @@ async def read_context(
 
 @router.get("/organizations", response_model=None)
 async def list_organizations(
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     items = await service.organizations_for_account(db, account_id=ctx.account_id)
@@ -138,7 +137,7 @@ async def list_organizations(
 @router.get("/organizations/{organization_id}/capabilities", response_model=None)
 async def read_organization_capabilities(
     organization_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     scope: Annotated[CapabilityScopeQuery, Query()],
 ) -> JSONResponse:
@@ -156,7 +155,7 @@ async def read_organization_capabilities(
 async def observe_provider_project(
     organization_id: str,
     payload: ProviderProjectObservationRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     identity = await service.observe_provider_project(
@@ -186,7 +185,7 @@ async def observe_provider_project(
 async def create_project_link_proposal(
     organization_id: str,
     payload: ProjectLinkProposalRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     proposal = await service.create_project_link_proposal(
@@ -213,7 +212,7 @@ async def create_project_link_proposal(
 @router.post("/projects/links", response_model=None)
 async def create_project_link(
     payload: ProjectLinkRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     organization_id: Annotated[str | None, Header(alias="X-AI-STP-Organization-Id")] = None,
 ) -> JSONResponse:
@@ -231,7 +230,7 @@ async def create_project_link(
 async def read_project_link_target(
     organization_id: str,
     remote_project_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     body = await service.read_project_link_target(
@@ -247,7 +246,7 @@ async def read_project_link_target(
 async def create_project_link_plan(
     organization_id: str,
     payload: ProjectLinkPlanRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     body = await service.create_project_link_plan(
@@ -260,7 +259,7 @@ async def create_project_link_plan(
 async def read_project_link_plan(
     organization_id: str,
     plan_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     body = await service.read_project_link_plan(
@@ -275,7 +274,7 @@ async def read_project_link_plan(
 async def read_project_link_plan_outcome(
     organization_id: str,
     plan_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     body = await service.read_project_link_plan_outcome(
@@ -290,7 +289,7 @@ async def read_project_link_plan_outcome(
 async def read_project_link_request_outcome(
     organization_id: str,
     request_key: IdempotencyKey,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     body = await service.read_project_link_request_outcome(
@@ -305,7 +304,7 @@ async def read_project_link_request_outcome(
 @router.get("/projects/links/{link_id}", response_model=None)
 async def read_project_link(
     link_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     organization_id: Annotated[str, Header(alias="X-AI-STP-Organization-Id")],
 ) -> JSONResponse:
@@ -319,7 +318,7 @@ async def read_project_link(
 async def create_project_unlink_plan(
     organization_id: str,
     payload: ProjectUnlinkPlanRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     body = await service.create_project_unlink_plan(
@@ -332,7 +331,7 @@ async def create_project_unlink_plan(
 async def read_project_unlink_plan(
     organization_id: str,
     plan_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     body = await service.read_project_unlink_plan(
@@ -345,7 +344,7 @@ async def read_project_unlink_plan(
 async def create_project_sync_plan(
     link_id: str,
     payload: ProjectSyncPlanRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     organization_id: Annotated[str, Header(alias="X-AI-STP-Organization-Id")],
 ) -> JSONResponse:
@@ -361,7 +360,7 @@ async def create_project_sync_plan(
 async def unlink_project(
     link_id: str,
     payload: ProjectUnlinkRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     organization_id: Annotated[str, Header(alias="X-AI-STP-Organization-Id")],
 ) -> JSONResponse:
@@ -380,7 +379,7 @@ async def apply_project_sync_plan(
     link_id: str,
     plan_id: str,
     payload: ProjectSyncApplyRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     organization_id: Annotated[str, Header(alias="X-AI-STP-Organization-Id")],
 ) -> JSONResponse:
@@ -399,7 +398,7 @@ async def apply_project_sync_plan(
 async def push_project_revision(
     link_id: str,
     payload: ProjectRevisionPushRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     organization_id: Annotated[str, Header(alias="X-AI-STP-Organization-Id")],
 ) -> JSONResponse:
@@ -417,7 +416,7 @@ async def push_project_revision(
 async def resolve_project_conflict(
     link_id: str,
     payload: ProjectConflictResolutionRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     organization_id: Annotated[str, Header(alias="X-AI-STP-Organization-Id")],
 ) -> JSONResponse:
@@ -435,7 +434,7 @@ async def resolve_project_conflict(
 async def pull_project_revisions(
     link_id: str,
     authorization_revision: Annotated[str, Header(alias="X-AI-STP-Authorization-Revision")],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
     ctx: Annotated[AuthContext, Depends(require_auth)],
     organization_id: Annotated[str, Header(alias="X-AI-STP-Organization-Id")],
 ) -> JSONResponse:

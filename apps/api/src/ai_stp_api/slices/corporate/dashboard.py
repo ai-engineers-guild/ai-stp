@@ -11,7 +11,7 @@ from sqlalchemy import and_, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import Db, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.corporate import service
@@ -100,7 +100,7 @@ async def write_ci_check(
     organization_id: OrganizationId,
     payload: CorporateCiCheckRequest,
     ctx: Annotated[AuthContext, Depends(require_auth)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> CorporateCiCheckView:
     await service.authorize(
         db,
@@ -411,7 +411,7 @@ async def query_dashboard(
     payload: DashboardQueryRequest,
     request: Request,
     ctx: Annotated[AuthContext, Depends(require_auth)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> DashboardResult:
     _, membership = await service.organization_and_membership(
         db, ctx=ctx, organization_id=organization_id
@@ -616,7 +616,7 @@ async def list_views(
     organization_id: OrganizationId,
     request: Request,
     ctx: Annotated[AuthContext, Depends(require_auth)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> DashboardViewList:
     role = await _view_context(db, ctx=ctx, organization_id=organization_id)
     team_ids = (
@@ -691,7 +691,7 @@ async def create_view(
     organization_id: OrganizationId,
     payload: DashboardViewRequest,
     ctx: Annotated[AuthContext, Depends(require_auth)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> DashboardView:
     role = await _view_context(db, ctx=ctx, organization_id=organization_id)
     fingerprint = service.mutation_fingerprint(
@@ -775,7 +775,7 @@ async def update_view(
     view_id: str,
     payload: DashboardViewRequest,
     ctx: Annotated[AuthContext, Depends(require_auth)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Db,
 ) -> DashboardView:
     role = await _view_context(db, ctx=ctx, organization_id=organization_id)
     fingerprint = service.mutation_fingerprint(
