@@ -22,6 +22,7 @@ on:
       - ".github/scripts/check-native-secret-service.sh"
       - ".github/scripts/qualify-installed-desktop.py"
       - ".github/scripts/build-desktop-bundles.sh"
+      - "tests/native_contract/verify_desktop_corporate.py"
   pull_request:
     paths:
       - "apps/desktop/**"
@@ -34,6 +35,7 @@ on:
       - ".github/scripts/check-native-secret-service.sh"
       - ".github/scripts/qualify-installed-desktop.py"
       - ".github/scripts/build-desktop-bundles.sh"
+      - "tests/native_contract/verify_desktop_corporate.py"
   workflow_dispatch:
 
 permissions:
@@ -197,6 +199,45 @@ jobs:
             mv "${RUNNER_TEMP}/installed-desktop-proof.json" \
               "${RUNNER_TEMP}/installed-desktop-proof-${round}.json"
           done
+      - name: Prepare the actual corporate API fixture on Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "UV_PYTHON=$(python -c 'import sys; print(sys.executable)')"
+            echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-installed-corporate"
+            echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
+          } >> "${GITHUB_ENV}"
+          bash .github/scripts/install-uv.sh 0.13.5 "${RUNNER_TEMP}/uv"
+          echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
+      - name: Installed corporate onboarding, lost reply and original binding recovery
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          AI_STP_TEST_DB_URL: postgresql+asyncpg://ai_stp:ai_stp_dev@127.0.0.1:15434/ai_stp
+        run: |
+          set -euo pipefail
+          fixture_postgres="$(docker run --detach --name ai-stp-installed-corporate \
+            -e POSTGRES_USER=ai_stp -e POSTGRES_PASSWORD=ai_stp_dev -e POSTGRES_DB=ai_stp \
+            -p 127.0.0.1:15434:5432 \
+            docker.io/library/postgres:18@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722)"
+          trap 'docker rm --force "${fixture_postgres}" >/dev/null' EXIT
+          for ((attempt=0; attempt<30; attempt++)); do
+            if docker exec "${fixture_postgres}" pg_isready -U ai_stp -d ai_stp; then break; fi
+            sleep 1
+          done
+          docker exec "${fixture_postgres}" pg_isready -U ai_stp -d ai_stp
+          uv sync --locked
+          bash .github/scripts/check-native-secret-service.sh --installed-corporate-desktop
+      - name: Retain the public installed corporate checkout result
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: installed-linux-corporate-checkout-proof
+          path: ${{ runner.temp }}/installed-corporate-desktop-proof.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Retain public installed Desktop results
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
