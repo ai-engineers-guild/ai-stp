@@ -4,6 +4,7 @@ import {
   cliApplyConfirmed,
   cliPlan,
   cmdProfileApply,
+  cmdCheckoutApply,
   cmdRunRead,
   cmdTaskStart,
   cmdVersion,
@@ -133,4 +134,22 @@ it("omits enrollment recovery plans and account evidence from the shared trace",
   expect(JSON.stringify(entries)).not.toContain("canary");
   expect(entries.every((entry) => entry.result === undefined)).toBe(true);
   expect(entries[0].error_code).toBe("IPC_THROW");
+});
+
+it("keeps reviewed checkout plans and original outcome replies out of shared diagnostics", async () => {
+  useDebug.setState({ debugMode: true });
+  const reply = { ok: true, data: { original_actor: "canary-checkout-actor" }, error: null,
+    error_code: null, warnings: ["canary-private-warning"], continuations: [] };
+  vi.mocked(invoke).mockResolvedValue(reply);
+  expect(await cmdCheckoutApply({ snapshot: "canary-private-project" }, "sha256:exact", true, "canary-context", "/canary/git")).toBe(reply);
+  expect(invoke).toHaveBeenLastCalledWith("checkout_apply", {
+    plan: { snapshot: "canary-private-project" }, digest: "sha256:exact", confirmed: true,
+    context: "canary-context", gitExecutable: "/canary/git",
+  });
+  vi.mocked(invoke).mockRejectedValue(new Error("canary-checkout-transport"));
+  expect((await cmdCheckoutApply({}, "sha256:exact", true)).error_code).toBe("IPC_THROW");
+  const entries = useDebug.getState().log;
+  expect(entries).toHaveLength(2);
+  expect(JSON.stringify(entries)).not.toContain("canary");
+  expect(entries.every((entry) => entry.result === undefined)).toBe(true);
 });

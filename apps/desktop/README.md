@@ -18,6 +18,10 @@ harness files. Harness executables remain user/vendor managed.
   existing JSON file. Starting and answering can execute changes immediately;
   the UI requires authorization and the CLI validates the full request.
 - **Activity** lists unfinished tasks and opens any retained task by ID.
+  Corporate checkout history is read from the native journal across saved views.
+  Inspect the original plan and explicitly reconcile an unknown outcome through
+  a current context for the same account/company. Switching views cannot retarget
+  the original operation; unknown results retain their reservations.
   Recovery reads the current revision; an uncertain start retains its retry
   identity in memory across navigation. After restarting the app, inspect
   Activity before starting again.
@@ -45,7 +49,11 @@ harness files. Harness executables remain user/vendor managed.
   A project can open a native checkout review with an existing registered root
   and optional trusted Git executable. A successful preview exposes current
   corporate repository choices for a separate recheck. Editing inputs or switching
-  contexts clears the observation; saving a checkout link remains a separate operation.
+  contexts clears the observation. Engines exposing durable linking offer separate
+  reviewed requests, confirmations and local binding adoption. Each exact plan
+  needs explicit authorization. An unconfirmed reply retains its original intent
+  for Activity rather than starting another request. Linking grants no harness
+  installation authority.
 - **Targets**, **Discovery** and **Commands** render the connected engine's
   command descriptors with read/plan/apply gates and explicit apply confirmation.
 - **Diagnostics** offers an optional, bounded in-memory trace and an explicitly
@@ -98,7 +106,14 @@ restarts the app and compares the retained state with the installed bundled CLI.
 It verifies the default credential store and preserves unrelated home files.
 Three fresh private sessions must each pass the complete journey. The external
 driver uses one persistent HTTP connection; failed UI commands are not replayed.
-This gate does not establish corporate enrollment or harness activation.
+Those three journeys qualify personal contexts. A separate mandatory Linux
+journey uses the same installed package and driver with an isolated actual
+API/PostgreSQL: named OS-vault enrollment, synthetic browser approval, corporate
+context creation, registered checkout review, explicit request/confirmation,
+lost committed reply, application restart, original-outcome reconciliation and
+reviewed local binding adoption. Installed CLI, SQL rows and unowned files are
+read back independently. Its separate proof does not qualify live SSO account
+linking, harness installation or activation.
 
 Release bundles require their own `cli/ai-stp-desktop-cli` resource. A missing
 bundled engine fails closed. Development can use `AI_STP_CLI` or PATH when no

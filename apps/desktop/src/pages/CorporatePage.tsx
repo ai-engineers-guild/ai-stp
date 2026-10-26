@@ -210,6 +210,14 @@ export default function CorporatePage() {
       command.path.join(" ") === "corporate project link-preview" &&
       command.mutability === "plan",
   );
+  const checkoutLinking = [
+    ["corporate project link-request plan", "plan"],
+    ["corporate project link-confirm plan", "plan"],
+    ["corporate project link-adopt plan", "plan"],
+    ["corporate project link apply", "apply"],
+  ].every(([path, mutability]) => records(help?.data?.commands).some((command) =>
+    Array.isArray(command.path) && command.path.join(" ") === path && command.mutability === mutability,
+  ));
   return (
     <div className="page-stack">
       <PageHeader
@@ -432,6 +440,7 @@ export default function CorporatePage() {
               context={context}
               project={checkoutProject}
               disabled={contextLoading}
+              linking={checkoutLinking}
             />
           )}
           {busy && (

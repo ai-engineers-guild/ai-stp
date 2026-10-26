@@ -36,6 +36,7 @@ from ai_stp_platform.organization_models import (
     ProjectRevisionHead,
     ProjectRevisionReceipt,
     ProjectSyncPlan,
+    ProjectUnlinkPlan,
 )
 
 pytestmark = pytest.mark.platform
@@ -1338,6 +1339,255 @@ async def test_confirmed_unlink_preserves_identities_history_and_audit(
             )
             or 0
         ) >= 1
+
+
+@pytest.mark.parametrize("endpoint", ["outcome", "settlement", "request"])
+async def test_unlink_outcomes_recover_actual_confirmation_without_writes(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+    endpoint: str,
+) -> None:
+    client, sessions, token, organization, link_id, _ = project_harness
+    headers = {"Authorization": f"Bearer {token}", "X-AI-STP-Organization-Id": organization}
+    revision = f"personal:{organization}:1:1"
+    prefix = f"/v1/organizations/{organization}/project-unlink-plans"
+    response = await client.post(
+        prefix,
+        headers=headers,
+        json={
+            "link_id": link_id,
+            "expected_link_revision": 1,
+            "authorization_revision": revision,
+            "idempotency_key": "unlink-outcome-request",
+        },
+    )
+    assert response.status_code == 201, response.text
+    plan = response.json()
+    route = (
+        f"/v1/organizations/{organization}/project-unlink-plan-requests/unlink-outcome-request"
+        if endpoint == "request"
+        else f"{prefix}/{plan['plan_id']}/{endpoint}"
+    )
+
+    async def counts() -> list[int | None]:
+        async with sessions() as db:
+            return [
+                await db.scalar(select(func.count()).select_from(model))
+                for model in (ProjectUnlinkPlan, ProjectLink, AuditEvent)
+            ]
+
+    before = await counts()
+    ready = await client.get(route, headers=headers)
+    assert ready.status_code == 200, ready.text
+    assert ready.headers["cache-control"] == "private, no-store"
+    assert ready.json()["state"] == "ready" and ready.json()["link"] is None
+    assert ready.json()["plan"] == plan and ready.json()["observation_only"] is True
+    assert await counts() == before
+    confirmed = await client.request(
+        "DELETE",
+        f"/v1/projects/links/{link_id}",
+        headers=headers,
+        json={
+            "plan_id": plan["plan_id"],
+            "plan_digest": plan["plan_digest"],
+            "authorization_revision": revision,
+            "idempotency_key": "unlink-outcome-confirmation",
+        },
+    )
+    assert confirmed.status_code == 200, confirmed.text
+    before = await counts()
+    applied = await client.get(route, headers=headers)
+    assert applied.status_code == 200, applied.text
+    assert applied.json()["state"] == "applied" and applied.json()["plan"] == plan
+    assert applied.json()["link"] == confirmed.json()
+    assert applied.json()["link"]["state"] == "unlinked"
+    assert await counts() == before
+    async with sessions() as db:
+        original = await db.get(ProjectUnlinkPlan, plan["plan_id"])
+        link = await db.get(ProjectLink, link_id)
+        assert original is not None and link is not None
+        # Matching link coordinates alone cannot certify a different confirmation.
+        link.unlink_idempotency_key = "another-unlink-confirmation"
+        await db.commit()
+    assert (await client.get(route, headers=headers)).status_code == 412
+
+
+@pytest.mark.parametrize("endpoint", ["outcome", "settlement", "request"])
+async def test_unlink_outcomes_preserve_expiry_account_and_current_authority_fences(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+    endpoint: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, sessions, token, organization, link_id, _ = project_harness
+    headers = {"Authorization": f"Bearer {token}", "X-AI-STP-Organization-Id": organization}
+    created = await client.post(
+        f"/v1/organizations/{organization}/project-unlink-plans",
+        headers=headers,
+        json={
+            "link_id": link_id,
+            "expected_link_revision": 1,
+            "authorization_revision": f"personal:{organization}:1:1",
+            "idempotency_key": "unlink-outcome-expiry",
+        },
+    )
+    assert created.status_code == 201, created.text
+    plan = created.json()
+    route = (
+        f"/v1/organizations/{organization}/project-unlink-plan-requests/unlink-outcome-expiry"
+        if endpoint == "request"
+        else f"/v1/organizations/{organization}/project-unlink-plans/{plan['plan_id']}/{endpoint}"
+    )
+    advanced = datetime.fromisoformat(plan["expires_at"].replace("Z", "+00:00")) + timedelta(
+        seconds=1
+    )
+
+    class AfterExpiry(datetime):
+        @classmethod
+        def now(cls, tz: tzinfo | None = None) -> Self:
+            return cls.fromtimestamp(advanced.timestamp(), tz)
+
+    with monkeypatch.context() as clock:
+        clock.setattr(context_service, "datetime", AfterExpiry)
+        expired = await client.get(route, headers=headers)
+    assert expired.status_code == 200, expired.text
+    assert expired.json()["state"] == "expired" and expired.json()["link"] is None
+    async with sessions() as db:
+        original = await db.get(ProjectUnlinkPlan, plan["plan_id"])
+        assert original is not None and original.state == "ready"
+        account = original.actor_account_id
+        other = Account(id=new_id("account"))
+        db.add(other)
+        await db.flush()
+        original.actor_account_id = other.id
+        await db.commit()
+    assert (await client.get(route, headers=headers)).status_code == 404
+    assert (
+        await client.get(route.replace(organization, new_id("organization")), headers=headers)
+    ).status_code in (403, 404)
+    async with sessions() as db:
+        original = await db.get(ProjectUnlinkPlan, plan["plan_id"])
+        assert original is not None
+        original.actor_account_id = account
+        original.state = "applied"  # No matching committed confirmation: never report success.
+        await db.commit()
+    assert (await client.get(route, headers=headers)).status_code == 412
+    async with sessions() as db:
+        tenant = await db.get(Organization, organization)
+        assert tenant is not None
+        tenant.state = "suspended"
+        await db.commit()
+    assert (await client.get(route, headers=headers)).status_code == 403
+
+
+async def test_unlink_settlement_waits_for_confirmation_held_across_expiry(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, sessions, token, organization, link_id, _ = project_harness
+    headers = {"Authorization": f"Bearer {token}", "X-AI-STP-Organization-Id": organization}
+    revision = f"personal:{organization}:1:1"
+    created = await client.post(
+        f"/v1/organizations/{organization}/project-unlink-plans",
+        headers=headers,
+        json={
+            "link_id": link_id,
+            "expected_link_revision": 1,
+            "authorization_revision": revision,
+            "idempotency_key": "unlink-settlement-expiry",
+        },
+    )
+    assert created.status_code == 201, created.text
+    plan = created.json()
+    route = f"/v1/organizations/{organization}/project-unlink-plans/{plan['plan_id']}"
+    loop = asyncio.get_running_loop()
+    mutated: asyncio.Future[None] = loop.create_future()
+    release: asyncio.Future[None] = loop.create_future()
+    entered: asyncio.Future[int] = loop.create_future()
+    original_audit = emit_audit
+    original_read = context_service._project_unlink_plan_outcome
+
+    async def hold_commit(db: AsyncSession, **arguments: Any) -> Any:
+        result = await original_audit(db, **arguments)
+        if arguments.get("action") == "project.link_unlinked":
+            mutated.set_result(None)
+            await asyncio.shield(release)
+        return result
+
+    async def observe_reader(db: AsyncSession, **arguments: Any) -> Any:
+        if arguments["serialize_confirmation"]:
+            pid = await db.scalar(text("SELECT pg_backend_pid()"))
+            assert isinstance(pid, int)
+            entered.set_result(pid)
+        return await original_read(db, **arguments)
+
+    monkeypatch.setattr(context_service, "emit_audit", hold_commit)
+    monkeypatch.setattr(context_service, "_project_unlink_plan_outcome", observe_reader)
+    confirmation = asyncio.create_task(
+        client.request(
+            "DELETE",
+            f"/v1/projects/links/{link_id}",
+            headers=headers,
+            json={
+                "plan_id": plan["plan_id"],
+                "plan_digest": plan["plan_digest"],
+                "authorization_revision": revision,
+                "idempotency_key": "unlink-settlement-confirmation",
+            },
+        )
+    )
+    reader: asyncio.Task[Response] | None = None
+    try:
+        await asyncio.wait_for(asyncio.shield(mutated), timeout=5)
+        advanced = datetime.fromisoformat(plan["expires_at"].replace("Z", "+00:00")) + timedelta(
+            seconds=1
+        )
+
+        class AfterExpiry(datetime):
+            @classmethod
+            def now(cls, tz: tzinfo | None = None) -> Self:
+                return cls.fromtimestamp(advanced.timestamp(), tz)
+
+        monkeypatch.setattr(context_service, "datetime", AfterExpiry)
+        ordinary = await asyncio.wait_for(client.get(route + "/outcome", headers=headers), 5)
+        assert ordinary.status_code == 200 and ordinary.json()["state"] == "expired"
+        reader = asyncio.create_task(client.get(route + "/settlement", headers=headers))
+        pid = await asyncio.wait_for(asyncio.shield(entered), timeout=5)
+        async with sessions() as db:
+            deadline = loop.time() + 5
+            while not await db.scalar(
+                text("SELECT EXISTS (SELECT 1 FROM pg_locks WHERE pid=:pid AND NOT granted)"),
+                {"pid": pid},
+            ):
+                assert not reader.done(), "settlement crossed an uncommitted unlink"
+                assert loop.time() < deadline
+                await asyncio.sleep(0.01)
+        release.set_result(None)
+        confirmed = await asyncio.wait_for(asyncio.shield(confirmation), timeout=5)
+        settled = await asyncio.wait_for(asyncio.shield(reader), timeout=5)
+        assert confirmed.status_code == 200, confirmed.text
+        assert settled.status_code == 200, settled.text
+        assert settled.headers["cache-control"] == "private, no-store"
+        assert settled.json()["state"] == "applied" and settled.json()["plan"] == plan
+        assert settled.json()["link"] == confirmed.json()
+        assert settled.json()["link"]["state"] == "unlinked"
+        async with sessions() as db:
+            assert (
+                await db.scalar(
+                    select(func.count())
+                    .select_from(AuditEvent)
+                    .where(
+                        AuditEvent.action == "project.link_unlinked",
+                        AuditEvent.target_id == link_id,
+                    )
+                )
+                == 1
+            )
+    finally:
+        if not release.done():
+            release.set_result(None)
+        for task in (confirmation, reader):
+            if task is not None and not task.done():
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
 
 
 async def test_sync_apply_rejects_exact_head_change_without_mutating_link(
