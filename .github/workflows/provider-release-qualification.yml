@@ -7,6 +7,11 @@ on:
         description: Exact published installation-component family version
         required: true
         type: string
+      lifecycle:
+        description: Exercise canonical fixture lifecycles against authenticated artifacts
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -18,7 +23,7 @@ concurrency:
 jobs:
   inspect:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 90
     env:
       CARGO_BUILD_JOBS: "2"
     steps:
@@ -42,6 +47,30 @@ jobs:
           echo "CARGO_BUILD_BUILD_DIR=${RUNNER_TEMP}/ai-stp-provider-proof-build" >> "${GITHUB_ENV}"
       - name: Install the existing native compiler pin
         run: bash .github/scripts/install-rust-toolchain.sh apps/cli/rust-toolchain.toml
+      - name: Check out the qualified previous consumer in disposable CI state
+        if: inputs.lifecycle
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 1a263cbe4964660e83fce8960df3c0203db4f977
+          path: .qualification-baseline
+          persist-credentials: false
+      - name: Build the previous consumer and its original canonical bundles
+        if: inputs.lifecycle
+        working-directory: .qualification-baseline/apps/cli
+        env:
+          # xtask embeds its source root; never reuse its binary across checkouts.
+          CARGO_TARGET_DIR: ${{ runner.temp }}/ai-stp-provider-baseline-target
+          CARGO_BUILD_BUILD_DIR: ${{ runner.temp }}/ai-stp-provider-baseline-build
+          AI_STP_BUNDLE_PROOF_DIR: ${{ runner.temp }}/provider-baseline-bundles
+          AI_STP_BUNDLE_PROOF_STATE: ${{ runner.temp }}/provider-baseline-registry
+        run: |
+          set -euo pipefail
+          cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- resources --check
+          binary="$(cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- cli-binary)"
+          install -m 755 "${binary}" "${RUNNER_TEMP}/ai-stp-baseline"
+          cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
+            cargo test --locked --test bundles \
+            exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs -- --exact
       - name: Build the native engine from this exact source
         working-directory: apps/cli
         run: |
@@ -53,6 +82,7 @@ jobs:
         env:
           COMPONENT_VERSION: ${{ inputs.component_version }}
           CONSUMER_COMMIT: ${{ github.sha }}
+          REQUIRE_MANAGED_DEFAULT: ${{ inputs.lifecycle }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -60,10 +90,42 @@ jobs:
             cd apps/cli
             cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- cli-binary
           )"
+          default_check=()
+          if [[ "${REQUIRE_MANAGED_DEFAULT}" == true ]]; then
+            default_check=(--require-managed-default)
+          fi
           python .github/scripts/inspect-provider-release.py \
             --binary "${binary}" --version "${COMPONENT_VERSION}" \
             --consumer-commit "${CONSUMER_COMMIT}" \
+            "${default_check[@]}" \
             --out "${RUNNER_TEMP}/provider-observations"
+      - name: Compile disposable canonical fixture bundles
+        if: inputs.lifecycle
+        working-directory: apps/cli
+        env:
+          AI_STP_BUNDLE_PROOF_DIR: ${{ runner.temp }}/provider-fixture-bundles
+          AI_STP_BUNDLE_PROOF_STATE: ${{ runner.temp }}/provider-fixture-registry
+        run: |
+          set -euo pipefail
+          cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
+            cargo test --locked --test bundles \
+            exact_bundles_cover_every_released_profile_and_refuse_unrepresentable_inputs -- --exact
+      - name: Exercise authenticated component profile lifecycles
+        if: inputs.lifecycle
+        run: |
+          set -euo pipefail
+          binary="$(
+            cd apps/cli
+            cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- cli-binary
+          )"
+          python .github/scripts/qualify-provider-lifecycles.py \
+            --binary "${binary}" --bundles "${RUNNER_TEMP}/provider-fixture-bundles" \
+            --state "${RUNNER_TEMP}/provider-fixture-registry" \
+            --baseline-binary "${RUNNER_TEMP}/ai-stp-baseline" \
+            --baseline-bundles "${RUNNER_TEMP}/provider-baseline-bundles" \
+            --baseline-state "${RUNNER_TEMP}/provider-baseline-registry" \
+            --observations "${RUNNER_TEMP}/provider-observations/observations.json" \
+            --out "${RUNNER_TEMP}/provider-lifecycle-results.json"
       - name: Retain public observations only
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
@@ -71,5 +133,13 @@ jobs:
           path: |
             ${{ runner.temp }}/provider-observations/observations.json
             ${{ runner.temp }}/provider-observations/provider-declarations.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Retain public lifecycle results only
+        if: inputs.lifecycle
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: provider-lifecycle-results
+          path: ${{ runner.temp }}/provider-lifecycle-results.json
           if-no-files-found: error
           retention-days: 7

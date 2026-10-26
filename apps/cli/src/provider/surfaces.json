@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "provider_version": "0.0.94",
+  "provider_version": "0.0.95",
   "profiles": [
     {
       "harness_id": "codex",
@@ -64,14 +64,16 @@
         ],
         "component_kinds": [
           "instruction",
-          "hook"
+          "hook",
+          "skill"
         ],
-        "digest": "sha256:89ccffaec2c7c7577ee818ca5252d0877b5ad3227fa56461bca5df0280d8ea8f",
+        "digest": "sha256:4899d54c7054c99273c454dd085c72f79b11148dda09af990581fe35a062ec10",
         "max_bytes": 67108864,
         "max_files": 8192,
         "native_namespaces": [
           "AGENTS.md",
-          ".codex/hooks.json"
+          ".codex/hooks.json",
+          ".agents/skills"
         ],
         "profile_id": "codex/native-files/project/1",
         "projection_kinds": [
@@ -126,13 +128,21 @@
           "ai-stp-bundle/2"
         ],
         "component_kinds": [
-          "instruction"
+          "instruction",
+          "skill",
+          "agent",
+          "command",
+          "setting"
         ],
-        "digest": "sha256:593fddfbb3d576d5e3e286f7905d8ec0b1dcef074e6da101b7c6c10cbcee75d0",
+        "digest": "sha256:54f45434135118eeff1fa01fcf6ba9baee495076035ce5c0bd0d69a9999ab7d3",
         "max_bytes": 67108864,
         "max_files": 8192,
         "native_namespaces": [
-          "CLAUDE.md"
+          "CLAUDE.md",
+          ".claude/skills",
+          ".claude/agents",
+          ".claude/commands",
+          ".claude/settings.json"
         ],
         "profile_id": "claude/native-files/project/1",
         "projection_kinds": [
@@ -478,6 +488,101 @@
           "native_files"
         ],
         "target_scope": "user_root"
+      }
+    },
+    {
+      "harness_id": "opencode",
+      "target_scope": "project",
+      "profile": {
+        "bundle_formats": [
+          "ai-stp-bundle/2"
+        ],
+        "component_kinds": [
+          "instruction",
+          "skill",
+          "agent",
+          "command",
+          "plugin",
+          "setting"
+        ],
+        "digest": "sha256:f1d58287917d04ba9279d8c8c82c9e313a18c35fbeddb15514735ccde3d615ef",
+        "max_bytes": 67108864,
+        "max_files": 8192,
+        "native_namespaces": [
+          "AGENTS.md",
+          "opencode.json",
+          ".opencode/skills",
+          ".opencode/agents",
+          ".opencode/commands",
+          ".opencode/plugins"
+        ],
+        "profile_id": "opencode/native-files/project/1",
+        "projection_kinds": [
+          "native_files"
+        ],
+        "target_scope": "project"
+      }
+    },
+    {
+      "harness_id": "pi",
+      "target_scope": "project",
+      "profile": {
+        "bundle_formats": [
+          "ai-stp-bundle/2"
+        ],
+        "component_kinds": [
+          "instruction",
+          "skill",
+          "plugin",
+          "setting",
+          "command"
+        ],
+        "digest": "sha256:8ed52ffffadfdde6c5f6306e20c0a7ea0934f75b4f3cf6953a0610683019a949",
+        "max_bytes": 67108864,
+        "max_files": 8192,
+        "native_namespaces": [
+          "AGENTS.md",
+          ".pi/extensions",
+          ".pi/prompts",
+          ".pi/settings.json",
+          ".pi/skills"
+        ],
+        "profile_id": "pi/native-files/project/1",
+        "projection_kinds": [
+          "native_files"
+        ],
+        "target_scope": "project"
+      }
+    },
+    {
+      "harness_id": "grok-build",
+      "target_scope": "project",
+      "profile": {
+        "bundle_formats": [
+          "ai-stp-bundle/2"
+        ],
+        "component_kinds": [
+          "instruction",
+          "skill",
+          "agent",
+          "hook",
+          "plugin"
+        ],
+        "digest": "sha256:1e550d055a56f8ec22fc581e20365925dc815beef7c36066cafec42d4b37c4b4",
+        "max_bytes": 67108864,
+        "max_files": 8192,
+        "native_namespaces": [
+          "AGENTS.md",
+          ".grok/skills",
+          ".grok/agents",
+          ".grok/hooks",
+          ".grok/plugins"
+        ],
+        "profile_id": "grok/native-files/project/1",
+        "projection_kinds": [
+          "native_files"
+        ],
+        "target_scope": "project"
       }
     }
   ]

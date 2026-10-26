@@ -19,6 +19,8 @@ on:
       # Bun installation changes also affect the desktop build.
       - ".github/scripts/install-bun.sh"
       - ".github/scripts/install-rust-toolchain.sh"
+      - ".github/scripts/check-native-secret-service.sh"
+      - ".github/scripts/qualify-installed-desktop.py"
   pull_request:
     paths:
       - "apps/desktop/**"
@@ -28,6 +30,8 @@ on:
       # Bun installation changes also affect the desktop build.
       - ".github/scripts/install-bun.sh"
       - ".github/scripts/install-rust-toolchain.sh"
+      - ".github/scripts/check-native-secret-service.sh"
+      - ".github/scripts/qualify-installed-desktop.py"
   workflow_dispatch:
 
 permissions:
@@ -61,6 +65,10 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        if: runner.os == 'Linux'
+        with:
+          python-version: "3.14.9"
       - name: Install the native CLI toolchain
         shell: bash
         run: >-
@@ -79,7 +87,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
-            librsvg2-dev patchelf
+            librsvg2-dev patchelf dbus-daemon gnome-keyring libglib2.0-bin \
+            webkit2gtk-driver xvfb xauth
       - name: Restore desktop Rust build cache
         id: desktop-cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
@@ -151,6 +160,42 @@ jobs:
         run: >-
           cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml --
           desktop-package-probe
+      - name: Install the release package on the disposable Linux runner
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          packages=(apps/desktop/src-tauri/target/release/bundle/deb/*.deb)
+          test "${#packages[@]}" -eq 1 && test -f "${packages[0]}"
+          sudo dpkg --install "${packages[0]}"
+          test -x /usr/bin/ai-stp-desktop
+      - name: Install the pinned external WebDriver in disposable CI state
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/ai-stp-webdriver-target
+        run: >-
+          cargo install tauri-driver --version 2.1.0 --locked
+          --root "${RUNNER_TEMP}/ai-stp-webdriver"
+      - name: Three installed Linux Desktop journeys with bundled CLI and native vault
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for round in 1 2 3; do
+            printf 'Installed Desktop journey %s/3\n' "${round}"
+            bash .github/scripts/check-native-secret-service.sh --installed-desktop
+            mv "${RUNNER_TEMP}/installed-desktop-proof.json" \
+              "${RUNNER_TEMP}/installed-desktop-proof-${round}.json"
+          done
+      - name: Retain public installed Desktop results
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: installed-linux-desktop-proof
+          path: ${{ runner.temp }}/installed-desktop-proof-*.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Upload bundles
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

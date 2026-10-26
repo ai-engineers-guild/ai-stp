@@ -234,7 +234,7 @@ fn complete_import(
     );
     assert_eq!(counts(store)?, before);
     let declarations: Vec<Value> =
-        serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+        serde_json::from_str(include_str!("fixtures/provider-declarations-0.0.95.json"))?;
     let providers = declarations
         .iter()
         .map(|v| ai_stp_cli::provider::Info::parse(&serde_json::to_vec(v).unwrap_or_default()))

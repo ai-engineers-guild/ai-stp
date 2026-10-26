@@ -330,7 +330,7 @@ fn exact_native_derivation_preserves_literals_and_atomic_owned_history()
     let mut foreign = identity.clone();
     foreign.account_id = "account_01ARZ3NDEKTSV4RRFFQ69G5FAW".into();
     let declarations: Vec<Value> =
-        serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+        serde_json::from_str(include_str!("fixtures/provider-declarations-0.0.95.json"))?;
     let providers = declarations
         .iter()
         .map(|v| {

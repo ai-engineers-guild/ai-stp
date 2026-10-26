@@ -4,9 +4,17 @@ set -euo pipefail
 test "${GITHUB_ACTIONS:-}" = true
 test "${RUNNER_OS:-}" = Linux
 test -n "${RUNNER_TEMP:-}"
+fixture_rounds="${AI_STP_NATIVE_VAULT_ROUNDS:-10}"
+[[ "${fixture_rounds}" =~ ^([1-9]|[1-9][0-9]|100)$ ]]
 
 if [[ "${1:-}" != --inside-fixture ]]; then
-  test "$#" -eq 0
+  fixture_mode=native
+  if [[ "${1:-}" == --installed-desktop ]]; then
+    test "$#" -eq 1
+    fixture_mode=desktop
+  else
+    test "$#" -eq 0
+  fi
   export AI_STP_TEST_SECRET_SERVICE_ROOT
   AI_STP_TEST_SECRET_SERVICE_ROOT="$(mktemp -d "${RUNNER_TEMP}/ai-stp-secret-service.XXXXXXXX")"
   chmod 700 "${AI_STP_TEST_SECRET_SERVICE_ROOT}"
@@ -17,10 +25,12 @@ if [[ "${1:-}" != --inside-fixture ]]; then
   export AI_STP_TEST_SECRET_SERVICE=isolated
   mkdir -m 700 "${XDG_DATA_HOME}" "${XDG_CONFIG_HOME}" "${XDG_RUNTIME_DIR}" \
     "${AI_STP_TEST_SECRET_SERVICE_ROOT}/control"
-  exec dbus-run-session -- bash "$0" --inside-fixture
+  exec dbus-run-session -- bash "$0" --inside-fixture "${fixture_mode}"
 fi
 
-test "$#" -eq 1
+test "$#" -eq 2
+fixture_mode="$2"
+[[ "${fixture_mode}" == native || "${fixture_mode}" == desktop ]]
 test -d "${AI_STP_TEST_SECRET_SERVICE_ROOT}"
 test "${AI_STP_TEST_SECRET_SERVICE}" = isolated
 
@@ -30,7 +40,44 @@ printf '%s' 'ai-stp-disposable-ci-fixture' | gnome-keyring-daemon \
   --control-directory="${AI_STP_TEST_SECRET_SERVICE_ROOT}/control" \
   >"${AI_STP_TEST_SECRET_SERVICE_ROOT}/daemon.log" 2>&1 &
 fixture_pid=$!
-trap 'kill "${fixture_pid}" 2>/dev/null || true; wait "${fixture_pid}" 2>/dev/null || true' EXIT
+fixture_cleanup() {
+  fixture_status=$?
+  trap - EXIT
+  if [[ "${fixture_status}" -ne 0 ]]; then
+    fixture_alive=false
+    if kill -0 "${fixture_pid}" 2>/dev/null; then fixture_alive=true; fi
+    fixture_owner="$(gdbus call --session --dest org.freedesktop.DBus \
+      --object-path /org/freedesktop/DBus \
+      --method org.freedesktop.DBus.GetConnectionUnixProcessID \
+      org.freedesktop.secrets 2>/dev/null || true)"
+    fixture_owner_unchanged=false
+    if [[ "${fixture_owner}" = "(uint32 ${fixture_pid},)" ]]; then
+      fixture_owner_unchanged=true
+    fi
+    # Print only fixed marker presence, never raw service prose or payloads.
+    fixture_client_assertion=false
+    fixture_session_assertion=false
+    fixture_null_variant=false
+    while IFS= read -r fixture_line; do
+      if [[ "${fixture_line}" == *gkd_secret_service_get_pkcs11_session*assertion* ]]; then
+        fixture_client_assertion=true
+      fi
+      if [[ "${fixture_line}" == *aes_negotiate*assertion* ]]; then
+        fixture_session_assertion=true
+      fi
+      if [[ "${fixture_line}" == *g_variant_new*"(null)"* ]]; then
+        fixture_null_variant=true
+      fi
+    done < "${AI_STP_TEST_SECRET_SERVICE_ROOT}/daemon.log"
+    printf 'Vault fixture alive=%s owner_unchanged=%s client_assertion=%s session_assertion=%s null_variant=%s\n' \
+      "${fixture_alive}" "${fixture_owner_unchanged}" "${fixture_client_assertion}" \
+      "${fixture_session_assertion}" "${fixture_null_variant}"
+  fi
+  kill "${fixture_pid}" 2>/dev/null || true
+  wait "${fixture_pid}" 2>/dev/null || true
+  exit "${fixture_status}"
+}
+trap fixture_cleanup EXIT
 for ((attempt=0; attempt<40; attempt++)); do
   kill -0 "${fixture_pid}"
   if [[ "$(gdbus call --session --dest org.freedesktop.DBus \
@@ -68,7 +115,18 @@ for ((attempt=0; attempt<40; attempt++)); do
 done
 test "${fixture_collection}" != / && test "${fixture_locked}" = '(<false>,)'
 
+if [[ "${fixture_mode}" == desktop ]]; then
+  xvfb-run --auto-servernum python .github/scripts/qualify-installed-desktop.py \
+    --driver "${RUNNER_TEMP}/ai-stp-webdriver/bin/tauri-driver" \
+    --out "${RUNNER_TEMP}/installed-desktop-proof.json"
+  exit
+fi
+
 cd apps/cli
+cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
+  cargo test --locked --lib \
+  identity::secret_service::tests::transport_reuse_stays_with_the_exact_existing_unix_bus \
+  -- --ignored --exact
 checks=(cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
   cargo test --locked --test enrollments_native --)
 listing="$("${checks[@]}" --ignored --list)"
@@ -80,7 +138,7 @@ while IFS= read -r line; do
   fi
 done <<<"${listing}"
 test "${selected}" -eq 2
-for ((round=1; round<=10; round++)); do
-  printf 'Native vault fixture round %s/10\n' "${round}"
+for ((round=1; round<=fixture_rounds; round++)); do
+  printf 'Native vault fixture round %s/%s\n' "${round}" "${fixture_rounds}"
   "${checks[@]}" --ignored
 done

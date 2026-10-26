@@ -25,7 +25,7 @@ const LATER: &str = "2026-10-08T00:00:01.000Z";
 fn embedded_author_is_atomic_exact_and_replayable_without_source() -> Result<(), Box<dyn Error>> {
     use ai_stp_cli::authoring::embedded;
     let declarations: Vec<Value> =
-        serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+        serde_json::from_str(include_str!("fixtures/provider-declarations-0.0.95.json"))?;
     let temporary = tempfile::tempdir()?;
     let root = temporary.path().canonicalize()?;
     let source = root.join("author-source");
@@ -369,7 +369,7 @@ fn native_release_preserves_owned_bytes_graphs_and_atomic_history() -> Result<()
         device_id: "device_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
     };
     let declarations: Vec<Value> =
-        serde_json::from_str(include_str!("fixtures/provider-declarations.json"))?;
+        serde_json::from_str(include_str!("fixtures/provider-declarations-0.0.95.json"))?;
     let providers = declarations
         .iter()
         .map(|value| {
