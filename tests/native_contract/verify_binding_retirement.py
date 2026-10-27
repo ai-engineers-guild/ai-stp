@@ -22,7 +22,11 @@ from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.envelope import ErrorEnvelope
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.models import Device
-from ai_stp_platform.organization_models import OrganizationMembership
+from ai_stp_platform.organization_models import (
+    CorporateRoleBinding,
+    Organization,
+    OrganizationMembership,
+)
 
 if TYPE_CHECKING:
     from tests.native_contract.verify_checkout import LostAcknowledgements, Native
@@ -90,6 +94,28 @@ async def qualify(
     await login(account, None)
     selected = (await run("context", "list"))["selected"]
     assert selected["context_id"] == offline_context
+    foreign = (await run("context", "show", "--context", foreign_context))["context"]["authority"][
+        "account"
+    ]
+    # Give only this synthetic second participant an explicit authorized role.
+    # Staff intentionally has neither project.update nor project.unlink.
+    async with app.state.sessionmaker() as db:
+        company = await db.get(Organization, organization)
+        assert company is not None
+        company.policy_revision += 1
+        db.add(
+            CorporateRoleBinding(
+                id=new_id("operation"),
+                organization_id=organization,
+                account_id=foreign["account_id"],
+                role="lead",
+                scope_kind="organization",
+                scope_id=organization,
+                origin="direct",
+                coverage="descendants",
+            )
+        )
+        await db.commit()
     planned_context = await run(
         "context",
         "create",
@@ -101,9 +127,6 @@ async def qualify(
         organization,
     )
     context = (await enact(planned_context, "context", "apply"))["context_id"]
-    foreign = (await run("context", "show", "--context", foreign_context))["context"]["authority"][
-        "account"
-    ]
     original_actor = planned_context["plan"]["change"]["context"]["authority"]["account"]
     assert foreign["account_id"] != account and original_actor["account_id"] == account
     origin = original_actor["origin"]
