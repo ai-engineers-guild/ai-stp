@@ -46,6 +46,10 @@ contract!(
     "/resources/schemas/v1/project-link-plan-outcome.schema.json"
 );
 contract!(
+    LINK_CURRENT,
+    "/resources/schemas/v1/project-link-response.schema.json"
+);
+contract!(
     UNLINK_OUTCOME,
     "/resources/schemas/v1/project-unlink-plan-outcome.schema.json"
 );
@@ -93,6 +97,9 @@ pub enum Request {
     },
     LinkTarget {
         project_id: String,
+    },
+    LinkCurrent {
+        link_id: String,
     },
     LinkOutcome {
         plan_id: String,
@@ -167,6 +174,9 @@ impl Request {
             Self::LinkOutcome { plan_id } | Self::LinkSettlement { plan_id }
                 if !passport::stable_id(plan_id, "link_plan") =>
             {
+                Err(invalid())
+            }
+            Self::LinkCurrent { link_id } if !passport::stable_id(link_id, "project_link") => {
                 Err(invalid())
             }
             Self::UnlinkOutcome { plan_id } | Self::UnlinkSettlement { plan_id }
@@ -254,6 +264,7 @@ impl Request {
             Self::LinkTarget { project_id } => {
                 format!("/v1/organizations/{organization}/project-link-targets/{project_id}")
             }
+            Self::LinkCurrent { link_id } => format!("/v1/projects/links/{link_id}"),
             Self::LinkOutcome { plan_id } => {
                 format!("/v1/organizations/{organization}/project-link-plans/{plan_id}/outcome")
             }
@@ -344,6 +355,7 @@ impl Request {
             Self::Projects { .. } => &PROJECTS,
             Self::Project { .. } => &PROJECT,
             Self::LinkTarget { .. } => &LINK_TARGET,
+            Self::LinkCurrent { .. } => &LINK_CURRENT,
             Self::LinkOutcome { .. }
             | Self::LinkSettlement { .. }
             | Self::LinkRequestOutcome { .. } => &LINK_OUTCOME,
@@ -368,6 +380,7 @@ impl Request {
             self,
             Self::Project { .. }
                 | Self::LinkTarget { .. }
+                | Self::LinkCurrent { .. }
                 | Self::Mappings
                 | Self::Mapping { .. }
                 | Self::AssignmentPreview { .. }
@@ -377,6 +390,11 @@ impl Request {
         }
         if let Self::Project { project_id } = self
             && value["project_id"] != *project_id
+        {
+            return Err(invalid());
+        }
+        if let Self::LinkCurrent { link_id } = self
+            && value["link_id"] != *link_id
         {
             return Err(invalid());
         }
@@ -560,7 +578,8 @@ pub fn observe(root: &Path, context: Option<&str>, request: Request) -> Result<V
     }
     if matches!(
         request,
-        Request::UnlinkOutcome { .. }
+        Request::LinkCurrent { .. }
+            | Request::UnlinkOutcome { .. }
             | Request::UnlinkSettlement { .. }
             | Request::UnlinkRequestOutcome { .. }
     ) && !observation["capabilities"]["capabilities"]

@@ -31,6 +31,47 @@ fn fixture(source: &str, operation: &str) -> Result<Value> {
 }
 
 #[test]
+fn current_link_reads_keep_exact_identity_and_drop_wire_extensions() -> Result<()> {
+    let original = fixture(CONTEXT, "readProjectLink")?;
+    let id = text(&original, "link_id")?.to_owned();
+    let request = Request::LinkCurrent {
+        link_id: id.clone(),
+    };
+    let (url, body) = request.wire("https://corporate.example.test", ORGANIZATION, ACCOUNT)?;
+    assert_eq!(url.path(), format!("/v1/projects/links/{id}"));
+    assert!(body.is_none() && url.query().is_none());
+    for state in ["linked", "conflict", "unlinked"] {
+        let mut value = original.clone();
+        value["state"] = state.into();
+        value["revision"] = 17.into();
+        value["remote_revision"] = "advanced-head".into();
+        let expected = value.clone();
+        value["future_private"] = json!({"token":"canary"});
+        assert_eq!(request.project(&value, ORGANIZATION, ACCOUNT)?, expected);
+    }
+    for (field, value) in [
+        ("link_id", "project_link_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
+        ("organization_id", "organization_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
+    ] {
+        let mut mixed = original.clone();
+        mixed[field] = value.into();
+        assert!(request.project(&mixed, ORGANIZATION, ACCOUNT).is_err());
+    }
+    for id in [
+        "link_plan_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        "../other",
+        "project_link_short",
+    ] {
+        assert!(
+            Request::LinkCurrent { link_id: id.into() }
+                .validate()
+                .is_err()
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn unlink_readers_use_original_routes_and_reject_mixed_terminal_evidence() -> Result<()> {
     let ready = fixture(CONTEXT, "readProjectUnlinkPlanOutcome")?;
     let id = text(&ready["plan"], "plan_id")?.to_owned();

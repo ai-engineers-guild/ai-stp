@@ -95,6 +95,7 @@ fn serve(
     }
     assert!(
         route.starts_with(&format!("/v1/corporate/organizations/{organization}/"))
+            || route.starts_with("/v1/projects/links/")
             || route.starts_with(&format!(
                 "/v1/organizations/{organization}/project-link-targets/"
             ))
@@ -130,6 +131,24 @@ fn serve(
     if control.bump {
         control.revision += 1;
         control.bump = false;
+    }
+    if route.starts_with("/v1/projects/links/") {
+        assert!(header.starts_with("GET ") && body.is_empty());
+        let corpus: Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/resources/packages/contracts/src/ai_stp_contracts/fixtures/v1/context.json"
+        )))?;
+        let mut value = corpus["cases"]
+            .as_array()
+            .ok_or_else(|| std::io::Error::other("corpus"))?
+            .iter()
+            .find(|case| case["operation_id"] == "readProjectLink" && case["kind"] == "positive")
+            .ok_or_else(|| std::io::Error::other("link"))?["body"]
+            .clone();
+        value["link_id"] = route.rsplit('/').next().into();
+        value["organization_id"] = organization.into();
+        value["future_private"] = "canary".into();
+        return respond(socket, 200, value);
     }
     if route.contains("/project-link-targets/") {
         let revision = if control.stale_link_policy {
@@ -278,7 +297,7 @@ fn exercise(named: bool) -> std::result::Result<(), Box<dyn Error>> {
     let (server_account, server_token, server_at) = (account.clone(), token.clone(), at.clone());
     let worker = thread::spawn(move || -> std::io::Result<()> {
         let deadline = Instant::now() + Duration::from_secs(90);
-        for _ in 0..512 {
+        for request in 0..=512 {
             let mut socket = accept_until(&listener, deadline)?;
             if server_control
                 .lock()
@@ -287,6 +306,9 @@ fn exercise(named: bool) -> std::result::Result<(), Box<dyn Error>> {
             {
                 return Ok(());
             }
+            if request == 512 {
+                return Err(std::io::Error::other("fixture HTTP request bound: 512"));
+            }
             serve(
                 &mut socket,
                 &server_control,
@@ -294,7 +316,10 @@ fn exercise(named: bool) -> std::result::Result<(), Box<dyn Error>> {
                 &device,
                 &server_token,
                 &server_at,
-            )?;
+            )
+            .map_err(|error| {
+                std::io::Error::other(format!("fixture request {}: {error}", request + 1))
+            })?;
         }
         Err(std::io::Error::other("request bound"))
     });
@@ -375,6 +400,19 @@ fn exercise(named: bool) -> std::result::Result<(), Box<dyn Error>> {
         assert!(corporate::observe(root.path(), Some(&contexts[0]), request.clone()).is_err());
         control.lock().map_err(|_| "fixture")?.bump = true;
         assert!(corporate::observe(root.path(), Some(&contexts[0]), request).is_err());
+        let current_link = Request::LinkCurrent {
+            link_id: FIRST.replacen("organization_", "project_link_", 1),
+        };
+        let current = corporate::observe(root.path(), Some(&contexts[0]), current_link.clone())?;
+        assert_eq!(current["observation"]["data"]["state"], "linked");
+        assert!(!current.to_string().contains("canary"));
+        let count = control.lock().map_err(|_| "fixture")?.reads.len();
+        control.lock().map_err(|_| "fixture")?.unlink_allowed = false;
+        assert!(corporate::observe(root.path(), Some(&contexts[0]), current_link.clone()).is_err());
+        assert_eq!(control.lock().map_err(|_| "fixture")?.reads.len(), count);
+        control.lock().map_err(|_| "fixture")?.unlink_allowed = true;
+        control.lock().map_err(|_| "fixture")?.bump = true;
+        assert!(corporate::observe(root.path(), Some(&contexts[0]), current_link).is_err());
         for request in [
             Request::UnlinkOutcome {
                 plan_id: FIRST.replacen("organization_", "unlink_plan_", 1),
@@ -497,9 +535,9 @@ fn exercise(named: bool) -> std::result::Result<(), Box<dyn Error>> {
         Ok(())
     })();
     control.lock().map_err(|_| "fixture")?.stop = true;
-    let _wake = TcpStream::connect(address)?;
+    let _wake = TcpStream::connect(address);
     let served = worker.join().map_err(|_| "server thread")?;
-    journey?;
+    journey.map_err(|error| format!("named={named}: {error}; fixture server: {served:?}"))?;
     served?;
     Ok(())
 }
