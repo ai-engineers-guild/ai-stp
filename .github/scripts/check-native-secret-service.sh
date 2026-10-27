@@ -133,12 +133,23 @@ if [[ "${fixture_mode}" == corporate-desktop ]]; then
 fi
 
 cd apps/cli
+fixture_checks=(cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
+  cargo test --locked --lib)
 for fixture_test in \
   transport_reuse_stays_with_the_exact_existing_unix_bus \
   fresh_concurrent_clients_initialize_before_first_credential_lookup; do
-  cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
-    cargo test --locked --lib "identity::secret_service::tests::${fixture_test}" \
-    -- --ignored --exact
+  fixture_case="identity::secret_service::tests::${fixture_test}"
+  fixture_listing="$("${fixture_checks[@]}" "${fixture_case}" -- --ignored --exact --list)"
+  printf '%s\n' "${fixture_listing}"
+  fixture_selected=0
+  while IFS= read -r line; do
+    if [[ "${line}" == *': test' ]]; then
+      test "${line}" = "${fixture_case}: test"
+      fixture_selected=$((fixture_selected + 1))
+    fi
+  done <<<"${fixture_listing}"
+  test "${fixture_selected}" -eq 1
+  "${fixture_checks[@]}" "${fixture_case}" -- --ignored --exact
 done
 checks=(cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
   cargo test --locked --test enrollments_native --)

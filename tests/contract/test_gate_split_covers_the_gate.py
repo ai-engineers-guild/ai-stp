@@ -267,6 +267,14 @@ def test_pr_native_checks_cover_platform_specific_code_and_real_vault_processes(
     assert vault["if"] == "runner.os != 'Linux'"
     assert "cargo test --locked --test enrollments_native" in vault["run"]
     assert "--ignored" not in vault["run"]
+    pr_linux = next(
+        step
+        for step in native["steps"]
+        if step.get("name") == "Fresh concurrent Linux clients and independent CLI processes"
+    )
+    assert pr_linux["if"] == "runner.os == 'Linux'"
+    assert pr_linux["env"]["AI_STP_NATIVE_VAULT_ROUNDS"] == "10"
+    assert pr_linux["run"] == "bash .github/scripts/check-native-secret-service.sh"
     linux = next(
         step
         for step in jobs["cli"]["steps"]
@@ -274,6 +282,9 @@ def test_pr_native_checks_cover_platform_specific_code_and_real_vault_processes(
     )
     assert linux["if"] == "runner.os == 'Linux'"
     assert linux["run"] == "bash .github/scripts/check-native-secret-service.sh"
+    assert linux["env"]["AI_STP_NATIVE_VAULT_ROUNDS"] == (
+        "${{ inputs.native_vault_rounds || '100' }}"
+    )
 
 
 def _shard_selection(extra: str) -> tuple[set[Path], set[Path]]:
