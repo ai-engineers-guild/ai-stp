@@ -6,10 +6,10 @@ There is no Python fallback, model client, background updater or telemetry.
 The executable registry is the command reference: `ai-stp help --agent --json`.
 Use `task intents` and `task input-schema` for the smaller task interface.
 
-The commands below describe current source builds. Corporate/profile additions
-are unreleased client work; immutable CLI 0.1.3 / Desktop 0.0.11 release binaries
-do not acquire new commands when the server is deployed. Match the executable's
-machine help and registry compatibility before using a source-build operation.
+The commands below describe the CLI 0.2 / Desktop 0.1 client line. Immutable
+CLI 0.1.3 / Desktop 0.0.11 binaries retain their original command surface;
+deploying the server does not update an installed client. Match the executable's
+machine help and registry compatibility before using an operation.
 
 `account providers --api-url https://your-server.example` reads the sign-in
 methods enabled by that deployment without credentials or local state writes.
