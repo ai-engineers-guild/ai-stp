@@ -433,6 +433,22 @@ jobs:
           )"
           printf 'AI_STP_TEST_CLI_BINARY=%s\n' "$binary" >> "${GITHUB_ENV}"
           uv run --no-sync python tests/native_contract/verify.py "$binary"
+      - name: Restore isolated previous native build artifacts
+        if: runner.os == 'Linux'
+        id: previous-native-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        continue-on-error: true
+        timeout-minutes: 5
+        with:
+          path: |
+            ${{ runner.temp }}/ai-stp-previous-native-*-target
+            ${{ runner.temp }}/ai-stp-previous-native-*-build
+          # No prefix fallback may import artifacts from another compiler or
+          # producer recipe. Each target/build directory is also commit-bound.
+          key: >-
+            previous-native-v1-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('apps/cli/rust-toolchain.toml', '.github/scripts/build-previous-native-cli.sh',
+            '.github/workflows/check.yml') }}
       - name: Build the immutable previous schema58 native writer
         if: runner.os == 'Linux'
         shell: bash
@@ -459,6 +475,19 @@ jobs:
             "${AI_STP_TEST_CLI_BINARY}"
           uv run --locked python -m tests.native_contract.verify_corporate \
             "${AI_STP_TEST_CLI_BINARY}"
+      - name: Cache previous native builds after API acceptance
+        if: >-
+          success() && github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+          runner.os == 'Linux' && steps.previous-native-cache.outputs.cache-hit != 'true' &&
+          steps.previous-native-cache.outputs.cache-primary-key != ''
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        continue-on-error: true
+        timeout-minutes: 5
+        with:
+          path: |
+            ${{ runner.temp }}/ai-stp-previous-native-*-target
+            ${{ runner.temp }}/ai-stp-previous-native-*-build
+          key: ${{ steps.previous-native-cache.outputs.cache-primary-key }}
       - name: Cache the successful native build
         if: steps.native-cache.outputs.cache-hit != 'true'
         # Cache availability must not prevent or invalidate the checks above.
