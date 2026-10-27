@@ -286,6 +286,85 @@ gh() {
         self.assertFalse(self.decision(self.candidate(), jobs))
 
 
+class DesktopReleaseAdmissionTests(unittest.TestCase):
+    def release_decision(
+        self,
+        runs: list[dict[str, Any]],
+        jobs: dict[str, Any],
+        *,
+        current: str | None = None,
+        count: int | None = None,
+    ) -> bool:
+        fixture = """
+gh() {
+  case "$*" in
+    */git/ref/heads/main*) printf '%s' "$CURRENT" ;;
+    */attempts/*/jobs*) printf '%s' "$JOBS" ;;
+    */actions/runs\\?*) printf '%s' "$RUNS" ;;
+    *) return 92 ;;
+  esac
+}
+"""
+        outcome = execute(
+            fixture + script("desktop-release.yml", "guard", 3),
+            {
+                "REPOSITORY": "example/project",
+                "HEAD_SHA": "a" * 40,
+                "RUNS": json.dumps(
+                    {"total_count": len(runs) if count is None else count, "workflow_runs": runs}
+                ),
+                "JOBS": json.dumps(jobs),
+                "CURRENT": "a" * 40 if current is None else current,
+            },
+        )
+        return outcome.returncode == 0
+
+    def test_release_refuses_stale_failed_missing_or_truncated_source(self) -> None:
+        fixtures = PromotionAdmissionTests()
+        source, jobs = fixtures.candidate(), fixtures.jobs()
+        self.assertTrue(self.release_decision([source], jobs))
+        self.assertFalse(self.release_decision([], jobs))
+        self.assertFalse(self.release_decision([source], jobs, current="b" * 40))
+        self.assertFalse(self.release_decision([source], jobs, count=2))
+        for field, value in {
+            "repository": {"full_name": "other/project"},
+            "head_repository": {"full_name": "fork/project"},
+            "head_sha": "b" * 40,
+            "event": "pull_request",
+            "head_branch": "dev",
+            "path": ".github/workflows/desktop.yml",
+            "status": "in_progress",
+            "conclusion": "failure",
+        }.items():
+            with self.subTest(field=field):
+                self.assertFalse(self.release_decision([source | {field: value}], jobs))
+        # An older success cannot hide the newest failed source run.
+        self.assertFalse(
+            self.release_decision([source, source | {"id": 42, "conclusion": "failure"}], jobs)
+        )
+        for value in ["failure", "cancelled", "skipped", None]:
+            failed = fixtures.jobs()
+            failed["jobs"][0]["conclusion"] = value
+            self.assertFalse(self.release_decision([source], failed))
+        self.assertFalse(self.release_decision([source], {"total_count": 0, "jobs": []}))
+        self.assertFalse(self.release_decision([source], jobs | {"total_count": 2}))
+        duplicate = fixtures.jobs()
+        duplicate["jobs"].append(duplicate["jobs"][0].copy())
+        duplicate["total_count"] = 2
+        self.assertFalse(self.release_decision([source], duplicate))
+
+    def test_published_packages_are_owned_by_the_installed_three_os_workflow(self) -> None:
+        release = workflow("desktop-release.yml")
+        self.assertEqual(
+            release["jobs"]["bundle"],
+            {"needs": "guard", "uses": "./.github/workflows/desktop.yml"},
+        )
+        self.assertEqual(release["jobs"]["release"]["needs"], "bundle")
+        publisher = release["jobs"]["release"]["steps"]
+        self.assertEqual(publisher[0]["with"]["pattern"], "ai-stp-desktop-*")
+        self.assertFalse(any("actions/checkout@" in step.get("uses", "") for step in publisher))
+
+
 class ScannerSelectionTests(unittest.TestCase):
     def test_default_owner_is_unchanged_and_missing_selected_scanner_refuses(self) -> None:
         text = (ROOT / "scripts/safety/install_scanners.sh").read_text(encoding="utf-8")

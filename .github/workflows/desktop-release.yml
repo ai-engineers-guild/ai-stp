@@ -1,5 +1,5 @@
-# Desktop release: builds real OS bundles for the exact tag and publishes
-# them to a GitHub Release. The run
+# Desktop release: the same three-OS owner builds and qualifies the exact
+# published packages, including installed Linux journeys. The run
 # must sit on the tag it claims, the version inside tauri.conf.json must
 # equal the tag, and every artifact is checksummed before upload.
 #
@@ -31,6 +31,9 @@ jobs:
     name: verify-tag-and-version
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: The dispatch must run on the tag it claims to release
         env:
@@ -69,114 +72,36 @@ jobs:
             }
           done
 
+      - name: Require the exact currently qualified main source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq .object.sha)" = "${HEAD_SHA}"
+          runs="$(gh api "repos/${REPOSITORY}/actions/runs?head_sha=${HEAD_SHA}&event=push&branch=main&per_page=100")"
+          source="$(jq -ce --arg repo "${REPOSITORY}" --arg sha "${HEAD_SHA}" '
+            select(.total_count == (.workflow_runs | length)) |
+            [.workflow_runs[] | select(
+              .path == ".github/workflows/check.yml" and
+              .repository.full_name == $repo and .head_repository.full_name == $repo and
+              .head_sha == $sha and .event == "push" and .head_branch == "main"
+            )] | select(length > 0) | max_by(.id) |
+            select(.status == "completed" and .conclusion == "success")
+          ' <<< "${runs}")"
+          source_id="$(jq -r .id <<< "${source}")"
+          attempt="$(jq -r .run_attempt <<< "${source}")"
+          jobs="$(gh api "repos/${REPOSITORY}/actions/runs/${source_id}/attempts/${attempt}/jobs?per_page=100")"
+          jq -e '
+            .total_count == (.jobs | length) and
+            ([.jobs[] | select(.name == "qualification")] |
+              length == 1 and all(.[]; .status == "completed" and .conclusion == "success"))
+          ' <<< "${jobs}" >/dev/null
+
   bundle:
-    name: bundle-${{ matrix.os }}
     needs: guard
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        # Linux bundles need the glibc of the image that built them, so the leg
-        # pins the image the shipped bundles were built and tested on rather
-        # than `ubuntu-latest`, which moves to Ubuntu 26.04 from 2026-10-19.
-        os: [ubuntu-24.04, macos-15, windows-2025]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - name: Install the native CLI toolchain
-        shell: bash
-        run: |
-          set -euo pipefail
-          toolchain="$(sed -n 's/^channel = "\(.*\)"/\1/p' apps/cli/rust-toolchain.toml)"
-          test -n "${toolchain}"
-          rustup toolchain install "${toolchain}" --profile minimal \
-            --component clippy --component rustfmt
-          echo "RUSTUP_TOOLCHAIN=${toolchain}" >> "${GITHUB_ENV}"
-      - name: Install pinned bun
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
-          echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
-      - name: Install WebKitGTK dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
-            librsvg2-dev patchelf
-      - name: Frontend install and checks
-        working-directory: apps/desktop
-        shell: bash
-        run: |
-          set -euo pipefail
-          bun install --frozen-lockfile
-          bun x tsc --noEmit
-          bun x vitest run
-          bun x vite build
-      - name: Core crate tests
-        working-directory: apps/desktop/core
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo fmt --check
-          cargo clippy --locked --all-targets -- -D warnings
-          cargo test --locked
-      - name: Stub sidecar for shell-crate checks
-        shell: bash
-        # tauri-build's build.rs verifies resource paths exist at compile
-        # time; the stub satisfies that before the real Rust sidecar
-        # is built below.
-        run: cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- desktop-stub
-      - name: Shell crate tests
-        working-directory: apps/desktop/src-tauri
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo fmt --check
-          cargo clippy --locked --all-targets -- -D warnings
-          cargo test --locked
-      - name: Build the bundled CLI sidecar
-        shell: bash
-        run: cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- desktop-build
-      - name: Sidecar spawns under the app's filtered env
-        shell: bash
-        # CliRunner clears the child env and re-adds a passthrough set —
-        # the same path the installed app takes. The resource probe checks
-        # the Rust runtime, executable registry and native task input schema.
-        # The native tool is shared with `just desktop-regress`.
-        run: cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- desktop-probe
-      - name: Tauri build
-        shell: bash
-        run: bash .github/scripts/build-desktop-bundles.sh
-      - name: Verify the macOS disk image
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          set -euo pipefail
-          images=(apps/desktop/src-tauri/target/release/bundle/dmg/*.dmg)
-          test "${#images[@]}" -eq 1 && test -f "${images[0]}"
-          /usr/bin/hdiutil verify "${images[0]}"
-      - name: Probe the packaged CLI resource tree
-        shell: bash
-        run: >-
-          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml --
-          desktop-package-probe
-      - name: Upload release bundles
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: desktop-release-${{ inputs.version }}-${{ matrix.os }}
-          path: |
-            apps/desktop/src-tauri/target/release/bundle/**/*.deb
-            apps/desktop/src-tauri/target/release/bundle/**/*.rpm
-            apps/desktop/src-tauri/target/release/bundle/**/*.AppImage
-            apps/desktop/src-tauri/target/release/bundle/**/*.dmg
-            apps/desktop/src-tauri/target/release/bundle/**/*.msi
-            apps/desktop/src-tauri/target/release/bundle/**/*.exe
-          if-no-files-found: error
+    uses: ./.github/workflows/desktop.yml
 
   release:
     name: publish-github-release
@@ -190,29 +115,27 @@ jobs:
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
-          pattern: desktop-release-${{ inputs.version }}-*
+          pattern: ai-stp-desktop-*
           merge-multiple: true
           path: bundles
-      - name: Flatten bundle directories and reject collisions
-        working-directory: bundles
+      - name: Select only the six qualified install bundles and reject collisions
         run: |
           set -euo pipefail
-          test -n "$(find . -mindepth 1 -type f -print -quit)" || {
-            echo "no bundles produced" >&2; exit 1;
-          }
-          # Artifacts keep their per-format subdirs (deb/, dmg/, nsis/, ...).
-          # Release assets are the files themselves, so flatten first and let
-          # a duplicate basename fail loudly instead of silently overwriting.
-          while IFS= read -r f; do
-            base="$(basename "${f}")"
-            if [[ -e "./${base}" ]]; then
-              echo "bundle basename collision: ${base}" >&2; exit 1;
-            fi
-            mv "${f}" .
-          done < <(find . -mindepth 2 -type f)
-          find . -mindepth 1 -type d -empty -delete
+          mkdir release
+          while IFS= read -r -d '' file; do
+            base="$(basename "${file}")"
+            test ! -e "release/${base}"
+            mv "${file}" "release/${base}"
+          done < <(find bundles -type f \
+            \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \
+            -o -name '*.dmg' -o -name '*.msi' -o -name '*-setup.exe' \) -print0)
+          for extension in deb rpm AppImage dmg msi exe; do
+            files=(release/*."${extension}")
+            test "${#files[@]}" -eq 1 && test -f "${files[0]}"
+          done
+          test "$(find release -maxdepth 1 -type f | wc -l)" -eq 6
       - name: Checksum everything
-        working-directory: bundles
+        working-directory: release
         run: |
           set -euo pipefail
           sha256sum -- * > SHA256SUMS
@@ -221,7 +144,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ inputs.version }}
-        working-directory: bundles
+        working-directory: release
         run: |
           set -euo pipefail
           cat > "${RUNNER_TEMP}/NOTES.md" <<'NOTES'
@@ -231,8 +154,14 @@ jobs:
           needed; a configured path or PATH `ai-stp` still works in
           development.
 
-          Includes workspace initialization, catalog browsing, explicit setup
-          installation forms, retained task recovery and account device login.
+          Includes offline personal contexts, independent account connections,
+          explicit personal/corporate view switching, credential recovery,
+          corporate checkout request/confirmation/reconciliation, local binding
+          adoption and separately reviewed terminal binding retirement. Original
+          receipts and tasks retain their original authority across view changes.
+          Linux installed personal and corporate restart journeys run against
+          these exact release bundles before publication; macOS and Windows run
+          their native checks, resource probes and package builds.
           Harness executables remain user/vendor managed. Isolated setup
           installation is currently Linux-only; other platforms expose that
           limitation before starting. Existing Python state requires the

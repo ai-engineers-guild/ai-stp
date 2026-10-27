@@ -733,6 +733,8 @@ def installed_journey(
             "exact_terminal_native_unlink": True,
             "separately_reviewed_local_binding_retirement": True,
             "retirement_receipt_after_installed_restart": True,
+            "retirement_restart_trusted_inspection": True,
+            "restart_native_retirement_readback_matches": True,
             "original_adoption_evidence_preserved": True,
             "writer_epoch": 60,
             "unowned_files_preserved": True,
