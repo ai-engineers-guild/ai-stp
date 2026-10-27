@@ -206,21 +206,29 @@ struct FailureEvidence {
                 std::ifstream file(root / L"target" / (mode + L"-" + role + L".failure"),
                     std::ios::binary);
                 if (!file) continue;
-                char bytes[64]{};
+                char bytes[128]{};
                 file.read(bytes, sizeof(bytes));
                 if (!file.eof()) continue;
                 std::istringstream fields(std::string(bytes, static_cast<size_t>(file.gcount())));
                 unsigned long long stage = 0, code = 0, policy_known = 0, child_denied = 0, bootstrap_matches = 0;
-                if (!(fields >> stage >> code >> policy_known >> child_denied >> bootstrap_matches)) continue;
+                unsigned long long process_error = 0, token_error = 0, image_error = 0, station_error = 0;
+                if (!(fields >> stage >> code >> policy_known >> child_denied >> bootstrap_matches
+                    >> process_error >> token_error >> image_error >> station_error)) continue;
                 fields >> std::ws;
                 if (!fields.eof() || stage < 1000 || stage >= 1000 + worker_stages.size()
                     || code > std::numeric_limits<DWORD>::max()
-                    || policy_known > 1 || child_denied > 1 || bootstrap_matches > 1) continue;
+                    || policy_known > 1 || child_denied > 1 || bootstrap_matches > 1
+                    || process_error > MAXDWORD || token_error > MAXDWORD
+                    || image_error > MAXDWORD || station_error > MAXDWORD) continue;
                 std::cout << "{\"worker_failure_stage\":\"" << worker_stages[stage - 1000]
                     << "\",\"original_native_code\":" << code
                     << ",\"child_policy_observed\":" << policy_known
                     << ",\"child_policy_denies_creation\":" << child_denied
                     << ",\"localappdata_matches_bootstrap\":" << bootstrap_matches
+                    << ",\"self_process_create_error\":" << process_error
+                    << ",\"self_token_duplicate_error\":" << token_error
+                    << ",\"self_image_execute_error\":" << image_error
+                    << ",\"station_reopen_error\":" << station_error
                     << "}" << std::endl;
             }
         } catch (...) {
@@ -657,12 +665,35 @@ int wmain(int argc, wchar_t** argv) {
                 const DWORD length = GetEnvironmentVariableW(L"LOCALAPPDATA", local, 32768);
                 const bool bootstrap_matches = length > 0 && length < 32768
                     && _wcsicmp(local, argv[7]) == 0;
+                Handle self(OpenProcess(PROCESS_CREATE_PROCESS, FALSE, GetCurrentProcessId()));
+                const DWORD process_error = self.value ? ERROR_SUCCESS : GetLastError();
+                HANDLE token_handle = nullptr;
+                const BOOL token_opened = OpenProcessToken(GetCurrentProcess(),
+                    TOKEN_QUERY | TOKEN_DUPLICATE, &token_handle);
+                const DWORD token_error = token_opened ? ERROR_SUCCESS : GetLastError();
+                Handle token_held(token_handle);
+                Handle image(CreateFileW(argv[6], GENERIC_READ | GENERIC_EXECUTE,
+                    FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
+                    FILE_ATTRIBUTE_NORMAL, nullptr));
+                const DWORD image_error = image.value != INVALID_HANDLE_VALUE
+                    ? ERROR_SUCCESS : GetLastError();
+                wchar_t station_name[512]{};
+                DWORD needed = 0, station_error = ERROR_SUCCESS;
+                if (GetUserObjectInformationW(GetProcessWindowStation(), UOI_NAME,
+                    station_name, sizeof(station_name), &needed)) {
+                    const HWINSTA station = OpenWindowStationW(station_name, FALSE,
+                        WINSTA_READATTRIBUTES);
+                    if (station) CloseWindowStation(station);
+                    else station_error = GetLastError();
+                } else station_error = GetLastError();
                 publish(fs::path(argv[4]) / L"target"
                     / (std::wstring(argv[2]) + L"-" + argv[3] + L".failure"),
                     std::to_string(worker_stage_code(failure.stage)) + " "
                     + std::to_string(failure.code) + " " + (policy_known ? "1" : "0")
                     + " " + (policy_known && policy.NoChildProcessCreation ? "1" : "0")
-                    + " " + (bootstrap_matches ? "1" : "0") + "\n");
+                    + " " + (bootstrap_matches ? "1" : "0")
+                    + " " + std::to_string(process_error) + " " + std::to_string(token_error)
+                    + " " + std::to_string(image_error) + " " + std::to_string(station_error) + "\n");
             } catch (...) { /* The original failure remains authoritative. */ }
             return static_cast<int>(worker_stage_code(failure.stage));
         }
