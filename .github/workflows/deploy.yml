@@ -57,7 +57,8 @@ jobs:
           SOURCE_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
         run: |
           set -euo pipefail
-          source_run="$(gh api "repos/${REPOSITORY}/actions/runs/${SOURCE_RUN_ID}")"
+          run_path="repos/${REPOSITORY}/actions/runs/${SOURCE_RUN_ID}"
+          source_run="$(gh api "${run_path}")"
           jq -e --arg repo "${REPOSITORY}" --arg sha "${HEAD_SHA}" \
             --argjson run "${SOURCE_RUN_ID}" --argjson attempt "${SOURCE_ATTEMPT}" '
             .id == $run and .repository.full_name == $repo and
@@ -67,7 +68,7 @@ jobs:
             .status == "completed" and .conclusion == "success" and
             .run_attempt == $attempt
           ' <<< "${source_run}" >/dev/null
-          jobs="$(gh api "repos/${REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/attempts/${SOURCE_ATTEMPT}/jobs?per_page=100")"
+          jobs="$(gh api "${run_path}/attempts/${SOURCE_ATTEMPT}/jobs?per_page=100")"
           jq -e '
             .total_count == (.jobs | length) and
             ([.jobs[] | select(.name == "qualification")] |
