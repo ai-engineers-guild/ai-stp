@@ -92,7 +92,7 @@ def test_native_desktop_and_archive_jobs_use_the_shared_pinned_bootstrap() -> No
     for name, job in [
         ("check.yml", "cli"),
         ("desktop.yml", "desktop"),
-        ("cli-release.yml", "build"),
+        ("cli-archives.yml", "build"),
     ]:
         text = (ROOT / ".github/workflows" / name).read_text()
         workflow = yaml.load(text, Loader=yaml.BaseLoader)
@@ -103,4 +103,12 @@ def test_native_desktop_and_archive_jobs_use_the_shared_pinned_bootstrap() -> No
         assert installs[0].get("continue-on-error") != "true"
         assert "rustup toolchain install" not in text
         if name != "check.yml":
-            assert helper in workflow["on"]["pull_request"]["paths"]
+            assert "workflow_call" in workflow["on"]
+            assert "pull_request" not in workflow["on"]
+            caller = yaml.load(
+                (ROOT / ".github/workflows/check.yml").read_text(), Loader=yaml.BaseLoader
+            )
+            assert any(
+                item.get("uses") == f"./.github/workflows/{name}"
+                for item in caller["jobs"].values()
+            )

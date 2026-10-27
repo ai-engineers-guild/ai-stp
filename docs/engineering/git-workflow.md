@@ -5,7 +5,12 @@ last_verified: "2026-10-15"
 
 # Git workflow
 
-CI push branches: `dev`, `main`.
+CI push branches: `dev`, `main`. The `check` workflow calls the existing
+Desktop, CodeQL and native archive workflows and joins their results with the
+repository checks in `qualification`. This required status fails on a failed,
+cancelled or unexpectedly skipped dependency. Public source qualification also
+refuses open code-scanning findings for the validated ref after SARIF processing.
+Independent scheduled CodeQL and explicit release dispatches retain their owners.
 
 Both branches are permanent locally and remotely. `main` is the default protected
 release branch; `dev` integrates work. Create a work branch from current `dev`
@@ -24,7 +29,11 @@ are accepted only for verified same-repository bot PRs.
 Never force-push or delete permanent branches. Existing administrator bypass
 permits exceptions but does not substitute for evidence. No mandatory human
 approval count applies. Rule sources live in `.github/*ruleset.json`; live GitHub
-settings determine enforcement. Dependabot updates target `dev`; default-branch
+settings determine enforcement. The permanent-branch rule source requires
+up-to-date `qualification` and CodeQL results; apply it only after the candidate
+workflow has qualified, and read back the live rules. Production promotion checks
+the current successful main run/attempt and its completed qualification before
+advancing the deployment ref. Dependabot updates target `dev`; default-branch
 security PRs must be retargeted or transferred before normal promotion.
 
 If GitHub CI is unavailable, a complete `just check` on the exact head may supply

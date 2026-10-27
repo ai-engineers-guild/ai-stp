@@ -3,9 +3,9 @@
 # oracle for full docs, backend/BT regression, web, browser, and matrix suites.
 #
 # Split by what each job needs rather than by taste: only the test jobs need a
-# database, only the web jobs need a browser, and the rest need neither. No job
-# depends on another, so the run ends when the slowest one does rather than
-# after their sum.
+# database, only the web jobs need a browser, and the rest need neither.
+# Independent checks run together. The final qualification joins their results
+# with the existing Desktop, analysis and archive workflows before merge or CD.
 #
 # The commands below are the recipe bodies of the local `justfile`, written out
 # without it: `just` is a local convenience, not a CI dependency. The union of
@@ -40,6 +40,80 @@ env:
   BUN_VERSION: "1.4.4"
 
 jobs:
+  desktop:
+    uses: ./.github/workflows/desktop.yml
+
+  analysis:
+    if: github.event.repository.private == false
+    permissions:
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/codeql.yml
+
+  archives:
+    uses: ./.github/workflows/cli-archives.yml
+
+  qualification:
+    name: qualification
+    if: always()
+    needs:
+      - cli
+      - docs
+      - package
+      - tests
+      - coverage
+      - web-static
+      - web-unit
+      - web-e2e
+      - web-profiles
+      - desktop
+      - analysis
+      - archives
+    permissions:
+      contents: read
+      security-events: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every applicable dependency to succeed
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+          PRIVATE_REPOSITORY: ${{ github.event.repository.private }}
+        run: |
+          set -euo pipefail
+          jq -c 'to_entries | map({job: .key, result: .value.result})' <<< "${RESULTS}"
+          jq -e --argjson private "${PRIVATE_REPOSITORY}" '
+            type == "object" and length > 0 and
+            all(to_entries[];
+              if .key == "analysis" and $private then
+                .value.result == "skipped"
+              else
+                .value.result == "success"
+              end
+            )
+          ' <<< "${RESULTS}" >/dev/null
+      - name: Check the validated source and processed code scanning findings
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_REF: ${{ github.ref }}
+          SOURCE_SHA: ${{ github.sha }}
+          EVENT: ${{ github.event_name }}
+          PRIVATE_REPOSITORY: ${{ github.event.repository.private }}
+        run: |
+          set -euo pipefail
+          if [ "${EVENT}" = push ]; then
+            current="$(gh api "repos/${REPOSITORY}/git/ref/${SOURCE_REF#refs/}" --jq .object.sha)"
+            test "${current}" = "${SOURCE_SHA}"
+          fi
+          # CodeQL's pinned analyzer waits for SARIF processing before its
+          # dependency completes. A successful upload alone cannot hide alerts.
+          if [ "${PRIVATE_REPOSITORY}" = false ]; then
+            findings="$(gh api --method GET "repos/${REPOSITORY}/code-scanning/alerts" \
+              -f state=open -f ref="${SOURCE_REF}" -f per_page=1 --jq length)"
+            test "${findings}" = 0
+          fi
+
   cli:
     name: cli-${{ matrix.os }}
     runs-on: ${{ matrix.os }}

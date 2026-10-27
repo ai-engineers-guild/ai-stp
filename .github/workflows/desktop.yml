@@ -1,6 +1,6 @@
 # Desktop application CI: the Tauri shell over apps/desktop on all three
 # target OSes. Style follows check.yml — pinned action SHAs, pinned tool
-# versions, no job depends on another.
+# versions. check.yml owns source-event admission and joins this result.
 #
 # The core crate tests run everywhere; the full `tauri build` produces the
 # per-OS bundles (.deb/.rpm/.AppImage, .dmg, .msi/.nsis) so cross-platform
@@ -8,34 +8,7 @@
 name: desktop
 
 on:
-  push:
-    branches: [dev, main]
-    # The sidecar is the optimized Rust CLI built from this source tree.
-    paths:
-      - "apps/desktop/**"
-      - "apps/cli/**"
-      - "packages/**"
-      - ".github/workflows/desktop.yml"
-      # Bun installation changes also affect the desktop build.
-      - ".github/scripts/install-bun.sh"
-      - ".github/scripts/install-rust-toolchain.sh"
-      - ".github/scripts/check-native-secret-service.sh"
-      - ".github/scripts/qualify-installed-desktop.py"
-      - ".github/scripts/build-desktop-bundles.sh"
-      - "tests/native_contract/verify_desktop_corporate.py"
-  pull_request:
-    paths:
-      - "apps/desktop/**"
-      - "apps/cli/**"
-      - "packages/**"
-      - ".github/workflows/desktop.yml"
-      # Bun installation changes also affect the desktop build.
-      - ".github/scripts/install-bun.sh"
-      - ".github/scripts/install-rust-toolchain.sh"
-      - ".github/scripts/check-native-secret-service.sh"
-      - ".github/scripts/qualify-installed-desktop.py"
-      - ".github/scripts/build-desktop-bundles.sh"
-      - "tests/native_contract/verify_desktop_corporate.py"
+  workflow_call:
   workflow_dispatch:
 
 permissions:

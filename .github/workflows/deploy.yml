@@ -36,6 +36,7 @@ jobs:
       && github.event.workflow_run.head_branch == 'main'
     permissions:
       contents: write
+      actions: read
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # Serialising promotion is the point: two runs advancing one ref would
@@ -47,6 +48,32 @@ jobs:
       group: deploy-promotion
       cancel-in-progress: false
     steps:
+      - name: Admit only the current successful main qualification attempt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+        run: |
+          set -euo pipefail
+          source_run="$(gh api "repos/${REPOSITORY}/actions/runs/${SOURCE_RUN_ID}")"
+          jq -e --arg repo "${REPOSITORY}" --arg sha "${HEAD_SHA}" \
+            --argjson run "${SOURCE_RUN_ID}" --argjson attempt "${SOURCE_ATTEMPT}" '
+            .id == $run and .repository.full_name == $repo and
+            .head_repository.full_name == $repo and .head_sha == $sha and
+            .event == "push" and .head_branch == "main" and
+            .path == ".github/workflows/check.yml" and
+            .status == "completed" and .conclusion == "success" and
+            .run_attempt == $attempt
+          ' <<< "${source_run}" >/dev/null
+          jobs="$(gh api "repos/${REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/attempts/${SOURCE_ATTEMPT}/jobs?per_page=100")"
+          jq -e '
+            .total_count == (.jobs | length) and
+            ([.jobs[] | select(.name == "qualification")] |
+              length == 1 and all(.[]; .status == "completed" and .conclusion == "success"))
+          ' <<< "${jobs}" >/dev/null
+          test "$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq .object.sha)" = "${HEAD_SHA}"
       - name: Verify the source of this promotion and advance the ref
         env:
           EVENT: ${{ github.event.workflow_run.event }}
@@ -63,6 +90,7 @@ jobs:
           # silently widens what deploys.
           test "${BRANCH}" = "main"
           test "$(gh api "repos/${REPOSITORY}/commits/${HEAD_SHA}" --jq .sha)" = "${HEAD_SHA}"
+          test "$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq .object.sha)" = "${HEAD_SHA}"
           if gh api "repos/${REPOSITORY}/git/ref/heads/deploy/prod" >/dev/null 2>&1; then
             gh api --method PATCH "repos/${REPOSITORY}/git/refs/heads/deploy/prod" \
               -f sha="${HEAD_SHA}" -F force=false >/dev/null

@@ -1,6 +1,6 @@
-# Static analysis for the public mirror. It is not the gate: findings must not
-# look like a broken `check`, and a vulnerability class can appear after the
-# code that contains it stopped changing, so this also runs on a schedule.
+# Static analysis for the public mirror. check.yml joins actual analysis and
+# processed findings for source qualification. Independent scheduled analysis
+# also detects vulnerabilities after the containing code stopped changing.
 #
 # GitHub-hosted on purpose. CodeQL needs `security-events: write` and does not
 # need Docker; the fleet class that runs the gate must not carry this job
@@ -12,9 +12,7 @@
 name: codeql
 
 on:
-  push:
-    branches: [dev, main]
-  pull_request:
+  workflow_call:
   schedule:
     # Weekly, offset off the hour so it does not join the crowd at midnight.
     - cron: "23 4 * * 1"
@@ -54,3 +52,4 @@ jobs:
         uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee
         with:
           category: /language:${{ matrix.language }}
+          wait-for-processing: true
