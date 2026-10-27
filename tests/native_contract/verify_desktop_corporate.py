@@ -1,7 +1,8 @@
 """Installed Linux UI and bundled CLI against disposable actual API/PostgreSQL.
 
 Only synthetic browser approval is supplied by this fixture. WebDriver uses
-normal controls; no IPC interception, JavaScript mutation or app test hook.
+normal controls; no IPC interception, DOM mutation or app test hook. A passive
+test-owned event observer records whether one real activation reached its control.
 """
 
 from __future__ import annotations
@@ -618,9 +619,79 @@ def installed_journey(
         driver = driver_type(driver_path, environment, root / "corporate-retired-driver.log")
         driver.start()
         driver.selected(company)
+        assert (
+            native(
+                binary,
+                environment,
+                ["corporate", "project", "link", "show", "--operation", adoption["operation_id"]],
+            )
+            == retired_history
+        )
         driver.navigate("tasks", keyboard=True)
-        driver.click(driver.button("Inspect " + adoption["operation_id"], HISTORY))
-        driver.wait(retirement_visible, "retirement history after installed app restart")
+        inspection = driver.button("Inspect " + adoption["operation_id"], HISTORY)
+        # Observe one real WebDriver activation without replaying it or replacing
+        # the UI/IPC. A successful WebDriver reply alone is not a DOM-event proof.
+        driver.read(
+            "const node=arguments[0];window.__installedRetirementInspection={"
+            "clicks:0,trusted:0,disabledAtClick:false,contextLoadingAtClick:false};"
+            "node.addEventListener('click',event=>{"
+            "const count=window.__installedRetirementInspection;"
+            "count.clicks=Math.min(16,count.clicks+1);"
+            "if(event.isTrusted)count.trusted=Math.min(16,count.trusted+1);"
+            "count.disabledAtClick=node.disabled;"
+            "count.contextLoadingAtClick=!!document.querySelector("
+            "'section[aria-label=\"Context view\"] select')?.disabled;"
+            "},{capture:true,passive:true});",
+            inspection,
+        )
+        driver.click(inspection)
+        try:
+            driver.wait(retirement_visible, "retirement history after installed app restart")
+        except ValueError:
+            # Print closed categories/booleans only, never private DOM, IDs,
+            # paths, plans, replies or the driver's free-form error message.
+            if driver.last_response_ok:
+                observed = driver.read(
+                    "const root=document.querySelector(arguments[0]);"
+                    "const exact=root?.querySelector("
+                    "'[aria-label=\"Original checkout operation\"]');"
+                    "const retired='This original local binding was retired. '"
+                    "+'Its adoption receipt is preserved.';"
+                    "const codes=[...root?.querySelectorAll('[role=alert] span')||[]]"
+                    ".slice(0,4).map(node=>arguments[2].includes(node.textContent.trim())"
+                    "?node.textContent.trim():'other');"
+                    "return {click:window.__installedRetirementInspection,"
+                    "historyPresent:!!root,originalPresent:!!exact,"
+                    "originalMatches:!!exact?.querySelector('p')?.textContent.includes(arguments[1]),"
+                    "retirementVisible:!!root?.textContent.includes(retired),"
+                    "originalBindingVisible:!!root?.textContent.includes("
+                    "'Original corporate project binding receipt saved.'),"
+                    "pending:!!root?.textContent.includes("
+                    "'Reading the original checkout operation'),"
+                    "refused:!!root?.querySelector('[role=alert]'),errorCodes:codes};",
+                    HISTORY,
+                    adoption["operation_id"],
+                    [
+                        "CONTEXT_VIEW",
+                        "IPC_THROW",
+                        "DESKTOP_TRANSPORT",
+                        "AI_STP_VALIDATION_ERROR",
+                        "AI_STP_NOT_FOUND",
+                        "AI_STP_PRECONDITION_FAILED",
+                        "AI_STP_CONFLICT",
+                        "AI_STP_DEPENDENCY_UNAVAILABLE",
+                        "AI_STP_INTERNAL",
+                    ],
+                )
+                print(json.dumps({"diagnostic": "installed_retirement_restart", "state": observed}))
+            raise
+        actual_click = driver.read("return window.__installedRetirementInspection;")
+        assert actual_click == {
+            "clicks": 1,
+            "trusted": 1,
+            "disabledAtClick": False,
+            "contextLoadingAtClick": False,
+        }
         assert not driver.read(
             "return [...document.querySelectorAll(arguments[0]+' button')]"
             ".some(x=>x.textContent==='Review local binding retirement');",
@@ -662,6 +733,8 @@ def installed_journey(
             "exact_terminal_native_unlink": True,
             "separately_reviewed_local_binding_retirement": True,
             "retirement_receipt_after_installed_restart": True,
+            "retirement_restart_trusted_inspection": True,
+            "restart_native_retirement_readback_matches": True,
             "original_adoption_evidence_preserved": True,
             "writer_epoch": 60,
             "unowned_files_preserved": True,

@@ -5,7 +5,11 @@
 //! No Unlock, Prompt, CreateCollection or backend fallback is permitted.
 //! Device keys are immutable until explicit retirement; account replacement is explicit.
 
-use std::{cell::RefCell, collections::HashMap, time::Duration};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    time::Duration,
+};
 use zbus::{
     Connection, Proxy,
     address::{Address, transport::Transport},
@@ -43,6 +47,8 @@ fn unavailable_error(stage: &'static str, error: &zbus::Error) -> Failure {
                 "service_absent"
             }
             zbus::fdo::Error::UnknownObject(_) => "unknown_object",
+            zbus::fdo::Error::UnknownMethod(_) => "unknown_method",
+            zbus::fdo::Error::Failed(_) => "remote_failure",
             zbus::fdo::Error::InvalidArgs(_) => "invalid_arguments",
             zbus::fdo::Error::AccessDenied(_) | zbus::fdo::Error::AuthFailed(_) => "access_denied",
             zbus::fdo::Error::Disconnected(_) => "disconnected",
@@ -107,12 +113,28 @@ async fn proxy<'a>(conn: &'a Connection, path: &'a str, interface: &'a str) -> R
 }
 
 async fn service(conn: &Connection) -> Result<Proxy<'_>> {
-    proxy(
+    let service = proxy(
         conn,
         "/org/freedesktop/secrets",
         "org.freedesktop.Secret.Service",
     )
-    .await
+    .await?;
+    // Complete standard root-proxy initialization before a per-client PKCS#11
+    // operation. GNOME registers new clients asynchronously (upstream !112);
+    // calling SearchItems/OpenSession immediately after connecting can race it.
+    // Root Collections metadata needs no secret session, unlock or prompt.
+    // Read it explicitly because all proxies otherwise disable property caches.
+    let collections: Vec<OwnedObjectPath> = service
+        .get_property("Collections")
+        .await
+        .map_err(|error| unavailable_error("service_collections", &error))?;
+    if collections.len() > 1024
+        || collections.iter().any(|path| path.as_str() == "/")
+        || collections.iter().collect::<HashSet<_>>().len() != collections.len()
+    {
+        return Err(unavailable_at("service_collections_shape"));
+    }
+    Ok(service)
 }
 
 fn attributes(id: &str) -> HashMap<&str, &str> {
@@ -362,8 +384,76 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires the isolated CI Secret Service bus"]
+    fn fresh_concurrent_clients_initialize_before_first_credential_lookup() -> Result<()> {
+        assert_eq!(
+            std::env::var("AI_STP_TEST_SECRET_SERVICE").as_deref(),
+            Ok("isolated")
+        );
+        let names = std::thread::scope(|scope| {
+            let workers = (0..8)
+                .map(|_| {
+                    scope.spawn(|| -> Result<Vec<String>> {
+                        let mut names = Vec::new();
+                        for _ in 0..25 {
+                            // Each iteration must exercise a genuinely new bus
+                            // client, without a failed-call retry or a delay.
+                            CONNECTION.with(|cached| *cached.borrow_mut() = None);
+                            names.push(zbus::block_on(async {
+                                let conn = connection().await?;
+                                let name = conn
+                                    .unique_name()
+                                    .ok_or_else(|| unavailable_at("fixture_unique_name"))?
+                                    .to_string();
+                                let service = service(&conn).await?;
+                                assert!(
+                                    find_attributes(
+                                        &service,
+                                        HashMap::from([
+                                            ("service", "ai-stp-isolated-absent-probe"),
+                                            ("credential_id", "new-client-admission"),
+                                        ]),
+                                    )
+                                    .await?
+                                    .is_none()
+                                );
+                                Ok(name)
+                            })?);
+                        }
+                        CONNECTION.with(|cached| *cached.borrow_mut() = None);
+                        Ok(names)
+                    })
+                })
+                .collect::<Vec<_>>();
+            workers
+                .into_iter()
+                .map(|worker| {
+                    worker
+                        .join()
+                        .map_err(|_| unavailable_at("fixture_client_panic"))?
+                })
+                .collect::<Result<Vec<_>>>()
+        })?;
+        let names = names.into_iter().flatten().collect::<HashSet<_>>();
+        assert_eq!(names.len(), 200, "fresh client qualification was bypassed");
+        Ok(())
+    }
+
+    #[test]
     fn credential_diagnostics_never_expose_remote_error_payloads() {
         for (error, expected) in [
+            (
+                zbus::Error::FDO(Box::new(zbus::fdo::Error::UnknownMethod(
+                    "private-credential-canary".into(),
+                ))),
+                "unknown_method",
+            ),
+            (
+                zbus::Error::FDO(Box::new(zbus::fdo::Error::Failed(
+                    "private-credential-canary".into(),
+                ))),
+                "remote_failure",
+            ),
             (
                 zbus::Error::FDO(Box::new(zbus::fdo::Error::InvalidArgs(
                     "private-credential-canary".into(),

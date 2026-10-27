@@ -139,5 +139,8 @@ The compile-time stub never overwrites a real sidecar.
 
 Tag the verified commit `desktop-vX.Y.Z`, matching all desktop manifest versions,
 then dispatch `.github/workflows/desktop-release.yml` on that tag. The workflow
-checks and packages Linux, macOS and Windows builds and publishes `SHA256SUMS`.
+requires the exact current successful main qualification, then uses the same
+three-OS Desktop workflow to check and package the release. Its installed Linux
+journeys run against the published package before the six installers and
+`SHA256SUMS` are uploaded. The publisher runs without a source checkout.
 Bundles are currently unsigned; no signing credentials are configured.

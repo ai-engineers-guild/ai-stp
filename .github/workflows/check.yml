@@ -248,6 +248,19 @@ jobs:
         run: >-
           cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- build
           cargo test --locked --test enrollments_native
+      - name: Install the isolated Linux credential fixture
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install --yes --no-install-recommends \
+            dbus-daemon gnome-keyring libglib2.0-bin
+      - name: Fresh concurrent Linux clients and independent CLI processes
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          AI_STP_NATIVE_VAULT_ROUNDS: '10'
+        run: bash .github/scripts/check-native-secret-service.sh
 
   desktop:
     if: github.event_name != 'pull_request'

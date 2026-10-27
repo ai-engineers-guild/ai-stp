@@ -6,10 +6,10 @@ There is no Python fallback, model client, background updater or telemetry.
 The executable registry is the command reference: `ai-stp help --agent --json`.
 Use `task intents` and `task input-schema` for the smaller task interface.
 
-The commands below describe current source builds. Corporate/profile additions
-are unreleased client work; immutable CLI 0.1.3 / Desktop 0.0.11 release binaries
-do not acquire new commands when the server is deployed. Match the executable's
-machine help and registry compatibility before using a source-build operation.
+The commands below describe the CLI 0.2 / Desktop 0.1 client line. Immutable
+CLI 0.1.3 / Desktop 0.0.11 binaries retain their original command surface;
+deploying the server does not update an installed client. Match the executable's
+machine help and registry compatibility before using an operation.
 
 `account providers --api-url https://your-server.example` reads the sign-in
 methods enabled by that deployment without credentials or local state writes.
@@ -511,9 +511,10 @@ cache, and changing checkouts does not retarget another checkout's editable impo
 The libclang adapter uses Cargo's effective artifact directory. CI exercises native
 checks with artifacts outside the checkout on Linux, macOS and Windows.
 Pull requests run all-target native Clippy and library units on all three OSes.
-macOS and Windows also execute the owned-slot native credential and independent
-CLI-process cases. The full main gate retains the isolated Linux Secret Service,
-complete native/API interoperability, packaging and installed desktop journeys.
+All three execute the owned-slot native credential and independent CLI-process
+cases. Linux uses a disposable Secret Service bus with 200 fresh concurrent
+clients and 10 rounds in PRs; full main retains all 100 rounds, complete native/API
+interoperability, packaging and installed desktop journeys.
 The macOS observer checks exact slot presence without decrypting another
 executable's secret; successive CLI processes read and revalidate their own keys.
 The fixture never changes Keychain access control.
