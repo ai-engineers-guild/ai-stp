@@ -540,6 +540,7 @@ async fn checkout_apply(
     confirmed: bool,
     context: Option<String>,
     git_executable: Option<String>,
+    retire_binding: Option<bool>,
 ) -> Result<CmdResult, String> {
     let st = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
@@ -553,7 +554,18 @@ async fn checkout_apply(
             Ok(file) => file,
             Err(error) => return CmdResult::failed("DESKTOP_USAGE", error),
         };
-        let mut arguments = argv("corporate project link apply");
+        let retiring = retire_binding.unwrap_or(false);
+        if retiring && (context.is_some() || git_executable.is_some()) {
+            return CmdResult::failed(
+                "DESKTOP_USAGE",
+                "The reviewed binding retirement already owns its exact context and checkout",
+            );
+        }
+        let mut arguments = argv(if retiring {
+            "corporate project binding-retire apply"
+        } else {
+            "corporate project link apply"
+        });
         arguments.extend([
             "--plan".into(),
             file.0.to_string_lossy().into_owned(),

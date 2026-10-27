@@ -5,6 +5,7 @@ import {
   cliPlan,
   cmdProfileApply,
   cmdCheckoutApply,
+  cmdBindingRetirementApply,
   cmdRunRead,
   cmdTaskStart,
   cmdVersion,
@@ -152,4 +153,18 @@ it("keeps reviewed checkout plans and original outcome replies out of shared dia
   expect(entries).toHaveLength(2);
   expect(JSON.stringify(entries)).not.toContain("canary");
   expect(entries.every((entry) => entry.result === undefined)).toBe(true);
+});
+
+it("routes exact binding retirement through the bounded checkout bridge without shared trace content", async () => {
+  useDebug.setState({ debugMode: true });
+  const reply = { ok: true, data: { original_actor: "canary-retired-actor" }, error: null,
+    error_code: null, warnings: [], continuations: [] };
+  vi.mocked(invoke).mockResolvedValue(reply);
+  const plan = { snapshot: "canary-retired-project" };
+  expect(await cmdBindingRetirementApply(plan, "sha256:exact", true)).toBe(reply);
+  expect(invoke).toHaveBeenLastCalledWith("checkout_apply", {
+    plan, digest: "sha256:exact", confirmed: true, context: null, gitExecutable: null, retireBinding: true,
+  });
+  expect(JSON.stringify(useDebug.getState().log)).not.toContain("canary");
+  expect(useDebug.getState().log[0].result).toBe(undefined);
 });

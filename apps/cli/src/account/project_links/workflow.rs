@@ -348,7 +348,18 @@ pub fn read_plan(path: &Path) -> Result<Plan> {
 }
 
 pub fn status(root: &Path, id: &str) -> Result<Value> {
-    load(root, id)?.1.output()
+    let (owner, record) = load(root, id)?;
+    let mut output = record.output()?;
+    if matches!(&record.plan.change, Change::Adopt { .. }) {
+        let store = owner.planning()?;
+        output["binding_retirement"] =
+            crate::account::project_unlinks::binding_retirement::for_binding(
+                &store.connection,
+                id,
+            )?
+            .unwrap_or(Value::Null);
+    }
+    Ok(output)
 }
 
 pub fn list(root: &Path, after: Option<&str>, limit: u16) -> Result<Value> {
