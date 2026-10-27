@@ -37,6 +37,7 @@ class Driver:
         self.session: str | None = None
         self.log_path = log
         self.stage = "starting"
+        self.last_response_ok = False
         self.log = log.open("wb")
         self.process = subprocess.Popen(
             [
@@ -68,6 +69,7 @@ class Driver:
                 "value": "keys",
             }.get(path.rsplit("/", 1)[-1], "command")
         )
+        self.last_response_ok = False
         self.http.request(
             method,
             path,
@@ -101,6 +103,7 @@ class Driver:
                 code = "unknown error"
             raise ValueError(f"WebDriver protocol refusal (HTTP {status}; {code})")
         require(200 <= status < 300, f"WebDriver HTTP status {status}")
+        self.last_response_ok = True
         return value
 
     def wait(self, predicate: Any, label: str) -> Any:
@@ -278,13 +281,97 @@ class Driver:
             log.seek(0, os.SEEK_END)
             log.seek(max(0, log.tell() - 65536))
             tail = log.read().decode(errors="replace")
-        # Only fixed marker booleans and the owned process's exit code leave
-        # this fixture. Do not print request bodies, raw logs or DOM contents.
+        # The rendered CLI already provides safe credential-stage categories.
+        # Observe that original refusal only after a successful driver command;
+        # never reuse a transport whose previous command did not complete.
+        stage = self.stage
+        public_failures: list[dict[str, str]] = []
+        public_failure_observation = "not_read"
+        allowed = {
+            "credential_stage": {
+                "session_address",
+                "session_transport",
+                "connect",
+                "proxy",
+                "search_items",
+                "search_locked_or_ambiguous",
+                "open_session",
+                "open_session_shape",
+                "close_session",
+                "get_secret",
+                "get_secret_shape",
+                "set_secret",
+                "read_default_alias",
+                "default_collection_absent",
+                "read_collection_lock",
+                "collection_locked",
+                "create_item",
+                "create_item_prompt",
+                "delete_item",
+                "delete_item_prompt",
+            },
+            "credential_error_kind": {
+                "no_reply",
+                "timeout",
+                "service_absent",
+                "unknown_object",
+                "invalid_arguments",
+                "access_denied",
+                "disconnected",
+                "resource_limit",
+                "standard_remote_error",
+                "secret_locked",
+                "secret_session_absent",
+                "secret_object_absent",
+                "remote_error",
+                "transport",
+                "invalid_reply",
+                "wire_type",
+                "handshake",
+                "other",
+            },
+        }
+        if self.session is not None and self.last_response_ok:
+            try:
+                observed = self.read(
+                    "return [...document.querySelectorAll('main [role=alert] pre')]"
+                    ".slice(0,4).flatMap(node=>{"
+                    "const text=node.textContent;if(text.length>8192)return [];"
+                    "try{const detail=JSON.parse(text);"
+                    "if(!detail||typeof detail!=='object')return [];"
+                    "const selected=Object.fromEntries(Object.entries(arguments[0])"
+                    ".filter(([key,values])=>values.includes(detail[key]))"
+                    ".map(([key])=>[key,detail[key]]));"
+                    "return Object.keys(selected).length?[selected]:[];"
+                    "}catch{return [];}});",
+                    {key: sorted(values) for key, values in allowed.items()},
+                )
+                if isinstance(observed, list):
+                    for item in observed[:4]:
+                        if isinstance(item, dict):
+                            selected = {
+                                key: value
+                                for key, value in item.items()
+                                if key in allowed
+                                and isinstance(value, str)
+                                and value in allowed[key]
+                            }
+                            if selected:
+                                public_failures.append(selected)
+                    public_failure_observation = "read"
+            except (OSError, ValueError, KeyError, TypeError, http.client.HTTPException):
+                public_failure_observation = "unavailable"
+            finally:
+                self.stage = stage
+        # Only fixed categories, marker booleans and the owned process's exit
+        # code leave the fixture. No raw DOM, detail values or error prose.
         print(
             json.dumps(
                 {
                     "diagnostic": "installed_webdriver",
-                    "stage": self.stage,
+                    "stage": stage,
+                    "public_failure_observation": public_failure_observation,
+                    "public_credential_failures": public_failures,
                     "driver_exit_code": self.process.poll(),
                     "markers": {
                         "proxy_connection_error": "Error serving connection:" in tail,
