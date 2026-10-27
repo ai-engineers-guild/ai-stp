@@ -70,6 +70,8 @@ def main() -> None:
                     "-O2",
                     "-framework",
                     "Foundation",
+                    "-framework",
+                    "AppKit",
                     str(source),
                     "-o",
                     str(controller),
@@ -78,10 +80,14 @@ def main() -> None:
             bundle = root / "Probe.app"
             executable = bundle / "Contents/MacOS/worker"
             child = bundle / "Contents/Helpers/child"
+            broker = bundle / "Contents/Helpers/Broker.app"
+            broker_executable = broker / "Contents/MacOS/broker"
             executable.parent.mkdir(parents=True)
             child.parent.mkdir(parents=True)
+            broker_executable.parent.mkdir(parents=True)
             shutil.copy2(controller, executable)
             shutil.copy2(controller, child)
+            shutil.copy2(controller, broker_executable)
             info = {
                 "CFBundleIdentifier": identifier,
                 "CFBundleExecutable": "worker",
@@ -91,6 +97,14 @@ def main() -> None:
                 "CFBundleShortVersionString": "1.0",
             }
             (bundle / "Contents/Info.plist").write_bytes(plistlib.dumps(info))
+            broker_info = {
+                **info,
+                "CFBundleIdentifier": identifier + ".broker",
+                "CFBundleExecutable": "broker",
+                "LSBackgroundOnly": True,
+                "AiStpFixtureRoot": str(fixture),
+            }
+            (broker / "Contents/Info.plist").write_bytes(plistlib.dumps(broker_info))
             worker_rights = {
                 "com.apple.security.app-sandbox": True,
                 "com.apple.security.files.user-selected.read-write": True,
@@ -101,6 +115,7 @@ def main() -> None:
             }
             for name, path, entitlements in [
                 (identifier + ".child", child, child_rights),
+                (identifier + ".broker", broker, {}),
                 (identifier, bundle, worker_rights),
             ]:
                 entitlement_file = root / (name + ".plist")
