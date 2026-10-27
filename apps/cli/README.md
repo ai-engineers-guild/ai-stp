@@ -97,6 +97,13 @@ with `--request-key KEY` and that request's exact retained idempotency key. The 
 finds only the same account's original plan; it does not submit or confirm it.
 An absent result leaves an in-flight request unknown and cannot prove rollback.
 
+`corporate project link-current --link-id ID` observes one exact current company
+link through active membership and a context with `project.unlink`. It validates
+the link ID/company, drops unknown fields and fences current authority before
+and after the read. Linked, conflict and unlinked states remain observations;
+the read does not identify an original unlink request, submit a mutation, retire
+a local binding or grant installation authority.
+
 `corporate project unlink-outcome --plan-id ID`, `unlink-settlement --plan-id ID`
 and `unlink-request-outcome --request-key KEY` observe an original account-owned
 unlink through its exact retained coordinates. They require current

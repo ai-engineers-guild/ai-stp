@@ -19,6 +19,7 @@ pub(super) enum Handler {
     Project,
     LinkTarget,
     LinkPreview,
+    LinkCurrent,
     LinkOutcome,
     LinkSettlement,
     LinkRequestOutcome,
@@ -302,6 +303,21 @@ pub(super) const COMMANDS: &[Declaration] = &[
             },
         ],
         handler: super::Handler::Corporate(Handler::LinkPreview),
+    },
+    Declaration {
+        path: &["corporate", "project", "link-current"],
+        summary: "Observe an exact current company link with project.unlink capability; no unlink or local binding retirement.",
+        parameters: &[
+            STATE_DIR,
+            CONTEXT,
+            Parameter {
+                name: "link-id",
+                summary: "Exact current server project_link identifier.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LinkCurrent),
     },
     Declaration {
         path: &["corporate", "project", "link-outcome"],
@@ -606,6 +622,9 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         },
         Handler::LinkTarget => Request::LinkTarget {
             project_id: text("project")?,
+        },
+        Handler::LinkCurrent => Request::LinkCurrent {
+            link_id: text("link-id")?,
         },
         Handler::LinkOutcome => Request::LinkOutcome {
             plan_id: text("plan-id")?,
