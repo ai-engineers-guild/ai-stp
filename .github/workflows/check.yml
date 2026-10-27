@@ -447,8 +447,8 @@ jobs:
           # producer recipe. Each target/build directory is also commit-bound.
           key: >-
             previous-native-v1-${{ runner.os }}-${{ runner.arch }}-${{
-            hashFiles('apps/cli/rust-toolchain.toml', '.github/scripts/build-previous-native-cli.sh',
-            '.github/workflows/check.yml') }}
+            hashFiles('apps/cli/rust-toolchain.toml',
+            '.github/scripts/build-previous-native-cli.sh', '.github/workflows/check.yml') }}
       - name: Build the immutable previous schema58 native writer
         if: runner.os == 'Linux'
         shell: bash
