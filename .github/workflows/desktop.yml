@@ -57,11 +57,15 @@ jobs:
           set -euo pipefail
           bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
           echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
+      - name: Refresh the Linux package index
+        if: runner.os == 'Linux'
+        timeout-minutes: 5
+        run: sudo apt-get update
       - name: Install WebKitGTK dependencies (Linux)
         if: runner.os == 'Linux'
+        timeout-minutes: 10
         run: |
           set -euo pipefail
-          sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
             librsvg2-dev patchelf dbus-daemon gnome-keyring libglib2.0-bin \
