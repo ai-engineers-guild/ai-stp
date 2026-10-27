@@ -188,6 +188,7 @@ constexpr std::array worker_stages{
     "descendant_create", "worker_timeout", "worker_status", "worker_exit",
     "descendant_parent_approval", "descendant_resume", "owned_publish",
     "attribute_size", "attribute_initialize", "attribute_capabilities", "attribute_lpac",
+    "bootstrap_path", "system_directory",
 };
 DWORD worker_stage_code(const char* stage) {
     for (size_t index = 0; index < worker_stages.size(); ++index)
@@ -267,6 +268,23 @@ DWORD descendant_pid(const fs::path& path) {
     require(pid > 0 && pid <= std::numeric_limits<DWORD>::max(), "descendant_pid_range");
     return static_cast<DWORD>(pid);
 }
+std::wstring environment_block(const fs::path& root, const std::wstring& bootstrap) {
+    require(fs::path(bootstrap).is_absolute(), "bootstrap_path");
+    wchar_t system[MAX_PATH]{};
+    const UINT length = GetWindowsDirectoryW(system, MAX_PATH);
+    require(length > 0 && length < MAX_PATH, "system_directory");
+    // Windows reroutes LOCALAPPDATA inside a container. Each new launch needs
+    // the original verified profile-resolution input, never that rerouted path.
+    std::wstring environment = L"LOCALAPPDATA=" + bootstrap;
+    environment.push_back(L'\0');
+    environment += L"SystemRoot=" + std::wstring(system);
+    environment.push_back(L'\0');
+    environment += L"TEMP=" + (root / L"target").wstring();
+    environment.push_back(L'\0');
+    environment += L"TMP=" + (root / L"target").wstring();
+    environment.append(2, L'\0');
+    return environment;
+}
 // Explicitly request the same documented LPAC/SID with no extra capabilities
 // for its descendant; parent verification and AAP refusal remain mandatory.
 struct ContainerAttributes {
@@ -335,10 +353,12 @@ int worker(int argc, wchar_t** argv) {
             start.lpAttributeList = attributes->list;
         }
         start.StartupInfo.cb = static_cast<DWORD>(lpac ? sizeof(start) : sizeof(start.StartupInfo));
+        auto environment = environment_block(root, argv[7]);
         PROCESS_INFORMATION process{};
         win(CreateProcessW(argv[6], command.data(), nullptr, nullptr, FALSE,
-            DETACHED_PROCESS | CREATE_SUSPENDED | (lpac ? EXTENDED_STARTUPINFO_PRESENT : 0),
-            nullptr, (root / L"target").c_str(), &start.StartupInfo, &process),
+            DETACHED_PROCESS | CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT
+                | (lpac ? EXTENDED_STARTUPINFO_PRESENT : 0),
+            environment.data(), (root / L"target").c_str(), &start.StartupInfo, &process),
             "descendant_create");
         Handle held(process.hProcess), thread(process.hThread);
         struct SuspendedChild {
@@ -394,9 +414,6 @@ void run(const fs::path& executable, const fs::path& root, PSID sid, bool lpac) 
     start.lpAttributeList = attributes.list;
     Local text;
     win(ConvertSidToStringSidW(sid, reinterpret_cast<LPWSTR*>(&text.value)), "sid_format");
-    wchar_t system[MAX_PATH]{};
-    const UINT system_length = GetWindowsDirectoryW(system, MAX_PATH);
-    require(system_length > 0 && system_length < MAX_PATH, "system_directory");
     // AppContainer startup resolves its profile through this explicit OS path.
     // Chromium's filtered target environment retains LOCALAPPDATA for this reason.
     wchar_t local[32768]{};
@@ -407,14 +424,7 @@ void run(const fs::path& executable, const fs::path& root, PSID sid, bool lpac) 
         + (lpac ? L"lpac" : L"regular") + L" parent " + quote(root.wstring())
         + L" " + quote(static_cast<LPCWSTR>(text.value)) + L" " + quote(executable.wstring())
         + L" " + quote(local);
-    std::wstring environment = L"LOCALAPPDATA=" + std::wstring(local);
-    environment.push_back(L'\0');
-    environment += L"SystemRoot=" + std::wstring(system);
-    environment.push_back(L'\0');
-    environment += L"TEMP=" + (root / L"target").wstring();
-    environment.push_back(L'\0');
-    environment += L"TMP=" + (root / L"target").wstring();
-    environment.append(2, L'\0');
+    auto environment = environment_block(root, local);
     PROCESS_INFORMATION process{};
     win(CreateProcessW(executable.c_str(), command.data(), nullptr, nullptr, FALSE,
         EXTENDED_STARTUPINFO_PRESENT | CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT
