@@ -529,7 +529,17 @@ async def qualify(
         )
         previous_digest = sha256(previous.read_bytes()).hexdigest()
         positive = await native(
-            previous, home, ["context", "create", "plan", "--label", "Previous59 positive"]
+            previous,
+            home,
+            [
+                "context",
+                "create",
+                "plan",
+                "--label",
+                "Previous59 positive",
+                "--state-dir",
+                str(state),
+            ],
         )
         previous_plan = reviewed(positive)
         positive_receipt = await native(
@@ -579,7 +589,9 @@ async def qualify(
         )
         assert len(after[1]["native_binding_retirement"]) == 1
         unchanged = rows(), len(faults.writes), faults.network_requests
-        await refused(previous, home, ["context", "list", "--state-dir", str(state)])
+        refusal = await refused(previous, home, ["context", "list", "--state-dir", str(state)])
+        assert refusal.error.code == "AI_STP_PRECONDITION_FAILED"
+        assert "registry schema is unsupported" in refusal.error.message
         assert (rows(), len(faults.writes), faults.network_requests) == unchanged
         await refused(
             binary,
