@@ -130,6 +130,8 @@ fn executable_restarts_preserve_native_connections_and_refuse_stale_context_sele
         apply(home, &["device", "initialize", "apply"], &initialize, 0)?,
         identity
     );
+    assert!(local_slot.exists()?);
+    #[cfg(not(target_os = "macos"))]
     let local_key = ai_stp_cli::digest::sha256(&local_slot.secret()?);
 
     let mut slots = Vec::new();
@@ -170,6 +172,8 @@ fn executable_restarts_preserve_native_connections_and_refuse_stale_context_sele
         connections[0].1["connection"]["public_key"],
         connections[1].1["connection"]["public_key"]
     );
+    assert!(slots[1].exists()?);
+    #[cfg(not(target_os = "macos"))]
     let other_key = ai_stp_cli::digest::sha256(&slots[1].secret()?);
     let retained = run(
         home,
@@ -234,8 +238,13 @@ fn executable_restarts_preserve_native_connections_and_refuse_stale_context_sele
         run(home, &["device", "show", "--state-dir", state], 0)?,
         identity
     );
-    assert_eq!(ai_stp_cli::digest::sha256(&local_slot.secret()?), local_key);
-    assert_eq!(ai_stp_cli::digest::sha256(&slots[1].secret()?), other_key);
+    #[cfg(not(target_os = "macos"))]
+    {
+        assert_eq!(ai_stp_cli::digest::sha256(&local_slot.secret()?), local_key);
+        assert_eq!(ai_stp_cli::digest::sha256(&slots[1].secret()?), other_key);
+    }
+    assert!(local_slot.exists()?);
+    assert!(slots[1].exists()?);
     slots[0].remove()?;
     apply(
         home,
@@ -243,11 +252,22 @@ fn executable_restarts_preserve_native_connections_and_refuse_stale_context_sele
         &connections[0].0,
         4,
     )?;
-    assert!(slots[0].bytes()?.is_none());
+    assert!(!slots[0].exists()?);
     assert_eq!(
         run(home, &["context", "list", "--state-dir", state], 0)?,
         selected
     );
+    assert_eq!(
+        apply(
+            home,
+            &["account", "connections", "apply"],
+            &connections[1].0,
+            0
+        )?,
+        connections[1].1
+    );
+    assert!(slots[1].exists()?);
+    #[cfg(not(target_os = "macos"))]
     assert_eq!(ai_stp_cli::digest::sha256(&slots[1].secret()?), other_key);
     assert!(!state_directory.join("ai-stp-v2-account").exists());
     Ok(())

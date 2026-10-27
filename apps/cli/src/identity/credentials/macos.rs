@@ -34,7 +34,7 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn keychain_diagnostics_retain_only_stage_and_numeric_status() {
+    fn keychain_diagnostics_retain_only_stage_and_numeric_status() -> serde_json::Result<()> {
         let native = security_framework::base::Error::from_code(-25308);
         for error in [
             keyring_core::Error::PlatformFailure(Box::new(native)),
@@ -43,7 +43,7 @@ mod tests {
             let failure = keyring("read", &error);
             assert_eq!(failure.kind.code(), "AI_STP_DEPENDENCY_UNAVAILABLE");
             assert_eq!(
-                serde_json::to_value(&failure.details).unwrap(),
+                serde_json::to_value(&failure.details)?,
                 json!({"credential_stage":"read", "credential_error_kind":"keychain",
                     "credential_os_status":-25308})
             );
@@ -54,5 +54,6 @@ mod tests {
         let failure = keyring("write", &private);
         assert_eq!(failure.details.len(), 2);
         assert!(!format!("{failure:?}").contains("private-native-credential-canary"));
+        Ok(())
     }
 }

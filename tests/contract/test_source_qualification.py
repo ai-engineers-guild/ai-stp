@@ -105,7 +105,18 @@ class QualificationTests(unittest.TestCase):
             self.assertEqual(job["if"], expected, name)
             if name.startswith("integration-"):
                 self.assertLessEqual(int(job["timeout-minutes"]), 20)
-                self.assertNotIn("strategy", job)
+                if name == "integration-native":
+                    self.assertEqual(
+                        job["strategy"],
+                        {
+                            "fail-fast": "false",
+                            "matrix": {"os": ["ubuntu-latest", "macos-latest", "windows-latest"]},
+                        },
+                    )
+                    self.assertEqual(job["name"], "integration-native-${{ matrix.os }}")
+                    self.assertEqual(job["runs-on"], "${{ matrix.os }}")
+                else:
+                    self.assertNotIn("strategy", job)
                 commands = "\n".join(step.get("run", "") for step in job["steps"])
                 for command in ["--release", "tauri build", "test:e2e", "uv build"]:
                     self.assertNotIn(command, commands, name)
