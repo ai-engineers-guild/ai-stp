@@ -1,5 +1,6 @@
 //! Registered checkout inspection and separately reviewed durable corporate linking.
 
+pub(crate) mod binding;
 pub(crate) mod interruption;
 mod journal;
 mod model;
@@ -8,6 +9,8 @@ mod workflow;
 
 pub use journal::Checkpoint;
 pub use model::Plan;
+// Account replacement binds the same checkpoint encoding in both journals.
+pub(crate) use model::{Interruption, RetirementKind};
 pub use workflow::{
     adoption_plan, apply, confirmation_plan, list, outcome, read_plan, request_plan, status,
 };

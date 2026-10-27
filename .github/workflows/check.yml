@@ -398,6 +398,10 @@ jobs:
           )"
           printf 'AI_STP_TEST_CLI_BINARY=%s\n' "$binary" >> "${GITHUB_ENV}"
           uv run --no-sync python tests/native_contract/verify.py "$binary"
+      - name: Build the immutable previous schema58 native writer
+        if: runner.os == 'Linux'
+        shell: bash
+        run: bash .github/scripts/build-previous-native-cli.sh
       - name: Ownership and corporate journeys through the native HTTP client
         if: runner.os == 'Linux'
         shell: bash

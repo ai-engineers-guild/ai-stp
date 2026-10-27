@@ -18,8 +18,9 @@ use crate::{
     identity::{self, credentials::Vault},
     passport,
     store::{
-        CHECKOUT_LINK_SCHEMA, CHECKOUT_RETIREMENT_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA,
-        PROFILE_SCHEMA, Store, database, has_checkout_links, has_enrollment_recovery,
+        CHECKOUT_LINK_SCHEMA, CHECKOUT_RETIREMENT_SCHEMA, CHECKOUT_UNLINK_SCHEMA,
+        ENROLLMENT_RECOVERY_SCHEMA, PROFILE_SCHEMA, Store, database, has_checkout_links,
+        has_enrollment_recovery,
     },
 };
 
@@ -55,6 +56,8 @@ pub struct Plan {
     pub interrupted_sync: Vec<crate::sync::interruption::Checkpoint>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub interrupted_checkout_links: Vec<super::project_links::Checkpoint>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub interrupted_checkout_unlinks: Vec<super::project_unlinks::Checkpoint>,
     pub registry_schema_before: u32,
     pub replacement: connections::Plan,
 }
@@ -109,7 +112,8 @@ impl Plan {
         };
         let deliveries = self.interrupted_publications.len()
             + self.interrupted_sync.len()
-            + self.interrupted_checkout_links.len();
+            + self.interrupted_checkout_links.len()
+            + self.interrupted_checkout_unlinks.len();
         let target_schema = if has_checkout_links(self.registry_schema_before) {
             self.registry_schema_before
         } else {
@@ -134,9 +138,17 @@ impl Plan {
                 return Err(invalid());
             }
         }
+        for checkpoint in &self.interrupted_checkout_unlinks {
+            checkpoint.validate()?;
+            if !operations.insert(&checkpoint.operation_id) {
+                return Err(invalid());
+            }
+        }
         if proof_version.is_none()
             || self.schema_version
-                != if self.registry_schema_before == CHECKOUT_RETIREMENT_SCHEMA {
+                != if self.registry_schema_before == CHECKOUT_UNLINK_SCHEMA {
+                    6
+                } else if self.registry_schema_before == CHECKOUT_RETIREMENT_SCHEMA {
                     5
                 } else if self.registry_schema_before == CHECKOUT_LINK_SCHEMA {
                     4
@@ -160,6 +172,12 @@ impl Plan {
                 .any(|v| v[0].operation_id >= v[1].operation_id)
             || !self.interrupted_checkout_links.is_empty()
                 && !has_checkout_links(self.registry_schema_before)
+            || self
+                .interrupted_checkout_unlinks
+                .windows(2)
+                .any(|v| v[0].operation_id >= v[1].operation_id)
+            || !self.interrupted_checkout_unlinks.is_empty()
+                && self.registry_schema_before != CHECKOUT_UNLINK_SCHEMA
             || operations.contains(&self.operation_id)
             || operations.contains(&self.replacement.operation_id)
             || self.action != KIND
@@ -177,6 +195,7 @@ impl Plan {
                 ENROLLMENT_RECOVERY_SCHEMA,
                 CHECKOUT_LINK_SCHEMA,
                 CHECKOUT_RETIREMENT_SCHEMA,
+                CHECKOUT_UNLINK_SCHEMA,
             ]
             .contains(&self.registry_schema_before)
             || self.replacement.registry_schema_before != target_schema
@@ -379,6 +398,7 @@ fn validate_deliveries(connection: &Connection, plan: &Plan) -> Result<()> {
     crate::publication::interruption::validate_named(connection, plan)?;
     crate::sync::interruption::validate_named(connection, plan)?;
     super::project_links::interruption::validate_named(connection, plan)?;
+    super::project_unlinks::interruption::validate_named(connection, plan)?;
     Ok(())
 }
 
@@ -456,6 +476,7 @@ pub fn plan(root: &Path, connection: &str, label: &str, at: &str) -> Result<Plan
         interrupted_publications: Vec::new(),
         interrupted_sync: Vec::new(),
         interrupted_checkout_links: Vec::new(),
+        interrupted_checkout_unlinks: Vec::new(),
         registry_schema_before,
         replacement,
     };
@@ -474,7 +495,11 @@ pub fn plan(root: &Path, connection: &str, label: &str, at: &str) -> Result<Plan
         })?;
     plan.interrupted_checkout_links =
         super::project_links::interruption::capture_named(&store.connection, &plan)?;
-    if registry_schema_before == CHECKOUT_RETIREMENT_SCHEMA {
+    plan.interrupted_checkout_unlinks =
+        super::project_unlinks::interruption::capture_named(&store.connection, &plan)?;
+    if registry_schema_before == CHECKOUT_UNLINK_SCHEMA {
+        plan.schema_version = 6;
+    } else if registry_schema_before == CHECKOUT_RETIREMENT_SCHEMA {
         plan.schema_version = 5;
     } else if registry_schema_before == CHECKOUT_LINK_SCHEMA {
         plan.schema_version = 4;
@@ -609,6 +634,7 @@ pub fn apply(plan: &Plan, expected: &str, at: &str) -> Result<Value> {
                 crate::publication::interruption::apply_named(tx, plan)?;
                 crate::sync::interruption::apply_named(tx, plan, at)?;
                 super::project_links::interruption::apply_named(tx, plan, at)?;
+                super::project_unlinks::interruption::apply_named(tx, plan, at)?;
                 Ok(())
             })?;
         }

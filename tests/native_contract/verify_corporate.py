@@ -1202,6 +1202,7 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         offline_context=offline["plan"]["change"]["context"]["context_id"],
         git_executable=git_executable,
         old_recoveries=[recovery, missing],
+        foreign_context=contexts[1],
     )
 
 

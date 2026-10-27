@@ -37,43 +37,66 @@ pub fn stub() -> Result<()> {
 }
 
 pub fn build() -> Result<()> {
-    let source = build::cli_binary()?;
-    let compiler = text(
-        Command::new("rustc")
-            .arg("-vV")
-            .current_dir(root().join("apps/cli")),
-    )?;
-    let host = compiler
-        .lines()
-        .find_map(|line| line.strip_prefix("host: "))
-        .ok_or("compiler host unavailable")?;
-    let resource = resources();
-    let parent = resource.parent().ok_or("resource parent missing")?;
-    fs::create_dir_all(parent)?;
-    let staged = tempfile::tempdir_in(parent)?;
-    let binary = staged.path().join(name());
-    fs::copy(source, &binary)?;
-    executable(&binary)?;
-    release::probe(&binary, &release::version()?)?;
-    let version = isolated(&binary, &["version"])?;
-    let capabilities = isolated(&binary, &["capabilities"])?;
-    let help = isolated(&binary, &["help", "--agent"])?;
-    require(
-        capabilities["registry_digest"] == help["registry_digest"],
-        "native registry changed during packaging",
-    )?;
-    let manifest = json!({"schema_version":1,"runtime":"rust","target":host,"cli_version":version["cli_version"],"registry_digest":capabilities["registry_digest"],"executable":name(),"sha256":hash(&fs::read(&binary)?)});
-    write_new(&staged.path().join("sidecar.json"), &encoded(&manifest)?)?;
-    if let Ok(metadata) = fs::symlink_metadata(&resource) {
-        require(
-            metadata.is_dir() && !metadata.is_symlink(),
-            "generated resource directory must not be a link",
+    let mut stage = "native CLI build";
+    let result: Result<()> = (|| {
+        let source = build::cli_binary()?;
+        stage = "compiler identity";
+        let compiler = text(
+            Command::new("rustc")
+                .arg("-vV")
+                .current_dir(root().join("apps/cli")),
         )?;
-        fs::remove_dir_all(&resource)?;
-    }
-    fs::rename(staged.path(), &resource)?;
-    println!("Rust sidecar ready: {}", resource.join(name()).display());
-    Ok(())
+        let host = compiler
+            .lines()
+            .find_map(|line| line.strip_prefix("host: "))
+            .ok_or("compiler host unavailable")?;
+        let resource = resources();
+        let parent = resource.parent().ok_or("resource parent missing")?;
+        stage = "resource parent";
+        fs::create_dir_all(parent)?;
+        stage = "temporary staging directory";
+        let staged = tempfile::tempdir_in(parent)?;
+        let binary = staged.path().join(name());
+        stage = "staged executable copy";
+        fs::copy(source, &binary)?;
+        stage = "staged executable permission";
+        executable(&binary)?;
+        stage = "release probe";
+        release::probe(&binary, &release::version()?)?;
+        stage = "version probe";
+        let version = isolated(&binary, &["version"])?;
+        stage = "capabilities probe";
+        let capabilities = isolated(&binary, &["capabilities"])?;
+        stage = "registry probe";
+        let help = isolated(&binary, &["help", "--agent"])?;
+        stage = "registry digest";
+        require(
+            capabilities["registry_digest"] == help["registry_digest"],
+            "native registry changed during packaging",
+        )?;
+        stage = "manifest content";
+        let manifest = json!({"schema_version":1,"runtime":"rust","target":host,"cli_version":version["cli_version"],"registry_digest":capabilities["registry_digest"],"executable":name(),"sha256":hash(&fs::read(&binary)?)});
+        stage = "manifest write";
+        write_new(&staged.path().join("sidecar.json"), &encoded(&manifest)?)?;
+        stage = "placeholder inspection";
+        match fs::symlink_metadata(&resource) {
+            Ok(metadata) => {
+                require(
+                    metadata.is_dir() && !metadata.is_symlink(),
+                    "generated resource directory must not be a link",
+                )?;
+                stage = "placeholder removal";
+                fs::remove_dir_all(&resource)?;
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+        stage = "staged publication";
+        fs::rename(staged.path(), &resource)?;
+        println!("Rust sidecar ready: {}", resource.join(name()).display());
+        Ok(())
+    })();
+    result.map_err(|error| format!("desktop sidecar {stage}: {error}").into())
 }
 
 fn validate(binary: &Path) -> Result<()> {
