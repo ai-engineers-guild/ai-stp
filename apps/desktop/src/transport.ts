@@ -356,3 +356,13 @@ export function cmdCheckoutApply(
     gitExecutable: gitExecutable ?? null,
   });
 }
+
+export function cmdBindingRetirementApply(
+  plan: unknown,
+  digest: string,
+  confirmed: boolean,
+): Promise<CmdResult> {
+  return call("checkout_apply", {
+    plan, digest, confirmed, context: null, gitExecutable: null, retireBinding: true,
+  });
+}

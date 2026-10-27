@@ -84,3 +84,4 @@ fi
   printf '%s_SOURCE=%s\n' "${variable}" "${previous_commit}"
 } >> "${GITHUB_ENV:?}"
 sha256sum "${previous_binary}"
+du -sk "${CARGO_TARGET_DIR}" "${CARGO_BUILD_BUILD_DIR}"

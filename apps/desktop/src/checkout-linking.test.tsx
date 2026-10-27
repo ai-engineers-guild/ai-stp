@@ -213,6 +213,6 @@ it("continues a retained completed request through separately reviewed confirmat
     expect(transport.cmdCheckoutApply).toHaveBeenLastCalledWith(proposal(action).data!.plan,
       proposal(action).data!.plan_digest, true, context.id, undefined);
   }
-  await screen.findByText("Corporate project binding saved.");
+  await screen.findByText("Original corporate project binding receipt saved.");
   expect(transport.cmdCheckoutApply).toHaveBeenCalledTimes(2);
 });

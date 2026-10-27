@@ -7,6 +7,8 @@ use ai_stp_cli::{account::connections, identity};
 use keyring_core::api::CredentialStoreApi;
 use std::error::Error;
 
+#[path = "enrollments_native/process.rs"]
+mod process;
 #[path = "enrollments_native/recovery.rs"]
 mod recovery;
 #[cfg(target_os = "linux")]

@@ -184,6 +184,10 @@ no tasks, targets or harness/checkout files. A separate new request may bind aga
 the old request cannot be adopted with a fresh nonce. Reapplying a completed
 retirement replays its historical receipt offline and cannot release a future
 binding. Keep a qualified60-compatible engine; writer59 refuses the newer epoch.
+`corporate project link show` returns the original adoption receipt together with
+its separate `binding_retirement` receipt, or `null` before local retirement.
+This history read does not reopen the checkout, contact the server or inspect a
+future independent binding. Completed apply replay retains its original output.
 Physical relocation, missing-root recovery and revoked-authority offboarding
 remain separate operations.
 
