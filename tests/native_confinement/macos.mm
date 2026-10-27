@@ -195,7 +195,7 @@ int denied_network(NSDictionary* ports) {
     }
     return attempts;
 }
-struct BrokerReply { bool launched; int code; };
+struct BrokerReply { bool launched; int code; NSRunningApplication* application; };
 NSString* broker_path(NSString* executable) {
     return joined([[executable stringByDeletingLastPathComponent] stringByDeletingLastPathComponent],
         @"Helpers/Broker.app");
@@ -221,7 +221,7 @@ BrokerReply broker_request(NSString* application, NSString* root, NSString* role
     require(dispatch_semaphore_wait(ready, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC)) == 0,
         "broker_request_timeout");
     require(opened != nil || failure != nil, "broker_request_observation");
-    return {opened != nil, static_cast<int>(failure.code)};
+    return {opened != nil, static_cast<int>(failure.code), opened};
 }
 void cleanup_brokers(NSString* application) {
     NSString* identifier = [NSBundle bundleWithPath:application].bundleIdentifier;
@@ -249,6 +249,16 @@ void observe_broker_effects(NSString* root) {
                 std::cout << "{\"controlled_broker_outside_effect\":true,\"role\":\""
                     << bytes(role) << "\"}" << std::endl;
                 found = true;
+            }
+            for (int code : {0, EPERM, EACCES}) {
+                NSString* result = joined(root,
+                    [@"target/broker_" stringByAppendingFormat:@"%@_done_%d", role, code]);
+                if (access(bytes(result), F_OK) == 0) {
+                    readable(result);
+                    std::cout << "{\"controlled_broker_completed\":true,\"outside_errno\":"
+                        << code << ",\"role\":\"" << bytes(role) << "\"}" << std::endl;
+                    found = true;
+                }
             }
         }
         if (found) return;
@@ -494,7 +504,19 @@ int main(int argc, char** argv) {
                 [NSApplication sharedApplication];
                 [NSApp setActivationPolicy:NSApplicationActivationPolicyProhibited];
                 [NSApp finishLaunching];
-                write_new(joined(root, [@"outside/broker_" stringByAppendingFormat:@"%@.written", caller]));
+                write_new(joined(root,
+                    [@"target/broker_" stringByAppendingFormat:@"%@_started", caller]));
+                int outside_error = 0;
+                try {
+                    write_new(joined(root,
+                        [@"outside/broker_" stringByAppendingFormat:@"%@.written", caller]));
+                } catch (const Failure& refused) {
+                    require(refused.code == EPERM || refused.code == EACCES,
+                        "broker_outside_failure_category", refused.code);
+                    outside_error = refused.code;
+                }
+                write_new(joined(root,
+                    [@"target/broker_" stringByAppendingFormat:@"%@_done_%d", caller, outside_error]));
                 [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.25]];
                 return 0;
             } else if (argc == 2) {
@@ -517,6 +539,11 @@ int main(int argc, char** argv) {
                 for (int observation = 0; observation < 500 && access(bytes(positive_marker), F_OK) != 0;
                     ++observation) poll(nullptr, 0, 10);
                 readable(positive_marker);
+                // A previous positive instance must not service a later request.
+                for (int observation = 0; observation < 200 && ![positive.application isTerminated];
+                    ++observation)
+                    [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+                require([positive.application isTerminated], "positive_broker_finished");
                 for (NSString* leaf in @[@"target/canary", @"outside/canary", @"outside/credentials"])
                     readable(joined(root, leaf));
                 NSError* error = nil;
