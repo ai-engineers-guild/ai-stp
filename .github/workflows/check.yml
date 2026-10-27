@@ -1,22 +1,16 @@
-# Every expensive repository check runs on GitHub-hosted runners.
-# The local commit hook is intentionally fast; this workflow is the required
-# oracle for full docs, backend/BT regression, web, browser, and matrix suites.
+# Pull requests run finite syntax, type, unit and secret checks.
+# Integrated main runs the complete native, Desktop, archive, server and web
+# contract. qualification accounts for the explicitly selected phase; expensive
+# source checks are not duplicated on dev pushes. Manual diagnosis runs the full
+# contract without deployment authority.
 #
-# Split by what each job needs rather than by taste: only the test jobs need a
-# database, only the web jobs need a browser, and the rest need neither.
-# Independent checks run together. The final qualification joins their results
-# with the existing Desktop, analysis and archive workflows before merge or CD.
-#
-# The commands below are the recipe bodies of the local `justfile`, written out
-# without it: `just` is a local convenience, not a CI dependency. The union of
-# what these jobs run is checked mechanically against `just check` by
-# tests/contract/test_gate_split_covers_the_gate.py, so a check cannot fall
-# out of either side silently.
+# Existing main commands retain their owners and their mechanically checked
+# coverage of just check in tests/contract/test_gate_split_covers_the_gate.py.
 name: check
 
 on:
   push:
-    branches: [dev, main]
+    branches: [main]
   pull_request:
   workflow_dispatch:
     inputs:
@@ -40,7 +34,201 @@ env:
   BUN_VERSION: "1.4.4"
 
 jobs:
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: '0'
+          persist-credentials: 'false'
+      - name: Install only the existing pinned secret scanner
+        env:
+          SAFETY_BIN_PREFIX: ${{ runner.temp }}/ai-stp-integration-secrets
+        run: |
+          set -euo pipefail
+          bash scripts/safety/install_scanners.sh --gitleaks-only
+          echo "SAFETY_BIN_PREFIX=${SAFETY_BIN_PREFIX}" >> "${GITHUB_ENV}"
+      - name: Verify the scanner and inspect the selected source
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          scanner="${SAFETY_BIN_PREFIX}/gitleaks"
+          printf '%s\n' 'ordinary source' | "$scanner" stdin --redact=100 --no-banner
+          status=0
+          printf 'ghp_%s\n' 'AbcDef0123456789GhIjKlMnOpQrStUvWxYz' |
+            "$scanner" stdin --redact=100 --no-banner || status=$?
+          test "$status" -eq 1
+          if [[ "${EVENT}" == pull_request ]]; then
+            [[ "${BASE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+            [[ "${HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+            git cat-file -e "${BASE_SHA}^{commit}"
+            git cat-file -e "${HEAD_SHA}^{commit}"
+            "$scanner" git . --config=.gitleaks.toml --redact=100 --no-banner \
+              --log-opts="${BASE_SHA}..${HEAD_SHA}"
+          else
+            # The checkout contains source only; scanner bytes live in runner.temp.
+            # Scan the complete tree, including changes from an earlier failed main.
+            "$scanner" dir . --config=.gitleaks.toml --redact=100 --no-banner
+          fi
+  integration-python:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: '0'
+          persist-credentials: 'false'
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Isolate this job's Python environment
+        run: |
+          set -euo pipefail
+          python_path="$(python -c 'import sys; print(sys.executable)')"
+          test -n "${python_path}"
+          {
+            echo "UV_PYTHON=${python_path}"
+            echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-integration-python"
+            echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
+          } >> "${GITHUB_ENV}"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ${{ runner.temp }}/uv-cache
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: ${{ runner.os }}-uv-
+      - name: Install pinned uv
+        run: |
+          set -euo pipefail
+          bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
+          echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
+      - name: Check source contracts and units without server services
+        run: |
+          set -euo pipefail
+          source .github/scripts/provider-safe-path.sh
+          ai_stp_use_provider_safe_path
+          uv sync --locked --group docs --group dev
+          uv run --locked ruff format --check .
+          uv run --locked ruff check .
+          uv run --locked pyright
+          uv run --locked python -m ai_stp_contracts.schemas --check schemas/v1
+          uv run --locked python -m ai_stp_contracts.inventory_record --check
+          uv run --locked python -m ai_stp_contracts.web_projections --check
+          uv run --locked python -m ai_stp_contracts.technology_seed --check
+          uv run --locked python release_scripts/provider_kit.py --check provider-kit/v3
+          uv run --locked python release_scripts/first_party_corpus_digests.py --check
+          uv run --locked python release_scripts/safety_requirements.py --check
+          uv run --locked python -m release_scripts.update_component_fixture --check
+          uv run --locked --group docs python docs_scripts/skill_projections.py --check
+          uv run --locked --group docs python docs_scripts/docs_lint.py
+          uv run --locked --group docs python docs_scripts/contract_lint.py
+          uv run --locked --group docs python -m yamllint -c docs_scripts/.yamllint.yml .
+          uv run --locked --group docs python -m unittest discover -s docs_scripts/tests -v
+          uv run --locked pytest -n 8 --dist=load -m 'not pg' tests/unit tests/contract
+  integration-web:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: '0'
+          persist-credentials: 'false'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install pinned bun
+        run: |
+          set -euo pipefail
+          bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
+          echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
+      - name: Cache bun packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('apps/web/bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+      - name: Web syntax, types and units
+        run: |
+          set -euo pipefail
+          cd apps/web
+          bun install --frozen-lockfile
+          AI_STP_WEB_PROFILE=public_saas bun x next typegen
+          bun run lint
+          bun run format:check
+          bun run type-check
+          bun run i18n:check
+          bun run test
+      - name: Desktop types and component units
+        run: |
+          set -euo pipefail
+          cd apps/desktop
+          bun install --frozen-lockfile
+          bun x tsc --noEmit
+          bun x vitest run
+      - name: Documentation Markdown syntax
+        run: |
+          set -euo pipefail
+          (cd docs_scripts && bun install --frozen-lockfile)
+          python docs_scripts/run_markdownlint.py
+  integration-native:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CARGO_BUILD_JOBS: '2'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: '0'
+          persist-credentials: 'false'
+      - name: Select an external native artifact directory
+        shell: bash
+        run: echo "CARGO_TARGET_DIR=${RUNNER_TEMP}/ai-stp-native-target" >> "${GITHUB_ENV}"
+      - name: Install the pinned native CLI toolchain
+        shell: bash
+        run: >-
+          bash .github/scripts/install-rust-toolchain.sh
+          apps/cli/rust-toolchain.toml clippy rustfmt
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        id: native-cache
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ runner.temp }}/ai-stp-native-target
+          key: >-
+            cli-shared-${{ runner.os }}-${{ hashFiles('apps/cli/Cargo.*',
+            'apps/cli/*.toml', 'apps/cli/xtask/Cargo.*') }}
+          restore-keys: cli-shared-${{ runner.os }}-
+      - name: Native formatting, library analysis and unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- resources --check
+          cargo fmt --manifest-path apps/cli/Cargo.toml --check
+          cargo fmt --manifest-path apps/cli/xtask/Cargo.toml --check
+          cargo clippy --locked --manifest-path apps/cli/xtask/Cargo.toml \
+            --all-targets -- -D warnings
+          cargo test --locked --manifest-path apps/cli/xtask/Cargo.toml
+          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- build \
+            cargo clippy --locked --lib -- -D warnings
+          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- build \
+            cargo test --locked --lib
+          cargo fmt --manifest-path apps/desktop/core/Cargo.toml --check
+          cargo clippy --locked --manifest-path apps/desktop/core/Cargo.toml \
+            --all-targets -- -D warnings
+          cargo test --locked --manifest-path apps/desktop/core/Cargo.toml
+
   desktop:
+    if: github.event_name != 'pull_request'
     uses: ./.github/workflows/desktop.yml
 
   analysis:
@@ -51,12 +239,17 @@ jobs:
     uses: ./.github/workflows/codeql.yml
 
   archives:
+    if: github.event_name != 'pull_request'
     uses: ./.github/workflows/cli-archives.yml
 
   qualification:
     name: qualification
     if: always()
     needs:
+      - secrets
+      - integration-python
+      - integration-web
+      - integration-native
       - cli
       - docs
       - package
@@ -79,16 +272,23 @@ jobs:
         env:
           RESULTS: ${{ toJSON(needs) }}
           PRIVATE_REPOSITORY: ${{ github.event.repository.private }}
+          PHASE: ${{ github.event_name == 'pull_request' && 'integration' || 'full' }}
         run: |
           set -euo pipefail
           jq -c 'to_entries | map({job: .key, result: .value.result})' <<< "${RESULTS}"
-          jq -e --argjson private "${PRIVATE_REPOSITORY}" '
+          printf 'Qualification phase: %s\n' "${PHASE}"
+          jq -e --argjson private "${PRIVATE_REPOSITORY}" --arg phase "${PHASE}" '
             type == "object" and length > 0 and
+            ($phase == "integration" or $phase == "full") and
             all(to_entries[];
-              if .key == "analysis" and $private then
-                .value.result == "skipped"
-              else
+              if .key == "analysis" then
+                .value.result == (if $private then "skipped" else "success" end)
+              elif .key == "secrets" then
                 .value.result == "success"
+              elif (.key | startswith("integration-")) then
+                .value.result == (if $phase == "integration" then "success" else "skipped" end)
+              else
+                .value.result == (if $phase == "full" then "success" else "skipped" end)
               end
             )
           ' <<< "${RESULTS}" >/dev/null
@@ -115,6 +315,7 @@ jobs:
           fi
 
   cli:
+    if: github.event_name != 'pull_request'
     name: cli-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     # A cold Windows build takes about 25 minutes before the consumer proof.
@@ -245,6 +446,7 @@ jobs:
           key: ${{ steps.native-cache.outputs.cache-primary-key }}
 
   docs:
+    if: github.event_name != 'pull_request'
     name: docs
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -320,6 +522,7 @@ jobs:
           uv run --locked --group docs python docs_scripts/mermaid_check.py
 
   package:
+    if: github.event_name != 'pull_request'
     name: package
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -383,6 +586,7 @@ jobs:
           bash release_scripts/clean_install_regress.sh
 
   tests:
+    if: github.event_name != 'pull_request'
     name: tests-${{ matrix.shard }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -493,6 +697,7 @@ jobs:
           if-no-files-found: error
 
   coverage:
+    if: github.event_name != 'pull_request'
     name: coverage
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -545,6 +750,7 @@ jobs:
   # Playwright; e2e stays one spec-set per OS because mock auth/profile/catalog
   # state is process-local (`fullyParallel: false`, playwright#30253).
   web-static:
+    if: github.event_name != 'pull_request'
     name: web-static
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -603,6 +809,7 @@ jobs:
         run: bash scripts/safety/scan_lockfile.sh
 
   web-unit:
+    if: github.event_name != 'pull_request'
     name: web-unit (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
@@ -662,6 +869,7 @@ jobs:
           bun run test:coverage:catalog
 
   web-e2e:
+    if: github.event_name != 'pull_request'
     name: web-e2e (${{ matrix.os }}, ${{ matrix.shard }}/2)
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
@@ -747,6 +955,7 @@ jobs:
           if-no-files-found: ignore
 
   web-profiles:
+    if: github.event_name != 'pull_request'
     name: web-profiles (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30

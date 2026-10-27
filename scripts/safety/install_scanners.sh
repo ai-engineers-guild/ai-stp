@@ -249,10 +249,19 @@ EOF
 }
 
 main() {
+  if [[ "$#" -gt 1 || ( "$#" -eq 1 && "$1" != --gitleaks-only ) ]]; then
+    log "usage: install_scanners.sh [--gitleaks-only]"
+    exit 2
+  fi
   require_cmd curl
   require_cmd tar
   require_cmd sha256sum
   install_gitleaks
+  if [[ "${1:-}" == --gitleaks-only ]]; then
+    [[ -x "${PREFIX}/gitleaks" ]]
+    [[ "$("${PREFIX}/gitleaks" version)" == "${GITLEAKS_VERSION}" ]]
+    return
+  fi
   install_osv_scanner
   install_shellcheck
   install_opengrep
