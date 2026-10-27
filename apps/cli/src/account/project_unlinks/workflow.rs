@@ -74,7 +74,7 @@ pub(super) fn load(root: &Path, id: &str) -> Result<(Owner, Record)> {
 
 fn available(connection: &Connection, binding: &str, except: Option<&str>) -> Result<()> {
     checkout_unlink_epoch(connection)?;
-    let mut query=connection.prepare("SELECT operation_id FROM operation WHERE kind=? AND finished_at IS NULL ORDER BY operation_id LIMIT 129").map_err(database)?;
+    let mut query=connection.prepare("SELECT operation_id FROM operation WHERE kind=? AND (finished_at IS NULL OR state='interrupted') ORDER BY operation_id LIMIT 129").map_err(database)?;
     let ids = query
         .query_map([KIND], |row| row.get::<_, String>(0))
         .map_err(database)?

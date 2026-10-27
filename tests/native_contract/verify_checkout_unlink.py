@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import sqlite3
@@ -407,6 +408,37 @@ async def qualify(
             replacement_canary.unlink(missing_ok=True)
             pending_path.rmdir()
         displaced.rename(pending_path)
+    # Two real CLI processes may both miss the initial outside-transaction read.
+    # Exactly one may submit POST, even when the winning request is completed.
+    concurrent = await request(pending_binding)
+    concurrent_posts = faults.writes.count(plan_route)
+    concurrent_results = await asyncio.gather(
+        apply_once(concurrent), apply_once(concurrent), return_exceptions=True
+    )
+    concurrent_receipts = []
+    for result in concurrent_results:
+        if isinstance(result, dict):
+            assert result["state"] == "completed"
+            assert result["operation_id"] == concurrent["plan"]["operation_id"]
+            concurrent_receipts.append(result)
+        else:
+            # native() includes the actual JSON envelope on a nonzero exit.
+            assert isinstance(result, AssertionError) and len(result.args) == 1, result
+            captured = result.args[0]
+            assert isinstance(captured, tuple) and len(captured) == 3, captured
+            _, stdout, stderr = captured
+            failure = ErrorEnvelope.model_validate_json(stdout)
+            assert not stderr and failure.error.details is not None
+            if failure.error.code == "AI_STP_PRECONDITION_FAILED":
+                assert failure.error.details["reason"] == "concurrent_admission"
+                assert failure.error.details["operation_id"] == concurrent["plan"]["operation_id"]
+            else:
+                assert failure.error.code == "AI_STP_DEPENDENCY_UNAVAILABLE"
+                assert failure.error.details["stage"] == "lock_timeout"
+    assert concurrent_receipts and faults.writes.count(plan_route) == concurrent_posts + 1
+    assert await apply_once(concurrent) == concurrent_receipts[0]
+    assert local() == pending_before
+
     unknown = await request(pending_binding)
     faults.refuse_next = plan_route
     await reject(unknown)
@@ -567,6 +599,22 @@ async def qualify(
     active_context = await fresh_context("Native unlink root replacement", None)
     held_rows = native_rows()
     await reject(unused_confirmation)
+    await refused(
+        binary,
+        home,
+        [
+            "corporate",
+            "project",
+            "unlink-request",
+            "plan",
+            "--binding-operation",
+            root_binding["plan"]["operation_id"],
+            "--context",
+            active_context,
+            "--state-dir",
+            str(state),
+        ],
+    )
     assert native_rows() == held_rows and len(faults.writes) == root_writes
     before_wrong_reader = faults.network_requests
     await reject(root_request, reader=offline_context)
@@ -706,6 +754,7 @@ async def qualify(
                 "lost_create_and_delete_replies": True,
                 "original_result_reads_only": True,
                 "competing_confirmation_slot": True,
+                "concurrent_cli_first_write_submitted_once": True,
                 "stale_session_refused_before_admission": True,
                 "physical_checkout_replacement_refused_before_query": True,
                 "current_remote_revision_not_cached_adoption": True,
@@ -715,6 +764,7 @@ async def qualify(
                 "wrong_actor_and_company_refused_before_query": True,
                 "membership_revision_refused_before_admission": True,
                 "root_and_named_replacement": True,
+                "interrupted_request_blocks_new_nonce_after_replacement": True,
                 "named_recovery_version": 6,
                 "previous_writer_source": os.environ["AI_STP_TEST_PREVIOUS_CLI_SOURCE"],
                 "previous_writer_sha256": previous_sha,
