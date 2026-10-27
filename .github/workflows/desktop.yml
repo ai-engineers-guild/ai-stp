@@ -223,11 +223,7 @@ jobs:
             -p 127.0.0.1:15434:5432 \
             docker.io/library/postgres:18@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722)"
           trap 'docker rm --force "${fixture_postgres}" >/dev/null' EXIT
-          for ((attempt=0; attempt<30; attempt++)); do
-            if docker exec "${fixture_postgres}" pg_isready -U ai_stp -d ai_stp; then break; fi
-            sleep 1
-          done
-          docker exec "${fixture_postgres}" pg_isready -U ai_stp -d ai_stp
+          bash .github/scripts/wait-postgres.sh "${fixture_postgres}"
           uv sync --locked
           bash .github/scripts/check-native-secret-service.sh --installed-corporate-desktop
       - name: Retain the public installed corporate checkout result
