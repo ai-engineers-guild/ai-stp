@@ -10,6 +10,7 @@
 #include <objbase.h>
 #include <array>
 #include <cstring>
+#include <limits>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -112,6 +113,12 @@ void write(const fs::path& path, const std::string& bytes) {
         "owned_write");
     require(count == bytes.size(), "owned_write_size");
 }
+void publish(const fs::path& path, const std::string& bytes) {
+    fs::path pending = path;
+    pending += L".pending";
+    write(pending, bytes);
+    win(MoveFileW(pending.c_str(), path.c_str()), "owned_publish");
+}
 bool denied(const fs::path& path, DWORD access) {
     Handle file(CreateFileW(path.c_str(), access, FILE_SHARE_READ | FILE_SHARE_WRITE,
         nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
@@ -176,6 +183,7 @@ constexpr std::array worker_stages{
     "refusal_category", "outside_read", "outside_write", "credential_read",
     "lpac_aap_refusal", "owned_write_open", "owned_write", "owned_write_size",
     "descendant_create", "worker_timeout", "worker_status", "worker_exit",
+    "descendant_parent_approval", "descendant_resume", "owned_publish",
 };
 DWORD worker_stage_code(const char* stage) {
     for (size_t index = 0; index < worker_stages.size(); ++index)
@@ -194,6 +202,34 @@ void wait_process(HANDLE process) {
     if (status >= 1000 && status < 1000 + worker_stages.size())
         throw Failure{worker_stages[status - 1000], status};
     require(status == 0, "worker_exit", status);
+}
+void wait_file(const fs::path& path, const char* stage, HANDLE process = nullptr) {
+    for (int observation = 0; observation < 1000; ++observation) {
+        if (GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES) return;
+        require(GetLastError() == ERROR_FILE_NOT_FOUND, stage, GetLastError());
+        if (process && WaitForSingleObject(process, 0) == WAIT_OBJECT_0) {
+            wait_process(process);
+            throw Failure{stage, 0};
+        }
+        Sleep(10);
+    }
+    throw Failure{stage, WAIT_TIMEOUT};
+}
+DWORD descendant_pid(const fs::path& path) {
+    Handle file(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
+    win(file.value != INVALID_HANDLE_VALUE, "descendant_pid_open");
+    char bytes[16]{};
+    DWORD count = 0;
+    win(ReadFile(file.value, bytes, sizeof(bytes), &count, nullptr), "descendant_pid_read");
+    require(count >= 2 && count <= 11 && bytes[count - 1] == '\n', "descendant_pid_shape");
+    unsigned long long pid = 0;
+    for (DWORD index = 0; index + 1 < count; ++index) {
+        require(bytes[index] >= '0' && bytes[index] <= '9', "descendant_pid_shape");
+        pid = pid * 10 + static_cast<unsigned>(bytes[index] - '0');
+    }
+    require(pid > 0 && pid <= std::numeric_limits<DWORD>::max(), "descendant_pid_range");
+    return static_cast<DWORD>(pid);
 }
 int worker(int argc, wchar_t** argv) {
     require(argc == 7, "worker_arguments");
@@ -224,9 +260,26 @@ int worker(int argc, wchar_t** argv) {
         start.cb = sizeof(start);
         PROCESS_INFORMATION process{};
         win(CreateProcessW(argv[6], command.data(), nullptr, nullptr, FALSE,
-            CREATE_NO_WINDOW, nullptr, (root / L"target").c_str(), &start, &process),
+            DETACHED_PROCESS | CREATE_SUSPENDED, nullptr, (root / L"target").c_str(), &start, &process),
             "descendant_create");
         Handle held(process.hProcess), thread(process.hThread);
+        struct SuspendedChild {
+            HANDLE process;
+            bool resumed = false;
+            ~SuspendedChild() {
+                if (!resumed) {
+                    TerminateProcess(process, 1);
+                    WaitForSingleObject(process, 5000);
+                }
+            }
+        } suspended{held.value};
+        publish(root / L"target" / (std::wstring(argv[2]) + L"-descendant.pid"),
+            std::to_string(process.dwProcessId) + "\n");
+        const auto approval = root / L"read" / (std::wstring(argv[2]) + L"-descendant-approved");
+        wait_file(approval, "descendant_parent_approval");
+        readable(approval);
+        require(ResumeThread(thread.value) != static_cast<DWORD>(-1), "descendant_resume");
+        suspended.resumed = true;
         wait_process(held.value);
     }
     return 0;
@@ -304,7 +357,7 @@ void run(const fs::path& executable, const fs::path& root, PSID sid, bool lpac) 
     PROCESS_INFORMATION process{};
     win(CreateProcessW(executable.c_str(), command.data(), nullptr, nullptr, FALSE,
         EXTENDED_STARTUPINFO_PRESENT | CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT
-        | CREATE_NO_WINDOW, environment.data(), (root / L"target").c_str(),
+        | DETACHED_PROCESS, environment.data(), (root / L"target").c_str(),
         &start.StartupInfo, &process), "container_create");
     Handle held(process.hProcess), thread(process.hThread);
     // Assignment failure must also destroy the still-suspended owned child.
@@ -322,7 +375,22 @@ void run(const fs::path& executable, const fs::path& root, PSID sid, bool lpac) 
     suspended.assigned = true;
     token(held.value, sid);
     require(ResumeThread(thread.value) != static_cast<DWORD>(-1), "worker_resume");
+    const std::wstring mode = lpac ? L"lpac" : L"regular";
+    const auto report = root / L"target" / (mode + L"-descendant.pid");
+    wait_file(report, "descendant_report", held.value);
+    const DWORD pid = descendant_pid(report);
+    require(pid != process.dwProcessId, "distinct_descendant_pid");
+    Handle descendant(OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE, FALSE, pid));
+    win(descendant.value != nullptr, "descendant_open");
+    BOOL in_owned_job = FALSE;
+    win(IsProcessInJob(descendant.value, job.value, &in_owned_job), "descendant_owned_job_query");
+    require(in_owned_job, "descendant_owned_job");
+    token(descendant.value, sid);
+    // Only the parent can write this read-only-to-worker directory. The child
+    // remains suspended until its exact token and owned job have been checked.
+    publish(root / L"read" / (mode + L"-descendant-approved"), "synthetic fixture\n");
     wait_process(held.value);
+    wait_process(descendant.value);
     JOBOBJECT_BASIC_ACCOUNTING_INFORMATION accounting{};
     // A signaled process handle does not establish quiescence of its job.
     // Observe the same owned job; never launch or repeat an effect here.
@@ -335,7 +403,8 @@ void run(const fs::path& executable, const fs::path& root, PSID sid, bool lpac) 
     std::cout << "{\"diagnostic\":\"owned_job_accounting\",\"total\":"
         << accounting.TotalProcesses << ",\"active\":" << accounting.ActiveProcesses
         << ",\"terminated\":" << accounting.TotalTerminatedProcesses << "}" << std::endl;
-    require(accounting.TotalProcesses == 2 && accounting.ActiveProcesses == 0,
+    require(accounting.TotalProcesses >= 2 && accounting.TotalProcesses <= 4
+        && accounting.ActiveProcesses == 0,
         "actual_descendant_job_custody");
     for (const auto& role : {L"parent", L"child"}) {
         const auto label = std::wstring(lpac ? L"lpac" : L"regular") + L"-" + role;
