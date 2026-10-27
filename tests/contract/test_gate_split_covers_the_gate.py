@@ -246,6 +246,36 @@ def test_cli_and_web_tests_run_on_three_os_and_backend_stays_on_linux() -> None:
     )
 
 
+def test_pr_native_checks_cover_platform_specific_code_and_real_vault_processes() -> None:
+    """Platform-only native defects must be observed before main promotion."""
+    jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+    native = jobs["integration-native"]
+    assert native["if"] == "github.event_name == 'pull_request'"
+    assert native["strategy"]["fail-fast"] is False
+    assert set(native["strategy"]["matrix"]["os"]) == {
+        "ubuntu-latest",
+        "macos-latest",
+        "windows-latest",
+    }
+    scripts = "\n".join(step.get("run", "") for step in native["steps"])
+    assert "cargo clippy --locked --all-targets -- -D warnings" in scripts
+    vault = next(
+        step
+        for step in native["steps"]
+        if step.get("name") == "Existing native vault and independent CLI processes"
+    )
+    assert vault["if"] == "runner.os != 'Linux'"
+    assert "cargo test --locked --test enrollments_native" in vault["run"]
+    assert "--ignored" not in vault["run"]
+    linux = next(
+        step
+        for step in jobs["cli"]["steps"]
+        if step.get("name") == "Actual Linux Secret Service enrollment and recovery"
+    )
+    assert linux["if"] == "runner.os == 'Linux'"
+    assert linux["run"] == "bash .github/scripts/check-native-secret-service.sh"
+
+
 def _shard_selection(extra: str) -> tuple[set[Path], set[Path]]:
     """Split one shard's pytest arguments into selected and ignored trees."""
     selected: set[Path] = set()

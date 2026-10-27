@@ -510,6 +510,13 @@ directory under `uv/projects`, isolated by checkout identity. An explicit
 cache, and changing checkouts does not retarget another checkout's editable imports.
 The libclang adapter uses Cargo's effective artifact directory. CI exercises native
 checks with artifacts outside the checkout on Linux, macOS and Windows.
+Pull requests run all-target native Clippy and library units on all three OSes.
+macOS and Windows also execute the owned-slot native credential and independent
+CLI-process cases. The full main gate retains the isolated Linux Secret Service,
+complete native/API interoperability, packaging and installed desktop journeys.
+The macOS observer checks exact slot presence without decrypting another
+executable's secret; successive CLI processes read and revalidate their own keys.
+The fixture never changes Keychain access control.
 Run the native CLI locally through that profile. Build and run backend, web and
 docs changes on the production server; desktop bundles are qualified in CI.
 The published source crate includes generated resources under `resources/`;
