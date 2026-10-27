@@ -4,7 +4,7 @@ set -euo pipefail
 test "${GITHUB_ACTIONS:-}" = true
 test "${RUNNER_OS:-}" = Linux
 test -n "${RUNNER_TEMP:-}"
-fixture_rounds="${AI_STP_NATIVE_VAULT_ROUNDS:-10}"
+fixture_rounds="${AI_STP_NATIVE_VAULT_ROUNDS:-100}"
 [[ "${fixture_rounds}" =~ ^([1-9]|[1-9][0-9]|100)$ ]]
 
 if [[ "${1:-}" != --inside-fixture ]]; then

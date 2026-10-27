@@ -17,7 +17,7 @@ on:
       native_vault_rounds:
         description: Number of concurrent real Linux vault rounds (1-100)
         required: false
-        default: "10"
+        default: "100"
         type: string
 
 permissions:
@@ -421,7 +421,7 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         env:
-          AI_STP_NATIVE_VAULT_ROUNDS: ${{ inputs.native_vault_rounds || '10' }}
+          AI_STP_NATIVE_VAULT_ROUNDS: ${{ inputs.native_vault_rounds || '100' }}
         run: bash .github/scripts/check-native-secret-service.sh
       - name: Existing consumers and real SQLite backup
         shell: bash

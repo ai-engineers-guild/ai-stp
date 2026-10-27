@@ -1,7 +1,7 @@
 //! Independent read/delete observer for the disposable CI Secret Service.
 //! All credential creation and replacement is exercised through the product.
 
-use std::{collections::HashMap, error::Error, time::Duration};
+use std::{cell::RefCell, collections::HashMap, error::Error, fmt, time::Duration};
 use zbus::{
     Connection, Proxy,
     address::{Address, transport::Transport},
@@ -12,18 +12,70 @@ use zbus::{
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
+thread_local! {
+    // Observe through our own transport, independent of the product connection.
+    // Keep no item, proxy, session or credential value between operations.
+    static CONNECTION: RefCell<Option<(String, Connection)>> = const { RefCell::new(None) };
+}
+
+#[derive(Debug)]
+struct ObserverError {
+    stage: &'static str,
+    kind: &'static str,
+}
+
+impl fmt::Display for ObserverError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "vault observer {}: {}", self.stage, self.kind)
+    }
+}
+
+impl Error for ObserverError {}
+
+fn failed(stage: &'static str, error: zbus::Error) -> Box<dyn Error> {
+    // Free-form remote errors can include attributes or credential payloads.
+    let kind = match error {
+        zbus::Error::FDO(error) => match *error {
+            zbus::fdo::Error::UnknownMethod(_) => "unknown_method",
+            zbus::fdo::Error::NoReply(_) => "no_reply",
+            zbus::fdo::Error::Timeout(_) | zbus::fdo::Error::TimedOut(_) => "timeout",
+            zbus::fdo::Error::ServiceUnknown(_) | zbus::fdo::Error::NameHasNoOwner(_) => {
+                "service_absent"
+            }
+            _ => "standard_remote_error",
+        },
+        zbus::Error::InputOutput(_) | zbus::Error::Connection(_, _) => "transport",
+        zbus::Error::MethodError(_, _, _) => "remote_error",
+        _ => "wire_or_connection_error",
+    };
+    Box::new(ObserverError { stage, kind })
+}
+
 async fn connection() -> Result<Connection> {
     if std::env::var("AI_STP_TEST_SECRET_SERVICE").as_deref() != Ok("isolated") {
         return Err("run only through the isolated CI Secret Service fixture".into());
     }
-    let address = Address::session()?;
+    let address = Address::session().map_err(|error| failed("address", error))?;
     if !matches!(address.transport(), Transport::Unix(_)) {
         return Err("the credential fixture requires a local Unix bus".into());
     }
-    Ok(Builder::address(address)
+    let key = address.to_string();
+    if let Some(connection) = CONNECTION.with(|cached| {
+        cached
+            .borrow()
+            .as_ref()
+            .filter(|(previous, connection)| *previous == key && !connection.is_closed())
+            .map(|(_, connection)| connection.clone())
+    }) {
+        return Ok(connection);
+    }
+    let connection = Builder::address(address)
         .method_timeout(Duration::from_secs(3))
         .build()
-        .await?)
+        .await
+        .map_err(|error| failed("connect", error))?;
+    CONNECTION.with(|cached| *cached.borrow_mut() = Some((key, connection.clone())));
+    Ok(connection)
 }
 
 async fn proxy<'a>(
@@ -31,13 +83,14 @@ async fn proxy<'a>(
     path: &'a str,
     interface: &'a str,
 ) -> Result<Proxy<'a>> {
-    Ok(proxy::Builder::new(connection)
+    proxy::Builder::new(connection)
         .destination("org.freedesktop.secrets")
         .path(path)
         .interface(interface)
         .cache_properties(CacheProperties::No)
         .build()
-        .await?)
+        .await
+        .map_err(|error| failed("proxy", error))
 }
 
 async fn find(service: &Proxy<'_>, name: &str) -> Result<Option<OwnedObjectPath>> {
@@ -46,8 +99,10 @@ async fn find(service: &Proxy<'_>, name: &str) -> Result<Option<OwnedObjectPath>
     } else {
         HashMap::from([("service", "ai-stp-v2"), ("credential_id", name)])
     };
-    let (mut unlocked, locked): (Vec<OwnedObjectPath>, Vec<OwnedObjectPath>) =
-        service.call("SearchItems", &(attributes,)).await?;
+    let (mut unlocked, locked): (Vec<OwnedObjectPath>, Vec<OwnedObjectPath>) = service
+        .call("SearchItems", &(attributes,))
+        .await
+        .map_err(|error| failed("search_items", error))?;
     if !locked.is_empty() || unlocked.len() > 1 {
         return Err("an owned fixture slot is locked or ambiguous".into());
     }
@@ -55,7 +110,7 @@ async fn find(service: &Proxy<'_>, name: &str) -> Result<Option<OwnedObjectPath>
 }
 
 pub(super) fn read(name: &str) -> Result<Option<Vec<u8>>> {
-    zbus::block_on(async {
+    finish(zbus::block_on(async {
         let connection = connection().await?;
         let service = proxy(
             &connection,
@@ -66,28 +121,54 @@ pub(super) fn read(name: &str) -> Result<Option<Vec<u8>>> {
         let Some(path) = find(&service, name).await? else {
             return Ok(None);
         };
-        let (_, session): (OwnedVariant, OwnedObjectPath) = service
+        let (output, session): (OwnedVariant, OwnedObjectPath) = service
             .call("OpenSession", &("plain", Variant::from("")))
-            .await?;
-        let item = proxy(&connection, path.as_str(), "org.freedesktop.Secret.Item").await?;
-        let (returned_session, parameters, bytes, _): (OwnedObjectPath, Vec<u8>, Vec<u8>, String) =
-            item.call("GetSecret", &(session.clone(),)).await?;
-        if returned_session != session || !parameters.is_empty() || bytes.len() > 65536 {
-            return Err("the fixture returned an invalid bounded plain secret".into());
+            .await
+            .map_err(|error| failed("open_session", error))?;
+        if session.as_str() == "/" {
+            return Err("the fixture did not open a secret session".into());
         }
-        let session = proxy(
-            &connection,
-            session.as_str(),
-            "org.freedesktop.Secret.Session",
-        )
-        .await?;
-        let _: () = session.call("Close", &()).await?;
-        Ok(Some(bytes))
-    })
+        let read: Result<Vec<u8>> = async {
+            if <&str>::try_from(&output).ok() != Some("") {
+                return Err("the fixture returned invalid plain session parameters".into());
+            }
+            let item = proxy(&connection, path.as_str(), "org.freedesktop.Secret.Item").await?;
+            let (returned, parameters, bytes, _): (OwnedObjectPath, Vec<u8>, Vec<u8>, String) =
+                item.call("GetSecret", &(session.clone(),))
+                    .await
+                    .map_err(|error| failed("get_secret", error))?;
+            if returned != session || !parameters.is_empty() || bytes.len() > 65536 {
+                return Err("the fixture returned an invalid bounded plain secret".into());
+            }
+            Ok(bytes)
+        }
+        .await;
+        // Close even after a failed read; retain its original diagnostic.
+        let closed: Result<()> = async {
+            let session = proxy(
+                &connection,
+                session.as_str(),
+                "org.freedesktop.Secret.Session",
+            )
+            .await?;
+            session
+                .call::<_, _, ()>("Close", &())
+                .await
+                .map_err(|error| failed("close_session", error))
+        }
+        .await;
+        match read {
+            Ok(bytes) => {
+                closed?;
+                Ok(Some(bytes))
+            }
+            Err(error) => Err(error),
+        }
+    }))
 }
 
 pub(super) fn remove(name: &str) -> Result<()> {
-    zbus::block_on(async {
+    finish(zbus::block_on(async {
         let connection = connection().await?;
         let service = proxy(
             &connection,
@@ -99,10 +180,22 @@ pub(super) fn remove(name: &str) -> Result<()> {
             return Ok(());
         };
         let item = proxy(&connection, path.as_str(), "org.freedesktop.Secret.Item").await?;
-        let prompt: OwnedObjectPath = item.call("Delete", &()).await?;
+        let prompt: OwnedObjectPath = item
+            .call("Delete", &())
+            .await
+            .map_err(|error| failed("delete", error))?;
         if prompt.as_str() != "/" {
             return Err("the fixture must not prompt".into());
         }
         Ok(())
-    })
+    }))
+}
+
+fn finish<T>(result: Result<T>) -> Result<T> {
+    if result.is_err() {
+        // Do not replay a read or deletion. Only the next independent operation
+        // may open another connection after this transport has failed.
+        CONNECTION.with(|cached| *cached.borrow_mut() = None);
+    }
+    result
 }
