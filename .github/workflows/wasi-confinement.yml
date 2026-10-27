@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   provider-compatibility:
-    name: providers-locked-wasip2
+    name: providers-locked-components
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -25,8 +25,8 @@ jobs:
           python-version: "3.14.9"
       - name: Use the existing project compiler only on this disposable runner
         run: bash .github/scripts/install-rust-toolchain.sh apps/cli/rust-toolchain.toml
-      - name: Add only the pinned compiler's WASIp2 standard library
-        run: rustup target add --toolchain "${RUSTUP_TOOLCHAIN}" wasm32-wasip2
+      - name: Add the pinned compiler's stable WASIp1 library for official command adaptation
+        run: rustup target add --toolchain "${RUSTUP_TOOLCHAIN}" wasm32-wasip1
       - name: Install the native binding generator's required libclang
         run: |
           sudo apt-get update -qq

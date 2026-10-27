@@ -1,4 +1,4 @@
-"""Measure locked, unmodified seven-provider WASIp2 compilation only in CI."""
+"""Measure locked seven-provider WASIp1 plus official component adaptation in CI."""
 
 from __future__ import annotations
 
@@ -15,6 +15,9 @@ from pathlib import Path
 
 SDK = "wasi-sdk-34.0-x86_64-linux"
 SDK_SHA256 = "b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4"
+TOOLS_VERSION = "1.262.0"
+TOOLS_SHA256 = "655b8df67d54c3ef9b52fc237c4e94bbfbb5f5f43825245cb0940a7002a9ed65"
+ADAPTER_SHA256 = "b3de00ac47528237211c6404b4a7e4235a67878665dc3e8853071908c3127a85"
 PROVIDERS = [
     (
         "codex",
@@ -56,25 +59,31 @@ COMMON = {
 
 
 def command(arguments: list[str], root: Path, *, timeout: int = 40) -> bytes:
-    return subprocess.run(
-        arguments, cwd=root, check=True, capture_output=True, timeout=timeout
-    ).stdout
+    result = subprocess.run(arguments, cwd=root, check=False, capture_output=True, timeout=timeout)
+    if result.returncode:
+        print(result.stderr[-16384:].decode(errors="replace"), flush=True)
+        result.check_returncode()
+    return result.stdout
+
+
+def download(path: Path, url: str, expected: str, maximum: int) -> None:
+    digest = hashlib.sha256()
+    size = 0
+    with urllib.request.urlopen(url, timeout=60) as response, path.open("xb") as output:
+        while chunk := response.read(1024 * 1024):
+            size += len(chunk)
+            if size > maximum:
+                raise RuntimeError("Pinned official asset exceeded its bound")
+            digest.update(chunk)
+            output.write(chunk)
+    if digest.hexdigest() != expected:
+        raise RuntimeError("Official immutable asset digest mismatch")
 
 
 def sdk(root: Path) -> Path:
     archive = root / (SDK + ".tar.gz")
     url = f"https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/{archive.name}"
-    digest = hashlib.sha256()
-    size = 0
-    with urllib.request.urlopen(url, timeout=60) as response, archive.open("xb") as output:
-        while chunk := response.read(1024 * 1024):
-            size += len(chunk)
-            if size > 224 * 1024 * 1024:
-                raise RuntimeError("Pinned SDK archive exceeded its bound")
-            digest.update(chunk)
-            output.write(chunk)
-    if digest.hexdigest() != SDK_SHA256:
-        raise RuntimeError("Official immutable SDK digest mismatch")
+    download(archive, url, SDK_SHA256, 224 * 1024 * 1024)
     with tarfile.open(archive) as bundle:
         members = bundle.getmembers()
         if len(members) > 50000 or sum(item.size for item in members) > 2 * 1024**3:
@@ -85,6 +94,36 @@ def sdk(root: Path) -> Path:
     if not (result / "bin/clang").is_file() or not (result / "share/wasi-sysroot").is_dir():
         raise RuntimeError("Pinned SDK compiler/sysroot absent")
     return result
+
+
+def adaptation(root: Path) -> tuple[Path, Path]:
+    archive = root / f"wasm-tools-{TOOLS_VERSION}-x86_64-linux.tar.gz"
+    download(
+        archive,
+        f"https://github.com/bytecodealliance/wasm-tools/releases/download/v{TOOLS_VERSION}/{archive.name}",
+        TOOLS_SHA256,
+        8 * 1024 * 1024,
+    )
+    with tarfile.open(archive) as bundle:
+        matches = [item for item in bundle.getmembers() if Path(item.name).name == "wasm-tools"]
+        if len(matches) != 1 or not matches[0].isfile() or matches[0].size > 32 * 1024 * 1024:
+            raise RuntimeError("One bounded regular official component tool required")
+        stream = bundle.extractfile(matches[0])
+        if stream is None:
+            raise RuntimeError("Official component tool absent")
+        with stream:
+            tool = root / "wasm-tools"
+            tool.write_bytes(stream.read(32 * 1024 * 1024 + 1))
+        tool.chmod(0o700)
+    archive.unlink()
+    adapter = root / "wasi_snapshot_preview1.command.wasm"
+    download(
+        adapter,
+        "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/" + adapter.name,
+        ADAPTER_SHA256,
+        128 * 1024,
+    )
+    return tool, adapter
 
 
 def common(root: Path, crate: str) -> str:
@@ -112,15 +151,16 @@ def main() -> None:
     root = temporary / "ai-stp-provider-portability"
     root.mkdir()
     compiler = sdk(root)
+    tool, adapter = adaptation(root)
     environment = dict(
         os.environ,
         RUSTUP_TOOLCHAIN=pin,
         CARGO_BUILD_JOBS="2",
         CARGO_TARGET_DIR=str(root / "target"),
         CARGO_BUILD_BUILD_DIR=str(root / "build"),
-        CC_wasm32_wasip2=str(compiler / "bin/clang"),
-        AR_wasm32_wasip2=str(compiler / "bin/llvm-ar"),
-        CFLAGS_wasm32_wasip2=f"--target=wasm32-wasip2 --sysroot={compiler / 'share/wasi-sysroot'}",
+        CC_wasm32_wasip1=str(compiler / "bin/clang"),
+        AR_wasm32_wasip1=str(compiler / "bin/llvm-ar"),
+        CFLAGS_wasm32_wasip1=f"--target=wasm32-wasip1 --sysroot={compiler / 'share/wasi-sysroot'}",
     )
     proofs = []
     for name, source, tree in PROVIDERS:
@@ -151,7 +191,7 @@ def main() -> None:
                 "--locked",
                 "--release",
                 "--target",
-                "wasm32-wasip2",
+                "wasm32-wasip1",
                 "--package",
                 package,
                 "--bin",
@@ -188,10 +228,29 @@ def main() -> None:
             if executable is None or not executable.resolve().is_relative_to(root / "target"):
                 raise RuntimeError("Compiled portable artifact absent from the owned target")
             data = executable.read_bytes()
-            if not 8 < len(data) < 32 * 1024 * 1024 or data[:8] != b"\0asm\r\0\1\0":
-                raise RuntimeError("Expected portable component; never accept a native executable")
-            proof["component_sha256"] = hashlib.sha256(data).hexdigest()
-            proof["component_bytes"] = len(data)
+            if not 8 < len(data) < 32 * 1024 * 1024 or data[:8] != b"\0asm\1\0\0\0":
+                raise RuntimeError("Expected explicit WASIp1 core; never a native executable")
+            proof["core_sha256"] = hashlib.sha256(data).hexdigest()
+            component = root / (package + ".component.wasm")
+            command(
+                [
+                    str(tool),
+                    "component",
+                    "new",
+                    str(executable),
+                    "--adapt",
+                    str(adapter),
+                    "-o",
+                    str(component),
+                ],
+                root,
+            )
+            command([str(tool), "validate", str(component), "--features", "component-model"], root)
+            portable = component.read_bytes()
+            if not 8 < len(portable) < 32 * 1024 * 1024 or portable[:8] != b"\0asm\r\0\1\0":
+                raise RuntimeError("Official adaptation did not produce a bounded component")
+            proof["component_sha256"] = hashlib.sha256(portable).hexdigest()
+            proof["component_bytes"] = len(portable)
         else:
             # Public pinned source/compiler output only, never session or vault data.
             print((result.stdout + result.stderr)[-65536:].decode(errors="replace"), flush=True)
@@ -207,6 +266,11 @@ def main() -> None:
                     "compiler": pin,
                     "sdk": SDK,
                     "sdk_sha256": SDK_SHA256,
+                    "compilation_target": "wasm32-wasip1",
+                    "component_tools_version": TOOLS_VERSION,
+                    "component_tools_archive_sha256": TOOLS_SHA256,
+                    "official_command_adapter_version": "50.0.0",
+                    "official_command_adapter_sha256": ADAPTER_SHA256,
                     "providers": proofs,
                     "runtime_qualified": False,
                     "production_family_enabled": False,
