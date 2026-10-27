@@ -47,11 +47,11 @@ void readable(NSString* path) {
     require(count == 18 && std::string(data, 18) == "synthetic fixture\n",
         "positive_read_bytes", errno);
 }
-void refused(NSString* path, int access) {
+void refused(NSString* path, int access, const char* stage) {
     Descriptor file(open(bytes(path), access | O_NOFOLLOW | O_CLOEXEC));
-    const int original = errno;
+    const int original = file.value < 0 ? errno : 0;
     require(file.value == -1 && (original == EPERM || original == EACCES),
-        "outside_or_ungranted_access", original);
+        stage, original);
 }
 void write_new(NSString* path) {
     Descriptor file(open(bytes(path), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600));
@@ -209,7 +209,20 @@ NSDictionary* worker(NSString* role) {
         && [child isKindOfClass:[NSString class]] && child.isAbsolutePath, "worker_paths");
     require(getenv("AI_STP_PROBE_PARENT_SECRET") == nullptr, "environment_secret_absent");
     NSString* target = joined(root, @"target");
-    refused(joined(target, @"canary"), O_RDONLY);
+    const bool descendant = [role isEqual:@"child"];
+    const auto outside = [&] {
+        refused(joined(root, @"outside/canary"), O_RDONLY,
+            descendant ? "child_outside_read" : "worker_outside_read");
+        refused(joined(root, @"outside/canary"), O_WRONLY,
+            descendant ? "child_outside_write" : "worker_outside_write");
+        refused(joined(root, @"outside/credentials"), O_RDONLY,
+            descendant ? "child_credentials_read" : "worker_credentials_read");
+        refused(joined(root, @"outside/credentials"), O_WRONLY,
+            descendant ? "child_credentials_write" : "worker_credentials_write");
+    };
+    outside();
+    refused(joined(target, @"canary"), O_RDONLY,
+        descendant ? "child_target_before_bookmark" : "worker_target_before_bookmark");
     NSError* error = nil;
     require([request[@"bookmark"] isKindOfClass:[NSString class]], "bookmark_encoding");
     NSData* bookmark = [[NSData alloc] initWithBase64EncodedString:request[@"bookmark"] options:0];
@@ -247,10 +260,7 @@ NSDictionary* worker(NSString* role) {
     NSString* written = joined(target, [role stringByAppendingString:@".written"]);
     write_new(written);
     readable(written);
-    for (NSString* leaf in @[@"outside/canary", @"outside/credentials"]) {
-        refused(joined(root, leaf), O_RDONLY);
-        refused(joined(root, leaf), O_WRONLY);
-    }
+    outside();
     if ([role isEqualToString:@"worker"]) {
         std::string result = launch(child, "child", onward, false);
         NSDictionary* proof = decode([NSData dataWithBytes:result.data() length:result.size()]);
