@@ -63,7 +63,9 @@ jobs:
         run: sudo apt-get update
       - name: Install WebKitGTK dependencies (Linux)
         if: runner.os == 'Linux'
-        timeout-minutes: 10
+        # A measured cold Azure mirror transfer took 28 min for 69.4 MB. Keep
+        # a finite budget above that observation; do not label it a hang.
+        timeout-minutes: 35
         run: |
           set -euo pipefail
           sudo apt-get install -y --no-install-recommends \
