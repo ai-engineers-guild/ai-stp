@@ -1,13 +1,7 @@
 name: wasi-confinement
 
 on:
-  pull_request:
-    paths:
-      - tests/native_confinement/wasi.rs
-      - .github/scripts/qualify-wasi-confinement.py
-      - .github/workflows/wasi-confinement.yml
-      - apps/cli/rust-toolchain.toml
-      - .github/scripts/install-rust-toolchain.sh
+  workflow_call:
   workflow_dispatch:
 
 permissions:
