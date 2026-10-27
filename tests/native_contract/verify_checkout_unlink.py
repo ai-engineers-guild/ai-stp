@@ -85,12 +85,16 @@ async def qualify(
         return path
 
     async def apply_once(
-        planned: dict[str, Any], *, retire: bool = False, reader: str | None = None
+        planned: dict[str, Any],
+        *,
+        retire: bool = False,
+        reader: str | None = None,
+        link: bool = False,
     ) -> dict[str, Any]:
         arguments = [
             "corporate",
             "project",
-            "unlink-retire" if retire else "unlink",
+            "link" if link else "unlink-retire" if retire else "unlink",
             "apply",
             "--plan",
             str(reviewed(planned)),
@@ -118,6 +122,38 @@ async def qualify(
             arguments.extend(["--context", reader])
         return await refused(binary, home, arguments)
 
+    async def concurrent_apply(
+        planned: dict[str, Any], *, route: str, link: bool = False
+    ) -> dict[str, Any]:
+        # Real processes must produce a positive receipt and only one first POST.
+        planned_posts = faults.writes.count(route)
+        planned_results = await asyncio.gather(
+            apply_once(planned, link=link), apply_once(planned, link=link), return_exceptions=True
+        )
+        planned_receipts = []
+        for result in planned_results:
+            if isinstance(result, dict):
+                assert result["state"] == "completed"
+                assert result["operation_id"] == planned["plan"]["operation_id"]
+                planned_receipts.append(result)
+            else:
+                # native() includes the actual JSON envelope on a nonzero exit.
+                assert isinstance(result, AssertionError) and len(result.args) == 1, result
+                captured = result.args[0]
+                assert isinstance(captured, tuple) and len(captured) == 3, captured
+                _, stdout, stderr = captured
+                failure = ErrorEnvelope.model_validate_json(stdout)
+                assert not stderr and failure.error.details is not None
+                if failure.error.code == "AI_STP_PRECONDITION_FAILED":
+                    assert failure.error.details["reason"] == "concurrent_admission"
+                    assert failure.error.details["operation_id"] == planned["plan"]["operation_id"]
+                else:
+                    assert failure.error.code == "AI_STP_DEPENDENCY_UNAVAILABLE"
+                    assert failure.error.details["stage"] == "lock_timeout"
+        assert planned_receipts and faults.writes.count(route) == planned_posts + 1
+        assert await apply_once(planned, link=link) == planned_receipts[0]
+        return planned_receipts[0]
+
     async def bind(label: str) -> tuple[Path, dict[str, Any], dict[str, Any]]:
         path = await checkout("unlink-" + label)
         paths.append(path)
@@ -135,7 +171,16 @@ async def qualify(
             "--git-executable",
             git_executable,
         )
-        await enact(request, "corporate", "project", "link", "apply")
+        if label == "committed":
+            assert request["plan"]["registry_schema_before"] == 58
+            assert request["plan"]["registry_schema_after"] == 58
+            await concurrent_apply(
+                request,
+                route=f"/v1/organizations/{organization}/project-link-plans",
+                link=True,
+            )
+        else:
+            await enact(request, "corporate", "project", "link", "apply")
         confirmation = await run(
             "corporate",
             "project",
@@ -408,35 +453,8 @@ async def qualify(
             replacement_canary.unlink(missing_ok=True)
             pending_path.rmdir()
         displaced.rename(pending_path)
-    # Two real CLI processes may both miss the initial outside-transaction read.
-    # Exactly one may submit POST, even when the winning request is completed.
     concurrent = await request(pending_binding)
-    concurrent_posts = faults.writes.count(plan_route)
-    concurrent_results = await asyncio.gather(
-        apply_once(concurrent), apply_once(concurrent), return_exceptions=True
-    )
-    concurrent_receipts = []
-    for result in concurrent_results:
-        if isinstance(result, dict):
-            assert result["state"] == "completed"
-            assert result["operation_id"] == concurrent["plan"]["operation_id"]
-            concurrent_receipts.append(result)
-        else:
-            # native() includes the actual JSON envelope on a nonzero exit.
-            assert isinstance(result, AssertionError) and len(result.args) == 1, result
-            captured = result.args[0]
-            assert isinstance(captured, tuple) and len(captured) == 3, captured
-            _, stdout, stderr = captured
-            failure = ErrorEnvelope.model_validate_json(stdout)
-            assert not stderr and failure.error.details is not None
-            if failure.error.code == "AI_STP_PRECONDITION_FAILED":
-                assert failure.error.details["reason"] == "concurrent_admission"
-                assert failure.error.details["operation_id"] == concurrent["plan"]["operation_id"]
-            else:
-                assert failure.error.code == "AI_STP_DEPENDENCY_UNAVAILABLE"
-                assert failure.error.details["stage"] == "lock_timeout"
-    assert concurrent_receipts and faults.writes.count(plan_route) == concurrent_posts + 1
-    assert await apply_once(concurrent) == concurrent_receipts[0]
+    await concurrent_apply(concurrent, route=plan_route)
     assert local() == pending_before
 
     unknown = await request(pending_binding)
@@ -755,6 +773,7 @@ async def qualify(
                 "original_result_reads_only": True,
                 "competing_confirmation_slot": True,
                 "concurrent_cli_first_write_submitted_once": True,
+                "concurrent_legacy_checkout_post_submitted_once": True,
                 "stale_session_refused_before_admission": True,
                 "physical_checkout_replacement_refused_before_query": True,
                 "current_remote_revision_not_cached_adoption": True,

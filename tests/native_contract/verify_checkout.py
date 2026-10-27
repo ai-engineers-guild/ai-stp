@@ -44,7 +44,6 @@ class LostAcknowledgements:
         self.refuse_next: str | None = None
         self.writes: list[str] = []
         self.network_requests = 0
-        self.hide_unlink_outcome = False
         self.unavailable_reads = False
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -65,16 +64,6 @@ class LostAcknowledgements:
             )(scope, receive, send)
             return
         if self.hide_outcome and method == "GET" and "/project-link-plan-requests/" in path:
-            await JSONResponse(
-                {"schema_version": 1, "ok": False, "error": {"code": "AI_STP_NOT_FOUND"}},
-                status_code=404,
-            )(scope, receive, send)
-            return
-        if (
-            self.hide_unlink_outcome
-            and method == "GET"
-            and "/project-unlink-plan-requests/" in path
-        ):
             await JSONResponse(
                 {"schema_version": 1, "ok": False, "error": {"code": "AI_STP_NOT_FOUND"}},
                 status_code=404,
