@@ -5,7 +5,9 @@ last_verified: "2026-10-15"
 
 # Git workflow
 
-CI push branches: `dev`, `main`. The `check` workflow calls the existing
+CI push branches: `dev`, `main`.
+
+The `check` workflow calls the existing
 Desktop, CodeQL and native archive workflows and joins their results with the
 repository checks in `qualification`. This required status fails on a failed,
 cancelled or unexpectedly skipped dependency. Public source qualification also
