@@ -20,6 +20,14 @@ remain here. `dev` pushes do not repeat source builds. Impact is currently
 conservative: every main candidate selects the full contract. Manual diagnosis
 also selects the full contract and cannot promote production.
 
+Registered native experiments join the same final qualification through their
+owning reusable workflow. Main and manual qualification run every registered
+experiment. PRs run an experiment when its source, pinned toolchain or GitHub
+automation changes; an unchanged owner is explicitly skipped. Unknown or missing
+native probes refuse selection until an owner is registered. The WASIp2 experiment
+executes one identical component on Linux, macOS and Windows; it does not enable a
+production provider backend. Source selection does not waive common PR checks.
+
 The final `qualification` depends on every owning job and requires successful
 results for the selected phase and explicit skips for the other phase. Failure,
 cancellation, missing work and an unexpected skip or run refuse. Public source

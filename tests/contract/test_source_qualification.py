@@ -42,7 +42,7 @@ class QualificationTests(unittest.TestCase):
         return {
             name: {
                 "result": "success"
-                if name in {"analysis", "secrets"}
+                if name in {"analysis", "secrets", "native-experiments", "wasi-confinement"}
                 or name.startswith("integration-") == (phase == "integration")
                 else "skipped"
             }
@@ -56,6 +56,7 @@ class QualificationTests(unittest.TestCase):
                 "RESULTS": json.dumps(results),
                 "PRIVATE_REPOSITORY": json.dumps(private),
                 "PHASE": phase,
+                "WASI_SELECTED": "true",
             },
         )
         return outcome.returncode == 0
@@ -71,6 +72,7 @@ class QualificationTests(unittest.TestCase):
             ("desktop", "desktop.yml"),
             ("analysis", "codeql.yml"),
             ("archives", "cli-archives.yml"),
+            ("wasi-confinement", "wasi-confinement.yml"),
         ]:
             self.assertEqual(jobs[job]["uses"], f"./.github/workflows/{filename}")
             self.assertNotIn("secrets", jobs[job])
@@ -87,6 +89,13 @@ class QualificationTests(unittest.TestCase):
         self.assertIn("workflow_dispatch", source["on"])
         for name, job in source["jobs"].items():
             if name in {"analysis", "qualification", "secrets"}:
+                continue
+            if name == "native-experiments":
+                self.assertNotIn("if", job)
+                continue
+            if name == "wasi-confinement":
+                self.assertEqual(job["needs"], "native-experiments")
+                self.assertEqual(job["if"], "needs.native-experiments.outputs.wasi == 'true'")
                 continue
             expected = (
                 "github.event_name == 'pull_request'"
