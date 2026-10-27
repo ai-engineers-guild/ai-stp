@@ -75,7 +75,7 @@ def projection(harness: str) -> tuple[dict[str, JsonValue], bytes]:
     return seal_adaptation(adaptation).model_dump(mode="json"), payload
 
 
-async def native(binary: Path, home: Path, arguments: list[str]) -> dict[str, Any]:
+async def native_result(binary: Path, home: Path, arguments: list[str]) -> tuple[int, bytes, bytes]:
     environment = dict(
         os.environ,
         HOME=str(home),
@@ -97,7 +97,13 @@ async def native(binary: Path, home: Path, arguments: list[str]) -> dict[str, An
         process.kill()
         await process.wait()
         raise
-    assert process.returncode == 0, (arguments, stdout.decode(), stderr.decode())
+    assert process.returncode is not None
+    return process.returncode, stdout, stderr
+
+
+async def native(binary: Path, home: Path, arguments: list[str]) -> dict[str, Any]:
+    status, stdout, stderr = await native_result(binary, home, arguments)
+    assert status == 0, (arguments, stdout.decode(), stderr.decode())
     assert not stderr, stderr.decode()
     return json.loads(stdout)["data"]
 

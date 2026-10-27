@@ -16,7 +16,7 @@ from unittest.mock import patch
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from tests.native_contract.verify_ownership import native
+from tests.native_contract.verify_ownership import native, native_result
 
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.context import service as context_service
@@ -127,23 +127,31 @@ async def qualify(
     ) -> dict[str, Any]:
         # Real processes must produce a positive receipt and only one first POST.
         planned_posts = faults.writes.count(route)
-        planned_results = await asyncio.gather(
-            apply_once(planned, link=link), apply_once(planned, link=link), return_exceptions=True
+        arguments = [
+            "corporate",
+            "project",
+            "link" if link else "unlink",
+            "apply",
+            "--plan",
+            str(reviewed(planned)),
+            "--plan-digest",
+            planned["plan_digest"],
+        ]
+        results = await asyncio.gather(
+            native_result(binary, home, arguments),
+            native_result(binary, home, arguments),
         )
-        planned_receipts = []
-        for result in planned_results:
-            if isinstance(result, dict):
-                assert result["state"] == "completed"
-                assert result["operation_id"] == planned["plan"]["operation_id"]
-                planned_receipts.append(result)
+        planned_receipts: list[dict[str, Any]] = []
+        for status, stdout, stderr in results:
+            assert not stderr
+            if status == 0:
+                receipt: dict[str, Any] = json.loads(stdout)["data"]
+                assert receipt["state"] == "completed"
+                assert receipt["operation_id"] == planned["plan"]["operation_id"]
+                planned_receipts.append(receipt)
             else:
-                # native() includes the actual JSON envelope on a nonzero exit.
-                assert isinstance(result, AssertionError) and len(result.args) == 1, result
-                captured = result.args[0]
-                assert isinstance(captured, tuple) and len(captured) == 3, captured
-                _, stdout, stderr = captured
                 failure = ErrorEnvelope.model_validate_json(stdout)
-                assert not stderr and failure.error.details is not None
+                assert failure.error.details is not None
                 if failure.error.code == "AI_STP_PRECONDITION_FAILED":
                     assert failure.error.details["reason"] == "concurrent_admission"
                     assert failure.error.details["operation_id"] == planned["plan"]["operation_id"]
