@@ -18,9 +18,9 @@ use crate::{
     identity::{self, credentials::Vault},
     passport,
     store::{
-        CHECKOUT_LINK_SCHEMA, CHECKOUT_RETIREMENT_SCHEMA, CHECKOUT_UNLINK_SCHEMA,
-        ENROLLMENT_RECOVERY_SCHEMA, PROFILE_SCHEMA, Store, database, has_checkout_links,
-        has_enrollment_recovery,
+        BINDING_RETIREMENT_SCHEMA, CHECKOUT_LINK_SCHEMA, CHECKOUT_RETIREMENT_SCHEMA,
+        CHECKOUT_UNLINK_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA, PROFILE_SCHEMA, Store, database,
+        has_checkout_links, has_enrollment_recovery,
     },
 };
 
@@ -146,7 +146,7 @@ impl Plan {
         }
         if proof_version.is_none()
             || self.schema_version
-                != if self.registry_schema_before == CHECKOUT_UNLINK_SCHEMA {
+                != if crate::store::has_checkout_unlinks(self.registry_schema_before) {
                     6
                 } else if self.registry_schema_before == CHECKOUT_RETIREMENT_SCHEMA {
                     5
@@ -177,7 +177,7 @@ impl Plan {
                 .windows(2)
                 .any(|v| v[0].operation_id >= v[1].operation_id)
             || !self.interrupted_checkout_unlinks.is_empty()
-                && self.registry_schema_before != CHECKOUT_UNLINK_SCHEMA
+                && !crate::store::has_checkout_unlinks(self.registry_schema_before)
             || operations.contains(&self.operation_id)
             || operations.contains(&self.replacement.operation_id)
             || self.action != KIND
@@ -196,6 +196,7 @@ impl Plan {
                 CHECKOUT_LINK_SCHEMA,
                 CHECKOUT_RETIREMENT_SCHEMA,
                 CHECKOUT_UNLINK_SCHEMA,
+                BINDING_RETIREMENT_SCHEMA,
             ]
             .contains(&self.registry_schema_before)
             || self.replacement.registry_schema_before != target_schema
@@ -497,7 +498,7 @@ pub fn plan(root: &Path, connection: &str, label: &str, at: &str) -> Result<Plan
         super::project_links::interruption::capture_named(&store.connection, &plan)?;
     plan.interrupted_checkout_unlinks =
         super::project_unlinks::interruption::capture_named(&store.connection, &plan)?;
-    if registry_schema_before == CHECKOUT_UNLINK_SCHEMA {
+    if crate::store::has_checkout_unlinks(registry_schema_before) {
         plan.schema_version = 6;
     } else if registry_schema_before == CHECKOUT_RETIREMENT_SCHEMA {
         plan.schema_version = 5;

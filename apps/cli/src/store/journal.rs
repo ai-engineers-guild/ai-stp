@@ -9,7 +9,7 @@ pub(crate) fn checkout_unlink_epoch(connection: &Connection) -> Result<bool> {
     let version: u32 = connection
         .pragma_query_value(None, "user_version", |row| row.get(0))
         .map_err(database)?;
-    let enabled = version == super::CHECKOUT_UNLINK_SCHEMA;
+    let enabled = super::has_checkout_unlinks(version);
     if !enabled
         && connection
             .query_row(
