@@ -33,3 +33,10 @@ reason = "Informational unmaintained standalone zbus_names; stable Tauri plugins
 id = "RUSTSEC-2026-0372"
 ignoreUntil = 2026-11-06
 reason = "Informational unmaintained standalone zvariant_derive; stable Tauri plugins require zbus 5. No patched standalone version. Remove with stable zbus 6 plugin migration (#1066)."
+
+# Exact legacy source assessment, fenced before scanning; no other version
+# inherits this result. Public source/regression evidence and removal: #1168.
+[[IgnoredVulns]]
+id = "GHSA-qwgh-2vcv-g2f7"
+ignoreUntil = 2026-11-03
+reason = "Audited block-buffer 0.10.4 stores its cursor separately and has no ReadBuffer, unlike the advisory's inline cursor; exact registry checksum/version and expiry are enforced by check_advisory_scope.py, with caught-panic native regressions. Remove with the last transitive consumer or corrected upstream range (#1168)."

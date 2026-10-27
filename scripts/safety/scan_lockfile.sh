@@ -32,6 +32,16 @@ esac
 tmp="$(mktemp -d)"
 trap 'rm -rf "${tmp}"' EXIT
 
+status=0
+config_override=""
+# A failed assessment keeps the gate red and every advisory visible. Continue
+# all scans with an empty override instead of applying an out-of-scope filter.
+if ! python "${SCRIPT_DIR}/check_advisory_scope.py"; then
+  status=1
+  config_override="${tmp}/unfiltered.toml"
+  : > "${config_override}"
+fi
+
 curl -fsSL --retry 3 --retry-delay 2 \
   -o "${tmp}/osv-scanner" \
   "https://github.com/google/osv-scanner/releases/download/v${OSV_SCANNER_VERSION}/${asset}"
@@ -55,7 +65,6 @@ scanner="${tmp}/osv-scanner"
 # the first advisory, which is how GHSA-42vr-xj54-vc7v appeared only after
 # the urllib3 bump merged. `requirements.lock` needs the
 # `requirements.txt:` name override.
-status=0
 for lockfile in \
   uv.lock \
   apps/web/bun.lock \
@@ -66,6 +75,10 @@ for lockfile in \
   apps/cli/Cargo.lock \
   apps/cli/xtask/Cargo.lock \
   requirements.txt:scripts/safety/requirements.lock; do
-  "${scanner}" scan source "--lockfile=${lockfile}" || status=1
+  if [[ -n "${config_override}" ]]; then
+    "${scanner}" scan source "--config=${config_override}" "--lockfile=${lockfile}"
+  else
+    "${scanner}" scan source "--lockfile=${lockfile}"
+  fi || status=1
 done
 exit "${status}"

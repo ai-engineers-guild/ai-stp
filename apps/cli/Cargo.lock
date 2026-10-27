@@ -31,6 +31,7 @@ version = "0.1.3"
 dependencies = [
  "apple-native-keyring-store",
  "base64 0.23.1",
+ "block-buffer 0.10.4",
  "cap-fs-ext",
  "cap-std",
  "clap",
