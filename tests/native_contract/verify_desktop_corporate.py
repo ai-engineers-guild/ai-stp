@@ -41,6 +41,7 @@ from ai_stp_platform.organization_models import (
     ProjectIdentity,
     ProjectLink,
     ProjectLinkPlan,
+    ProjectUnlinkPlan,
 )
 
 PROFILE_REVIEW = 'section[aria-label="Review native profile plan"]'
@@ -449,7 +450,7 @@ def installed_journey(
         driver.wait(
             lambda: driver.read(
                 "return document.querySelector(arguments[0]).textContent"
-                ".includes('Corporate project binding saved.');",
+                ".includes('Original corporate project binding receipt saved.');",
                 HISTORY,
             ),
             "actual local binding adoption",
@@ -504,11 +505,150 @@ def installed_journey(
             assert db.execute(
                 "SELECT count(*) FROM operation WHERE kind='corporate.project_link'"
             ).fetchone() == (3,)
+
+        # Prepare an actual server-terminal link through the installed native
+        # engine. The UI's separate local retirement never submits that unlink.
+        def apply_unlink(planned: dict[str, Any]) -> dict[str, Any]:
+            plan_path = root / f"installed-unlink-{planned['plan']['operation_id']}.json"
+            plan_path.write_text(json.dumps(planned["plan"]), encoding="utf-8")
+            plan_path.chmod(0o600)
+            return cast(
+                dict[str, Any],
+                native(
+                    binary,
+                    environment,
+                    [
+                        "corporate",
+                        "project",
+                        "unlink",
+                        "apply",
+                        "--plan",
+                        str(plan_path),
+                        "--plan-digest",
+                        planned["plan_digest"],
+                    ],
+                ),
+            )
+
+        unlink_request = native(
+            binary,
+            environment,
+            [
+                "corporate",
+                "project",
+                "unlink-request",
+                "plan",
+                "--context",
+                company,
+                "--binding-operation",
+                adoption["operation_id"],
+            ],
+        )
+        apply_unlink(unlink_request)
+        unlink_confirmation = native(
+            binary,
+            environment,
+            [
+                "corporate",
+                "project",
+                "unlink-confirm",
+                "plan",
+                "--request-operation",
+                unlink_request["plan"]["operation_id"],
+            ],
+        )
+        assert apply_unlink(unlink_confirmation)["effect"]["link"]["state"] == "unlinked"
+        driver.click(driver.button("Read checkout history", HISTORY))
+        driver.click(driver.button("Inspect " + adoption["operation_id"], HISTORY))
+        driver.click(driver.button("Review local binding retirement", HISTORY))
+        retirement_scope = HISTORY + ' [aria-label="Review local binding retirement"]'
+        retirement = public_plan(driver, retirement_scope)
+        assert (
+            retirement["snapshot"]["binding"]["source"]["operation_id"] == adoption["operation_id"]
+        )
+        assert (
+            retirement["snapshot"]["remote_link"]["link_id"] == adopted["effect"]["link"]["link_id"]
+        )
+        assert retirement["snapshot"]["remote_link"]["state"] == "unlinked"
+        assert (
+            retirement["registry_schema_before"] == 59 and retirement["registry_schema_after"] == 60
+        )
+        authorize(driver, retirement_scope, "Apply reviewed local binding retirement")
+
+        def retirement_visible() -> bool:
+            return bool(
+                driver.read(
+                    "return document.querySelector(arguments[0]).textContent.includes("
+                    "'This original local binding was retired. "
+                    "Its adoption receipt is preserved.');",
+                    HISTORY,
+                )
+            )
+
+        driver.wait(retirement_visible, "actual local binding retirement")
+        retired_history = native(
+            binary,
+            environment,
+            [
+                "corporate",
+                "project",
+                "link",
+                "show",
+                "--operation",
+                adoption["operation_id"],
+            ],
+        )
+        retired = retired_history["binding_retirement"]
+        assert retired["operation_id"] == retirement["operation_id"]
+        assert retired["state"] == "verified" and retired["local_binding_retired"]
+        assert retired["remote_write_submitted"] is False and retired["tasks_changed"] is False
+        assert retired["harness_files_changed"] is False
+        assert retired_history["effect"] == adopted["effect"]
+        with closing(sqlite3.connect(f"file:{registry}?mode=ro", uri=True)) as db:
+            assert db.execute("PRAGMA user_version").fetchone() == (60,)
+            assert db.execute("SELECT count(*) FROM native_checkout_reservation").fetchone() == (0,)
+            assert db.execute("SELECT state FROM project_link").fetchone() == ("unlinked",)
+            assert db.execute(
+                "SELECT binding_operation_id,retirement_operation_id FROM native_binding_retirement"
+            ).fetchone() == (
+                adoption["operation_id"],
+                retirement["operation_id"],
+            )
+        driver.close()
+        driver = driver_type(driver_path, environment, root / "corporate-retired-driver.log")
+        driver.start()
+        driver.selected(company)
+        driver.navigate("tasks", keyboard=True)
+        driver.click(driver.button("Inspect " + adoption["operation_id"], HISTORY))
+        driver.wait(retirement_visible, "retirement history after installed app restart")
+        assert not driver.read(
+            "return [...document.querySelectorAll(arguments[0]+' button')]"
+            ".some(x=>x.textContent==='Review local binding retirement');",
+            HISTORY,
+        )
+        assert (
+            native(
+                binary,
+                environment,
+                ["corporate", "project", "link", "show", "--operation", adoption["operation_id"]],
+            )
+            == retired_history
+        )
+        for directory, expected in [
+            (checkout, b"PRIVATE=installed-corporate-unowned\n"),
+            (neighbor, b"PRIVATE=installed-nfc-neighbor\n"),
+        ]:
+            assert (directory / ".env").read_bytes() == expected
+            assert (directory / ".env").stat().st_mode & 0o777 == 0o640
+        assert canary.read_bytes() == b"# Unowned installed corporate canary\n"
+        assert canary.stat().st_mode & 0o777 == 0o640
+        assert (checkout.stat().st_dev, checkout.stat().st_ino) == physical[0]
         return {
             "schema_version": 1,
             "evidence_type": "installed_linux_corporate_checkout",
             "consumer_commit": os.environ["GITHUB_SHA"],
             "installed_cli_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
+            "link_id": adopted["effect"]["link"]["link_id"],
             "actual_release_package": True,
             "actual_bundled_cli_ipc": True,
             "native_os_keyring": True,
@@ -519,6 +659,11 @@ def installed_journey(
             "lost_committed_confirmation": True,
             "restart_and_original_reconciliation": True,
             "active_binding_adoption": True,
+            "exact_terminal_native_unlink": True,
+            "separately_reviewed_local_binding_retirement": True,
+            "retirement_receipt_after_installed_restart": True,
+            "original_adoption_evidence_preserved": True,
+            "writer_epoch": 60,
             "unowned_files_preserved": True,
             "distinct_nfd_nfc_roots": True,
             "same_display_checkout_substitution_refused": True,
@@ -584,17 +729,24 @@ async def prove(driver_path: Path, out: Path, database_url: str, root: Path) -> 
                 assert faults.writes == [
                     f"/v1/organizations/{organization}/project-link-plans",
                     "/v1/projects/links",
+                    f"/v1/organizations/{organization}/project-unlink-plans",
+                    f"/v1/projects/links/{proof['link_id']}",
                 ]
                 async with app.state.sessionmaker() as db:
                     assert await db.scalar(select(func.count()).select_from(ProjectLinkPlan)) == 1
                     assert await db.scalar(select(func.count()).select_from(ProjectLink)) == 1
+                    assert await db.scalar(select(func.count()).select_from(ProjectUnlinkPlan)) == 1
                     link = await db.scalar(select(ProjectLink))
                     assert (
                         link is not None
-                        and link.state == "linked"
+                        and link.state == "unlinked"
                         and link.organization_id == organization
                     )
-                proof.update(actual_api_postgresql=True, committed_mutation_posts=2)
+                proof.update(
+                    actual_api_postgresql=True,
+                    committed_mutation_posts=3,
+                    committed_mutation_requests=4,
+                )
                 out.write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
                 print(
                     "Installed corporate UI, actual API, original lost-reply recovery "

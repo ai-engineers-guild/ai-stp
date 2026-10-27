@@ -160,6 +160,44 @@ fn checked_output(connection: &Connection, receipt: &Receipt) -> Result<Value> {
     output(receipt)
 }
 
+/// Read the distinct terminal receipt without consulting current files or links.
+pub(crate) fn for_binding(connection: &Connection, binding: &str) -> Result<Option<Value>> {
+    let version: u32 = connection
+        .pragma_query_value(None, "user_version", |row| row.get(0))
+        .map_err(database)?;
+    if version != BINDING_RETIREMENT_SCHEMA {
+        return Ok(None);
+    }
+    let operation: Option<String> = connection
+        .query_row(
+            "SELECT retirement_operation_id FROM native_binding_retirement WHERE binding_operation_id=?",
+            [binding],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(database)?;
+    let Some(operation) = operation else {
+        return Ok(None);
+    };
+    let detail: Option<String> = connection
+        .query_row(
+            "SELECT CASE WHEN length(CAST(detail AS BLOB))<=262144 THEN detail ELSE NULL END FROM operation WHERE operation_id=?",
+            [&operation],
+            |row| row.get(0),
+        )
+        .map_err(database)?;
+    let candidate: Receipt =
+        serde_json::from_value(canonical::parse(detail.ok_or_else(invalid)?.as_bytes())?)
+            .map_err(|_| invalid())?;
+    if candidate.plan.operation_id != operation
+        || candidate.plan.snapshot.binding.source.operation_id != binding
+    {
+        return Err(invalid());
+    }
+    let receipt = read_receipt(connection, &candidate.plan)?.ok_or_else(invalid)?;
+    checked_output(connection, &receipt).map(Some)
+}
+
 pub fn apply(root: &Path, plan: &Plan, expected: &str, at: &str) -> Result<Value> {
     if plan.digest()? != expected || !passport::timestamp(at) || at < plan.created_at.as_str() {
         return Err(invalid());

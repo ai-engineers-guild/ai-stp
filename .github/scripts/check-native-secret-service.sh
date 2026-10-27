@@ -4,7 +4,7 @@ set -euo pipefail
 test "${GITHUB_ACTIONS:-}" = true
 test "${RUNNER_OS:-}" = Linux
 test -n "${RUNNER_TEMP:-}"
-fixture_rounds="${AI_STP_NATIVE_VAULT_ROUNDS:-10}"
+fixture_rounds="${AI_STP_NATIVE_VAULT_ROUNDS:-100}"
 [[ "${fixture_rounds}" =~ ^([1-9]|[1-9][0-9]|100)$ ]]
 
 if [[ "${1:-}" != --inside-fixture ]]; then
@@ -147,7 +147,7 @@ while IFS= read -r line; do
     selected=$((selected + 1))
   fi
 done <<<"${listing}"
-test "${selected}" -eq 2
+test "${selected}" -eq 3
 for ((round=1; round<=fixture_rounds; round++)); do
   printf 'Native vault fixture round %s/%s\n' "${round}" "${fixture_rounds}"
   "${checks[@]}" --ignored

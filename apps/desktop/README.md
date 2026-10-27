@@ -22,6 +22,12 @@ harness files. Harness executables remain user/vendor managed.
   Inspect the original plan and explicitly reconcile an unknown outcome through
   a current context for the same account/company. Switching views cannot retarget
   the original operation; unknown results retain their reservations.
+  A completed adoption keeps its original receipt. When the exact server link
+  has been unlinked, a separate native review can release only that local
+  binding's reservation. It rechecks current rights, physical checkout and
+  retained state, preserving files, tasks and harness configuration. Activity
+  reads the distinct retirement receipt after restart; it never interprets an
+  old adoption receipt as proof that a binding is still active.
   Recovery reads the current revision; an uncertain start retains its retry
   identity in memory across navigation. After restarting the app, inspect
   Activity before starting again.
@@ -97,6 +103,15 @@ just desktop-bundle-test # Probe an existing packaged CLI resource tree
 From `apps/desktop`, `bun run tauri dev` starts the native app. `bun run dev`
 starts the frontend only and cannot perform operations without Tauri IPC.
 Tests isolate IPC responses; sidecar regressions execute the actual native CLI.
+
+Linux installed-package qualification also scans the real webview with the
+axe-core artifact pinned by the existing web lock. It checks both themes,
+retained personal profiles, keyboard skip-link activation and actual loading
+indicators after an owned GTK reduced-motion preference and app restart.
+Reports retain rule IDs, impacts, counts and bounded contrast operands;
+incomplete axe checks still need review. Startup and CLI read timings are
+observations, not an
+assertion of a performance budget or complete screen-reader conformance.
 
 Linux CI also installs its release Debian package and drives the installed app
 through external WebKit WebDriver under Xvfb. The disposable session has its own
