@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 
 
+@cache
 def workflow() -> dict[str, Any]:
     return yaml.safe_load((ROOT / ".github/workflows/check.yml").read_text())
 
