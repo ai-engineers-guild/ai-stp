@@ -73,6 +73,9 @@ def test_real_gate_refuses_each_wrong_result_and_missing_owner(
         else:
             result = "success" if phase == "full" else "skipped"
         expected[name] = {"result": result}
+    if phase == "full" and wasi == "false":
+        assert not accepted(expected, phase, private, wasi)
+        return
     assert accepted(expected, phase, private, wasi)
     for name, value in expected.items():
         for wrong in ["failure", "cancelled", "neutral", "skipped", "success"]:

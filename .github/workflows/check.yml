@@ -296,6 +296,7 @@ jobs:
             type == "object" and length == 18 and
             ($phase == "integration" or $phase == "full") and
             ($wasi == "true" or $wasi == "false") and
+            ($phase != "full" or $wasi == "true") and
             all(to_entries[];
               if .key == "analysis" then
                 .value.result == (if $private then "skipped" else "success" end)
