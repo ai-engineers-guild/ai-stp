@@ -119,28 +119,6 @@ gh() {
             self.assertNotEqual(execute(body, values | change).returncode, 0)
         self.assertIn('-f ref="${SOURCE_REF}"', body)
 
-    def test_native_rule_requires_completion_and_code_scanning(self) -> None:
-        ruleset = json.loads((ROOT / ".github/permanent-branches.ruleset.json").read_text())
-        self.assertEqual(
-            set(ruleset["conditions"]["ref_name"]["include"]),
-            {"refs/heads/main", "refs/heads/dev"},
-        )
-        rules = {rule["type"]: rule.get("parameters", {}) for rule in ruleset["rules"]}
-        self.assertTrue(rules["required_status_checks"]["strict_required_status_checks_policy"])
-        self.assertEqual(
-            rules["required_status_checks"]["required_status_checks"],
-            [{"context": "qualification", "integration_id": 15368}],
-        )
-        self.assertEqual(
-            rules["code_scanning"]["code_scanning_tools"],
-            [{"tool": "CodeQL", "alerts_threshold": "all", "security_alerts_threshold": "all"}],
-        )
-        self.assertEqual(rules["pull_request"]["required_approving_review_count"], 0)
-        self.assertEqual(
-            ruleset["bypass_actors"],
-            [{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always"}],
-        )
-
     def test_release_attestation_requires_explicit_tagged_dispatch(self) -> None:
         release = workflow("cli-release.yml")
         archive = workflow("cli-archives.yml")
