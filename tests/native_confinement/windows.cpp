@@ -361,7 +361,7 @@ struct PrivateDesktop {
         const HDESK original = GetThreadDesktop(GetCurrentThreadId());
         require(original != nullptr, "desktop_original");
         SECURITY_ATTRIBUTES security{sizeof(SECURITY_ATTRIBUTES), descriptor.value, FALSE};
-        value = CreateDesktopW(name.c_str(), nullptr, nullptr, 0, DESKTOP_ALL_ACCESS, &security);
+        value = CreateDesktopW(name.c_str(), nullptr, nullptr, 0, rights, &security);
         win(value != nullptr, "desktop_create");
         try {
             win(SetThreadDesktop(original), "desktop_restore");
