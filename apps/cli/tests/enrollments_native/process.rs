@@ -25,6 +25,14 @@ fn run(home: &Path, args: &[&str], expected: i32) -> Result<Value, Box<dyn Error
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    #[cfg(target_os = "macos")]
+    // The User/login Keychain belongs to the existing macOS user session.
+    // Keep its real home while every CLI state path and reviewed plan remains
+    // explicit beneath the disposable fixture. Do not create another keychain.
+    command.env(
+        "HOME",
+        std::env::var_os("HOME").ok_or("macOS vault fixture requires its existing user home")?,
+    );
     for (name, value) in std::env::vars_os() {
         if [
             "SYSTEMROOT",
@@ -54,7 +62,17 @@ fn run(home: &Path, args: &[&str], expected: i32) -> Result<Value, Box<dyn Error
     let output = child.wait_with_output()?;
     assert!(output.stdout.len() <= 16384 && output.stderr.is_empty());
     let envelope: Value = serde_json::from_slice(&output.stdout)?;
-    assert_eq!(output.status.code(), Some(expected), "{envelope}");
+    let operation = args
+        .iter()
+        .take_while(|argument| !argument.starts_with("--"))
+        .copied()
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert_eq!(
+        output.status.code(),
+        Some(expected),
+        "{operation}: {envelope}"
+    );
     assert_eq!(envelope["ok"], expected == 0, "{envelope}");
     if expected == 0 {
         Ok(envelope["data"].clone())
