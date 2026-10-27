@@ -85,7 +85,7 @@ fn macos_slot(
     name: &str,
 ) -> Result<Option<security_framework::os::macos::keychain_item::SecKeychainItem>, Box<dyn Error>> {
     use security_framework::{
-        item::{ItemClass, ItemSearchOptions, SearchResult},
+        item::{ItemClass, ItemSearchOptions, Reference, SearchResult},
         os::macos::keychain::{SecKeychain, SecPreferencesDomain},
     };
     // An independent executable may inspect an exact owned slot without being
@@ -104,7 +104,7 @@ fn macos_slot(
         Ok(items) => {
             let mut items = items.into_iter();
             match (items.next(), items.next()) {
-                (Some(SearchResult::KeychainItem(item)), None) => Ok(Some(item)),
+                (Some(SearchResult::Ref(Reference::KeychainItem(item))), None) => Ok(Some(item)),
                 _ => Err("one exact native Keychain item reference required".into()),
             }
         }
