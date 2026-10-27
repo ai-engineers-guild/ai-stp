@@ -555,6 +555,9 @@ void run(const fs::path& executable, const fs::path& root, PSID sid, bool lpac,
         | DETACHED_PROCESS, environment.data(), (root / L"target").c_str(),
         &start.StartupInfo, &process), "container_create");
     Handle held(process.hProcess), thread(process.hThread);
+    std::cout << "{\"diagnostic\":\"owned_worker_process\",\"mode\":\""
+        << (lpac ? "lpac" : "regular") << "\",\"pid\":"
+        << process.dwProcessId << "}" << std::endl;
     // Assignment failure must also destroy the still-suspended owned child.
     struct Suspended {
         HANDLE process;

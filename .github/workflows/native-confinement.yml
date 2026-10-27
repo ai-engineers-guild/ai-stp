@@ -5,11 +5,13 @@ on:
     paths:
       - tests/native_confinement/windows.cpp
       - .github/workflows/native-confinement.yml
+      - .github/scripts/windows-confinement-diagnostics.ps1
   push:
     branches: [dev, main]
     paths:
       - tests/native_confinement/windows.cpp
       - .github/workflows/native-confinement.yml
+      - .github/scripts/windows-confinement-diagnostics.ps1
   workflow_dispatch:
 
 permissions:
@@ -52,8 +54,27 @@ jobs:
           try {
             & $env:ComSpec /d /c ('call "' + $compile + '"')
             if ($LASTEXITCODE -ne 0) { throw 'Windows confinement experiment compilation failed' }
-            & $output
-            if ($LASTEXITCODE -ne 0) { throw 'Windows confinement experiment refused' }
+            $startedAt = [DateTime]::UtcNow
+            & $output | Tee-Object -Variable probeOutput
+            $probeExit = $LASTEXITCODE
+            $finishedAt = [DateTime]::UtcNow
+            if ($probeExit -ne 0) {
+              try {
+                if (@($probeOutput).Count -gt 32) { throw 'Probe output exceeded its bound' }
+                $ownedIds = @($probeOutput | ForEach-Object { $_ | ConvertFrom-Json -ErrorAction Stop } |
+                  Where-Object { $_.diagnostic -eq 'owned_worker_process' -and
+                    $_.mode -in @('regular', 'lpac') } |
+                  ForEach-Object { [uint32]$_.pid })
+                $diagnostics = @{
+                  OwnedProcessIds = $ownedIds; StartTime = $startedAt; EndTime = $finishedAt
+                }
+                & .github/scripts/windows-confinement-diagnostics.ps1 @diagnostics
+              } catch {
+                $code = $_.Exception.HResult
+                Write-Output ('{"diagnostic":"owned_event_read_unavailable","native_code":' + $code + '}')
+              }
+              throw 'Windows confinement experiment refused'
+            }
           } finally {
             Remove-Item -LiteralPath $buildRoot -Recurse -Force
           }
