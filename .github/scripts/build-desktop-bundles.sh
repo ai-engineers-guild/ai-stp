@@ -3,6 +3,9 @@
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/../../apps/desktop"
+# Cargo cache restores can retain installers from a previous package version.
+# Rebuild only this generated output; keep compiler artifacts and strict probes.
+rm -rf -- src-tauri/target/release/bundle
 if [[ "${RUNNER_OS:-}" != macOS ]]; then
   exec bun x tauri build
 fi
