@@ -60,6 +60,14 @@ void write_new(NSString* path) {
     require(write(file.value, value, sizeof(value) - 1) == static_cast<ssize_t>(sizeof(value) - 1),
         "owned_write", errno);
 }
+NSDictionary* physical(NSString* path) {
+    Descriptor directory(open(bytes(path), O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC));
+    require(directory.value >= 0, "physical_target_open", errno);
+    struct stat facts{};
+    require(fstat(directory.value, &facts) == 0 && S_ISDIR(facts.st_mode),
+        "physical_target_identity", errno);
+    return @{@"device":@(facts.st_dev), @"inode":@(facts.st_ino)};
+}
 NSData* input() {
     NSMutableData* data = [NSMutableData data];
     char block[1024];
@@ -194,7 +202,7 @@ std::string launch(NSString* executable, const char* role, NSData* data, bool gr
 NSDictionary* worker(NSString* role) {
     NSData* data = input();
     NSDictionary* request = decode(data);
-    require(request.count == 3, "request_shape");
+    require(request.count == 4, "request_shape");
     NSString* root = request[@"root"];
     NSString* child = request[@"child"];
     require([root isKindOfClass:[NSString class]] && root.isAbsolutePath
@@ -211,12 +219,30 @@ NSDictionary* worker(NSString* role) {
         bookmarkDataIsStale:&stale error:&error];
     require(location != nil, "implicit_bookmark_location", static_cast<int>(error.code));
     require(error == nil, "implicit_bookmark_error", static_cast<int>(error.code));
-    require(!stale, "implicit_bookmark_stale");
-    require([location.path isEqualToString:target], "implicit_bookmark_target");
     struct Scope {
         NSURL* value;
         ~Scope() { [value stopAccessingSecurityScopedResource]; }
     } scope{location};
+    require([location.path isEqualToString:target], "implicit_bookmark_target");
+    require([request[@"physical_target"] isKindOfClass:[NSDictionary class]]
+        && [physical(target) isEqual:request[@"physical_target"]], "reviewed_target_identity");
+    NSData* onward = data;
+    if (stale) {
+        // Foundation documents refreshing stale metadata from the returned URL.
+        // Identity/path checks above retain the original exact target; no stored
+        // bookmark is accepted as authorization and no resolution retry is used.
+        error = nil;
+        NSData* refreshed = [location bookmarkDataWithOptions:0 includingResourceValuesForKeys:nil
+            relativeToURL:nil error:&error];
+        require(refreshed.length > 0 && refreshed.length < 3072 && !error,
+            "implicit_bookmark_refresh", static_cast<int>(error.code));
+        require([physical(target) isEqual:request[@"physical_target"]],
+            "refreshed_target_identity");
+        NSMutableDictionary* next = [request mutableCopy];
+        next[@"bookmark"] = [refreshed base64EncodedStringWithOptions:0];
+        onward = [NSJSONSerialization dataWithJSONObject:next options:0 error:&error];
+        require(onward && !error && onward.length <= 4096, "refreshed_input_bound");
+    }
     readable(joined(target, @"canary"));
     NSString* written = joined(target, [role stringByAppendingString:@".written"]);
     write_new(written);
@@ -226,13 +252,14 @@ NSDictionary* worker(NSString* role) {
         refused(joined(root, leaf), O_WRONLY);
     }
     if ([role isEqualToString:@"worker"]) {
-        std::string result = launch(child, "child", data, false);
+        std::string result = launch(child, "child", onward, false);
         NSDictionary* proof = decode([NSData dataWithBytes:result.data() length:result.size()]);
         require([proof[@"role"] isEqual:@"child"] && [proof[@"pid"] intValue] > 0
             && [proof[@"pid"] intValue] != getpid() && [proof[@"io"] isEqual:@YES],
             "actual_descendant_proof");
         readable(joined(target, @"child.written"));
     }
+    require([physical(target) isEqual:request[@"physical_target"]], "final_target_identity");
     return @{@"role":role, @"pid":@(getpid()), @"io":@YES};
 }
 int main(int argc, char** argv) {
@@ -257,12 +284,16 @@ int main(int argc, char** argv) {
                 for (NSString* leaf in @[@"target/canary", @"outside/canary", @"outside/credentials"])
                     readable(joined(root, leaf));
                 NSError* error = nil;
+                NSDictionary* target_identity = physical(joined(root, @"target"));
                 NSURL* target = [NSURL fileURLWithPath:joined(root, @"target") isDirectory:YES];
                 NSData* bookmark = [target bookmarkDataWithOptions:0 includingResourceValuesForKeys:nil
                     relativeToURL:nil error:&error];
                 require(bookmark.length > 0 && bookmark.length < 3072 && !error,
                     "implicit_bookmark_creation", static_cast<int>(error.code));
+                require([physical(joined(root, @"target")) isEqual:target_identity],
+                    "bookmark_creation_identity");
                 NSDictionary* request = @{@"root":root, @"child":child,
+                    @"physical_target":target_identity,
                     @"bookmark":[bookmark base64EncodedStringWithOptions:0]};
                 NSData* input = [NSJSONSerialization dataWithJSONObject:request options:0 error:&error];
                 require(input && !error, "controller_input");
@@ -277,6 +308,7 @@ int main(int argc, char** argv) {
                 proof = @{@"macos_confinement_experiment":@"passed", @"executed_workers":@2,
                     @"implicit_bookmark_transfer":@YES, @"outside_and_credentials_denied":@YES,
                     @"ungranted_target_denied":@YES, @"descendant_executed":@YES,
+                    @"physical_target_retained":@YES,
                     @"environment_filtered":@YES, @"network_qualified":@NO,
                     @"broker_qualified":@NO, @"provider_runtime_enabled":@NO,
                     @"release_signing_qualified":@NO, @"packaged_desktop_qualified":@NO};
