@@ -133,10 +133,13 @@ if [[ "${fixture_mode}" == corporate-desktop ]]; then
 fi
 
 cd apps/cli
-cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
-  cargo test --locked --lib \
-  identity::secret_service::tests::transport_reuse_stays_with_the_exact_existing_unix_bus \
-  -- --ignored --exact
+for fixture_test in \
+  transport_reuse_stays_with_the_exact_existing_unix_bus \
+  fresh_concurrent_clients_initialize_before_first_credential_lookup; do
+  cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
+    cargo test --locked --lib "identity::secret_service::tests::${fixture_test}" \
+    -- --ignored --exact
+done
 checks=(cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
   cargo test --locked --test enrollments_native --)
 listing="$("${checks[@]}" --ignored --list)"
