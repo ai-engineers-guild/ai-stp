@@ -7,25 +7,105 @@ WebDriver sends actual clicks/keys. No IPC replacement or development server is 
 from __future__ import annotations
 
 import argparse
+import base64
 import contextlib
 import hashlib
 import http.client
+import io
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
+import tarfile
 import time
+import urllib.request
 from pathlib import Path
 from typing import Any
 
 ELEMENT = "element-6066-11e4-a52e-4f735466cecf"
 REVIEW = 'section[aria-label="Review native profile plan"]'
+_axe_tool: tuple[str, str] | None = None
 
 
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise ValueError(message)
+
+
+def axe_source() -> tuple[str, str]:
+    """Use the existing web lock's immutable tool, only in disposable CI/RAM."""
+    global _axe_tool
+    if _axe_tool is not None:
+        return _axe_tool
+    require(
+        os.environ.get("GITHUB_ACTIONS") == "true" and os.environ.get("RUNNER_OS") == "Linux",
+        "accessibility tooling is CI-only",
+    )
+    lock = Path(__file__).resolve().parents[2] / "apps/web/bun.lock"
+    metadata = subprocess.run(
+        [
+            "bun",
+            "-e",
+            "const lock=Bun.JSONC.parse(await Bun.file("
+            + json.dumps(str(lock))
+            + ").text());const entry=lock.packages['axe-core'];"
+            "if(!Array.isArray(entry)||!entry[0].startsWith('axe-core@'))"
+            "throw new Error('Missing canonical accessibility tool');"
+            "console.log(JSON.stringify({version:entry[0].slice(9),integrity:entry[3]}));",
+        ],
+        capture_output=True,
+        timeout=15,
+        check=False,
+    )
+    require(
+        metadata.returncode == 0 and not metadata.stderr and len(metadata.stdout) <= 1024,
+        "cannot read the canonical web accessibility lock using the pinned CI Bun",
+    )
+    pin = json.loads(metadata.stdout)
+    version, integrity = pin["version"], pin["integrity"]
+    require(
+        isinstance(version, str)
+        and re.fullmatch(r"[0-9]{1,5}\.[0-9]{1,5}\.[0-9]{1,5}", version) is not None
+        and isinstance(integrity, str)
+        and integrity.startswith("sha512-"),
+        "canonical accessibility pin is not an exact stable npm artifact",
+    )
+    expected_digest = base64.b64decode(integrity[7:], validate=True)
+    require(len(expected_digest) == 64, "canonical accessibility digest is malformed")
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    url = f"https://registry.npmjs.org/axe-core/-/axe-core-{version}.tgz"
+    with opener.open(url, timeout=30) as response:
+        require(response.url == url, "accessibility tool redirected")
+        archive_bytes = response.read(4 * 1024 * 1024 + 1)
+    require(len(archive_bytes) <= 4 * 1024 * 1024, "accessibility tool exceeds download bound")
+    require(
+        hashlib.sha512(archive_bytes).digest() == expected_digest,
+        "accessibility tool integrity differs from the pinned npm artifact",
+    )
+    source = None
+    with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r:gz") as archive:
+        expanded = 0
+        for count, member in enumerate(archive, 1):
+            expanded += member.size
+            require(
+                count <= 100
+                and expanded <= 16 * 1024 * 1024
+                and (member.isfile() or member.isdir()),
+                "accessibility tool inventory exceeds its bound",
+            )
+            if member.name == "package/axe.min.js":
+                require(source is None and member.isfile(), "ambiguous accessibility executable")
+                require(member.size <= 2 * 1024 * 1024, "accessibility executable exceeds bound")
+                stream = archive.extractfile(member)
+                require(stream is not None, "accessibility executable is absent")
+                with stream:
+                    source = stream.read(2 * 1024 * 1024 + 1).decode("utf-8")
+    if source is None or not source:
+        raise ValueError("accessibility executable is absent")
+    _axe_tool = source, version
+    return _axe_tool
 
 
 class Driver:
@@ -38,6 +118,9 @@ class Driver:
         self.log_path = log
         self.stage = "starting"
         self.last_response_ok = False
+        self.app_started = 0.0
+        self.startup_ms = 0.0
+        self.accessibility: list[dict[str, Any]] = []
         self.log = log.open("wb")
         self.process = subprocess.Popen(
             [
@@ -126,6 +209,7 @@ class Driver:
                 return False
 
         self.wait(ready, "WebDriver readiness")
+        self.app_started = time.monotonic()
         response = self.request(
             "POST",
             "/session",
@@ -137,6 +221,81 @@ class Driver:
         )
         self.session = response["sessionId"]
         self.wait(lambda: self.read("return document.querySelector('main');"), "installed UI")
+        self.startup_ms = round((time.monotonic() - self.app_started) * 1000, 2)
+
+    def theme(self, dark: bool) -> None:
+        if self.read("return document.documentElement.classList.contains('dark');") != dark:
+            label = "Use dark theme" if dark else "Use light theme"
+            self.click(self.find(f'button[aria-label="{label}"]'))
+        self.wait(
+            lambda: (
+                self.read("return document.documentElement.classList.contains('dark');") == dark
+            ),
+            "actual theme control",
+        )
+
+    def audit_accessibility(self, surface: str) -> None:
+        require(not self.read("return document.querySelector('iframe');"), "uninspected frame")
+        source, version = axe_source()
+        require(self.read(source + "\nreturn axe.version;") == version, "wrong axe engine")
+        self.command("POST", "/timeouts", {"script": 30000})
+        report = self.command(
+            "POST",
+            "/execute/async",
+            {
+                "script": "const done=arguments[arguments.length-1];"
+                "axe.run(document,{runOnly:{type:'tag',values:"
+                "['wcag2a','wcag2aa','wcag21a','wcag21aa','wcag22aa','best-practice']},"
+                "resultTypes:['violations','incomplete','passes']}).then(r=>done({"
+                "engine:r.testEngine.version,passes:r.passes.length,"
+                "violations:r.violations.map(v=>({id:v.id,impact:v.impact,count:v.nodes.length})),"
+                "incomplete:r.incomplete.map(v=>({id:v.id,impact:v.impact,count:v.nodes.length}))"
+                "})).catch(()=>done({failed:true}));",
+                "args": [],
+            },
+        )
+        require(
+            isinstance(report, dict)
+            and report.get("engine") == version
+            and isinstance(report.get("passes"), int)
+            and report["passes"] >= 20
+            and isinstance(report.get("violations"), list)
+            and isinstance(report.get("incomplete"), list),
+            "accessibility engine did not execute its real document checks",
+        )
+        # Only fixed tool rule IDs/impacts/counts leave the browser. No HTML,
+        # selectors, text, account values, screenshots or raw DOM are retained.
+        require(
+            not report["violations"],
+            "Installed accessibility violations: " + json.dumps(report["violations"]),
+        )
+        self.accessibility.append({"surface": surface, **report})
+
+    def observe_reduced_motion(self) -> None:
+        require(
+            self.read("return matchMedia('(prefers-reduced-motion: reduce)').matches;"),
+            "installed webview did not inherit its owned GTK reduced-motion preference",
+        )
+        self.read(
+            "window.__installedMotion=[];"
+            "window.__installedMotionObserver=new MutationObserver(()=>{"
+            "for(const spinner of document.querySelectorAll('[role=status] .animate-spin')){"
+            "if(window.__installedMotion.length<16)"
+            "window.__installedMotion.push(getComputedStyle(spinner).animationName);}});"
+            "window.__installedMotionObserver.observe(document,{childList:true,subtree:true});"
+        )
+
+    def reduced_motion_observed(self) -> int:
+        observations = self.read(
+            "window.__installedMotionObserver.disconnect();return window.__installedMotion;"
+        )
+        require(
+            isinstance(observations, list)
+            and bool(observations)
+            and all(value == "none" for value in observations),
+            "actual native-loading status animations ignored reduced motion",
+        )
+        return len(observations)
 
     def command(self, method: str, path: str, data: Any = None) -> Any:
         require(self.session is not None, "no actual app session")
@@ -449,7 +608,9 @@ def main() -> None:
     ]
     require(len(binaries) == 1 and binaries[0].is_file(), "one actual installed CLI is required")
     binary = binaries[0].resolve(strict=True)
+    version_started = time.monotonic()
     version_response = native(binary, environment, ["version"])
+    native_version_read_ms = round((time.monotonic() - version_started) * 1000, 2)
     require(
         version_response["runtime"] == "rust" and version_response["wire_schema_version"] == 1,
         "installed CLI returned an unsupported version contract",
@@ -473,6 +634,21 @@ def main() -> None:
                 f"Rust {version}",
             ),
             "bundled Rust engine through actual IPC",
+        )
+        native_contract_ready_ms = round((time.monotonic() - driver.app_started) * 1000, 2)
+        first_start_ms = driver.startup_ms
+        driver.theme(False)
+        driver.audit_accessibility("offline-overview-light")
+        driver.theme(True)
+        driver.audit_accessibility("offline-overview-dark")
+        driver.theme(False)
+        skip = driver.find("a.skip-link")
+        original_route = driver.read("return location.hash;")
+        driver.command("POST", f"/element/{skip[ELEMENT]}/value", {"text": "\ue007"})
+        require(
+            driver.read("return document.activeElement?.id;") == "main-content"
+            and driver.read("return location.hash;") == original_route,
+            "keyboard skip link did not focus content without retargeting the route",
         )
         driver.navigate("settings")
         storage = dict(
@@ -510,12 +686,22 @@ def main() -> None:
             listed["selected"]["context_id"] == first and len(listed["contexts"]) == 2,
             "installed CLI and UI differ",
         )
+        driver.audit_accessibility("retained-personal-profiles")
+        accessibility = list(driver.accessibility)
     finally:
         driver.close()
+    # Only this disposable fixture's GTK configuration is changed. A fresh real
+    # app process must inherit the preference; do not emulate matchMedia or IPC.
+    gtk = Path(environment["XDG_CONFIG_HOME"]) / "gtk-3.0"
+    gtk.mkdir(exist_ok=True)
+    with (gtk / "settings.ini").open("x") as settings:
+        settings.write("[Settings]\ngtk-enable-animations=false\n")
     driver = Driver(args.driver.resolve(strict=True), environment, root / "restarted-driver.log")
     try:
         driver.start()
+        restart_start_ms = driver.startup_ms
         driver.selected(first)
+        driver.observe_reduced_motion()
         driver.navigate("profiles")
         driver.select_context("Installed personal two", second)
         listed = native(binary, environment, ["context", "list"])
@@ -527,6 +713,9 @@ def main() -> None:
             native(binary, environment, ["device", "show"]) == identity,
             "restart replaced native identity",
         )
+        reduced_motion_observations = driver.reduced_motion_observed()
+        driver.audit_accessibility("restarted-personal-profiles-reduced-motion")
+        accessibility.extend(driver.accessibility)
     finally:
         driver.close()
     require(
@@ -549,6 +738,16 @@ def main() -> None:
                 "view_switching_and_restart_persistence": True,
                 "independent_installed_cli_readback": True,
                 "unowned_home_instructions_preserved": True,
+                "keyboard_skip_link_focuses_content": True,
+                "reduced_motion_actual_loading_observations": reduced_motion_observations,
+                "accessibility_checks": accessibility,
+                "performance_observations_ms": {
+                    "first_app_session_to_main": first_start_ms,
+                    "first_app_session_to_native_contract": native_contract_ready_ms,
+                    "restarted_app_session_to_main": restart_start_ms,
+                    "installed_cli_version_read": native_version_read_ms,
+                },
+                "performance_budget_qualified": False,
                 "corporate_enrollment_qualified": False,
                 "harness_activation_qualified": False,
             },
