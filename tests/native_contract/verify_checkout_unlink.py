@@ -72,6 +72,18 @@ async def qualify(
         with closing(sqlite3.connect(f"file:{registry}?mode=ro", uri=True)) as db:
             return db.execute("SELECT * FROM operation ORDER BY operation_id").fetchall()
 
+    def logical_registry() -> tuple[int, dict[str, list[tuple[Any, ...]]]]:
+        with closing(sqlite3.connect(f"file:{registry}?mode=ro", uri=True)) as db:
+            tables: list[tuple[str]] = db.execute(
+                "SELECT name FROM sqlite_schema "
+                "WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+            ).fetchall()
+            rows: dict[str, list[tuple[Any, ...]]] = {}
+            for (name,) in tables:
+                quoted = '"' + name.replace('"', '""') + '"'
+                rows[name] = sorted(db.execute("SELECT * FROM " + quoted).fetchall(), key=repr)
+            return int(db.execute("PRAGMA user_version").fetchone()[0]), rows
+
     def reviewed(planned: dict[str, Any]) -> Path:
         path = (
             home / f"unlink-{planned['plan']['operation_id']}-{planned['plan_digest'][7:23]}.json"
@@ -372,7 +384,7 @@ async def qualify(
     )
 
     # The same unused old writer was valid before the sole epoch transition.
-    unchanged = local(), native_rows(), len(faults.writes)
+    unchanged = logical_registry(), len(faults.writes)
     old_path = reviewed(old_plan)
     old_failure = await refused(
         previous,
@@ -383,7 +395,7 @@ async def qualify(
         old_failure.error.code == "AI_STP_PRECONDITION_FAILED"
         and "schema" in old_failure.error.message.lower()
     )
-    assert (local(), native_rows(), len(faults.writes)) == unchanged
+    assert (logical_registry(), len(faults.writes)) == unchanged
     resumed = await apply_once(original)
     assert resumed["state"] == "completed" and resumed["effect"]["outcome_reader"] is not None
     network = faults.network_requests
@@ -649,7 +661,9 @@ async def qualify(
     foreign_network = faults.network_requests
     await reject(root_request, reader=foreign_context)
     assert faults.network_requests == foreign_network
-    organizations = (await run("account", "organizations"))["organizations"]["items"]
+    organizations = (await run("account", "organizations", "--legacy-account"))["organizations"][
+        "items"
+    ]
     other_company = next(
         item["organization_id"]
         for item in organizations
