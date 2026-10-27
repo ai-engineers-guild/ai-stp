@@ -41,6 +41,8 @@ pub(super) enum Handler {
     UnlinkStatus,
     UnlinkList,
     UnlinkObservedOutcome,
+    UnlinkRetirePlan,
+    UnlinkRetireApply,
     Technologies,
     Mappings,
     Mapping,
@@ -57,9 +59,13 @@ impl Handler {
             | Self::LinkConfirmPlan
             | Self::LinkAdoptPlan
             | Self::UnlinkRequestPlan
-            | Self::UnlinkConfirmPlan => "plan",
+            | Self::UnlinkConfirmPlan
+            | Self::UnlinkRetirePlan => "plan",
             Self::LinkRetirePlan => "plan",
-            Self::LinkApply | Self::LinkRetireApply | Self::UnlinkApply => "apply",
+            Self::LinkApply
+            | Self::LinkRetireApply
+            | Self::UnlinkApply
+            | Self::UnlinkRetireApply => "apply",
             _ => "read",
         }
     }
@@ -118,6 +124,43 @@ const LINK_REQUEST: Parameter = Parameter {
 };
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["corporate", "project", "unlink-retire", "plan"],
+        summary: "Review local closure of an unknown unlink request, or a confirmation with fresh exact expired/unapplied settlement; keep the active checkout binding.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "operation",
+                summary: "Exact retained pending native unlink operation ID.",
+                kind: ParameterType::String,
+                required: true,
+            },
+            Parameter {
+                summary: "Current same-account reader for confirmation settlement; omit for offline unknown request closure.",
+                ..CONTEXT
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::UnlinkRetirePlan),
+    },
+    Declaration {
+        path: &["corporate", "project", "unlink-retire", "apply"],
+        summary: "Close only the exact reviewed pending unlink intent, rechecking confirmation expiry on the server; retain binding and reservation, and never resend a remote write.",
+        parameters: &[
+            Parameter {
+                name: "plan",
+                summary: "Exact reviewed local unlink-retirement plan JSON, at most 256 KiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Digest of the exact reviewed unlink-retirement plan.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::UnlinkRetireApply),
+    },
     Declaration {
         path: &["corporate", "project", "unlink-request", "plan"],
         summary: "Review an original server unlink-plan request for one retained active checkout binding; release no local binding or installation authority.",
@@ -625,6 +668,27 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     };
     let at = format!("{:.3}", jiff::Timestamp::now());
     match handler {
+        Handler::UnlinkRetirePlan => {
+            let plan = project_unlinks::retirement::plan(
+                state()?,
+                &text("operation")?,
+                optional("context").as_deref(),
+                &at,
+            )?;
+            return Ok(json!({"plan_digest":plan.digest()?,"plan":plan}));
+        }
+        Handler::UnlinkRetireApply => {
+            let plan = project_unlinks::retirement::read_plan(
+                args.get_one::<PathBuf>("plan")
+                    .ok_or_else(|| Failure::input("plan is required"))?,
+            )?;
+            return project_unlinks::retirement::apply(
+                plan.state_parent(),
+                &plan,
+                &text("plan-digest")?,
+                &at,
+            );
+        }
         Handler::UnlinkRequestPlan => {
             let plan = project_unlinks::request_plan(
                 state()?,
@@ -839,7 +903,9 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         | Handler::UnlinkApply
         | Handler::UnlinkStatus
         | Handler::UnlinkList
-        | Handler::UnlinkObservedOutcome => {
+        | Handler::UnlinkObservedOutcome
+        | Handler::UnlinkRetirePlan
+        | Handler::UnlinkRetireApply => {
             return Err(Failure::input("link coordinates are absent"));
         }
     };

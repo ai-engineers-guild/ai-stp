@@ -113,6 +113,27 @@ identify the exact unlinked relationship at the expected next revision. An
 absent/unsupported response stays unknown. These reads submit no unlink and
 release no local binding, reservation, task or harness files.
 
+For an active native binding, `corporate project unlink-request plan
+--binding-operation ID --context ID` reviews an original unlink-plan request.
+Apply its exact JSON/digest with `corporate project unlink apply`; then review
+`corporate project unlink-confirm plan --request-operation ID` and apply that
+second plan. New writes require the original account/company, current capability,
+registered physical checkout and unchanged reviewed source. All confirmation
+reviews of one request share one operation/key slot. The first admitted digest
+is fixed; applying an uncertain intent only reads its original result. A current
+same-account replacement `--context` is a reader for admitted work and cannot
+retarget an unused write plan. Completion keeps the local binding and reservation.
+
+`corporate project unlink-retire plan --operation ID` separately reviews closing
+an unknown request locally, preserving its unknown remote outcome. An uncertain
+confirmation additionally requires a current same-account `--context` and exact
+expired/unapplied server settlement, repeated at apply. Use `unlink-retire apply`
+with that plan/digest. Ready, applied, forbidden, offline and unsupported results
+retain the pending confirmation. This closes only intent; it never releases the
+active binding, reservation, tasks or harness files. Completed and retired
+receipts replay offline. First unlink admission atomically advances the native
+writer epoch to 59; older writers refuse it, while supported 53–58 receipts remain.
+
 Use `corporate project link-retire plan --operation ID` to review stopping a
 retained unknown request locally. Its remote outcome stays unknown; the original
 key and receipt remain. For an unknown confirmation, name its exact current

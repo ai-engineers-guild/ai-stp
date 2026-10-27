@@ -3,6 +3,7 @@
 pub(crate) mod interruption;
 mod journal;
 mod model;
+pub mod retirement;
 mod workflow;
 
 pub use super::project_links::Checkpoint;

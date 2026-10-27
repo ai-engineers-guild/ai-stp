@@ -143,8 +143,8 @@ def prove(binary: Path, root: Path) -> None:
     assert capabilities["task_intents"] == ["author", "install"]
     assert bool(capabilities["supported_harnesses"]) == (sys.platform == "linux")
     assert capabilities["release_channel"] == "stable"
-    assert capabilities["readable_local_schema_versions"] == [53, 54, 55, 56, 57, 58]
-    assert capabilities["snapshot_schema_versions"] == [53, 54, 55, 56, 57, 58]
+    assert capabilities["readable_local_schema_versions"] == [53, 54, 55, 56, 57, 58, 59]
+    assert capabilities["snapshot_schema_versions"] == [53, 54, 55, 56, 57, 58, 59]
     assert run(binary, home, ["version"])["data"]["runtime"] == "rust"
     assert (
         "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v"

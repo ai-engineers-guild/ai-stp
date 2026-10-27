@@ -413,11 +413,15 @@ pub(super) enum Effect {
     Interrupted {
         retirement: project_links::Interruption,
     },
+    Retired {
+        retirement: Box<super::retirement::Plan>,
+    },
 }
 
 impl Effect {
     pub fn validate(&self, plan: &Plan) -> Result<()> {
         let reader = match (self, &plan.change) {
+            (Self::Retired { retirement }, _) => return retirement.validate_source(plan),
             (
                 Self::Requested {
                     server_plan,

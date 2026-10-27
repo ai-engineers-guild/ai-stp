@@ -35,7 +35,14 @@ fn uncertain(id: &str) -> Failure {
     ])
 }
 
-fn owned(root: &Path, owner: &Owner, plan: &Plan) -> Result<()> {
+fn retained(id: &str, error: Failure) -> Failure {
+    error.with_details([
+        ("operation_id".into(), id.into()),
+        ("outcome".into(), "unknown".into()),
+    ])
+}
+
+pub(super) fn owned(root: &Path, owner: &Owner, plan: &Plan) -> Result<()> {
     if identity::root(root)?
         != (
             plan.state_parent.clone(),
@@ -48,7 +55,7 @@ fn owned(root: &Path, owner: &Owner, plan: &Plan) -> Result<()> {
     Ok(())
 }
 
-fn load(root: &Path, id: &str) -> Result<(Owner, Record)> {
+pub(super) fn load(root: &Path, id: &str) -> Result<(Owner, Record)> {
     let owner = runtime::owner(root)?;
     let record = {
         let store = owner.planning()?;
@@ -112,6 +119,25 @@ fn inspect<T>(
     finish: impl FnOnce(Snapshot, &mut Access, &Owner, &passports::Registered) -> Result<T>,
 ) -> Result<T> {
     let (owner, binding) = project_links::binding::capture(root, binding_id)?;
+    let selected = contexts::resolve(root, context)?;
+    let contexts::Authority::Remote {
+        account: reader,
+        organization: company,
+        ..
+    } = &selected.authority
+    else {
+        return Err(invalid());
+    };
+    // Check disclosure coordinates before sending the retained link ID.
+    if selected.local_identity != *owner
+        || reader.origin != binding.account.origin
+        || reader.account_id != binding.account.account_id
+        || reader.root_identity != binding.account.root_identity
+        || company["organization_id"] != binding.link["organization_id"]
+        || company["kind"] != "corporate"
+    {
+        return Err(invalid());
+    }
     let registered = {
         let store = owner.planning()?;
         passports::registered(&store.connection, &binding.checkout_root, &owner)?
@@ -119,13 +145,13 @@ fn inspect<T>(
     let request = corporate::Request::LinkCurrent {
         link_id: binding.link["link_id"].as_str().ok_or_else(invalid)?.into(),
     };
-    let observed = corporate::observe(root, context, request.clone())?;
+    let observed = corporate::observe(root, Some(&selected.context_id), request.clone())?;
     let observed = &observed["observation"];
     let context: Context =
         serde_json::from_value(observed["context"].clone()).map_err(|_| invalid())?;
     let account: Binding =
         serde_json::from_value(observed["account"].clone()).map_err(|_| invalid())?;
-    if context.local_identity != *owner {
+    if context != selected {
         return Err(invalid());
     }
     let mut access = Access::for_binding(root, &account, false)?;
@@ -141,7 +167,11 @@ fn inspect<T>(
         organization_id,
         &account.account_id,
     )?;
+    let (after_organization, after_observation) =
+        contexts::remote(&mut access, Some(organization_id))?;
     if remote_link != observed["data"]
+        || corporate::authority(&after_organization, &after_observation)
+            != corporate::authority(&organization, &observation)
         || corporate::authority(&organization, &observation)
             != corporate::authority(&observed["organization"], &observed["observation"])
     {
@@ -204,7 +234,7 @@ pub fn request_plan(root: &Path, context: Option<&str>, binding: &str, at: &str)
     })
 }
 
-fn reader_matches(context: &Context, original: &Snapshot) -> Result<()> {
+pub(super) fn reader_matches(context: &Context, original: &Snapshot) -> Result<()> {
     let contexts::Authority::Remote {
         account,
         organization,
@@ -249,6 +279,7 @@ fn original_request(root: &Path, plan: &Plan) -> Result<Record> {
     let (_, request) = load(root, id)?;
     let request_hash = request.plan.digest()?;
     if !matches!(request.plan.change, Change::Request { .. })
+        || request.state == "retired"
         || hash.is_some_and(|hash| hash != &request_hash)
     {
         return Err(invalid());
@@ -260,6 +291,9 @@ fn original_request(root: &Path, plan: &Plan) -> Result<Record> {
 }
 
 fn read_original(root: &Path, plan: &Plan, context: Option<&str>) -> Result<(Value, Binding)> {
+    if matches!(plan.change, Change::Confirm { .. }) {
+        original_request(root, plan)?;
+    }
     let selected = contexts::resolve(
         root,
         Some(context.unwrap_or(&plan.snapshot().context.context_id)),
@@ -296,7 +330,7 @@ fn read_original(root: &Path, plan: &Plan, context: Option<&str>) -> Result<(Val
 
 pub fn confirmation_plan(root: &Path, request_id: &str, at: &str) -> Result<Plan> {
     let (owner, request) = load(root, request_id)?;
-    if !matches!(request.plan.change, Change::Request { .. }) {
+    if !matches!(request.plan.change, Change::Request { .. }) || request.state == "retired" {
         return Err(invalid());
     }
     let id = confirmation_id(request_id)?;
@@ -410,7 +444,7 @@ fn save(root: &Path, owner: &Owner, plan: &Plan, effect: Effect, at: &str) -> Re
         if held.plan.digest()? != plan.digest()? {
             return Err(invalid());
         }
-        if held.state != "completed" {
+        if !matches!(held.state.as_str(), "completed" | "retired") {
             held.save(t, effect, at)?;
         }
         held.output()
@@ -460,10 +494,11 @@ pub fn apply(
         if record.plan.digest()? != expected {
             return Err(invalid());
         }
-        return if record.state == "completed" {
+        return if matches!(record.state.as_str(), "completed" | "retired") {
             record.output()
         } else {
             reconcile(root, &owner, record, context, at)
+                .map_err(|error| retained(&plan.operation_id, error))
         };
     }
     if at >= plan.expires_at.as_str()
@@ -548,32 +583,37 @@ pub fn apply(
                     Ok(())
                 })?;
             }
-            check_binding(root, owner, &fresh, registered)?;
-            access.revalidate()?;
-            let confirm = matches!(plan.change, Change::Confirm { .. });
-            let body = canonical::bytes(&plan.body()?)?;
-            let response = access.project_unlink(
-                fresh.organization_id()?,
-                fresh.remote_link["link_id"].as_str().ok_or_else(invalid)?,
-                confirm,
-                &body,
-            )?;
-            let effect = match &plan.change {
-                Change::Request { .. } => Effect::Requested {
-                    server_plan: Box::new(ServerPlan::read(&response, &fresh)?),
-                    outcome_reader: None,
-                },
-                Change::Confirm { server_plan, .. } => {
-                    server_plan.verify_link(&response, &fresh)?;
-                    Effect::Confirmed {
-                        link: response,
+            let effect = (|| -> Result<Effect> {
+                check_binding(root, owner, &fresh, registered)?;
+                access.revalidate()?;
+                let confirm = matches!(plan.change, Change::Confirm { .. });
+                let body = canonical::bytes(&plan.body()?)?;
+                let response = access.project_unlink(
+                    fresh.organization_id()?,
+                    fresh.remote_link["link_id"].as_str().ok_or_else(invalid)?,
+                    confirm,
+                    &body,
+                )?;
+                let effect = match &plan.change {
+                    Change::Request { .. } => Effect::Requested {
+                        server_plan: Box::new(ServerPlan::read(&response, &fresh)?),
                         outcome_reader: None,
+                    },
+                    Change::Confirm { server_plan, .. } => {
+                        server_plan.verify_link(&response, &fresh)?;
+                        Effect::Confirmed {
+                            link: response,
+                            outcome_reader: None,
+                        }
                     }
-                }
-            };
-            fresh.context.bind()?.revalidate()?;
-            access.revalidate()?;
+                };
+                fresh.context.bind()?.revalidate()?;
+                access.revalidate()?;
+                Ok(effect)
+            })()
+            .map_err(|error| retained(&plan.operation_id, error))?;
             save(root, owner, plan, effect, &super::super::now_after(at))
+                .map_err(|error| retained(&plan.operation_id, error))
         },
     )
 }

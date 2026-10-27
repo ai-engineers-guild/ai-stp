@@ -55,6 +55,12 @@ impl Record {
             return Err(invalid());
         }
         match effect {
+            Effect::Retired { retirement } => {
+                if retirement.source != self.checkpoint()? {
+                    return Err(invalid());
+                }
+                Ok("retired")
+            }
             Effect::Interrupted { retirement } => {
                 if self.state != "applying"
                     || self.interruption.is_some()
@@ -228,7 +234,7 @@ impl Record {
         Ok(
             json!({"schema_version":1,"operation_id":self.plan.operation_id,"plan_digest":self.plan.digest()?,"kind":KIND,
             "state":self.state,"plan":self.plan,"effect":self.effect,"original_interruption":self.interruption,
-            "remote_outcome":match &self.effect {Some(Effect::Confirmed{..})=>"unlinked",Some(Effect::Requested{..})=>"plan_created",_=>"unknown"},
+            "remote_outcome":match &self.effect {Some(Effect::Confirmed{..})=>"unlinked",Some(Effect::Requested{..})=>"plan_created",Some(Effect::Retired{retirement})=>retirement.remote_outcome(),_=>"unknown"},
             "installation_authority":false,"local_binding_retired":false}),
         )
     }
