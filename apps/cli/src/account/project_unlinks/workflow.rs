@@ -242,14 +242,17 @@ fn make(
             ..
         } => confirmation_id(request_operation_id)?,
     };
+    // Drop the non-reentrant registry lease before constructing the plan.
+    // Temporaries in separate struct fields otherwise overlap until its end.
+    let before = owner.planning()?.version()?;
     let plan = Plan {
         schema_version: 1,
         operation_id,
         state_parent: identity::root(root)?.0,
         created_at: at.into(),
         expires_at: authoring::expiry(at)?,
-        registry_schema_before: owner.planning()?.version()?,
-        registry_schema_after: unlink_schema_after(owner.planning()?.version()?)?,
+        registry_schema_before: before,
+        registry_schema_after: unlink_schema_after(before)?,
         change,
     };
     plan.digest()?;
