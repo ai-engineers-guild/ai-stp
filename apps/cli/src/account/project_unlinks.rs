@@ -1,5 +1,6 @@
 //! Durable remote unlink intent; local binding retirement is a separate review.
 
+pub mod binding_retirement;
 pub(crate) mod interruption;
 mod journal;
 mod model;
@@ -25,4 +26,11 @@ fn invalid() -> Failure {
 
 pub(super) fn validate_write(confirm: bool, value: &serde_json::Value) -> crate::error::Result<()> {
     model::validate_write(confirm, value)
+}
+
+pub(crate) fn binding_settled(
+    connection: &rusqlite::Connection,
+    binding: &str,
+) -> crate::error::Result<()> {
+    workflow::available(connection, binding, None)
 }

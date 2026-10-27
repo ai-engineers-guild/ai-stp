@@ -32,11 +32,13 @@ pub(crate) const CHECKOUT_RETIREMENT_SCHEMA: u32 = 58;
 // The SQL layout stays at 58; the new durable unlink journal encoding needs an
 // explicit epoch so earlier clients cannot write alongside unknown operations.
 pub(crate) const CHECKOUT_UNLINK_SCHEMA: u32 = 59;
+pub(crate) const BINDING_RETIREMENT_SCHEMA: u32 = 60;
 const BOOTSTRAP: &str = include_str!("schema.sql");
 const PROFILES: &str = include_str!("profiles.sql");
 const ENROLLMENT_RECOVERY: &str = include_str!("enrollment_recovery.sql");
 const CHECKOUT_LINKS: &str = include_str!("checkout_links.sql");
 const CHECKOUT_RETIREMENT: &str = include_str!("checkout_retirement.sql");
+const BINDING_RETIREMENT: &str = include_str!("binding_retirement.sql");
 type Schema = Vec<(String, String, String, String)>;
 
 pub struct Store {
@@ -218,6 +220,32 @@ fn expected_retirement_schema() -> Result<&'static Schema> {
         })
 }
 
+fn expected_binding_retirement_schema() -> Result<&'static Schema> {
+    static EXPECTED: OnceLock<Result<Schema>> = OnceLock::new();
+    EXPECTED
+        .get_or_init(|| {
+            let connection = Connection::open_in_memory().map_err(database)?;
+            for source in [
+                BOOTSTRAP,
+                PROFILES,
+                ENROLLMENT_RECOVERY,
+                CHECKOUT_LINKS,
+                CHECKOUT_RETIREMENT,
+                BINDING_RETIREMENT,
+            ] {
+                connection.execute_batch(source).map_err(database)?;
+            }
+            schema(&connection)
+        })
+        .as_ref()
+        .map_err(|_| {
+            Failure::new(
+                ErrorKind::Internal,
+                "the embedded binding retirement schema is invalid",
+            )
+        })
+}
+
 pub(crate) fn profile_schema_after(before: u32) -> Result<u32> {
     match before {
         53 | PRODUCTION_SCHEMA | PROFILE_SCHEMA => Ok(PROFILE_SCHEMA),
@@ -225,6 +253,7 @@ pub(crate) fn profile_schema_after(before: u32) -> Result<u32> {
         CHECKOUT_LINK_SCHEMA => Ok(CHECKOUT_LINK_SCHEMA),
         CHECKOUT_RETIREMENT_SCHEMA => Ok(CHECKOUT_RETIREMENT_SCHEMA),
         CHECKOUT_UNLINK_SCHEMA => Ok(CHECKOUT_UNLINK_SCHEMA),
+        BINDING_RETIREMENT_SCHEMA => Ok(BINDING_RETIREMENT_SCHEMA),
         _ => Err(Failure::precondition("the profile registry schema changed")),
     }
 }
@@ -235,6 +264,7 @@ pub(crate) fn has_enrollment_recovery(version: u32) -> bool {
         CHECKOUT_LINK_SCHEMA,
         CHECKOUT_RETIREMENT_SCHEMA,
         CHECKOUT_UNLINK_SCHEMA,
+        BINDING_RETIREMENT_SCHEMA,
     ]
     .contains(&version)
 }
@@ -244,12 +274,34 @@ pub(crate) fn has_checkout_links(version: u32) -> bool {
         CHECKOUT_LINK_SCHEMA,
         CHECKOUT_RETIREMENT_SCHEMA,
         CHECKOUT_UNLINK_SCHEMA,
+        BINDING_RETIREMENT_SCHEMA,
     ]
     .contains(&version)
 }
 
 pub(crate) fn has_checkout_retirement(version: u32) -> bool {
-    [CHECKOUT_RETIREMENT_SCHEMA, CHECKOUT_UNLINK_SCHEMA].contains(&version)
+    [
+        CHECKOUT_RETIREMENT_SCHEMA,
+        CHECKOUT_UNLINK_SCHEMA,
+        BINDING_RETIREMENT_SCHEMA,
+    ]
+    .contains(&version)
+}
+
+pub(crate) fn has_checkout_unlinks(version: u32) -> bool {
+    [CHECKOUT_UNLINK_SCHEMA, BINDING_RETIREMENT_SCHEMA].contains(&version)
+}
+
+pub(crate) fn unlink_schema_after(before: u32) -> Result<u32> {
+    match before {
+        CHECKOUT_LINK_SCHEMA | CHECKOUT_RETIREMENT_SCHEMA | CHECKOUT_UNLINK_SCHEMA => {
+            Ok(CHECKOUT_UNLINK_SCHEMA)
+        }
+        BINDING_RETIREMENT_SCHEMA => Ok(BINDING_RETIREMENT_SCHEMA),
+        _ => Err(Failure::precondition(
+            "the native unlink registry schema changed",
+        )),
+    }
 }
 
 pub(crate) fn checkout_schema_after(before: u32) -> Result<u32> {
@@ -259,6 +311,7 @@ pub(crate) fn checkout_schema_after(before: u32) -> Result<u32> {
         }
         CHECKOUT_RETIREMENT_SCHEMA => Ok(CHECKOUT_RETIREMENT_SCHEMA),
         CHECKOUT_UNLINK_SCHEMA => Ok(CHECKOUT_UNLINK_SCHEMA),
+        BINDING_RETIREMENT_SCHEMA => Ok(BINDING_RETIREMENT_SCHEMA),
         _ => Err(Failure::precondition(
             "the corporate checkout registry schema changed",
         )),
@@ -459,6 +512,7 @@ impl Store {
                 && version != CHECKOUT_LINK_SCHEMA
                 && version != CHECKOUT_RETIREMENT_SCHEMA
                 && version != CHECKOUT_UNLINK_SCHEMA
+                && version != BINDING_RETIREMENT_SCHEMA
                 && !(transfer && version == SCHEMA_VERSION)
         } else {
             version != SCHEMA_VERSION
@@ -467,13 +521,16 @@ impl Store {
                 && version != CHECKOUT_LINK_SCHEMA
                 && version != CHECKOUT_RETIREMENT_SCHEMA
                 && version != CHECKOUT_UNLINK_SCHEMA
+                && version != BINDING_RETIREMENT_SCHEMA
         } {
             return Err(Failure::precondition(
                 "the local registry schema is unsupported",
             ));
         }
         if &schema(&connection)?
-            != if has_checkout_retirement(version) {
+            != if version == BINDING_RETIREMENT_SCHEMA {
+                expected_binding_retirement_schema()?
+            } else if has_checkout_retirement(version) {
                 expected_retirement_schema()?
             } else if version == CHECKOUT_LINK_SCHEMA {
                 expected_checkout_schema()?
@@ -582,6 +639,7 @@ impl Store {
                 CHECKOUT_LINK_SCHEMA,
                 CHECKOUT_RETIREMENT_SCHEMA,
                 CHECKOUT_UNLINK_SCHEMA,
+                BINDING_RETIREMENT_SCHEMA,
             ]
             .contains(&version)
             {
@@ -604,6 +662,7 @@ impl Store {
             CHECKOUT_LINK_SCHEMA,
             CHECKOUT_RETIREMENT_SCHEMA,
             CHECKOUT_UNLINK_SCHEMA,
+            BINDING_RETIREMENT_SCHEMA,
         ]
         .contains(&self.version()?))
     }
@@ -717,9 +776,41 @@ impl Store {
                     "an active native checkout binding is required before unlink",
                 ));
             }
-            if version != CHECKOUT_UNLINK_SCHEMA {
+            if !has_checkout_unlinks(version) {
                 transaction
                     .pragma_update(None, "user_version", CHECKOUT_UNLINK_SCHEMA)
+                    .map_err(database)?;
+            }
+            operation(transaction)
+        })
+    }
+
+    /// Publish the terminal marker, receipt and exact reservation release in
+    /// one commit. Read-only opening never upgrades an existing registry.
+    pub(crate) fn binding_retirement_transaction<T>(
+        &mut self,
+        operation: impl FnOnce(&Transaction<'_>) -> Result<T>,
+    ) -> Result<T> {
+        self.transaction(|transaction| {
+            let version: u32 = transaction
+                .pragma_query_value(None, "user_version", |row| row.get(0))
+                .map_err(database)?;
+            if !has_checkout_links(version) {
+                return Err(Failure::precondition(
+                    "an original active checkout binding is required",
+                ));
+            }
+            if version == CHECKOUT_LINK_SCHEMA {
+                transaction
+                    .execute_batch(CHECKOUT_RETIREMENT)
+                    .map_err(database)?;
+            }
+            if version != BINDING_RETIREMENT_SCHEMA {
+                transaction
+                    .execute_batch(BINDING_RETIREMENT)
+                    .map_err(database)?;
+                transaction
+                    .pragma_update(None, "user_version", BINDING_RETIREMENT_SCHEMA)
                     .map_err(database)?;
             }
             operation(transaction)
@@ -730,6 +821,74 @@ impl Store {
 #[cfg(test)]
 mod checkout_epoch_tests {
     use super::*;
+
+    #[test]
+    fn binding_retirement_is_atomic_preserves_older_journals_and_refuses_future_epochs()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
+        for before in [
+            CHECKOUT_LINK_SCHEMA,
+            CHECKOUT_RETIREMENT_SCHEMA,
+            CHECKOUT_UNLINK_SCHEMA,
+        ] {
+            let parent = tempfile::tempdir()?;
+            let mut store = Store::open(parent.path(), true)?;
+            store.profile_transaction(|_| Ok(()))?;
+            store.checkout_transaction(|_| Ok(()))?;
+            if before == CHECKOUT_RETIREMENT_SCHEMA {
+                store.checkout_retirement_transaction(|_| Ok(()))?;
+            } else if before == CHECKOUT_UNLINK_SCHEMA {
+                store.checkout_unlink_transaction(|_| Ok(()))?;
+            }
+            store.connection.execute("INSERT INTO operation(operation_id,kind,state,started_at,finished_at,detail) VALUES ('preserved','test.original','verified','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z','original immutable receipt')", [])?;
+            let original_schema = schema(&store.connection)?;
+            let failed: Result<()> = store.binding_retirement_transaction(|transaction| {
+                assert!(journal::checkout_unlink_epoch(transaction)?);
+                transaction.execute("INSERT INTO native_binding_retirement(binding_operation_id,request_operation_id,retirement_operation_id) VALUES ('missing-binding','missing-request','missing-receipt')", []).map_err(database)?;
+                Ok(())
+            });
+            assert!(failed.is_err());
+            assert_eq!(store.version()?, before);
+            assert_eq!(schema(&store.connection)?, original_schema);
+            store.binding_retirement_transaction(|transaction| {
+                assert_eq!(
+                    transaction
+                        .query_row("SELECT count(*) FROM native_binding_retirement", [], |r| {
+                            r.get::<_, i64>(0)
+                        })
+                        .map_err(database)?,
+                    0
+                );
+                Ok(())
+            })?;
+            assert_eq!(store.version()?, BINDING_RETIREMENT_SCHEMA);
+            let detail: String = store.connection.query_row(
+                "SELECT detail FROM operation WHERE operation_id='preserved'",
+                [],
+                |r| r.get(0),
+            )?;
+            assert_eq!(detail, "original immutable receipt");
+            store.profile_transaction(|_| Ok(()))?;
+            store.enrollment_recovery_transaction(|_| Ok(()))?;
+            store.checkout_transaction(|_| Ok(()))?;
+            store.checkout_retirement_transaction(|_| Ok(()))?;
+            store.checkout_unlink_transaction(|_| Ok(()))?;
+            assert_eq!(store.version()?, BINDING_RETIREMENT_SCHEMA);
+            drop(store);
+            let store = Store::open(parent.path(), false)?;
+            assert_eq!(store.version()?, BINDING_RETIREMENT_SCHEMA);
+            assert!(journal::checkout_unlink_epoch(&store.connection)?);
+            store
+                .connection
+                .pragma_update(None, "user_version", BINDING_RETIREMENT_SCHEMA + 1)?;
+            drop(store);
+            assert!(Store::open(parent.path(), false).is_err());
+            assert!(!has_checkout_unlinks(BINDING_RETIREMENT_SCHEMA + 1));
+            assert!(profile_schema_after(BINDING_RETIREMENT_SCHEMA + 1).is_err());
+            assert!(checkout_schema_after(BINDING_RETIREMENT_SCHEMA + 1).is_err());
+            assert!(unlink_schema_after(BINDING_RETIREMENT_SCHEMA + 1).is_err());
+        }
+        Ok(())
+    }
 
     fn schema(connection: &Connection) -> rusqlite::Result<Vec<(String, String)>> {
         let mut query = connection.prepare(

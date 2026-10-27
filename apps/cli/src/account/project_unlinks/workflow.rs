@@ -21,7 +21,7 @@ use crate::{
     error::{ErrorKind, Failure, Result},
     files, identity, passport,
     projects::passports,
-    store::{CHECKOUT_UNLINK_SCHEMA, database, journal::checkout_unlink_epoch},
+    store::{database, journal::checkout_unlink_epoch, unlink_schema_after},
 };
 
 fn uncertain(id: &str) -> Failure {
@@ -72,8 +72,13 @@ pub(super) fn load(root: &Path, id: &str) -> Result<(Owner, Record)> {
     Ok((owner, record))
 }
 
-fn available(connection: &Connection, binding: &str, except: Option<&str>) -> Result<()> {
+pub(super) fn available(
+    connection: &Connection,
+    binding: &str,
+    except: Option<&str>,
+) -> Result<()> {
     checkout_unlink_epoch(connection)?;
+    project_links::binding::open(connection, binding)?;
     let mut query=connection.prepare("SELECT operation_id FROM operation WHERE kind=? AND (finished_at IS NULL OR state='interrupted') ORDER BY operation_id LIMIT 129").map_err(database)?;
     let ids = query
         .query_map([KIND], |row| row.get::<_, String>(0))
@@ -116,6 +121,25 @@ fn inspect<T>(
     root: &Path,
     context: Option<&str>,
     binding_id: &str,
+    finish: impl FnOnce(Snapshot, &mut Access, &Owner, &passports::Registered) -> Result<T>,
+) -> Result<T> {
+    inspect_state(root, context, binding_id, false, finish)
+}
+
+pub(super) fn inspect_unlinked<T>(
+    root: &Path,
+    context: Option<&str>,
+    binding_id: &str,
+    finish: impl FnOnce(Snapshot, &mut Access, &Owner, &passports::Registered) -> Result<T>,
+) -> Result<T> {
+    inspect_state(root, context, binding_id, true, finish)
+}
+
+fn inspect_state<T>(
+    root: &Path,
+    context: Option<&str>,
+    binding_id: &str,
+    unlinked: bool,
     finish: impl FnOnce(Snapshot, &mut Access, &Owner, &passports::Registered) -> Result<T>,
 ) -> Result<T> {
     let (owner, binding) = project_links::binding::capture(root, binding_id)?;
@@ -162,6 +186,13 @@ fn inspect<T>(
         .as_str()
         .ok_or_else(invalid)?;
     let (organization, observation) = contexts::remote(&mut access, Some(organization_id))?;
+    // The first observer already required project.unlink before its GET.
+    // Refuse changed authority before making this second current-link read.
+    if corporate::authority(&organization, &observation)
+        != corporate::authority(&observed["organization"], &observed["observation"])
+    {
+        return Err(invalid());
+    }
     let remote_link = request.project(
         &access.corporate(&request, organization_id)?,
         organization_id,
@@ -186,7 +217,11 @@ fn inspect<T>(
         observation,
         remote_link,
     };
-    snapshot.validate()?;
+    if unlinked {
+        snapshot.validate_unlinked()?;
+    } else {
+        snapshot.validate()?;
+    }
     check_binding(root, &owner, &snapshot, &registered)?;
     access.revalidate()?;
     finish(snapshot, &mut access, &owner, &registered)
@@ -214,7 +249,7 @@ fn make(
         created_at: at.into(),
         expires_at: authoring::expiry(at)?,
         registry_schema_before: owner.planning()?.version()?,
-        registry_schema_after: CHECKOUT_UNLINK_SCHEMA,
+        registry_schema_after: unlink_schema_after(owner.planning()?.version()?)?,
         change,
     };
     plan.digest()?;

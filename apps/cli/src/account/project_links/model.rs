@@ -10,7 +10,7 @@ use crate::{
     authoring, canonical, digest,
     error::Result,
     files, passport,
-    store::{CHECKOUT_RETIREMENT_SCHEMA, CHECKOUT_UNLINK_SCHEMA, checkout_schema_after},
+    store::{CHECKOUT_RETIREMENT_SCHEMA, checkout_schema_after, has_checkout_unlinks},
     wire,
 };
 
@@ -510,7 +510,7 @@ impl Plan {
         let snapshot = self.snapshot();
         snapshot.validate()?;
         if self.schema_version
-            != if self.registry_schema_after == CHECKOUT_UNLINK_SCHEMA {
+            != if has_checkout_unlinks(self.registry_schema_after) {
                 3
             } else if self.registry_schema_after == CHECKOUT_RETIREMENT_SCHEMA {
                 2

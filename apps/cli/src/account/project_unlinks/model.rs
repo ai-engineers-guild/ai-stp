@@ -11,7 +11,7 @@ use crate::{
     authoring, canonical, digest,
     error::Result,
     files, passport,
-    store::{CHECKOUT_LINK_SCHEMA, CHECKOUT_RETIREMENT_SCHEMA, CHECKOUT_UNLINK_SCHEMA},
+    store::{has_checkout_links, unlink_schema_after},
     wire,
 };
 
@@ -69,6 +69,12 @@ impl Snapshot {
             .ok_or_else(invalid)
     }
     pub fn validate(&self) -> Result<()> {
+        self.validate_state(false)
+    }
+    pub(super) fn validate_unlinked(&self) -> Result<()> {
+        self.validate_state(true)
+    }
+    fn validate_state(&self, unlinked: bool) -> Result<()> {
         self.local_identity.validate()?;
         self.context.digest()?;
         self.account.validate()?;
@@ -142,14 +148,22 @@ impl Snapshot {
                 self.organization_id()?,
                 &self.account.account_id,
             )? != self.remote_link
-            || !matches!(
-                self.remote_link["state"].as_str(),
-                Some("linked" | "conflict")
-            )
-            || !self.remote_link["revision"]
-                .as_u64()
-                .and_then(|v| v.checked_add(1))
-                .is_some_and(|v| v <= i64::MAX as u64)
+            || if unlinked {
+                self.remote_link["state"] != "unlinked"
+                    || self.remote_link["revision"].as_u64()
+                        <= self.binding.link["revision"].as_u64()
+                    || !self.remote_link["revision"]
+                        .as_u64()
+                        .is_some_and(|v| v <= i64::MAX as u64)
+            } else {
+                !matches!(
+                    self.remote_link["state"].as_str(),
+                    Some("linked" | "conflict")
+                ) || !self.remote_link["revision"]
+                    .as_u64()
+                    .and_then(|v| v.checked_add(1))
+                    .is_some_and(|v| v <= i64::MAX as u64)
+            }
             || self.remote_link["revision"].as_u64() < self.binding.link["revision"].as_u64()
         {
             return Err(invalid());
@@ -170,8 +184,14 @@ impl Snapshot {
         Ok(())
     }
     pub fn unchanged(&self, other: &Self) -> Result<()> {
-        self.validate()?;
-        other.validate()?;
+        self.unchanged_state(other, false)
+    }
+    pub(super) fn unchanged_unlinked(&self, other: &Self) -> Result<()> {
+        self.unchanged_state(other, true)
+    }
+    fn unchanged_state(&self, other: &Self, unlinked: bool) -> Result<()> {
+        self.validate_state(unlinked)?;
+        other.validate_state(unlinked)?;
         if self.local_identity != other.local_identity
             || self.binding != other.binding
             || self.context != other.context
@@ -338,13 +358,8 @@ impl Plan {
         self.snapshot().validate()?;
         if self.schema_version != 1
             || !passport::stable_id(&self.operation_id, "operation")
-            || ![
-                CHECKOUT_LINK_SCHEMA,
-                CHECKOUT_RETIREMENT_SCHEMA,
-                CHECKOUT_UNLINK_SCHEMA,
-            ]
-            .contains(&self.registry_schema_before)
-            || self.registry_schema_after != CHECKOUT_UNLINK_SCHEMA
+            || !has_checkout_links(self.registry_schema_before)
+            || self.registry_schema_after != unlink_schema_after(self.registry_schema_before)?
             || self.state_parent != self.snapshot().context.root
             || authoring::expiry(&self.created_at)? != self.expires_at
         {

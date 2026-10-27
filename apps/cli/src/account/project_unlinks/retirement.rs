@@ -16,7 +16,7 @@ use crate::{
     authoring, canonical, digest,
     error::Result,
     files, passport,
-    store::{CHECKOUT_UNLINK_SCHEMA, database, journal::checkout_unlink_epoch},
+    store::{database, has_checkout_unlinks, journal::checkout_unlink_epoch},
 };
 
 const KIND: &str = "corporate.project_unlink.retire";
@@ -57,7 +57,7 @@ impl Plan {
     pub fn digest(&self) -> Result<String> {
         self.source.validate()?;
         if self.schema_version != 1
-            || self.registry_schema_before != CHECKOUT_UNLINK_SCHEMA
+            || !has_checkout_unlinks(self.registry_schema_before)
             || !passport::stable_id(&self.operation_id, "operation")
             || self.operation_id == self.source.operation_id
             || !self.state_parent.is_absolute()
@@ -197,7 +197,7 @@ fn unknown(source: &Record) -> Result<()> {
 }
 
 pub fn plan(root: &Path, id: &str, context: Option<&str>, at: &str) -> Result<Plan> {
-    let (_, source) = workflow::load(root, id)?;
+    let (owner, source) = workflow::load(root, id)?;
     unknown(&source)?;
     let decision = match &source.plan.change {
         Change::Request { .. } => {
@@ -221,7 +221,7 @@ pub fn plan(root: &Path, id: &str, context: Option<&str>, at: &str) -> Result<Pl
         state_parent: source.plan.state_parent().into(),
         created_at: at.into(),
         expires_at: authoring::expiry(at)?,
-        registry_schema_before: CHECKOUT_UNLINK_SCHEMA,
+        registry_schema_before: owner.planning()?.version()?,
         source: source.checkpoint()?,
         decision,
     };

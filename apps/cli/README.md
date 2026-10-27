@@ -6,6 +6,11 @@ There is no Python fallback, model client, background updater or telemetry.
 The executable registry is the command reference: `ai-stp help --agent --json`.
 Use `task intents` and `task input-schema` for the smaller task interface.
 
+The commands below describe current source builds. Corporate/profile additions
+are unreleased client work; immutable CLI 0.1.3 / Desktop 0.0.11 release binaries
+do not acquire new commands when the server is deployed. Match the executable's
+machine help and registry compatibility before using a source-build operation.
+
 `account providers --api-url https://your-server.example` reads the sign-in
 methods enabled by that deployment without credentials or local state writes.
 Machine help lists the engine's supported methods; it does not claim that a
@@ -166,6 +171,21 @@ An explicit matching replacement `--context` on an already admitted apply
 only reads the original effect; it cannot admit the previous device's unused
 confirmation plan. Binding retirement and relocation are separate operations;
 an expired observation alone does not release a reservation.
+
+`corporate project binding-retire plan --binding-operation ID --context ID`
+reviews an original completed adoption after a fresh current-link read confirms
+its exact immutable lineage is unlinked. Current `project.unlink` authority is
+checked around the read and again at apply. Apply the exact JSON/digest with
+`corporate project binding-retire apply`. The original physical checkout and
+private passport must still match; pending unknown checkout/unlink writes refuse.
+The atomic writer60 transition preserves the original adoption/request receipts,
+updates only that cached link and releases only its exact reservation. It changes
+no tasks, targets or harness/checkout files. A separate new request may bind again;
+the old request cannot be adopted with a fresh nonce. Reapplying a completed
+retirement replays its historical receipt offline and cannot release a future
+binding. Keep a qualified60-compatible engine; writer59 refuses the newer epoch.
+Physical relocation, missing-root recovery and revoked-authority offboarding
+remain separate operations.
 
 These commands accept `--context ID`; omission resolves the selected view once
 for that new read. The result retains its original context, current account

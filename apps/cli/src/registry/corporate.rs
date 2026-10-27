@@ -43,6 +43,8 @@ pub(super) enum Handler {
     UnlinkObservedOutcome,
     UnlinkRetirePlan,
     UnlinkRetireApply,
+    BindingRetirePlan,
+    BindingRetireApply,
     Technologies,
     Mappings,
     Mapping,
@@ -61,11 +63,12 @@ impl Handler {
             | Self::UnlinkRequestPlan
             | Self::UnlinkConfirmPlan
             | Self::UnlinkRetirePlan => "plan",
-            Self::LinkRetirePlan => "plan",
+            Self::LinkRetirePlan | Self::BindingRetirePlan => "plan",
             Self::LinkApply
             | Self::LinkRetireApply
             | Self::UnlinkApply
-            | Self::UnlinkRetireApply => "apply",
+            | Self::UnlinkRetireApply
+            | Self::BindingRetireApply => "apply",
             _ => "read",
         }
     }
@@ -124,6 +127,40 @@ const LINK_REQUEST: Parameter = Parameter {
 };
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["corporate", "project", "binding-retire", "plan"],
+        summary: "Review local retirement of one active checkout binding using fresh current authority and exact terminal unlinked evidence; retain original receipts, files and tasks.",
+        parameters: &[
+            STATE_DIR,
+            CONTEXT,
+            Parameter {
+                name: "binding-operation",
+                summary: "Exact retained completed native adoption operation ID; the original checkout must be physically present.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::BindingRetirePlan),
+    },
+    Declaration {
+        path: &["corporate", "project", "binding-retire", "apply"],
+        summary: "Revalidate exact fresh unlinked evidence and atomically retire only the reviewed local binding/reservation; keep immutable adoption evidence and future bindings.",
+        parameters: &[
+            Parameter {
+                name: "plan",
+                summary: "Exact reviewed binding-retirement JSON plan, at most 256 KiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Digest of the exact reviewed local binding retirement.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::BindingRetireApply),
+    },
     Declaration {
         path: &["corporate", "project", "unlink-retire", "plan"],
         summary: "Review local closure of an unknown unlink request, or a confirmation with fresh exact expired/unapplied settlement; keep the active checkout binding.",
@@ -668,6 +705,27 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     };
     let at = format!("{:.3}", jiff::Timestamp::now());
     match handler {
+        Handler::BindingRetirePlan => {
+            let plan = project_unlinks::binding_retirement::plan(
+                state()?,
+                optional("context").as_deref(),
+                &text("binding-operation")?,
+                &at,
+            )?;
+            return Ok(json!({"plan_digest":plan.digest()?,"plan":plan}));
+        }
+        Handler::BindingRetireApply => {
+            let plan = project_unlinks::binding_retirement::read_plan(
+                args.get_one::<PathBuf>("plan")
+                    .ok_or_else(|| Failure::input("plan is required"))?,
+            )?;
+            return project_unlinks::binding_retirement::apply(
+                plan.state_parent(),
+                &plan,
+                &text("plan-digest")?,
+                &at,
+            );
+        }
         Handler::UnlinkRetirePlan => {
             let plan = project_unlinks::retirement::plan(
                 state()?,
@@ -905,7 +963,9 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         | Handler::UnlinkList
         | Handler::UnlinkObservedOutcome
         | Handler::UnlinkRetirePlan
-        | Handler::UnlinkRetireApply => {
+        | Handler::UnlinkRetireApply
+        | Handler::BindingRetirePlan
+        | Handler::BindingRetireApply => {
             return Err(Failure::input("link coordinates are absent"));
         }
     };
