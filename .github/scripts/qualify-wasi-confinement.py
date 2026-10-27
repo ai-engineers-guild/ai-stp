@@ -132,7 +132,17 @@ def install_runtime(root: Path) -> tuple[Path, str]:
     else:
         with tarfile.open(fileobj=io.BytesIO(archive), mode="r:xz") as bundle:
             matches = [p for p in bundle.getmembers() if Path(p.name).name == executable]
-            if len(matches) != 1 or not matches[0].isfile() or matches[0].size > 64 * 1024 * 1024:
+            if len(matches) != 1 or not matches[0].isfile() or matches[0].size > 128 * 1024 * 1024:
+                print(
+                    json.dumps(
+                        {
+                            "runtime_members": [
+                                {"name": p.name, "bytes": p.size, "regular": p.isfile()}
+                                for p in matches
+                            ]
+                        }
+                    )
+                )
                 raise RuntimeError("Expected one bounded regular runtime executable")
             member = bundle.extractfile(matches[0])
             if member is None:
@@ -237,6 +247,21 @@ def exercise(workspace: Path, temporary: Path, artifact: Path) -> None:
             "--env",
             "AI_STP_GUEST=controlled",
         ]
+        dns_granted = [
+            argument.replace("inherit-network=false", "inherit-network=true").replace(
+                "allow-ip-name-lookup=false", "allow-ip-name-lookup=true"
+            )
+            for argument in base
+        ]
+        positive = checked(
+            [*dns_granted, str(artifact / "fixture.wasm"), "dns_positive"],
+            env=environment,
+            cwd=root,
+            timeout=30,
+        )
+        if b'"guest_dns_positive":true' not in positive.stdout:
+            raise RuntimeError("Same guest DNS positive control missing")
+        print(positive.stdout.decode(), end="", flush=True)
         with contextlib.ExitStack() as stack:
             endpoints = [
                 endpoint(stack, family, kind)

@@ -37,6 +37,12 @@ fn network_denied<T>(name: &str, result: io::Result<T>) {
 fn main() {
     let arguments: Vec<String> = env::args().skip(1).collect();
     match arguments.first().map(String::as_str) {
+        Some("dns_positive") => {
+            let addresses: Vec<_> = ("localhost", 80).to_socket_addrs().unwrap().collect();
+            assert!(!addresses.is_empty());
+            assert!(addresses.iter().all(|address| address.ip().is_loopback()));
+            println!("{{\"guest_dns_positive\":true}}");
+        }
         Some("spin") => {
             fs::write("/target/spin_started", b"started\n").unwrap();
             println!("{{\"spin_started\":true}}");
@@ -112,7 +118,11 @@ fn main() {
                         .and_then(|socket| socket.send_to(b"must not send", address)),
                 );
             }
-            network_denied("dns", ("localhost", 80).to_socket_addrs());
+            // The pinned libc getaddrinfo layer erases the WASI permission code
+            // into EAI_FAIL. The host first proves the same guest lookup with
+            // only the explicit DNS grant enabled; do not call this EPERM.
+            assert!(("localhost", 80).to_socket_addrs().is_err());
+            println!("{{\"guest_dns_unavailable_without_grant\":true}}");
             let error = Command::new(&arguments[7])
                 .arg("--version")
                 .output()
