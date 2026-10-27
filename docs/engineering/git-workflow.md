@@ -1,6 +1,6 @@
 ---
 description: "Branch integration, exact-head qualification and release promotion."
-last_verified: "2026-10-15"
+last_verified: "2026-10-27"
 ---
 
 # Git workflow
@@ -9,8 +9,12 @@ CI push branches: `main`.
 
 The `check` workflow runs a finite PR integration phase: redacted secret
 scanning with scanner controls, Python/docs syntax and source contracts,
-non-database unit tests, web/Desktop types and units, and native library analysis
-and units. CodeQL analyzes each public candidate and waits for processed findings.
+non-database unit tests, web/Desktop types and units, and native analysis on
+Linux, macOS and Windows. Native Clippy checks every target, including platform
+specific tests. Library units run on all three OSes; macOS and Windows also run
+the existing native-vault and independent CLI-process cases in previously absent
+owned slots. The isolated Linux Secret Service remains in the full native owner.
+CodeQL analyzes each public candidate and waits for processed findings.
 A PR proves integration eligibility; it does not claim packaged runtime acceptance.
 
 Integrated `main` pushes run the complete repository matrix plus the existing
