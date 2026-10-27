@@ -53,6 +53,18 @@ void refused(NSString* path, int access, const char* stage) {
     require(file.value == -1 && (original == EPERM || original == EACCES),
         stage, original);
 }
+bool target_access(NSString* path) {
+    Descriptor file(open(bytes(path), O_RDONLY | O_NOFOLLOW | O_CLOEXEC));
+    if (file.value < 0) {
+        require(errno == EPERM || errno == EACCES, "target_probe_category", errno);
+        return false;
+    }
+    char value[64]{};
+    const ssize_t count = read(file.value, value, sizeof(value));
+    require(count == 18 && std::string(value, 18) == "synthetic fixture\n",
+        "inherited_target_bytes", errno);
+    return true;
+}
 void write_new(NSString* path) {
     Descriptor file(open(bytes(path), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600));
     require(file.value >= 0, "owned_write_open", errno);
@@ -221,8 +233,11 @@ NSDictionary* worker(NSString* role) {
             descendant ? "child_credentials_write" : "worker_credentials_write");
     };
     outside();
-    refused(joined(target, @"canary"), O_RDONLY,
-        descendant ? "child_target_before_bookmark" : "worker_target_before_bookmark");
+    const bool target_before_bookmark = target_access(joined(target, @"canary"));
+    // Actual d362 proved that this child can retain the authorized parent's
+    // target while refusing all four outside/credential accesses. Observe that
+    // grant rather than assuming dynamic grants can never be inherited.
+    require(descendant || !target_before_bookmark, "worker_target_before_bookmark");
     NSError* error = nil;
     require([request[@"bookmark"] isKindOfClass:[NSString class]], "bookmark_encoding");
     NSData* bookmark = [[NSData alloc] initWithBase64EncodedString:request[@"bookmark"] options:0];
@@ -261,16 +276,22 @@ NSDictionary* worker(NSString* role) {
     write_new(written);
     readable(written);
     outside();
+    bool child_target_before_bookmark = false;
     if ([role isEqualToString:@"worker"]) {
         std::string result = launch(child, "child", onward, false);
         NSDictionary* proof = decode([NSData dataWithBytes:result.data() length:result.size()]);
         require([proof[@"role"] isEqual:@"child"] && [proof[@"pid"] intValue] > 0
             && [proof[@"pid"] intValue] != getpid() && [proof[@"io"] isEqual:@YES],
             "actual_descendant_proof");
+        require([proof[@"target_before_bookmark"] isKindOfClass:[NSNumber class]],
+            "descendant_target_observation");
+        child_target_before_bookmark = [proof[@"target_before_bookmark"] boolValue];
         readable(joined(target, @"child.written"));
     }
     require([physical(target) isEqual:request[@"physical_target"]], "final_target_identity");
-    return @{@"role":role, @"pid":@(getpid()), @"io":@YES};
+    return @{@"role":role, @"pid":@(getpid()), @"io":@YES,
+        @"target_before_bookmark":@(target_before_bookmark),
+        @"child_target_before_bookmark":@(child_target_before_bookmark)};
 }
 int main(int argc, char** argv) {
     @autoreleasepool {
@@ -317,7 +338,9 @@ int main(int argc, char** argv) {
                     @"outside/canary", @"outside/credentials"]) readable(joined(root, leaf));
                 proof = @{@"macos_confinement_experiment":@"passed", @"executed_workers":@2,
                     @"implicit_bookmark_transfer":@YES, @"outside_and_credentials_denied":@YES,
-                    @"ungranted_target_denied":@YES, @"descendant_executed":@YES,
+                    @"primary_ungranted_target_denied":@YES, @"descendant_executed":@YES,
+                    @"descendant_target_reachable_before_ipc_resolution":
+                        observed[@"child_target_before_bookmark"],
                     @"physical_target_retained":@YES,
                     @"environment_filtered":@YES, @"network_qualified":@NO,
                     @"broker_qualified":@NO, @"provider_runtime_enabled":@NO,
