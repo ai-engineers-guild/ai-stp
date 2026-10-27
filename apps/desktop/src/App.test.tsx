@@ -65,7 +65,9 @@ it.each([
   (storage) => {
     vi.stubGlobal("localStorage", storage);
     render(<App />);
-    expect(screen.getByRole("link", { name: "ai-stp home" })).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: /ai-stp.*Your agent workspace/ }),
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Use dark theme" }));
     expect(document.documentElement.classList.contains("dark")).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Use light theme" }));

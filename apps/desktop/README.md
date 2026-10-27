@@ -104,6 +104,15 @@ From `apps/desktop`, `bun run tauri dev` starts the native app. `bun run dev`
 starts the frontend only and cannot perform operations without Tauri IPC.
 Tests isolate IPC responses; sidecar regressions execute the actual native CLI.
 
+Linux installed-package qualification also scans the real webview with the
+axe-core artifact pinned by the existing web lock. It checks both themes,
+retained personal profiles, keyboard skip-link activation and actual loading
+indicators after an owned GTK reduced-motion preference and app restart.
+Reports retain rule IDs, impacts, counts and bounded contrast operands;
+incomplete axe checks still need review. Startup and CLI read timings are
+observations, not an
+assertion of a performance budget or complete screen-reader conformance.
+
 Linux CI also installs its release Debian package and drives the installed app
 through external WebKit WebDriver under Xvfb. The disposable session has its own
 GNOME credential service and private home. The journey initializes the native

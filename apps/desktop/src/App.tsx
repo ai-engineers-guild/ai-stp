@@ -122,9 +122,9 @@ function Shell() {
         Skip to content
       </a>
       <aside className="app-sidebar">
-        <NavLink to="/" className="brand" aria-label="ai-stp home">
+        <NavLink to="/" className="brand">
           <span className="brand-mark">
-            <SquareTerminal size={20} />
+            <SquareTerminal size={20} aria-hidden="true" />
           </span>
           <span>
             <strong>ai-stp</strong>
