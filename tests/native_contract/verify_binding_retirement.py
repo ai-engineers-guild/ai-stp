@@ -668,7 +668,7 @@ async def qualify(
     refresh = await run("account", "plan", "--action", "refresh")
     assert (await enact(refresh, "account", "apply"))["outcome"] == "revoked"
     recovery = await run("account", "plan", "--action", "recover")
-    assert recovery["plan"]["recovery"]["interrupted_checkout_unlinks"] == []
+    assert "interrupted_checkout_unlinks" not in recovery["plan"]["recovery"]
     assert (await enact(recovery, "account", "apply"))["outcome"] == "device_replaced"
     await login(account, None)
     assert rows()[0] == 60 and binding_state() == retained_bindings
@@ -709,7 +709,7 @@ async def qualify(
     )
     assert named_recovery["plan"]["schema_version"] == 6
     assert named_recovery["plan"]["registry_schema_before"] == 60
-    assert named_recovery["plan"]["interrupted_checkout_unlinks"] == []
+    assert "interrupted_checkout_unlinks" not in named_recovery["plan"]
     prepared = await enact(named_recovery, "account", "connections", "recovery", "apply")
     replacement = prepared["replacement_connection_id"]
     await login(account, replacement)
