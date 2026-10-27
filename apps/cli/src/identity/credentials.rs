@@ -16,6 +16,9 @@ use crate::{
 pub(crate) const WINDOWS_ACCOUNT_OWNER: &[u8] =
     b"ai-stp-cli-v2 isolated Windows account records v1\n";
 
+#[cfg(target_os = "macos")]
+mod macos;
+
 #[cfg(any(test, windows))]
 #[path = "credentials/windows_record.rs"]
 mod windows_record;
@@ -40,7 +43,14 @@ fn native_entry(name: &str) -> Result<keyring_core::Entry> {
             Some(&std::collections::HashMap::from([("persistence", "Local")])),
         )
     });
-    entry.map_err(|_| unavailable())
+    #[cfg(target_os = "macos")]
+    {
+        entry.map_err(|error| macos::keyring("entry", &error))
+    }
+    #[cfg(windows)]
+    {
+        entry.map_err(|_| unavailable())
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -58,7 +68,7 @@ fn native_read(id: &str) -> Result<Option<Zeroizing<Vec<u8>>>> {
         match native_entry(id)?.get_password() {
             Ok(value) => Ok(Some(Zeroizing::new(value.into_bytes()))),
             Err(keyring_core::Error::NoEntry) => Ok(None),
-            Err(_) => Err(unavailable()),
+            Err(error) => Err(macos::keyring("read", &error)),
         }
     }
     #[cfg(windows)]
@@ -98,7 +108,7 @@ fn native_write(id: &str, value: &str, replace: bool) -> Result<()> {
         let _interaction = no_interaction()?;
         native_entry(id)?
             .set_password(value)
-            .map_err(|_| unavailable())
+            .map_err(|error| macos::keyring("write", &error))
     }
     #[cfg(windows)]
     {
@@ -128,7 +138,17 @@ fn native_remove(id: &str) -> Result<()> {
         let _interaction = no_interaction()?;
         match native_entry(id)?.delete_credential() {
             Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
-            Err(_) => Err(unavailable()),
+            Err(error) => {
+                #[cfg(target_os = "macos")]
+                {
+                    Err(macos::keyring("remove", &error))
+                }
+                #[cfg(windows)]
+                {
+                    let _ = error;
+                    Err(unavailable())
+                }
+            }
         }
     }
     #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
@@ -144,10 +164,12 @@ pub(super) fn no_interaction()
     use security_framework::os::macos::keychain::SecKeychain;
     // Preserve an embedding caller's already-disabled setting. Our own keychain
     // operations serialize the process-wide switch and restore it on every exit.
-    if SecKeychain::user_interaction_allowed().map_err(|_| unavailable())? {
-        Ok(Some(
-            SecKeychain::disable_user_interaction().map_err(|_| unavailable())?,
-        ))
+    if SecKeychain::user_interaction_allowed()
+        .map_err(|error| macos::status("interaction_allowed", &error))?
+    {
+        Ok(Some(SecKeychain::disable_user_interaction().map_err(
+            |error| macos::status("disable_interaction", &error),
+        )?))
     } else {
         Ok(None)
     }

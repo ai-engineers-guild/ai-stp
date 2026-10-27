@@ -407,6 +407,9 @@ identity plan/apply journal. Repeating it preserves the owner and device key;
 a different credential backend refuses. Unix users may explicitly choose `file`,
 which is private but unencrypted. It is never an automatic keyring fallback.
 The Windows file backend is unavailable.
+An explicit state directory does not create another operating system vault.
+macOS uses the existing User/login Keychain; its failure details contain only
+the credential stage and numeric OSStatus, without native error prose.
 
 Existing Python state cannot be initialized as another owner. Transfer it with
 `state migrate plan --state-dir <root> --credential-store <existing-backend>
