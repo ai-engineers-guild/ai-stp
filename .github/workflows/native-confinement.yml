@@ -1,0 +1,52 @@
+name: native-confinement
+
+on:
+  pull_request:
+    paths:
+      - tests/native_contract/windows_confinement.cpp
+      - .github/workflows/native-confinement.yml
+  push:
+    branches: [dev, main]
+    paths:
+      - tests/native_contract/windows_confinement.cpp
+      - .github/workflows/native-confinement.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-confinement-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-execution:
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Build and execute the disposable token and filesystem experiment
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Write-Output ('Runner OS version: ' + [Environment]::OSVersion.Version)
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+          $installation = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if ($LASTEXITCODE -ne 0 -or -not $installation) { throw 'Existing MSVC toolchain absent' }
+          $developer = Join-Path $installation 'Common7/Tools/VsDevCmd.bat'
+          $buildRoot = Join-Path $env:RUNNER_TEMP ('ai-stp-confinement-build-' + [Guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $buildRoot -ErrorAction Stop | Out-Null
+          $output = Join-Path $buildRoot 'probe.exe'
+          $object = Join-Path $buildRoot 'probe.obj'
+          $source = Join-Path $env:GITHUB_WORKSPACE 'tests/native_contract/windows_confinement.cpp'
+          $build = '"' + $developer + '" -arch=x64 -host_arch=x64 && cl.exe /nologo /W4 /WX /EHsc /std:c++20 /MT /O2 "' + $source + '" /Fe:"' + $output + '" /Fo:"' + $object + '" /link userenv.lib advapi32.lib ole32.lib'
+          try {
+            & $env:ComSpec /d /s /c ('"' + $build + '"')
+            if ($LASTEXITCODE -ne 0) { throw 'Windows confinement experiment compilation failed' }
+            & $output
+            if ($LASTEXITCODE -ne 0) { throw 'Windows confinement experiment refused' }
+          } finally {
+            Remove-Item -LiteralPath $buildRoot -Recurse -Force
+          }
