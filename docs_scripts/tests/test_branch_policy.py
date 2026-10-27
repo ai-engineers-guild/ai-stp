@@ -18,11 +18,27 @@ class BranchPolicyTest(unittest.TestCase):
             permanent["conditions"]["ref_name"]["include"],
             ["refs/heads/main", "refs/heads/dev"],
         )
+        rules = {rule["type"]: rule.get("parameters", {}) for rule in permanent["rules"]}
         self.assertEqual(
-            {rule["type"] for rule in permanent["rules"]},
-            {"deletion", "non_fast_forward", "pull_request"},
+            set(rules),
+            {
+                "deletion",
+                "non_fast_forward",
+                "pull_request",
+                "required_status_checks",
+                "code_scanning",
+            },
         )
-        self.assertEqual(permanent["rules"][2]["parameters"]["required_approving_review_count"], 0)
+        self.assertEqual(rules["pull_request"]["required_approving_review_count"], 0)
+        self.assertTrue(rules["required_status_checks"]["strict_required_status_checks_policy"])
+        self.assertEqual(
+            rules["required_status_checks"]["required_status_checks"],
+            [{"context": "qualification", "integration_id": 15368}],
+        )
+        self.assertEqual(
+            rules["code_scanning"]["code_scanning_tools"],
+            [{"tool": "CodeQL", "alerts_threshold": "all", "security_alerts_threshold": "all"}],
+        )
         self.assertEqual(
             promotion["rules"][0]["parameters"]["required_status_checks"],
             [{"context": "branch-policy", "integration_id": 15368}],

@@ -124,7 +124,7 @@ def test_the_toolchain_invokes_only_uv_and_bun() -> None:
     offences: list[str] = []
     for name, text in _toolchain().items():
         commands = _commands(text, Path(name).suffix).replace("uv pip ", "uv-pip ")
-        if name == ".github/workflows/cli-release.yml":
+        if name == ".github/workflows/cli-archives.yml":
             # Consumer qualification must exercise real pip. This one isolated
             # install reads only the built wheel, without indexes or dependencies;
             # repository environments and build tools still use uv exclusively.

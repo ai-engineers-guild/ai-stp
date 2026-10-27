@@ -20,3 +20,35 @@ regexes = [
   '''^partial/compensated$''',
   '''^gpt-oss-120b-medium$''',
 ]
+
+[[allowlists]]
+description = "Native projection of the public GitHub import idempotency fixture"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^apps/cli/resources/packages/contracts/src/ai_stp_contracts/fixtures/v1/github_connector\.json$''']
+regexes = ['''^\s*"idempotency_key":\ "idem_visibility_plan_01"\s*$''']
+
+[[allowlists]]
+description = "Native projection of the public corporate idempotency fixture"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^apps/cli/resources/packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate\.json$''']
+regexes = ['''^\s*"idempotency_key":\ "corporate\-assignment\-0001",\s*$''']
+
+[[allowlists]]
+description = "Exact disposable device key from the explicitly synthetic schema-53 migration fixture"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^apps/cli/tests/fixtures/legacy\-state\.json$''']
+regexes = ['''^\s*"secrets/device\-key\.device_01M4ZMZM87MF0ZT9H6V9VV1HKM\.secret":\ "eyJzZWVkIjogIm9peUZqdDBUbFVnZ2tTYnJoMlIzRzMwSy9uQWlYdmx0ZnFHU1JWUlZwZUU9In0="\s*$''']
+
+[[allowlists]]
+description = "Fixed public idempotency UUID in the access-workspace component fixture"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^apps/web/tests/component/access\-workspace\.test\.tsx$''']
+regexes = ['''^\s*const\ idempotencyKey\ =\ "88abdcde\-5013\-40ae\-a319\-bcd11b0a07fb";\s*$''']
