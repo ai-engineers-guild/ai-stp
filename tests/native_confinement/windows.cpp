@@ -209,13 +209,18 @@ struct FailureEvidence {
                 file.read(bytes, sizeof(bytes));
                 if (!file.eof()) continue;
                 std::istringstream fields(std::string(bytes, static_cast<size_t>(file.gcount())));
-                unsigned long long stage = 0, code = 0;
-                if (!(fields >> stage >> code)) continue;
+                unsigned long long stage = 0, code = 0, policy_known = 0, child_denied = 0, bootstrap_matches = 0;
+                if (!(fields >> stage >> code >> policy_known >> child_denied >> bootstrap_matches)) continue;
                 fields >> std::ws;
                 if (!fields.eof() || stage < 1000 || stage >= 1000 + worker_stages.size()
-                    || code > std::numeric_limits<DWORD>::max()) continue;
+                    || code > std::numeric_limits<DWORD>::max()
+                    || policy_known > 1 || child_denied > 1 || bootstrap_matches > 1) continue;
                 std::cout << "{\"worker_failure_stage\":\"" << worker_stages[stage - 1000]
-                    << "\",\"original_native_code\":" << code << "}" << std::endl;
+                    << "\",\"original_native_code\":" << code
+                    << ",\"child_policy_observed\":" << policy_known
+                    << ",\"child_policy_denies_creation\":" << child_denied
+                    << ",\"localappdata_matches_bootstrap\":" << bootstrap_matches
+                    << "}" << std::endl;
             }
         } catch (...) {
             std::cout << "{\"diagnostic\":\"worker_failure_evidence_unavailable\"}" << std::endl;
@@ -296,7 +301,7 @@ struct ContainerAttributes {
     ContainerAttributes& operator=(const ContainerAttributes&) = delete;
 };
 int worker(int argc, wchar_t** argv) {
-    require(argc == 7, "worker_arguments");
+    require(argc == 8, "worker_arguments");
     require((std::wstring(argv[2]) == L"lpac" || std::wstring(argv[2]) == L"regular")
         && (std::wstring(argv[3]) == L"parent" || std::wstring(argv[3]) == L"child"),
         "worker_arguments");
@@ -322,7 +327,7 @@ int worker(int argc, wchar_t** argv) {
     if (!child) {
         std::wstring command = quote(argv[6]) + L" --worker " + argv[2]
             + L" child " + quote(root.wstring()) + L" " + quote(argv[5])
-            + L" " + quote(argv[6]);
+            + L" " + quote(argv[6]) + L" " + quote(argv[7]);
         STARTUPINFOEXW start{};
         std::optional<ContainerAttributes> attributes;
         if (lpac) {
@@ -389,9 +394,6 @@ void run(const fs::path& executable, const fs::path& root, PSID sid, bool lpac) 
     start.lpAttributeList = attributes.list;
     Local text;
     win(ConvertSidToStringSidW(sid, reinterpret_cast<LPWSTR*>(&text.value)), "sid_format");
-    std::wstring command = quote(executable.wstring()) + L" --worker "
-        + (lpac ? L"lpac" : L"regular") + L" parent " + quote(root.wstring())
-        + L" " + quote(static_cast<LPCWSTR>(text.value)) + L" " + quote(executable.wstring());
     wchar_t system[MAX_PATH]{};
     const UINT system_length = GetWindowsDirectoryW(system, MAX_PATH);
     require(system_length > 0 && system_length < MAX_PATH, "system_directory");
@@ -401,6 +403,10 @@ void run(const fs::path& executable, const fs::path& root, PSID sid, bool lpac) 
     const DWORD local_length = GetEnvironmentVariableW(L"LOCALAPPDATA", local, 32768);
     require(local_length > 0 && local_length < 32768
         && fs::path(local).is_absolute() && fs::is_directory(local), "bootstrap_local_appdata");
+    std::wstring command = quote(executable.wstring()) + L" --worker "
+        + (lpac ? L"lpac" : L"regular") + L" parent " + quote(root.wstring())
+        + L" " + quote(static_cast<LPCWSTR>(text.value)) + L" " + quote(executable.wstring())
+        + L" " + quote(local);
     std::wstring environment = L"LOCALAPPDATA=" + std::wstring(local);
     environment.push_back(L'\0');
     environment += L"SystemRoot=" + std::wstring(system);
@@ -544,15 +550,24 @@ int wmain(int argc, wchar_t** argv) {
         // Stages are literals and codes are native numeric categories only.
         std::cout << "{\"stage\":\"" << failure.stage << "\",\"native_code\":"
             << failure.code << "}" << std::endl;
-        if (argc == 7 && std::wstring(argv[1]) == L"--worker") {
+        if (argc == 8 && std::wstring(argv[1]) == L"--worker") {
             try {
                 require((std::wstring(argv[2]) == L"lpac" || std::wstring(argv[2]) == L"regular")
                     && (std::wstring(argv[3]) == L"parent" || std::wstring(argv[3]) == L"child"),
                     "worker_arguments");
+                PROCESS_MITIGATION_CHILD_PROCESS_POLICY policy{};
+                const bool policy_known = GetProcessMitigationPolicy(GetCurrentProcess(),
+                    ProcessChildProcessPolicy, &policy, sizeof(policy)) != FALSE;
+                wchar_t local[32768]{};
+                const DWORD length = GetEnvironmentVariableW(L"LOCALAPPDATA", local, 32768);
+                const bool bootstrap_matches = length > 0 && length < 32768
+                    && _wcsicmp(local, argv[7]) == 0;
                 publish(fs::path(argv[4]) / L"target"
                     / (std::wstring(argv[2]) + L"-" + argv[3] + L".failure"),
                     std::to_string(worker_stage_code(failure.stage)) + " "
-                    + std::to_string(failure.code) + "\n");
+                    + std::to_string(failure.code) + " " + (policy_known ? "1" : "0")
+                    + " " + (policy_known && policy.NoChildProcessCreation ? "1" : "0")
+                    + " " + (bootstrap_matches ? "1" : "0") + "\n");
             } catch (...) { /* The original failure remains authoritative. */ }
             return static_cast<int>(worker_stage_code(failure.stage));
         }
