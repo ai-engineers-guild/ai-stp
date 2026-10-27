@@ -209,8 +209,10 @@ NSDictionary* worker(NSString* role) {
     BOOL stale = NO;
     NSURL* location = [NSURL URLByResolvingBookmarkData:bookmark options:0 relativeToURL:nil
         bookmarkDataIsStale:&stale error:&error];
-    require(location && !stale && !error && [location.path isEqualToString:target],
-        "implicit_bookmark_resolution", static_cast<int>(error.code));
+    require(location != nil, "implicit_bookmark_location", static_cast<int>(error.code));
+    require(error == nil, "implicit_bookmark_error", static_cast<int>(error.code));
+    require(!stale, "implicit_bookmark_stale");
+    require([location.path isEqualToString:target], "implicit_bookmark_target");
     struct Scope {
         NSURL* value;
         ~Scope() { [value stopAccessingSecurityScopedResource]; }
