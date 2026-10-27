@@ -13,7 +13,6 @@
 #include <limits>
 #include <sstream>
 #include <exception>
-#include <optional>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -463,7 +462,7 @@ int worker(int argc, wchar_t** argv) {
         std::wstring command = quote(argv[6]) + L" --worker " + argv[2]
             + L" child " + quote(root.wstring()) + L" " + quote(argv[5])
             + L" " + quote(argv[6]) + L" " + quote(argv[7]);
-        STARTUPINFOEXW start{};
+        STARTUPINFOW start{};
         STARTUPINFOW inherited{};
         GetStartupInfoW(&inherited);
         require(inherited.lpDesktop && inherited.lpDesktop[0] != L'\0',
@@ -471,19 +470,17 @@ int worker(int argc, wchar_t** argv) {
         // USER32 connects lazily. Do not let a not-yet-connected worker's
         // descendant fall back to the logon station/default desktop; retain
         // the exact private station/desktop selected by the trusted parent.
-        start.StartupInfo.lpDesktop = inherited.lpDesktop;
-        std::optional<ContainerAttributes> attributes;
-        if (lpac) {
-            attributes.emplace(sid.value, true);
-            start.lpAttributeList = attributes->list;
-        }
-        start.StartupInfo.cb = static_cast<DWORD>(lpac ? sizeof(start) : sizeof(start.StartupInfo));
+        start.lpDesktop = inherited.lpDesktop;
+        // Unpackaged AppContainer children inherit the parent's token. Do not
+        // ask an already restricted caller to create another lowbox token.
+        // Parent-held SID/capability checks and the child's actual AAP refusal
+        // remain mandatory before this can count as LPAC descendant execution.
+        start.cb = sizeof(start);
         auto environment = environment_block(root, argv[7]);
         PROCESS_INFORMATION process{};
         win(CreateProcessW(argv[6], command.data(), nullptr, nullptr, FALSE,
-            DETACHED_PROCESS | CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT
-                | (lpac ? EXTENDED_STARTUPINFO_PRESENT : 0),
-            environment.data(), (root / L"target").c_str(), &start.StartupInfo, &process),
+            DETACHED_PROCESS | CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT,
+            environment.data(), (root / L"target").c_str(), &start, &process),
             "descendant_create");
         Handle held(process.hProcess), thread(process.hThread);
         struct SuspendedChild {
