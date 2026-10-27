@@ -324,8 +324,17 @@ void run(const fs::path& executable, const fs::path& root, PSID sid, bool lpac) 
     require(ResumeThread(thread.value) != static_cast<DWORD>(-1), "worker_resume");
     wait_process(held.value);
     JOBOBJECT_BASIC_ACCOUNTING_INFORMATION accounting{};
-    win(QueryInformationJobObject(job.value, JobObjectBasicAccountingInformation,
-        &accounting, sizeof(accounting), nullptr), "job_accounting");
+    // A signaled process handle does not establish quiescence of its job.
+    // Observe the same owned job; never launch or repeat an effect here.
+    for (int observation = 0; observation < 200; ++observation) {
+        win(QueryInformationJobObject(job.value, JobObjectBasicAccountingInformation,
+            &accounting, sizeof(accounting), nullptr), "job_accounting");
+        if (accounting.ActiveProcesses == 0) break;
+        Sleep(10);
+    }
+    std::cout << "{\"diagnostic\":\"owned_job_accounting\",\"total\":"
+        << accounting.TotalProcesses << ",\"active\":" << accounting.ActiveProcesses
+        << ",\"terminated\":" << accounting.TotalTerminatedProcesses << "}" << std::endl;
     require(accounting.TotalProcesses == 2 && accounting.ActiveProcesses == 0,
         "actual_descendant_job_custody");
     for (const auto& role : {L"parent", L"child"}) {
