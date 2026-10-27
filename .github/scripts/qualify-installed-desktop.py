@@ -233,6 +233,13 @@ class Driver:
             ),
             "actual theme control",
         )
+        self.wait(
+            lambda: self.read(
+                "return document.getAnimations().every(a=>a.playState!=='running'||"
+                "a.effect?.getComputedTiming().iterations===Infinity);"
+            ),
+            "completed finite theme transitions",
+        )
 
     def audit_accessibility(self, surface: str) -> None:
         require(not self.read("return document.querySelector('iframe');"), "uninspected frame")
@@ -244,11 +251,19 @@ class Driver:
             "/execute/async",
             {
                 "script": "const done=arguments[arguments.length-1];"
+                "const summarize=v=>{const out={id:v.id,impact:v.impact,count:v.nodes.length};"
+                "if(v.id==='color-contrast')out.contrast=v.nodes.slice(0,16).flatMap(n=>"
+                "n.any.filter(c=>c.id==='color-contrast').slice(0,1).map(c=>{"
+                "const d=c.data||{},number=x=>Number.isFinite(parseFloat(x))?parseFloat(x):null,"
+                "color=x=>typeof x==='string'&&/^#[0-9a-f]{3,8}$/i.test(x)?x:null;"
+                "return {foreground:color(d.fgColor),background:color(d.bgColor),"
+                "ratio:number(d.contrastRatio),expected:number(d.expectedContrastRatio)};}));"
+                "return out;};"
                 "axe.run(document,{runOnly:{type:'tag',values:"
                 "['wcag2a','wcag2aa','wcag21a','wcag21aa','wcag22aa','best-practice']},"
                 "resultTypes:['violations','incomplete','passes']}).then(r=>done({"
                 "engine:r.testEngine.version,passes:r.passes.length,"
-                "violations:r.violations.map(v=>({id:v.id,impact:v.impact,count:v.nodes.length})),"
+                "violations:r.violations.map(summarize),"
                 "incomplete:r.incomplete.map(v=>({id:v.id,impact:v.impact,count:v.nodes.length}))"
                 "})).catch(()=>done({failed:true}));",
                 "args": [],
@@ -263,8 +278,8 @@ class Driver:
             and isinstance(report.get("incomplete"), list),
             "accessibility engine did not execute its real document checks",
         )
-        # Only fixed tool rule IDs/impacts/counts leave the browser. No HTML,
-        # selectors, text, account values, screenshots or raw DOM are retained.
+        # Retain fixed rule IDs/counts and bounded numeric/hex contrast operands.
+        # No HTML, selectors, text, accounts, screenshots or raw DOM leave it.
         require(
             not report["violations"],
             "Installed accessibility violations: " + json.dumps(report["violations"]),
