@@ -18,11 +18,18 @@ mod secret_service;
 struct TemporaryCredential {
     #[cfg(any(target_os = "macos", windows))]
     entry: keyring_core::Entry,
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     name: String,
 }
 
 impl TemporaryCredential {
+    fn exists(&self) -> Result<bool, Box<dyn Error>> {
+        #[cfg(target_os = "macos")]
+        return macos_slot_exists(&self.name);
+        #[cfg(not(target_os = "macos"))]
+        Ok(self.bytes()?.is_some())
+    }
+
     fn bytes(&self) -> Result<Option<Vec<u8>>, Box<dyn Error>> {
         #[cfg(target_os = "linux")]
         return secret_service::read(&self.name);
@@ -60,6 +67,31 @@ impl Drop for TemporaryCredential {
     }
 }
 
+#[cfg(target_os = "macos")]
+fn macos_slot_exists(name: &str) -> Result<bool, Box<dyn Error>> {
+    use security_framework::{
+        item::{ItemClass, ItemSearchOptions},
+        os::macos::keychain::{SecKeychain, SecPreferencesDomain},
+    };
+    // An independent executable may inspect an exact owned slot without being
+    // authorized to decrypt the CLI executable's secret. Never broaden its ACL.
+    let keychains = [SecKeychain::default_for_domain(SecPreferencesDomain::User)?];
+    match ItemSearchOptions::new()
+        .keychains(&keychains)
+        .class(ItemClass::generic_password())
+        .service("ai-stp-v2")
+        .account(name)
+        .case_insensitive(Some(false))
+        .load_refs(true)
+        .load_data(false)
+        .search()
+    {
+        Ok(items) => Ok(!items.is_empty()),
+        Err(error) if error.code() == -25300 => Ok(false),
+        Err(error) => Err(error.into()),
+    }
+}
+
 fn owned_slot(name: &str) -> Result<TemporaryCredential, Box<dyn Error>> {
     #[cfg(target_os = "macos")]
     let entry =
@@ -70,12 +102,14 @@ fn owned_slot(name: &str) -> Result<TemporaryCredential, Box<dyn Error>> {
         name,
         Some(&std::collections::HashMap::from([("persistence", "Local")])),
     )?;
-    #[cfg(any(target_os = "macos", windows))]
+    #[cfg(windows)]
     let absent = match entry.get_secret() {
         Ok(_) => false,
         Err(keyring_core::Error::NoEntry) => true,
         Err(error) => return Err(error.into()),
     };
+    #[cfg(target_os = "macos")]
+    let absent = !macos_slot_exists(name)?;
     #[cfg(target_os = "linux")]
     let absent = secret_service::read(name)?.is_none();
     if !absent {
@@ -84,7 +118,7 @@ fn owned_slot(name: &str) -> Result<TemporaryCredential, Box<dyn Error>> {
     Ok(TemporaryCredential {
         #[cfg(any(target_os = "macos", windows))]
         entry,
-        #[cfg(target_os = "linux")]
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
         name: name.into(),
     })
 }
