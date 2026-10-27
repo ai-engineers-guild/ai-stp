@@ -511,9 +511,10 @@ cache, and changing checkouts does not retarget another checkout's editable impo
 The libclang adapter uses Cargo's effective artifact directory. CI exercises native
 checks with artifacts outside the checkout on Linux, macOS and Windows.
 Pull requests run all-target native Clippy and library units on all three OSes.
-macOS and Windows also execute the owned-slot native credential and independent
-CLI-process cases. The full main gate retains the isolated Linux Secret Service,
-complete native/API interoperability, packaging and installed desktop journeys.
+All three execute the owned-slot native credential and independent CLI-process
+cases. Linux uses a disposable Secret Service bus with 200 fresh concurrent
+clients and 10 rounds in PRs; full main retains all 100 rounds, complete native/API
+interoperability, packaging and installed desktop journeys.
 The macOS observer checks exact slot presence without decrypting another
 executable's secret; successive CLI processes read and revalidate their own keys.
 The fixture never changes Keychain access control.
