@@ -25,7 +25,7 @@ struct TemporaryCredential {
 impl TemporaryCredential {
     fn exists(&self) -> Result<bool, Box<dyn Error>> {
         #[cfg(target_os = "macos")]
-        return macos_slot_exists(&self.name);
+        return Ok(macos_slot(&self.name)?.is_some());
         #[cfg(not(target_os = "macos"))]
         Ok(self.bytes()?.is_some())
     }
@@ -53,7 +53,20 @@ impl TemporaryCredential {
     fn remove(&self) -> Result<(), Box<dyn Error>> {
         #[cfg(target_os = "linux")]
         return secret_service::remove(&self.name);
-        #[cfg(any(target_os = "macos", windows))]
+        #[cfg(target_os = "macos")]
+        {
+            if let Some(item) = macos_slot(&self.name)? {
+                // Delete the exact metadata-only reference, as Apple's native
+                // security tool does. The safe wrapper drops the OSStatus, so
+                // absence must be verified independently before success.
+                item.delete();
+            }
+            if macos_slot(&self.name)?.is_some() {
+                return Err("owned Keychain item deletion was refused".into());
+            }
+            Ok(())
+        }
+        #[cfg(windows)]
         match self.entry.delete_credential() {
             Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
             Err(error) => Err(error.into()),
@@ -68,9 +81,11 @@ impl Drop for TemporaryCredential {
 }
 
 #[cfg(target_os = "macos")]
-fn macos_slot_exists(name: &str) -> Result<bool, Box<dyn Error>> {
+fn macos_slot(
+    name: &str,
+) -> Result<Option<security_framework::os::macos::keychain_item::SecKeychainItem>, Box<dyn Error>> {
     use security_framework::{
-        item::{ItemClass, ItemSearchOptions},
+        item::{ItemClass, ItemSearchOptions, SearchResult},
         os::macos::keychain::{SecKeychain, SecPreferencesDomain},
     };
     // An independent executable may inspect an exact owned slot without being
@@ -86,8 +101,14 @@ fn macos_slot_exists(name: &str) -> Result<bool, Box<dyn Error>> {
         .load_data(false)
         .search()
     {
-        Ok(items) => Ok(!items.is_empty()),
-        Err(error) if error.code() == -25300 => Ok(false),
+        Ok(items) => {
+            let mut items = items.into_iter();
+            match (items.next(), items.next()) {
+                (Some(SearchResult::KeychainItem(item)), None) => Ok(Some(item)),
+                _ => Err("one exact native Keychain item reference required".into()),
+            }
+        }
+        Err(error) if error.code() == -25300 => Ok(None),
         Err(error) => Err(error.into()),
     }
 }
@@ -109,7 +130,7 @@ fn owned_slot(name: &str) -> Result<TemporaryCredential, Box<dyn Error>> {
         Err(error) => return Err(error.into()),
     };
     #[cfg(target_os = "macos")]
-    let absent = !macos_slot_exists(name)?;
+    let absent = macos_slot(name)?.is_none();
     #[cfg(target_os = "linux")]
     let absent = secret_service::read(name)?.is_none();
     if !absent {
