@@ -91,6 +91,7 @@ def test_native_desktop_and_archive_jobs_use_the_shared_pinned_bootstrap() -> No
     helper = ".github/scripts/install-rust-toolchain.sh"
     for name, job in [
         ("check.yml", "cli"),
+        ("check.yml", "integration-native"),
         ("desktop.yml", "desktop"),
         ("cli-archives.yml", "build"),
     ]:

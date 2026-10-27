@@ -38,16 +38,25 @@ def execute(body: str, values: dict[str, str]) -> subprocess.CompletedProcess[st
 
 
 class QualificationTests(unittest.TestCase):
-    def results(self) -> dict[str, dict[str, str]]:
+    def results(self, phase: str = "full") -> dict[str, dict[str, str]]:
         return {
-            name: {"result": "success"}
+            name: {
+                "result": "success"
+                if name in {"analysis", "secrets"}
+                or name.startswith("integration-") == (phase == "integration")
+                else "skipped"
+            }
             for name in workflow("check.yml")["jobs"]["qualification"]["needs"]
         }
 
-    def decision(self, results: object, *, private: bool = False) -> bool:
+    def decision(self, results: object, *, private: bool = False, phase: str = "full") -> bool:
         outcome = execute(
             script("check.yml", "qualification"),
-            {"RESULTS": json.dumps(results), "PRIVATE_REPOSITORY": json.dumps(private)},
+            {
+                "RESULTS": json.dumps(results),
+                "PRIVATE_REPOSITORY": json.dumps(private),
+                "PHASE": phase,
+            },
         )
         return outcome.returncode == 0
 
@@ -71,28 +80,65 @@ class QualificationTests(unittest.TestCase):
             self.assertNotIn("pull_request", events)
         self.assertIn("schedule", workflow("codeql.yml")["on"])
 
+    def test_pr_eligibility_and_full_main_have_distinct_complete_owners(self) -> None:
+        source = workflow("check.yml")
+        self.assertEqual(source["on"]["push"]["branches"], ["main"])
+        self.assertIn("pull_request", source["on"])
+        self.assertIn("workflow_dispatch", source["on"])
+        for name, job in source["jobs"].items():
+            if name in {"analysis", "qualification", "secrets"}:
+                continue
+            expected = (
+                "github.event_name == 'pull_request'"
+                if name.startswith("integration-")
+                else "github.event_name != 'pull_request'"
+            )
+            self.assertEqual(job["if"], expected, name)
+            if name.startswith("integration-"):
+                self.assertLessEqual(int(job["timeout-minutes"]), 20)
+                self.assertNotIn("strategy", job)
+                commands = "\n".join(step.get("run", "") for step in job["steps"])
+                for command in ["--release", "tauri build", "test:e2e", "uv build"]:
+                    self.assertNotIn(command, commands, name)
+        self.assertNotIn("if", source["jobs"]["secrets"])
+
     def test_failed_cancelled_missing_and_skipped_results_cannot_qualify(self) -> None:
-        self.assertTrue(self.decision(self.results()))
-        self.assertFalse(self.decision({}))
-        self.assertFalse(self.decision([]))
-        for name in self.results():
-            for result in ["failure", "cancelled", "skipped", "neutral", "timed_out", None]:
-                with self.subTest(job=name, result=result):
-                    changed: dict[str, Any] = self.results()
-                    changed[name] = {} if result is None else {"result": result}
-                    self.assertFalse(self.decision(changed))
+        for phase in ["integration", "full"]:
+            self.assertTrue(self.decision(self.results(phase), phase=phase))
+            self.assertFalse(self.decision({}, phase=phase))
+            self.assertFalse(self.decision([], phase=phase))
+            for name, expected in self.results(phase).items():
+                for result in [
+                    "success",
+                    "failure",
+                    "cancelled",
+                    "skipped",
+                    "neutral",
+                    "timed_out",
+                    None,
+                ]:
+                    if result == expected["result"]:
+                        continue
+                    with self.subTest(phase=phase, job=name, result=result):
+                        changed: dict[str, Any] = self.results(phase)
+                        changed[name] = {} if result is None else {"result": result}
+                        self.assertFalse(self.decision(changed, phase=phase))
+        self.assertFalse(self.decision(self.results(), phase="unknown"))
 
     def test_only_private_repository_analysis_is_intentionally_inapplicable(self) -> None:
-        results = self.results()
-        results["analysis"]["result"] = "skipped"
-        self.assertTrue(self.decision(results, private=True))
-        self.assertFalse(self.decision(results))
-        for name in results:
-            if name != "analysis":
-                changed = self.results()
-                changed["analysis"]["result"] = "skipped"
-                changed[name]["result"] = "skipped"
-                self.assertFalse(self.decision(changed, private=True))
+        for phase in ["integration", "full"]:
+            results = self.results(phase)
+            results["analysis"]["result"] = "skipped"
+            self.assertTrue(self.decision(results, private=True, phase=phase))
+            self.assertFalse(self.decision(results, phase=phase))
+            for name, expected in results.items():
+                if name != "analysis":
+                    changed = self.results(phase)
+                    changed["analysis"]["result"] = "skipped"
+                    changed[name]["result"] = (
+                        "success" if expected["result"] == "skipped" else "skipped"
+                    )
+                    self.assertFalse(self.decision(changed, private=True, phase=phase))
 
     def test_processed_findings_and_superseded_pushes_refuse(self) -> None:
         fixture = """
@@ -218,6 +264,41 @@ gh() {
         jobs["jobs"].append(jobs["jobs"][0].copy())
         jobs["total_count"] = 2
         self.assertFalse(self.decision(self.candidate(), jobs))
+
+
+class ScannerSelectionTests(unittest.TestCase):
+    def test_default_owner_is_unchanged_and_missing_selected_scanner_refuses(self) -> None:
+        text = (ROOT / "scripts/safety/install_scanners.sh").read_text(encoding="utf-8")
+        main = "main() {\n" + text.rsplit("main() {\n", 1)[1].rsplit('\nmain "$@"', 1)[0]
+        stages = [
+            "install_gitleaks",
+            "install_osv_scanner",
+            "install_shellcheck",
+            "install_opengrep",
+            "install_gosec",
+            "install_python_tools",
+            "install_govulncheck",
+            "write_manifest",
+        ]
+        fixture = "set -euo pipefail\nrequire_cmd() { :; }\nlog() { :; }\n"
+        fixture += "\n".join(f"{name}() {{ printf '%s\\n' {name}; }}" for name in stages)
+        body = (
+            fixture + "\n" + main + '\nif [ "$MODE" = default ]; then main; else main "$MODE"; fi'
+        )
+        values = {
+            "PREFIX": "/__ai_stp_absent_scanner__",
+            "PIP_VENV": "/__ai_stp_unused_scanner_environment__",
+            "GITLEAKS_VERSION": "test",
+        }
+        default = execute(body, values | {"MODE": "default"})
+        self.assertEqual(default.returncode, 0, default.stderr)
+        self.assertEqual(default.stdout.splitlines(), stages)
+        missing = execute(body, values | {"MODE": "--gitleaks-only"})
+        self.assertNotEqual(missing.returncode, 0)
+        self.assertEqual(missing.stdout.splitlines(), ["install_gitleaks"])
+        invalid = execute(body, values | {"MODE": "--unknown"})
+        self.assertEqual(invalid.returncode, 2)
+        self.assertEqual(invalid.stdout, "")
 
 
 if __name__ == "__main__":
