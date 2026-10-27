@@ -41,9 +41,16 @@ jobs:
           $output = Join-Path $buildRoot 'probe.exe'
           $object = Join-Path $buildRoot 'probe.obj'
           $source = Join-Path $env:GITHUB_WORKSPACE 'tests/native_confinement/windows.cpp'
-          $build = '"' + $developer + '" -arch=x64 -host_arch=x64 && cl.exe /nologo /W4 /WX /EHsc /std:c++20 /MT /O2 "' + $source + '" /Fe:"' + $output + '" /Fo:"' + $object + '" /link userenv.lib advapi32.lib ole32.lib'
+          $compile = Join-Path $buildRoot 'compile.cmd'
+          @(
+            '@echo off',
+            ('call "' + $developer + '" -arch=x64 -host_arch=x64'),
+            'if errorlevel 1 exit /b 1',
+            ('cl.exe /nologo /W4 /WX /EHsc /std:c++20 /MT /O2 "' + $source + '" /Fe:"' + $output + '" /Fo:"' + $object + '" /link userenv.lib advapi32.lib ole32.lib'),
+            'exit /b %errorlevel%'
+          ) | Set-Content -LiteralPath $compile -Encoding utf8
           try {
-            & $env:ComSpec /d /s /c ('"' + $build + '"')
+            & $env:ComSpec /d /c ('call "' + $compile + '"')
             if ($LASTEXITCODE -ne 0) { throw 'Windows confinement experiment compilation failed' }
             & $output
             if ($LASTEXITCODE -ne 0) { throw 'Windows confinement experiment refused' }
