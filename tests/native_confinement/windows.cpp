@@ -326,10 +326,12 @@ struct ContainerAttributes {
     ContainerAttributes(const ContainerAttributes&) = delete;
     ContainerAttributes& operator=(const ContainerAttributes&) = delete;
 };
-// Grant only a newly named desktop, never change the caller's existing desktop
-// or window-station ACL. The package SID cannot switch desktops under the job.
+// Create-only unnamed station: the documented non-administrator API must
+// refuse an existing object rather than reuse or modify its access. The package
+// gets no clipboard, screen, desktop-switch or station-creation authority.
 struct PrivateDesktop {
     HDESK value = nullptr;
+    HWINSTA station = nullptr;
     std::wstring full_name;
     PrivateDesktop(PSID package, const std::wstring& name) {
         HANDLE raw = nullptr;
@@ -349,59 +351,86 @@ struct PrivateDesktop {
             "desktop_package_sid");
         const DWORD rights = READ_CONTROL | DESKTOP_READOBJECTS | DESKTOP_WRITEOBJECTS
             | DESKTOP_CREATEWINDOW | DESKTOP_CREATEMENU;
-        std::wostringstream mask;
-        mask << L"0x" << std::hex << rights;
-        const std::wstring sddl = L"D:P(A;;GA;;;SY)(A;;GA;;;"
-            + std::wstring(static_cast<LPCWSTR>(user_text.value)) + L")(A;;"
-            + mask.str() + L";;;" + std::wstring(static_cast<LPCWSTR>(package_text.value))
-            + L")S:(ML;;NW;;;LW)";
-        win(ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl.c_str(),
-            SDDL_REVISION_1, &descriptor.value, nullptr), "desktop_descriptor");
-        const HWINSTA station = GetProcessWindowStation();
-        require(station != nullptr, "desktop_station");
-        GetUserObjectInformationW(station, UOI_NAME, nullptr, 0, &count);
-        require(GetLastError() == ERROR_INSUFFICIENT_BUFFER && count <= 65536,
-            "desktop_station_name_size");
-        std::vector<wchar_t> station_name(count / sizeof(wchar_t) + 1, L'\0');
-        win(GetUserObjectInformationW(station, UOI_NAME, station_name.data(), count, &count),
-            "desktop_station_name");
-        full_name = std::wstring(station_name.data()) + L"\\" + name;
-        const HDESK original = GetThreadDesktop(GetCurrentThreadId());
-        require(original != nullptr, "desktop_original");
-        SECURITY_ATTRIBUTES security{sizeof(SECURITY_ATTRIBUTES), descriptor.value, FALSE};
-        value = CreateDesktopW(name.c_str(), nullptr, nullptr, 0, rights, &security);
-        win(value != nullptr, "desktop_create");
-        try {
-            win(SetThreadDesktop(original), "desktop_restore");
+        const DWORD package_station_rights = READ_CONTROL | WINSTA_READATTRIBUTES
+            | WINSTA_ENUMDESKTOPS | WINSTA_ENUMERATE | WINSTA_ACCESSGLOBALATOMS;
+        const auto object_sddl = [&](DWORD access) {
+            std::wostringstream mask;
+            mask << L"0x" << std::hex << access;
+            return L"D:P(A;;GA;;;SY)(A;;GA;;;"
+                + std::wstring(static_cast<LPCWSTR>(user_text.value)) + L")(A;;"
+                + mask.str() + L";;;" + std::wstring(static_cast<LPCWSTR>(package_text.value))
+                + L")S:(ML;;NW;;;LW)";
+        };
+        const auto verify_acl = [&](HANDLE object, DWORD access, const char* stage) {
             Local actual;
             PACL acl = nullptr;
-            const DWORD result = GetSecurityInfo(value, SE_WINDOW_OBJECT, DACL_SECURITY_INFORMATION,
+            const DWORD result = GetSecurityInfo(object, SE_WINDOW_OBJECT, DACL_SECURITY_INFORMATION,
                 nullptr, nullptr, &acl, nullptr, &actual.value);
-            require(result == ERROR_SUCCESS && acl && acl->AceCount == 3,
-                "desktop_owned_acl", result);
+            require(result == ERROR_SUCCESS && acl && acl->AceCount == 3, stage, result);
             bool matched = false;
             for (DWORD index = 0; index < acl->AceCount; ++index) {
                 void* raw_ace = nullptr;
-                win(GetAce(acl, index, &raw_ace), "desktop_owned_ace");
+                win(GetAce(acl, index, &raw_ace), "owned_ui_ace");
                 const auto ace = static_cast<ACCESS_ALLOWED_ACE*>(raw_ace);
                 if (ace->Header.AceType == ACCESS_ALLOWED_ACE_TYPE
-                    && EqualSid(&ace->SidStart, package) && ace->Mask == rights) matched = true;
+                    && EqualSid(&ace->SidStart, package) && ace->Mask == access) matched = true;
             }
-            require(matched, "desktop_owned_package");
+            require(matched, stage);
+        };
+        const HWINSTA original_station = GetProcessWindowStation();
+        const HDESK original = GetThreadDesktop(GetCurrentThreadId());
+        require(original_station != nullptr && original != nullptr, "desktop_original");
+        Local station_descriptor;
+        win(ConvertStringSecurityDescriptorToSecurityDescriptorW(
+            object_sddl(package_station_rights).c_str(), SDDL_REVISION_1,
+            &station_descriptor.value, nullptr), "private_station_descriptor");
+        SECURITY_ATTRIBUTES station_security{
+            sizeof(SECURITY_ATTRIBUTES), station_descriptor.value, FALSE};
+        // NULL avoids the administrator-only named-station API. CWF_CREATE_ONLY
+        // establishes ownership; a collision is a failed experiment, not reuse.
+        station = CreateWindowStationW(nullptr, CWF_CREATE_ONLY,
+            package_station_rights | WINSTA_CREATEDESKTOP, &station_security);
+        win(station != nullptr, "new_private_station");
+        try {
+            win(SetProcessWindowStation(station), "private_station_assign");
+            verify_acl(station, package_station_rights, "private_station_owned_acl");
+            GetUserObjectInformationW(station, UOI_NAME, nullptr, 0, &count);
+            require(GetLastError() == ERROR_INSUFFICIENT_BUFFER && count <= 65536,
+                "desktop_station_name_size");
+            std::vector<wchar_t> station_name(count / sizeof(wchar_t) + 1, L'\0');
+            win(GetUserObjectInformationW(station, UOI_NAME, station_name.data(), count, &count),
+                "desktop_station_name");
+            full_name = std::wstring(station_name.data()) + L"\\" + name;
+            win(ConvertStringSecurityDescriptorToSecurityDescriptorW(
+                object_sddl(rights).c_str(), SDDL_REVISION_1, &descriptor.value, nullptr),
+                "desktop_descriptor");
+            SECURITY_ATTRIBUTES security{sizeof(SECURITY_ATTRIBUTES), descriptor.value, FALSE};
+            value = CreateDesktopW(name.c_str(), nullptr, nullptr, 0, rights, &security);
+            win(value != nullptr, "desktop_create");
+            win(SetProcessWindowStation(original_station), "private_station_restore");
+            win(SetThreadDesktop(original), "desktop_restore");
+            verify_acl(value, rights, "desktop_owned_acl");
         } catch (...) {
+            SetProcessWindowStation(original_station);
             SetThreadDesktop(original);
-            CloseDesktop(value);
+            if (value) CloseDesktop(value);
             value = nullptr;
+            CloseWindowStation(station);
+            station = nullptr;
             throw;
         }
     }
     ~PrivateDesktop() {
         if (value && !CloseDesktop(value)) std::cout
             << "{\"cleanup\":\"desktop\",\"native_code\":" << GetLastError() << "}" << std::endl;
+        if (station && !CloseWindowStation(station)) std::cout
+            << "{\"cleanup\":\"private_station\",\"native_code\":" << GetLastError() << "}" << std::endl;
     }
     void close() {
         win(CloseDesktop(value), "desktop_cleanup");
         value = nullptr;
+        win(CloseWindowStation(station), "private_station_cleanup");
+        station = nullptr;
     }
     PrivateDesktop(const PrivateDesktop&) = delete;
     PrivateDesktop& operator=(const PrivateDesktop&) = delete;
