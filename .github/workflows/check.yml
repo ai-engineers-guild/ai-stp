@@ -155,13 +155,7 @@ jobs:
             -p 127.0.0.1:15432:5432 \
             docker.io/library/postgres:18@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
           trap 'docker rm --force ai-stp-native-ownership >/dev/null' EXIT
-          for ((attempt=0; attempt<30; attempt++)); do
-            if docker exec ai-stp-native-ownership pg_isready -U ai_stp -d ai_stp; then
-              break
-            fi
-            sleep 1
-          done
-          docker exec ai-stp-native-ownership pg_isready -U ai_stp -d ai_stp
+          bash .github/scripts/wait-postgres.sh ai-stp-native-ownership
           uv sync --locked
           uv run --locked python -m tests.native_contract.verify_ownership \
             "${AI_STP_TEST_CLI_BINARY}"
@@ -357,7 +351,7 @@ jobs:
           POSTGRES_PASSWORD: ai_stp_dev
           POSTGRES_DB: ai_stp
         options: >-
-          --health-cmd "pg_isready -U ai_stp -d ai_stp"
+          --health-cmd "pg_isready -h 127.0.0.1 -p 5432 -U ai_stp -d ai_stp"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
