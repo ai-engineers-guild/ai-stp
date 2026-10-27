@@ -329,7 +329,7 @@ int worker(int argc, wchar_t** argv) {
             attributes.emplace(sid.value, true);
             start.lpAttributeList = attributes->list;
         }
-        start.StartupInfo.cb = lpac ? sizeof(start) : sizeof(start.StartupInfo);
+        start.StartupInfo.cb = static_cast<DWORD>(lpac ? sizeof(start) : sizeof(start.StartupInfo));
         PROCESS_INFORMATION process{};
         win(CreateProcessW(argv[6], command.data(), nullptr, nullptr, FALSE,
             DETACHED_PROCESS | CREATE_SUSPENDED | (lpac ? EXTENDED_STARTUPINFO_PRESENT : 0),
