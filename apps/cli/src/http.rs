@@ -1,6 +1,8 @@
 //! Bounded same-origin reads. Authentication is explicit; redirects and ambient proxies are absent.
 
 pub(crate) mod retry;
+#[cfg(all(test, target_os = "linux"))]
+mod tests;
 
 use crate::{
     config,

@@ -31,6 +31,147 @@ fn fixture(source: &str, operation: &str) -> Result<Value> {
 }
 
 #[test]
+fn unlink_readers_use_original_routes_and_reject_mixed_terminal_evidence() -> Result<()> {
+    let ready = fixture(CONTEXT, "readProjectUnlinkPlanOutcome")?;
+    let id = text(&ready["plan"], "plan_id")?.to_owned();
+    for (request, operation, suffix) in [
+        (
+            Request::UnlinkOutcome {
+                plan_id: id.clone(),
+            },
+            "readProjectUnlinkPlanOutcome",
+            format!("project-unlink-plans/{id}/outcome"),
+        ),
+        (
+            Request::UnlinkSettlement {
+                plan_id: id.clone(),
+            },
+            "readProjectUnlinkPlanSettlement",
+            format!("project-unlink-plans/{id}/settlement"),
+        ),
+        (
+            Request::UnlinkRequestOutcome {
+                request_key: "context-unlink-original-request".into(),
+            },
+            "readProjectUnlinkRequestOutcome",
+            "project-unlink-plan-requests/context-unlink-original-request".into(),
+        ),
+    ] {
+        let value = fixture(CONTEXT, operation)?;
+        assert_eq!(request.project(&value, ORGANIZATION, ACCOUNT)?, ready);
+        let (url, body) = request.wire("https://corporate.example.test", ORGANIZATION, ACCOUNT)?;
+        assert_eq!(
+            url.path(),
+            format!("/v1/organizations/{ORGANIZATION}/{suffix}")
+        );
+        assert!(body.is_none() && url.query().is_none());
+        let mut applied = ready.clone();
+        applied["state"] = "applied".into();
+        applied["link"] = fixture(CONTEXT, "readProjectLink")?;
+        applied["link"]["state"] = "unlinked".into();
+        applied["link"]["revision"] = 2.into();
+        // The retained link's plan/digest identify the original link, not unlink.
+        assert_ne!(applied["link"]["plan_id"], applied["plan"]["plan_id"]);
+        assert_eq!(request.project(&applied, ORGANIZATION, ACCOUNT)?, applied);
+        applied["future_private"] = "canary".into();
+        applied["plan"]["future_private"] = "canary".into();
+        applied["link"]["future_private"] = "canary".into();
+        let projected = request.project(&applied, ORGANIZATION, ACCOUNT)?;
+        assert!(!projected.to_string().contains("canary"));
+        for (field, wrong) in [
+            ("link_id", json!("project_link_01ARZ3NDEKTSV4RRFFQ69G5FAV")),
+            (
+                "organization_id",
+                json!("organization_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
+            ),
+            (
+                "local_project_id",
+                json!("project_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
+            ),
+            (
+                "remote_project_id",
+                json!("remote_project_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
+            ),
+            (
+                "provider_project_id",
+                json!("provider_project_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
+            ),
+            ("local_revision", json!("different")),
+            ("remote_revision", json!("different")),
+            ("provider_revision", json!("different")),
+            ("state", json!("linked")),
+            ("revision", json!(3)),
+        ] {
+            let mut mixed = projected.clone();
+            mixed["link"][field] = wrong;
+            assert!(
+                request.project(&mixed, ORGANIZATION, ACCOUNT).is_err(),
+                "{field}"
+            );
+        }
+        for state in ["ready", "expired"] {
+            let mut wrong = projected.clone();
+            wrong["state"] = state.into();
+            assert!(request.project(&wrong, ORGANIZATION, ACCOUNT).is_err());
+            wrong = ready.clone();
+            wrong["state"] = state.into();
+            assert!(request.project(&wrong, ORGANIZATION, ACCOUNT).is_ok());
+        }
+        let mut wrong = ready.clone();
+        wrong["state"] = "applied".into();
+        assert!(request.project(&wrong, ORGANIZATION, ACCOUNT).is_err());
+        wrong = ready.clone();
+        wrong["plan"]["organization_id"] = "organization_01ARZ3NDEKTSV4RRFFQ69G5FAV".into();
+        assert!(request.project(&wrong, ORGANIZATION, ACCOUNT).is_err());
+        if !matches!(request, Request::UnlinkRequestOutcome { .. }) {
+            wrong = ready.clone();
+            wrong["plan"]["plan_id"] = "unlink_plan_01ARZ3NDEKTSV4RRFFQ69G5FAV".into();
+            assert!(request.project(&wrong, ORGANIZATION, ACCOUNT).is_err());
+        }
+        wrong = projected;
+        wrong["plan"]["expected_link_revision"] = u64::MAX.into();
+        assert!(request.project(&wrong, ORGANIZATION, ACCOUNT).is_err());
+    }
+    Ok(())
+}
+
+#[test]
+fn unlink_reader_identifiers_cannot_select_link_plans_or_inject_routes() {
+    for id in [
+        "link_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "unlink_plan_short",
+        "unlink_plan/unsafe",
+        "unlink_plan_%2f",
+    ] {
+        for request in [
+            Request::UnlinkOutcome { plan_id: id.into() },
+            Request::UnlinkSettlement { plan_id: id.into() },
+        ] {
+            assert!(
+                request
+                    .wire("https://corporate.example.test", ORGANIZATION, ACCOUNT)
+                    .is_err()
+            );
+        }
+    }
+    for key in [
+        "short",
+        "context/request-key",
+        "context%2frequest-key",
+        "context-request-key\n",
+        &"k".repeat(129),
+    ] {
+        assert!(
+            Request::UnlinkRequestOutcome {
+                request_key: key.into()
+            }
+            .wire("https://corporate.example.test", ORGANIZATION, ACCOUNT)
+            .is_err()
+        );
+    }
+}
+
+#[test]
 fn original_link_request_keys_are_bounded_and_only_read_retained_outcomes() -> Result<()> {
     let request = Request::LinkRequestOutcome {
         request_key: "context-link-plan-0001".into(),

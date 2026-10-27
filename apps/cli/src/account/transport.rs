@@ -612,7 +612,7 @@ impl Api {
                 .with_config()
                 .limit(limit + 1)
                 .read_to_vec()
-                .map_err(|_| unavailable())?,
+                .map_err(response_body_failure)?,
         );
         if bytes.len() as u64 > limit {
             return Err(super::invalid());
@@ -671,6 +671,20 @@ pub(super) struct Account {
     pub account_id: String,
     pub device_id: Option<String>,
     pub account_status: String,
+}
+
+fn response_body_failure(error: ureq::Error) -> Failure {
+    // Test diagnostics distinguish an interrupted socket from other failures
+    // without logging a URL, credentials, response bytes or error text.
+    #[cfg(test)]
+    match &error {
+        ureq::Error::Io(error) => eprintln!("account response body I/O kind: {:?}", error.kind()),
+        ureq::Error::Timeout(_) => eprintln!("account response body timed out"),
+        _ => eprintln!("account response body transport or protocol failure"),
+    }
+    #[cfg(not(test))]
+    drop(error);
+    unavailable()
 }
 
 fn unavailable() -> Failure {
