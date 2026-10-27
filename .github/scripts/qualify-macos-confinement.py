@@ -24,7 +24,8 @@ def run(arguments: list[str], timeout: int = 120) -> subprocess.CompletedProcess
 
 def verify_entitlements(path: Path, expected: dict[str, bool]) -> None:
     run(["codesign", "--verify", "--strict", str(path)])
-    observed = run(["codesign", "--display", "--entitlements", "-", str(path)])
+    # TN3125: the default is human-readable DER; request XML for a plist parser.
+    observed = run(["codesign", "--display", "--entitlements", "-", "--xml", str(path)])
     if plistlib.loads(observed.stdout) != expected:
         raise RuntimeError("Signed entitlement readback differs from the exact fixture")
     print(json.dumps({"verified_sandbox_entitlements": sorted(expected)}), flush=True)
