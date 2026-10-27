@@ -12,6 +12,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  provider-compatibility:
+    name: providers-locked-wasip2
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.14.9"
+      - name: Use the existing project compiler only on this disposable runner
+        run: bash .github/scripts/install-rust-toolchain.sh apps/cli/rust-toolchain.toml
+      - name: Add only the pinned compiler's WASIp2 standard library
+        run: rustup target add --toolchain "${RUSTUP_TOOLCHAIN}" wasm32-wasip2
+      - name: Compile the seven immutable provider sources with their actual locked dependencies
+        run: python .github/scripts/qualify-provider-portability.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: provider-portability-proof
+          path: ${{ runner.temp }}/ai-stp-provider-portability/proof.json
+          if-no-files-found: warn
+          retention-days: 7
+
   component:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
