@@ -34,6 +34,33 @@ env:
   BUN_VERSION: "1.4.4"
 
 jobs:
+  native-experiments:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      wasi: ${{ steps.select.outputs.wasi }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: '0'
+          persist-credentials: 'false'
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Select only registered native experiment owners
+        id: select
+        env:
+          EVENT: ${{ github.event_name }}
+          SOURCE_SHA: ${{ github.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python .github/scripts/select-native-experiments.py
+
+  wasi-confinement:
+    needs: native-experiments
+    if: needs.native-experiments.outputs.wasi == 'true'
+    uses: ./.github/workflows/wasi-confinement.yml
+
   secrets:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -230,6 +257,8 @@ jobs:
     name: qualification
     if: always()
     needs:
+      - native-experiments
+      - wasi-confinement
       - secrets
       - integration-python
       - integration-web
@@ -257,18 +286,24 @@ jobs:
           RESULTS: ${{ toJSON(needs) }}
           PRIVATE_REPOSITORY: ${{ github.event.repository.private }}
           PHASE: ${{ github.event_name == 'pull_request' && 'integration' || 'full' }}
+          WASI_SELECTED: ${{ needs.native-experiments.outputs.wasi }}
         run: |
           set -euo pipefail
           jq -c 'to_entries | map({job: .key, result: .value.result})' <<< "${RESULTS}"
           printf 'Qualification phase: %s\n' "${PHASE}"
-          jq -e --argjson private "${PRIVATE_REPOSITORY}" --arg phase "${PHASE}" '
-            type == "object" and length > 0 and
+          jq -e --argjson private "${PRIVATE_REPOSITORY}" --arg phase "${PHASE}" \
+            --arg wasi "${WASI_SELECTED}" '
+            type == "object" and length == 18 and
             ($phase == "integration" or $phase == "full") and
+            ($wasi == "true" or $wasi == "false") and
+            ($phase != "full" or $wasi == "true") and
             all(to_entries[];
               if .key == "analysis" then
                 .value.result == (if $private then "skipped" else "success" end)
-              elif .key == "secrets" then
+              elif .key == "secrets" or .key == "native-experiments" then
                 .value.result == "success"
+              elif .key == "wasi-confinement" then
+                .value.result == (if $wasi == "true" then "success" else "skipped" end)
               elif (.key | startswith("integration-")) then
                 .value.result == (if $phase == "integration" then "success" else "skipped" end)
               else
