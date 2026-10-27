@@ -34,21 +34,30 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           Write-Output ('Runner OS version: ' + [Environment]::OSVersion.Version)
-          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
-          $installation = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $discoveryPath = 'Microsoft Visual Studio/Installer/vswhere.exe'
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} $discoveryPath
+          $discovery = @('-latest', '-products', '*', '-requires',
+            'Microsoft.VisualStudio.Component.VC.Tools.x86.x64', '-property', 'installationPath')
+          $installation = & $vswhere @discovery
           if ($LASTEXITCODE -ne 0 -or -not $installation) { throw 'Existing MSVC toolchain absent' }
           $developer = Join-Path $installation 'Common7/Tools/VsDevCmd.bat'
-          $buildRoot = Join-Path $env:RUNNER_TEMP ('ai-stp-confinement-build-' + [Guid]::NewGuid().ToString('N'))
+          $identifier = [Guid]::NewGuid().ToString('N')
+          $buildRoot = Join-Path $env:RUNNER_TEMP ('ai-stp-confinement-build-' + $identifier)
           New-Item -ItemType Directory -Path $buildRoot -ErrorAction Stop | Out-Null
           $output = Join-Path $buildRoot 'probe.exe'
           $object = Join-Path $buildRoot 'probe.obj'
           $source = Join-Path $env:GITHUB_WORKSPACE 'tests/native_confinement/windows.cpp'
           $compile = Join-Path $buildRoot 'compile.cmd'
+          $compileCommand = (
+            'cl.exe /nologo /W4 /WX /EHsc /std:c++20 /MT /O2 "' + $source +
+            '" /Fe:"' + $output + '" /Fo:"' + $object +
+            '" /link userenv.lib advapi32.lib ole32.lib user32.lib'
+          )
           @(
             '@echo off',
             ('call "' + $developer + '" -arch=x64 -host_arch=x64'),
             'if errorlevel 1 exit /b 1',
-            ('cl.exe /nologo /W4 /WX /EHsc /std:c++20 /MT /O2 "' + $source + '" /Fe:"' + $output + '" /Fo:"' + $object + '" /link userenv.lib advapi32.lib ole32.lib user32.lib'),
+            $compileCommand,
             'exit /b %errorlevel%'
           ) | Set-Content -LiteralPath $compile -Encoding utf8
           try {
@@ -61,7 +70,9 @@ jobs:
             if ($probeExit -ne 0) {
               try {
                 if (@($probeOutput).Count -gt 32) { throw 'Probe output exceeded its bound' }
-                $ownedIds = @($probeOutput | ForEach-Object { $_ | ConvertFrom-Json -ErrorAction Stop } |
+                $records = @($probeOutput |
+                  ForEach-Object { $_ | ConvertFrom-Json -ErrorAction Stop })
+                $ownedIds = @($records |
                   Where-Object { $_.diagnostic -eq 'owned_worker_process' -and
                     $_.mode -in @('regular', 'lpac') } |
                   ForEach-Object { [uint32]$_.pid })
@@ -70,8 +81,9 @@ jobs:
                 }
                 & .github/scripts/windows-confinement-diagnostics.ps1 @diagnostics
               } catch {
-                $code = $_.Exception.HResult
-                Write-Output ('{"diagnostic":"owned_event_read_unavailable","native_code":' + $code + '}')
+                @{ diagnostic = 'owned_event_read_unavailable'
+                  native_code = $_.Exception.HResult } |
+                  ConvertTo-Json -Compress | Write-Output
               }
               throw 'Windows confinement experiment refused'
             }
