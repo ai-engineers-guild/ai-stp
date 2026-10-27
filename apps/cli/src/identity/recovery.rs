@@ -27,6 +27,8 @@ pub struct Intent {
     pub interrupted_publications: Vec<crate::publication::interruption::Checkpoint>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub interrupted_checkout_links: Vec<crate::account::project_links::Checkpoint>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub interrupted_checkout_unlinks: Vec<crate::account::project_unlinks::Checkpoint>,
 }
 
 impl Intent {
@@ -45,6 +47,7 @@ impl Intent {
         if self.interrupted_sync.len()
             + self.interrupted_publications.len()
             + self.interrupted_checkout_links.len()
+            + self.interrupted_checkout_unlinks.len()
             > 128
             || self
                 .interrupted_publications
@@ -60,6 +63,10 @@ impl Intent {
             .interrupted_checkout_links
             .windows(2)
             .any(|v| v[0].operation_id >= v[1].operation_id)
+            || self
+                .interrupted_checkout_unlinks
+                .windows(2)
+                .any(|v| v[0].operation_id >= v[1].operation_id)
         {
             return Err(invalid());
         }
@@ -78,12 +85,20 @@ impl Intent {
                     .iter()
                     .map(|c| &c.operation_id),
             )
+            .chain(
+                self.interrupted_checkout_unlinks
+                    .iter()
+                    .map(|c| &c.operation_id),
+            )
         {
             if !operations.insert(id) {
                 return Err(invalid());
             }
         }
         for checkpoint in &self.interrupted_checkout_links {
+            checkpoint.validate()?;
+        }
+        for checkpoint in &self.interrupted_checkout_unlinks {
             checkpoint.validate()?;
         }
         if !passport::stable_id(&self.device_id, "device")

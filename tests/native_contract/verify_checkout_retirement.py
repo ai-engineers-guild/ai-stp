@@ -46,6 +46,7 @@ async def qualify(
     git_executable: str,
     context: str,
     connection: str,
+    foreign_context: str,
 ) -> None:
     registry = state / "ai-stp-v2-state" / "registry.sqlite3"
 
@@ -418,4 +419,26 @@ async def qualify(
             }
         ),
         flush=True,
+    )
+    from tests.native_contract.verify_checkout_unlink import qualify as qualify_unlink
+
+    await qualify_unlink(
+        binary=binary,
+        home=home,
+        state=state,
+        app=app,
+        faults=faults,
+        run=run,
+        enact=enact,
+        login=login,
+        refused=refused,
+        organization=organization,
+        project=project,
+        account=account,
+        offline_context=offline_context,
+        git_executable=git_executable,
+        context=context,
+        connection=prepared["replacement_connection_id"],
+        foreign_context=foreign_context,
+        checkout=checkout,
     )

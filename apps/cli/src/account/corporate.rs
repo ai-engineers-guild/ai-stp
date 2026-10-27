@@ -54,6 +54,10 @@ contract!(
     "/resources/schemas/v1/project-unlink-plan-outcome.schema.json"
 );
 contract!(
+    UNLINK_PLAN,
+    "/resources/schemas/v1/project-unlink-plan-response.schema.json"
+);
+contract!(
     TECHNOLOGIES,
     "/resources/schemas/v1/technology-list.schema.json"
 );
@@ -144,6 +148,10 @@ fn invalid() -> Failure {
     Failure::precondition(
         "the corporate request or observation differs from its original authorized context",
     )
+}
+
+pub(super) fn unlink_plan(value: &Value) -> Result<Value> {
+    UNLINK_PLAN.project(value)
 }
 
 fn text<'a>(value: &'a Value, key: &str) -> Result<&'a str> {

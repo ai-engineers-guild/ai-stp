@@ -18,9 +18,10 @@ use crate::{
 };
 
 fn quiescent(connection: &rusqlite::Connection, at: &str) -> crate::error::Result<()> {
+    let unlink = crate::store::journal::checkout_unlink_epoch(connection)?;
     let unfinished: bool = connection.query_row(
-        "SELECT EXISTS(SELECT 1 FROM operation WHERE finished_at IS NULL AND kind NOT IN ('sync.run','publication.run','publication.set','corporate.project_link')) OR EXISTS(SELECT 1 FROM proposal WHERE cancelled_at IS NULL AND confirmed_stable_id IS NULL AND expires_at>?) OR EXISTS(SELECT 1 FROM agent_task WHERE state IN ('planned','blocked','running'))",
-        [at], |row| row.get(0)).map_err(database)?;
+        "SELECT EXISTS(SELECT 1 FROM operation WHERE finished_at IS NULL AND kind NOT IN ('sync.run','publication.run','publication.set','corporate.project_link') AND NOT(kind='corporate.project_unlink' AND ?2)) OR EXISTS(SELECT 1 FROM proposal WHERE cancelled_at IS NULL AND confirmed_stable_id IS NULL AND expires_at>?1) OR EXISTS(SELECT 1 FROM agent_task WHERE state IN ('planned','blocked','running'))",
+        rusqlite::params![at, unlink], |row| row.get(0)).map_err(database)?;
     if unfinished {
         return Err(crate::error::Failure::precondition(
             "finish or cancel outstanding local operations, proposals and tasks before replacing the device key",
@@ -88,6 +89,11 @@ pub(super) fn selection(
             account_id.as_deref(),
         )?,
         interrupted_checkout_links: super::project_links::interruption::capture(
+            &store.connection,
+            &state.plan,
+            account_id.as_deref(),
+        )?,
+        interrupted_checkout_unlinks: super::project_unlinks::interruption::capture(
             &store.connection,
             &state.plan,
             account_id.as_deref(),
@@ -163,6 +169,7 @@ pub(super) fn apply(plan: &Plan, at: &str) -> crate::error::Result<Value> {
         crate::sync::interruption::validate(&store.connection, plan)?;
         crate::publication::interruption::validate(&store.connection, plan)?;
         super::project_links::interruption::validate(&store.connection, plan)?;
+        super::project_unlinks::interruption::validate(&store.connection, plan)?;
     }
     let owner_id = match super::attachment::owner_binding(&store.connection)? {
         Some((original, account)) if replacement.knows_original(&original) => account,
@@ -198,7 +205,8 @@ pub(super) fn apply(plan: &Plan, at: &str) -> crate::error::Result<Value> {
     store.transaction(|t| {
         crate::sync::interruption::apply(t, plan, &super::now_after(at))?;
         crate::publication::interruption::apply(t, plan)?;
-        super::project_links::interruption::apply(t, plan, &super::now_after(at))
+        super::project_links::interruption::apply(t, plan, &super::now_after(at))?;
+        super::project_unlinks::interruption::apply(t, plan, &super::now_after(at))
     })?;
     replacement.admit(plan)?;
     replacement.replace(plan, &super::now_after(at))?;

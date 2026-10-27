@@ -17,7 +17,10 @@ use crate::{
     canonical, digest,
     error::{ErrorKind, Failure, Result},
     files, identity, passport,
-    store::{CHECKOUT_LINK_SCHEMA, CHECKOUT_RETIREMENT_SCHEMA, database},
+    store::{
+        CHECKOUT_LINK_SCHEMA, CHECKOUT_RETIREMENT_SCHEMA, CHECKOUT_UNLINK_SCHEMA, database,
+        has_checkout_retirement,
+    },
 };
 
 const KIND: &str = "corporate.project_link.retire";
@@ -37,7 +40,7 @@ pub(super) fn request_open(connection: &Connection, request: &str) -> Result<()>
     let version: u32 = connection
         .pragma_query_value(None, "user_version", |row| row.get(0))
         .map_err(database)?;
-    if version == CHECKOUT_RETIREMENT_SCHEMA && connection.query_row(
+    if has_checkout_retirement(version) && connection.query_row(
         "SELECT EXISTS(SELECT 1 FROM native_checkout_retirement WHERE request_operation_id=?)",
         [request], |row| row.get::<_,bool>(0)).map_err(database)? {
         return Err(Failure::precondition("the original checkout request was explicitly retired; review a new request instead"));
@@ -209,15 +212,29 @@ impl Plan {
         self.local_identity.validate()?;
         self.original.digest()?;
         self.source.validate()?;
-        if self.schema_version != 1
+        if self.schema_version
+            != if self.registry_schema_after == CHECKOUT_UNLINK_SCHEMA {
+                2
+            } else {
+                1
+            }
             || !passport::stable_id(&self.operation_id, "operation")
             || self.operation_id == self.source.operation_id
             || !self.state_parent.is_absolute()
             || self.state_parent != self.original.state_parent
             || self.root_identity != self.original.snapshot().account.root_identity
-            || ![CHECKOUT_LINK_SCHEMA, CHECKOUT_RETIREMENT_SCHEMA]
-                .contains(&self.registry_schema_before)
-            || self.registry_schema_after != CHECKOUT_RETIREMENT_SCHEMA
+            || ![
+                CHECKOUT_LINK_SCHEMA,
+                CHECKOUT_RETIREMENT_SCHEMA,
+                CHECKOUT_UNLINK_SCHEMA,
+            ]
+            .contains(&self.registry_schema_before)
+            || self.registry_schema_after
+                != if self.registry_schema_before == CHECKOUT_UNLINK_SCHEMA {
+                    CHECKOUT_UNLINK_SCHEMA
+                } else {
+                    CHECKOUT_RETIREMENT_SCHEMA
+                }
             || authoring::expiry(&self.created_at)? != self.expires_at
         {
             return Err(invalid());
@@ -337,7 +354,11 @@ pub fn plan(root: &Path, source_id: &str, context: Option<&str>, at: &str) -> Re
         Change::Adopt { .. } => return Err(invalid()),
     };
     let plan = Plan {
-        schema_version: 1,
+        schema_version: if before == CHECKOUT_UNLINK_SCHEMA {
+            2
+        } else {
+            1
+        },
         operation_id: format!("operation_{}", ulid::Ulid::generate()),
         state_parent: identity::root(root)?.0,
         root_identity: identity::root(root)?.1,
@@ -345,7 +366,11 @@ pub fn plan(root: &Path, source_id: &str, context: Option<&str>, at: &str) -> Re
         created_at: at.into(),
         expires_at: authoring::expiry(at)?,
         registry_schema_before: before,
-        registry_schema_after: CHECKOUT_RETIREMENT_SCHEMA,
+        registry_schema_after: if before == CHECKOUT_UNLINK_SCHEMA {
+            CHECKOUT_UNLINK_SCHEMA
+        } else {
+            CHECKOUT_RETIREMENT_SCHEMA
+        },
         source: source.checkpoint()?,
         original: Box::new(source.plan),
         reason,

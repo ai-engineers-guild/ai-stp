@@ -10,7 +10,7 @@ use super::{
 };
 use crate::{
     canonical, digest,
-    error::Result,
+    error::{Failure, Result},
     passport,
     store::{database, journal},
 };
@@ -193,11 +193,13 @@ impl Record {
 
     pub fn admit(t: &Transaction<'_>, plan: &Plan, at: &str) -> Result<Self> {
         let hash = plan.digest()?;
-        if let Some(held) = Self::load(t, &plan.operation_id)? {
-            if held.plan.digest()? != hash {
-                return Err(invalid());
-            }
-            return Ok(held);
+        if Self::load(t, &plan.operation_id)?.is_some() {
+            return Err(Failure::precondition(
+                "the checkout operation was concurrently admitted; apply its original plan again to read the retained result",
+            ).with_details([
+                ("operation_id".into(), plan.operation_id.clone().into()),
+                ("reason".into(), "concurrent_admission".into()),
+            ]));
         }
         if !passport::timestamp(at)
             || at < plan.created_at.as_str()

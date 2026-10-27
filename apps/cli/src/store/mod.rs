@@ -29,6 +29,9 @@ pub(crate) const PROFILE_SCHEMA: u32 = 55;
 pub(crate) const ENROLLMENT_RECOVERY_SCHEMA: u32 = 56;
 pub(crate) const CHECKOUT_LINK_SCHEMA: u32 = 57;
 pub(crate) const CHECKOUT_RETIREMENT_SCHEMA: u32 = 58;
+// The SQL layout stays at 58; the new durable unlink journal encoding needs an
+// explicit epoch so earlier clients cannot write alongside unknown operations.
+pub(crate) const CHECKOUT_UNLINK_SCHEMA: u32 = 59;
 const BOOTSTRAP: &str = include_str!("schema.sql");
 const PROFILES: &str = include_str!("profiles.sql");
 const ENROLLMENT_RECOVERY: &str = include_str!("enrollment_recovery.sql");
@@ -221,6 +224,7 @@ pub(crate) fn profile_schema_after(before: u32) -> Result<u32> {
         ENROLLMENT_RECOVERY_SCHEMA => Ok(ENROLLMENT_RECOVERY_SCHEMA),
         CHECKOUT_LINK_SCHEMA => Ok(CHECKOUT_LINK_SCHEMA),
         CHECKOUT_RETIREMENT_SCHEMA => Ok(CHECKOUT_RETIREMENT_SCHEMA),
+        CHECKOUT_UNLINK_SCHEMA => Ok(CHECKOUT_UNLINK_SCHEMA),
         _ => Err(Failure::precondition("the profile registry schema changed")),
     }
 }
@@ -230,12 +234,22 @@ pub(crate) fn has_enrollment_recovery(version: u32) -> bool {
         ENROLLMENT_RECOVERY_SCHEMA,
         CHECKOUT_LINK_SCHEMA,
         CHECKOUT_RETIREMENT_SCHEMA,
+        CHECKOUT_UNLINK_SCHEMA,
     ]
     .contains(&version)
 }
 
 pub(crate) fn has_checkout_links(version: u32) -> bool {
-    [CHECKOUT_LINK_SCHEMA, CHECKOUT_RETIREMENT_SCHEMA].contains(&version)
+    [
+        CHECKOUT_LINK_SCHEMA,
+        CHECKOUT_RETIREMENT_SCHEMA,
+        CHECKOUT_UNLINK_SCHEMA,
+    ]
+    .contains(&version)
+}
+
+pub(crate) fn has_checkout_retirement(version: u32) -> bool {
+    [CHECKOUT_RETIREMENT_SCHEMA, CHECKOUT_UNLINK_SCHEMA].contains(&version)
 }
 
 pub(crate) fn checkout_schema_after(before: u32) -> Result<u32> {
@@ -244,6 +258,7 @@ pub(crate) fn checkout_schema_after(before: u32) -> Result<u32> {
             Ok(CHECKOUT_LINK_SCHEMA)
         }
         CHECKOUT_RETIREMENT_SCHEMA => Ok(CHECKOUT_RETIREMENT_SCHEMA),
+        CHECKOUT_UNLINK_SCHEMA => Ok(CHECKOUT_UNLINK_SCHEMA),
         _ => Err(Failure::precondition(
             "the corporate checkout registry schema changed",
         )),
@@ -443,6 +458,7 @@ impl Store {
                 && version != ENROLLMENT_RECOVERY_SCHEMA
                 && version != CHECKOUT_LINK_SCHEMA
                 && version != CHECKOUT_RETIREMENT_SCHEMA
+                && version != CHECKOUT_UNLINK_SCHEMA
                 && !(transfer && version == SCHEMA_VERSION)
         } else {
             version != SCHEMA_VERSION
@@ -450,13 +466,14 @@ impl Store {
                 && version != ENROLLMENT_RECOVERY_SCHEMA
                 && version != CHECKOUT_LINK_SCHEMA
                 && version != CHECKOUT_RETIREMENT_SCHEMA
+                && version != CHECKOUT_UNLINK_SCHEMA
         } {
             return Err(Failure::precondition(
                 "the local registry schema is unsupported",
             ));
         }
         if &schema(&connection)?
-            != if version == CHECKOUT_RETIREMENT_SCHEMA {
+            != if has_checkout_retirement(version) {
                 expected_retirement_schema()?
             } else if version == CHECKOUT_LINK_SCHEMA {
                 expected_checkout_schema()?
@@ -564,6 +581,7 @@ impl Store {
                 ENROLLMENT_RECOVERY_SCHEMA,
                 CHECKOUT_LINK_SCHEMA,
                 CHECKOUT_RETIREMENT_SCHEMA,
+                CHECKOUT_UNLINK_SCHEMA,
             ]
             .contains(&version)
             {
@@ -585,6 +603,7 @@ impl Store {
             ENROLLMENT_RECOVERY_SCHEMA,
             CHECKOUT_LINK_SCHEMA,
             CHECKOUT_RETIREMENT_SCHEMA,
+            CHECKOUT_UNLINK_SCHEMA,
         ]
         .contains(&self.version()?))
     }
@@ -670,10 +689,38 @@ impl Store {
                 transaction
                     .pragma_update(None, "user_version", CHECKOUT_RETIREMENT_SCHEMA)
                     .map_err(database)?;
-            } else if version != CHECKOUT_RETIREMENT_SCHEMA {
+            } else if !has_checkout_retirement(version) {
                 return Err(Failure::precondition(
                     "an admitted checkout intent is required before retirement",
                 ));
+            }
+            operation(transaction)
+        })
+    }
+
+    /// Fence old writers and admit the original unlink intent in one commit.
+    /// No binding or physical reservation is released by unlink admission.
+    pub(crate) fn checkout_unlink_transaction<T>(
+        &mut self,
+        operation: impl FnOnce(&Transaction<'_>) -> Result<T>,
+    ) -> Result<T> {
+        self.transaction(|transaction| {
+            let version: u32 = transaction
+                .pragma_query_value(None, "user_version", |row| row.get(0))
+                .map_err(database)?;
+            if version == CHECKOUT_LINK_SCHEMA {
+                transaction
+                    .execute_batch(CHECKOUT_RETIREMENT)
+                    .map_err(database)?;
+            } else if !has_checkout_retirement(version) {
+                return Err(Failure::precondition(
+                    "an active native checkout binding is required before unlink",
+                ));
+            }
+            if version != CHECKOUT_UNLINK_SCHEMA {
+                transaction
+                    .pragma_update(None, "user_version", CHECKOUT_UNLINK_SCHEMA)
+                    .map_err(database)?;
             }
             operation(transaction)
         })
@@ -691,6 +738,91 @@ mod checkout_epoch_tests {
         query
             .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
             .collect()
+    }
+
+    #[test]
+    fn unlink_epoch_rolls_back_original_data_and_never_downgrades()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
+        for before in [CHECKOUT_LINK_SCHEMA, CHECKOUT_RETIREMENT_SCHEMA] {
+            let parent = tempfile::tempdir()?;
+            let mut store = Store::open(parent.path(), true)?;
+            store.profile_transaction(|_| Ok(()))?;
+            store.checkout_transaction(|_| Ok(()))?;
+            if before == CHECKOUT_RETIREMENT_SCHEMA {
+                store.checkout_retirement_transaction(|_| Ok(()))?;
+            }
+            store.connection.execute("INSERT INTO operation(operation_id,kind,state,started_at,finished_at,detail) VALUES ('retained','fixture','verified','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z','original-bytes')", [])?;
+            let original_schema = schema(&store.connection)?;
+            let failed: Result<()> = store.checkout_unlink_transaction(|transaction| {
+                assert!(journal::checkout_unlink_epoch(transaction)?);
+                transaction
+                    .execute(
+                        "UPDATE operation SET detail='uncommitted' WHERE operation_id='retained'",
+                        [],
+                    )
+                    .map_err(database)?;
+                Err(Failure::precondition(
+                    "unlink admission failed after its format fence",
+                ))
+            });
+            assert!(failed.is_err());
+            assert_eq!(store.version()?, before);
+            assert_eq!(schema(&store.connection)?, original_schema);
+            drop(store);
+            let mut store = Store::open(parent.path(), false)?;
+            let retained: String = store.connection.query_row(
+                "SELECT detail FROM operation WHERE operation_id='retained'",
+                [],
+                |row| row.get(0),
+            )?;
+            assert_eq!(retained, "original-bytes");
+            store.checkout_unlink_transaction(|_| Ok(()))?;
+            assert_eq!(store.version()?, CHECKOUT_UNLINK_SCHEMA);
+            store.profile_transaction(|_| Ok(()))?;
+            store.enrollment_recovery_transaction(|_| Ok(()))?;
+            store.checkout_transaction(|_| Ok(()))?;
+            store.checkout_retirement_transaction(|_| Ok(()))?;
+            assert_eq!(store.version()?, CHECKOUT_UNLINK_SCHEMA);
+            drop(store);
+            let store = Store::open(parent.path(), false)?;
+            assert_eq!(store.version()?, CHECKOUT_UNLINK_SCHEMA);
+            assert!(journal::checkout_unlink_epoch(&store.connection)?);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn unlink_records_require_their_epoch_and_share_recovery_capacity()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let parent = tempfile::tempdir()?;
+        let mut store = Store::open(parent.path(), true)?;
+        store.profile_transaction(|_| Ok(()))?;
+        store.checkout_transaction(|_| Ok(()))?;
+        store.checkout_retirement_transaction(|_| Ok(()))?;
+        store.connection.execute("INSERT INTO operation(operation_id,kind,state,started_at,finished_at) VALUES ('malformed-old-unlink','corporate.project_unlink','completed','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z')", [])?;
+        assert!(journal::checkout_unlink_epoch(&store.connection).is_err());
+        assert!(
+            store
+                .transaction(|t| journal::recovery_capacity(t, 1))
+                .is_err()
+        );
+        assert_eq!(store.version()?, CHECKOUT_RETIREMENT_SCHEMA);
+        store.connection.execute(
+            "DELETE FROM operation WHERE operation_id='malformed-old-unlink'",
+            [],
+        )?;
+        store.checkout_unlink_transaction(|transaction| {
+            for index in 0..126 {
+                transaction.execute("INSERT INTO operation(operation_id,kind,state,started_at) VALUES (?,'sync.run','applying','2026-01-01T00:00:00Z')", [format!("pending_{index}")]).map_err(database)?;
+            }
+            transaction.execute("INSERT INTO operation(operation_id,kind,state,started_at) VALUES ('pending_unlink','corporate.project_unlink','applying','2026-01-01T00:00:00Z')", []).map_err(database)?;
+            journal::recovery_capacity(transaction, 1)?;
+            assert!(journal::recovery_capacity(transaction, 2).is_err());
+            transaction.execute("INSERT INTO operation(operation_id,kind,state,started_at) VALUES ('pending_set','publication.set','applying','2026-01-01T00:00:00Z')", []).map_err(database)?;
+            assert!(journal::recovery_capacity(transaction, 1).is_err());
+            Ok(())
+        })?;
+        Ok(())
     }
 
     #[test]

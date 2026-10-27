@@ -43,12 +43,18 @@ class LostAcknowledgements:
         self.settlement_reads = 0
         self.refuse_next: str | None = None
         self.writes: list[str] = []
+        self.network_requests = 0
+        self.unavailable_reads = False
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
         path, method = scope["path"], scope["method"]
+        self.network_requests += 1
+        if self.unavailable_reads and method == "GET":
+            await JSONResponse({}, status_code=503)(scope, receive, send)
+            return
         if method == "GET" and path.endswith("/settlement"):
             self.settlement_reads += 1
         if self.unsupported_settlement and method == "GET" and path.endswith("/settlement"):
@@ -63,8 +69,15 @@ class LostAcknowledgements:
                 status_code=404,
             )(scope, receive, send)
             return
-        mutation = method == "POST" and (
-            path.endswith("/project-link-plans") or path == "/v1/projects/links"
+        mutation = (
+            method == "POST"
+            and (
+                path.endswith("/project-link-plans")
+                or path.endswith("/project-unlink-plans")
+                or path == "/v1/projects/links"
+            )
+        ) or (
+            method == "DELETE" and path.startswith("/v1/projects/links/") and path.count("/") == 4
         )
         if not mutation:
             await self.app(scope, receive, send)
@@ -429,6 +442,7 @@ async def qualify(
     offline_context: str,
     git_executable: str,
     old_recoveries: list[dict[str, Any]],
+    foreign_context: str,
 ) -> None:
     async with app.state.sessionmaker() as db:
         membership = await db.scalar(
@@ -530,4 +544,9 @@ async def qualify(
     )
     from tests.native_contract.verify_checkout_retirement import qualify as qualify_retirement
 
-    await qualify_retirement(**common, context=current_context, connection=retained_connection)
+    await qualify_retirement(
+        **common,
+        context=current_context,
+        connection=retained_connection,
+        foreign_context=foreign_context,
+    )
