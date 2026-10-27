@@ -3,12 +3,12 @@ name: native-confinement
 on:
   pull_request:
     paths:
-      - tests/native_contract/windows_confinement.cpp
+      - tests/native_confinement/windows.cpp
       - .github/workflows/native-confinement.yml
   push:
     branches: [dev, main]
     paths:
-      - tests/native_contract/windows_confinement.cpp
+      - tests/native_confinement/windows.cpp
       - .github/workflows/native-confinement.yml
   workflow_dispatch:
 
@@ -40,7 +40,7 @@ jobs:
           New-Item -ItemType Directory -Path $buildRoot -ErrorAction Stop | Out-Null
           $output = Join-Path $buildRoot 'probe.exe'
           $object = Join-Path $buildRoot 'probe.obj'
-          $source = Join-Path $env:GITHUB_WORKSPACE 'tests/native_contract/windows_confinement.cpp'
+          $source = Join-Path $env:GITHUB_WORKSPACE 'tests/native_confinement/windows.cpp'
           $build = '"' + $developer + '" -arch=x64 -host_arch=x64 && cl.exe /nologo /W4 /WX /EHsc /std:c++20 /MT /O2 "' + $source + '" /Fe:"' + $output + '" /Fo:"' + $object + '" /link userenv.lib advapi32.lib ole32.lib'
           try {
             & $env:ComSpec /d /s /c ('"' + $build + '"')
