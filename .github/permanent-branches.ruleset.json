@@ -10,6 +10,21 @@
     {"type": "deletion"},
     {"type": "non_fast_forward"},
     {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "required_status_checks": [{"context": "qualification", "integration_id": 15368}]
+      }
+    },
+    {
+      "type": "code_scanning",
+      "parameters": {
+        "code_scanning_tools": [
+          {"tool": "CodeQL", "alerts_threshold": "all", "security_alerts_threshold": "all"}
+        ]
+      }
+    },
+    {
       "type": "pull_request",
       "parameters": {
         "required_approving_review_count": 0,
