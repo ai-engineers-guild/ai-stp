@@ -287,7 +287,15 @@ void run(const fs::path& executable, const fs::path& root, PSID sid, bool lpac) 
     wchar_t system[MAX_PATH]{};
     const UINT system_length = GetWindowsDirectoryW(system, MAX_PATH);
     require(system_length > 0 && system_length < MAX_PATH, "system_directory");
-    std::wstring environment = L"SystemRoot=" + std::wstring(system);
+    // AppContainer startup resolves its profile through this explicit OS path.
+    // Chromium's filtered target environment retains LOCALAPPDATA for this reason.
+    wchar_t local[32768]{};
+    const DWORD local_length = GetEnvironmentVariableW(L"LOCALAPPDATA", local, 32768);
+    require(local_length > 0 && local_length < 32768
+        && fs::path(local).is_absolute() && fs::is_directory(local), "bootstrap_local_appdata");
+    std::wstring environment = L"LOCALAPPDATA=" + std::wstring(local);
+    environment.push_back(L'\0');
+    environment += L"SystemRoot=" + std::wstring(system);
     environment.push_back(L'\0');
     environment += L"TEMP=" + (root / L"target").wstring();
     environment.push_back(L'\0');
