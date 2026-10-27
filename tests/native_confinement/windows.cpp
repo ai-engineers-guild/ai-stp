@@ -188,7 +188,7 @@ constexpr std::array worker_stages{
     "descendant_create", "worker_timeout", "worker_status", "worker_exit",
     "descendant_parent_approval", "descendant_resume", "owned_publish",
     "attribute_size", "attribute_initialize", "attribute_capabilities", "attribute_lpac",
-    "bootstrap_path", "system_directory",
+    "bootstrap_path", "system_directory", "worker_desktop_context",
 };
 DWORD worker_stage_code(const char* stage) {
     for (size_t index = 0; index < worker_stages.size(); ++index)
@@ -464,6 +464,14 @@ int worker(int argc, wchar_t** argv) {
             + L" child " + quote(root.wstring()) + L" " + quote(argv[5])
             + L" " + quote(argv[6]) + L" " + quote(argv[7]);
         STARTUPINFOEXW start{};
+        STARTUPINFOW inherited{};
+        GetStartupInfoW(&inherited);
+        require(inherited.lpDesktop && inherited.lpDesktop[0] != L'\0',
+            "worker_desktop_context");
+        // USER32 connects lazily. Do not let a not-yet-connected worker's
+        // descendant fall back to the logon station/default desktop; retain
+        // the exact private station/desktop selected by the trusted parent.
+        start.StartupInfo.lpDesktop = inherited.lpDesktop;
         std::optional<ContainerAttributes> attributes;
         if (lpac) {
             attributes.emplace(sid.value, true);
