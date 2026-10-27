@@ -147,7 +147,7 @@ while IFS= read -r line; do
     selected=$((selected + 1))
   fi
 done <<<"${listing}"
-test "${selected}" -eq 2
+test "${selected}" -eq 3
 for ((round=1; round<=fixture_rounds; round++)); do
   printf 'Native vault fixture round %s/%s\n' "${round}" "${fixture_rounds}"
   "${checks[@]}" --ignored
