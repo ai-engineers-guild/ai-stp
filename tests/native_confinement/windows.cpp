@@ -318,6 +318,86 @@ struct ContainerAttributes {
     ContainerAttributes(const ContainerAttributes&) = delete;
     ContainerAttributes& operator=(const ContainerAttributes&) = delete;
 };
+// Grant only a newly named desktop, never change the caller's existing desktop
+// or window-station ACL. The package SID cannot switch desktops under the job.
+struct PrivateDesktop {
+    HDESK value = nullptr;
+    std::wstring full_name;
+    PrivateDesktop(PSID package, const std::wstring& name) {
+        HANDLE raw = nullptr;
+        win(OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &raw), "desktop_owner_token");
+        Handle held(raw);
+        DWORD count = 0;
+        GetTokenInformation(held.value, TokenUser, nullptr, 0, &count);
+        require(GetLastError() == ERROR_INSUFFICIENT_BUFFER && count <= 65536,
+            "desktop_owner_size");
+        std::vector<unsigned char> bytes(count);
+        win(GetTokenInformation(held.value, TokenUser, bytes.data(), count, &count),
+            "desktop_owner");
+        Local user_text, package_text, descriptor;
+        win(ConvertSidToStringSidW(reinterpret_cast<TOKEN_USER*>(bytes.data())->User.Sid,
+            reinterpret_cast<LPWSTR*>(&user_text.value)), "desktop_owner_sid");
+        win(ConvertSidToStringSidW(package, reinterpret_cast<LPWSTR*>(&package_text.value)),
+            "desktop_package_sid");
+        const DWORD rights = READ_CONTROL | DESKTOP_READOBJECTS | DESKTOP_WRITEOBJECTS
+            | DESKTOP_CREATEWINDOW | DESKTOP_CREATEMENU;
+        std::wostringstream mask;
+        mask << L"0x" << std::hex << rights;
+        const std::wstring sddl = L"D:P(A;;GA;;;SY)(A;;GA;;;"
+            + std::wstring(static_cast<LPCWSTR>(user_text.value)) + L")(A;;"
+            + mask.str() + L";;;" + std::wstring(static_cast<LPCWSTR>(package_text.value))
+            + L")S:(ML;;NW;;;LW)";
+        win(ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl.c_str(),
+            SDDL_REVISION_1, &descriptor.value, nullptr), "desktop_descriptor");
+        const HWINSTA station = GetProcessWindowStation();
+        require(station != nullptr, "desktop_station");
+        GetUserObjectInformationW(station, UOI_NAME, nullptr, 0, &count);
+        require(GetLastError() == ERROR_INSUFFICIENT_BUFFER && count <= 65536,
+            "desktop_station_name_size");
+        std::vector<wchar_t> station_name(count / sizeof(wchar_t) + 1, L'\0');
+        win(GetUserObjectInformationW(station, UOI_NAME, station_name.data(), count, &count),
+            "desktop_station_name");
+        full_name = std::wstring(station_name.data()) + L"\\" + name;
+        const HDESK original = GetThreadDesktop(GetCurrentThreadId());
+        require(original != nullptr, "desktop_original");
+        SECURITY_ATTRIBUTES security{sizeof(SECURITY_ATTRIBUTES), descriptor.value, FALSE};
+        value = CreateDesktopW(name.c_str(), nullptr, nullptr, 0, DESKTOP_ALL_ACCESS, &security);
+        win(value != nullptr, "desktop_create");
+        try {
+            win(SetThreadDesktop(original), "desktop_restore");
+            Local actual;
+            PACL acl = nullptr;
+            const DWORD result = GetSecurityInfo(value, SE_WINDOW_OBJECT, DACL_SECURITY_INFORMATION,
+                nullptr, nullptr, &acl, nullptr, &actual.value);
+            require(result == ERROR_SUCCESS && acl && acl->AceCount == 3,
+                "desktop_owned_acl", result);
+            bool matched = false;
+            for (DWORD index = 0; index < acl->AceCount; ++index) {
+                void* raw_ace = nullptr;
+                win(GetAce(acl, index, &raw_ace), "desktop_owned_ace");
+                const auto ace = static_cast<ACCESS_ALLOWED_ACE*>(raw_ace);
+                if (ace->Header.AceType == ACCESS_ALLOWED_ACE_TYPE
+                    && EqualSid(&ace->SidStart, package) && ace->Mask == rights) matched = true;
+            }
+            require(matched, "desktop_owned_package");
+        } catch (...) {
+            SetThreadDesktop(original);
+            CloseDesktop(value);
+            value = nullptr;
+            throw;
+        }
+    }
+    ~PrivateDesktop() {
+        if (value && !CloseDesktop(value)) std::cout
+            << "{\"cleanup\":\"desktop\",\"native_code\":" << GetLastError() << "}" << std::endl;
+    }
+    void close() {
+        win(CloseDesktop(value), "desktop_cleanup");
+        value = nullptr;
+    }
+    PrivateDesktop(const PrivateDesktop&) = delete;
+    PrivateDesktop& operator=(const PrivateDesktop&) = delete;
+};
 int worker(int argc, wchar_t** argv) {
     require(argc == 8, "worker_arguments");
     require((std::wstring(argv[2]) == L"lpac" || std::wstring(argv[2]) == L"regular")
@@ -382,7 +462,8 @@ int worker(int argc, wchar_t** argv) {
     }
     return 0;
 }
-void run(const fs::path& executable, const fs::path& root, PSID sid, bool lpac) {
+void run(const fs::path& executable, const fs::path& root, PSID sid, bool lpac,
+    std::wstring& desktop) {
     FailureEvidence evidence{root, lpac ? L"lpac" : L"regular"};
     struct OwnedJob {
         HANDLE value = CreateJobObjectW(nullptr, nullptr);
@@ -411,6 +492,7 @@ void run(const fs::path& executable, const fs::path& root, PSID sid, bool lpac) 
     ContainerAttributes attributes(sid, lpac);
     STARTUPINFOEXW start{};
     start.StartupInfo.cb = sizeof(start);
+    start.StartupInfo.lpDesktop = desktop.data();
     start.lpAttributeList = attributes.list;
     Local text;
     win(ConvertSidToStringSidW(sid, reinterpret_cast<LPWSTR*>(&text.value)), "sid_format");
@@ -531,10 +613,13 @@ int parent() {
         "parent_environment_canary");
     for (const auto& name : {L"read", L"outside", L"aap"})
         readable(fixture.root / name / L"canary");
-    std::cout << "{\"stage\":\"regular_appcontainer_execution\"}" << std::endl;
-    run(executable, fixture.root, profile.sid, false);
-    std::cout << "{\"stage\":\"lpac_execution\"}" << std::endl;
-    run(executable, fixture.root, profile.sid, true);
+    for (const bool lpac : {false, true}) {
+        std::cout << "{\"stage\":\"" << (lpac ? "lpac_execution" : "regular_appcontainer_execution")
+            << "\"}" << std::endl;
+        PrivateDesktop desktop(profile.sid, L"ai-stp-" + suffix + (lpac ? L"-lpac" : L"-regular"));
+        run(executable, fixture.root, profile.sid, lpac, desktop.full_name);
+        desktop.close();
+    }
     readable(fixture.root / L"outside" / L"canary");
     readable(fixture.root / L"outside" / L"credentials");
     win(SetEnvironmentVariableW(L"AI_STP_PROBE_PARENT_SECRET", nullptr),
