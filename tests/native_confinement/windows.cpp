@@ -11,6 +11,8 @@
 #include <array>
 #include <cstring>
 #include <limits>
+#include <sstream>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -191,6 +193,33 @@ DWORD worker_stage_code(const char* stage) {
             return 1000 + static_cast<DWORD>(index);
     return 1999;
 }
+struct FailureEvidence {
+    fs::path root;
+    std::wstring mode;
+    ~FailureEvidence() {
+        if (std::uncaught_exceptions() == 0) return;
+        try {
+            for (const auto& role : {L"parent", L"child"}) {
+                std::ifstream file(root / L"target" / (mode + L"-" + role + L".failure"),
+                    std::ios::binary);
+                if (!file) continue;
+                char bytes[64]{};
+                file.read(bytes, sizeof(bytes));
+                if (!file.eof()) continue;
+                std::istringstream fields(std::string(bytes, static_cast<size_t>(file.gcount())));
+                unsigned long long stage = 0, code = 0;
+                if (!(fields >> stage >> code)) continue;
+                fields >> std::ws;
+                if (!fields.eof() || stage < 1000 || stage >= 1000 + worker_stages.size()
+                    || code > std::numeric_limits<DWORD>::max()) continue;
+                std::cout << "{\"worker_failure_stage\":\"" << worker_stages[stage - 1000]
+                    << "\",\"original_native_code\":" << code << "}" << std::endl;
+            }
+        } catch (...) {
+            std::cout << "{\"diagnostic\":\"worker_failure_evidence_unavailable\"}" << std::endl;
+        }
+    }
+};
 void wait_process(HANDLE process) {
     require(WaitForSingleObject(process, 15000) == WAIT_OBJECT_0, "worker_timeout");
     DWORD status = 0;
@@ -233,6 +262,9 @@ DWORD descendant_pid(const fs::path& path) {
 }
 int worker(int argc, wchar_t** argv) {
     require(argc == 7, "worker_arguments");
+    require((std::wstring(argv[2]) == L"lpac" || std::wstring(argv[2]) == L"regular")
+        && (std::wstring(argv[3]) == L"parent" || std::wstring(argv[3]) == L"child"),
+        "worker_arguments");
     const bool lpac = std::wstring(argv[2]) == L"lpac";
     const bool child = std::wstring(argv[3]) == L"child";
     const fs::path root(argv[4]);
@@ -285,6 +317,7 @@ int worker(int argc, wchar_t** argv) {
     return 0;
 }
 void run(const fs::path& executable, const fs::path& root, PSID sid, bool lpac) {
+    FailureEvidence evidence{root, lpac ? L"lpac" : L"regular"};
     struct OwnedJob {
         HANDLE value = CreateJobObjectW(nullptr, nullptr);
         ~OwnedJob() {
@@ -489,8 +522,18 @@ int wmain(int argc, wchar_t** argv) {
         // Stages are literals and codes are native numeric categories only.
         std::cout << "{\"stage\":\"" << failure.stage << "\",\"native_code\":"
             << failure.code << "}" << std::endl;
-        if (argc > 1 && std::wstring(argv[1]) == L"--worker")
+        if (argc == 7 && std::wstring(argv[1]) == L"--worker") {
+            try {
+                require((std::wstring(argv[2]) == L"lpac" || std::wstring(argv[2]) == L"regular")
+                    && (std::wstring(argv[3]) == L"parent" || std::wstring(argv[3]) == L"child"),
+                    "worker_arguments");
+                publish(fs::path(argv[4]) / L"target"
+                    / (std::wstring(argv[2]) + L"-" + argv[3] + L".failure"),
+                    std::to_string(worker_stage_code(failure.stage)) + " "
+                    + std::to_string(failure.code) + "\n");
+            } catch (...) { /* The original failure remains authoritative. */ }
             return static_cast<int>(worker_stage_code(failure.stage));
+        }
         return 1;
     } catch (...) {
         std::cout << "{\"stage\":\"unexpected_fixture_failure\"}" << std::endl;
