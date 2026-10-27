@@ -196,19 +196,18 @@ int denied_network(NSDictionary* ports) {
     return attempts;
 }
 struct BrokerReply { bool launched; int code; NSRunningApplication* application; };
-NSString* broker_path(NSString* executable) {
-    return joined([[executable stringByDeletingLastPathComponent] stringByDeletingLastPathComponent],
-        @"Helpers/Broker.app");
+NSString* broker_path(NSString* root, NSString* role) {
+    return joined(root, [@"target/Broker-" stringByAppendingFormat:@"%@.app", role]);
 }
-BrokerReply broker_request(NSString* application, NSString* root, NSString* role) {
+BrokerReply broker_request(NSString* application) {
     NSWorkspaceOpenConfiguration* configuration = [NSWorkspaceOpenConfiguration configuration];
     configuration.activates = NO;
     configuration.addsToRecentItems = NO;
     configuration.promptsUserIfNeeded = NO;
     configuration.allowsRunningApplicationSubstitution = NO;
     configuration.createsNewApplicationInstance = YES;
-    configuration.arguments = @[@"broker", root, role];
-    configuration.environment = @{@"PATH":@"/usr/bin:/bin", @"LC_ALL":@"C"};
+    // Apple documents that sandbox callers cannot supply arguments/environment.
+    // Each independently signed fixture app fixes its role/root in Info.plist.
     dispatch_semaphore_t ready = dispatch_semaphore_create(0);
     __block NSRunningApplication* opened = nil;
     __block NSError* failure = nil;
@@ -223,19 +222,23 @@ BrokerReply broker_request(NSString* application, NSString* root, NSString* role
     require(opened != nil || failure != nil, "broker_request_observation");
     return {opened != nil, static_cast<int>(failure.code), opened};
 }
-void cleanup_brokers(NSString* application) {
-    NSString* identifier = [NSBundle bundleWithPath:application].bundleIdentifier;
-    require([identifier hasPrefix:@"ai.stp.confinement."] && [identifier hasSuffix:@".broker"],
-        "owned_broker_identity");
-    int matched = 0;
-    for (NSRunningApplication* app in [NSWorkspace sharedWorkspace].runningApplications) {
-        if (![app.bundleURL.path isEqual:application] || ![app.bundleIdentifier isEqual:identifier])
-            continue;
-        require(++matched <= 3, "owned_broker_count");
-        if (![app isTerminated]) [app forceTerminate];
-        for (int observation = 0; observation < 200 && ![app isTerminated]; ++observation)
-            [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
-        require([app isTerminated], "owned_broker_cleanup");
+void cleanup_brokers(NSString* root) {
+    for (NSString* role in @[@"positive", @"worker", @"child"]) {
+        NSString* application = broker_path(root, role);
+        NSString* identifier = [NSBundle bundleWithPath:application].bundleIdentifier;
+        require([identifier hasPrefix:@"ai.stp.confinement."]
+            && [identifier hasSuffix:[@".broker." stringByAppendingString:role]],
+            "owned_broker_identity");
+        int matched = 0;
+        for (NSRunningApplication* app in [NSWorkspace sharedWorkspace].runningApplications) {
+            if (![app.bundleURL.path isEqual:application] || ![app.bundleIdentifier isEqual:identifier])
+                continue;
+            require(++matched <= 1, "owned_broker_count");
+            if (![app isTerminated]) [app forceTerminate];
+            for (int observation = 0; observation < 200 && ![app isTerminated]; ++observation)
+                [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+            require([app isTerminated], "owned_broker_cleanup");
+        }
     }
 }
 void observe_broker_effects(NSString* root) {
@@ -462,7 +465,7 @@ NSDictionary* worker(NSString* role) {
     readable(written);
     outside();
     const int network_denials = denied_network(request[@"loopback_ports"]);
-    BrokerReply broker = broker_request(broker_path(child), root, role);
+    BrokerReply broker = broker_request(broker_path(root, role));
     require(!broker.launched && broker.code != 0, "broker_launch_must_be_refused", broker.code);
     bool child_target_before_bookmark = false;
     int child_network_denials = 0;
@@ -487,18 +490,14 @@ NSDictionary* worker(NSString* role) {
 }
 int main(int argc, char** argv) {
     @autoreleasepool {
-        NSString* owned_broker = nil;
         NSString* owned_root = nil;
         try {
             require(signal(SIGPIPE, SIG_IGN) != SIG_ERR, "pipe_signal", errno);
-            require(argc == 2 || argc == 4 || argc == 5, "arguments");
-            NSString* role = [NSString stringWithUTF8String:argv[1]];
-            NSDictionary* proof = nil;
-            if (argc == 4) {
-                require([role isEqual:@"broker"], "broker_role");
-                NSString* root = [NSString stringWithUTF8String:argv[2]];
-                NSString* caller = [NSString stringWithUTF8String:argv[3]];
-                require([root isEqual:[NSBundle mainBundle].infoDictionary[@"AiStpFixtureRoot"]]
+            NSDictionary* bundle_info = [NSBundle mainBundle].infoDictionary;
+            NSString* caller = bundle_info[@"AiStpFixtureRole"];
+            if (caller) {
+                NSString* root = bundle_info[@"AiStpFixtureRoot"];
+                require([root isKindOfClass:[NSString class]] && root.isAbsolutePath
                     && [@[@"positive", @"worker", @"child"] containsObject:caller],
                     "broker_fixture_scope");
                 [NSApplication sharedApplication];
@@ -519,7 +518,11 @@ int main(int argc, char** argv) {
                     [@"target/broker_" stringByAppendingFormat:@"%@_done_%d", caller, outside_error]));
                 [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.25]];
                 return 0;
-            } else if (argc == 2) {
+            }
+            require(argc == 2 || argc == 5, "arguments");
+            NSString* role = [NSString stringWithUTF8String:argv[1]];
+            NSDictionary* proof = nil;
+            if (argc == 2) {
                 require([role isEqual:@"worker"] || [role isEqual:@"child"], "worker_role");
                 proof = worker(role);
             } else {
@@ -531,9 +534,8 @@ int main(int argc, char** argv) {
                 NSString* child = [NSString stringWithUTF8String:argv[4]];
                 require(root.isAbsolutePath && executable.isAbsolutePath && child.isAbsolutePath,
                     "controller_paths");
-                owned_broker = broker_path(executable);
                 owned_root = root;
-                BrokerReply positive = broker_request(owned_broker, root, @"positive");
+                BrokerReply positive = broker_request(broker_path(root, @"positive"));
                 require(positive.launched && positive.code == 0, "positive_broker_launch", positive.code);
                 NSString* positive_marker = joined(root, @"outside/broker_positive.written");
                 for (int observation = 0; observation < 500 && access(bytes(positive_marker), F_OK) != 0;
@@ -582,7 +584,7 @@ int main(int argc, char** argv) {
                 require(access(bytes(joined(root, @"outside/broker_worker.written")), F_OK) != 0
                     && access(bytes(joined(root, @"outside/broker_child.written")), F_OK) != 0,
                     "broker_outside_effect_refused");
-                cleanup_brokers(owned_broker);
+                cleanup_brokers(root);
                 for (NSString* leaf in @[@"target/worker.written", @"target/child.written",
                     @"outside/canary", @"outside/credentials"]) readable(joined(root, leaf));
                 proof = @{@"macos_confinement_experiment":@"passed", @"executed_workers":@2,
@@ -605,8 +607,8 @@ int main(int argc, char** argv) {
             return 0;
         } catch (const Failure& failure) {
             if (owned_root) observe_broker_effects(owned_root);
-            if (owned_broker) {
-                try { cleanup_brokers(owned_broker); }
+            if (owned_root) {
+                try { cleanup_brokers(owned_root); }
                 catch (const Failure& cleanup) {
                     std::cout << "{\"stage\":\"" << cleanup.stage << "\",\"native_code\":"
                         << cleanup.code << "}" << std::endl;

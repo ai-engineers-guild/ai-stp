@@ -80,14 +80,10 @@ def main() -> None:
             bundle = root / "Probe.app"
             executable = bundle / "Contents/MacOS/worker"
             child = bundle / "Contents/Helpers/child"
-            broker = bundle / "Contents/Helpers/Broker.app"
-            broker_executable = broker / "Contents/MacOS/broker"
             executable.parent.mkdir(parents=True)
             child.parent.mkdir(parents=True)
-            broker_executable.parent.mkdir(parents=True)
             shutil.copy2(controller, executable)
             shutil.copy2(controller, child)
-            shutil.copy2(controller, broker_executable)
             info = {
                 "CFBundleIdentifier": identifier,
                 "CFBundleExecutable": "worker",
@@ -97,14 +93,6 @@ def main() -> None:
                 "CFBundleShortVersionString": "1.0",
             }
             (bundle / "Contents/Info.plist").write_bytes(plistlib.dumps(info))
-            broker_info = {
-                **info,
-                "CFBundleIdentifier": identifier + ".broker",
-                "CFBundleExecutable": "broker",
-                "LSBackgroundOnly": True,
-                "AiStpFixtureRoot": str(fixture),
-            }
-            (broker / "Contents/Info.plist").write_bytes(plistlib.dumps(broker_info))
             worker_rights = {
                 "com.apple.security.app-sandbox": True,
                 "com.apple.security.files.user-selected.read-write": True,
@@ -113,9 +101,26 @@ def main() -> None:
                 "com.apple.security.app-sandbox": True,
                 "com.apple.security.inherit": True,
             }
+            brokers: list[tuple[str, Path, dict[str, bool]]] = []
+            for role in ["positive", "worker", "child"]:
+                broker = fixture / "target" / ("Broker-" + role + ".app")
+                binary = broker / "Contents/MacOS/broker"
+                binary.parent.mkdir(parents=True)
+                shutil.copy2(controller, binary)
+                name = identifier + ".broker." + role
+                broker_info = {
+                    **info,
+                    "CFBundleIdentifier": name,
+                    "CFBundleExecutable": "broker",
+                    "LSBackgroundOnly": True,
+                    "AiStpFixtureRoot": str(fixture),
+                    "AiStpFixtureRole": role,
+                }
+                (broker / "Contents/Info.plist").write_bytes(plistlib.dumps(broker_info))
+                brokers.append((name, broker, {}))
             for name, path, entitlements in [
                 (identifier + ".child", child, child_rights),
-                (identifier + ".broker", broker, {}),
+                *brokers,
                 (identifier, bundle, worker_rights),
             ]:
                 entitlement_file = root / (name + ".plist")
