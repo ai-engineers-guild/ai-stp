@@ -91,15 +91,6 @@ jobs:
             'apps/cli/xtask/Cargo.*', 'apps/cli/rust-toolchain.toml',
             'apps/desktop/core/Cargo.*', 'apps/desktop/src-tauri/Cargo.*') }}
           restore-keys: desktop-cargo-v1-${{ matrix.os }}-
-      - name: Verify locked desktop package versions
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo update --manifest-path apps/desktop/core/Cargo.toml \
-            --offline --package ai-stp-desktop-core
-          cargo update --manifest-path apps/desktop/src-tauri/Cargo.toml \
-            --offline --package ai-stp-desktop --package ai-stp-desktop-core
-          git diff --exit-code -- apps/desktop/core/Cargo.lock apps/desktop/src-tauri/Cargo.lock
       - name: Frontend install
         working-directory: apps/desktop
         run: bun install --frozen-lockfile

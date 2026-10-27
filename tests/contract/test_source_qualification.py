@@ -306,7 +306,7 @@ gh() {
 }
 """
         outcome = execute(
-            fixture + script("desktop-release.yml", "guard", 3),
+            fixture + (ROOT / ".github/scripts/require-client-release-source.sh").read_text(),
             {
                 "REPOSITORY": "example/project",
                 "HEAD_SHA": "a" * 40,
@@ -342,6 +342,12 @@ gh() {
         self.assertFalse(
             self.release_decision([source, source | {"id": 42, "conclusion": "failure"}], jobs)
         )
+        self.assertFalse(
+            self.release_decision(
+                [source, source | {"id": 42, "head_repository": {"full_name": "fork/project"}}],
+                jobs,
+            )
+        )
         for value in ["failure", "cancelled", "skipped", None]:
             failed = fixtures.jobs()
             failed["jobs"][0]["conclusion"] = value
@@ -363,6 +369,10 @@ gh() {
         publisher = release["jobs"]["release"]["steps"]
         self.assertEqual(publisher[0]["with"]["pattern"], "ai-stp-desktop-*")
         self.assertFalse(any("actions/checkout@" in step.get("uses", "") for step in publisher))
+        admission = "bash .github/scripts/require-client-release-source.sh"
+        self.assertEqual(script("desktop-release.yml", "guard", 3), admission)
+        self.assertEqual(script("cli-release.yml", "guard", 1), admission)
+        self.assertEqual(workflow("cli-release.yml")["jobs"]["build"]["needs"], "guard")
 
 
 class ScannerSelectionTests(unittest.TestCase):

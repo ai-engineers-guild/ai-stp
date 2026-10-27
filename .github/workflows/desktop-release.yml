@@ -23,9 +23,6 @@ concurrency:
   group: desktop-release
   cancel-in-progress: false
 
-env:
-  BUN_VERSION: "1.4.4"
-
 jobs:
   guard:
     name: verify-tag-and-version
@@ -77,27 +74,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           HEAD_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          test "$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq .object.sha)" = "${HEAD_SHA}"
-          runs="$(gh api "repos/${REPOSITORY}/actions/runs?head_sha=${HEAD_SHA}&event=push&branch=main&per_page=100")"
-          source="$(jq -ce --arg repo "${REPOSITORY}" --arg sha "${HEAD_SHA}" '
-            select(.total_count == (.workflow_runs | length)) |
-            [.workflow_runs[] | select(
-              .path == ".github/workflows/check.yml" and
-              .repository.full_name == $repo and .head_repository.full_name == $repo and
-              .head_sha == $sha and .event == "push" and .head_branch == "main"
-            )] | select(length > 0) | max_by(.id) |
-            select(.status == "completed" and .conclusion == "success")
-          ' <<< "${runs}")"
-          source_id="$(jq -r .id <<< "${source}")"
-          attempt="$(jq -r .run_attempt <<< "${source}")"
-          jobs="$(gh api "repos/${REPOSITORY}/actions/runs/${source_id}/attempts/${attempt}/jobs?per_page=100")"
-          jq -e '
-            .total_count == (.jobs | length) and
-            ([.jobs[] | select(.name == "qualification")] |
-              length == 1 and all(.[]; .status == "completed" and .conclusion == "success"))
-          ' <<< "${jobs}" >/dev/null
+        run: bash .github/scripts/require-client-release-source.sh
 
   bundle:
     needs: guard
