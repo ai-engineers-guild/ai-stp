@@ -13,6 +13,7 @@
 #include <limits>
 #include <sstream>
 #include <exception>
+#include <optional>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -186,6 +187,7 @@ constexpr std::array worker_stages{
     "lpac_aap_refusal", "owned_write_open", "owned_write", "owned_write_size",
     "descendant_create", "worker_timeout", "worker_status", "worker_exit",
     "descendant_parent_approval", "descendant_resume", "owned_publish",
+    "attribute_size", "attribute_initialize", "attribute_capabilities", "attribute_lpac",
 };
 DWORD worker_stage_code(const char* stage) {
     for (size_t index = 0; index < worker_stages.size(); ++index)
@@ -260,6 +262,39 @@ DWORD descendant_pid(const fs::path& path) {
     require(pid > 0 && pid <= std::numeric_limits<DWORD>::max(), "descendant_pid_range");
     return static_cast<DWORD>(pid);
 }
+// Explicitly request the same documented LPAC/SID with no extra capabilities
+// for its descendant; parent verification and AAP refusal remain mandatory.
+struct ContainerAttributes {
+    std::vector<unsigned char> storage;
+    LPPROC_THREAD_ATTRIBUTE_LIST list = nullptr;
+    SECURITY_CAPABILITIES capabilities{};
+    DWORD policy = PROCESS_CREATION_ALL_APPLICATION_PACKAGES_OPT_OUT;
+    ContainerAttributes(PSID sid, bool lpac) {
+        SIZE_T size = 0;
+        const DWORD count = lpac ? 2 : 1;
+        InitializeProcThreadAttributeList(nullptr, count, 0, &size);
+        require(GetLastError() == ERROR_INSUFFICIENT_BUFFER && size <= 65536,
+            "attribute_size");
+        storage.resize(size);
+        list = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(storage.data());
+        win(InitializeProcThreadAttributeList(list, count, 0, &size), "attribute_initialize");
+        capabilities.AppContainerSid = sid;
+        try {
+            win(UpdateProcThreadAttribute(list, 0, PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES,
+                &capabilities, sizeof(capabilities), nullptr, nullptr), "attribute_capabilities");
+            if (lpac) win(UpdateProcThreadAttribute(list, 0,
+                PROC_THREAD_ATTRIBUTE_ALL_APPLICATION_PACKAGES_POLICY, &policy, sizeof(policy),
+                nullptr, nullptr), "attribute_lpac");
+        } catch (...) {
+            DeleteProcThreadAttributeList(list);
+            list = nullptr;
+            throw;
+        }
+    }
+    ~ContainerAttributes() { if (list) DeleteProcThreadAttributeList(list); }
+    ContainerAttributes(const ContainerAttributes&) = delete;
+    ContainerAttributes& operator=(const ContainerAttributes&) = delete;
+};
 int worker(int argc, wchar_t** argv) {
     require(argc == 7, "worker_arguments");
     require((std::wstring(argv[2]) == L"lpac" || std::wstring(argv[2]) == L"regular")
@@ -288,11 +323,17 @@ int worker(int argc, wchar_t** argv) {
         std::wstring command = quote(argv[6]) + L" --worker " + argv[2]
             + L" child " + quote(root.wstring()) + L" " + quote(argv[5])
             + L" " + quote(argv[6]);
-        STARTUPINFOW start{};
-        start.cb = sizeof(start);
+        STARTUPINFOEXW start{};
+        std::optional<ContainerAttributes> attributes;
+        if (lpac) {
+            attributes.emplace(sid.value, true);
+            start.lpAttributeList = attributes->list;
+        }
+        start.StartupInfo.cb = lpac ? sizeof(start) : sizeof(start.StartupInfo);
         PROCESS_INFORMATION process{};
         win(CreateProcessW(argv[6], command.data(), nullptr, nullptr, FALSE,
-            DETACHED_PROCESS | CREATE_SUSPENDED, nullptr, (root / L"target").c_str(), &start, &process),
+            DETACHED_PROCESS | CREATE_SUSPENDED | (lpac ? EXTENDED_STARTUPINFO_PRESENT : 0),
+            nullptr, (root / L"target").c_str(), &start.StartupInfo, &process),
             "descendant_create");
         Handle held(process.hProcess), thread(process.hThread);
         struct SuspendedChild {
@@ -342,29 +383,10 @@ void run(const fs::path& executable, const fs::path& root, PSID sid, bool lpac) 
     JOBOBJECT_BASIC_UI_RESTRICTIONS ui{JOB_OBJECT_UILIMIT_ALL};
     win(SetInformationJobObject(job.value, JobObjectBasicUIRestrictions,
         &ui, sizeof(ui)), "job_ui_limits");
-    SIZE_T size = 0;
-    const DWORD attributes = lpac ? 2 : 1;
-    InitializeProcThreadAttributeList(nullptr, attributes, 0, &size);
-    require(GetLastError() == ERROR_INSUFFICIENT_BUFFER && size <= 65536,
-        "attribute_size");
-    std::vector<unsigned char> bytes(size);
-    const auto list = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(bytes.data());
-    win(InitializeProcThreadAttributeList(list, attributes, 0, &size), "attribute_initialize");
-    struct Attributes {
-        LPPROC_THREAD_ATTRIBUTE_LIST list;
-        ~Attributes() { DeleteProcThreadAttributeList(list); }
-    } attribute_cleanup{list};
-    SECURITY_CAPABILITIES capabilities{};
-    capabilities.AppContainerSid = sid;
-    win(UpdateProcThreadAttribute(list, 0, PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES,
-        &capabilities, sizeof(capabilities), nullptr, nullptr), "attribute_capabilities");
-    DWORD policy = PROCESS_CREATION_ALL_APPLICATION_PACKAGES_OPT_OUT;
-    if (lpac) win(UpdateProcThreadAttribute(list, 0,
-        PROC_THREAD_ATTRIBUTE_ALL_APPLICATION_PACKAGES_POLICY, &policy, sizeof(policy),
-        nullptr, nullptr), "attribute_lpac");
+    ContainerAttributes attributes(sid, lpac);
     STARTUPINFOEXW start{};
     start.StartupInfo.cb = sizeof(start);
-    start.lpAttributeList = list;
+    start.lpAttributeList = attributes.list;
     Local text;
     win(ConvertSidToStringSidW(sid, reinterpret_cast<LPWSTR*>(&text.value)), "sid_format");
     std::wstring command = quote(executable.wstring()) + L" --worker "
