@@ -18,8 +18,8 @@ use crate::{
     error::{ErrorKind, Failure, Result},
     files, identity, passport,
     store::{
-        CHECKOUT_LINK_SCHEMA, CHECKOUT_RETIREMENT_SCHEMA, CHECKOUT_UNLINK_SCHEMA, database,
-        has_checkout_retirement,
+        BINDING_RETIREMENT_SCHEMA, CHECKOUT_LINK_SCHEMA, CHECKOUT_RETIREMENT_SCHEMA,
+        CHECKOUT_UNLINK_SCHEMA, database, has_checkout_retirement,
     },
 };
 
@@ -44,6 +44,11 @@ pub(super) fn request_open(connection: &Connection, request: &str) -> Result<()>
         "SELECT EXISTS(SELECT 1 FROM native_checkout_retirement WHERE request_operation_id=?)",
         [request], |row| row.get::<_,bool>(0)).map_err(database)? {
         return Err(Failure::precondition("the original checkout request was explicitly retired; review a new request instead"));
+    }
+    if version == BINDING_RETIREMENT_SCHEMA && connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM native_binding_retirement WHERE request_operation_id=?)",
+        [request], |row| row.get::<_,bool>(0)).map_err(database)? {
+        return Err(Failure::precondition("the original binding was retired; review an independent new checkout request"));
     }
     Ok(())
 }
@@ -213,7 +218,7 @@ impl Plan {
         self.original.digest()?;
         self.source.validate()?;
         if self.schema_version
-            != if self.registry_schema_after == CHECKOUT_UNLINK_SCHEMA {
+            != if crate::store::has_checkout_unlinks(self.registry_schema_after) {
                 2
             } else {
                 1
@@ -227,11 +232,12 @@ impl Plan {
                 CHECKOUT_LINK_SCHEMA,
                 CHECKOUT_RETIREMENT_SCHEMA,
                 CHECKOUT_UNLINK_SCHEMA,
+                BINDING_RETIREMENT_SCHEMA,
             ]
             .contains(&self.registry_schema_before)
             || self.registry_schema_after
-                != if self.registry_schema_before == CHECKOUT_UNLINK_SCHEMA {
-                    CHECKOUT_UNLINK_SCHEMA
+                != if crate::store::has_checkout_unlinks(self.registry_schema_before) {
+                    self.registry_schema_before
                 } else {
                     CHECKOUT_RETIREMENT_SCHEMA
                 }
@@ -354,7 +360,7 @@ pub fn plan(root: &Path, source_id: &str, context: Option<&str>, at: &str) -> Re
         Change::Adopt { .. } => return Err(invalid()),
     };
     let plan = Plan {
-        schema_version: if before == CHECKOUT_UNLINK_SCHEMA {
+        schema_version: if crate::store::has_checkout_unlinks(before) {
             2
         } else {
             1
@@ -366,8 +372,8 @@ pub fn plan(root: &Path, source_id: &str, context: Option<&str>, at: &str) -> Re
         created_at: at.into(),
         expires_at: authoring::expiry(at)?,
         registry_schema_before: before,
-        registry_schema_after: if before == CHECKOUT_UNLINK_SCHEMA {
-            CHECKOUT_UNLINK_SCHEMA
+        registry_schema_after: if crate::store::has_checkout_unlinks(before) {
+            before
         } else {
             CHECKOUT_RETIREMENT_SCHEMA
         },

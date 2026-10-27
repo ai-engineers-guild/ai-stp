@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -63,13 +63,23 @@ pub(crate) fn revalidate(root: &Path, owner: &Owner, held: &Snapshot) -> crate::
 }
 
 fn read(root: &Path, owner: &Owner, binding_id: &str) -> crate::error::Result<Snapshot> {
-    let binding = {
-        let store = owner.planning()?;
-        if !has_checkout_links(store.version()?) {
-            return Err(invalid());
-        }
-        Record::load(&store.connection, binding_id)?.ok_or_else(invalid)?
-    };
+    let store = owner.planning()?;
+    read_in(&store.connection, root, owner, binding_id)
+}
+
+pub(crate) fn read_in(
+    connection: &Connection,
+    root: &Path,
+    owner: &Owner,
+    binding_id: &str,
+) -> crate::error::Result<Snapshot> {
+    let version: u32 = connection
+        .pragma_query_value(None, "user_version", |r| r.get(0))
+        .map_err(database)?;
+    if !has_checkout_links(version) {
+        return Err(invalid());
+    }
+    let binding = Record::load(connection, binding_id)?.ok_or_else(invalid)?;
     workflow::owned(root, owner, &binding.plan)?;
     let Change::Adopt {
         request_operation_id,
@@ -84,14 +94,14 @@ fn read(root: &Path, owner: &Owner, binding_id: &str) -> crate::error::Result<Sn
     if binding.state != "completed" {
         return Err(invalid());
     }
-    let store = owner.planning()?;
-    let request = Record::load(&store.connection, request_operation_id)?.ok_or_else(invalid)?;
+    super::retirement::request_open(connection, request_operation_id)?;
+    let request = Record::load(connection, request_operation_id)?.ok_or_else(invalid)?;
     workflow::owned(root, owner, &request.plan)?;
     if !matches!(&request.plan.change, Change::Request { .. }) || request.state == "retired" {
         return Err(invalid());
     }
     let source = binding.plan.snapshot();
-    let registered = passports::registered(&store.connection, &binding.plan.checkout_root, owner)?;
+    let registered = passports::registered(connection, &binding.plan.checkout_root, owner)?;
     if registered.project["stable_id"] != source.project_id()?
         || registered.identity != source.physical_root()?
         || request.plan.snapshot().project_id()? != source.project_id()?
@@ -102,7 +112,7 @@ fn read(root: &Path, owner: &Owner, binding_id: &str) -> crate::error::Result<Sn
     {
         return Err(invalid());
     }
-    let reservation = store.connection.query_row(
+    let reservation = connection.query_row(
         "SELECT request_operation_id,local_project_id,root_device,root_inode,confirmation_operation_id,binding_operation_id,context_id FROM native_checkout_reservation WHERE binding_operation_id=?",
         [binding_id], |r| Ok(Reservation {
             request_operation_id:r.get(0)?, local_project_id:r.get(1)?, root_device:r.get(2)?, root_inode:r.get(3)?,
@@ -118,7 +128,7 @@ fn read(root: &Path, owner: &Owner, binding_id: &str) -> crate::error::Result<Sn
     {
         return Err(invalid());
     }
-    let encoded: String = store.connection.query_row(
+    let encoded: String = connection.query_row(
         "SELECT json_object('schema_version',1,'link_id',link_id,'organization_id',organization_id,'local_project_id',local_project_id,'remote_project_id',remote_project_id,'provider_project_id',provider_project_id,'state',state,'local_revision',local_revision,'remote_revision',remote_revision,'provider_revision',provider_revision,'revision',link_revision,'updated_at',updated_at,'plan_id',plan_id,'plan_digest',plan_digest,'conflict_server_revision',NULL,'conflict_client_revision',NULL,'conflict_common_ancestor',NULL) FROM project_link WHERE local_project_id=?",
         params![source.project_id()?], |r| r.get(0)).map_err(database)?;
     if encoded.len() > 262144 {
@@ -153,4 +163,59 @@ fn read(root: &Path, owner: &Owner, binding_id: &str) -> crate::error::Result<Sn
         reservation,
     };
     Ok(snapshot)
+}
+
+pub(crate) fn open(connection: &Connection, binding: &str) -> crate::error::Result<()> {
+    let version: u32 = connection
+        .pragma_query_value(None, "user_version", |r| r.get(0))
+        .map_err(database)?;
+    if version == crate::store::BINDING_RETIREMENT_SCHEMA && connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM native_binding_retirement WHERE binding_operation_id=?)",
+        [binding], |r| r.get::<_,bool>(0)).map_err(database)? {
+        return Err(crate::error::Failure::precondition("the original active checkout binding was explicitly retired"));
+    }
+    Ok(())
+}
+
+/// Validate immutable source evidence without consulting a future active binding.
+pub(crate) fn retained(connection: &Connection, held: &Snapshot) -> crate::error::Result<()> {
+    let source = Record::load(connection, &held.source.operation_id)?.ok_or_else(invalid)?;
+    let request = Record::load(connection, &held.request.operation_id)?.ok_or_else(invalid)?;
+    if source.state != "completed"
+        || !matches!(&source.effect, Some(Effect::Adopted { .. }))
+        || source.checkpoint()? != held.source
+        || request.checkpoint()? != held.request
+    {
+        return Err(invalid());
+    }
+    Ok(())
+}
+
+/// A local release cannot consume any original unknown write for this project.
+pub(crate) fn settled(connection: &Connection, held: &Snapshot) -> crate::error::Result<()> {
+    let mut query = connection.prepare(
+        "SELECT operation_id FROM operation WHERE kind='corporate.project_link' AND (finished_at IS NULL OR state='interrupted') ORDER BY operation_id LIMIT 129"
+    ).map_err(database)?;
+    let ids = query
+        .query_map([], |r| r.get::<_, String>(0))
+        .map_err(database)?
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .map_err(database)?;
+    if ids.len() > 128 {
+        return Err(invalid());
+    }
+    for id in ids {
+        let record = Record::load(connection, &id)?.ok_or_else(invalid)?;
+        if record.plan.snapshot().project_id()?
+            == held.local_project["stable_id"]
+                .as_str()
+                .ok_or_else(invalid)?
+            || record.plan.snapshot().physical_root()? == held.physical_root
+        {
+            return Err(crate::error::Failure::precondition(
+                "reconcile every retained checkout write for this physical project before retiring its binding",
+            ));
+        }
+    }
+    crate::account::project_unlinks::binding_settled(connection, &held.source.operation_id)
 }

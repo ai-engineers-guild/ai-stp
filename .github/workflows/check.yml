@@ -436,7 +436,11 @@ jobs:
       - name: Build the immutable previous schema58 native writer
         if: runner.os == 'Linux'
         shell: bash
-        run: bash .github/scripts/build-previous-native-cli.sh
+        run: bash .github/scripts/build-previous-native-cli.sh 58
+      - name: Build the qualified previous schema59 binding writer
+        if: runner.os == 'Linux'
+        shell: bash
+        run: bash .github/scripts/build-previous-native-cli.sh 59
       - name: Ownership and corporate journeys through the native HTTP client
         if: runner.os == 'Linux'
         shell: bash

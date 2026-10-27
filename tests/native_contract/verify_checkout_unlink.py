@@ -818,3 +818,25 @@ async def qualify(
         ),
         flush=True,
     )
+    from tests.native_contract.verify_binding_retirement import (
+        qualify as qualify_binding_retirement,
+    )
+
+    await qualify_binding_retirement(
+        binary=binary,
+        home=home,
+        state=state,
+        app=app,
+        faults=faults,
+        run=run,
+        enact=enact,
+        login=login,
+        refused=refused,
+        organization=organization,
+        project=project,
+        account=account,
+        offline_context=offline_context,
+        git_executable=git_executable,
+        foreign_context=foreign_context,
+        checkout=checkout,
+    )

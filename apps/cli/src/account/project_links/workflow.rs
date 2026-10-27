@@ -21,8 +21,8 @@ use crate::{
     files, identity, passport,
     projects::{checkout, passports},
     store::{
-        CHECKOUT_RETIREMENT_SCHEMA, CHECKOUT_UNLINK_SCHEMA, checkout_schema_after, database,
-        has_checkout_links,
+        CHECKOUT_RETIREMENT_SCHEMA, checkout_schema_after, database, has_checkout_links,
+        has_checkout_unlinks,
     },
 };
 
@@ -179,7 +179,7 @@ fn make(
     at: &str,
 ) -> Result<Plan> {
     let plan = Plan {
-        schema_version: if before == CHECKOUT_UNLINK_SCHEMA {
+        schema_version: if has_checkout_unlinks(before) {
             3
         } else if before == CHECKOUT_RETIREMENT_SCHEMA {
             2
