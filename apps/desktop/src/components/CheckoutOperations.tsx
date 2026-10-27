@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { record, records, useContexts } from "../contexts";
 import { checkoutFailure, checkoutPath, checkoutReader, checkoutReceipt, checkoutReview, retainedCheckout, type CheckoutReview } from "../checkoutLinks";
-import { cliPlan, cmdCheckoutApply, cmdMachineHelp, cmdRunRead, type CmdResult } from "../transport";
+import { bindingRetirementReceipt, bindingRetirementReview, type BindingRetirementReview } from "../bindingRetirement";
+import { cliPlan, cmdBindingRetirementApply, cmdCheckoutApply, cmdMachineHelp, cmdRunRead, type CmdResult } from "../transport";
 import { Details, ResultMeta, Spinner } from "./Result";
 
 export default function CheckoutOperations() {
@@ -14,17 +15,20 @@ export default function CheckoutOperations() {
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [review, setReview] = useState<CheckoutReview | null>(null);
   const [nextReview, setNextReview] = useState<CheckoutReview | null>(null);
+  const [retirement, setRetirement] = useState<BindingRetirementReview | null>(null);
   const [root, setRoot] = useState("");
   const [git, setGit] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [supported, setSupported] = useState(false);
+  const [retirementSupported, setRetirementSupported] = useState(false);
   const active = useRef(false), epoch = useRef(0);
   useLayoutEffect(() => {
     active.current = true;
     epoch.current++;
     setReview(null);
     setNextReview(null);
+    setRetirement(null);
     setSelected(null);
     setConfirmed(false);
     setResult(null);
@@ -38,6 +42,7 @@ export default function CheckoutOperations() {
     setBusy(true);
     setReview(null);
     setNextReview(null);
+    setRetirement(null);
     setConfirmed(false);
     try {
       const help = await cmdMachineHelp();
@@ -45,6 +50,8 @@ export default function CheckoutOperations() {
       const available = ["corporate project link list", "corporate project link show"].every((path) =>
         records(help?.data?.commands).some((item) => Array.isArray(item.path) && item.path.join(" ") === path && item.mutability === "read"));
       setSupported(available);
+      setRetirementSupported(["corporate project binding-retire plan", "corporate project binding-retire apply"].every((path, index) =>
+        records(help?.data?.commands).some((item) => Array.isArray(item.path) && item.path.join(" ") === path && item.mutability === (index === 0 ? "plan" : "apply"))));
       if (!available) { setRows([]); return; }
       const values: Record<string, string> = { limit: "50" };
       if (next) values.cursor = next;
@@ -67,12 +74,15 @@ export default function CheckoutOperations() {
     setBusy(true);
     setReview(null);
     setNextReview(null);
+    setRetirement(null);
     setConfirmed(false);
     try {
       let response = await cmdRunRead("corporate project link show", { operation: id });
       if (!active.current || sequence !== epoch.current) return;
       const exact = retainedCheckout(response.data);
       if (response.ok && (!exact || exact.plan.operation_id !== id)) response = checkoutFailure();
+      if (response.ok && exact?.action === "adopt" && response.data?.binding_retirement != null &&
+        !bindingRetirementReceipt(response.data.binding_retirement, record(response.data))) response = checkoutFailure();
       setResult(response);
       if (response.ok && exact) {
         setSelected(record(response.data));
@@ -84,6 +94,38 @@ export default function CheckoutOperations() {
   }
 
   const reader = review ? checkoutReader(context, contexts, review) : undefined;
+  async function prepareRetirement() {
+    if (!selected || !review || review.action !== "adopt" || selected.state !== "completed" ||
+      !reader || !context || !retirementSupported || retirement || selected.binding_retirement !== null || busy || switching) return;
+    const original = selected, sequence = ++epoch.current;
+    setBusy(true);
+    setConfirmed(false);
+    try {
+      let response = await cliPlan("corporate project binding-retire plan", {
+        context: reader, "binding-operation": String(review.plan.operation_id),
+      });
+      if (!active.current || sequence !== epoch.current) return;
+      const exact = bindingRetirementReview(response, context, original);
+      if (response.ok && !exact) response = checkoutFailure();
+      setResult(response);
+      if (exact) setRetirement(exact);
+    } finally { if (active.current && sequence === epoch.current) setBusy(false); }
+  }
+
+  async function applyRetirement() {
+    if (!retirement || !selected || !reader || !confirmed || busy || switching) return;
+    const exact = retirement, original = selected, sequence = ++epoch.current;
+    setBusy(true);
+    setConfirmed(false);
+    try {
+      let response = await cmdBindingRetirementApply(exact.plan, exact.digest, true);
+      if (!active.current || sequence !== epoch.current) return;
+      if (response.ok && (!bindingRetirementReceipt(response.data, original) ||
+        response.data?.plan_digest !== exact.digest || response.data?.operation_id !== exact.plan.operation_id)) response = checkoutFailure();
+      setResult(response);
+      if (response.ok) { setSelected({ ...original, binding_retirement: response.data }); setRetirement(null); }
+    } finally { if (active.current && sequence === epoch.current) setBusy(false); }
+  }
   async function prepare(action: "confirm" | "adopt") {
     if (!review || !reader || !context || nextReview || busy || switching) return;
     const source = review, snapshot = record(record(source.plan.change).snapshot);
@@ -166,7 +208,27 @@ export default function CheckoutOperations() {
           {review.action === "request" && <button className="btn-outline" disabled={!reader || busy || switching || record(record(record(review.plan.change).snapshot).context).context_id !== context?.id} onClick={() => void prepare("confirm")}>Review original confirmation</button>}
           <button className="btn-outline" disabled={!reader || !root.trim() || busy || switching} onClick={() => void prepare("adopt")}>Review original local binding</button>
         </div>}
-        {selected.state === "completed" && review.action === "adopt" && <p role="status">Corporate project binding saved.</p>}
+        {selected.state === "completed" && review.action === "adopt" && <div className="space-y-3">
+          {selected.binding_retirement != null ? <>
+            <p role="status">This original local binding was retired. Its adoption receipt is preserved.</p>
+            <Details label="Verified local binding retirement" value={selected.binding_retirement} />
+          </> : <>
+            <p role="status">Original corporate project binding receipt saved.</p>
+            {retirementSupported && selected.binding_retirement === null && !retirement && <>
+              <p className="text-sm text-muted-foreground">After this exact link is unlinked on the server, review releasing its local reservation. Checkout files, tasks and harness configuration are preserved.</p>
+              <button className="btn-outline" disabled={!reader || busy || switching} onClick={() => void prepareRetirement()}>Review local binding retirement</button>
+            </>}
+          </>}
+          {retirement && <div className="space-y-3" aria-label="Review local binding retirement">
+            <h3 className="font-medium">Release only this original local binding</h3>
+            <p className="text-sm text-muted-foreground">The CLI observed the exact server link as unlinked. Applying rechecks current rights and local state. It does not unlink another link or change checkout files, tasks or harness configuration.</p>
+            <p className="break-all font-mono text-xs">{retirement.digest}</p>
+            <Details label="Exact local binding retirement plan" value={retirement.plan} />
+            <label className="flex items-start gap-3 text-sm"><input type="checkbox" checked={confirmed} disabled={!reader || busy || switching} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed this exact local binding retirement and authorize releasing its reservation.</label>
+            <button className="btn-primary" disabled={!reader || !confirmed || busy || switching} onClick={() => void applyRetirement()}>Apply reviewed local binding retirement</button>
+            <p className="text-xs text-muted-foreground">If the reply is unconfirmed, inspect this original operation in Activity. An explicit retry retains this exact plan and operation.</p>
+          </div>}
+        </div>}
         {nextReview && <div className="space-y-3" aria-label="Review retained checkout next change">
           <h3 className="font-medium">Review original {nextReview.action === "confirm" ? "confirmation" : "local binding"}</h3>
           <p className="break-all font-mono text-xs">{nextReview.digest}</p>

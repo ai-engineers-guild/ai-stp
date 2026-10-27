@@ -22,6 +22,12 @@ harness files. Harness executables remain user/vendor managed.
   Inspect the original plan and explicitly reconcile an unknown outcome through
   a current context for the same account/company. Switching views cannot retarget
   the original operation; unknown results retain their reservations.
+  A completed adoption keeps its original receipt. When the exact server link
+  has been unlinked, a separate native review can release only that local
+  binding's reservation. It rechecks current rights, physical checkout and
+  retained state, preserving files, tasks and harness configuration. Activity
+  reads the distinct retirement receipt after restart; it never interprets an
+  old adoption receipt as proof that a binding is still active.
   Recovery reads the current revision; an uncertain start retains its retry
   identity in memory across navigation. After restarting the app, inspect
   Activity before starting again.

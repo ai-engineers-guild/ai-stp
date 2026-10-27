@@ -578,6 +578,47 @@ async def qualify(
         assert receipts and rows()[0] == 60 and len(faults.writes) == writes
         retired = receipts[0]
         assert await enact(planned, "corporate", "project", "binding-retire", "apply") == retired
+        history_before = rows(), faults.network_requests
+        history = await run(
+            "corporate", "project", "link", "show", "--operation", adoption["plan"]["operation_id"]
+        )
+        assert history["binding_retirement"] == retired
+        assert {key: value for key, value in history.items() if key != "binding_retirement"} == (
+            original_receipt
+        )
+        assert (rows(), faults.network_requests) == history_before
+        with closing(sqlite3.connect(registry)) as db:
+            detail = db.execute(
+                "SELECT detail FROM operation WHERE operation_id=?",
+                (planned["plan"]["operation_id"],),
+            ).fetchone()[0]
+            db.execute(
+                "UPDATE operation SET detail='{}' WHERE operation_id=?",
+                (planned["plan"]["operation_id"],),
+            )
+            db.commit()
+        corrupted = rows(), faults.network_requests
+        await refused(
+            binary,
+            home,
+            [
+                "corporate",
+                "project",
+                "link",
+                "show",
+                "--operation",
+                adoption["plan"]["operation_id"],
+                "--state-dir",
+                str(state),
+            ],
+        )
+        assert (rows(), faults.network_requests) == corrupted
+        with closing(sqlite3.connect(registry)) as db:
+            db.execute(
+                "UPDATE operation SET detail=? WHERE operation_id=?",
+                (detail, planned["plan"]["operation_id"]),
+            )
+            db.commit()
         after = rows()
         for table, records in before[1].items():
             if table not in {"operation", "project_link", "native_checkout_reservation"}:
@@ -619,6 +660,16 @@ async def qualify(
         _, future_adoption, future_receipt = await bind(path)
         future_link = future_receipt["effect"]["link"]["link_id"]
         assert future_link != link_id
+        assert (
+            await run(
+                "corporate",
+                "project",
+                "link",
+                "show",
+                "--operation",
+                future_adoption["plan"]["operation_id"],
+            )
+        )["binding_retirement"] is None
         future = rows()
         assert await enact(planned, "corporate", "project", "binding-retire", "apply") == retired
         assert rows() == future
@@ -719,6 +770,11 @@ async def qualify(
     network, future = faults.network_requests, rows()
     assert await enact(planned, "corporate", "project", "binding-retire", "apply") == retired
     assert await enact(adoption, "corporate", "project", "link", "apply") == original_receipt
+    assert (
+        await run(
+            "corporate", "project", "link", "show", "--operation", adoption["plan"]["operation_id"]
+        )
+    )["binding_retirement"] == retired
     assert rows() == future and faults.network_requests == network
     assert (await run("context", "list"))["selected"] == selected
     assert (path / ".env").read_bytes() == b"PRIVATE=retirement-unowned-canary\n"
@@ -747,6 +803,8 @@ async def qualify(
                 "root_and_named_replacement_preserve60_and_original_markers": True,
                 "named_recovery_format": 6,
                 "offline_exact_replay": True,
+                "distinct_retirement_history_after_recovery_and_logout": True,
+                "corrupted_retirement_history_refuses_without_repair": True,
                 "canary_bytes_and_modes_preserved": True,
                 "harness_configuration_writes": 0,
                 "installation_authority": False,
