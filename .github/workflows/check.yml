@@ -42,6 +42,9 @@ jobs:
         with:
           fetch-depth: '0'
           persist-credentials: 'false'
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
       - name: Install only the existing pinned secret scanner
         env:
           SAFETY_BIN_PREFIX: ${{ runner.temp }}/ai-stp-integration-secrets
@@ -54,26 +57,7 @@ jobs:
           EVENT: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          set -euo pipefail
-          scanner="${SAFETY_BIN_PREFIX}/gitleaks"
-          printf '%s\n' 'ordinary source' | "$scanner" stdin --redact=100 --no-banner
-          status=0
-          printf 'ghp_%s\n' 'AbcDef0123456789GhIjKlMnOpQrStUvWxYz' |
-            "$scanner" stdin --redact=100 --no-banner || status=$?
-          test "$status" -eq 1
-          if [[ "${EVENT}" == pull_request ]]; then
-            [[ "${BASE_SHA}" =~ ^[0-9a-f]{40}$ ]]
-            [[ "${HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
-            git cat-file -e "${BASE_SHA}^{commit}"
-            git cat-file -e "${HEAD_SHA}^{commit}"
-            "$scanner" git . --config=.gitleaks.toml --redact=100 --no-banner \
-              --log-opts="${BASE_SHA}..${HEAD_SHA}"
-          else
-            # The checkout contains source only; scanner bytes live in runner.temp.
-            # Scan the complete tree, including changes from an earlier failed main.
-            "$scanner" dir . --config=.gitleaks.toml --redact=100 --no-banner
-          fi
+        run: python .github/scripts/check-source-secrets.py
   integration-python:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
