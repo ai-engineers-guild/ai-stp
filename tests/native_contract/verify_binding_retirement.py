@@ -243,12 +243,8 @@ async def qualify(
     )
     assert rows() == unchanged and faults.network_requests == network
 
-    # The same physical project has two other unknown native writes. A fresh
-    # terminal remote link does not erase either retained local intent.
-    another_checkout = await request(path)
-    faults.lose_next = f"/v1/organizations/{organization}/project-link-plans"
-    await reject(another_checkout, "link")
-    assert faults.lose_next is None
+    # Retain an actual committed unlink request before the other actor changes
+    # the remote link. A lost acknowledgement must not be a rejected mutation.
     pending_unlink = await run(
         "corporate",
         "project",
@@ -259,9 +255,10 @@ async def qualify(
         "--binding-operation",
         adoption["plan"]["operation_id"],
     )
+    lost = faults.committed_acknowledgements_lost
     faults.lose_next = f"/v1/organizations/{organization}/project-unlink-plans"
     await reject(pending_unlink, "unlink")
-    assert faults.lose_next is None
+    assert faults.lose_next is None and faults.committed_acknowledgements_lost == lost + 1
 
     async with AsyncClient(base_url=origin, trust_env=False, timeout=15) as client:
         push_sequence = 0
@@ -386,6 +383,14 @@ async def qualify(
         assert terminal["plan_id"] == original_receipt["effect"]["link"]["plan_id"]
         assert terminal["plan_digest"] == original_receipt["effect"]["link"]["plan_digest"]
 
+        # The server correctly refuses a second link plan while a link is
+        # active. Only now can another real checkout request commit; both local
+        # intents must independently prevent retirement until reconciled.
+        another_checkout = await request(path)
+        lost = faults.committed_acknowledgements_lost
+        faults.lose_next = f"/v1/organizations/{organization}/project-link-plans"
+        await reject(another_checkout, "link")
+        assert faults.lose_next is None and faults.committed_acknowledgements_lost == lost + 1
         await refused(
             binary,
             home,

@@ -45,6 +45,7 @@ class LostAcknowledgements:
         self.writes: list[str] = []
         self.network_requests = 0
         self.unavailable_reads = False
+        self.committed_acknowledgements_lost = 0
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -99,7 +100,11 @@ class LostAcknowledgements:
             assert sum(len(item.get("body", b"")) for item in messages) <= 65536
 
         await self.app(scope, receive, retain)
-        assert messages and 200 <= messages[0]["status"] < 300
+        assert messages and 200 <= messages[0]["status"] < 300, (
+            "lost-acknowledgement fault requires an actual committed success",
+            messages[0]["status"] if messages else None,
+        )
+        self.committed_acknowledgements_lost += 1
         # Db's function-scoped dependency committed before response.start.
         await JSONResponse({}, status_code=503)(scope, receive, send)
 
