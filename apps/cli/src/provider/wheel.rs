@@ -44,7 +44,12 @@ fn files(bytes: &[u8]) -> Result<BTreeMap<String, Vec<u8>>> {
     let mut files = BTreeMap::new();
     let mut total = 0_u64;
     for index in 0..archive.len() {
-        let file = archive.by_index(index).map_err(|_| invalid())?;
+        let file = archive
+            .by_index_with_options(
+                index,
+                zip::read::ZipReadOptions::new().enforce_header_consistency(true),
+            )
+            .map_err(|_| invalid())?;
         let directory = file.is_dir();
         let name = std::str::from_utf8(file.name_raw()).map_err(|_| invalid())?;
         if name != file.name().map_err(|_| invalid())? {
