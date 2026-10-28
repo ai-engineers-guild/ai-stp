@@ -33,6 +33,9 @@ fn equal_remote_ids_keep_original_origins_and_credentials_after_selecting_anothe
         .map(|listener| listener.local_addr().map(|a| format!("http://{a}")))
         .collect::<std::io::Result<Vec<_>>>()?;
     let tokens = [generated(), generated()];
+    let (refresh_started, wait_refresh) = std::sync::mpsc::sync_channel::<()>(1);
+    let (resume_refresh, refresh_resume) = std::sync::mpsc::sync_channel::<()>(1);
+    let mut first_pause = Some((refresh_started, refresh_resume));
     let mut workers = Vec::new();
     let mut retained = Vec::new();
     for (index, listener) in listeners.into_iter().enumerate() {
@@ -59,10 +62,11 @@ fn equal_remote_ids_keep_original_origins_and_credentials_after_selecting_anothe
             tokens[index].clone(),
             at.clone(),
         );
+        let pause = if index == 0 { first_pause.take() } else { None };
         workers.push(thread::spawn(move || -> std::io::Result<()> {
             // Plan/apply each require three observations. Only the original
-            // first server receives the later explicit refresh after switching.
-            for _ in 0..if index == 0 { 9 } else { 6 } {
+            // first server receives the refresh held across the view change.
+            for step in 0..if index == 0 { 9 } else { 6 } {
                 let mut socket = accept(&listener)?;
                 let (header, body) = receive(&mut socket)?;
                 assert!(body.is_empty());
@@ -75,6 +79,15 @@ fn equal_remote_ids_keep_original_origins_and_credentials_after_selecting_anothe
                     authorization == Some(format!("Bearer {token}").as_str()),
                     "request used another server's credential"
                 );
+                if index == 0 && step == 6 {
+                    let (started, resume) = pause
+                        .as_ref()
+                        .ok_or_else(|| std::io::Error::other("missing refresh pause"))?;
+                    started.send(()).map_err(std::io::Error::other)?;
+                    resume
+                        .recv_timeout(std::time::Duration::from_secs(10))
+                        .map_err(std::io::Error::other)?;
+                }
                 let value = if header.starts_with("GET /v1/auth/me ") {
                     json!({"schema_version":1,"account_id":remote_account,"device_id":remote_device,"account_status":"active"})
                 } else if header.starts_with("GET /v1/context ") {
@@ -116,10 +129,21 @@ fn equal_remote_ids_keep_original_origins_and_credentials_after_selecting_anothe
         context_ids.push(result["context_id"].as_str().ok_or("context")?.to_owned());
     }
     assert_ne!(context_ids[0], context_ids[1]);
-    let select = contexts::select_plan(root.path(), &context_ids[1], &at)?;
+    let select = contexts::select_plan(root.path(), &context_ids[0], &at)?;
     contexts::apply(&select, &select.digest()?, &at)?;
     let before = contexts::show(root.path(), &context_ids[0], false)?;
-    let refreshed = contexts::show(root.path(), &context_ids[0], true)?;
+    let refresh_root = root.path().to_owned();
+    let refresh_context = context_ids[0].clone();
+    let refresh = thread::spawn(move || contexts::show(&refresh_root, &refresh_context, true));
+    wait_refresh.recv_timeout(std::time::Duration::from_secs(10))?;
+    assert_eq!(
+        contexts::list(root.path())?["selected"]["context_id"],
+        context_ids[0]
+    );
+    let select = contexts::select_plan(root.path(), &context_ids[1], &at)?;
+    contexts::apply(&select, &select.digest()?, &at)?;
+    resume_refresh.send(())?;
+    let refreshed = refresh.join().map_err(|_| "refresh worker")??;
     assert_eq!(
         refreshed["current_organization"]["display_name"],
         "Origin 0"
