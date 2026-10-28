@@ -7,6 +7,11 @@ on:
       - "apps/web/openapi-ts.config.ts"
       - ".github/workflows/contract-generation.yml"
   workflow_dispatch:
+    inputs:
+      native_locks:
+        description: "Regenerate native CLI lockfiles from committed manifests instead of schemas"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -23,6 +28,7 @@ env:
 
 jobs:
   generate:
+    if: github.event_name != 'workflow_dispatch' || !inputs.native_locks
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -88,5 +94,44 @@ jobs:
           path: |
             ${{ runner.temp }}/contract-source.patch
             ${{ runner.temp }}/contract-source.txt
+          if-no-files-found: error
+          retention-days: 3
+
+  native-locks:
+    if: github.event_name == 'workflow_dispatch' && inputs.native_locks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Install the pinned native CLI toolchain
+        run: bash .github/scripts/install-rust-toolchain.sh apps/cli/rust-toolchain.toml
+      - name: Regenerate only changed native dependency resolutions
+        run: |
+          set -euo pipefail
+          cargo update --manifest-path apps/cli/Cargo.toml --workspace
+          cargo update --manifest-path apps/cli/xtask/Cargo.toml --workspace
+          git diff --exit-code -- . ':!apps/cli/Cargo.lock' ':!apps/cli/xtask/Cargo.lock'
+      - name: Retain the exact lockfile patch for review
+        env:
+          SOURCE_HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${SOURCE_HEAD}"
+          git diff --binary -- apps/cli/Cargo.lock apps/cli/xtask/Cargo.lock \
+            > "${RUNNER_TEMP}/native-locks.patch"
+          {
+            echo "source_head=${SOURCE_HEAD}"
+            echo "tree=$(git rev-parse HEAD^{tree})"
+            sha256sum "${RUNNER_TEMP}/native-locks.patch"
+            git diff --stat -- apps/cli/Cargo.lock apps/cli/xtask/Cargo.lock
+          } > "${RUNNER_TEMP}/native-locks.txt"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: native-locks-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/native-locks.patch
+            ${{ runner.temp }}/native-locks.txt
           if-no-files-found: error
           retention-days: 3

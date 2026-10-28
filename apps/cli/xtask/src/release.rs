@@ -166,7 +166,10 @@ pub fn read_archive(path: &Path, binary: &str) -> Result<Files> {
             "archive must contain exactly four regular files",
         )?;
         for i in 0..archive.len() {
-            let entry = archive.by_index(i)?;
+            let entry = archive.by_index_with_options(
+                i,
+                zip::read::ZipReadOptions::new().enforce_header_consistency(true),
+            )?;
             let mode = entry.unix_mode().ok_or("archive has no file mode")?;
             require(
                 mode & 0o170000 == 0o100000 && !entry.encrypted(),
