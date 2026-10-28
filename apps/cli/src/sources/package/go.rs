@@ -94,7 +94,12 @@ fn module_archive(bytes: &[u8], name: &str, version: &str) -> Result<(String, Ve
     let mut names = BTreeMap::new();
     let mut total = 0u64;
     for index in 0..archive.len() {
-        let member = archive.by_index(index).map_err(|_| invalid())?;
+        let member = archive
+            .by_index_with_options(
+                index,
+                zip::read::ZipReadOptions::new().enforce_header_consistency(true),
+            )
+            .map_err(|_| invalid())?;
         let name = std::str::from_utf8(member.name_raw()).map_err(|_| invalid())?;
         if name != member.name().map_err(|_| invalid())?
             || !name.starts_with(&prefix)
@@ -126,7 +131,12 @@ fn module_archive(bytes: &[u8], name: &str, version: &str) -> Result<(String, Ve
     let mut summary = Sha256::new();
     let mut files = Vec::new();
     for (name, index) in names {
-        let mut member = archive.by_index(index).map_err(|_| invalid())?;
+        let mut member = archive
+            .by_index_with_options(
+                index,
+                zip::read::ZipReadOptions::new().enforce_header_consistency(true),
+            )
+            .map_err(|_| invalid())?;
         let relative = name.strip_prefix(&prefix).ok_or_else(invalid)?;
         // Only module-root metadata is a source projection. Nested testdata is not.
         let selected = matches!(relative, "go.mod" | "go.sum") && !member.is_dir();

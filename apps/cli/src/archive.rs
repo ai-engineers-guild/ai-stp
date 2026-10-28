@@ -216,7 +216,12 @@ pub(crate) fn decode(payload: &[u8], limits: Limits) -> Result<Vec<Entry<'static
     let mut entries = Vec::new();
     let mut total = 0_u64;
     for index in 0..count {
-        let file = archive.by_index(index).map_err(|_| invalid())?;
+        let file = archive
+            .by_index_with_options(
+                index,
+                zip::read::ZipReadOptions::new().enforce_header_consistency(true),
+            )
+            .map_err(|_| invalid())?;
         let mode = file.unix_mode().ok_or_else(invalid)?;
         let kind = match mode & 0o170000 {
             0o100000 => Kind::File,
