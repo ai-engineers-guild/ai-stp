@@ -20,6 +20,8 @@ case "${previous_epoch}" in
   *) echo "Only the two explicit qualified writer epochs are supported." >&2; exit 2 ;;
 esac
 previous_root="${RUNNER_TEMP:?}/ai-stp-previous-native-${previous_epoch}-source"
+producer_recipe="$(sha256sum "${BASH_SOURCE[0]}" | cut -d ' ' -f 1)"
+cached_root="${RUNNER_TEMP}/ai-stp-previous-native-binaries/${previous_commit}"
 test ! -e "${previous_root}"
 git fetch --no-tags origin "${previous_commit}"
 test "$(git rev-parse FETCH_HEAD)" = "${previous_commit}"
@@ -31,12 +33,65 @@ cmp apps/cli/rust-toolchain.toml "${previous_root}/apps/cli/rust-toolchain.toml"
 export CARGO_TARGET_DIR="${RUNNER_TEMP}/ai-stp-previous-native-${previous_commit}-target"
 export CARGO_BUILD_BUILD_DIR="${RUNNER_TEMP}/ai-stp-previous-native-${previous_commit}-build"
 cd "${previous_root}/apps/cli"
-previous_binary="$(cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- cli-binary)"
-test -x "${previous_binary}"
-case "${previous_binary}" in
-  /*) ;;
-  *) exit 1 ;;
-esac
+compiler="$(rustc --version --verbose)"
+if [[ -e "${cached_root}" || -L "${cached_root}" ]]; then
+  cache_mode=verify
+else
+  previous_binary="$(cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- cli-binary)"
+  test -x "${previous_binary}"
+  case "${previous_binary}" in
+    /*) ;;
+    *) exit 1 ;;
+  esac
+  mkdir -p "${cached_root%/*}"
+  mkdir "${cached_root}"
+  cp "${previous_binary}" "${cached_root}/ai-stp"
+  chmod 755 "${cached_root}/ai-stp"
+  cache_mode=create
+fi
+# The record identifies bytes, not acceptance. Only the owning main job saves
+# this cache, after the actual previous/current-writer API controls succeed.
+python3 - "${cached_root}" "${previous_commit}" "${previous_tree}" \
+  "${producer_recipe}" "${compiler}" "${cache_mode}" <<'PY'
+import hashlib
+import json
+import pathlib
+import stat
+import sys
+
+root, commit, tree, recipe, compiler, mode = sys.argv[1:]
+root = pathlib.Path(root)
+assert stat.S_ISDIR(root.lstat().st_mode) and not root.is_symlink()
+binary = root / "ai-stp"
+info = binary.lstat()
+assert stat.S_ISREG(info.st_mode) and stat.S_IMODE(info.st_mode) == 0o755
+assert 4096 < info.st_size <= 512 * 1024 * 1024
+with binary.open("rb") as stream:
+    assert stream.read(4) == b"\x7fELF"
+    stream.seek(0)
+    digest = hashlib.file_digest(stream, "sha256").hexdigest()
+expected = {
+    "format": "ai-stp-previous-native-binary/1",
+    "source_commit": commit,
+    "source_tree": tree,
+    "producer_recipe_sha256": recipe,
+    "compiler": compiler,
+    "binary_sha256": digest,
+    "binary_bytes": info.st_size,
+}
+record = root / "record.json"
+encoded = (json.dumps(expected, sort_keys=True, separators=(",", ":")) + "\n").encode()
+if mode == "create":
+    with record.open("xb") as stream:
+        stream.write(encoded)
+else:
+    assert mode == "verify"
+    info = record.lstat()
+    assert stat.S_ISREG(info.st_mode) and 0 < info.st_size <= 32768
+    assert record.read_bytes() == encoded, "previous writer cache identity differs"
+print(f"Previous writer cache {mode}: source={commit} binary_sha256={digest}")
+PY
+previous_binary="${cached_root}/ai-stp"
 mkdir "${previous_root}/installed"
 cp "${previous_binary}" "${previous_root}/installed/ai-stp"
 cmp "${previous_binary}" "${previous_root}/installed/ai-stp"
@@ -84,4 +139,4 @@ fi
   printf '%s_SOURCE=%s\n' "${variable}" "${previous_commit}"
 } >> "${GITHUB_ENV:?}"
 sha256sum "${previous_binary}"
-du -sk "${CARGO_TARGET_DIR}" "${CARGO_BUILD_BUILD_DIR}"
+du -sk "${cached_root}"

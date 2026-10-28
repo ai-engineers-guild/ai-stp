@@ -464,13 +464,12 @@ jobs:
         continue-on-error: true
         timeout-minutes: 5
         with:
-          path: |
-            ${{ runner.temp }}/ai-stp-previous-native-*-target
-            ${{ runner.temp }}/ai-stp-previous-native-*-build
-          # No prefix fallback may import artifacts from another compiler or
-          # producer recipe. Each target/build directory is also commit-bound.
+          path: ${{ runner.temp }}/ai-stp-previous-native-binaries
+          # Retain source-bound executables, not two complete compilation trees.
+          # Every use verifies compiler/recipe/bytes and reruns actual API controls.
+          # No prefix fallback may import another producer's artifacts.
           key: >-
-            previous-native-v1-${{ runner.os }}-${{ runner.arch }}-${{
+            previous-native-v2-${{ runner.os }}-${{ runner.arch }}-${{
             hashFiles('apps/cli/rust-toolchain.toml',
             '.github/scripts/build-previous-native-cli.sh', '.github/workflows/check.yml') }}
       - name: Build the immutable previous schema58 native writer
@@ -508,9 +507,7 @@ jobs:
         continue-on-error: true
         timeout-minutes: 5
         with:
-          path: |
-            ${{ runner.temp }}/ai-stp-previous-native-*-target
-            ${{ runner.temp }}/ai-stp-previous-native-*-build
+          path: ${{ runner.temp }}/ai-stp-previous-native-binaries
           key: ${{ steps.previous-native-cache.outputs.cache-primary-key }}
       - name: Cache the successful native build
         if: steps.native-cache.outputs.cache-hit != 'true'
