@@ -9,7 +9,7 @@ import signal
 import sys
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from importlib.util import module_from_spec, spec_from_file_location
@@ -32,7 +32,7 @@ def load() -> ModuleType:
 
 
 @contextmanager
-def owned_driver(module: ModuleType, root: Path) -> Iterator[Any]:
+def owned_driver(module: ModuleType, root: Path) -> Generator[Any, None, None]:
     executable = root / "owned-driver"
     executable.write_text(
         f"#!{sys.executable}\n"
