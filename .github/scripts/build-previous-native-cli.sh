@@ -20,7 +20,11 @@ case "${previous_epoch}" in
   *) echo "Only the two explicit qualified writer epochs are supported." >&2; exit 2 ;;
 esac
 previous_root="${RUNNER_TEMP:?}/ai-stp-previous-native-${previous_epoch}-source"
-producer_recipe="$(sha256sum "${BASH_SOURCE[0]}" | cut -d ' ' -f 1)"
+producer_directory="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+producer_recipe="$(
+  (cd "${producer_directory}" && sha256sum build-previous-native-cli.sh previous-native-cache.py) |
+    sha256sum | cut -d ' ' -f 1
+)"
 cached_root="${RUNNER_TEMP}/ai-stp-previous-native-binaries/${previous_commit}"
 test ! -e "${previous_root}"
 git fetch --no-tags origin "${previous_commit}"
@@ -51,46 +55,9 @@ else
 fi
 # The record identifies bytes, not acceptance. Only the owning main job saves
 # this cache, after the actual previous/current-writer API controls succeed.
-python3 - "${cached_root}" "${previous_commit}" "${previous_tree}" \
-  "${producer_recipe}" "${compiler}" "${cache_mode}" <<'PY'
-import hashlib
-import json
-import pathlib
-import stat
-import sys
-
-root, commit, tree, recipe, compiler, mode = sys.argv[1:]
-root = pathlib.Path(root)
-assert stat.S_ISDIR(root.lstat().st_mode) and not root.is_symlink()
-binary = root / "ai-stp"
-info = binary.lstat()
-assert stat.S_ISREG(info.st_mode) and stat.S_IMODE(info.st_mode) == 0o755
-assert 4096 < info.st_size <= 512 * 1024 * 1024
-with binary.open("rb") as stream:
-    assert stream.read(4) == b"\x7fELF"
-    stream.seek(0)
-    digest = hashlib.file_digest(stream, "sha256").hexdigest()
-expected = {
-    "format": "ai-stp-previous-native-binary/1",
-    "source_commit": commit,
-    "source_tree": tree,
-    "producer_recipe_sha256": recipe,
-    "compiler": compiler,
-    "binary_sha256": digest,
-    "binary_bytes": info.st_size,
-}
-record = root / "record.json"
-encoded = (json.dumps(expected, sort_keys=True, separators=(",", ":")) + "\n").encode()
-if mode == "create":
-    with record.open("xb") as stream:
-        stream.write(encoded)
-else:
-    assert mode == "verify"
-    info = record.lstat()
-    assert stat.S_ISREG(info.st_mode) and 0 < info.st_size <= 32768
-    assert record.read_bytes() == encoded, "previous writer cache identity differs"
-print(f"Previous writer cache {mode}: source={commit} binary_sha256={digest}")
-PY
+python3 "${producer_directory}/previous-native-cache.py" \
+  "${cached_root}" "${previous_commit}" "${previous_tree}" \
+  "${producer_recipe}" "${compiler}" "${cache_mode}"
 previous_binary="${cached_root}/ai-stp"
 mkdir "${previous_root}/installed"
 cp "${previous_binary}" "${previous_root}/installed/ai-stp"

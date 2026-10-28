@@ -471,7 +471,8 @@ jobs:
           key: >-
             previous-native-v2-${{ runner.os }}-${{ runner.arch }}-${{
             hashFiles('apps/cli/rust-toolchain.toml',
-            '.github/scripts/build-previous-native-cli.sh', '.github/workflows/check.yml') }}
+            '.github/scripts/build-previous-native-cli.sh',
+            '.github/scripts/previous-native-cache.py', '.github/workflows/check.yml') }}
       - name: Build the immutable previous schema58 native writer
         if: runner.os == 'Linux'
         shell: bash
