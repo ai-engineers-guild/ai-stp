@@ -34,6 +34,47 @@ def require(condition: bool, message: str) -> None:
         raise ValueError(message)
 
 
+def driver_children(pid: int) -> dict[str, Any]:
+    """Observe only the owned Linux driver's direct children, without private prose."""
+    result: dict[str, Any] = {"observation": "unavailable"}
+    try:
+        task = Path(f"/proc/{pid}/task/{pid}/children")
+        with task.open() as stream:
+            content = stream.read(4097)
+        children = content.split()
+        if len(content) > 4096 or len(children) > 8 or any(not c.isdecimal() for c in children):
+            return {"observation": "bounded"}
+        running = 0
+        exited: list[int] = []
+        for child in children:
+            with Path(f"/proc/{child}/stat").open() as stream:
+                status = stream.read(4097)
+            # The comm field may contain spaces and parentheses. Do not emit it.
+            fields = status.rpartition(") ")[2].split()
+            if (
+                len(status) > 4096
+                or len(fields) < 50
+                or fields[0] not in {"R", "S", "D", "T", "t", "Z", "X", "x", "K", "W", "P", "I"}
+                or int(fields[1]) != pid
+            ):
+                return result
+            if fields[0] in {"Z", "X", "x"}:
+                code = os.waitstatus_to_exitcode(int(fields[49]))
+                if not -64 <= code <= 255:
+                    return result
+                exited.append(code)
+            else:
+                running += 1
+        return {
+            "observation": "read",
+            "direct_children": len(children),
+            "running": running,
+            "exit_codes": sorted(exited),
+        }
+    except (OSError, ValueError, IndexError):
+        return result
+
+
 def axe_source() -> tuple[str, str]:
     """Use the existing web lock's immutable tool, only in disposable CI/RAM."""
     global _axe_tool
@@ -121,6 +162,14 @@ class Driver:
         self.app_started = 0.0
         self.startup_ms = 0.0
         self.accessibility: list[dict[str, Any]] = []
+        self.readiness_observations = {
+            "connection_refused": 0,
+            "connection_reset": 0,
+            "disconnected": 0,
+            "timeout": 0,
+            "other_transport": 0,
+            "not_ready": 0,
+        }
         self.log = log.open("wb")
         self.process = subprocess.Popen(
             [
@@ -202,9 +251,28 @@ class Driver:
     def start(self) -> None:
         def ready() -> bool:
             try:
-                return bool(self.request("GET", "/status")["ready"])
-            except (OSError, http.client.HTTPException):
+                status = self.request("GET", "/status")
+                require(
+                    isinstance(status, dict) and isinstance(status.get("ready"), bool),
+                    "WebDriver returned an invalid readiness observation",
+                )
+                if not status["ready"]:
+                    self.readiness_observations["not_ready"] += 1
+                return status["ready"]
+            except (OSError, http.client.HTTPException) as error:
                 # Readiness is an observation before any application session.
+                category = (
+                    "connection_refused"
+                    if isinstance(error, ConnectionRefusedError)
+                    else "connection_reset"
+                    if isinstance(error, ConnectionResetError)
+                    else "timeout"
+                    if isinstance(error, TimeoutError)
+                    else "disconnected"
+                    if isinstance(error, http.client.RemoteDisconnected)
+                    else "other_transport"
+                )
+                self.readiness_observations[category] += 1
                 self.http.close()
                 return False
 
@@ -459,6 +527,12 @@ class Driver:
         # Observe that original refusal only after a successful driver command;
         # never reuse a transport whose previous command did not complete.
         stage = self.stage
+        driver_exit_code = self.process.poll()
+        children = (
+            driver_children(self.process.pid)
+            if driver_exit_code is None
+            else {"observation": "driver_exited"}
+        )
         public_failures: list[dict[str, str]] = []
         public_failure_observation = "not_read"
         allowed = {
@@ -550,7 +624,9 @@ class Driver:
                     "stage": stage,
                     "public_failure_observation": public_failure_observation,
                     "public_credential_failures": public_failures,
-                    "driver_exit_code": self.process.poll(),
+                    "driver_exit_code": driver_exit_code,
+                    "readiness_observations": self.readiness_observations,
+                    "driver_children": children,
                     "markers": {
                         "proxy_connection_error": "Error serving connection:" in tail,
                         "canceled": "Canceled" in tail or "canceled" in tail,
