@@ -25,7 +25,12 @@ pub(super) fn selected(bytes: &[u8], subpath: Option<&str>) -> Result<Vec<Member
     let mut files = Vec::new();
     let mut total = 0usize;
     for index in 0..archive.len() {
-        let mut member = archive.by_index(index).map_err(|_| invalid())?;
+        let mut member = archive
+            .by_index_with_options(
+                index,
+                zip::read::ZipReadOptions::new().enforce_header_consistency(true),
+            )
+            .map_err(|_| invalid())?;
         let name = std::str::from_utf8(member.name_raw())
             .map_err(|_| invalid())?
             .to_owned();
@@ -110,6 +115,23 @@ mod tests {
             writer.write_all(bytes)?;
         }
         Ok(writer.finish()?.into_inner())
+    }
+
+    #[test]
+    fn source_selection_refuses_different_local_and_central_names()
+    -> std::result::Result<(), Box<dyn Error>> {
+        let name = "owner-repo-sha/skills/demo/SKILL.md";
+        let mut archive = zip(&[(name, b"Original source.\n")])?;
+        assert_eq!(selected(&archive, Some("skills/demo"))?.len(), 1);
+        let local_name = archive
+            .windows(name.len())
+            .position(|bytes| bytes == name.as_bytes())
+            .ok_or("the fixture must contain its local filename")?;
+        // Keep the central directory's selected filename but change the local header.
+        archive[local_name..local_name + name.len()]
+            .copy_from_slice(b"owner-repo-sha/skills/demo/OTHER.md");
+        assert!(selected(&archive, Some("skills/demo")).is_err());
+        Ok(())
     }
 
     #[test]
