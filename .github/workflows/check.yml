@@ -419,6 +419,22 @@ jobs:
           # A package-version bump should retain reusable dependencies. Cargo
           # revalidates the restored build; every check below still runs.
           restore-keys: cli-shared-${{ runner.os }}-
+      - name: Restore isolated previous native build artifacts
+        if: runner.os == 'Linux'
+        id: previous-native-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        continue-on-error: true
+        timeout-minutes: 5
+        with:
+          path: ${{ runner.temp }}/ai-stp-previous-native-binaries
+          # Restore before long-running checks to reduce the eviction window.
+          # Every use verifies compiler/recipe/bytes and reruns actual API controls.
+          # No prefix fallback may import another producer's artifacts.
+          key: >-
+            previous-native-v2-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('apps/cli/rust-toolchain.toml',
+            '.github/scripts/build-previous-native-cli.sh',
+            '.github/scripts/previous-native-cache.py', '.github/workflows/check.yml') }}
       - name: Native boundary checks
         working-directory: apps/cli
         shell: bash
@@ -457,22 +473,6 @@ jobs:
           )"
           printf 'AI_STP_TEST_CLI_BINARY=%s\n' "$binary" >> "${GITHUB_ENV}"
           uv run --no-sync python tests/native_contract/verify.py "$binary"
-      - name: Restore isolated previous native build artifacts
-        if: runner.os == 'Linux'
-        id: previous-native-cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        continue-on-error: true
-        timeout-minutes: 5
-        with:
-          path: |
-            ${{ runner.temp }}/ai-stp-previous-native-*-target
-            ${{ runner.temp }}/ai-stp-previous-native-*-build
-          # No prefix fallback may import artifacts from another compiler or
-          # producer recipe. Each target/build directory is also commit-bound.
-          key: >-
-            previous-native-v1-${{ runner.os }}-${{ runner.arch }}-${{
-            hashFiles('apps/cli/rust-toolchain.toml',
-            '.github/scripts/build-previous-native-cli.sh', '.github/workflows/check.yml') }}
       - name: Build the immutable previous schema58 native writer
         if: runner.os == 'Linux'
         shell: bash
@@ -508,9 +508,7 @@ jobs:
         continue-on-error: true
         timeout-minutes: 5
         with:
-          path: |
-            ${{ runner.temp }}/ai-stp-previous-native-*-target
-            ${{ runner.temp }}/ai-stp-previous-native-*-build
+          path: ${{ runner.temp }}/ai-stp-previous-native-binaries
           key: ${{ steps.previous-native-cache.outputs.cache-primary-key }}
       - name: Cache the successful native build
         if: steps.native-cache.outputs.cache-hit != 'true'
