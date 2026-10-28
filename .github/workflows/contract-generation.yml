@@ -119,7 +119,8 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${SOURCE_HEAD}"
-          git diff --binary -- apps/cli/Cargo.lock apps/cli/xtask/Cargo.lock > "${RUNNER_TEMP}/native-locks.patch"
+          git diff --binary -- apps/cli/Cargo.lock apps/cli/xtask/Cargo.lock \
+            > "${RUNNER_TEMP}/native-locks.patch"
           {
             echo "source_head=${SOURCE_HEAD}"
             echo "tree=$(git rev-parse HEAD^{tree})"
