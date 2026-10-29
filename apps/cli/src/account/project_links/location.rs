@@ -35,6 +35,17 @@ pub(crate) struct Locator {
     pub physical: DirectoryIdentity,
 }
 
+impl Locator {
+    fn validate(&self) -> Result<()> {
+        self.physical.validate()?;
+        if !passport::stable_id(&self.operation_id, "operation") || !model::hash(&self.plan_digest)
+        {
+            return Err(invalid());
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Copy, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 enum Action {
@@ -138,6 +149,15 @@ impl Plan {
         self.reader.validate(&self.original)?;
         self.physical.validate()?;
         self.git_physical.validate()?;
+        if let Some(previous) = &self.binding.location {
+            previous.validate()?;
+            if previous.operation_id == self.operation_id
+                || previous.operation_id == self.binding.source.operation_id
+                || previous.operation_id == self.binding.request.operation_id
+            {
+                return Err(invalid());
+            }
+        }
         projected_remote(&self.remote, &self.original, &self.binding, &self.reader)?;
         if self.schema_version != 1
             || !passport::stable_id(&self.operation_id, "operation")
