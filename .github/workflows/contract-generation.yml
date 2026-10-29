@@ -131,7 +131,7 @@ jobs:
             > "${RUNNER_TEMP}/native-locks.patch"
           {
             echo "source_head=${SOURCE_HEAD}"
-            echo "tree=$(git rev-parse HEAD^{tree})"
+            echo "tree=$(git rev-parse 'HEAD^{tree}')"
             sha256sum "${RUNNER_TEMP}/native-locks.patch"
             git diff --stat -- apps/cli/Cargo.lock apps/cli/xtask/Cargo.lock \
               apps/desktop/core/Cargo.lock apps/desktop/src-tauri/Cargo.lock
@@ -183,7 +183,7 @@ jobs:
           git diff --binary -- apps/web/bun.lock > "${RUNNER_TEMP}/web-lock.patch"
           {
             echo "source_head=${SOURCE_HEAD}"
-            echo "tree=$(git rev-parse HEAD^{tree})"
+            echo "tree=$(git rev-parse 'HEAD^{tree}')"
             sha256sum "${RUNNER_TEMP}/web-lock.patch"
             git diff --stat -- apps/web/bun.lock
           } > "${RUNNER_TEMP}/web-lock.txt"
