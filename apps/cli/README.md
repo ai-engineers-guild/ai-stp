@@ -206,6 +206,8 @@ directory yourself. Review `corporate project location-relocate plan` with the
 same state/context/binding coordinates and `--root DESTINATION`, then apply that
 exact plan. The previous pathname must be absent; physical identity, attached
 branch, commit, configuration and routing must still match the trusted location.
+Keep the native state directory outside the checkout; moving the checkout must
+not also move the registry that records its location.
 Current `project.link` authority in the original company is required; moving
 local metadata does not require `project.unlink` or create installation authority.
 

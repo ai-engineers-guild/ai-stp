@@ -233,6 +233,16 @@ fn physical(path: &Path) -> Result<(DirectoryIdentity, DirectoryIdentity)> {
     ))
 }
 
+fn state_stays_present(owner: &runtime::Owner, destination: &Path) -> Result<()> {
+    let (_, checkout) = projects::open_root(destination)?;
+    if files::physical::contains(&checkout, owner.root_directory())? {
+        return Err(crate::error::Failure::precondition(
+            "keep the native state directory outside the checkout before reviewing a location change",
+        ).with_details([("reason".into(),"native_state_inside_checkout".into())]));
+    }
+    Ok(())
+}
+
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct Receipt {
@@ -390,6 +400,7 @@ fn make(
         None => held.checkout_root.clone(),
     };
     let checkout_spelling = projects::open_root(&destination)?.0;
+    state_stays_present(&owner, &destination)?;
     let (physical, git_physical) = physical(&destination)?;
     let checkout = checkout::observe(&destination, git)?;
     embedded_checkout(&checkout, &checkout_spelling)?;
@@ -625,6 +636,7 @@ pub fn apply(
             return Err(invalid());
         }
         local_available(transaction, &plan.binding, &plan.destination)?;
+        state_stays_present(&owner, &plan.destination)?;
         if physical(&plan.destination)? != (plan.physical.clone(), plan.git_physical.clone())
             || checkout::observe(&plan.destination, git)? != plan.checkout { return Err(invalid()); }
         if plan.action == Action::Anchor
