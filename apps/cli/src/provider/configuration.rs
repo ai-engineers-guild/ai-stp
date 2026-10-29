@@ -2,11 +2,13 @@
 
 pub(crate) mod activation;
 pub(crate) mod effects;
+mod location;
 pub(crate) mod outcome;
 pub(crate) mod plan;
 pub(crate) mod project;
 pub(crate) mod record;
 pub(crate) mod set;
+pub(crate) use location::location_unreserved;
 
 pub(crate) fn invalid() -> crate::error::Failure {
     crate::error::Failure::precondition(

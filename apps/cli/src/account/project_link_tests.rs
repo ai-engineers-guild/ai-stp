@@ -1,5 +1,8 @@
 //! Real account journals, private passports, Git and an independent HTTP peer.
 
+#[path = "project_location_tests.rs"]
+mod location_tests;
+
 use super::*;
 use crate::{
     account::project_links,
@@ -25,6 +28,7 @@ struct Peer {
     hide_outcome: bool,
     reject_confirmation: bool,
     settlement: Option<String>,
+    deny_link: bool,
     writes: Vec<(String, String, Value)>,
     reads: Vec<(String, String)>,
     plans: BTreeMap<String, Value>,
@@ -90,13 +94,17 @@ fn peer(
     assert!([FIRST, SECOND].contains(&organization.as_str()));
     let policy = format!("corporate:{organization}:1");
     if path == "/v1/context" {
+        let deny_link = peer
+            .lock()
+            .map_err(|_| std::io::Error::other("peer"))?
+            .deny_link;
         return respond(
             socket,
             200,
             json!({"schema_version":1,"mode":"corporate","organization_id":organization,
             "capabilities":{"schema_version":1,"registry_version":2,"mode":"corporate","context_kind":"corporate",
             "organization_id":organization,"authorization_revision":policy,"issued_at":at,"generated_at":at,
-            "expires_at":after(at,3600).map_err(std::io::Error::other)?,"capabilities":["organization.read","project.link"],"unavailable":{}}}),
+            "expires_at":after(at,3600).map_err(std::io::Error::other)?,"capabilities":if deny_link {vec!["organization.read"]} else {vec!["organization.read","project.link"]},"unavailable":{}}}),
         );
     }
     let mut peer = peer.lock().map_err(|_| std::io::Error::other("peer"))?;
@@ -148,7 +156,9 @@ fn peer(
         }
         return respond(socket, 201, plan);
     }
-    if path.contains("/project-link-plans/") && path.ends_with("/settlement") {
+    if path.contains("/project-link-plans/")
+        && (path.ends_with("/settlement") || path.ends_with("/outcome"))
+    {
         if peer.settlement.as_deref() == Some("unsupported") {
             return respond(
                 socket,
@@ -294,6 +304,12 @@ fn checkout_confirmation_retirement_requires_fresh_expired_barrier_and_no_bindin
 
 fn checkout_journey(named: bool) -> std::result::Result<(), Box<dyn Error>> {
     checkout_case(named, None)
+}
+
+#[test]
+fn reviewed_checkout_locations_preserve_immutable_binding_and_fresh_authority()
+-> std::result::Result<(), Box<dyn Error>> {
+    checkout_case_with_location(true, None, true)
 }
 
 #[derive(Clone, Copy)]
@@ -544,6 +560,14 @@ fn checkout_case(
     named: bool,
     retirement: Option<RetirementCase>,
 ) -> std::result::Result<(), Box<dyn Error>> {
+    checkout_case_with_location(named, retirement, false)
+}
+
+fn checkout_case_with_location(
+    named: bool,
+    retirement: Option<RetirementCase>,
+    qualify_location: bool,
+) -> std::result::Result<(), Box<dyn Error>> {
     let root = tempfile::tempdir()?;
     let tree = tempfile::tempdir()?;
     let checkout = tree.path().join("checkout");
@@ -660,7 +684,7 @@ fn checkout_case(
         );
         assert_eq!(version()?, 55);
         assert!(control.lock().map_err(|_| "peer")?.writes.is_empty());
-        let relocation = if named && retirement.is_none() {
+        let relocation = if named && retirement.is_none() && !qualify_location {
             Some(relocation_preview(
                 &local,
                 &checkout,
@@ -992,6 +1016,11 @@ fn checkout_case(
             project_links::apply(root.path(), &adoption, &adoption.digest()?, None, None, &at)?;
         assert_eq!(bound["state"], "completed");
         assert_eq!(bound["installation_authority"], false);
+        if qualify_location {
+            location_tests::prove(
+                &local, &checkout, &contexts, &adoption, &bound, &control, &at,
+            )?;
+        }
         if let Some(relocation) = &relocation {
             let adoption = serde_json::to_value(&adoption)?;
             let binding = adoption["operation_id"].as_str().ok_or("adoption")?;

@@ -76,6 +76,7 @@ keyring-core = "=1.0.1"
 rustix = { version = "=1.1.5", features = ["fs"] }
 
 [target.'cfg(windows)'.dependencies]
+fs-id = "=0.2.0"
 win-custody = "=0.1.1"
 winsafe = { version = "=0.0.29", default-features = false, features = ["kernel"] }
 winx = "=0.36.4"
@@ -86,10 +87,6 @@ windows-native-keyring-store = "=1.1.0"
 # Remove this regression pin with its last transitive consumer (#1168).
 block-buffer = "=0.10.4"
 tempfile = "=3.27.0"
-
-[target.'cfg(windows)'.dev-dependencies]
-# Qualify full FILE_ID_INFO on held directory handles before new location receipts.
-fs-id = "=0.2.0"
 
 # Keep real-binary installer tests within the same bounded archive size as releases.
 [profile.dev]

@@ -18,6 +18,17 @@ use crate::{
 const KIND: &str = "corporate.project_binding.retire";
 const LIMIT: u64 = 262144;
 
+fn retirement_schema(before: u32) -> Result<u32> {
+    if !has_checkout_links(before) {
+        return Err(invalid());
+    }
+    Ok(if crate::store::has_binding_retirement(before) {
+        before
+    } else {
+        BINDING_RETIREMENT_SCHEMA
+    })
+}
+
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Plan {
@@ -48,7 +59,7 @@ impl Plan {
             || self.operation_id == self.snapshot.binding.request.operation_id
             || self.state_parent != self.snapshot.context.root
             || !has_checkout_links(self.registry_schema_before)
-            || self.registry_schema_after != BINDING_RETIREMENT_SCHEMA
+            || self.registry_schema_after != retirement_schema(self.registry_schema_before)?
             || self.expires_at != authoring::expiry(&self.created_at)?
         {
             return Err(invalid());
@@ -75,7 +86,7 @@ pub fn plan(root: &Path, context: Option<&str>, binding: &str, at: &str) -> Resu
             created_at: at.into(),
             expires_at: authoring::expiry(at)?,
             registry_schema_before: before,
-            registry_schema_after: BINDING_RETIREMENT_SCHEMA,
+            registry_schema_after: retirement_schema(before)?,
             snapshot,
         };
         plan.digest()?;
@@ -165,7 +176,7 @@ pub(crate) fn for_binding(connection: &Connection, binding: &str) -> Result<Opti
     let version: u32 = connection
         .pragma_query_value(None, "user_version", |row| row.get(0))
         .map_err(database)?;
-    if version != BINDING_RETIREMENT_SCHEMA {
+    if !crate::store::has_binding_retirement(version) {
         return Ok(None);
     }
     let operation: Option<String> = connection

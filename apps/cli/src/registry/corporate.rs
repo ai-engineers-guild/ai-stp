@@ -45,6 +45,11 @@ pub(super) enum Handler {
     UnlinkRetireApply,
     BindingRetirePlan,
     BindingRetireApply,
+    LocationAnchorPlan,
+    LocationRelocatePlan,
+    LocationApply,
+    LocationStatus,
+    LocationList,
     Technologies,
     Mappings,
     Mapping,
@@ -63,12 +68,16 @@ impl Handler {
             | Self::UnlinkRequestPlan
             | Self::UnlinkConfirmPlan
             | Self::UnlinkRetirePlan => "plan",
-            Self::LinkRetirePlan | Self::BindingRetirePlan => "plan",
+            Self::LinkRetirePlan
+            | Self::BindingRetirePlan
+            | Self::LocationAnchorPlan
+            | Self::LocationRelocatePlan => "plan",
             Self::LinkApply
             | Self::LinkRetireApply
             | Self::UnlinkApply
             | Self::UnlinkRetireApply
-            | Self::BindingRetireApply => "apply",
+            | Self::BindingRetireApply
+            | Self::LocationApply => "apply",
             _ => "read",
         }
     }
@@ -127,6 +136,98 @@ const LINK_REQUEST: Parameter = Parameter {
 };
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["corporate", "project", "location", "show"],
+        summary: "Read one immutable completed location receipt offline, without opening a checkout or consulting a future binding.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "operation",
+                summary: "Exact retained completed location operation ID.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LocationStatus),
+    },
+    Declaration {
+        path: &["corporate", "project", "location", "list"],
+        summary: "Page one original adoption's completed location history offline; historical receipts do not grant current installation authority.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "binding-operation",
+                summary: "Exact original native adoption operation ID, including a retired binding.",
+                kind: ParameterType::String,
+                required: true,
+            },
+            Parameter {
+                name: "cursor",
+                summary: "Optional next_cursor from the preceding page of this same binding's history.",
+                kind: ParameterType::String,
+                required: false,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LocationList),
+    },
+    Declaration {
+        path: &["corporate", "project", "location-anchor", "plan"],
+        summary: "Review full physical identity at the present registered checkout using current original-company authority; keep original receipts, files and tasks.",
+        parameters: &[
+            STATE_DIR,
+            CONTEXT,
+            GIT,
+            Parameter {
+                name: "binding-operation",
+                summary: "Exact completed native adoption operation ID; the current registered directory must be present.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LocationAnchorPlan),
+    },
+    Declaration {
+        path: &["corporate", "project", "location-relocate", "plan"],
+        summary: "Review a manually moved checkout against its trusted full-identity anchor, unchanged embedded Git topology and fresh original-company authority; require an absent previous path and no conflicting work.",
+        parameters: &[
+            STATE_DIR,
+            CONTEXT,
+            GIT,
+            Parameter {
+                name: "binding-operation",
+                summary: "Exact original completed native adoption operation ID; a reviewed location anchor is required.",
+                kind: ParameterType::String,
+                required: true,
+            },
+            Parameter {
+                name: "root",
+                summary: "Present destination of the same physical checkout; no directory is created or repaired.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LocationRelocatePlan),
+    },
+    Declaration {
+        path: &["corporate", "project", "location", "apply"],
+        summary: "Revalidate an exact reviewed anchor or same-object move and commit only its terminal receipt/private location metadata; completed replay is offline history.",
+        parameters: &[
+            GIT,
+            Parameter {
+                name: "plan",
+                summary: "Exact reviewed location JSON plan, at most 256 KiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Digest of this exact reviewed location operation.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LocationApply),
+    },
     Declaration {
         path: &["corporate", "project", "binding-retire", "plan"],
         summary: "Review local retirement of one active checkout binding using fresh current authority and exact terminal unlinked evidence; retain original receipts, files and tasks.",
@@ -705,6 +806,51 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     };
     let at = format!("{:.3}", jiff::Timestamp::now());
     match handler {
+        Handler::LocationStatus => {
+            return project_links::location::status(state()?, &text("operation")?);
+        }
+        Handler::LocationList => {
+            return project_links::location::list(
+                state()?,
+                &text("binding-operation")?,
+                optional("cursor").as_deref(),
+            );
+        }
+        Handler::LocationAnchorPlan | Handler::LocationRelocatePlan => {
+            let binding = text("binding-operation")?;
+            let plan = if matches!(handler, Handler::LocationAnchorPlan) {
+                project_links::location::anchor_plan(
+                    state()?,
+                    optional("context").as_deref(),
+                    &binding,
+                    git(),
+                    &at,
+                )?
+            } else {
+                project_links::location::relocation_plan(
+                    state()?,
+                    optional("context").as_deref(),
+                    &binding,
+                    checkout()?,
+                    git(),
+                    &at,
+                )?
+            };
+            return Ok(json!({"plan_digest":plan.digest()?,"plan":plan}));
+        }
+        Handler::LocationApply => {
+            let plan = project_links::location::read_plan(
+                args.get_one::<PathBuf>("plan")
+                    .ok_or_else(|| Failure::input("plan is required"))?,
+            )?;
+            return project_links::location::apply(
+                plan.state_parent(),
+                &plan,
+                &text("plan-digest")?,
+                git(),
+                &at,
+            );
+        }
         Handler::BindingRetirePlan => {
             let plan = project_unlinks::binding_retirement::plan(
                 state()?,
@@ -965,7 +1111,12 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         | Handler::UnlinkRetirePlan
         | Handler::UnlinkRetireApply
         | Handler::BindingRetirePlan
-        | Handler::BindingRetireApply => {
+        | Handler::BindingRetireApply
+        | Handler::LocationAnchorPlan
+        | Handler::LocationRelocatePlan
+        | Handler::LocationApply
+        | Handler::LocationStatus
+        | Handler::LocationList => {
             return Err(Failure::input("link coordinates are absent"));
         }
     };

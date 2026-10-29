@@ -18,9 +18,9 @@ use crate::{
     identity::{self, credentials::Vault},
     passport,
     store::{
-        BINDING_RETIREMENT_SCHEMA, CHECKOUT_LINK_SCHEMA, CHECKOUT_RETIREMENT_SCHEMA,
-        CHECKOUT_UNLINK_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA, PROFILE_SCHEMA, Store, database,
-        has_checkout_links, has_enrollment_recovery,
+        BINDING_RETIREMENT_SCHEMA, CHECKOUT_LINK_SCHEMA, CHECKOUT_LOCATION_SCHEMA,
+        CHECKOUT_RETIREMENT_SCHEMA, CHECKOUT_UNLINK_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA,
+        PROFILE_SCHEMA, Store, database, has_checkout_links, has_enrollment_recovery,
     },
 };
 
@@ -197,6 +197,7 @@ impl Plan {
                 CHECKOUT_RETIREMENT_SCHEMA,
                 CHECKOUT_UNLINK_SCHEMA,
                 BINDING_RETIREMENT_SCHEMA,
+                CHECKOUT_LOCATION_SCHEMA,
             ]
             .contains(&self.registry_schema_before)
             || self.replacement.registry_schema_before != target_schema
