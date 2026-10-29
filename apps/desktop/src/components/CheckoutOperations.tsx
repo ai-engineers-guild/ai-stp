@@ -4,6 +4,7 @@ import { checkoutFailure, checkoutPath, checkoutReader, checkoutReceipt, checkou
 import { bindingRetirementReceipt, bindingRetirementReview, type BindingRetirementReview } from "../bindingRetirement";
 import { cliPlan, cmdBindingRetirementApply, cmdCheckoutApply, cmdMachineHelp, cmdRunRead, type CmdResult } from "../transport";
 import { Details, ResultMeta, Spinner } from "./Result";
+import CheckoutLocation from "./CheckoutLocation";
 
 export default function CheckoutOperations() {
   const context = useContexts((state) => state.selected);
@@ -20,6 +21,7 @@ export default function CheckoutOperations() {
   const [git, setGit] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [locationBusy, setLocationBusy] = useState(false);
   const [supported, setSupported] = useState(false);
   const [retirementSupported, setRetirementSupported] = useState(false);
   const active = useRef(false), epoch = useRef(0);
@@ -33,11 +35,12 @@ export default function CheckoutOperations() {
     setConfirmed(false);
     setResult(null);
     setBusy(false);
+    setLocationBusy(false);
     return () => { active.current = false; epoch.current++; };
   }, [context?.id]);
 
   async function load(next?: string) {
-    if (busy || switching) return;
+    if (busy || locationBusy || switching) return;
     const sequence = ++epoch.current;
     setBusy(true);
     setReview(null);
@@ -69,7 +72,7 @@ export default function CheckoutOperations() {
   useEffect(() => { void load(); }, []);
 
   async function inspect(id: string) {
-    if (busy || switching) return;
+    if (busy || locationBusy || switching) return;
     const sequence = ++epoch.current;
     setBusy(true);
     setReview(null);
@@ -96,7 +99,7 @@ export default function CheckoutOperations() {
   const reader = review ? checkoutReader(context, contexts, review) : undefined;
   async function prepareRetirement() {
     if (!selected || !review || review.action !== "adopt" || selected.state !== "completed" ||
-      !reader || !context || !retirementSupported || retirement || selected.binding_retirement !== null || busy || switching) return;
+      !reader || !context || !retirementSupported || retirement || selected.binding_retirement !== null || busy || locationBusy || switching) return;
     const original = selected, sequence = ++epoch.current;
     setBusy(true);
     setConfirmed(false);
@@ -113,7 +116,7 @@ export default function CheckoutOperations() {
   }
 
   async function applyRetirement() {
-    if (!retirement || !selected || !reader || !confirmed || busy || switching) return;
+    if (!retirement || !selected || !reader || !confirmed || busy || locationBusy || switching) return;
     const exact = retirement, original = selected, sequence = ++epoch.current;
     setBusy(true);
     setConfirmed(false);
@@ -127,7 +130,7 @@ export default function CheckoutOperations() {
     } finally { if (active.current && sequence === epoch.current) setBusy(false); }
   }
   async function prepare(action: "confirm" | "adopt") {
-    if (!review || !reader || !context || nextReview || busy || switching) return;
+    if (!review || !reader || !context || nextReview || busy || locationBusy || switching) return;
     const source = review, snapshot = record(record(source.plan.change).snapshot);
     const request = source.action === "request" ? source.plan.operation_id : record(source.plan.change).request_operation_id;
     if (typeof request !== "string" || (action === "confirm" && record(snapshot.context).context_id !== context.id)) return;
@@ -148,7 +151,7 @@ export default function CheckoutOperations() {
   }
 
   async function applyNext() {
-    if (!nextReview || !reader || !confirmed || busy || switching) return;
+    if (!nextReview || !reader || !confirmed || busy || locationBusy || switching) return;
     const exact = nextReview, sequence = ++epoch.current;
     setBusy(true);
     setConfirmed(false);
@@ -161,7 +164,7 @@ export default function CheckoutOperations() {
     } finally { if (active.current && sequence === epoch.current) setBusy(false); }
   }
   async function reconcile() {
-    if (!review || !reader || !confirmed || busy || switching) return;
+    if (!review || !reader || !confirmed || busy || locationBusy || switching) return;
     const exact = review, sequence = ++epoch.current;
     setBusy(true);
     setConfirmed(false);
@@ -174,11 +177,12 @@ export default function CheckoutOperations() {
     } finally { if (active.current && sequence === epoch.current) setBusy(false); }
   }
 
+  const locked = busy || locationBusy || switching;
   return (
     <section className="card space-y-4 p-5" aria-label="Corporate checkout history">
       <h2 className="section-title">Corporate checkout operations</h2>
       <p className="text-sm text-muted-foreground">Original requests and confirmations across saved views stay in the native journal, including after restarting the app.</p>
-      <button className="btn-outline" disabled={busy || switching} onClick={() => void load()}>Read checkout history</button>
+      <button className="btn-outline" disabled={locked} onClick={() => void load()}>Read checkout history</button>
       {busy && <Spinner label="Reading the original checkout operation" />}
       {!busy && !supported && <p className="text-sm text-muted-foreground">This engine does not expose checkout history.</p>}
       {supported && rows.length === 0 && !busy && <p>No retained checkout operations.</p>}
@@ -187,10 +191,10 @@ export default function CheckoutOperations() {
         return <li className="space-y-2 py-3" key={String(item.operation_id)}>
           <p className="text-sm font-medium">{String(record(snapshot.context).label ?? "Original context")} · {String(item.state)}</p>
           <p className="break-all text-xs text-muted-foreground">{String(record(snapshot.account).origin ?? "")} · {String(record(snapshot.target).remote_project_id ?? "")}</p>
-          <button className="btn-outline" disabled={busy || switching} onClick={() => void inspect(String(item.operation_id))}>Inspect {String(item.operation_id)}</button>
+          <button className="btn-outline" disabled={locked} onClick={() => void inspect(String(item.operation_id))}>Inspect {String(item.operation_id)}</button>
         </li>;
       })}</ul>}
-      {cursor && <button className="btn-outline" disabled={busy || switching} onClick={() => void load(cursor)}>Read more checkout history</button>}
+      {cursor && <button className="btn-outline" disabled={locked} onClick={() => void load(cursor)}>Read more checkout history</button>}
       {result && <ResultMeta r={result} />}
       {review && selected && <div className="space-y-3" aria-label="Original checkout operation">
         <p className="break-all font-mono text-xs">{String(review.plan.operation_id)} · {review.digest}</p>
@@ -198,17 +202,20 @@ export default function CheckoutOperations() {
         {["applying", "interrupted"].includes(String(selected.state)) && <>
           <p className="text-sm text-muted-foreground">Reconciliation reads the original outcome through a matching current company context. An absent result stays unknown.</p>
           {!reader && <p>Select a current context for the same account and company to read this original outcome.</p>}
-          <label className="flex items-start gap-3 text-sm"><input type="checkbox" checked={confirmed} disabled={!reader || busy || switching} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed this original intent and authorize outcome reconciliation.</label>
-          <button className="btn-primary" disabled={!reader || !confirmed || busy || switching} onClick={() => void reconcile()}>Reconcile original outcome</button>
+          <label className="flex items-start gap-3 text-sm"><input type="checkbox" checked={confirmed} disabled={!reader || locked} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed this original intent and authorize outcome reconciliation.</label>
+          <button className="btn-primary" disabled={!reader || !confirmed || locked} onClick={() => void reconcile()}>Reconcile original outcome</button>
         </>}
         {selected.state === "completed" && review.action !== "adopt" && !nextReview && <div className="space-y-3">
           <p className="text-sm text-muted-foreground">Continue the original request with a fresh native review. The engine checks the current server link before any new change.</p>
-          <label className="field-label">Registered checkout for binding<input className="input" value={root} disabled={busy || switching} onChange={(event) => setRoot(event.target.value)} /></label>
-          <label className="field-label">Trusted Git executable for checkout review (optional)<input className="input" value={git} disabled={busy || switching} onChange={(event) => setGit(event.target.value)} /></label>
-          {review.action === "request" && <button className="btn-outline" disabled={!reader || busy || switching || record(record(record(review.plan.change).snapshot).context).context_id !== context?.id} onClick={() => void prepare("confirm")}>Review original confirmation</button>}
-          <button className="btn-outline" disabled={!reader || !root.trim() || busy || switching} onClick={() => void prepare("adopt")}>Review original local binding</button>
+          <label className="field-label">Registered checkout for binding<input className="input" value={root} disabled={locked} onChange={(event) => setRoot(event.target.value)} /></label>
+          <label className="field-label">Trusted Git executable for checkout review (optional)<input className="input" value={git} disabled={locked} onChange={(event) => setGit(event.target.value)} /></label>
+          {review.action === "request" && <button className="btn-outline" disabled={!reader || locked || record(record(record(review.plan.change).snapshot).context).context_id !== context?.id} onClick={() => void prepare("confirm")}>Review original confirmation</button>}
+          <button className="btn-outline" disabled={!reader || !root.trim() || locked} onClick={() => void prepare("adopt")}>Review original local binding</button>
         </div>}
         {selected.state === "completed" && review.action === "adopt" && <div className="space-y-3">
+          <CheckoutLocation key={`${context?.id}:${review.plan.operation_id}`} original={selected}
+            context={context} reader={reader} disabled={busy || switching || !!retirement}
+            onBusyChange={setLocationBusy} />
           {selected.binding_retirement != null ? <>
             <p role="status">This original local binding was retired. Its adoption receipt is preserved.</p>
             <Details label="Verified local binding retirement" value={selected.binding_retirement} />
@@ -216,7 +223,7 @@ export default function CheckoutOperations() {
             <p role="status">Original corporate project binding receipt saved.</p>
             {retirementSupported && selected.binding_retirement === null && !retirement && <>
               <p className="text-sm text-muted-foreground">After this exact link is unlinked on the server, review releasing its local reservation. Checkout files, tasks and harness configuration are preserved.</p>
-              <button className="btn-outline" disabled={!reader || busy || switching} onClick={() => void prepareRetirement()}>Review local binding retirement</button>
+              <button className="btn-outline" disabled={!reader || locked} onClick={() => void prepareRetirement()}>Review local binding retirement</button>
             </>}
           </>}
           {retirement && <div className="space-y-3" aria-label="Review local binding retirement">
@@ -226,8 +233,8 @@ export default function CheckoutOperations() {
             <p className="break-all font-mono text-xs">{checkoutPath(record(record(retirement.plan.snapshot).binding).checkout_root)}</p>
             <p className="break-all font-mono text-xs">{retirement.digest}</p>
             <Details label="Exact local binding retirement plan" value={retirement.plan} />
-            <label className="flex items-start gap-3 text-sm"><input type="checkbox" checked={confirmed} disabled={!reader || busy || switching} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed this exact local binding retirement and authorize releasing its reservation.</label>
-            <button className="btn-primary" disabled={!reader || !confirmed || busy || switching} onClick={() => void applyRetirement()}>Apply reviewed local binding retirement</button>
+            <label className="flex items-start gap-3 text-sm"><input type="checkbox" checked={confirmed} disabled={!reader || locked} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed this exact local binding retirement and authorize releasing its reservation.</label>
+            <button className="btn-primary" disabled={!reader || !confirmed || locked} onClick={() => void applyRetirement()}>Apply reviewed local binding retirement</button>
             <p className="text-xs text-muted-foreground">If the reply is unconfirmed, inspect this original operation in Activity. An explicit retry retains this exact plan and operation.</p>
           </div>}
         </div>}
@@ -235,8 +242,8 @@ export default function CheckoutOperations() {
           <h3 className="font-medium">Review original {nextReview.action === "confirm" ? "confirmation" : "local binding"}</h3>
           <p className="break-all font-mono text-xs">{nextReview.digest}</p>
           <Details label="Exact retained checkout next plan" value={nextReview.plan} />
-          <label className="flex items-start gap-3 text-sm"><input type="checkbox" checked={confirmed} disabled={!reader || busy || switching} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed this exact retained checkout change and authorize it.</label>
-          <button className="btn-primary" disabled={!reader || !confirmed || busy || switching} onClick={() => void applyNext()}>Apply reviewed original checkout change</button>
+          <label className="flex items-start gap-3 text-sm"><input type="checkbox" checked={confirmed} disabled={!reader || locked} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed this exact retained checkout change and authorize it.</label>
+          <button className="btn-primary" disabled={!reader || !confirmed || locked} onClick={() => void applyNext()}>Apply reviewed original checkout change</button>
         </div>}
       </div>}
     </section>

@@ -6,6 +6,7 @@ import {
   cmdProfileApply,
   cmdCheckoutApply,
   cmdBindingRetirementApply,
+  cmdCheckoutLocationApply,
   cmdRunRead,
   cmdTaskStart,
   cmdVersion,
@@ -167,4 +168,22 @@ it("routes exact binding retirement through the bounded checkout bridge without 
   });
   expect(JSON.stringify(useDebug.getState().log)).not.toContain("canary");
   expect(useDebug.getState().log[0].result).toBe(undefined);
+});
+
+it("routes an exact location plan without a replacement context and omits private shared traces", async () => {
+  useDebug.setState({ debugMode: true });
+  const reply = { ok: true, data: { root: "canary-private-location" }, error: null,
+    error_code: null, warnings: [], continuations: [] };
+  vi.mocked(invoke).mockResolvedValue(reply);
+  const plan = { reader: "canary-private-reader" };
+  expect(await cmdCheckoutLocationApply(plan, "sha256:exact", true, "/canary/git")).toBe(reply);
+  expect(invoke).toHaveBeenLastCalledWith("checkout_location_apply", {
+    plan, digest: "sha256:exact", confirmed: true, gitExecutable: "/canary/git",
+  });
+  vi.mocked(invoke).mockRejectedValue(new Error("canary-location-transport"));
+  expect((await cmdCheckoutLocationApply(plan, "sha256:exact", true)).error_code).toBe("IPC_THROW");
+  const entries = useDebug.getState().log;
+  expect(entries).toHaveLength(2);
+  expect(JSON.stringify(entries)).not.toContain("canary");
+  expect(entries.every((entry) => entry.result === undefined)).toBe(true);
 });

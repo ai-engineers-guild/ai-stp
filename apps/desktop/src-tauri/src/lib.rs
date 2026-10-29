@@ -584,6 +584,43 @@ async fn checkout_apply(
     .map_err(|error| error.to_string())
 }
 
+/// Location plans own their exact context; no replacement authority is accepted.
+#[tauri::command]
+async fn checkout_location_apply(
+    state: tauri::State<'_, Arc<AppState>>,
+    plan: serde_json::Value,
+    digest: String,
+    confirmed: bool,
+    git_executable: Option<String>,
+) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        if !confirmed {
+            return CmdResult::failed(
+                "DESKTOP_CONFIRMATION_REQUIRED",
+                "Review and confirm the exact native checkout location plan",
+            );
+        }
+        let file = match PublicPlanFile::bounded(&plan, 262144) {
+            Ok(file) => file,
+            Err(error) => return CmdResult::failed("DESKTOP_USAGE", error),
+        };
+        let mut arguments = argv("corporate project location apply");
+        arguments.extend([
+            "--plan".into(),
+            file.0.to_string_lossy().into_owned(),
+            "--plan-digest".into(),
+            digest,
+        ]);
+        if let Some(git) = git_executable {
+            arguments.extend(["--git-executable".into(), git]);
+        }
+        run_cli_mutating(&st, &arguments)
+    })
+    .await
+    .map_err(|error| error.to_string())
+}
+
 /// Apply-tier passthrough: requires the explicit `confirmed` flag — the
 /// frontend sets it only after the user approved the exact plan digest on
 /// screen. Descriptor `parameter_rules` and `confirmation` still apply.
@@ -1094,6 +1131,7 @@ pub fn run() {
             cli_apply_confirmed,
             profile_apply,
             checkout_apply,
+            checkout_location_apply,
             auth_login,
             auth_complete,
             auth_status,

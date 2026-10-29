@@ -28,6 +28,17 @@ harness files. Harness executables remain user/vendor managed.
   retained state, preserving files, tasks and harness configuration. Activity
   reads the distinct retirement receipt after restart; it never interprets an
   old adoption receipt as proof that a binding is still active.
+  Engines exposing reviewed locations can save a full-identity anchor while
+  the registered checkout exists. Close the app and other processes holding
+  the checkout before manually moving that same directory. Reopen Activity,
+  inspect the original adoption and review the existing destination. Applying
+  the confirmed native plan updates only location metadata; the app does not
+  move files. The CLI requires the original path to be absent, unchanged Git
+  topology, matching physical identity, current company access and no conflicting
+  work. Copies or a missing anchor require separate recovery. Recorded locations
+  and their exact receipts remain readable after later moves and retirement;
+  an old receipt does not establish the present directory. Unconfirmed replies
+  retain the same plan and offer offline outcome lookup before an explicit retry.
   Recovery reads the current revision; an uncertain start retains its retry
   identity in memory across navigation. After restarting the app, inspect
   Activity before starting again.
