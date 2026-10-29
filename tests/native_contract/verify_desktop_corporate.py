@@ -200,10 +200,10 @@ def installed_locations(
     company: str,
     project: str,
     driver_path: Path,
+    driver_type: Callable[[Path, dict[str, str], Path], Any],
     native: Any,
 ) -> tuple[Any, dict[str, Any]]:
     """Add actual UI location61 acceptance after the unchanged retirement60 journey."""
-    driver_type = type(driver)
     location_scope = HISTORY + ' section[aria-label="Checkout location"]'
     review_scope = location_scope + ' section[aria-label="Review checkout location"]'
     receipt_scope = location_scope + ' [aria-label="Recorded location receipt"]'
@@ -1010,6 +1010,7 @@ def installed_journey(
             company=company,
             project=project,
             driver_path=driver_path,
+            driver_type=driver_type,
             native=native,
         )
         return {
