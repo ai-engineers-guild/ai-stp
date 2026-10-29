@@ -70,6 +70,9 @@ client contract. Preserve compiler, platform, lockfile and checksum identity. Re
 Cargo's `target_directory` and `build_directory` from locked offline metadata;
 do not construct their paths, add checkout-local target overrides or bootstrap a
 missing compiler/profile. Coordinate shared profile changes with its owner.
+Verify that each local check's frontend and external subcommands retain this
+managed placement. Run unsupported entry points in CI until their native owner
+qualifies local use.
 Keep host paths, configuration and runtime receipts outside public Git. Cleanup
 belongs to the native provider or NDS Cleaner, with verified ownership, leases,
 last use and a 72-hour idle period. Installed environments, pinned application
