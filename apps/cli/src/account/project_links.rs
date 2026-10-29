@@ -112,9 +112,7 @@ fn inspect<T>(
     let observed = &observed["observation"];
     let context: Context =
         serde_json::from_value(observed["context"].clone()).map_err(|_| invalid())?;
-    if context.local_identity != *owner {
-        return Err(invalid());
-    }
+    context.require_current_native_identity(&owner)?;
     let binding: Binding =
         serde_json::from_value(observed["account"].clone()).map_err(|_| invalid())?;
     let organization = observed["organization"]["organization_id"]

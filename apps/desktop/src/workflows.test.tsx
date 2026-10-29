@@ -14,6 +14,7 @@ import RegistryPage from "./pages/RegistryPage";
 import InstallPage from "./pages/InstallPage";
 import AuthPage from "./pages/AuthPage";
 import ProfilesPage from "./pages/ProfilesPage";
+import { ResultMeta } from "./components/Result";
 import { useApp } from "./store";
 import { useTaskStart } from "./taskStart";
 import * as transport from "./transport";
@@ -604,4 +605,26 @@ it("does not replace a new catalog selection with the result of an already opene
   await screen.findByRole("button", { name: "Start installation" });
   expect(transport.cmdTaskStatus).not.toHaveBeenCalled();
   expect(useTaskStart.getState().key).toBeNull();
+});
+
+it("offers manual context review for the native historical-identity refusal without starting a mutation", () => {
+  mount(<ResultMeta r={{ ...ok(), ok: false, error_code: "AI_STP_PRECONDITION_FAILED",
+    error: "Review a fresh context using the existing sign-in.",
+    error_details: { reason: "historical_native_identity", next_action: "review_current_context" } }} />);
+  expect(screen.getByRole("link", { name: "Review current context" }).getAttribute("href")).toBe("/profiles");
+  expect(transport.cliPlan).not.toHaveBeenCalled();
+  expect(transport.cmdProfileApply).not.toHaveBeenCalled();
+  expect(transport.cmdAuthLogin).not.toHaveBeenCalled();
+});
+
+it.each([
+  ["AI_STP_PRECONDITION_FAILED", "changed_membership"],
+  ["AI_STP_DEPENDENCY_UNAVAILABLE", "historical_native_identity"],
+  ["AI_STP_PRECONDITION_FAILED", null],
+])("does not infer context recovery from unrelated failure %s/%s", (code, reason) => {
+  mount(<ResultMeta r={{ ...ok(), ok: false, error_code: code,
+    error: "historical_native_identity appears only in error prose",
+    error_details: { reason } }} />);
+  expect(screen.queryByRole("link", { name: "Review current context" })).toBeNull();
+  expect(transport.cmdProfileApply).not.toHaveBeenCalled();
 });

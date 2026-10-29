@@ -470,6 +470,9 @@ async def qualify(
         ],
     )
     assert stale_context.error.code == "AI_STP_PRECONDITION_FAILED"
+    assert stale_context.error.details is not None
+    assert stale_context.error.details.get("reason") == "historical_native_identity"
+    assert stale_context.error.details.get("next_action") == "review_current_context"
     assert rows() == before and len(faults.writes) == writes
     lead_plan = await run(
         "context",

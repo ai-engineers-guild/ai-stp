@@ -65,6 +65,17 @@ check` gives the aggregate; CI runs its shards. Record commands and observed res
 on the exact final SHA in the PR. Generated output and its source change together.
 Finish with a diff review, current documentation and synchronized branches.
 
+Use the existing host-managed Cargo/uv/Bun frontends and the approved network-cache
+client contract. Preserve compiler, platform, lockfile and checksum identity. Read
+Cargo's `target_directory` and `build_directory` from locked offline metadata;
+do not construct their paths, add checkout-local target overrides or bootstrap a
+missing compiler/profile. Coordinate shared profile changes with its owner.
+Keep host paths, configuration and runtime receipts outside public Git. Cleanup
+belongs to the native provider or NDS Cleaner, with verified ownership, leases,
+last use and a 72-hour idle period. Installed environments, pinned application
+artifacts and live runtime data remain with their owners; filesystem age alone
+does not make them disposable.
+
 For `apps/web` changes, read [web DESIGN](apps/web/DESIGN.md) and
 [product DESIGN](docs/product/DESIGN.md). Compose interfaces from registered
 atoms/molecules/organisms/layouts/screens and theme icons. Adapt before creating;

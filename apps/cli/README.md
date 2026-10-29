@@ -53,6 +53,14 @@ existing operation binding. `context list` and `context show` are local reads;
 `context show --refresh` checks current access through the original connection.
 Cached capabilities never authorize installation or publication.
 
+After native identity recovery, a saved context can remain valid for historical
+reads while its earlier identity cannot create a new checkout change. Such a
+review returns `AI_STP_PRECONDITION_FAILED` with
+`error.details.reason=historical_native_identity`. Review a fresh context for the same
+account and company through the existing sign-in, apply its exact plan and select
+it explicitly before reviewing a new checkout intent. Old contexts and original
+receipts remain unchanged; selecting a view never transfers an admitted intent.
+
 `corporate teams`, `corporate projects` and `corporate project show --project ID`
 read through a saved corporate context. `corporate projects --membership-only`
 uses the authenticated person's explicit project memberships; visibility alone
@@ -544,6 +552,16 @@ Cargo build messages identify the executable used by regressions, release archiv
 and desktop sidecar packaging. A checkout-local `target/` is not required. Existing
 managed Cargo/uv/Bun frontends, including the NDS Cleaner profile, retain their
 shared caches and selected compiler; do not add a second cache-placement policy.
+Use only the host owner's approved network-cache contract; keep private endpoints
+and client configuration outside the repository. With the existing managed Cargo
+frontend, `cargo metadata --manifest-path apps/cli/Cargo.toml --locked --offline
+--no-deps --format-version 1` reports the effective `target_directory` and
+`build_directory` from the repository root. Consume these fields directly rather
+than constructing cache paths. If the pinned compiler or its admitted lane is
+unavailable, stop without installing a toolchain or changing the shared profile.
+Frozen release artifacts stay outside mutable build caches. Native GC and NDS
+Cleaner own cleanup after ownership, leases and 72 hours of idle use are verified;
+installed environments and application state are not idle cache entries.
 The CLI regression keeps its Python validation environment in the user data
 directory under `uv/projects`, isolated by checkout identity. An explicit
 `UV_PROJECT_ENVIRONMENT` takes precedence. Package downloads remain in uv's managed
