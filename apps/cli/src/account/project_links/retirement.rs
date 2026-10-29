@@ -287,6 +287,7 @@ pub fn plan(root: &Path, source_id: &str, context: Option<&str>, at: &str) -> Re
                 Some(context.unwrap_or(&source.plan.snapshot().context.context_id)),
             )?;
             workflow::reader_matches(&selected, source.plan.snapshot())?;
+            selected.require_current_native_identity(&owner)?;
             let observed = corporate::observe(
                 root,
                 Some(&selected.context_id),

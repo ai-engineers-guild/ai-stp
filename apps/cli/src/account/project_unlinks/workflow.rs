@@ -153,8 +153,7 @@ fn inspect_state<T>(
         return Err(invalid());
     };
     // Check disclosure coordinates before sending the retained link ID.
-    if selected.local_identity != *owner
-        || reader.origin != binding.account.origin
+    if reader.origin != binding.account.origin
         || reader.account_id != binding.account.account_id
         || reader.root_identity != binding.account.root_identity
         || company["organization_id"] != binding.link["organization_id"]
@@ -162,6 +161,7 @@ fn inspect_state<T>(
     {
         return Err(invalid());
     }
+    selected.require_current_native_identity(&owner)?;
     let registered = {
         let store = owner.planning()?;
         passports::registered(&store.connection, &binding.checkout_root, &owner)?

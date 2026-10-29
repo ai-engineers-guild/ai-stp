@@ -185,6 +185,23 @@ fn encode(value: &impl Serialize) -> Result<String> {
 }
 
 impl Context {
+    /// Mutation planners resolve the saved context first. Historical contexts
+    /// remain valid for selection and original reads, not fresh local intent.
+    pub(super) fn require_current_native_identity(
+        &self,
+        current: &authoring::Identity,
+    ) -> Result<()> {
+        if self.local_identity != *current {
+            return Err(Failure::precondition(
+                "this saved context records an earlier native identity; review a fresh context for the same account and company using the existing sign-in before a new checkout change",
+            ).with_details([
+                ("reason".into(), "historical_native_identity".into()),
+                ("next_action".into(), "review_current_context".into()),
+            ]));
+        }
+        Ok(())
+    }
+
     pub fn digest(&self) -> Result<String> {
         self.validate()?;
         Ok(digest::sha256(&canonical::bytes(&json!([

@@ -430,6 +430,7 @@ fn make(
         }
     };
     let (reader, remote) = read_authority(root, &held, &original, context)?;
+    reader.context.require_current_native_identity(&owner)?;
     let plan = Plan {
         schema_version: 1,
         operation_id: format!("operation_{}", ulid::Ulid::generate()),
