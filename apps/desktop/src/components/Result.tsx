@@ -1,4 +1,5 @@
 import type { CmdResult } from "../transport";
+import { Link } from "react-router";
 
 export function Json({ v }: { v: unknown }) {
   return (
@@ -58,6 +59,12 @@ export function ResultMeta({ r }: { r: CmdResult }) {
             <span className="mr-2 font-mono font-semibold">{r.error_code}</span>
           )}
           {r.error}
+          {r.error_code === "AI_STP_PRECONDITION_FAILED" &&
+            r.error_details?.reason === "historical_native_identity" && (
+              <p className="mt-3">
+                <Link className="btn-outline" to="/profiles">Review current context</Link>
+              </p>
+            )}
           {options.length > 0 && (
             <p className="mt-1 text-muted-foreground">
               options: {(options as string[]).join(" · ")}

@@ -53,6 +53,14 @@ existing operation binding. `context list` and `context show` are local reads;
 `context show --refresh` checks current access through the original connection.
 Cached capabilities never authorize installation or publication.
 
+After native identity recovery, a saved context can remain valid for historical
+reads while its earlier identity cannot create a new checkout change. Such a
+review returns `AI_STP_PRECONDITION_FAILED` with
+`error.details.reason=historical_native_identity`. Review a fresh context for the same
+account and company through the existing sign-in, apply its exact plan and select
+it explicitly before reviewing a new checkout intent. Old contexts and original
+receipts remain unchanged; selecting a view never transfers an admitted intent.
+
 `corporate teams`, `corporate projects` and `corporate project show --project ID`
 read through a saved corporate context. `corporate projects --membership-only`
 uses the authenticated person's explicit project memberships; visibility alone

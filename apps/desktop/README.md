@@ -53,6 +53,11 @@ harness files. Harness executables remain user/vendor managed.
   and harness files; current organization access is an explicit online read.
   The existing local-owner session can be admitted as a context through the same
   reviewed flow, preserving its original key and credential journal.
+  After native identity recovery, an older saved view can still read history.
+  A new checkout review requires a current identity; its native refusal offers
+  **Review current context** in Connections. Use the same existing sign-in and
+  company for a fresh reviewed context, then select it explicitly. The app does
+  not rewrite old views, transfer original intents or start another sign-in.
 - The sidebar selects an existing personal or corporate context for new company
   reads. Selection is a local preference; retained tasks keep their original
   authority. The account shortcut opens the selected named connection.
