@@ -188,8 +188,12 @@ binding. Keep a qualified60-compatible engine; writer59 refuses the newer epoch.
 its separate `binding_retirement` receipt, or `null` before local retirement.
 This history read does not reopen the checkout, contact the server or inspect a
 future independent binding. Completed apply replay retains its original output.
-Physical relocation, missing-root recovery and revoked-authority offboarding
-remain separate operations.
+Corporate checkout relocation, missing-root recovery and revoked-authority
+offboarding are not implemented yet. Ordinary project passport observation may
+relocate an unreserved private project. A retained corporate reservation blocks
+that location change during planning and apply, including a plan reviewed before
+the reservation was admitted. Observation preserves the original adoption
+receipt and never releases the reservation.
 
 These commands accept `--context ID`; omission resolves the selected view once
 for that new read. The result retains its original context, current account
