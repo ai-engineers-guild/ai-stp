@@ -5,7 +5,7 @@ use std::path::Path;
 use cap_std::fs::Dir;
 use rusqlite::Connection;
 
-use super::{invalid, plan::Plan, record, set};
+use super::{invalid, record, set};
 use crate::{
     error::{Failure, Result},
     files::physical,
@@ -13,15 +13,15 @@ use crate::{
 };
 
 fn available(
-    plan: &Plan,
+    target: &Path,
+    target_identity: &[String; 2],
     state: &str,
     checkout: &Dir,
     previous: &Path,
     destination: &Path,
     identity: &[String; 2],
 ) -> Result<()> {
-    let target = Path::new(&plan.target_path);
-    if &plan.target_identity == identity
+    if target_identity == identity
         || target.starts_with(previous)
         || target.starts_with(destination)
         || previous.starts_with(target)
@@ -82,9 +82,22 @@ pub(crate) fn location_unreserved(
         let detail = detail.ok_or_else(invalid)?;
         if kind == set::KIND {
             let (_, plan) = set::Record::parse(&detail, &state)?;
-            for child in &plan.children {
+            if let Some(project) = &plan.project {
                 available(
-                    &child.parsed()?,
+                    Path::new(&project.root),
+                    &project.root_identity,
+                    &state,
+                    &checkout,
+                    previous,
+                    destination,
+                    identity,
+                )?;
+            }
+            for child in &plan.children {
+                let child = child.parsed()?;
+                available(
+                    Path::new(&child.target_path),
+                    &child.target_identity,
                     &state,
                     &checkout,
                     previous,
@@ -94,7 +107,15 @@ pub(crate) fn location_unreserved(
             }
         } else {
             let (_, plan) = record::Record::parse(&detail, &kind, &state)?;
-            available(&plan, &state, &checkout, previous, destination, identity)?;
+            available(
+                Path::new(&plan.target_path),
+                &plan.target_identity,
+                &state,
+                &checkout,
+                previous,
+                destination,
+                identity,
+            )?;
         }
     }
     Ok(())

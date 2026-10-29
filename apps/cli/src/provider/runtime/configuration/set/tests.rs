@@ -288,6 +288,19 @@ fn attribution(parent: &Path, template: &Plan) -> std::result::Result<(), Box<dy
                 .is_err(),
                 "an unfinished configuration set lost its separate project-root reservation"
             );
+            let moved = project_root.with_file_name("moved-configuration-project");
+            fs::rename(&project_root, &moved)?;
+            let refused = crate::provider::configuration::location_unreserved(
+                &store.connection,
+                &project_root,
+                &moved,
+                &physical,
+            );
+            fs::rename(&moved, &project_root)?;
+            assert!(
+                refused.is_err(),
+                "a moved aggregate project was declared unrelated to its retained installation"
+            );
             crate::provider::configuration::location_unreserved(
                 &store.connection,
                 &unrelated_root,
