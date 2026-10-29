@@ -319,25 +319,21 @@ fn relocation_preview(
 
 fn reserved_relocation_refuses(
     local: &identity::Identity,
-    root: &Path,
     checkout: &Path,
     held: &passports::Plan,
-    adoption: &project_links::Plan,
     at: &str,
 ) -> std::result::Result<(), Box<dyn Error>> {
-    let adoption = serde_json::to_value(adoption)?;
-    let binding = adoption["operation_id"].as_str().ok_or("adoption")?;
-    let (_, before) = project_links::binding::capture(root, binding)?;
     let marker = checkout.join(".ai-stp-v2-project/project-id");
     let marker_before = fs::read(&marker)?;
     let canary_before = fs::read(checkout.join(".env"))?;
     let mode_before = fs::metadata(checkout.join(".env"))?.permissions().mode();
-    let operations = || -> std::result::Result<i64, Box<dyn Error>> {
+    let registry = || -> std::result::Result<Vec<u8>, Box<dyn Error>> {
         Ok(Store::planning_at(local.root_directory())?
             .connection
-            .query_row("SELECT count(*) FROM operation", [], |row| row.get(0))?)
+            .serialize("main")?
+            .to_vec())
     };
-    let operations_before = operations()?;
+    let registry_before = registry()?;
     fs::rename(checkout, &held.root)?;
     let results = (|| -> std::result::Result<(bool, bool), Box<dyn Error>> {
         let mut store = Store::open_at(local.root_directory(), false)?;
@@ -370,14 +366,36 @@ fn reserved_relocation_refuses(
         )
         .into());
     }
-    assert!(project_links::binding::capture(root, binding)?.1 == before);
-    assert_eq!(operations()?, operations_before);
+    assert!(
+        registry()? == registry_before,
+        "refusal changed registry bytes"
+    );
     assert_eq!(fs::read(marker)?, marker_before);
     assert_eq!(fs::read(checkout.join(".env"))?, canary_before);
     assert_eq!(
         fs::metadata(checkout.join(".env"))?.permissions().mode(),
         mode_before
     );
+    Ok(())
+}
+
+fn legacy_prepared_relocation(
+    local: &identity::Identity,
+    held: &passports::Plan,
+    at: &str,
+) -> std::result::Result<(), Box<dyn Error>> {
+    // A pre-guard writer could admit this exact ordinary relocation and stop
+    // before finishing its marker/SQL boundary. Retain that journal encoding;
+    // the corrected producer must refuse recovery rather than complete it.
+    let encoded = String::from_utf8(crate::canonical::bytes(&serde_json::to_value(held)?)?)?;
+    let mut store = Store::open_at(local.root_directory(), false)?;
+    store.transaction(|transaction| {
+        transaction.execute(
+            "INSERT INTO operation(operation_id,kind,state,started_at,detail) VALUES (?,'project.passport.record','prepared',?,?)",
+            rusqlite::params![held.operation_id, at, encoded],
+        ).map_err(crate::store::database)?;
+        Ok(())
+    })?;
     Ok(())
 }
 
@@ -619,6 +637,28 @@ fn checkout_case(
             )
             .is_err()
         );
+        if let Some(relocation) = &relocation {
+            let before = project_links::status(root.path(), &confirmation_id)?;
+            assert_eq!(before["state"], "applying");
+            let store = Store::planning_at(local.root_directory())?;
+            let (confirmation, binding): (String, Option<String>) = store.connection.query_row(
+                "SELECT confirmation_operation_id,binding_operation_id FROM native_checkout_reservation",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?;
+            assert_eq!(confirmation, confirmation_id);
+            assert!(binding.is_none());
+            drop(store);
+            let reads = control.lock().map_err(|_| "peer")?.reads.len();
+            let writes = control.lock().map_err(|_| "peer")?.writes.len();
+            reserved_relocation_refuses(&local, &checkout, relocation, &at)?;
+            assert_eq!(
+                project_links::status(root.path(), &confirmation_id)?,
+                before
+            );
+            assert_eq!(control.lock().map_err(|_| "peer")?.reads.len(), reads);
+            assert_eq!(control.lock().map_err(|_| "peer")?.writes.len(), writes);
+        }
         if matches!(retirement, Some(RetirementCase::ExpiredConfirmation)) {
             assert!(
                 project_links::retirement::plan(
@@ -801,14 +841,13 @@ fn checkout_case(
         assert_eq!(bound["state"], "completed");
         assert_eq!(bound["installation_authority"], false);
         if let Some(relocation) = &relocation {
-            reserved_relocation_refuses(
-                &local,
-                root.path(),
-                &checkout,
-                relocation,
-                &adoption,
-                &at,
-            )?;
+            let adoption = serde_json::to_value(&adoption)?;
+            let binding = adoption["operation_id"].as_str().ok_or("adoption")?;
+            let (_, before) = project_links::binding::capture(root.path(), binding)?;
+            reserved_relocation_refuses(&local, &checkout, relocation, &at)?;
+            legacy_prepared_relocation(&local, relocation, &at)?;
+            reserved_relocation_refuses(&local, &checkout, relocation, &at)?;
+            assert!(project_links::binding::capture(root.path(), binding)?.1 == before);
         }
         let store = Store::planning_at(local.root_directory())?;
         let (organization,context):(String,String)=store.connection.query_row(
