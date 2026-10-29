@@ -189,6 +189,312 @@ async def seed(app: Any, origin: str) -> tuple[str, str, str]:
     return account, organization, project
 
 
+def installed_locations(
+    driver: Any,
+    *,
+    root: Path,
+    checkout: Path,
+    registry: Path,
+    binary: Path,
+    environment: dict[str, str],
+    company: str,
+    project: str,
+    driver_path: Path,
+    driver_type: Callable[[Path, dict[str, str], Path], Any],
+    native: Any,
+) -> tuple[Any, dict[str, Any]]:
+    """Add actual UI location61 acceptance after the unchanged retirement60 journey."""
+    location_scope = HISTORY + ' section[aria-label="Checkout location"]'
+    review_scope = location_scope + ' section[aria-label="Review checkout location"]'
+    receipt_scope = location_scope + ' [aria-label="Recorded location receipt"]'
+    marker = ".ai-stp-v2-project/project-id"
+    before_marker = (checkout / marker).read_bytes()
+    before_canary = (checkout / ".env").read_bytes()
+    before_mode = (checkout / ".env").stat().st_mode
+    physical = (checkout.stat().st_dev, checkout.stat().st_ino)
+
+    def run(*arguments: str) -> dict[str, Any]:
+        return cast(dict[str, Any], native(binary, environment, list(arguments)))
+
+    def apply(planned: dict[str, Any], noun: str) -> dict[str, Any]:
+        path = root / f"installed-{noun}-{planned['plan']['operation_id']}.json"
+        path.write_text(json.dumps(planned["plan"]), encoding="utf-8")
+        path.chmod(0o600)
+        arguments = [
+            "corporate",
+            "project",
+            noun,
+            "apply",
+            "--plan",
+            str(path),
+            "--plan-digest",
+            planned["plan_digest"],
+        ]
+        if noun == "link":
+            arguments.extend(["--git-executable", "/usr/bin/git"])
+        return run(*arguments)
+
+    # A distinct new request follows the completed release. Do not reinterpret
+    # the original retired adoption or modify its receipt for the new journey.
+    requested = run(
+        "corporate",
+        "project",
+        "link-request",
+        "plan",
+        "--context",
+        company,
+        "--root",
+        str(checkout),
+        "--project",
+        project,
+        "--git-executable",
+        "/usr/bin/git",
+    )
+    apply(requested, "link")
+    confirmed = run(
+        "corporate",
+        "project",
+        "link-confirm",
+        "plan",
+        "--request-operation",
+        requested["plan"]["operation_id"],
+        "--git-executable",
+        "/usr/bin/git",
+    )
+    apply(confirmed, "link")
+    adopted = run(
+        "corporate",
+        "project",
+        "link-adopt",
+        "plan",
+        "--request-operation",
+        requested["plan"]["operation_id"],
+        "--context",
+        company,
+        "--root",
+        str(checkout),
+        "--git-executable",
+        "/usr/bin/git",
+    )
+    applied = apply(adopted, "link")
+    binding = applied["operation_id"]
+    original = run("corporate", "project", "link", "show", "--operation", binding)
+    assert original["binding_retirement"] is None
+    assert {key: value for key, value in original.items() if key != "binding_retirement"} == applied
+
+    def inspect_binding() -> None:
+        driver.navigate("tasks", keyboard=True)
+        driver.click(driver.button("Read checkout history", HISTORY))
+        driver.click(driver.button("Inspect " + binding, HISTORY))
+        driver.button("Read location history", location_scope)
+
+    def visible(text: str) -> bool:
+        return bool(
+            driver.read(
+                "return document.querySelector(arguments[0])?.textContent.includes(arguments[1]);",
+                location_scope,
+                text,
+            )
+        )
+
+    def inspected_plan(operation: str) -> dict[str, Any]:
+        # A previous receipt can already occupy this surface when the real
+        # WebDriver activation starts an asynchronous native read. Observe the
+        # requested identity before inspecting its plan; never replay the click.
+        driver.wait(
+            lambda: driver.read(
+                "const root=document.querySelector(arguments[0]);"
+                "return [...root?.querySelectorAll('p')??[]]"
+                ".some(node=>node.textContent.startsWith(arguments[1]+' · '));",
+                receipt_scope,
+                operation,
+            ),
+            "exact requested location receipt",
+        )
+        return public_plan(driver, receipt_scope)
+
+    try:
+        inspect_binding()
+        fill(
+            driver,
+            "Trusted Git executable for location review (optional)",
+            "/usr/bin/git",
+            scope=location_scope,
+        )
+        driver.click(driver.button("Review checkout anchor", location_scope))
+        anchor = public_plan(driver, review_scope)
+        assert anchor["action"] == "anchor" and anchor["original"] == original["plan"]
+        assert anchor["registry_schema_before"] == 60 and anchor["registry_schema_after"] == 61
+        assert base64.b64decode(anchor["destination"]["utf8_base64"], validate=True) == os.fsencode(
+            checkout
+        )
+        assert (
+            run("corporate", "project", "location", "list", "--binding-operation", binding)[
+                "locations"
+            ]
+            == []
+        )
+        authorize(driver, review_scope, "Apply reviewed checkout location")
+        driver.wait(lambda: visible("Checkout anchor receipt saved."), "installed location anchor")
+        anchored = run(
+            "corporate", "project", "location", "show", "--operation", anchor["operation_id"]
+        )
+        assert anchored["plan"] == anchor and anchored["outcome"] == "location_anchored"
+        recorded = [anchored]
+        current = checkout
+        for index in (1, 2):
+            # The app and its own process group are closed before the fixture,
+            # acting as the user, moves the directory. No UI or engine rename.
+            driver.close()
+            destination = root / unicodedata.normalize("NFD", f"café-moved-{index}")
+            current.rename(destination)
+            assert not current.exists()
+            assert (destination.stat().st_dev, destination.stat().st_ino) == physical
+            driver = driver_type(driver_path, environment, root / f"location-{index}-driver.log")
+            driver.start()
+            driver.selected(company)
+            inspect_binding()
+            driver.click(driver.button("Read location history", location_scope))
+            assert visible("Original adoption directory:")
+            fill(
+                driver,
+                "Trusted Git executable for location review (optional)",
+                "/usr/bin/git",
+                scope=location_scope,
+            )
+            fill(
+                driver, "Existing moved checkout directory", str(destination), scope=location_scope
+            )
+            driver.click(driver.button("Review moved checkout", location_scope))
+            moved = public_plan(driver, review_scope)
+            assert moved["action"] == "relocate" and moved["original"] == original["plan"]
+            assert moved["registry_schema_before"] == moved["registry_schema_after"] == 61
+            assert base64.b64decode(
+                moved["destination"]["utf8_base64"], validate=True
+            ) == os.fsencode(destination)
+            assert base64.b64decode(
+                moved["binding"]["checkout_root"]["utf8_base64"], validate=True
+            ) == os.fsencode(current)
+            assert moved["physical"] == anchor["physical"]
+            authorize(driver, review_scope, "Apply reviewed checkout location")
+            driver.wait(
+                lambda: visible("Checkout relocation receipt saved."),
+                "installed reviewed relocation",
+            )
+            completed = run(
+                "corporate", "project", "location", "show", "--operation", moved["operation_id"]
+            )
+            assert completed["plan"] == moved and completed["outcome"] == "checkout_relocated"
+            assert all(
+                completed[field] is False
+                for field in (
+                    "remote_write_submitted",
+                    "harness_files_changed",
+                    "tasks_changed",
+                    "installation_authority",
+                )
+            )
+            recorded.append(completed)
+            assert run("corporate", "project", "link", "show", "--operation", binding) == original
+            assert (destination / marker).read_bytes() == before_marker
+            assert (destination / ".env").read_bytes() == before_canary
+            assert (destination / ".env").stat().st_mode == before_mode
+            current = destination
+
+        driver.click(driver.button("Read location history", location_scope))
+        driver.click(driver.button("Inspect location " + anchor["operation_id"], location_scope))
+        assert inspected_plan(anchor["operation_id"]) == anchor
+        for retained in recorded:
+            assert (
+                run(
+                    "corporate",
+                    "project",
+                    "location",
+                    "show",
+                    "--operation",
+                    retained["operation_id"],
+                )
+                == retained
+            )
+        history = run("corporate", "project", "location", "list", "--binding-operation", binding)
+        assert [item["operation_id"] for item in history["locations"]] == [
+            item["operation_id"] for item in reversed(recorded)
+        ]
+
+        unrequested = run(
+            "corporate",
+            "project",
+            "unlink-request",
+            "plan",
+            "--context",
+            company,
+            "--binding-operation",
+            binding,
+        )
+        apply(unrequested, "unlink")
+        unconfirmed = run(
+            "corporate",
+            "project",
+            "unlink-confirm",
+            "plan",
+            "--request-operation",
+            unrequested["plan"]["operation_id"],
+        )
+        assert apply(unconfirmed, "unlink")["effect"]["link"]["state"] == "unlinked"
+        driver.click(driver.button("Review local binding retirement", HISTORY))
+        retirement_scope = HISTORY + ' [aria-label="Review local binding retirement"]'
+        retirement = public_plan(driver, retirement_scope)
+        assert retirement["registry_schema_before"] == retirement["registry_schema_after"] == 61
+        assert base64.b64decode(
+            retirement["snapshot"]["binding"]["checkout_root"]["utf8_base64"], validate=True
+        ) == os.fsencode(current)
+        authorize(driver, retirement_scope, "Apply reviewed local binding retirement")
+        driver.wait(
+            lambda: driver.read(
+                "return document.querySelector(arguments[0]).textContent.includes("
+                "'This original local binding was retired. Its adoption receipt is preserved.');",
+                HISTORY,
+            ),
+            "installed relocated binding retirement61",
+        )
+        retired = run("corporate", "project", "link", "show", "--operation", binding)
+        assert retired["binding_retirement"]["plan"] == retirement
+        assert retired["plan"] == original["plan"] and retired["effect"] == original["effect"]
+        with closing(sqlite3.connect(f"file:{registry}?mode=ro", uri=True)) as db:
+            assert db.execute("PRAGMA user_version").fetchone() == (61,)
+            assert db.execute("SELECT count(*) FROM native_checkout_reservation").fetchone() == (0,)
+            assert db.execute("SELECT count(*) FROM native_binding_retirement").fetchone() == (2,)
+            assert db.execute("SELECT count(*) FROM native_checkout_location").fetchone() == (1,)
+        driver.close()
+        driver = driver_type(driver_path, environment, root / "location-retired-driver.log")
+        driver.start()
+        driver.selected(company)
+        inspect_binding()
+        driver.click(driver.button("Inspect location " + anchor["operation_id"], location_scope))
+        assert inspected_plan(anchor["operation_id"]) == anchor
+        assert run("corporate", "project", "link", "show", "--operation", binding) == retired
+        assert (
+            run("corporate", "project", "location", "list", "--binding-operation", binding)
+            == history
+        )
+        assert (current / marker).read_bytes() == before_marker
+        assert (current / ".env").read_bytes() == before_canary
+        assert (current / ".env").stat().st_mode == before_mode
+        return driver, {
+            "location_link_id": original["effect"]["link"]["link_id"],
+            "location_writer_epoch": 61,
+            "installed_reviewed_location_anchor": True,
+            "installed_two_same_object_relocations": True,
+            "location_original_receipts_after_future_move_and_restart": True,
+            "location_retirement61_and_offline_history": True,
+            "location_canary_marker_bytes_and_modes_preserved": True,
+        }
+    except BaseException:
+        if not driver.log.closed:
+            driver.close()
+        raise
+
+
 def installed_journey(
     *,
     root: Path,
@@ -714,7 +1020,25 @@ def installed_journey(
         assert canary.read_bytes() == b"# Unowned installed corporate canary\n"
         assert canary.stat().st_mode & 0o777 == 0o640
         assert (checkout.stat().st_dev, checkout.stat().st_ino) == physical[0]
+        driver, location_proof = installed_locations(
+            driver,
+            root=root,
+            checkout=checkout,
+            registry=registry,
+            binary=binary,
+            environment=environment,
+            company=company,
+            project=project,
+            driver_path=driver_path,
+            driver_type=driver_type,
+            native=native,
+        )
+        assert canary.read_bytes() == b"# Unowned installed corporate canary\n"
+        assert canary.stat().st_mode & 0o777 == 0o640
+        assert (neighbor / ".env").read_bytes() == b"PRIVATE=installed-nfc-neighbor\n"
+        assert (neighbor / ".env").stat().st_mode & 0o777 == 0o640
         return {
+            **location_proof,
             "schema_version": 1,
             "evidence_type": "installed_linux_corporate_checkout",
             "consumer_commit": os.environ["GITHUB_SHA"],
@@ -744,7 +1068,8 @@ def installed_journey(
             "harness_activation_qualified": False,
         }
     finally:
-        driver.close()
+        if not driver.log.closed:
+            driver.close()
 
 
 async def prove(driver_path: Path, out: Path, database_url: str, root: Path) -> None:
@@ -804,21 +1129,28 @@ async def prove(driver_path: Path, out: Path, database_url: str, root: Path) -> 
                     "/v1/projects/links",
                     f"/v1/organizations/{organization}/project-unlink-plans",
                     f"/v1/projects/links/{proof['link_id']}",
+                    f"/v1/organizations/{organization}/project-link-plans",
+                    "/v1/projects/links",
+                    f"/v1/organizations/{organization}/project-unlink-plans",
+                    f"/v1/projects/links/{proof['location_link_id']}",
                 ]
                 async with app.state.sessionmaker() as db:
-                    assert await db.scalar(select(func.count()).select_from(ProjectLinkPlan)) == 1
-                    assert await db.scalar(select(func.count()).select_from(ProjectLink)) == 1
-                    assert await db.scalar(select(func.count()).select_from(ProjectUnlinkPlan)) == 1
-                    link = await db.scalar(select(ProjectLink))
-                    assert (
-                        link is not None
-                        and link.state == "unlinked"
-                        and link.organization_id == organization
+                    assert await db.scalar(select(func.count()).select_from(ProjectLinkPlan)) == 2
+                    assert await db.scalar(select(func.count()).select_from(ProjectLink)) == 2
+                    assert await db.scalar(select(func.count()).select_from(ProjectUnlinkPlan)) == 2
+                    links = (await db.scalars(select(ProjectLink))).all()
+                    assert {link.id for link in links} == {
+                        proof["link_id"],
+                        proof["location_link_id"],
+                    }
+                    assert all(
+                        link.state == "unlinked" and link.organization_id == organization
+                        for link in links
                     )
                 proof.update(
                     actual_api_postgresql=True,
-                    committed_mutation_posts=3,
-                    committed_mutation_requests=4,
+                    committed_mutation_posts=6,
+                    committed_mutation_requests=8,
                 )
                 out.write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
                 print(
