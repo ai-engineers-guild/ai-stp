@@ -46,6 +46,22 @@ pub(crate) fn location_unreserved(
     destination: &Path,
     identity: &[String; 2],
 ) -> Result<()> {
+    // Production transfer already requires legacy work to settle. Preserve
+    // that fence if an opaque old record is encountered later; never interpret
+    // it as a native continuation or guess its physical ownership.
+    for query in [
+        "SELECT EXISTS(SELECT 1 FROM operation_plan p JOIN operation o USING(operation_id) WHERE o.finished_at IS NULL)",
+        "SELECT EXISTS(SELECT 1 FROM installation_transaction WHERE state NOT IN ('verified','rolled_back','cancelled'))",
+    ] {
+        if connection
+            .query_row(query, [], |row| row.get::<_, bool>(0))
+            .map_err(database)?
+        {
+            return Err(Failure::precondition(
+                "finish the retained legacy installation before reviewing a checkout location",
+            ));
+        }
+    }
     let checkout =
         Dir::open_ambient_dir(destination, cap_std::ambient_authority()).map_err(|_| invalid())?;
     let mut query = connection.prepare(

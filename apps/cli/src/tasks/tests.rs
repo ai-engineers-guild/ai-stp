@@ -11,6 +11,66 @@ use super::{
 use crate::{authoring::Identity, error::Failure, store::Store};
 
 #[test]
+fn checkout_location_keeps_unfinished_task_roots_and_proves_unrelated_work_disjoint()
+-> Result<(), Box<dyn Error>> {
+    let fixture = tempfile::tempdir()?;
+    let checkout = fixture.path().join("checkout");
+    let descendant = checkout.join("nested-target");
+    let unrelated = fixture.path().join("unrelated");
+    fs::create_dir(&checkout)?;
+    fs::create_dir(&descendant)?;
+    fs::create_dir(&unrelated)?;
+    for (label, target, refuses) in [
+        ("same", checkout.clone(), true),
+        ("alias", checkout.join("..").join("checkout"), true),
+        ("descendant", descendant, true),
+        ("unrelated", unrelated, false),
+        (
+            "missing",
+            fixture.path().join("missing-unfinished-root"),
+            true,
+        ),
+    ] {
+        let state = fixture.path().join(format!("state-{label}"));
+        fs::create_dir(&state)?;
+        let mut store = Store::open(&state, true)?;
+        let input = super::install::Input::parse(json!({
+            "harness_id":"codex","operation":"remove","targets":{"project":target},
+            "project_root":target,"provider_version":"0.0.95",
+        }))?;
+        let owner = Identity {
+            account_id: format!("account_{}", ulid::Ulid::generate()),
+            device_id: format!("device_{}", ulid::Ulid::generate()),
+        };
+        // Retain the actual producer's valid initial row as if interrupted
+        // before its first child plan. No provider or vendor process is run.
+        let task = Row::new(
+            super::service::Input::Install(input),
+            owner,
+            &format!("location-task-{label}-01"),
+            &moment(),
+        )?;
+        store.transaction(|t| journal::save(t, &task, None))?;
+        let before = store.connection.serialize("main")?.to_vec();
+        assert_eq!(
+            super::location_unreserved(&store.connection, &checkout).is_err(),
+            refuses,
+            "{label}"
+        );
+        assert_eq!(
+            store.connection.serialize("main")?.to_vec(),
+            before,
+            "{label}"
+        );
+        assert_eq!(
+            journal::load(&store.connection, &task.id)?.original,
+            task.original
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn lost_task_receipt_recovers_the_committed_child_without_source() -> Result<(), Box<dyn Error>> {
     let temporary = tempfile::tempdir()?;
     let root = temporary.path().canonicalize()?;

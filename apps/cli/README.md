@@ -188,8 +188,7 @@ binding. Keep a qualified60-compatible engine; writer59 refuses the newer epoch.
 its separate `binding_retirement` receipt, or `null` before local retirement.
 This history read does not reopen the checkout, contact the server or inspect a
 future independent binding. Completed apply replay retains its original output.
-Corporate checkout relocation, missing-root recovery and revoked-authority
-offboarding are not implemented yet. Ordinary project passport observation may
+Ordinary project passport observation may
 relocate an unreserved private project. A retained corporate reservation blocks
 changes to its logical ID, physical root or registered location during planning
 and apply, including a plan reviewed before the reservation was admitted.
@@ -197,6 +196,33 @@ Recreating the old pathname does not permit assigning a new ID to the reserved
 physical checkout. In-place observation and registration of a physically distinct
 private copy remain available. Observation preserves the original adoption
 receipt and never releases the reservation.
+
+For a reviewed same-object move, first review `corporate project location-anchor
+plan --state-dir PATH --context ID --binding-operation ID` while the registered
+checkout is present, then apply its exact JSON/digest with `corporate project
+location apply`. The terminal anchor records full physical checkout and embedded
+`.git` identities. After that command returns and closes its handles, move the
+directory yourself. Review `corporate project location-relocate plan` with the
+same state/context/binding coordinates and `--root DESTINATION`, then apply that
+exact plan. The previous pathname must be absent; physical identity, attached
+branch, commit, configuration and routing must still match the trusted location.
+Current `project.link` authority in the original company is required; moving
+local metadata does not require `project.unlink` or create installation authority.
+
+The operation commits only the private passport/location and its terminal receipt
+in the protected registry. Original adoption/request receipts, reservation,
+marker, user files and tasks remain intact. Completed location replay is offline
+history and cannot retarget a future location. Unfinished task roots must be
+physically disjoint. Retained related provider targets require their separate
+context-owned reconciliation before this metadata-only move; opaque unfinished
+legacy installations refuse. A missing or replaced unfinished root is not assumed
+disjoint. Cross-volume copies, remapped/external Git directories, missing-root
+recovery and revoked-authority offboarding are not supported by this transition.
+
+Location admission advances the native writer epoch to 61. Keep a qualified
+61-compatible engine for that registry; the immutable released CLI 0.2.1 supports
+through 60 and refuses the newer state. Older receipts retain their original
+encoding, and no read silently upgrades or downgrades a registry.
 
 These commands accept `--context ID`; omission resolves the selected view once
 for that new read. The result retains its original context, current account
