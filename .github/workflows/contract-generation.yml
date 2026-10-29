@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       native_locks:
-        description: "Regenerate native CLI lockfiles from committed manifests instead of schemas"
+        description: "Regenerate Rust lockfiles from committed manifests instead of schemas"
         type: boolean
         default: false
 
@@ -112,7 +112,10 @@ jobs:
           set -euo pipefail
           cargo update --manifest-path apps/cli/Cargo.toml --workspace
           cargo update --manifest-path apps/cli/xtask/Cargo.toml --workspace
-          git diff --exit-code -- . ':!apps/cli/Cargo.lock' ':!apps/cli/xtask/Cargo.lock'
+          cargo update --manifest-path apps/desktop/core/Cargo.toml --workspace
+          cargo update --manifest-path apps/desktop/src-tauri/Cargo.toml --workspace
+          git diff --exit-code -- . ':!apps/cli/Cargo.lock' ':!apps/cli/xtask/Cargo.lock' \
+            ':!apps/desktop/core/Cargo.lock' ':!apps/desktop/src-tauri/Cargo.lock'
       - name: Retain the exact lockfile patch for review
         env:
           SOURCE_HEAD: ${{ github.sha }}
@@ -120,12 +123,14 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${SOURCE_HEAD}"
           git diff --binary -- apps/cli/Cargo.lock apps/cli/xtask/Cargo.lock \
+            apps/desktop/core/Cargo.lock apps/desktop/src-tauri/Cargo.lock \
             > "${RUNNER_TEMP}/native-locks.patch"
           {
             echo "source_head=${SOURCE_HEAD}"
             echo "tree=$(git rev-parse HEAD^{tree})"
             sha256sum "${RUNNER_TEMP}/native-locks.patch"
-            git diff --stat -- apps/cli/Cargo.lock apps/cli/xtask/Cargo.lock
+            git diff --stat -- apps/cli/Cargo.lock apps/cli/xtask/Cargo.lock \
+              apps/desktop/core/Cargo.lock apps/desktop/src-tauri/Cargo.lock
           } > "${RUNNER_TEMP}/native-locks.txt"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:

@@ -20,7 +20,7 @@ describe("native CLI handoffs", () => {
   });
   it("uses native archives and provider-specific account plans", () => {
     expect(CLI_RELEASES_URL).toBe(
-      "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.2.0",
+      "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.2.1",
     );
     expect(login("github")).toBe("ai-stp account plan --action start --provider github --json");
     expect(login("google")).toContain("--provider google");
