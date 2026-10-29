@@ -189,3 +189,60 @@ it("retains retirement review and immutable receipt lookup after a reviewed chec
   expect(bindingRetirementReview(value, context, original())).not.toBe(null);
   expect(bindingRetirementReceipt({ ...receipt(), plan: value.data!.plan }, original())).toBe(true);
 });
+
+it("shows the current byte-preserving checkout before confirming retirement and restores that receipt", async () => {
+  const value = locationProposal(), retained = { ...receipt(), plan: value.data!.plan };
+  vi.mocked(transport.cliPlan).mockResolvedValue(value);
+  vi.mocked(transport.cmdBindingRetirementApply).mockImplementation(async () => {
+    saved = { ...saved, binding_retirement: retained }; return ok(retained);
+  });
+  const mounted = render(<CheckoutOperations />);
+  await prepare();
+  expect(screen.getByText("/private/moved-cafe\u0301").textContent).toBe("/private/moved-cafe\u0301");
+  expect(transport.cmdBindingRetirementApply).not.toHaveBeenCalled();
+  authorize();
+  await screen.findByText("This original local binding was retired. Its adoption receipt is preserved.");
+  expect(transport.cmdBindingRetirementApply).toHaveBeenCalledWith(value.data!.plan, retirementDigest, true);
+  mounted.unmount();
+  render(<CheckoutOperations />);
+  await inspect();
+  await screen.findByText("This original local binding was retired. Its adoption receipt is preserved.");
+});
+
+it("preserves known61 without a location and rejects future, upgrade and downgrade substitutions", () => {
+  for (const [before, after, accepted] of [[61, 61, true], [62, 62, false], [60, 61, false], [61, 60, false]]) {
+    const value = structuredClone(proposal()), plan = record(value.data!.plan);
+    plan.registry_schema_before = before; plan.registry_schema_after = after;
+    expect(bindingRetirementReview(value, context, original()) !== null).toBe(accepted);
+  }
+});
+
+it.each(["absent", "operation", "digest", "physical", "overflow", "decimal", "unknown"])(
+  "refuses a changed checkout with %s location evidence", (field) => {
+    const value = locationProposal(), plan = record(value.data!.plan), binding = record(record(plan.snapshot).binding),
+      location = record(binding.location), physical = record(location.physical);
+    if (field === "absent") delete binding.location;
+    if (field === "operation") location.operation_id = "operation_adopt";
+    if (field === "digest") location.plan_digest = digest + "0";
+    if (field === "physical") physical.inode = "99";
+    if (field === "overflow") physical.inode = "18446744073709551616";
+    if (field === "decimal") physical.inode = "020";
+    if (field === "unknown") physical.extra = true;
+    expect(bindingRetirementReview(value, context, original())).toBe(null);
+    expect(bindingRetirementReceipt({ ...receipt(), plan }, original())).toBe(false);
+  },
+);
+
+it("retains a full Windows128 file ID without converting it to an imprecise number", () => {
+  const prior = structuredClone(original()), priorPlan = record(prior.plan), before = record(record(priorPlan.change).snapshot),
+    value = locationProposal(), plan = record(value.data!.plan), binding = record(record(plan.snapshot).binding);
+  priorPlan.checkout_root = path("C:\\original");
+  record(record(before.local_project).root).path = priorPlan.checkout_root;
+  priorPlan.state_parent = path("C:\\state"); plan.state_parent = priorPlan.state_parent;
+  binding.checkout_root = path("C:\\moved-cafe\u0301");
+  const physical = { kind: "windows", volume: "10", file_id: "340282366920938463463374607431768211455" };
+  record(binding.location).physical = physical;
+  expect(bindingRetirementReview(value, context, prior)).not.toBe(null);
+  physical.file_id = "340282366920938463463374607431768211456";
+  expect(bindingRetirementReview(value, context, prior)).toBe(null);
+});

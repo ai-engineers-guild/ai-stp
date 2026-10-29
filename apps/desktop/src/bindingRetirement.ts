@@ -7,6 +7,28 @@ export interface BindingRetirementReview {
   digest: string;
 }
 
+function decimal(value: unknown, bits: 64 | 128): boolean {
+  return typeof value === "string" && value.length <= 39 && /^(0|[1-9][0-9]*)$/.test(value) &&
+    BigInt(value) < (1n << BigInt(bits));
+}
+
+/** A changed path needs the native receipt's explicit full-identity locator. */
+function retainedRoot(plan: Record<string, unknown>, binding: Record<string, unknown>, originalRoot: string | null): boolean {
+  const current = checkoutPath(binding.checkout_root);
+  if (current === null || originalRoot === null) return false;
+  if (binding.location == null) return current === originalRoot;
+  const location = record(binding.location), physical = record(location.physical);
+  if (plan.registry_schema_before !== 61 || Object.keys(location).sort().join(",") !== "operation_id,physical,plan_digest" ||
+    typeof location.operation_id !== "string" || !/^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$/.test(location.operation_id) ||
+    [plan.operation_id, record(binding.source).operation_id, record(binding.request).operation_id].includes(location.operation_id) ||
+    typeof location.plan_digest !== "string" || !/^sha256:[0-9a-f]{64}$/.test(location.plan_digest)) return false;
+  if (physical.kind === "unix") return Object.keys(physical).sort().join(",") === "device,inode,kind" &&
+    decimal(physical.device, 64) && decimal(physical.inode, 64) &&
+    JSON.stringify([physical.device, physical.inode]) === JSON.stringify(binding.physical_root);
+  return physical.kind === "windows" && Object.keys(physical).sort().join(",") === "file_id,kind,volume" &&
+    decimal(physical.volume, 64) && decimal(physical.file_id, 128);
+}
+
 function anchored(plan: Record<string, unknown>, original: Record<string, unknown>): boolean {
   const source = retainedCheckout(original);
   if (!source || source.action !== "adopt" || original.state !== "completed") return false;
@@ -18,8 +40,8 @@ function anchored(plan: Record<string, unknown>, original: Record<string, unknow
     remote = record(snapshot.remote_link);
   const expectedRoot = checkoutPath(root.path);
   const coordinates = ["link_id", "organization_id", "local_project_id", "remote_project_id", "provider_project_id", "plan_id", "plan_digest"];
-  return plan.schema_version === 1 && plan.registry_schema_after === 60 &&
-    typeof plan.registry_schema_before === "number" && [57, 58, 59, 60].includes(plan.registry_schema_before) &&
+  return plan.schema_version === 1 && plan.registry_schema_after === (plan.registry_schema_before === 61 ? 61 : 60) &&
+    typeof plan.registry_schema_before === "number" && [57, 58, 59, 60, 61].includes(plan.registry_schema_before) &&
     typeof plan.operation_id === "string" && plan.operation_id !== source.plan.operation_id &&
     checkoutPath(plan.state_parent) !== null && checkoutPath(plan.state_parent) === checkoutPath(source.plan.state_parent) &&
     record(binding.source).operation_id === source.plan.operation_id &&
@@ -28,7 +50,7 @@ function anchored(plan: Record<string, unknown>, original: Record<string, unknow
     typeof heldAccount.account_id === "string" && account.account_id === heldAccount.account_id &&
     typeof heldAccount.origin === "string" && account.origin === heldAccount.origin &&
     record(snapshot.organization).organization_id === record(before.organization).organization_id &&
-    expectedRoot !== null && checkoutPath(binding.checkout_root) === expectedRoot &&
+    retainedRoot(plan, binding, expectedRoot) &&
     Array.isArray(root.identity) && root.identity.length === 2 &&
     JSON.stringify(binding.physical_root) === JSON.stringify(root.identity) &&
     record(binding.local_project).stable_id === local.local_project_id &&

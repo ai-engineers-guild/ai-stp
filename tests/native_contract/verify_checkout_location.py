@@ -433,6 +433,115 @@ async def qualify(
     assert (future / marker).read_bytes() == marker_bytes
     assert (future / ".env").read_bytes() == canary_bytes
     assert (future / ".env").stat().st_mode == canary_mode
+
+    # Keep the project.link-only actor above unchanged. The existing independent
+    # authorized lead now exercises unlink/retirement61 for their own binding,
+    # including the current locator in the plan consumed by Desktop.
+    releasing = await checkout("location-retirement61")
+    release_canaries = (
+        (releasing / marker).read_bytes(),
+        (releasing / ".env").read_bytes(),
+        (releasing / ".env").stat().st_mode,
+    )
+    request = await run(
+        "corporate",
+        "project",
+        "link-request",
+        "plan",
+        "--context",
+        foreign_context,
+        "--root",
+        str(releasing),
+        "--project",
+        project,
+        "--git-executable",
+        git_executable,
+    )
+    await enact(request, "corporate", "project", "link", "apply")
+    confirmation = await run(
+        "corporate",
+        "project",
+        "link-confirm",
+        "plan",
+        "--request-operation",
+        request["plan"]["operation_id"],
+        "--git-executable",
+        git_executable,
+    )
+    await enact(confirmation, "corporate", "project", "link", "apply")
+    original = await run(
+        "corporate",
+        "project",
+        "link-adopt",
+        "plan",
+        "--context",
+        foreign_context,
+        "--root",
+        str(releasing),
+        "--request-operation",
+        request["plan"]["operation_id"],
+        "--git-executable",
+        git_executable,
+    )
+    original_receipt = await enact(original, "corporate", "project", "link", "apply")
+    releasing_binding = original["plan"]["operation_id"]
+    anchor = await plan_location(releasing_binding, foreign_context)
+    await enact(anchor, "corporate", "project", "location", "apply")
+    released_root = releasing.with_name(releasing.name + "-moved")
+    releasing.rename(released_root)
+    move = await plan_location(releasing_binding, foreign_context, released_root)
+    moved_receipt = await enact(move, "corporate", "project", "location", "apply")
+    unlink = await run(
+        "corporate",
+        "project",
+        "unlink-request",
+        "plan",
+        "--context",
+        foreign_context,
+        "--binding-operation",
+        releasing_binding,
+    )
+    await enact(unlink, "corporate", "project", "unlink", "apply")
+    confirmation = await run(
+        "corporate",
+        "project",
+        "unlink-confirm",
+        "plan",
+        "--request-operation",
+        unlink["plan"]["operation_id"],
+    )
+    await enact(confirmation, "corporate", "project", "unlink", "apply")
+    retirement = await run(
+        "corporate",
+        "project",
+        "binding-retire",
+        "plan",
+        "--context",
+        foreign_context,
+        "--binding-operation",
+        releasing_binding,
+    )
+    assert retirement["plan"]["registry_schema_before"] == 61
+    assert retirement["plan"]["registry_schema_after"] == 61
+    retained_binding = retirement["plan"]["snapshot"]["binding"]
+    assert retained_binding["checkout_root"] == move["plan"]["destination"]
+    assert retained_binding["location"]["operation_id"] == move["plan"]["operation_id"]
+    assert retained_binding["location"]["plan_digest"] == move["plan_digest"]
+    retired = await enact(retirement, "corporate", "project", "binding-retire", "apply")
+    assert retired["outcome"] == "local_binding_retired" and rows()[0] == 61
+    network, before = faults.network_requests, rows()
+    assert await enact(retirement, "corporate", "project", "binding-retire", "apply") == retired
+    assert await enact(original, "corporate", "project", "link", "apply") == original_receipt
+    assert await enact(move, "corporate", "project", "location", "apply") == moved_receipt
+    history = await run("corporate", "project", "link", "show", "--operation", releasing_binding)
+    assert history["binding_retirement"] == retired
+    assert rows() == before and faults.network_requests == network
+    assert (
+        (released_root / marker).read_bytes(),
+        (released_root / ".env").read_bytes(),
+        (released_root / ".env").stat().st_mode,
+    ) == release_canaries
+    assert (await run("context", "list"))["selected"] == selected
     print(
         json.dumps(
             {
@@ -448,6 +557,7 @@ async def qualify(
                 "previous_writer_source": os.environ["AI_STP_TEST_PREVIOUS_LOCATION_CLI_SOURCE"],
                 "previous_writer_sha256": previous_digest,
                 "previous60_positive_then_refusal": True,
+                "schema61_native_unlink_retirement_and_offline_history": True,
                 "all_unrelated_logical_tables_preserved": True,
                 "offline_replay_cannot_retarget_future_location": True,
                 "canary_bytes_and_modes_preserved": True,
