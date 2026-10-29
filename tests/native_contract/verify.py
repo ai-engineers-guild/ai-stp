@@ -271,7 +271,7 @@ def prove(binary: Path, root: Path) -> None:
         }
         assert before == after, "snapshot reads changed fixture bytes or created sidecars"
     with closing(sqlite3.connect(backup)) as newer:
-        newer.execute("PRAGMA user_version=61")
+        newer.execute("PRAGMA user_version=62")
         newer.commit()
     newer_digest = "sha256:" + hashlib.sha256(backup.read_bytes()).hexdigest()
     run(
