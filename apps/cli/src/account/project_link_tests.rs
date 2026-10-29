@@ -399,6 +399,99 @@ fn legacy_prepared_relocation(
     Ok(())
 }
 
+fn reassignment_preview(
+    local: &identity::Identity,
+    checkout: &Path,
+    moved: &Path,
+    saved: &Path,
+    at: &str,
+) -> std::result::Result<passports::Plan, Box<dyn Error>> {
+    fs::rename(checkout, moved)?;
+    fs::create_dir(checkout)?;
+    fs::write(checkout.join("keep"), b"unrelated replacement\n")?;
+    let planned = (|| {
+        let mut store = Store::open_at(local.root_directory(), false)?;
+        let plan = passports::plan(&mut store, moved, local.context(), at)?;
+        assert!(plan.previous_root.is_none());
+        assert!(plan.expected_heads.is_empty());
+        Ok(plan)
+    })();
+    fs::rename(checkout, saved)?;
+    fs::rename(moved, checkout)?;
+    planned
+}
+
+fn reserved_reassignment_refuses(
+    local: &identity::Identity,
+    checkout: &Path,
+    held: &passports::Plan,
+    saved: &Path,
+    at: &str,
+) -> std::result::Result<(), Box<dyn Error>> {
+    let registry = || -> std::result::Result<Vec<u8>, Box<dyn Error>> {
+        Ok(Store::planning_at(local.root_directory())?
+            .connection
+            .serialize("main")?
+            .to_vec())
+    };
+    let before = registry()?;
+    let marker = checkout.join(".ai-stp-v2-project/project-id");
+    let marker_before = fs::read(&marker)?;
+    let canary_before = fs::read(checkout.join(".env"))?;
+    let mode_before = fs::metadata(checkout.join(".env"))?.permissions().mode();
+    fs::rename(checkout, &held.root)?;
+    fs::create_dir(checkout)?;
+    fs::write(checkout.join("keep"), b"unrelated replacement\n")?;
+    let results = (|| -> std::result::Result<(bool, bool), Box<dyn Error>> {
+        let mut store = Store::open_at(local.root_directory(), false)?;
+        let reserved: (String, String, String) = store.connection.query_row(
+            "SELECT local_project_id,root_device,root_inode FROM native_checkout_reservation",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?;
+        assert_ne!(held.passport["stable_id"], reserved.0);
+        assert_eq!(held.root_identity, [reserved.1, reserved.2]);
+        let planned = passports::plan(&mut store, &held.root, local.context(), at);
+        if let Ok(current) = &planned {
+            assert!(current.previous_root.is_none());
+            assert!(current.expected_heads.is_empty());
+            assert_eq!(current.root_identity, held.root_identity);
+            assert_eq!(current.previous_marker, held.previous_marker);
+        }
+        let applied = passports::apply(&mut store, held, &held.digest()?, &local.context(), at);
+        for refusal in [planned.as_ref().err(), applied.as_ref().err()]
+            .into_iter()
+            .flatten()
+        {
+            assert_eq!(refusal.kind.code(), "AI_STP_PRECONDITION_FAILED");
+            assert_eq!(
+                refusal.details.get("reason"),
+                Some(&json!("corporate_checkout_reserved"))
+            );
+        }
+        Ok((planned.is_err(), applied.is_err()))
+    })();
+    // Preserve the replacement too; restore the original physical fixture before
+    // reporting a failed boundary so the server can finish its actual journey.
+    fs::rename(checkout, saved)?;
+    fs::rename(&held.root, checkout)?;
+    let (planning_refused, apply_refused) = results?;
+    if !planning_refused || !apply_refused {
+        return Err(format!(
+            "reserved physical checkout reassignment: planning_refused={planning_refused}, apply_refused={apply_refused}"
+        ).into());
+    }
+    assert!(registry()? == before, "refusal changed registry bytes");
+    assert_eq!(fs::read(marker)?, marker_before);
+    assert_eq!(fs::read(checkout.join(".env"))?, canary_before);
+    assert_eq!(
+        fs::metadata(checkout.join(".env"))?.permissions().mode(),
+        mode_before
+    );
+    assert_eq!(fs::read(saved.join("keep"))?, b"unrelated replacement\n");
+    Ok(())
+}
+
 fn checkout_case(
     named: bool,
     retirement: Option<RetirementCase>,
@@ -524,6 +617,17 @@ fn checkout_case(
                 &local,
                 &checkout,
                 &tree.path().join("moved-checkout"),
+                &at,
+            )?)
+        } else {
+            None
+        };
+        let reassignment = if let Some(relocation) = &relocation {
+            Some(reassignment_preview(
+                &local,
+                &checkout,
+                &relocation.root,
+                &tree.path().join("preview-replacement"),
                 &at,
             )?)
         } else {
@@ -845,6 +949,15 @@ fn checkout_case(
             let binding = adoption["operation_id"].as_str().ok_or("adoption")?;
             let (_, before) = project_links::binding::capture(root.path(), binding)?;
             reserved_relocation_refuses(&local, &checkout, relocation, &at)?;
+            if let Some(reassignment) = &reassignment {
+                reserved_reassignment_refuses(
+                    &local,
+                    &checkout,
+                    reassignment,
+                    &tree.path().join("observed-replacement"),
+                    &at,
+                )?;
+            }
             legacy_prepared_relocation(&local, relocation, &at)?;
             reserved_relocation_refuses(&local, &checkout, relocation, &at)?;
             assert!(project_links::binding::capture(root.path(), binding)?.1 == before);
