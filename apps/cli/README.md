@@ -552,6 +552,16 @@ Cargo build messages identify the executable used by regressions, release archiv
 and desktop sidecar packaging. A checkout-local `target/` is not required. Existing
 managed Cargo/uv/Bun frontends, including the NDS Cleaner profile, retain their
 shared caches and selected compiler; do not add a second cache-placement policy.
+Use only the host owner's approved network-cache contract; keep private endpoints
+and client configuration outside the repository. With the existing managed Cargo
+frontend, `cargo metadata --manifest-path apps/cli/Cargo.toml --locked --offline
+--no-deps --format-version 1` reports the effective `target_directory` and
+`build_directory` from the repository root. Consume these fields directly rather
+than constructing cache paths. If the pinned compiler or its admitted lane is
+unavailable, stop without installing a toolchain or changing the shared profile.
+Frozen release artifacts stay outside mutable build caches. Native GC and NDS
+Cleaner own cleanup after ownership, leases and 72 hours of idle use are verified;
+installed environments and application state are not idle cache entries.
 The CLI regression keeps its Python validation environment in the user data
 directory under `uv/projects`, isolated by checkout identity. An explicit
 `UV_PROJECT_ENVIRONMENT` takes precedence. Package downloads remain in uv's managed
