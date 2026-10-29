@@ -8,6 +8,7 @@ use crate::{
 };
 use std::{
     collections::BTreeMap,
+    os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
     process::Command,
     sync::{Arc, Mutex},
@@ -301,6 +302,85 @@ enum RetirementCase {
     ExpiredConfirmation,
 }
 
+fn relocation_preview(
+    local: &identity::Identity,
+    checkout: &Path,
+    moved: &Path,
+    at: &str,
+) -> std::result::Result<passports::Plan, Box<dyn Error>> {
+    fs::rename(checkout, moved)?;
+    let planned = (|| {
+        let mut store = Store::open_at(local.root_directory(), false)?;
+        Ok(passports::plan(&mut store, moved, local.context(), at)?)
+    })();
+    fs::rename(moved, checkout)?;
+    planned
+}
+
+fn reserved_relocation_refuses(
+    local: &identity::Identity,
+    root: &Path,
+    checkout: &Path,
+    held: &passports::Plan,
+    adoption: &project_links::Plan,
+    at: &str,
+) -> std::result::Result<(), Box<dyn Error>> {
+    let adoption = serde_json::to_value(adoption)?;
+    let binding = adoption["operation_id"].as_str().ok_or("adoption")?;
+    let (_, before) = project_links::binding::capture(root, binding)?;
+    let marker = checkout.join(".ai-stp-v2-project/project-id");
+    let marker_before = fs::read(&marker)?;
+    let canary_before = fs::read(checkout.join(".env"))?;
+    let mode_before = fs::metadata(checkout.join(".env"))?.permissions().mode();
+    let operations = || -> std::result::Result<i64, Box<dyn Error>> {
+        Ok(Store::planning_at(local.root_directory())?
+            .connection
+            .query_row("SELECT count(*) FROM operation", [], |row| row.get(0))?)
+    };
+    let operations_before = operations()?;
+    fs::rename(checkout, &held.root)?;
+    let results = (|| -> std::result::Result<(bool, bool), Box<dyn Error>> {
+        let mut store = Store::open_at(local.root_directory(), false)?;
+        let planned = passports::plan(&mut store, &held.root, local.context(), at);
+        if let Ok(current) = &planned {
+            // The otherwise-valid earlier plan differs only in operation ID.
+            assert_eq!(current.root_identity, held.root_identity);
+            assert_eq!(current.previous_root, held.previous_root);
+            assert_eq!(current.expected_heads, held.expected_heads);
+            assert_eq!(current.passport, held.passport);
+        }
+        let applied = passports::apply(&mut store, held, &held.digest()?, &local.context(), at);
+        for refusal in [planned.as_ref().err(), applied.as_ref().err()]
+            .into_iter()
+            .flatten()
+        {
+            assert_eq!(refusal.kind.code(), "AI_STP_PRECONDITION_FAILED");
+            assert_eq!(
+                refusal.details.get("reason"),
+                Some(&json!("corporate_checkout_reserved"))
+            );
+        }
+        Ok((planned.is_err(), applied.is_err()))
+    })();
+    fs::rename(&held.root, checkout)?;
+    let (planning_refused, apply_refused) = results?;
+    if !planning_refused || !apply_refused {
+        return Err(format!(
+            "reserved checkout relocation: planning_refused={planning_refused}, apply_refused={apply_refused}"
+        )
+        .into());
+    }
+    assert!(project_links::binding::capture(root, binding)?.1 == before);
+    assert_eq!(operations()?, operations_before);
+    assert_eq!(fs::read(marker)?, marker_before);
+    assert_eq!(fs::read(checkout.join(".env"))?, canary_before);
+    assert_eq!(
+        fs::metadata(checkout.join(".env"))?.permissions().mode(),
+        mode_before
+    );
+    Ok(())
+}
+
 fn checkout_case(
     named: bool,
     retirement: Option<RetirementCase>,
@@ -421,6 +501,16 @@ fn checkout_case(
         );
         assert_eq!(version()?, 55);
         assert!(control.lock().map_err(|_| "peer")?.writes.is_empty());
+        let relocation = if named && retirement.is_none() {
+            Some(relocation_preview(
+                &local,
+                &checkout,
+                &tree.path().join("moved-checkout"),
+                &at,
+            )?)
+        } else {
+            None
+        };
         let first = project_links::request_plan(
             root.path(),
             Some(&contexts[0]),
@@ -710,6 +800,16 @@ fn checkout_case(
             project_links::apply(root.path(), &adoption, &adoption.digest()?, None, None, &at)?;
         assert_eq!(bound["state"], "completed");
         assert_eq!(bound["installation_authority"], false);
+        if let Some(relocation) = &relocation {
+            reserved_relocation_refuses(
+                &local,
+                root.path(),
+                &checkout,
+                relocation,
+                &adoption,
+                &at,
+            )?;
+        }
         let store = Store::planning_at(local.root_directory())?;
         let (organization,context):(String,String)=store.connection.query_row(
             "SELECT p.organization_id,r.context_id FROM project_link p JOIN native_checkout_reservation r ON r.local_project_id=p.local_project_id",[],|r|Ok((r.get(0)?,r.get(1)?)))?;
