@@ -56,6 +56,15 @@ function receipt(): Record<string, unknown> {
     reservation_released: true, remote_write_submitted: false, harness_files_changed: false,
     tasks_changed: false, installation_authority: false };
 }
+function locationProposal(): CmdResult {
+  const value = structuredClone(proposal()), plan = record(value.data!.plan), binding = record(record(plan.snapshot).binding);
+  plan.registry_schema_before = 61;
+  plan.registry_schema_after = 61;
+  binding.checkout_root = path("/private/moved-cafe\u0301");
+  binding.location = { operation_id: "operation_01JAXXXXXXXXXXXXXXXXXXXXXX", plan_digest: "sha256:" + "d".repeat(64),
+    physical: { kind: "unix", device: "10", inode: "20" } };
+  return value;
+}
 let saved: Record<string, unknown>;
 beforeEach(() => {
   vi.resetAllMocks();
@@ -173,4 +182,10 @@ it("does not equate a release receipt with remote writes or changes to checkout/
   for (const field of ["remote_write_submitted", "harness_files_changed", "tasks_changed", "installation_authority"]) {
     expect(bindingRetirementReceipt({ ...receipt(), [field]: true }, original())).toBe(false);
   }
+});
+
+it("retains retirement review and immutable receipt lookup after a reviewed checkout location", () => {
+  const value = locationProposal();
+  expect(bindingRetirementReview(value, context, original())).not.toBe(null);
+  expect(bindingRetirementReceipt({ ...receipt(), plan: value.data!.plan }, original())).toBe(true);
 });
