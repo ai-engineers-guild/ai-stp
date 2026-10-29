@@ -207,6 +207,8 @@ fn attribution(parent: &Path, template: &Plan) -> std::result::Result<(), Box<dy
         .ok_or("fixture parent")?
         .join("registered-project");
     fs::create_dir(&project_root)?;
+    let unrelated_root = project_root.with_file_name("unrelated-location-checkout");
+    fs::create_dir(&unrelated_root)?;
     let owner = Identity {
         account_id: format!("account_{}", ulid::Ulid::generate()),
         device_id: format!("device_{}", ulid::Ulid::generate()),
@@ -272,6 +274,28 @@ fn attribution(parent: &Path, template: &Plan) -> std::result::Result<(), Box<dy
             results: vec![None; 2],
         };
         group.save(&record)?;
+        {
+            let store = Store::planning(parent)?;
+            let before = store.connection.serialize("main")?.to_vec();
+            let physical = identity(&Target::open(&project_root)?)?;
+            assert!(
+                crate::provider::configuration::location_unreserved(
+                    &store.connection,
+                    &project_root,
+                    &project_root,
+                    &physical,
+                )
+                .is_err(),
+                "an unfinished configuration set lost its separate project-root reservation"
+            );
+            crate::provider::configuration::location_unreserved(
+                &store.connection,
+                &unrelated_root,
+                &unrelated_root,
+                &identity(&Target::open(&unrelated_root)?)?,
+            )?;
+            assert_eq!(store.connection.serialize("main")?.to_vec(), before);
+        }
         record.phase = "verified".into();
         assert!(
             group.save(&record).is_err(),
