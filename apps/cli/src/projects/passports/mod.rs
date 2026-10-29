@@ -184,6 +184,34 @@ fn location(connection: &Connection, id: &str) -> Result<Option<PathBuf>> {
         .map_err(database)
 }
 
+fn relocation_unreserved(connection: &Connection, plan: &Plan) -> Result<()> {
+    if plan
+        .previous_root
+        .as_ref()
+        .is_none_or(|root| root == &plan.root)
+    {
+        return Ok(());
+    }
+    let version: u32 = connection
+        .pragma_query_value(None, "user_version", |row| row.get(0))
+        .map_err(database)?;
+    if crate::store::has_checkout_links(version)
+        && connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM native_checkout_reservation WHERE local_project_id=?)",
+                [plan.id()?],
+                |row| row.get::<_, bool>(0),
+            )
+            .map_err(database)?
+    {
+        return Err(Failure::precondition(
+            "project observation cannot relocate a reserved corporate checkout",
+        )
+        .with_details([("reason".into(), "corporate_checkout_reserved".into())]));
+    }
+    Ok(())
+}
+
 fn previous(connection: &Connection, id: &str, identity: &Identity) -> Result<Value> {
     let objects = Objects { connection };
     let document = objects.head("project", id)?;
@@ -293,6 +321,7 @@ pub fn plan(store: &mut Store, path: &Path, identity: Identity, at: &str) -> Res
         if held.root != root || held.root_identity != root_identity {
             return Err(invalid());
         }
+        store.transaction(|t| relocation_unreserved(t, &held))?;
         return Ok(held);
     }
     let marker = marker::open(&directory, false)?;
@@ -340,7 +369,7 @@ pub fn plan(store: &mut Store, path: &Path, identity: Identity, at: &str) -> Res
         } else {
             None
         };
-        Ok(Plan {
+        let plan = Plan {
             schema_version: 1,
             action: ACTION.into(),
             operation_id: format!("operation_{}", ulid::Ulid::generate()),
@@ -356,12 +385,15 @@ pub fn plan(store: &mut Store, path: &Path, identity: Identity, at: &str) -> Res
                 .map(|p| vec![p["revision_id"].as_str().unwrap_or("").to_owned()])
                 .unwrap_or_default(),
             passport: document(&values, &id, earlier.as_ref(), &identity, at)?,
-        })
+        };
+        relocation_unreserved(t, &plan)?;
+        Ok(plan)
     })
 }
 
 fn preconditions(t: &Transaction<'_>, plan: &Plan) -> Result<Option<Value>> {
     let id = plan.id()?;
+    relocation_unreserved(t, plan)?;
     if let Some(marked) = &plan.previous_marker {
         previous(t, marked, &plan.identity)?;
         if location(t, marked)?.is_none() {

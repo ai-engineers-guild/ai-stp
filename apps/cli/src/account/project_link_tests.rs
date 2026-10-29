@@ -350,6 +350,16 @@ fn reserved_relocation_refuses(
             assert_eq!(current.passport, held.passport);
         }
         let applied = passports::apply(&mut store, held, &held.digest()?, &local.context(), at);
+        for refusal in [planned.as_ref().err(), applied.as_ref().err()]
+            .into_iter()
+            .flatten()
+        {
+            assert_eq!(refusal.kind.code(), "AI_STP_PRECONDITION_FAILED");
+            assert_eq!(
+                refusal.details.get("reason"),
+                Some(&json!("corporate_checkout_reserved"))
+            );
+        }
         Ok((planned.is_err(), applied.is_err()))
     })();
     fs::rename(&held.root, checkout)?;
