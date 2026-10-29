@@ -276,8 +276,11 @@ def installed_locations(
         "--git-executable",
         "/usr/bin/git",
     )
-    original = apply(adopted, "link")
-    binding = original["operation_id"]
+    applied = apply(adopted, "link")
+    binding = applied["operation_id"]
+    original = run("corporate", "project", "link", "show", "--operation", binding)
+    assert original["binding_retirement"] is None
+    assert {key: value for key, value in original.items() if key != "binding_retirement"} == applied
 
     def inspect_binding() -> None:
         driver.navigate("tasks", keyboard=True)

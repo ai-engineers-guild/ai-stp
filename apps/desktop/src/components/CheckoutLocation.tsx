@@ -85,7 +85,7 @@ export default function CheckoutLocation({ original, context, reader, disabled, 
     } finally { finish(sequence); }
   }
   async function prepare(action: LocationAction) {
-    if (!context || !reader || !supported || review || original.binding_retirement !== null || busy || disabled) return;
+    if (!context || !reader || !supported || review || original.binding_retirement != null || busy || disabled) return;
     const sequence = start(), trustedGit = git.trim() ? git : undefined;
     const values: Record<string, string> = { context: reader, "binding-operation": binding };
     if (action === "relocate") values.root = destination;
@@ -136,7 +136,7 @@ export default function CheckoutLocation({ original, context, reader, disabled, 
         <p className="break-all font-mono text-xs">{String(receipt.plan.operation_id)} · {receipt.digest}</p>
         <Details label="Original location receipt plan" value={receipt.plan} />
       </div>}
-      {original.binding_retirement === null && <>
+      {original.binding_retirement == null && <>
         {!reader && <p>Select a current context for the same account and company to review a location.</p>}
         <p className="text-sm text-muted-foreground">Before moving a checkout, review and save an anchor while its registered directory is present. Then close this app and any process holding the checkout, move the same directory yourself, reopen Activity and review its new path. Copies and missing anchors require separate recovery.</p>
         <label className="field-label">Trusted Git executable for location review (optional)<input className="input" value={git} disabled={locked || !!review} onChange={(event) => setGit(event.target.value)} /></label>

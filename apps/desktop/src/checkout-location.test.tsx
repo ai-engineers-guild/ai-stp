@@ -177,6 +177,15 @@ it("requires the selected current company and connection for new reviews while l
   expect(locationReceipt(receipt(), original)).not.toBe(null);
 });
 
+it("offers a fresh native review directly from an adoption apply receipt without inferring current binding state", async () => {
+  const applied: Record<string, unknown> = { ...original };
+  delete applied.binding_retirement;
+  render(<CheckoutLocation original={applied} context={context} reader={context.id} disabled={false} onBusyChange={onBusy} />);
+  await prepare();
+  expect(transport.cliPlan).toHaveBeenLastCalledWith("corporate project location-anchor plan", { context: context.id, "binding-operation": id(1) });
+  expect(transport.cmdCheckoutLocationApply).not.toHaveBeenCalled();
+});
+
 it.each(["original", "origin", "account", "company", "context", "request", "source", "reservation", "physical", "schema", "root", "locator"])(
   "refuses mismatched %s before rendering a private review", async (field) => {
     const response = structuredClone(proposal()), plan = record(response.data!.plan), binding = record(plan.binding), reader = record(plan.reader);
