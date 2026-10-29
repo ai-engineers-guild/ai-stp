@@ -11,6 +11,63 @@ fn identity(directory: &Dir) -> crate::error::Result<super::physical::DirectoryI
 }
 
 #[test]
+fn full_identity_encoding_retains_high_bits_and_rejects_noncanonical_fields()
+-> Result<(), Box<dyn Error>> {
+    use super::physical::DirectoryIdentity;
+    let expected = DirectoryIdentity::Windows {
+        volume: u64::MAX.to_string(),
+        file_id: u128::MAX.to_string(),
+    };
+    expected.validate()?;
+    let encoded = crate::canonical::bytes(&serde_json::to_value(&expected)?)?;
+    let decoded: DirectoryIdentity = serde_json::from_slice(&encoded)?;
+    assert_eq!(decoded, expected);
+    assert!(String::from_utf8(encoded)?.contains("340282366920938463463374607431768211455"));
+    for file_id in ["01", "+1", "-1", "340282366920938463463374607431768211456"] {
+        assert!(
+            DirectoryIdentity::Windows {
+                volume: "1".into(),
+                file_id: file_id.into()
+            }
+            .validate()
+            .is_err()
+        );
+    }
+    assert!(
+        serde_json::from_value::<DirectoryIdentity>(
+            serde_json::json!({"kind":"windows","volume":"1","file_id":"1","fallback":"legacy"})
+        )
+        .is_err()
+    );
+    Ok(())
+}
+
+#[test]
+fn physical_ancestry_distinguishes_aliases_descendants_and_independent_roots()
+-> Result<(), Box<dyn Error>> {
+    let fixture = tempfile::tempdir()?;
+    let first = fixture.path().join("first");
+    let child = first.join("child");
+    let other = fixture.path().join("other");
+    fs::create_dir(&first)?;
+    fs::create_dir(&child)?;
+    fs::create_dir(&other)?;
+    let open = |path: &std::path::Path| Dir::open_ambient_dir(path, cap_std::ambient_authority());
+    let first = open(&first)?;
+    let alias = first.try_clone()?;
+    let child = open(&child)?;
+    let other = open(&other)?;
+    assert!(super::physical::contains(&first, &alias)?);
+    assert!(super::physical::contains(&first, &child)?);
+    assert!(!super::physical::contains(&child, &first)?);
+    assert!(super::physical::require_disjoint(&first, &child).is_err());
+    assert!(super::physical::require_disjoint(&first, &alias).is_err());
+    super::physical::require_disjoint(&first, &other)?;
+    super::physical::require_disjoint(&child, &other)?;
+    Ok(())
+}
+
+#[test]
 fn directory_identity_survives_close_rename_reopen_and_distinguishes_copies_and_replacements()
 -> Result<(), Box<dyn Error>> {
     let fixture = tempfile::tempdir()?;

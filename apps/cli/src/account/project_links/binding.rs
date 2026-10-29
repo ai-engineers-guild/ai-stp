@@ -81,8 +81,8 @@ pub(crate) fn read_in(
     if registered.project != snapshot.local_project
         || registered.identity != snapshot.physical_root
         || snapshot.location.as_ref().is_some_and(|locator| {
-            crate::files::physical::DirectoryIdentity::capture(&registered.directory)
-                .map_or(true, |identity| identity != locator.physical)
+            !crate::files::physical::DirectoryIdentity::capture(&registered.directory)
+                .is_ok_and(|identity| identity == locator.physical)
         })
     {
         return Err(invalid());
