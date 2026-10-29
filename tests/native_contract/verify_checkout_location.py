@@ -443,13 +443,59 @@ async def qualify(
         (releasing / ".env").read_bytes(),
         (releasing / ".env").stat().st_mode,
     )
+    # Earlier enrollment/recovery changed the native owner. The old foreign
+    # view remains history, not authority for a newly created checkout intent.
+    assert (
+        reference["local_identity"] != context_plan["plan"]["change"]["context"]["local_identity"]
+    )
+    before, writes = rows(), len(faults.writes)
+    stale_context = await refused(
+        binary,
+        home,
+        [
+            "corporate",
+            "project",
+            "link-request",
+            "plan",
+            "--context",
+            foreign_context,
+            "--root",
+            str(releasing),
+            "--project",
+            project,
+            "--git-executable",
+            git_executable,
+            "--state-dir",
+            str(state),
+        ],
+    )
+    assert stale_context.error.code == "AI_STP_PRECONDITION_FAILED"
+    assert rows() == before and len(faults.writes) == writes
+    lead_plan = await run(
+        "context",
+        "create",
+        "plan",
+        "--connection",
+        reference["authority"]["account"]["connection"]["connection_id"],
+        "--organization",
+        organization,
+        "--label",
+        "Current retirement61 lead",
+    )
+    lead = lead_plan["plan"]["change"]["context"]
+    assert lead["local_identity"] == context_plan["plan"]["change"]["context"]["local_identity"]
+    assert (
+        lead["authority"]["account"]["account_id"]
+        == reference["authority"]["account"]["account_id"]
+    )
+    retirement_context = (await enact(lead_plan, "context", "apply"))["context_id"]
     request = await run(
         "corporate",
         "project",
         "link-request",
         "plan",
         "--context",
-        foreign_context,
+        retirement_context,
         "--root",
         str(releasing),
         "--project",
@@ -475,7 +521,7 @@ async def qualify(
         "link-adopt",
         "plan",
         "--context",
-        foreign_context,
+        retirement_context,
         "--root",
         str(releasing),
         "--request-operation",
@@ -485,11 +531,11 @@ async def qualify(
     )
     original_receipt = await enact(original, "corporate", "project", "link", "apply")
     releasing_binding = original["plan"]["operation_id"]
-    anchor = await plan_location(releasing_binding, foreign_context)
+    anchor = await plan_location(releasing_binding, retirement_context)
     await enact(anchor, "corporate", "project", "location", "apply")
     released_root = releasing.with_name(releasing.name + "-moved")
     releasing.rename(released_root)
-    move = await plan_location(releasing_binding, foreign_context, released_root)
+    move = await plan_location(releasing_binding, retirement_context, released_root)
     moved_receipt = await enact(move, "corporate", "project", "location", "apply")
     unlink = await run(
         "corporate",
@@ -497,7 +543,7 @@ async def qualify(
         "unlink-request",
         "plan",
         "--context",
-        foreign_context,
+        retirement_context,
         "--binding-operation",
         releasing_binding,
     )
@@ -517,7 +563,7 @@ async def qualify(
         "binding-retire",
         "plan",
         "--context",
-        foreign_context,
+        retirement_context,
         "--binding-operation",
         releasing_binding,
     )
