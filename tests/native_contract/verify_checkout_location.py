@@ -16,7 +16,13 @@ from sqlalchemy import select
 from tests.native_contract.verify_ownership import native, native_result
 
 from ai_stp_foundation.envelope import ErrorEnvelope
-from ai_stp_platform.organization_models import OrganizationMembership
+from ai_stp_foundation.ids import new_id
+from ai_stp_platform.models import Account
+from ai_stp_platform.organization_models import (
+    CorporateProjectMember,
+    CorporateRoleBinding,
+    OrganizationMembership,
+)
 
 if TYPE_CHECKING:
     from tests.native_contract.verify_checkout import LostAcknowledgements, Native
@@ -35,7 +41,6 @@ async def qualify(
     refused: Callable[..., Awaitable[ErrorEnvelope]],
     organization: str,
     project: str,
-    account: str,
     git_executable: str,
     foreign_context: str,
     checkout: Callable[[str], Awaitable[Path]],
@@ -120,19 +125,64 @@ async def qualify(
         return receipts[0]
 
     assert rows()[0] == 60
-    await login(account, None)
     selected = (await run("context", "list"))["selected"]
+    # The original bootstrap account is privileged. A separate synthetic staff
+    # member proves project.link-only authority through a named enrollment,
+    # without relabeling the private native owner or changing prior role grants.
+    actor = new_id("account")
+    async with app.state.sessionmaker() as db:
+        db.add(Account(id=actor))
+        await db.flush()
+        db.add(OrganizationMembership(organization_id=organization, account_id=actor, role="staff"))
+        await db.flush()
+        db.add(
+            CorporateRoleBinding(
+                id=new_id("operation"),
+                organization_id=organization,
+                account_id=actor,
+                role="staff",
+                scope_kind="organization",
+                scope_id=organization,
+                origin="membership",
+                coverage="descendants",
+            )
+        )
+        db.add(
+            CorporateProjectMember(
+                organization_id=organization,
+                project_id=project,
+                account_id=actor,
+                role="staff",
+            )
+        )
+        await db.commit()
+    reference = (await run("context", "show", "--context", foreign_context))["context"]
+    connection_plan = await run(
+        "account",
+        "connections",
+        "plan",
+        "--label",
+        "Location staff member",
+        "--api-url",
+        reference["authority"]["account"]["origin"],
+        "--provider",
+        "github",
+    )
+    connection = (await enact(connection_plan, "account", "connections", "apply"))["connection"]
+    await login(actor, connection["connection_id"])
     context_plan = await run(
         "context",
         "create",
         "plan",
-        "--legacy-account",
+        "--connection",
+        connection["connection_id"],
         "--label",
         "Current location authority",
         "--organization",
         organization,
     )
     context = (await enact(context_plan, "context", "apply"))["context_id"]
+    assert context_plan["plan"]["change"]["context"]["local_identity"]["account_id"] != actor
     authority = (await run("corporate", "teams", "--context", context))["observation"]
     capabilities = authority["observation"]["capabilities"]["capabilities"]
     assert "project.link" in capabilities and "project.unlink" not in capabilities
@@ -260,7 +310,7 @@ async def qualify(
         membership = await db.scalar(
             select(OrganizationMembership).where(
                 OrganizationMembership.organization_id == organization,
-                OrganizationMembership.account_id == account,
+                OrganizationMembership.account_id == actor,
             )
         )
         assert membership is not None
@@ -272,7 +322,7 @@ async def qualify(
         membership = await db.scalar(
             select(OrganizationMembership).where(
                 OrganizationMembership.organization_id == organization,
-                OrganizationMembership.account_id == account,
+                OrganizationMembership.account_id == actor,
             )
         )
         assert membership is not None
@@ -321,6 +371,29 @@ async def qualify(
     network, before = faults.network_requests, rows()
     assert await native(binary, home, arguments(planned)) == anchored
     assert await native(binary, home, arguments(moved)) == relocated
+    assert (
+        await run(
+            "corporate",
+            "project",
+            "location",
+            "show",
+            "--operation",
+            planned["plan"]["operation_id"],
+        )
+    ) == anchored
+    history = await run("corporate", "project", "location", "list", "--binding-operation", binding)
+    assert len(history["locations"]) == 2 and history["next_cursor"] is None
+    continuation = await run(
+        "corporate",
+        "project",
+        "location",
+        "list",
+        "--binding-operation",
+        binding,
+        "--cursor",
+        history["locations"][0]["operation_id"],
+    )
+    assert continuation["locations"] == history["locations"][1:]
     assert await enact(adoption, "corporate", "project", "link", "apply") == adopted
     assert rows() == before and faults.network_requests == network
     future = destination.with_name(destination.name + "-future")
@@ -330,6 +403,31 @@ async def qualify(
     network, before = faults.network_requests, rows()
     assert await native(binary, home, arguments(planned)) == anchored
     assert await native(binary, home, arguments(moved)) == relocated
+    assert (
+        await run(
+            "corporate",
+            "project",
+            "location",
+            "show",
+            "--operation",
+            moved["plan"]["operation_id"],
+        )
+    ) == relocated
+    assert (
+        len(
+            (
+                await run(
+                    "corporate",
+                    "project",
+                    "location",
+                    "list",
+                    "--binding-operation",
+                    binding,
+                )
+            )["locations"]
+        )
+        == 3
+    )
     assert rows() == before and faults.network_requests == network
     assert (await run("context", "list"))["selected"] == selected
     assert (future / marker).read_bytes() == marker_bytes
@@ -343,6 +441,8 @@ async def qualify(
                 "actual_server_transactions": True,
                 "two_real_anchor_and_move_processes": True,
                 "project_link_without_unlink_capability": True,
+                "private_owner_and_corporate_actor_distinct": True,
+                "offline_receipt_lookup_and_history_cursor": True,
                 "membership_and_authorization_cas": True,
                 "immutable_original_adoption": True,
                 "previous_writer_source": os.environ["AI_STP_TEST_PREVIOUS_LOCATION_CLI_SOURCE"],

@@ -111,6 +111,11 @@ pub(super) fn prove(
         location::apply(state, &anchor, &anchor.digest()?, None, &expired)?,
         anchored
     );
+    assert_eq!(location::status(state, &plan.operation_id)?, completed);
+    assert_eq!(location::status(state, &anchor.operation_id)?, anchored);
+    let history = location::list(state, &binding, None)?;
+    assert_eq!(history["locations"].as_array().ok_or("history")?.len(), 2);
+    assert!(history["next_cursor"].is_null());
     assert_eq!(
         project_links::apply(state, adoption, &adoption.digest()?, None, None, &expired)?,
         *adopted
@@ -140,6 +145,7 @@ pub(super) fn prove(
             .checkout_root,
         fs::canonicalize(&future)?
     );
+    assert_eq!(location::status(state, &plan.operation_id)?, completed);
     fs::rename(&future, checkout)?;
     let returned =
         location::relocation_plan(state, Some(&contexts[0]), &binding, checkout, None, at)?;

@@ -48,6 +48,8 @@ pub(super) enum Handler {
     LocationAnchorPlan,
     LocationRelocatePlan,
     LocationApply,
+    LocationStatus,
+    LocationList,
     Technologies,
     Mappings,
     Mapping,
@@ -134,6 +136,40 @@ const LINK_REQUEST: Parameter = Parameter {
 };
 
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["corporate", "project", "location", "show"],
+        summary: "Read one immutable completed location receipt offline, without opening a checkout or consulting a future binding.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "operation",
+                summary: "Exact retained completed location operation ID.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LocationStatus),
+    },
+    Declaration {
+        path: &["corporate", "project", "location", "list"],
+        summary: "Page one original adoption's completed location history offline; historical receipts do not grant current installation authority.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "binding-operation",
+                summary: "Exact original native adoption operation ID, including a retired binding.",
+                kind: ParameterType::String,
+                required: true,
+            },
+            Parameter {
+                name: "cursor",
+                summary: "Optional next_cursor from the preceding page of this same binding's history.",
+                kind: ParameterType::String,
+                required: false,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::LocationList),
+    },
     Declaration {
         path: &["corporate", "project", "location-anchor", "plan"],
         summary: "Review full physical identity at the present registered checkout using current original-company authority; keep original receipts, files and tasks.",
@@ -770,6 +806,16 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     };
     let at = format!("{:.3}", jiff::Timestamp::now());
     match handler {
+        Handler::LocationStatus => {
+            return project_links::location::status(state()?, &text("operation")?);
+        }
+        Handler::LocationList => {
+            return project_links::location::list(
+                state()?,
+                &text("binding-operation")?,
+                optional("cursor").as_deref(),
+            );
+        }
         Handler::LocationAnchorPlan | Handler::LocationRelocatePlan => {
             let binding = text("binding-operation")?;
             let plan = if matches!(handler, Handler::LocationAnchorPlan) {
@@ -1068,7 +1114,9 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         | Handler::BindingRetireApply
         | Handler::LocationAnchorPlan
         | Handler::LocationRelocatePlan
-        | Handler::LocationApply => {
+        | Handler::LocationApply
+        | Handler::LocationStatus
+        | Handler::LocationList => {
             return Err(Failure::input("link coordinates are absent"));
         }
     };

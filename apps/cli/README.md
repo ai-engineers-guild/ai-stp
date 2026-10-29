@@ -218,6 +218,11 @@ context-owned reconciliation before this metadata-only move; opaque unfinished
 legacy installations refuse. A missing or replaced unfinished root is not assumed
 disjoint. Cross-volume copies, remapped/external Git directories, missing-root
 recovery and revoked-authority offboarding are not supported by this transition.
+`corporate project location show --state-dir PATH --operation ID` recovers a
+completed receipt after losing its local response or plan file. `location list
+--state-dir PATH --binding-operation ID` pages that original binding's history;
+pass the returned `next_cursor` as `--cursor` for the next page. These reads do
+not reopen a checkout or refresh a server session.
 
 Location admission advances the native writer epoch to 61. Keep a qualified
 61-compatible engine for that registry; the immutable released CLI 0.2.1 supports

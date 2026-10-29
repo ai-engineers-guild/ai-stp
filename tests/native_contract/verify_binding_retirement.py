@@ -831,7 +831,6 @@ async def qualify(
         refused=refused,
         organization=organization,
         project=project,
-        account=account,
         git_executable=git_executable,
         foreign_context=foreign_context,
         checkout=checkout,

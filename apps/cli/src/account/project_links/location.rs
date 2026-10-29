@@ -496,6 +496,82 @@ fn output(receipt: &Receipt) -> Value {
         "remote_write_submitted":false,"harness_files_changed":false,"tasks_changed":false,"installation_authority":false})
 }
 
+fn owned(root: &Path, owner: &runtime::Owner, plan: &Plan) -> Result<()> {
+    workflow::owned(root, owner, &plan.original)?;
+    if identity::root(root)?
+        != (
+            plan.state_parent.clone(),
+            plan.binding.account.root_identity.clone(),
+        )
+        || !owner.historical(&plan.local_identity)
+    {
+        return Err(invalid());
+    }
+    Ok(())
+}
+
+/// Offline history remains recoverable after losing a local response or plan
+/// file. It does not inspect a current checkout, locator or server session.
+pub fn status(root: &Path, operation: &str) -> Result<Value> {
+    if !passport::stable_id(operation, "operation") {
+        return Err(crate::error::Failure::input(
+            "name an exact location operation ID",
+        ));
+    }
+    let owner = runtime::owner(root)?;
+    let store = owner.planning()?;
+    let held = receipt(&store.connection, operation)?.ok_or_else(|| {
+        crate::error::Failure::new(
+            crate::error::ErrorKind::NotFound,
+            "the completed location is absent",
+        )
+    })?;
+    owned(root, &owner, &held.plan)?;
+    Ok(output(&held))
+}
+
+/// Page one original binding's immutable history without consulting a future
+/// reservation or relabeling a historical receipt as current authority.
+pub fn list(root: &Path, binding_id: &str, before: Option<&str>) -> Result<Value> {
+    let (owner, source) = workflow::load(root, binding_id)?;
+    if !matches!(&source.plan.change, Change::Adopt { .. }) || source.state != "completed" {
+        return Err(invalid());
+    }
+    let store = owner.planning()?;
+    let cursor = before
+        .map(|id| {
+            let held = receipt(&store.connection, id)?.ok_or_else(invalid)?;
+            owned(root, &owner, &held.plan)?;
+            if held.plan.binding.source.operation_id != binding_id {
+                return Err(invalid());
+            }
+            Ok(held.completed_at)
+        })
+        .transpose()?;
+    let mut query = store.connection.prepare(
+        "SELECT operation_id FROM operation WHERE kind=?1 AND CASE WHEN kind=?1 THEN json_extract(detail,'$.plan.binding.source.operation_id') END=?2 AND (?3 IS NULL OR (finished_at,operation_id)<(?3,?4)) ORDER BY finished_at DESC,operation_id DESC LIMIT 101",
+    ).map_err(database)?;
+    let ids = query
+        .query_map(params![KIND, binding_id, cursor, before], |row| {
+            row.get::<_, String>(0)
+        })
+        .map_err(database)?
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .map_err(database)?;
+    let mut entries = Vec::new();
+    for id in ids.iter().take(100) {
+        let held = receipt(&store.connection, id)?.ok_or_else(invalid)?;
+        owned(root, &owner, &held.plan)?;
+        entries.push(json!({"operation_id":id,"plan_digest":held.plan_digest,"action":held.plan.action,
+            "root":files::serialize_path(&held.plan.destination,serde_json::value::Serializer).map_err(|_| invalid())?,
+            "state":"verified","created_at":held.plan.created_at,"completed_at":held.completed_at}));
+    }
+    Ok(
+        json!({"schema_version":1,"binding_operation_id":binding_id,"locations":entries,
+        "next_cursor":if ids.len()>100 {ids.get(99)} else {None},"installation_authority":false}),
+    )
+}
+
 pub fn apply(
     root: &Path,
     plan: &Plan,
@@ -507,16 +583,7 @@ pub fn apply(
         return Err(invalid());
     }
     let owner = runtime::owner(root)?;
-    workflow::owned(root, &owner, &plan.original)?;
-    if identity::root(root)?
-        != (
-            plan.state_parent.clone(),
-            plan.binding.account.root_identity.clone(),
-        )
-        || !owner.historical(&plan.local_identity)
-    {
-        return Err(invalid());
-    }
+    owned(root, &owner, plan)?;
     {
         let store = owner.planning()?;
         if let Some(known) = receipt(&store.connection, &plan.operation_id)? {
