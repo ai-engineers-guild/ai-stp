@@ -60,7 +60,7 @@ services:
     # through `ImmutableObjectStore`: every object read back digest-verified,
     # new writes and the private-bucket test passed, anonymous reads got 403.
     # yamllint disable-line rule:line-length
-    image: rustfs/rustfs:1.0.1@sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c
+    image: rustfs/rustfs:1.0.3@sha256:9ca9559533b537d10482fe923288b676ad08f92a7069d9a17327fbae3cab688b
     # The store receives exactly its own credential pair — which must equal the
     # AI_STP_STORAGE_* pair the API uses, and the deploy preflight compares
     # them before any effect. As with postgres, `env_file` would leak every
