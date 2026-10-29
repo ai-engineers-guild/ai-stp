@@ -492,6 +492,54 @@ fn reserved_reassignment_refuses(
     Ok(())
 }
 
+fn reserved_observation_and_distinct_copy(
+    local: &identity::Identity,
+    checkout: &Path,
+    copied: &Path,
+    at: &str,
+) -> std::result::Result<(), Box<dyn Error>> {
+    let mut store = Store::open_at(local.root_directory(), false)?;
+    let marker = checkout.join(".ai-stp-v2-project");
+    let original = fs::read(marker.join("project-id"))?;
+    let in_place = passports::plan(&mut store, checkout, local.context(), at)?;
+    assert_eq!(in_place.previous_root.as_ref(), Some(&in_place.root));
+    assert_eq!(
+        passports::apply(
+            &mut store,
+            &in_place,
+            &in_place.digest()?,
+            &local.context(),
+            at
+        )?["stable_id"],
+        in_place.passport["stable_id"]
+    );
+
+    fs::create_dir(copied)?;
+    let copy_marker = copied.join(".ai-stp-v2-project");
+    fs::create_dir(&copy_marker)?;
+    fs::set_permissions(&copy_marker, fs::Permissions::from_mode(0o700))?;
+    for name in ["owner", "lock", "project-id"] {
+        fs::write(copy_marker.join(name), fs::read(marker.join(name))?)?;
+    }
+    fs::write(copied.join("main.rs"), fs::read(checkout.join("main.rs"))?)?;
+    let copy = passports::plan(&mut store, copied, local.context(), at)?;
+    assert_ne!(copy.root_identity, in_place.root_identity);
+    assert_ne!(copy.passport["stable_id"], in_place.passport["stable_id"]);
+    assert!(copy.previous_root.is_none());
+    let value = passports::apply(&mut store, &copy, &copy.digest()?, &local.context(), at)?;
+    assert_eq!(value["stable_id"], copy.passport["stable_id"]);
+    assert_eq!(fs::read(marker.join("project-id"))?, original);
+    assert_ne!(fs::read(copy_marker.join("project-id"))?, original);
+    let reservation: (String, String, String) = store.connection.query_row(
+        "SELECT local_project_id,root_device,root_inode FROM native_checkout_reservation",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    )?;
+    assert_eq!(json!(reservation.0), in_place.passport["stable_id"]);
+    assert_eq!([reservation.1, reservation.2], in_place.root_identity);
+    Ok(())
+}
+
 fn checkout_case(
     named: bool,
     retirement: Option<RetirementCase>,
@@ -622,11 +670,11 @@ fn checkout_case(
         } else {
             None
         };
-        let reassignment = if let Some(relocation) = &relocation {
+        let reassignment = if relocation.is_some() {
             Some(reassignment_preview(
                 &local,
                 &checkout,
-                &relocation.root,
+                &tree.path().join("reassigned-checkout"),
                 &tree.path().join("preview-replacement"),
                 &at,
             )?)
@@ -948,6 +996,12 @@ fn checkout_case(
             let adoption = serde_json::to_value(&adoption)?;
             let binding = adoption["operation_id"].as_str().ok_or("adoption")?;
             let (_, before) = project_links::binding::capture(root.path(), binding)?;
+            reserved_observation_and_distinct_copy(
+                &local,
+                &checkout,
+                &tree.path().join("independent-private-copy"),
+                &at,
+            )?;
             reserved_relocation_refuses(&local, &checkout, relocation, &at)?;
             if let Some(reassignment) = &reassignment {
                 reserved_reassignment_refuses(
@@ -960,6 +1014,16 @@ fn checkout_case(
             }
             legacy_prepared_relocation(&local, relocation, &at)?;
             reserved_relocation_refuses(&local, &checkout, relocation, &at)?;
+            if let Some(reassignment) = &reassignment {
+                legacy_prepared_relocation(&local, reassignment, &at)?;
+                reserved_reassignment_refuses(
+                    &local,
+                    &checkout,
+                    reassignment,
+                    &tree.path().join("prepared-observed-replacement"),
+                    &at,
+                )?;
+            }
             assert!(project_links::binding::capture(root.path(), binding)?.1 == before);
         }
         let store = Store::planning_at(local.root_directory())?;

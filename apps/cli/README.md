@@ -191,8 +191,11 @@ future independent binding. Completed apply replay retains its original output.
 Corporate checkout relocation, missing-root recovery and revoked-authority
 offboarding are not implemented yet. Ordinary project passport observation may
 relocate an unreserved private project. A retained corporate reservation blocks
-that location change during planning and apply, including a plan reviewed before
-the reservation was admitted. Observation preserves the original adoption
+changes to its logical ID, physical root or registered location during planning
+and apply, including a plan reviewed before the reservation was admitted.
+Recreating the old pathname does not permit assigning a new ID to the reserved
+physical checkout. In-place observation and registration of a physically distinct
+private copy remain available. Observation preserves the original adoption
 receipt and never releases the reservation.
 
 These commands accept `--context ID`; omission resolves the selected view once
