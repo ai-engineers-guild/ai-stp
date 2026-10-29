@@ -107,7 +107,7 @@ jobs:
             echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-integration-python"
             echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
           } >> "${GITHUB_ENV}"
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ${{ runner.temp }}/uv-cache
           key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
@@ -160,8 +160,8 @@ jobs:
           set -euo pipefail
           bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
           echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
-      - name: Cache bun packages
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      - name: Restore bun packages without a PR-scoped duplicate
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('apps/web/bun.lock') }}
@@ -200,6 +200,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     env:
       CARGO_BUILD_JOBS: '2'
+      CARGO_INCREMENTAL: '0'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -207,23 +208,30 @@ jobs:
           persist-credentials: 'false'
       - name: Select an external native artifact directory
         shell: bash
-        run: echo "CARGO_TARGET_DIR=${RUNNER_TEMP}/ai-stp-native-target" >> "${GITHUB_ENV}"
+        run: |
+          python - <<'PY'
+          import os
+          target = os.path.join(os.environ["RUNNER_TEMP"], "ai-stp-native-target")
+          relative = os.path.relpath(target, "apps/cli")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as output:
+              output.write(f"CARGO_TARGET_DIR={target}\n")
+              output.write(f"NATIVE_CACHE_WORKSPACE=apps/cli -> {relative}\n")
+          PY
       - name: Install the pinned native CLI toolchain
         shell: bash
         run: >-
           bash .github/scripts/install-rust-toolchain.sh
           apps/cli/rust-toolchain.toml clippy rustfmt
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        id: native-cache
+      - name: Restore native dependencies shared with successful main
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        continue-on-error: true
+        timeout-minutes: 5
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ${{ runner.temp }}/ai-stp-native-target
-          key: >-
-            cli-shared-${{ runner.os }}-${{ hashFiles('apps/cli/Cargo.*',
-            'apps/cli/*.toml', 'apps/cli/xtask/Cargo.*') }}
-          restore-keys: cli-shared-${{ runner.os }}-
+          prefix-key: native-deps-v1
+          shared-key: cli
+          workspaces: ${{ env.NATIVE_CACHE_WORKSPACE }}
+          cache-bin: 'false'
+          save-if: 'false'
       - name: Native formatting, all-target analysis and library units
         shell: bash
         run: |
@@ -369,6 +377,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     env:
       CARGO_BUILD_JOBS: "2"
+      CARGO_INCREMENTAL: "0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -400,25 +409,32 @@ jobs:
           --package ai-stp-sources --no-default-groups
       - name: Select an external native artifact directory
         shell: bash
-        run: echo "CARGO_TARGET_DIR=${RUNNER_TEMP}/ai-stp-native-target" >> "${GITHUB_ENV}"
+        run: |
+          python - <<'PY'
+          import os
+          target = os.path.join(os.environ["RUNNER_TEMP"], "ai-stp-native-target")
+          relative = os.path.relpath(target, "apps/cli")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as output:
+              output.write(f"CARGO_TARGET_DIR={target}\n")
+              output.write(f"NATIVE_CACHE_WORKSPACE=apps/cli -> {relative}\n")
+          PY
       - name: Install the pinned native CLI toolchain
         shell: bash
         run: >-
           bash .github/scripts/install-rust-toolchain.sh
           apps/cli/rust-toolchain.toml clippy rustfmt
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        id: native-cache
+      - name: Restore and retain only successful main's native dependencies
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        continue-on-error: true
+        timeout-minutes: 5
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ${{ runner.temp }}/ai-stp-native-target
-          key: >-
-            cli-shared-${{ runner.os }}-${{ hashFiles('apps/cli/Cargo.*',
-            'apps/cli/*.toml', 'apps/cli/xtask/Cargo.*') }}
-          # A package-version bump should retain reusable dependencies. Cargo
-          # revalidates the restored build; every check below still runs.
-          restore-keys: cli-shared-${{ runner.os }}-
+          prefix-key: native-deps-v1
+          shared-key: cli
+          # One mapping owns the shared target: cleaning it once per workspace
+          # would discard another workspace's dependencies. All checks still run.
+          workspaces: ${{ env.NATIVE_CACHE_WORKSPACE }}
+          cache-bin: 'false'
+          save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       - name: Restore isolated previous native build artifacts
         if: runner.os == 'Linux'
         id: previous-native-cache
@@ -510,18 +526,6 @@ jobs:
         with:
           path: ${{ runner.temp }}/ai-stp-previous-native-binaries
           key: ${{ steps.previous-native-cache.outputs.cache-primary-key }}
-      - name: Cache the successful native build
-        if: steps.native-cache.outputs.cache-hit != 'true'
-        # Cache availability must not prevent or invalidate the checks above.
-        continue-on-error: true
-        timeout-minutes: 5
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ${{ runner.temp }}/ai-stp-native-target
-          key: ${{ steps.native-cache.outputs.cache-primary-key }}
 
   docs:
     if: github.event_name != 'pull_request'
