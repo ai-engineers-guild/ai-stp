@@ -184,30 +184,44 @@ fn location(connection: &Connection, id: &str) -> Result<Option<PathBuf>> {
         .map_err(database)
 }
 
-fn relocation_unreserved(connection: &Connection, plan: &Plan) -> Result<()> {
-    if plan
-        .previous_root
-        .as_ref()
-        .is_none_or(|root| root == &plan.root)
-    {
-        return Ok(());
-    }
+fn reservation_unchanged(connection: &Connection, plan: &Plan) -> Result<()> {
     let version: u32 = connection
         .pragma_query_value(None, "user_version", |row| row.get(0))
         .map_err(database)?;
-    if crate::store::has_checkout_links(version)
-        && connection
-            .query_row(
-                "SELECT EXISTS(SELECT 1 FROM native_checkout_reservation WHERE local_project_id=?)",
-                [plan.id()?],
-                |row| row.get::<_, bool>(0),
-            )
-            .map_err(database)?
-    {
-        return Err(Failure::precondition(
-            "project observation cannot relocate a reserved corporate checkout",
+    if !crate::store::has_checkout_links(version) {
+        return Ok(());
+    }
+    let id = plan.id()?;
+    // A recreated old pathname selects a new private ID, even when this is the
+    // original reserved physical object. Check both identities before allowing
+    // a marker or registry write; only its genuine in-place observation survives.
+    let mut query = connection.prepare(
+        "SELECT local_project_id,root_device,root_inode FROM native_checkout_reservation WHERE local_project_id=? OR (root_device=? AND root_inode=?)",
+    ).map_err(database)?;
+    let reservations = query
+        .query_map(
+            params![id, plan.root_identity[0], plan.root_identity[1]],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    [row.get::<_, String>(1)?, row.get::<_, String>(2)?],
+                ))
+            },
         )
-        .with_details([("reason".into(), "corporate_checkout_reserved".into())]));
+        .map_err(database)?;
+    for reserved in reservations {
+        let (project, physical) = reserved.map_err(database)?;
+        if project != id
+            || physical != plan.root_identity
+            || plan.previous_marker.as_deref() != Some(id)
+            || plan.previous_root.as_ref() != Some(&plan.root)
+            || location(connection, id)?.as_ref() != Some(&plan.root)
+        {
+            return Err(Failure::precondition(
+                "project observation cannot change a reserved corporate checkout identity or location",
+            )
+            .with_details([("reason".into(), "corporate_checkout_reserved".into())]));
+        }
     }
     Ok(())
 }
@@ -321,7 +335,7 @@ pub fn plan(store: &mut Store, path: &Path, identity: Identity, at: &str) -> Res
         if held.root != root || held.root_identity != root_identity {
             return Err(invalid());
         }
-        store.transaction(|t| relocation_unreserved(t, &held))?;
+        store.transaction(|t| reservation_unchanged(t, &held))?;
         return Ok(held);
     }
     let marker = marker::open(&directory, false)?;
@@ -386,14 +400,14 @@ pub fn plan(store: &mut Store, path: &Path, identity: Identity, at: &str) -> Res
                 .unwrap_or_default(),
             passport: document(&values, &id, earlier.as_ref(), &identity, at)?,
         };
-        relocation_unreserved(t, &plan)?;
+        reservation_unchanged(t, &plan)?;
         Ok(plan)
     })
 }
 
 fn preconditions(t: &Transaction<'_>, plan: &Plan) -> Result<Option<Value>> {
     let id = plan.id()?;
-    relocation_unreserved(t, plan)?;
+    reservation_unchanged(t, plan)?;
     if let Some(marked) = &plan.previous_marker {
         previous(t, marked, &plan.identity)?;
         if location(t, marked)?.is_none() {

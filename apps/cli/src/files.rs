@@ -2,6 +2,8 @@
 
 pub(crate) mod document;
 mod owned;
+#[cfg(all(test, any(unix, windows)))]
+mod physical_identity_tests;
 pub(crate) mod tree;
 pub(crate) use owned::{OwnedDirectory, private_options};
 
