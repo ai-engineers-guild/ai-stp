@@ -149,8 +149,6 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.web_lock
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      BUN_INSTALL_CACHE_DIR: ${{ runner.temp }}/ai-stp-web-lock-cache
     steps:
       - name: Refuse conflicting generation modes
         if: inputs.native_locks
@@ -166,6 +164,7 @@ jobs:
           test "$(cat .bun-version)" = "${BUN_VERSION}"
           bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
           echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
+          echo "BUN_INSTALL_CACHE_DIR=${RUNNER_TEMP}/ai-stp-web-lock-cache" >> "${GITHUB_ENV}"
       - name: Resolve only the committed web dependency graph
         run: |
           set -euo pipefail
