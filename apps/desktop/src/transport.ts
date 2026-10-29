@@ -53,6 +53,7 @@ function call(
   // key-name redaction cannot make that content safe for this shared log.
   const contextTrace =
     command === "checkout_apply" ||
+    command === "checkout_location_apply" ||
     namespace === "context" ||
     namespace === "corporate" ||
     (namespace === "account" &&
@@ -364,5 +365,16 @@ export function cmdBindingRetirementApply(
 ): Promise<CmdResult> {
   return call("checkout_apply", {
     plan, digest, confirmed, context: null, gitExecutable: null, retireBinding: true,
+  });
+}
+
+export function cmdCheckoutLocationApply(
+  plan: unknown,
+  digest: string,
+  confirmed: boolean,
+  gitExecutable?: string,
+): Promise<CmdResult> {
+  return call("checkout_location_apply", {
+    plan, digest, confirmed, gitExecutable: gitExecutable ?? null,
   });
 }
