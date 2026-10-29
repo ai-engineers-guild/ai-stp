@@ -222,6 +222,8 @@ export default function CheckoutOperations() {
           {retirement && <div className="space-y-3" aria-label="Review local binding retirement">
             <h3 className="font-medium">Release only this original local binding</h3>
             <p className="text-sm text-muted-foreground">The CLI observed the exact server link as unlinked. Applying rechecks current rights and local state. It does not unlink another link or change checkout files, tasks or harness configuration.</p>
+            <p className="text-sm">Reviewed checkout directory:</p>
+            <p className="break-all font-mono text-xs">{checkoutPath(record(record(retirement.plan.snapshot).binding).checkout_root)}</p>
             <p className="break-all font-mono text-xs">{retirement.digest}</p>
             <Details label="Exact local binding retirement plan" value={retirement.plan} />
             <label className="flex items-start gap-3 text-sm"><input type="checkbox" checked={confirmed} disabled={!reader || busy || switching} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed this exact local binding retirement and authorize releasing its reservation.</label>

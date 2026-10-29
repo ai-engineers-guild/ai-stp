@@ -3,7 +3,9 @@
 pub(crate) mod binding;
 pub(crate) mod interruption;
 mod journal;
+pub mod location;
 mod model;
+mod reader;
 pub mod retirement;
 mod workflow;
 

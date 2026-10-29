@@ -7,9 +7,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use super::{
-    Access, Binding, Context, contexts, corporate, invalid,
+    Access, Binding, contexts, corporate, invalid,
     journal::{Checkpoint, Record},
     model::{self, Change, Effect, LIMIT, ServerPlan},
+    reader::Reader,
     workflow,
 };
 use crate::{
@@ -18,8 +19,8 @@ use crate::{
     error::{ErrorKind, Failure, Result},
     files, identity, passport,
     store::{
-        BINDING_RETIREMENT_SCHEMA, CHECKOUT_LINK_SCHEMA, CHECKOUT_RETIREMENT_SCHEMA,
-        CHECKOUT_UNLINK_SCHEMA, database, has_checkout_retirement,
+        BINDING_RETIREMENT_SCHEMA, CHECKOUT_LINK_SCHEMA, CHECKOUT_LOCATION_SCHEMA,
+        CHECKOUT_RETIREMENT_SCHEMA, CHECKOUT_UNLINK_SCHEMA, database, has_checkout_retirement,
     },
 };
 
@@ -45,7 +46,7 @@ pub(super) fn request_open(connection: &Connection, request: &str) -> Result<()>
         [request], |row| row.get::<_,bool>(0)).map_err(database)? {
         return Err(Failure::precondition("the original checkout request was explicitly retired; review a new request instead"));
     }
-    if version == BINDING_RETIREMENT_SCHEMA && connection.query_row(
+    if crate::store::has_binding_retirement(version) && connection.query_row(
         "SELECT EXISTS(SELECT 1 FROM native_binding_retirement WHERE request_operation_id=?)",
         [request], |row| row.get::<_,bool>(0)).map_err(database)? {
         return Err(Failure::precondition("the original binding was retired; review an independent new checkout request"));
@@ -133,49 +134,6 @@ impl Evidence {
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-struct Reader {
-    context: Context,
-    account: Binding,
-    organization: Value,
-    observation: Value,
-}
-
-impl Reader {
-    fn validate(&self, source: &model::Plan) -> Result<()> {
-        self.context.digest()?;
-        self.account.validate()?;
-        workflow::reader_matches(&self.context, source.snapshot())?;
-        let contexts::Authority::Remote {
-            account,
-            organization,
-            ..
-        } = &self.context.authority
-        else {
-            return Err(invalid());
-        };
-        let mut bound = account.as_ref().clone();
-        bound.revision.clone_from(&self.account.revision);
-        let projected = contexts::organizations_projection(
-            &json!({"schema_version":1,"items":[self.organization]}),
-        )?;
-        if bound != self.account
-            || organization["organization_id"] != self.organization["organization_id"]
-            || projected["items"][0] != self.organization
-            || self.organization["kind"] != "corporate"
-            || contexts::active_projection(&self.observation)? != self.observation
-            || self.observation["organization_id"] != self.organization["organization_id"]
-            || !self.observation["capabilities"]["capabilities"]
-                .as_array()
-                .is_some_and(|items| items.iter().any(|item| item == "project.link"))
-        {
-            return Err(invalid());
-        }
-        Ok(())
-    }
-}
-
-#[derive(Clone, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct Plan {
     schema_version: u32,
     operation_id: String,
@@ -233,6 +191,7 @@ impl Plan {
                 CHECKOUT_RETIREMENT_SCHEMA,
                 CHECKOUT_UNLINK_SCHEMA,
                 BINDING_RETIREMENT_SCHEMA,
+                CHECKOUT_LOCATION_SCHEMA,
             ]
             .contains(&self.registry_schema_before)
             || self.registry_schema_after

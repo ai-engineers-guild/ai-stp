@@ -817,3 +817,21 @@ async def qualify(
         ),
         flush=True,
     )
+    from tests.native_contract.verify_checkout_location import qualify as qualify_location
+
+    await qualify_location(
+        binary=binary,
+        home=home,
+        state=state,
+        app=app,
+        faults=faults,
+        run=run,
+        enact=enact,
+        login=login,
+        refused=refused,
+        organization=organization,
+        project=project,
+        git_executable=git_executable,
+        foreign_context=foreign_context,
+        checkout=checkout,
+    )

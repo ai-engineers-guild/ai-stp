@@ -497,6 +497,14 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: bash .github/scripts/build-previous-native-cli.sh 59
+      - name: Verify the immutable released schema60 native writer
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python3 .github/scripts/released-previous-native-cli.py
+          "${RUNNER_TEMP}/ai-stp-previous-native-60-release"
       - name: Ownership and corporate journeys through the native HTTP client
         if: runner.os == 'Linux'
         shell: bash

@@ -1,6 +1,8 @@
 //! Planned project observations with durable recovery across SQLite and a marker.
 
 mod marker;
+mod relocation;
+pub(crate) use relocation::{Relocation, commit_relocation, observe_relocation};
 
 use std::{
     collections::BTreeSet,
@@ -234,6 +236,31 @@ fn previous(connection: &Connection, id: &str, identity: &Identity) -> Result<Va
         return Err(invalid());
     }
     Ok(document)
+}
+
+/// Registry lineage only. Callers granting present-root authority must also
+/// validate the actual marker and held directory at this registered location.
+pub(crate) fn registered_document(
+    connection: &Connection,
+    path: &Path,
+    id: &str,
+    identity: &Identity,
+) -> Result<Value> {
+    if location(connection, id)?.as_deref() != Some(path)
+        || bound(connection, path)?.as_deref() != Some(id)
+    {
+        return Err(invalid());
+    }
+    previous(connection, id, identity)
+}
+
+pub(crate) fn require_no_pending(connection: &Connection, path: &Path, id: &str) -> Result<()> {
+    if pending(connection, path, Some(id))?.is_some() {
+        return Err(Failure::precondition(
+            "finish the retained private project observation before reviewing its corporate location",
+        ));
+    }
+    Ok(())
 }
 
 pub(crate) struct Registered {

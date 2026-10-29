@@ -358,3 +358,32 @@ pub fn observe(path: &Path, executable: Option<&Path>) -> Result<Value> {
     result["observation_digest"] = fingerprint("observation", &result)?.into();
     Ok(result)
 }
+
+/// The first reviewed move supports an embedded, non-remapped Git directory.
+/// All branch/commit/routing/configuration and object identities stay exact;
+/// only the three known absolute path spellings and their digests may change.
+pub(crate) fn relocated_observation(
+    before: &Value,
+    after: &Value,
+    destination: &Path,
+) -> Result<()> {
+    let mut expected = before.clone();
+    for (field, path) in [
+        ("root", destination.to_owned()),
+        ("git_directory", destination.join(".git")),
+        ("common_directory", destination.join(".git")),
+    ] {
+        expected["checkout"]["topology"][field]["path"] = path_value(&path)?;
+    }
+    expected["checkout"]["topology_digest"] =
+        fingerprint("topology", &expected["checkout"]["topology"])?.into();
+    expected
+        .as_object_mut()
+        .ok_or_else(invalid)?
+        .remove("observation_digest");
+    expected["observation_digest"] = fingerprint("observation", &expected)?.into();
+    if expected != *after {
+        return Err(invalid());
+    }
+    Ok(())
+}
