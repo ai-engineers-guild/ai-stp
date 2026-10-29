@@ -72,6 +72,7 @@ export default function CheckoutLocation({ original, context, reader, disabled, 
   async function inspect(id: string, digest?: string) {
     if (busy || disabled) return;
     const sequence = start();
+    setReceipt(null);
     try {
       let response = await cmdRunRead("corporate project location show", { operation: id });
       if (!current(sequence)) return;

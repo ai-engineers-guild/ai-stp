@@ -297,6 +297,22 @@ def installed_locations(
             )
         )
 
+    def inspected_plan(operation: str) -> dict[str, Any]:
+        # A previous receipt can already occupy this surface when the real
+        # WebDriver activation starts an asynchronous native read. Observe the
+        # requested identity before inspecting its plan; never replay the click.
+        driver.wait(
+            lambda: driver.read(
+                "const root=document.querySelector(arguments[0]);"
+                "return [...root?.querySelectorAll('p')??[]]"
+                ".some(node=>node.textContent.startsWith(arguments[1]+' · '));",
+                receipt_scope,
+                operation,
+            ),
+            "exact requested location receipt",
+        )
+        return public_plan(driver, receipt_scope)
+
     try:
         inspect_binding()
         fill(
@@ -387,7 +403,7 @@ def installed_locations(
 
         driver.click(driver.button("Read location history", location_scope))
         driver.click(driver.button("Inspect location " + anchor["operation_id"], location_scope))
-        assert public_plan(driver, receipt_scope) == anchor
+        assert inspected_plan(anchor["operation_id"]) == anchor
         for retained in recorded:
             assert (
                 run(
@@ -455,7 +471,7 @@ def installed_locations(
         driver.selected(company)
         inspect_binding()
         driver.click(driver.button("Inspect location " + anchor["operation_id"], location_scope))
-        assert public_plan(driver, receipt_scope) == anchor
+        assert inspected_plan(anchor["operation_id"]) == anchor
         assert run("corporate", "project", "link", "show", "--operation", binding) == retired
         assert (
             run("corporate", "project", "location", "list", "--binding-operation", binding)
@@ -474,7 +490,8 @@ def installed_locations(
             "location_canary_marker_bytes_and_modes_preserved": True,
         }
     except BaseException:
-        driver.close()
+        if not driver.log.closed:
+            driver.close()
         raise
 
 
@@ -1016,6 +1033,10 @@ def installed_journey(
             driver_type=driver_type,
             native=native,
         )
+        assert canary.read_bytes() == b"# Unowned installed corporate canary\n"
+        assert canary.stat().st_mode & 0o777 == 0o640
+        assert (neighbor / ".env").read_bytes() == b"PRIVATE=installed-nfc-neighbor\n"
+        assert (neighbor / ".env").stat().st_mode & 0o777 == 0o640
         return {
             **location_proof,
             "schema_version": 1,
@@ -1047,7 +1068,8 @@ def installed_journey(
             "harness_activation_qualified": False,
         }
     finally:
-        driver.close()
+        if not driver.log.closed:
+            driver.close()
 
 
 async def prove(driver_path: Path, out: Path, database_url: str, root: Path) -> None:

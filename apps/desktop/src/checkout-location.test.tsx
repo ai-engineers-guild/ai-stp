@@ -121,6 +121,21 @@ it("reads a committed unknown reply through the exact offline operation instead 
   expect(transport.cmdCheckoutLocationApply).toHaveBeenCalledTimes(1);
 });
 
+it("clears the previous receipt while a different exact historical operation is still being read", async () => {
+  let finish!: (response: CmdResult) => void;
+  vi.mocked(transport.cmdRunRead).mockImplementation(async (route) => route.endsWith(" list") ? history([3, 2]) :
+    new Promise<CmdResult>((resolve) => { finish = resolve; }));
+  render(view()); await prepare(); authorize();
+  await screen.findByText("Checkout anchor receipt saved.");
+  fireEvent.click(screen.getByRole("button", { name: "Inspect location " + id(3) }));
+  await waitFor(() => expect(screen.queryByLabelText("Recorded location receipt")).toBe(null));
+  expect(screen.queryByText("Checkout anchor receipt saved.")).toBe(null);
+  await act(async () => finish(ok(receipt("relocate"))));
+  await screen.findByText("Checkout relocation receipt saved.");
+  expect(transport.cmdRunRead).toHaveBeenLastCalledWith("corporate project location show", { operation: id(3) });
+  expect(transport.cmdCheckoutLocationApply).toHaveBeenCalledTimes(1);
+});
+
 it("reviews the exact NFD destination without replacing the immutable adoption pathname", async () => {
   vi.mocked(transport.cliPlan).mockResolvedValue(proposal("relocate"));
   render(view());
