@@ -14,6 +14,168 @@ fn legacy_context_admission_preserves_the_original_key_session_and_journal()
     exercise_contexts(false)
 }
 
+#[test]
+fn equal_remote_ids_keep_original_origins_and_credentials_after_selecting_another_context()
+-> std::result::Result<(), Box<dyn Error>> {
+    let root = tempfile::tempdir()?;
+    let at = format!("{:.3}", jiff::Timestamp::now());
+    let init = identity::plan(root.path(), identity::Storage::File, &at)?;
+    let local = identity::apply(&init, &init.digest()?, &at)?;
+    let original = local.report();
+    let account = format!("account_{}", ulid::Ulid::generate());
+    let organization = format!("organization_{}", ulid::Ulid::generate());
+    let listeners = [
+        TcpListener::bind("127.0.0.1:0")?,
+        TcpListener::bind("127.0.0.1:0")?,
+    ];
+    let origins = listeners
+        .iter()
+        .map(|listener| listener.local_addr().map(|a| format!("http://{a}")))
+        .collect::<std::io::Result<Vec<_>>>()?;
+    let tokens = [generated(), generated()];
+    let (refresh_started, wait_refresh) = std::sync::mpsc::sync_channel::<()>(1);
+    let (resume_refresh, refresh_resume) = std::sync::mpsc::sync_channel::<()>(1);
+    let mut first_pause = Some((refresh_started, refresh_resume));
+    let mut workers = Vec::new();
+    let mut retained = Vec::new();
+    for (index, listener) in listeners.into_iter().enumerate() {
+        let connection = connections::plan(
+            root.path(),
+            "Independent server",
+            &origins[index],
+            "github",
+            &at,
+        )?;
+        connections::apply(&connection, &connection.digest()?, &at)?;
+        super::ownership_tests::authorize(
+            root.path(),
+            &origins[index],
+            Some(&connection.connection_id),
+            &account,
+            &tokens[index],
+            &at,
+        )?;
+        let (remote_account, remote_device, remote_org, token, observed_at) = (
+            account.clone(),
+            connection.device_id.clone(),
+            organization.clone(),
+            tokens[index].clone(),
+            at.clone(),
+        );
+        let pause = if index == 0 { first_pause.take() } else { None };
+        workers.push(thread::spawn(move || -> std::io::Result<()> {
+            // Plan/apply each require three observations. Only the original
+            // first server receives the refresh held across the view change.
+            for step in 0..if index == 0 { 9 } else { 6 } {
+                let mut socket = accept(&listener)?;
+                let (header, body) = receive(&mut socket)?;
+                assert!(body.is_empty());
+                let authorization = header
+                    .lines()
+                    .filter_map(|line| line.split_once(':'))
+                    .find(|(name, _)| name.eq_ignore_ascii_case("authorization"))
+                    .map(|(_, value)| value.trim());
+                assert!(
+                    authorization == Some(format!("Bearer {token}").as_str()),
+                    "request used another server's credential"
+                );
+                if index == 0 && step == 6 {
+                    let (started, resume) = pause
+                        .as_ref()
+                        .ok_or_else(|| std::io::Error::other("missing refresh pause"))?;
+                    started.send(()).map_err(std::io::Error::other)?;
+                    resume
+                        .recv_timeout(std::time::Duration::from_secs(10))
+                        .map_err(std::io::Error::other)?;
+                }
+                let value = if header.starts_with("GET /v1/auth/me ") {
+                    json!({"schema_version":1,"account_id":remote_account,"device_id":remote_device,"account_status":"active"})
+                } else if header.starts_with("GET /v1/context ") {
+                    let selected = header
+                        .lines()
+                        .filter_map(|line| line.split_once(':'))
+                        .find(|(name, _)| name.eq_ignore_ascii_case("x-ai-stp-organization-id"))
+                        .map(|(_, value)| value.trim());
+                    assert!(selected == Some(remote_org.as_str()));
+                    json!({"schema_version":1,"mode":"corporate","organization_id":remote_org,
+                        "capabilities":{"schema_version":1,"registry_version":2,"mode":"corporate","context_kind":"corporate",
+                        "organization_id":remote_org,"authorization_revision":"corporate:origin-fixture:1",
+                        "issued_at":observed_at,"generated_at":observed_at,
+                        "expires_at":after(&observed_at,300).map_err(std::io::Error::other)?,
+                        "capabilities":["organization.read"],"unavailable":{}}})
+                } else if header.starts_with("GET /v1/organizations ") {
+                    json!({"schema_version":1,"items":[{"schema_version":1,"organization_id":remote_org,
+                        "kind":"corporate","display_name":format!("Origin {index}"),"membership_revision":1}]})
+                } else {
+                    return Err(std::io::Error::other("unexpected origin fixture request"));
+                };
+                respond(&mut socket, 200, value)?;
+            }
+            Ok(())
+        }));
+        retained.push(connection);
+    }
+    let mut context_ids = Vec::new();
+    for connection in &retained {
+        let plan = contexts::create_plan(
+            root.path(),
+            "Same remote identifiers",
+            Some(&connection.connection_id),
+            Some(&organization),
+            &at,
+        )?;
+        let result = contexts::apply(&plan, &plan.digest()?, &at)?;
+        assert_eq!(result["harness_files_changed"], false);
+        context_ids.push(result["context_id"].as_str().ok_or("context")?.to_owned());
+    }
+    assert_ne!(context_ids[0], context_ids[1]);
+    let select = contexts::select_plan(root.path(), &context_ids[0], &at)?;
+    contexts::apply(&select, &select.digest()?, &at)?;
+    let before = contexts::show(root.path(), &context_ids[0], false)?;
+    let refresh_root = root.path().to_owned();
+    let refresh_context = context_ids[0].clone();
+    let refresh = thread::spawn(move || contexts::show(&refresh_root, &refresh_context, true));
+    wait_refresh.recv_timeout(std::time::Duration::from_secs(10))?;
+    assert_eq!(
+        contexts::list(root.path())?["selected"]["context_id"],
+        context_ids[0]
+    );
+    let select = contexts::select_plan(root.path(), &context_ids[1], &at)?;
+    contexts::apply(&select, &select.digest()?, &at)?;
+    resume_refresh.send(())?;
+    let refreshed = refresh.join().map_err(|_| "refresh worker")??;
+    assert_eq!(
+        refreshed["current_organization"]["display_name"],
+        "Origin 0"
+    );
+    assert_eq!(refreshed["context"], before["context"]);
+    assert_eq!(before, contexts::show(root.path(), &context_ids[0], false)?);
+    let listed = contexts::list(root.path())?;
+    assert_eq!(listed["selected"]["context_id"], context_ids[1]);
+    for (index, context) in context_ids.iter().enumerate() {
+        let observed = contexts::show(root.path(), context, false)?;
+        assert_eq!(
+            observed["context"]["authority"]["account"]["origin"],
+            origins[index]
+        );
+        assert_eq!(
+            observed["context"]["authority"]["account"]["account_id"],
+            account
+        );
+        assert_eq!(
+            observed["context"]["authority"]["organization"]["organization_id"],
+            organization
+        );
+        assert!(!observed.to_string().contains(&tokens[0]));
+        assert!(!observed.to_string().contains(&tokens[1]));
+    }
+    assert_eq!(identity_at(root.path())?.report(), original);
+    for worker in workers {
+        worker.join().map_err(|_| "origin fixture worker")??;
+    }
+    Ok(())
+}
+
 fn exercise_contexts(named: bool) -> std::result::Result<(), Box<dyn Error>> {
     let root = tempfile::tempdir()?;
     let at = format!("{:.3}", jiff::Timestamp::now());
