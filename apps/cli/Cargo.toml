@@ -87,6 +87,10 @@ windows-native-keyring-store = "=1.1.0"
 block-buffer = "=0.10.4"
 tempfile = "=3.27.0"
 
+[target.'cfg(windows)'.dev-dependencies]
+# Qualify full FILE_ID_INFO on held directory handles before new location receipts.
+fs-id = "=0.2.0"
+
 # Keep real-binary installer tests within the same bounded archive size as releases.
 [profile.dev]
 debug = 1
