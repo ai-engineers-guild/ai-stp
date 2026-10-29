@@ -14,6 +14,15 @@ updates:
         update-types: [minor, patch]
     commit-message:
       prefix: "chore(cli)"
+    # This exact dev dependency tests legacy transitive bytes, not our preferred
+    # buffer version. Remove the hold with its regression/assessment (#1168;
+    # review by 2026-11-03). Advisory scans and their expiry remain unchanged.
+    ignore:
+      - dependency-name: block-buffer
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+          - version-update:semver-patch
     cooldown:
       default-days: 7
       semver-major-days: 14
@@ -81,6 +90,12 @@ updates:
     # Node runtime and types move to a new supported LTS together.
     ignore:
       - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
+      # Published plugin peers still require ESLint 9 (#1258, review by
+      # 2026-11-06). Migrate core/config together after that graph qualifies.
+      - dependency-name: eslint
+        update-types: [version-update:semver-major]
+      - dependency-name: "@eslint/js"
         update-types: [version-update:semver-major]
     cooldown:
       default-days: 7
@@ -164,6 +179,13 @@ updates:
     cooldown:
       default-days: 7
     ignore:
+      # Keep each qualified Python minor line; patch/digest updates remain
+      # eligible. App/worker-safety needs yara-python cp314 wheels and scanner
+      # regressions before a minor migration (VirusTotal/yara-python#281).
+      - dependency-name: python
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
       - dependency-name: node
         update-types: [version-update:semver-major]
       - dependency-name: oven/bun
