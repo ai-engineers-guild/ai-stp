@@ -169,10 +169,7 @@ impl Plan {
                     && relocation.root == self.destination
                     && relocation.previous_root == self.binding.checkout_root
                     && relocation.previous == self.binding.local_project
-                    && relocation.root_identity == self.binding.physical_root =>
-            {
-                ()
-            }
+                    && relocation.root_identity == self.binding.physical_root => {}
             _ => return Err(invalid()),
         }
         let encoded = value(self)?;
@@ -224,27 +221,35 @@ struct Receipt {
     completed_at: String,
 }
 
+struct ReceiptRow {
+    kind: String,
+    state: String,
+    started: String,
+    finished: Option<String>,
+    detail: Option<String>,
+}
+
 fn receipt(connection: &Connection, id: &str) -> Result<Option<Receipt>> {
-    let row: Option<(String, String, String, Option<String>, Option<String>)> = connection.query_row(
+    let row: Option<ReceiptRow> = connection.query_row(
         "SELECT kind,state,started_at,finished_at,CASE WHEN length(CAST(detail AS BLOB))<=262144 THEN detail ELSE NULL END FROM operation WHERE operation_id=?",
-        [id], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?)),
+        [id], |r| Ok(ReceiptRow { kind:r.get(0)?,state:r.get(1)?,started:r.get(2)?,finished:r.get(3)?,detail:r.get(4)? }),
     ).optional().map_err(database)?;
-    let Some((kind, state, started, finished, detail)) = row else {
+    let Some(row) = row else {
         return Ok(None);
     };
-    let raw = canonical::parse(detail.ok_or_else(invalid)?.as_bytes())?;
+    let raw = canonical::parse(row.detail.ok_or_else(invalid)?.as_bytes())?;
     let receipt: Receipt = serde_json::from_value(raw.clone()).map_err(|_| invalid())?;
-    if kind != KIND
-        || state != "verified"
+    if row.kind != KIND
+        || row.state != "verified"
         || receipt.plan.operation_id != id
         || receipt.plan.digest()? != receipt.plan_digest
         || canonical::bytes(&raw)? != canonical::bytes(&value(&receipt)?)?
-        || !passport::timestamp(&started)
-        || started < receipt.plan.created_at
-        || started >= receipt.plan.expires_at
+        || !passport::timestamp(&row.started)
+        || row.started < receipt.plan.created_at
+        || row.started >= receipt.plan.expires_at
         || !passport::timestamp(&receipt.completed_at)
-        || receipt.completed_at < started
-        || finished.as_deref() != Some(receipt.completed_at.as_str())
+        || receipt.completed_at < row.started
+        || row.finished.as_deref() != Some(receipt.completed_at.as_str())
     {
         return Err(invalid());
     }
@@ -535,8 +540,9 @@ pub fn apply(
         local_available(transaction, &plan.binding, &plan.destination)?;
         if physical(&plan.destination)? != (plan.physical.clone(), plan.git_physical.clone())
             || checkout::observe(&plan.destination, git)? != plan.checkout { return Err(invalid()); }
-        if plan.action == Action::Anchor {
-            if binding::read_in(transaction, root, &owner, &plan.binding.source.operation_id)? != plan.binding { return Err(invalid()); }
+        if plan.action == Action::Anchor
+            && binding::read_in(transaction, root, &owner, &plan.binding.source.operation_id)? != plan.binding {
+            return Err(invalid());
         }
         let receipt = Receipt {plan:plan.clone(),plan_digest:expected.into(),completed_at:super::super::now_after(at)};
         let detail = canonical::bytes(&value(&receipt)?)?;

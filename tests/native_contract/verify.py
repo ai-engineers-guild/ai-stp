@@ -143,8 +143,8 @@ def prove(binary: Path, root: Path) -> None:
     assert capabilities["task_intents"] == ["author", "install"]
     assert bool(capabilities["supported_harnesses"]) == (sys.platform == "linux")
     assert capabilities["release_channel"] == "stable"
-    assert capabilities["readable_local_schema_versions"] == [53, 54, 55, 56, 57, 58, 59, 60]
-    assert capabilities["snapshot_schema_versions"] == [53, 54, 55, 56, 57, 58, 59, 60]
+    assert capabilities["readable_local_schema_versions"] == [53, 54, 55, 56, 57, 58, 59, 60, 61]
+    assert capabilities["snapshot_schema_versions"] == [53, 54, 55, 56, 57, 58, 59, 60, 61]
     assert run(binary, home, ["version"])["data"]["runtime"] == "rust"
     assert (
         "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v"
@@ -238,6 +238,8 @@ def prove(binary: Path, root: Path) -> None:
         (57, "checkout_links.sql"),
         (58, "checkout_retirement.sql"),
         (59, None),  # Same SQL layout; explicit native unlink writer fence.
+        (60, "binding_retirement.sql"),
+        (61, "checkout_location.sql"),
     ]:
         with closing(sqlite3.connect(backup)) as fixture:
             if migration is not None:
