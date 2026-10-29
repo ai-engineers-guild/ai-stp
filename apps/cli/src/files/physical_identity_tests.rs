@@ -4,20 +4,10 @@ use std::{error::Error, fs};
 
 use cap_std::fs::Dir;
 
-#[cfg(unix)]
-fn identity(directory: &Dir) -> std::io::Result<(u64, u128)> {
-    use cap_fs_ext::MetadataExt;
-
-    let metadata = directory.dir_metadata()?;
-    Ok((metadata.dev(), u128::from(metadata.ino())))
-}
-
-#[cfg(windows)]
-fn identity(directory: &Dir) -> std::io::Result<(u64, u128)> {
-    // The reviewed crate queries FileIdInfo from this open handle. It neither
-    // reopens an ambient pathname nor falls back to a truncated 64-bit ID.
-    let value = fs_id::FileID::new(directory)?;
-    Ok((value.storage_id(), value.internal_file_id()))
+fn identity(directory: &Dir) -> crate::error::Result<super::physical::DirectoryIdentity> {
+    let identity = super::physical::DirectoryIdentity::capture(directory)?;
+    identity.validate()?;
+    Ok(identity)
 }
 
 #[test]

@@ -9,6 +9,7 @@ use serde_json::Value;
 use super::{
     Binding, Context, invalid,
     journal::{Checkpoint, Record},
+    location,
     model::{Change, Effect, project_link},
     workflow,
 };
@@ -47,6 +48,8 @@ pub(crate) struct Snapshot {
     pub local_project: Value,
     pub link: Value,
     pub reservation: Reservation,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub location: Option<location::Locator>,
 }
 
 pub(crate) fn capture(root: &Path, binding_id: &str) -> crate::error::Result<(Owner, Snapshot)> {
@@ -68,6 +71,28 @@ fn read(root: &Path, owner: &Owner, binding_id: &str) -> crate::error::Result<Sn
 }
 
 pub(crate) fn read_in(
+    connection: &Connection,
+    root: &Path,
+    owner: &Owner,
+    binding_id: &str,
+) -> crate::error::Result<Snapshot> {
+    let snapshot = retained_in(connection, root, owner, binding_id)?;
+    let registered = passports::registered(connection, &snapshot.checkout_root, owner)?;
+    if registered.project != snapshot.local_project
+        || registered.identity != snapshot.physical_root
+        || snapshot.location.as_ref().is_some_and(|locator| {
+            crate::files::physical::DirectoryIdentity::capture(&registered.directory)
+                .map_or(true, |identity| identity != locator.physical)
+        })
+    {
+        return Err(invalid());
+    }
+    Ok(snapshot)
+}
+
+/// Read retained SQL lineage without treating a missing pathname as a present
+/// checkout. Explicit relocation separately proves the actual destination.
+pub(super) fn retained_in(
     connection: &Connection,
     root: &Path,
     owner: &Owner,
@@ -101,11 +126,8 @@ pub(crate) fn read_in(
         return Err(invalid());
     }
     let source = binding.plan.snapshot();
-    let registered = passports::registered(connection, &binding.plan.checkout_root, owner)?;
-    if registered.project["stable_id"] != source.project_id()?
-        || registered.identity != source.physical_root()?
-        || request.plan.snapshot().project_id()? != source.project_id()?
-        || request.plan.snapshot().physical_root()? != registered.identity
+    if request.plan.snapshot().project_id()? != source.project_id()?
+        || request.plan.snapshot().physical_root()? != source.physical_root()?
         || request.plan.snapshot().organization_id()? != source.organization_id()?
         || request.plan.snapshot().account.account_id != source.account.account_id
         || request.plan.snapshot().account.origin != source.account.origin
@@ -123,7 +145,7 @@ pub(crate) fn read_in(
         || [
             reservation.root_device.clone(),
             reservation.root_inode.clone(),
-        ] != registered.identity
+        ] != source.physical_root()?
         || reservation.context_id != source.context.context_id
     {
         return Err(invalid());
@@ -151,16 +173,24 @@ pub(crate) fn read_in(
     if !matches!(link["state"].as_str(), Some("linked" | "conflict")) {
         return Err(invalid());
     }
+    let current = location::current(connection, binding_id)?;
+    let checkout_root = current.as_ref().map_or_else(
+        || binding.plan.checkout_root.clone(),
+        |(path, _)| path.clone(),
+    );
+    let local_project =
+        passports::registered_document(connection, &checkout_root, source.project_id()?, owner)?;
     let snapshot = Snapshot {
         source: binding.checkpoint()?,
         request: request.checkpoint()?,
         context: source.context.clone(),
         account: source.account.clone(),
-        checkout_root: registered.path,
-        physical_root: registered.identity,
-        local_project: registered.project,
+        checkout_root,
+        physical_root: source.physical_root()?,
+        local_project,
         link,
         reservation,
+        location: current.map(|(_, locator)| locator),
     };
     Ok(snapshot)
 }
@@ -169,7 +199,7 @@ pub(crate) fn open(connection: &Connection, binding: &str) -> crate::error::Resu
     let version: u32 = connection
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .map_err(database)?;
-    if version == crate::store::BINDING_RETIREMENT_SCHEMA && connection.query_row(
+    if crate::store::has_binding_retirement(version) && connection.query_row(
         "SELECT EXISTS(SELECT 1 FROM native_binding_retirement WHERE binding_operation_id=?)",
         [binding], |r| r.get::<_,bool>(0)).map_err(database)? {
         return Err(crate::error::Failure::precondition("the original active checkout binding was explicitly retired"));

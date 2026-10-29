@@ -21,6 +21,33 @@ use journal::Row;
 
 pub const INTENTS: &[&str] = &["author", "install"];
 
+/// Never reinterpret an unfinished task's original project or target roots.
+/// Missing roots cannot prove physical disjointness and retain their refusal.
+pub(crate) fn location_unreserved(
+    connection: &rusqlite::Connection,
+    destination: &Path,
+) -> Result<()> {
+    let checkout = cap_std::fs::Dir::open_ambient_dir(destination, cap_std::ambient_authority())
+        .map_err(|_| {
+            Failure::precondition("the checkout is unavailable for task conflict inspection")
+        })?;
+    for row in journal::unsettled(connection)? {
+        let service::Input::Install(input) = &row.payload.input else {
+            continue;
+        };
+        for path in input.targets.values().chain(input.project_root.iter()) {
+            let held = cap_std::fs::Dir::open_ambient_dir(path, cap_std::ambient_authority())
+                .map_err(|_| {
+                    Failure::precondition(
+                        "an unfinished task root cannot be proved disjoint from this checkout",
+                    )
+                })?;
+            crate::files::physical::require_disjoint(&checkout, &held)?;
+        }
+    }
+    Ok(())
+}
+
 fn valid_key(key: &str) -> Result<()> {
     if !(16..=128).contains(&key.len())
         || !key

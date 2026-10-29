@@ -2,6 +2,7 @@
 
 pub(crate) mod document;
 mod owned;
+pub(crate) mod physical;
 #[cfg(all(test, any(unix, windows)))]
 mod physical_identity_tests;
 pub(crate) mod tree;
