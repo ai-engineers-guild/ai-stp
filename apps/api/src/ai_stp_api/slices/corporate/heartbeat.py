@@ -39,6 +39,7 @@ from ai_stp_platform.corporate_authorization import (
 )
 from ai_stp_platform.heartbeat_models import InstallationHeartbeat as HeartbeatRow
 from ai_stp_platform.models import Device
+from ai_stp_platform.organization_models import Organization
 from ai_stp_platform.telemetry_privacy_service import record_privileged_access
 from ai_stp_platform.tenant_scope import set_tenant_scope
 
@@ -78,12 +79,30 @@ async def write_heartbeat(
         message=heartbeat_signature_message(organization_id, payload),
         signature=payload.signature,
     )
+    # Use the same tenant mutation lock as telemetry-policy and membership
+    # writers. A policy read followed by an unlocked write would admit stale
+    # queued observations, including an enabled -> disabled -> enabled change.
+    organization = await db.scalar(
+        select(Organization)
+        .where(Organization.id == organization_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if organization is None:
+        raise ApiError(ErrorCategory.PERMISSION, "organization access denied")
+    await service.organization_and_membership(db, ctx=ctx, organization_id=organization_id)
+    if abs(datetime.now(UTC) - parse_timestamp(payload.checked_at)) > timedelta(minutes=5):
+        raise ApiError(
+            ErrorCategory.VALIDATION, "heartbeat timestamp expired while awaiting admission"
+        )
     try:
         view = await heartbeat_service.record_heartbeat(
             db, organization_id=organization_id, report=payload
         )
     except heartbeat_service.HeartbeatPolicyDisabled as error:
         raise ApiError(ErrorCategory.PERMISSION, str(error)) from error
+    except heartbeat_service.HeartbeatConflict as error:
+        raise ApiError(ErrorCategory.CONFLICT, str(error)) from error
     except heartbeat_service.HeartbeatSubjectRevoked as error:
         raise ApiError(ErrorCategory.PERMISSION, str(error)) from error
     except heartbeat_service.HeartbeatRejected as error:

@@ -66,6 +66,13 @@ read through a saved corporate context. `corporate projects --membership-only`
 uses the authenticated person's explicit project memberships; visibility alone
 does not establish assignment membership. Corporate project IDs use the server's
 `remote_project_` namespace, separately from local project passports.
+`corporate heartbeat policy` reads the current heartbeat settings and explicit
+policy version. `corporate heartbeat status` reads only the context's own
+enrolled device, including an unknown state before its first report. Both use
+the original corporate account and the same current-access checks as other
+company reads; neither enables reporting, sends a heartbeat, schedules a service
+or infers harness activity. A server without an explicit heartbeat policy
+version cannot supply the versioned policy view.
 `corporate technologies` and `corporate mappings list/show` read the organization's
 own technology directory and versioned mappings. `corporate catalog search`
 requests an authenticated organization-scoped page.

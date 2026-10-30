@@ -7,22 +7,25 @@ verified end-to-end in this worktree.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime, timedelta
+from contextlib import suppress
+from datetime import UTC, datetime, timedelta, tzinfo
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 import pytest
 import pytest_asyncio
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from tests.support.api_settings import make_settings
 
 from ai_stp_api.app import create_app
 from ai_stp_api.session import issue_session
+from ai_stp_api.slices.corporate import heartbeat as heartbeat_routes
 from ai_stp_api.slices.corporate.heartbeat import router as heartbeat_router
 from ai_stp_api.slices.corporate.heartbeat_report import router as heartbeat_report_router
 from ai_stp_contracts.auth import DeviceRefreshRequest, device_refresh_message
@@ -31,7 +34,7 @@ from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_platform.heartbeat_models import InstallationHeartbeat, InstallationHeartbeatEvent
 from ai_stp_platform.models import Account, Device
-from ai_stp_platform.organization_models import OrganizationMembership
+from ai_stp_platform.organization_models import Organization, OrganizationMembership
 from ai_stp_platform.telemetry_policy_models import TelemetryPolicy, TelemetryRevocation
 from ai_stp_platform.tenant_scope import set_tenant_scope
 
@@ -123,6 +126,194 @@ async def _put(
         signature = signer.sign(heartbeat_signature_message(path.split("/")[4], report))
         json = {**json, "signature": base64.urlsafe_b64encode(signature).rstrip(b"=").decode()}
     return await client.put(path, json=json, headers=headers)
+
+
+async def test_bound_heartbeat_refuses_stale_and_reenabled_policy_without_breaking_legacy(
+    heartbeat_client: tuple[AsyncClient, async_sessionmaker[AsyncSession]],
+) -> None:
+    client, sessionmaker = heartbeat_client
+    account, device, token = await _account_with_device(sessionmaker)
+    organization = await _bootstrap(client, account, "hb-bound-policy-0001")
+    path = f"/v1/corporate/organizations/{organization}/telemetry/heartbeat"
+    auth = {"Authorization": f"Bearer {token}"}
+    moment = _now()
+    policy = await client.get(path + "/policy", headers=auth)
+    assert policy.status_code == 200
+    assert policy.json()["policy_version"] == 0
+    first = await _put(
+        client, path, json=_payload(account, device, moment, policy_version=0), headers=auth
+    )
+    assert first.status_code == 200, first.text
+    duplicate = await _put(
+        client, path, json=_payload(account, device, moment, policy_version=0), headers=auth
+    )
+    assert duplicate.status_code == 200, duplicate.text
+    assert duplicate.json()["revision"] == 1
+    conflicting = await _put(
+        client,
+        path,
+        json=_payload(account, device, moment, policy_version=0, health_state="failing"),
+        headers=auth,
+    )
+    assert conflicting.status_code == 409, conflicting.text
+
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, organization)
+        db.add(
+            TelemetryPolicy(
+                organization_id=organization,
+                raw_retention_days=90,
+                aggregate_retention_days=365,
+                legal_basis="consent",
+                notice_revision=0,
+                policy_version=1,
+            )
+        )
+        await db.commit()
+    policy = await client.get(path + "/policy", headers=auth)
+    assert policy.json()["policy_version"] == 1
+    relabeled = await _put(
+        client, path, json=_payload(account, device, moment, policy_version=1), headers=auth
+    )
+    assert relabeled.status_code == 409, relabeled.text
+    stale = await _put(
+        client,
+        path,
+        json=_payload(account, device, moment + timedelta(seconds=1), policy_version=0),
+        headers=auth,
+    )
+    assert stale.status_code == 409, stale.text
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, organization)
+        row = await db.get(InstallationHeartbeat, (organization, device))
+        assert row is not None and row.revision == 1
+        count = await db.scalar(
+            select(func.count())
+            .select_from(InstallationHeartbeatEvent)
+            .where(
+                InstallationHeartbeatEvent.organization_id == organization,
+            )
+        )
+        assert count == 1
+
+    queued = _payload(account, device, moment + timedelta(seconds=2), policy_version=1)
+    for version, enabled in [(2, False), (3, True)]:
+        async with sessionmaker() as db:
+            await set_tenant_scope(db, organization)
+            policy_row = await db.get(TelemetryPolicy, organization)
+            assert policy_row is not None
+            policy_row.heartbeat_enabled = enabled
+            policy_row.policy_version = version
+            await db.commit()
+    stale = await _put(client, path, json=queued, headers=auth)
+    assert stale.status_code == 409, stale.text
+    current = await _put(
+        client,
+        path,
+        json=_payload(account, device, moment + timedelta(seconds=3), policy_version=3),
+        headers=auth,
+    )
+    assert current.status_code == 200, current.text
+    assert current.json()["revision"] == 2
+    legacy = await _put(
+        client, path, json=_payload(account, device, moment + timedelta(seconds=4)), headers=auth
+    )
+    assert legacy.status_code == 200, legacy.text
+    assert legacy.json()["revision"] == 3
+
+
+@pytest.mark.parametrize("change", ["policy", "expiry"])
+async def test_queued_heartbeat_rechecks_admission_after_actual_tenant_lock_wait(
+    heartbeat_client: tuple[AsyncClient, async_sessionmaker[AsyncSession]],
+    monkeypatch: pytest.MonkeyPatch,
+    change: str,
+) -> None:
+    client, sessionmaker = heartbeat_client
+    account, device, token = await _account_with_device(sessionmaker)
+    organization = await _bootstrap(client, account, f"hb-policy-lock-0001-{change}")
+    path = f"/v1/corporate/organizations/{organization}/telemetry/heartbeat"
+    auth = {"Authorization": f"Bearer {token}"}
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, organization)
+        db.add(
+            TelemetryPolicy(
+                organization_id=organization,
+                raw_retention_days=90,
+                aggregate_retention_days=365,
+                legal_basis="consent",
+                notice_revision=0,
+                policy_version=1,
+            )
+        )
+        await db.commit()
+    async with sessionmaker() as writer:
+        await set_tenant_scope(writer, organization)
+        await writer.scalar(
+            select(Organization).where(Organization.id == organization).with_for_update()
+        )
+        pid = await writer.scalar(text("SELECT pg_backend_pid()"))
+        assert isinstance(pid, int)
+        pending = asyncio.create_task(
+            _put(client, path, json=_payload(account, device, policy_version=1), headers=auth)
+        )
+        try:
+            # Observe a real PostgreSQL wait on this fixture's writer. A sleep
+            # alone cannot establish ordering or the policy snapshot in use.
+            async with sessionmaker() as observer, asyncio.timeout(10):
+                while not await observer.scalar(
+                    text(
+                        "SELECT EXISTS (SELECT 1 FROM pg_stat_activity "
+                        "WHERE datname=current_database() "
+                        "AND :owner_pid=ANY(pg_blocking_pids(pid)))"
+                    ),
+                    {"owner_pid": pid},
+                ):
+                    assert not pending.done(), "heartbeat bypassed the held tenant mutation lock"
+                    await asyncio.sleep(0.05)
+            if change == "policy":
+                policy = await writer.get(TelemetryPolicy, organization)
+                assert policy is not None
+                policy.heartbeat_interval_seconds = 1200
+                policy.policy_version = 2
+            else:
+                expired_at = _now() + timedelta(minutes=6)
+
+                class ExpiredClock(datetime):
+                    @classmethod
+                    def now(cls, tz: tzinfo | None = None) -> Self:
+                        return cls.fromtimestamp(expired_at.timestamp(), tz)
+
+                monkeypatch.setattr(heartbeat_routes, "datetime", ExpiredClock)
+            await writer.commit()
+            refused = await asyncio.wait_for(pending, 10)
+            assert refused.status_code == (409 if change == "policy" else 400), refused.text
+        finally:
+            if not pending.done():
+                pending.cancel()
+            try:
+                await writer.rollback()
+                with suppress(asyncio.CancelledError):
+                    await pending
+            finally:
+                monkeypatch.setattr(heartbeat_routes, "datetime", datetime)
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, organization)
+        assert await db.get(InstallationHeartbeat, (organization, device)) is None
+        count = await db.scalar(
+            select(func.count())
+            .select_from(InstallationHeartbeatEvent)
+            .where(
+                InstallationHeartbeatEvent.organization_id == organization,
+            )
+        )
+        assert count == 0
+    current = await _put(
+        client,
+        path,
+        json=_payload(account, device, policy_version=2 if change == "policy" else 1),
+        headers=auth,
+    )
+    assert current.status_code == 200, current.text
 
 
 async def test_device_can_renew_session_with_its_key(

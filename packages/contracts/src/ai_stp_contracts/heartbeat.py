@@ -3,7 +3,8 @@
 The heartbeat is an authenticated, tenant-scoped channel - separate from the
 anonymous consented ping (ADR-0112). The closed field set is the whole
 payload: account and device references bound to the session, `cli_version`,
-`capabilities`, `last_sync_at`, the reported `health_state`, and `checked_at`.
+`capabilities`, `last_sync_at`, the reported `health_state`, `checked_at`, and
+the optional signed policy version retained by a queued observation.
 Capability tokens accept only a small alphabet so paths, environment values,
 and secrets cannot smuggle through the field.
 """
@@ -53,6 +54,7 @@ class InstallationHeartbeatRequest(ContractModel):
     last_sync_at: Timestamp | None = None
     health_state: HeartbeatReportedState
     checked_at: Timestamp
+    policy_version: Annotated[int, Field(ge=0, strict=True)] | None = None
     signature: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{86}$")]
 
 
@@ -61,6 +63,10 @@ def heartbeat_signature_message(
 ) -> bytes:
     """Domain-separated canonical bytes signed by the enrolled device key."""
     payload = request.model_dump(mode="json", exclude={"signature"})
+    # Released senders did not sign a policy field. A bound sender signs the
+    # observed version, including zero for the unconfigured compatibility policy.
+    if request.policy_version is None:
+        payload.pop("policy_version")
     return (
         b"ai-stp:installation-heartbeat:v1\n"
         + organization_id.encode("ascii")
@@ -110,6 +116,7 @@ class InstallationHeartbeatPolicy(ContractModel):
 
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
+    policy_version: Annotated[int, Field(ge=0, strict=True)] = 0
     enabled: bool = True
     inventory_scan_enabled: bool = False
     usage_collection_enabled: bool = False

@@ -35,6 +35,7 @@ from tests.support.postgres import isolated_database
 from ai_stp_api.app import create_app
 from ai_stp_api.slices.auth.device_flow import approve_device_authorization
 from ai_stp_foundation.ids import new_id
+from ai_stp_platform.heartbeat_models import InstallationHeartbeat, InstallationHeartbeatEvent
 from ai_stp_platform.models import Account
 from ai_stp_platform.organization_models import (
     CorporateProject,
@@ -44,6 +45,7 @@ from ai_stp_platform.organization_models import (
     ProjectLinkPlan,
     ProjectUnlinkPlan,
 )
+from ai_stp_platform.tenant_scope import set_tenant_scope
 
 PROFILE_REVIEW = 'section[aria-label="Review native profile plan"]'
 CHECKOUT_REVIEW = 'section[aria-label="Review corporate checkout change"]'
@@ -772,6 +774,41 @@ def installed_journey(
         company = profile_review(driver, company_plan)["change"]["context"]["context_id"]
         choose(driver, "Selected context view", company, scope='section[aria-label="Context view"]')
         driver.selected(company)
+        heartbeat_policy = native(
+            binary, environment, ["corporate", "heartbeat", "policy", "--context", company]
+        )["observation"]["data"]
+        assert type(heartbeat_policy["policy_version"]) is int
+        driver.navigate("corporate", keyboard=True)
+        driver.click(driver.button("Heartbeat"))
+        driver.click(driver.button("Read heartbeat policy"))
+        driver.wait(
+            lambda: driver.read(
+                "const dt=[...document.querySelectorAll('main dt')]"
+                ".find(x=>x.textContent==='Policy version');"
+                "return dt?.nextElementSibling?.textContent===arguments[0];",
+                str(heartbeat_policy["policy_version"]),
+            ),
+            "actual installed heartbeat policy read",
+        )
+        choose(driver, "Heartbeat view", "status")
+        driver.click(driver.button("Read heartbeat status"))
+        heartbeat_status = native(
+            binary, environment, ["corporate", "heartbeat", "status", "--context", company]
+        )["observation"]["data"]
+        assert heartbeat_status["heartbeat"] is None
+        assert heartbeat_status["health_state"] == "unknown"
+        driver.wait(
+            lambda: driver.read(
+                "const dt=[...document.querySelectorAll('main dt')]"
+                ".find(x=>x.textContent==='Enrolled device');"
+                "return dt?.nextElementSibling?.textContent===arguments[0]&&"
+                "document.querySelector('main').textContent.includes(arguments[1]);",
+                heartbeat_status["device_id"],
+                "No heartbeat has been reported for this enrolled device.",
+            ),
+            "actual installed original enrollment heartbeat status",
+        )
+        driver.click(driver.button("Projects"))
         checkout = root / unicodedata.normalize("NFD", "café-checkout")
         neighbor = root / unicodedata.normalize("NFC", "café-checkout")
         assert str(checkout) != str(neighbor)
@@ -1208,6 +1245,8 @@ def installed_journey(
             "browser_approval": "synthetic_fixture_only",
             "live_sso_account_linking_qualified": False,
             "personal_and_corporate_coexistence": True,
+            "corporate_heartbeat_policy_read": True,
+            "corporate_heartbeat_status_original_enrollment": True,
             "lost_committed_confirmation": True,
             "restart_and_original_reconciliation": True,
             "active_binding_adoption": True,
@@ -1309,10 +1348,21 @@ async def prove(driver_path: Path, out: Path, database_url: str, root: Path) -> 
                         link.state == "unlinked" and link.organization_id == organization
                         for link in links
                     )
+                    await set_tenant_scope(db, organization)
+                    for model in [InstallationHeartbeat, InstallationHeartbeatEvent]:
+                        assert (
+                            await db.scalar(
+                                select(func.count())
+                                .select_from(model)
+                                .where(model.organization_id == organization)
+                            )
+                            == 0
+                        )
                 proof.update(
                     actual_api_postgresql=True,
                     committed_mutation_posts=9,
                     committed_mutation_requests=12,
+                    corporate_heartbeat_reads_send_no_reports=True,
                 )
                 out.write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
                 print(
