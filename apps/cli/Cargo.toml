@@ -35,7 +35,7 @@ rusqlite = { version = "=0.40.2", features = ["bundled", "serialize", "hooks", "
 sqlite-plugin = "=0.11.0"
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.154", features = ["raw_value", "float_roundtrip"] }
-serde_json_canonicalizer = "=0.3.2"
+serde_json_canonicalizer = "=0.4.1"
 serde-saphyr = { version = "=1.3.0", default-features = false, features = ["deserialize"] }
 sha2 = "=0.11.1"
 sigstore-tuf = { version = "=0.15.0", default-features = false }
