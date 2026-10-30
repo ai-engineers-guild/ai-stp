@@ -88,7 +88,8 @@ def owned_child_identities(pid: int) -> list[tuple[int, str]]:
         try:
             with Path(f"/proc/{child}/stat").open() as stream:
                 status = stream.read(4097)
-        except FileNotFoundError:
+        except (FileNotFoundError, ProcessLookupError):
+            # An already-open procfs descriptor reports ESRCH after exit.
             continue
         fields = status.rpartition(") ")[2].split()
         require(
@@ -109,7 +110,7 @@ def wait_owned_children(children: list[tuple[int, str]]) -> None:
             try:
                 with Path(f"/proc/{pid}/stat").open() as stream:
                     status = stream.read(4097)
-            except FileNotFoundError:
+            except (FileNotFoundError, ProcessLookupError):
                 continue
             fields = status.rpartition(") ")[2].split()
             require(len(status) <= 4096 and len(fields) >= 20, "invalid owned child completion")

@@ -12,7 +12,7 @@ import subprocess
 import tarfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, overload
 
 REPOSITORY = "ai-engineers-guild/ai-stp"
 
@@ -68,7 +68,15 @@ RELEASES = {
 SBOM = "ai-stp-cli.cdx.json"
 
 
-def api(path: str, *, binary: bool = False) -> Any:
+@overload
+def api(path: str, *, binary: Literal[False] = False) -> dict[str, Any]: ...
+
+
+@overload
+def api(path: str, *, binary: Literal[True]) -> bytes: ...
+
+
+def api(path: str, *, binary: bool = False) -> dict[str, Any] | bytes:
     arguments = ["gh", "api", "--allow-escape-sequences"]
     if binary:
         arguments.extend(["-H", "Accept: application/octet-stream"])
@@ -78,7 +86,11 @@ def api(path: str, *, binary: bool = False) -> Any:
         check=True,
         timeout=45,
     )
-    return result.stdout if binary else json.loads(result.stdout)
+    if binary:
+        return result.stdout
+    metadata: dict[str, Any] = json.loads(result.stdout)
+    assert isinstance(metadata, dict)
+    return metadata
 
 
 def archive(release: Release) -> bytes:
@@ -88,9 +100,13 @@ def archive(release: Release) -> bytes:
     assert tag["tag"] == release.tag and tag["object"]["type"] == "commit"
     assert tag["object"]["sha"] == release.source
     assert api(f"git/commits/{release.source}")["tree"]["sha"] == release.tree
-    release = api(f"releases/tags/{release.tag}")
-    assert release["tag_name"] == release.tag and not release["draft"] and not release["prerelease"]
-    assets = [item for item in release["assets"] if item["id"] == release.asset_id]
+    published = api(f"releases/tags/{release.tag}")
+    assert (
+        published["tag_name"] == release.tag
+        and not published["draft"]
+        and not published["prerelease"]
+    )
+    assets = [item for item in published["assets"] if item["id"] == release.asset_id]
     assert len(assets) == 1
     asset = assets[0]
     assert asset["name"] == release.archive_name and asset["size"] == release.archive_bytes
