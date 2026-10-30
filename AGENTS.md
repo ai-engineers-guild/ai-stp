@@ -65,15 +65,16 @@ check` gives the aggregate; CI runs its shards. Record commands and observed res
 on the exact final SHA in the PR. Generated output and its source change together.
 Finish with a diff review, current documentation and synchronized branches.
 
-Respect the assigned source and native execution roles. A source-only host may
-run formatting, non-building LSP work and bounded static analysis. Builds,
-compiling checks (including Cargo check/clippy), tests, code generation,
-packaging and integration workloads run on the approved execution host for that
-platform. Preserve existing remote jobs and bring exact generated source patches
-back for review; an unavailable executor never authorizes a source-host build.
-Use the admitted native network/storage route for shared artifacts. A local
-directory, bind or listening endpoint does not establish network-storage
-admission, lock/lease correctness or project acceptance.
+Source authoring and ordinary code validation may share a host. Compiling checks,
+unit tests, formatting, linters and LSP use its existing managed toolchains,
+cache and leases. Real application, GUI, emulator and resource-heavy integration
+workloads use their assigned execution targets; platform acceptance stays on
+the corresponding native hosts. Keep source-check compilation separate from
+application deployment and runner-fleet admission.
+An admitted local store is sufficient for local code checks. Shared network
+storage requires acceptance of the semantics the operation actually uses; its
+unfinished adoption does not block unrelated validation in an available local
+environment. Do not change runner fencing or shared profiles to run a check.
 
 Use the existing host-managed Cargo/uv/Bun frontends and the approved network-cache
 client contract. Preserve compiler, platform, lockfile and checksum identity. Read
