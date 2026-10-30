@@ -27,9 +27,9 @@ def test_release_link_matches_the_native_package_version() -> None:
     manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
     version = manifest["package"]["version"]
     assert isinstance(version, str)
-    assert cli_copy.CLI_RELEASES_URL == (
+    assert (
         f"https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v{version}"
-    )
+    ) == cli_copy.CLI_RELEASES_URL
 
 
 def test_deep_link_projection_embeds_the_packaged_corpus() -> None:
