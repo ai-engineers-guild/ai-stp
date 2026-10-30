@@ -44,9 +44,11 @@ def test_package_diagnosis_refuses_to_replace_an_owning_release_or_main_run(
 
 def test_reusable_release_keeps_mandatory_application_acceptance() -> None:
     desktop = workflow("desktop")
-    events = desktop.get("on", desktop.get(True))
+    events = cast(dict[str, Any], desktop.get("on", desktop.get(True)))
     assert events["workflow_dispatch"]["inputs"]["packages_only"]["default"] is False
-    assert not (events["workflow_call"] or {}).get("inputs", {}).get("packages_only")
+    reusable = cast(dict[str, Any], events["workflow_call"] or {})
+    reusable_inputs = cast(dict[str, Any], reusable.get("inputs") or {})
+    assert "packages_only" not in reusable_inputs
     release = workflow("desktop-release")
     assert "packages_only" not in release["jobs"]["bundle"].get("with", {})
     steps = {step.get("name"): step for step in desktop["jobs"]["desktop"]["steps"]}
