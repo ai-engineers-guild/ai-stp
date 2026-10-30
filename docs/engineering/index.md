@@ -10,6 +10,6 @@ last_verified: "2026-10-15"
 | Document | Description | Verified |
 | -------- | ----- | ------- |
 | [git-workflow.md](git-workflow.md) | Branch integration, exact-head qualification and release promotion. | 2026-10-15 |
-| [release-evidence.md](release-evidence.md) | Where native release and deployment evidence is produced and verified. | 2026-10-15 |
+| [release-evidence.md](release-evidence.md) | Where native release and deployment evidence is produced and verified. | 2026-10-30 |
 
 <!-- END CONTENTS -->

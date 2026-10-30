@@ -1,6 +1,6 @@
 ---
 description: "Where native release and deployment evidence is produced and verified."
-last_verified: "2026-10-15"
+last_verified: "2026-10-30"
 ---
 
 # Release evidence
@@ -27,3 +27,10 @@ qualified source SHA, then verify the serving source. See the
 [deployment runbook](../operations/runbooks/deploy.md). Local state migration and
 credential continuity require their own observed receipts; a successful version
 command alone does not prove them.
+
+The manually dispatched `desktop` workflow offers `packages_only` for compilation
+diagnosis and transferring exact candidate bundles to an approved native test
+host. It skips installed application journeys and publishes separately named
+`preflight` artifacts with `application_acceptance=false`. This mode cannot be
+selected by the reusable release owner and supplies no release qualification.
+Normal main and release calls still require all installed application proofs.
