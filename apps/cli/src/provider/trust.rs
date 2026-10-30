@@ -12,7 +12,7 @@ use cap_std::fs::Dir;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256, Sha512};
-use sigstore_tuf::{Root, Targets, metadata::Role};
+use sigstore_tuf::{Root, Targets};
 use sigstore_verify::trust_root::TrustedRoot;
 
 use crate::{
@@ -227,14 +227,11 @@ fn run_at(
     crate::wire::parse(&bytes)?;
     let root = TrustedRoot::from_json(text).map_err(|_| invalid())?;
     let expires = [
-        trusted.root().expires_at(),
-        trusted.timestamp().ok_or_else(invalid)?.expires_at(),
-        trusted.snapshot().ok_or_else(invalid)?.expires_at(),
-        parsed.signed().expires_at(),
+        trusted.root().expires(),
+        trusted.timestamp().ok_or_else(invalid)?.expires(),
+        trusted.snapshot().ok_or_else(invalid)?.expires(),
+        parsed.signed().expires(),
     ]
-    .into_iter()
-    .collect::<std::result::Result<Vec<_>, _>>()
-    .map_err(|_| invalid())?
     .into_iter()
     .min()
     .ok_or_else(invalid)?;
