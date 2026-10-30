@@ -24,8 +24,14 @@ They must be configured; a missing docs origin is not a successful skipped check
 
 ## Promotion and activation
 
-A successful push-triggered `check` on `main` lets the deployment workflow advance
-`deploy/prod` to that exact qualified SHA. The production host is not a CI runner;
+A successful push-triggered `check` on `main` and a published native CLI download
+let the deployment workflow advance `deploy/prod` to that exact qualified SHA.
+The promotion reads the candidate's literal CLI link without executing candidate
+code. It refuses an absent, draft, incomplete or unrelated release before moving
+the ref. A version release therefore qualifies main first, publishes the tag-owned
+CLI assets, then reruns the blocked deployment workflow against that same source
+run and attempt. Do not rerun main merely to release a completed publication hold.
+The production host is not a CI runner;
 its timer fetches the public repository anonymously and initiates deployment.
 No production SSH credentials are stored in Actions.
 

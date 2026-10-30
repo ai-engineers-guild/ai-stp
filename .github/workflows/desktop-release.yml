@@ -138,7 +138,11 @@ jobs:
           receipts and tasks retain their original authority across view changes.
           Reviewed location anchors and explicit same-object checkout relocation
           preserve original adoption receipts and offline location history. The
-          app never moves checkout files. After native identity recovery, review
+          app never moves checkout files. If the retained checkout name is absent,
+          a separate reviewed retirement verifies its physical parent, current
+          rights and the exact terminal server link before releasing only that
+          local reservation. Moved checkout files and original receipts remain
+          preserved. After native identity recovery, review
           a fresh context through the existing sign-in before a new checkout change.
           Linux installed personal and corporate restart journeys run against
           these exact release bundles before publication; macOS and Windows run
@@ -148,8 +152,9 @@ jobs:
           limitation before starting. Existing Python state requires the
           explicit migration plan in Settings.
 
-          The reviewed local registry upgrade writes schema61. Older clients
-          that cannot read that schema refuse it; do not downgrade the registry
+          Explicit missing-checkout retirement writes registry schema62. Location
+          operations retain this version. Older clients that cannot read schema62
+          refuse it; do not downgrade the registry
           or replace retained operations and receipts to roll back the app.
 
           Bundles are unsigned: macOS will ask to allow the app in

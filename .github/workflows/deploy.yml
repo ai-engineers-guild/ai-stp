@@ -75,6 +75,83 @@ jobs:
               length == 1 and all(.[]; .status == "completed" and .conclusion == "success"))
           ' <<< "${jobs}" >/dev/null
           test "$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq .object.sha)" = "${HEAD_SHA}"
+      - name: Require the published CLI download before promotion
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          python3 - <<'PY'
+          import ast
+          import base64
+          import json
+          import os
+          import re
+          import subprocess
+
+          repository = os.environ["REPOSITORY"]
+          head = os.environ["HEAD_SHA"]
+          assert re.fullmatch(r"[0-9a-f]{40}", head)
+
+          def api(path):
+              result = subprocess.run(
+                  ["gh", "api", f"repos/{repository}/{path}"],
+                  check=True, capture_output=True, text=True, timeout=30,
+              )
+              return json.loads(result.stdout)
+
+          document = api(
+              "contents/packages/contracts/src/ai_stp_contracts/cli_copy.py?ref=" + head
+          )
+          assert document["encoding"] == "base64"
+          source = base64.b64decode("".join(document["content"].split()), validate=True)
+          values = [
+              node.value.value
+              for node in ast.parse(source).body
+              if isinstance(node, ast.AnnAssign)
+              and isinstance(node.target, ast.Name)
+              and node.target.id == "CLI_RELEASES_URL"
+              and isinstance(node.value, ast.Constant)
+              and isinstance(node.value.value, str)
+          ]
+          assert len(values) == 1, "one literal native CLI release link required"
+          match = re.fullmatch(
+              r"https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v"
+              r"((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))",
+              values[0],
+          )
+          assert match, "canonical stable native CLI release link required"
+          version = match[1]
+          tag = "cli-v" + version
+          release = api("releases/tags/" + tag)
+          assert release["tag_name"] == tag and release["draft"] is False
+          assert release["prerelease"] is False and release["published_at"]
+          names = set()
+          for target, extension, platform in [
+              ("x86_64-unknown-linux-gnu", "tar.gz", "manylinux_2_39_x86_64"),
+              ("aarch64-apple-darwin", "tar.gz", "macosx_15_0_arm64"),
+              ("x86_64-pc-windows-msvc", "zip", "win_amd64"),
+          ]:
+              names.add(f"ai-stp-cli-{version}-{target}.{extension}")
+              names.add(f"ai_stp-{version}-py3-none-{platform}.whl")
+          names.add(f"ai-stp-cli-{version}.crate")
+          names |= {name + ".sha256" for name in names}
+          assets = release["assets"]
+          assert len(assets) == len(names) == 14
+          assert {asset["name"] for asset in assets} == names
+          assert all(
+              asset["state"] == "uploaded" and asset["size"] > 0
+              and re.fullmatch(r"sha256:[0-9a-f]{64}", asset["digest"] or "")
+              for asset in assets
+          ), "complete uploaded CLI release assets and digests required"
+          reference = api("git/ref/tags/" + tag)["object"]
+          assert reference["type"] == "tag", "annotated release tag required"
+          tagged = api("git/tags/" + reference["sha"])
+          assert tagged["tag"] == tag and tagged["object"]["type"] == "commit"
+          comparison = api("compare/" + tagged["object"]["sha"] + "..." + head)
+          assert comparison["status"] in ("ahead", "identical"), "release outside source history"
+          print(f"Published native CLI {tag}: all14 assets; source ancestry accepted")
+          PY
       - name: Verify the source of this promotion and advance the ref
         env:
           EVENT: ${{ github.event.workflow_run.event }}
