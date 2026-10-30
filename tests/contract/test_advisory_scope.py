@@ -13,6 +13,7 @@ from scripts.safety.check_advisory_scope import (
     LEGACY_CHECKSUM,
     REGISTRY,
     REVIEW_BEFORE,
+    main as check_committed_scopes,
     validate_scope,
 )
 
@@ -90,6 +91,9 @@ class AdvisoryScopeTest(unittest.TestCase):
 
     def test_no_assessment_leaves_the_normal_scanner_responsible(self) -> None:
         self.assertFalse(validate_scope(self.lock, {}, self.today))
+
+    def test_committed_assessments_match_the_actual_lock_graph(self) -> None:
+        check_committed_scopes()
 
 
 if __name__ == "__main__":
