@@ -7,6 +7,7 @@ import unittest
 from datetime import date
 from typing import Any
 
+from scripts.safety import check_advisory_scope
 from scripts.safety.check_advisory_scope import (
     ADVISORY,
     AUDITED_SOURCES,
@@ -90,6 +91,9 @@ class AdvisoryScopeTest(unittest.TestCase):
 
     def test_no_assessment_leaves_the_normal_scanner_responsible(self) -> None:
         self.assertFalse(validate_scope(self.lock, {}, self.today))
+
+    def test_committed_assessments_match_the_actual_lock_graph(self) -> None:
+        check_advisory_scope.main()
 
 
 if __name__ == "__main__":
