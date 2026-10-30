@@ -45,7 +45,7 @@ toml_edit = { version = "=0.25.17", default-features = false, features = ["parse
 tree-sitter = { version = "=0.27.1", default-features = false, features = ["std"] }
 tree-sitter-python = "=0.25.0"
 # Unicode18 needs persisted canonical/path and provider compatibility proof (#1263).
-unicode-normalization = "=0.1.25"
+unicode-normalization = "=0.1.26"
 unicode-general-category = "=1.1.0"
 unicase = "=2.10.0"
 ureq = { version = "=3.5.0", default-features = false, features = ["rustls"] }
