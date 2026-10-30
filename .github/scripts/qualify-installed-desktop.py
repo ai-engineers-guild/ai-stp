@@ -16,6 +16,7 @@ import json
 import os
 import re
 import signal
+import socket
 import subprocess
 import sys
 import tarfile
@@ -73,6 +74,52 @@ def driver_children(pid: int) -> dict[str, Any]:
         }
     except (OSError, ValueError, IndexError):
         return result
+
+
+def owned_child_identities(pid: int) -> list[tuple[int, str]]:
+    """Retain exact direct-child identities before stopping this fixture's driver."""
+    with Path(f"/proc/{pid}/task/{pid}/children").open() as stream:
+        content = stream.read(4097)
+    children = content.split()
+    require(len(content) <= 4096 and len(children) <= 8, "owned child inventory exceeds its bound")
+    result: list[tuple[int, str]] = []
+    for child in children:
+        require(child.isdecimal(), "invalid owned child identity")
+        try:
+            with Path(f"/proc/{child}/stat").open() as stream:
+                status = stream.read(4097)
+        except FileNotFoundError:
+            continue
+        fields = status.rpartition(") ")[2].split()
+        require(
+            len(status) <= 4096 and len(fields) >= 20 and fields[19].isdecimal(),
+            "invalid owned child observation",
+        )
+        require(int(fields[1]) == pid, "native driver child ownership changed")
+        result.append((int(child), fields[19]))
+    return result
+
+
+def wait_owned_children(children: list[tuple[int, str]]) -> None:
+    """A proxy exit alone does not prove its native child released its listener."""
+    deadline = time.monotonic() + 10
+    while children:
+        remaining: list[tuple[int, str]] = []
+        for pid, started in children:
+            try:
+                with Path(f"/proc/{pid}/stat").open() as stream:
+                    status = stream.read(4097)
+            except FileNotFoundError:
+                continue
+            fields = status.rpartition(") ")[2].split()
+            require(len(status) <= 4096 and len(fields) >= 20, "invalid owned child completion")
+            if fields[19] == started and fields[0] not in {"Z", "X", "x"}:
+                remaining.append((pid, started))
+        if not remaining:
+            return
+        require(time.monotonic() < deadline, "owned native WebDriver did not finish during cleanup")
+        children = remaining
+        time.sleep(0.02)
 
 
 def axe_source() -> tuple[str, str]:
@@ -154,7 +201,13 @@ class Driver:
         # urllib forces Connection: close, which the intermediary forwards to
         # its pooled WebKit connection. Keep this owned HTTP/1.1 transport alive;
         # never replay a failed command, including clicks or session creation.
-        self.http = http.client.HTTPConnection("127.0.0.1", 4444, timeout=90)
+        # Choose both currently free endpoints under simultaneous reservations.
+        # Stale listeners from another session cannot own either selected port.
+        with socket.socket() as proxy, socket.socket() as native:
+            proxy.bind(("127.0.0.1", 0))
+            native.bind(("127.0.0.1", 0))
+            self.port, self.native_port = proxy.getsockname()[1], native.getsockname()[1]
+        self.http = http.client.HTTPConnection("127.0.0.1", self.port, timeout=90)
         self.session: str | None = None
         self.log_path = log
         self.stage = "starting"
@@ -175,9 +228,9 @@ class Driver:
             [
                 str(executable),
                 "--port",
-                "4444",
+                str(self.port),
                 "--native-port",
-                "4445",
+                str(self.native_port),
                 "--native-driver",
                 "/usr/bin/WebKitWebDriver",
             ],
@@ -250,6 +303,15 @@ class Driver:
 
     def start(self) -> None:
         def ready() -> bool:
+            children = driver_children(self.process.pid)
+            require(
+                not (
+                    children.get("observation") == "read"
+                    and children.get("exit_codes")
+                    and children.get("running") == 0
+                ),
+                "owned native WebDriver exited before readiness",
+            )
             try:
                 status = self.request("GET", "/status")
                 require(
@@ -497,25 +559,32 @@ class Driver:
         )
 
     def close(self) -> None:
-        if sys.exception() is not None:
-            with contextlib.suppress(OSError):
+        if sys.exception() is not None and not self.log.closed:
+            with contextlib.suppress(OSError, ValueError):
                 self.diagnostics()
+        children: list[tuple[int, str]] = []
         try:
+            if self.process.poll() is None:
+                children = owned_child_identities(self.process.pid)
             if self.session is not None:
                 with contextlib.suppress(OSError, ValueError, http.client.HTTPException):
                     self.command("DELETE", "")
         finally:
             self.http.close()
             # Only this fixture's own process group contains the driver and app.
-            with contextlib.suppress(ProcessLookupError):
-                os.killpg(self.process.pid, signal.SIGTERM)
             try:
-                self.process.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                with contextlib.suppress(ProcessLookupError):
-                    os.killpg(self.process.pid, signal.SIGKILL)
-                self.process.wait(timeout=10)
-            self.log.close()
+                if self.process.poll() is None:
+                    with contextlib.suppress(ProcessLookupError):
+                        os.killpg(self.process.pid, signal.SIGTERM)
+                try:
+                    self.process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    with contextlib.suppress(ProcessLookupError):
+                        os.killpg(self.process.pid, signal.SIGKILL)
+                    self.process.wait(timeout=10)
+                wait_owned_children(children)
+            finally:
+                self.log.close()
 
     def diagnostics(self) -> None:
         self.log.flush()
