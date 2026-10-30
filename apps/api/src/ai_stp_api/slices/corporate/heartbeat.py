@@ -91,6 +91,11 @@ async def write_heartbeat(
     if organization is None:
         raise ApiError(ErrorCategory.PERMISSION, "organization access denied")
     await service.organization_and_membership(db, ctx=ctx, organization_id=organization_id)
+    # The first lookup can now be an old ORM identity-map entry. A device
+    # revoked while this request waited must not write a queued observation.
+    device = await db.get(Device, ctx.device_id, populate_existing=True)
+    if device is None or device.account_id != ctx.account_id or device.state != "active":
+        raise ApiError(ErrorCategory.PERMISSION, "heartbeat device is unavailable")
     if abs(datetime.now(UTC) - parse_timestamp(payload.checked_at)) > timedelta(minutes=5):
         raise ApiError(
             ErrorCategory.VALIDATION, "heartbeat timestamp expired while awaiting admission"

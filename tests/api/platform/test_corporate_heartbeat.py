@@ -222,7 +222,7 @@ async def test_bound_heartbeat_refuses_stale_and_reenabled_policy_without_breaki
     assert legacy.json()["revision"] == 3
 
 
-@pytest.mark.parametrize("change", ["policy", "expiry"])
+@pytest.mark.parametrize("change", ["policy", "expiry", "device"])
 async def test_queued_heartbeat_rechecks_admission_after_actual_tenant_lock_wait(
     heartbeat_client: tuple[AsyncClient, async_sessionmaker[AsyncSession]],
     monkeypatch: pytest.MonkeyPatch,
@@ -275,6 +275,10 @@ async def test_queued_heartbeat_rechecks_admission_after_actual_tenant_lock_wait
                 assert policy is not None
                 policy.heartbeat_interval_seconds = 1200
                 policy.policy_version = 2
+            elif change == "device":
+                original_device = await writer.get(Device, device)
+                assert original_device is not None
+                original_device.state = "revoked"
             else:
                 expired_at = _now() + timedelta(minutes=6)
 
@@ -286,7 +290,8 @@ async def test_queued_heartbeat_rechecks_admission_after_actual_tenant_lock_wait
                 monkeypatch.setattr(heartbeat_routes, "datetime", ExpiredClock)
             await writer.commit()
             refused = await asyncio.wait_for(pending, 10)
-            assert refused.status_code == (409 if change == "policy" else 400), refused.text
+            expected = {"policy": 409, "expiry": 400, "device": 403}
+            assert refused.status_code == expected[change], refused.text
         finally:
             if not pending.done():
                 pending.cancel()
@@ -313,7 +318,7 @@ async def test_queued_heartbeat_rechecks_admission_after_actual_tenant_lock_wait
         json=_payload(account, device, policy_version=2 if change == "policy" else 1),
         headers=auth,
     )
-    assert current.status_code == 200, current.text
+    assert current.status_code == (403 if change == "device" else 200), current.text
 
 
 async def test_device_can_renew_session_with_its_key(

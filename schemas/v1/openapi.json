@@ -84552,12 +84552,13 @@
               "application/json": {
                 "examples": {
                   "readInstallationHeartbeatPolicy.telemetry": {
-                    "summary": "An installation reads its organization's opt-in and retry cadence.",
+                    "summary": "An installation reads the unconfigured organization's compatibility policy and retry cadence; this does not grant local reporting consent.",
                     "value": {
                       "enabled": true,
                       "interval_seconds": 21600,
                       "inventory_scan_enabled": false,
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "policy_version": 0,
                       "retry_base_seconds": 60,
                       "retry_max_seconds": 3600,
                       "schema_version": 1,
