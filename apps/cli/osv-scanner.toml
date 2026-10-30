@@ -1,8 +1,0 @@
-# Exact legacy source assessment; scan_lockfile.sh validates version, checksum,
-# expiry and remaining transitive consumers before OSV applies this ID filter.
-# Source: https://github.com/RustCrypto/utils/tree/block-buffer-v0.10.4/block-buffer
-# Regression and removal evidence: https://github.com/ai-engineers-guild/ai-stp/issues/1168
-[[IgnoredVulns]]
-id = "GHSA-qwgh-2vcv-g2f7"
-ignoreUntil = 2026-11-03
-reason = "Audited block-buffer 0.10.4 stores its cursor separately and has no ReadBuffer, unlike the advisory's inline cursor; exact registry checksum/version and expiry are enforced by check_advisory_scope.py, with caught-panic native regressions. Remove with the last transitive consumer or corrected upstream range (#1168)."
