@@ -13,16 +13,16 @@ pub(super) fn parse<T: Role>(bytes: &[u8]) -> Result<Metadata<T>> {
     }
     // Reject duplicate/ambiguous JSON without changing the bytes TUF signs.
     wire::parse(bytes)?;
+    // Each role's typed expiry is parsed here; malformed timestamps refuse.
     let metadata = Metadata::<T>::from_slice(bytes).map_err(|_| invalid())?;
     if metadata.signed().version() == 0 || metadata.signed().version() >= 9_007_199_254_740_991 {
         return Err(invalid());
     }
-    metadata.signed().expires_at().map_err(|_| invalid())?;
     Ok(metadata)
 }
 
 pub(super) fn fresh<T: Role>(metadata: &T, now: jiff::Timestamp) -> Result<()> {
-    if metadata.expires_at().map_err(|_| invalid())? <= now {
+    if metadata.expires() <= now {
         return Err(invalid());
     }
     Ok(())

@@ -27,7 +27,7 @@ file-guard = "=0.2.0"
 httpdate = "=1.0.3"
 clap = { version = "=4.6.7", default-features = false, features = ["std", "string", "help", "usage", "error-context"] }
 jiff = { version = "=0.2.38", default-features = false, features = ["std"] }
-jsonschema = { version = "=0.58.6", default-features = false }
+jsonschema = { version = "=0.60.0", default-features = false }
 jsonc-parser = { version = "=0.34.0", default-features = false, features = ["cst"] }
 pulldown-cmark = { version = "=0.13.5", default-features = false }
 process-wrap = { version = "=10.0.1", default-features = false, features = ["std", "process-group", "job-object"] }
@@ -38,7 +38,7 @@ serde_json = { version = "=1.0.154", features = ["raw_value", "float_roundtrip"]
 serde_json_canonicalizer = "=0.3.2"
 serde-saphyr = { version = "=1.3.0", default-features = false, features = ["deserialize"] }
 sha2 = "=0.11.1"
-sigstore-tuf = { version = "=0.14.0", default-features = false }
+sigstore-tuf = { version = "=0.15.0", default-features = false }
 sigstore-verify = { version = "=0.15.0", default-features = false, features = ["aws-lc-rs"] }
 ulid = "=3.0.0"
 toml_edit = { version = "=0.25.17", default-features = false, features = ["parse", "display"] }

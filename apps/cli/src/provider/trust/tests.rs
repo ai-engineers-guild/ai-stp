@@ -89,6 +89,51 @@ fn repository(
 }
 
 #[test]
+fn typed_expiry_preserves_all_role_parsing_and_boundary_refusals()
+-> std::result::Result<(), Box<dyn Error>> {
+    fn check<T: sigstore_tuf::metadata::Role>(
+        bytes: &[u8],
+    ) -> std::result::Result<(), Box<dyn Error>> {
+        let parsed = metadata::parse::<T>(bytes)?;
+        assert!(metadata::fresh(parsed.signed(), "2029-12-31T23:59:59Z".parse()?).is_ok());
+        assert!(metadata::fresh(parsed.signed(), "2030-01-01T00:00:00Z".parse()?).is_err());
+        assert!(metadata::fresh(parsed.signed(), "2030-01-01T00:00:01Z".parse()?).is_err());
+        let envelope: Value = serde_json::from_slice(bytes)?;
+        for expires in [
+            Value::Null,
+            json!(true),
+            json!(0),
+            json!("not a timestamp"),
+            json!("2030-02-30T00:00:00Z"),
+            json!("+999999-01-01T00:00:00Z"),
+        ] {
+            let mut malformed = envelope.clone();
+            malformed["signed"]["expires"] = expires;
+            assert!(metadata::parse::<T>(&serde_json::to_vec(&malformed)?).is_err());
+        }
+        let mut missing = envelope;
+        missing["signed"]
+            .as_object_mut()
+            .ok_or("signed metadata missing")?
+            .remove("expires");
+        assert!(metadata::parse::<T>(&serde_json::to_vec(&missing)?).is_err());
+        Ok(())
+    }
+
+    let key = SigningKey::from_bytes(&[42; 32]);
+    let repo = repository(1, 1, &key)?;
+    check::<Root>(&root(1, &key)?)?;
+    check::<sigstore_tuf::Timestamp>(
+        repo.files
+            .get("timestamp.json")
+            .ok_or("timestamp missing")?,
+    )?;
+    check::<sigstore_tuf::Snapshot>(repo.files.get("snapshot.json").ok_or("snapshot missing")?)?;
+    check::<Targets>(repo.files.get("targets.json").ok_or("targets missing")?)?;
+    Ok(())
+}
+
+#[test]
 fn durable_trust_preserves_authenticated_floors_roots_and_storage_errors()
 -> std::result::Result<(), Box<dyn Error>> {
     let temporary = tempfile::tempdir()?;
