@@ -19019,6 +19019,12 @@
             "title": "Organization Id",
             "type": "string"
           },
+          "policy_version": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Policy Version",
+            "type": "integer"
+          },
           "retry_base_seconds": {
             "default": 60,
             "maximum": 86400,
@@ -19062,6 +19068,7 @@
           "interval_seconds",
           "inventory_scan_enabled",
           "organization_id",
+          "policy_version",
           "retry_base_seconds",
           "retry_max_seconds",
           "schema_version",
@@ -19126,6 +19133,19 @@
               }
             ],
             "default": null
+          },
+          "policy_version": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Policy Version"
           },
           "schema_version": {
             "const": 1,
