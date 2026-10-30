@@ -100,6 +100,9 @@ the first task. Catalog navigation retains an unconfirmed start and its original
 retry key; a confirmed start opens its original task receipt. Task reads and
 replies are fenced to each visit, including a leave-and-return to the same task,
 and an old response cannot clear a newer read.
+If a task read fails, its old controls are removed until a successful explicit
+read. A continuation waiting for command discovery is submitted only while its
+original task visit is still current; leaving and returning does not revive it.
 
 The engine reports installation availability. Isolated setup execution is
 currently Linux-only; authoring and catalog reads remain available on macOS and

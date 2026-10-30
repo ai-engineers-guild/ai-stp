@@ -76,6 +76,14 @@ const task = (revision: number) => ({
     { question_id: "name", prompt: "Component name", actor: "human" },
   ],
 });
+const taskStep: transport.CliContinuation = {
+  kind: "command",
+  path: ["local", "apply"],
+  arguments: {},
+  missing: [],
+  argv: ["local", "apply", "--plan-digest", "sha256:original"],
+  actor: "cli",
+};
 function mount(element: React.ReactNode, route = "/") {
   return render(
     <MemoryRouter initialEntries={[route]}>{element}</MemoryRouter>,
@@ -740,6 +748,89 @@ it("removes old task controls when a refresh returns unsupported ownership", asy
   await screen.findByText("The engine reply does not describe the requested task and supported ownership.");
   expect(screen.queryByRole("button", { name: "Submit answer" })).toBeNull();
   expect(transport.cmdTaskAnswer).not.toHaveBeenCalled();
+});
+
+it.each([task(7), { ...task(7), task_id: "task_unrequested" }])(
+  "does not admit a failed status reply's payload as an actionable task",
+  async (data) => {
+    vi.mocked(transport.cmdTaskStatus).mockResolvedValue({
+      ...ok(data), ok: false, error: "The task receipt is unavailable", error_code: "IPC_THROW",
+    });
+    mount(<InstallPage />, "/install?task=task_retained");
+    await screen.findByText("The task receipt is unavailable");
+    expect(screen.queryByRole("button", { name: "Submit answer" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Cancel task" })).toBeNull();
+    expect(transport.cmdTaskAnswer).not.toHaveBeenCalled();
+  },
+);
+
+it("requires a fresh task read after a failed refresh before restoring task controls", async () => {
+  vi.mocked(transport.cmdTaskStatus)
+    .mockResolvedValueOnce(ok(task(7)))
+    .mockResolvedValueOnce({ ...ok(), ok: false, error: "The task receipt is unavailable", error_code: "IPC_THROW" })
+    .mockResolvedValueOnce(ok(task(9)));
+  mount(<InstallPage />, "/install?task=task_retained");
+  await screen.findByText("Revision 7");
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  await screen.findByText("The task receipt is unavailable");
+  expect(screen.queryByRole("button", { name: "Submit answer" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Cancel task" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Read task again" }));
+  await screen.findByText("Revision 9");
+  expect(screen.getByRole("button", { name: "Submit answer" })).toBeTruthy();
+  expect(transport.cmdTaskAnswer).not.toHaveBeenCalled();
+});
+
+it("does not submit a task continuation after leaving and returning during command discovery", async () => {
+  let finishHelp!: (result: CmdResult) => void;
+  vi.mocked(transport.cmdMachineHelp).mockReturnValue(new Promise((resolve) => { finishHelp = resolve; }));
+  vi.mocked(transport.cliApplyConfirmed).mockResolvedValue(ok());
+  let reads = 0;
+  vi.mocked(transport.cmdTaskStatus).mockImplementation(async (id) => ({
+    ...ok({ ...task(++reads), task_id: id }), continuations: [taskStep],
+  }));
+  function Journey() {
+    const navigate = useNavigate();
+    return <><button onClick={() => navigate("/install?task=task_other")}>Other task</button>
+      <button onClick={() => navigate("/install?task=task_retained")}>Original task</button><InstallPage /></>;
+  }
+  mount(<Journey />, "/install?task=task_retained");
+  fireEvent.click(await screen.findByRole("button", { name: "Approve and run this step" }));
+  await waitFor(() => expect(transport.cmdMachineHelp).toHaveBeenCalledTimes(1));
+  fireEvent.click(screen.getByRole("button", { name: "Other task" }));
+  await screen.findByText("Revision 2");
+  fireEvent.click(screen.getByRole("button", { name: "Original task" }));
+  await screen.findByText("Revision 3");
+  await act(async () => finishHelp(help));
+  expect(transport.cliApplyConfirmed).not.toHaveBeenCalled();
+  expect(transport.cmdTaskStatus).toHaveBeenCalledTimes(3);
+  expect(screen.getByText("Revision 3")).toBeTruthy();
+});
+
+it("submits a reviewed continuation from its unchanged task visit and reads its current receipt", async () => {
+  vi.mocked(transport.cmdTaskStatus)
+    .mockResolvedValueOnce({ ...ok(task(7)), continuations: [taskStep] })
+    .mockResolvedValueOnce(ok(task(8)));
+  vi.mocked(transport.cliApplyConfirmed).mockResolvedValue(ok({ operation_id: "operation_original" }));
+  mount(<InstallPage />, "/install?task=task_retained");
+  fireEvent.click(await screen.findByRole("button", { name: "Approve and run this step" }));
+  await screen.findByText("Revision 8");
+  expect(transport.cliApplyConfirmed).toHaveBeenCalledTimes(1);
+  expect(transport.cliApplyConfirmed).toHaveBeenCalledWith(
+    "local apply", { "plan-digest": "sha256:original" }, [], true, {},
+  );
+  expect(transport.cmdTaskStatus).toHaveBeenLastCalledWith("task_retained");
+});
+
+it("does not authorize a continuation from commands carried in a failed registry reply", async () => {
+  vi.mocked(transport.cmdTaskStatus).mockResolvedValue({ ...ok(task(7)), continuations: [taskStep] });
+  vi.mocked(transport.cmdMachineHelp).mockResolvedValue({
+    ...help, ok: false, error: "The command registry is unavailable", error_code: "IPC_THROW",
+  });
+  mount(<InstallPage />, "/install?task=task_retained");
+  fireEvent.click(await screen.findByRole("button", { name: "Approve and run this step" }));
+  await screen.findByText("The command registry is unavailable");
+  expect(transport.cliApplyConfirmed).not.toHaveBeenCalled();
 });
 
 it("keeps a refreshed Activity list when the initial read completes later", async () => {

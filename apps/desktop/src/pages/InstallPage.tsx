@@ -35,7 +35,8 @@ import InstallInput, {
 } from "../components/InstallInput";
 
 function checkedTask(response: CmdResult, id: string): CmdResult {
-  if (!response.ok || (isTask(response.data) && response.data.task_id === id)) return response;
+  if (!response.ok) return { ...response, data: null };
+  if (isTask(response.data) && response.data.task_id === id) return response;
   return { ok: false, data: null, error_code: "DESKTOP_TASK_CONTRACT",
     error: "The engine reply does not describe the requested task and supported ownership.",
     warnings: [], continuations: [] };
@@ -152,13 +153,8 @@ export default function InstallPage() {
     try {
       const response = checkedTask(await cmdTaskStatus(id), id);
       if (current.current && activeTask.current === id && generation.current === epoch && reads.current === request) {
-        if (isTask(response.data)) {
-          setTask(response.data);
-          setAnswers({});
-        } else if (response.error_code === "DESKTOP_TASK_CONTRACT") {
-          setTask(null);
-          setAnswers({});
-        }
+        setTask(isTask(response.data) ? response.data : null);
+        setAnswers({});
         setContinuations(response.continuations);
         if (showResult || !response.ok) setResult(response);
       }
@@ -168,14 +164,14 @@ export default function InstallPage() {
     }
   }
   async function step(action: () => Promise<CmdResult>) {
-    if (!task || busy || activeTask.current !== task.task_id) return;
+    if (!task || task.legacy_read_only || busy || activeTask.current !== task.task_id) return;
     const epoch = generation.current;
     setBusy(true);
     try {
       const returned = await action();
-      const response = returned.ok && returned.data && "task_id" in returned.data
-        ? checkedTask(returned, task.task_id) : returned;
       if (!current.current || activeTask.current !== task.task_id || generation.current !== epoch) return;
+      const response = returned.data && typeof returned.data === "object" && "task_id" in returned.data
+        ? checkedTask(returned, task.task_id) : returned;
       setResult(response);
       if (isTask(response.data) && response.data.task_id === task.task_id) setTask(response.data);
       await refresh(task.task_id, false);
@@ -192,9 +188,20 @@ export default function InstallPage() {
   }
   async function runContinuation(continuation: CliContinuation) {
     if (!task) return;
+    const epoch = generation.current;
     await step(async () => {
       const args = argvToCall(continuation.path, continuation.argv);
       const help = await cmdMachineHelp();
+      if (!current.current || activeTask.current !== task.task_id || generation.current !== epoch)
+        return {
+          ok: false,
+          data: null,
+          warnings: [],
+          continuations: [],
+          error: "This task view changed before the step was submitted. Review the original task again.",
+          error_code: "DESKTOP_TASK_VIEW_CHANGED",
+        };
+      if (!help.ok) return help;
       const descriptor = (
         help.data?.commands as Descriptor[] | undefined
       )?.find((item) => item.path.join(" ") === args?.path);
@@ -630,9 +637,14 @@ export default function InstallPage() {
           <ResultMeta r={starter.result} />
         )}
       {taskId && !task && !busy && (
-        <button className="btn-outline" onClick={closeTask}>
-          Back to setups
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button className="btn-outline" onClick={() => void refresh(taskId)}>
+            Read task again
+          </button>
+          <button className="btn-outline" onClick={closeTask}>
+            Back to setups
+          </button>
+        </div>
       )}
     </div>
   );
