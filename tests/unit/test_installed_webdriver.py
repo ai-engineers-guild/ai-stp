@@ -6,6 +6,7 @@ import http.client
 import json
 import os
 import signal
+import subprocess
 import sys
 import threading
 import time
@@ -15,7 +16,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, TextIO
 
 import pytest
 
@@ -127,6 +128,49 @@ def test_close_waits_for_the_exact_native_child_after_the_proxy_exits(tmp_path: 
         assert driver.process.returncode is not None
         assert (tmp_path / "child-stopped").read_text() == "finished"
         assert driver.log.closed
+
+
+@pytest.mark.parametrize("observation", ["identity", "completion"])
+def test_native_child_exit_after_procfs_open_is_terminal(
+    observation: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = load()
+    child = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    try:
+        status = Path(f"/proc/{child.pid}/stat")
+        started = status.read_text().rpartition(") ")[2].split()[19]
+        original_open = Path.open
+        exited_after_open: list[int] = []
+
+        def exit_after_open(path: Path) -> TextIO:
+            stream = original_open(path)
+            if path == status:
+                child.terminate()
+                child.wait(timeout=5)
+                # Keep the real kernel descriptor. The product fixture must
+                # handle its read error, not an injected synthetic exception.
+                with pytest.raises(ProcessLookupError):
+                    stream.read(4097)
+                exited_after_open.append(child.pid)
+            return stream
+
+        with monkeypatch.context() as patch:
+            patch.setattr(Path, "open", exit_after_open)
+            if observation == "identity":
+                identities = module.owned_child_identities(os.getpid())
+                assert all(pid != child.pid for pid, _started in identities)
+            else:
+                module.wait_owned_children([(child.pid, started)])
+        assert exited_after_open == [child.pid] and child.returncode == -signal.SIGTERM
+    finally:
+        if child.poll() is None:
+            child.terminate()
+        child.wait(timeout=5)
 
 
 def test_malformed_readiness_cannot_start_or_replay_an_application_session(
