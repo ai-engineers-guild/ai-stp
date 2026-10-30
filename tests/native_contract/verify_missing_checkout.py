@@ -405,7 +405,17 @@ async def qualify(
         )
     )["binding_retirement"] is None
     # Both actual replacement flows must retain the explicit epoch and all original markers.
+    # The prior retirement60 journey deliberately logged the root session out.
+    # Reauthenticate its existing synthetic device before testing revocation;
+    # do not mistake the named staff connection for the root account.
     root_status = await run("account", "status")
+    async with app.state.sessionmaker() as db:
+        root_device = await db.get(Device, root_status["device_id"])
+        assert root_device is not None and root_device.account_id is not None
+        root_account_id = root_device.account_id
+    await login(root_account_id, None)
+    root_status = await run("account", "status")
+    assert root_status["session"]["account_id"] == root_account_id
     root_account = {
         "device_id": root_status["device_id"],
         "account_id": root_status["session"]["account_id"],
