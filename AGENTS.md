@@ -74,10 +74,17 @@ Verify that each local check's frontend and external subcommands retain this
 managed placement. Run unsupported entry points in CI until their native owner
 qualifies local use.
 Keep host paths, configuration and runtime receipts outside public Git. Cleanup
-belongs to the native provider or NDS Cleaner, with verified ownership, leases,
-last use and a 72-hour idle period. Installed environments, pinned application
+belongs to the native provider or NDS Cleaner, with verified ownership, leases
+and observed last use. The payload retention target is 24 hours, selected only
+after the owning consumer's native acceptance; preserve legacy 72-hour and
+terminal-evidence floors until separately admitted. Installed environments, pinned application
 artifacts and live runtime data remain with their owners; filesystem age alone
 does not make them disposable.
+Managed store placement and a selected frontend do not establish central-only
+transport. Preserve canonical locks, integrity and credential precedence, and
+qualify cold, warm, fresh-offline and cold-outage behavior before cache rollout.
+Use the existing shared bootstrap/network authority; do not create a per-project
+relay, rewrite locks or silently fall back to public transport for unqualified sources.
 
 For `apps/web` changes, read [web DESIGN](apps/web/DESIGN.md) and
 [product DESIGN](docs/product/DESIGN.md). Compose interfaces from registered

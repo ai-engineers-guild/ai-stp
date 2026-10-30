@@ -32,12 +32,14 @@ def load() -> ModuleType:
 
 
 @contextmanager
-def owned_driver(module: ModuleType, root: Path) -> Generator[Any, None, None]:
+def owned_driver(
+    module: ModuleType, root: Path, *, child_code: str = "import time; time.sleep(60)"
+) -> Generator[Any, None, None]:
     executable = root / "owned-driver"
     executable.write_text(
         f"#!{sys.executable}\n"
         "import os, pathlib, subprocess, sys, time\n"
-        "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
+        f"child = subprocess.Popen([sys.executable, '-c', {child_code!r}])\n"
         "print('Error serving connection: PRIVATE_DRIVER_CANARY', flush=True)\n"
         "pathlib.Path(os.environ['FIXTURE_CHILD']).write_text(str(child.pid))\n"
         "time.sleep(60)\n"
@@ -45,7 +47,7 @@ def owned_driver(module: ModuleType, root: Path) -> Generator[Any, None, None]:
     executable.chmod(0o700)
     driver = module.Driver(
         executable,
-        {**os.environ, "FIXTURE_CHILD": str(root / "child")},
+        {**os.environ, "FIXTURE_CHILD": str(root / "child"), "FIXTURE_ROOT": str(root)},
         root / "driver.log",
     )
     try:
@@ -89,12 +91,41 @@ def test_observation_distinguishes_dead_native_child_from_live_proxy_without_pri
             "exit_codes": [-signal.SIGTERM],
         }
         assert driver.process.poll() is None
+        with pytest.raises(ValueError, match="owned native WebDriver exited before readiness"):
+            driver.start()
+        assert driver.session is None and sum(driver.readiness_observations.values()) == 0
         driver.diagnostics()
         output = capsys.readouterr().out
         assert "PRIVATE_DRIVER_CANARY" not in output
         assert str(tmp_path) not in output
         assert json.loads(output)["driver_children"] == observed
         assert json.loads(output)["markers"]["proxy_connection_error"] is True
+
+
+def test_close_waits_for_the_exact_native_child_after_the_proxy_exits(tmp_path: Path) -> None:
+    module = load()
+    child_code = (
+        "import os, pathlib, signal, time\n"
+        "root = pathlib.Path(os.environ['FIXTURE_ROOT'])\n"
+        "def stop(_signal, _frame):\n"
+        "    time.sleep(0.25)\n"
+        "    (root / 'child-stopped').write_text('finished')\n"
+        "    raise SystemExit(0)\n"
+        "signal.signal(signal.SIGTERM, stop)\n"
+        "(root / 'child-ready').write_text('ready')\n"
+        "time.sleep(60)\n"
+    )
+    with owned_driver(module, tmp_path, child_code=child_code) as driver:
+        deadline = time.monotonic() + 5
+        while not (tmp_path / "child-ready").exists() and time.monotonic() < deadline:
+            assert driver.process.poll() is None
+            time.sleep(0.01)
+        assert (tmp_path / "child-ready").read_text() == "ready"
+        assert not (tmp_path / "child-stopped").exists()
+        driver.close()
+        assert driver.process.returncode is not None
+        assert (tmp_path / "child-stopped").read_text() == "finished"
+        assert driver.log.closed
 
 
 def test_malformed_readiness_cannot_start_or_replay_an_application_session(
