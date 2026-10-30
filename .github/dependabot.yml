@@ -14,17 +14,9 @@ updates:
         update-types: [minor, patch]
     commit-message:
       prefix: "chore(cli)"
-    # This exact dev dependency tests legacy transitive bytes, not our preferred
-    # buffer version. Remove the hold with its regression/assessment (#1168;
-    # review by 2026-11-03). Advisory scans and their expiry remain unchanged.
+    # NFC tables participate in persisted/canonical and provider identities.
+    # Qualify Unicode 18 before this exact update (#1263; review 2026-11-06).
     ignore:
-      - dependency-name: block-buffer
-        update-types:
-          - version-update:semver-major
-          - version-update:semver-minor
-          - version-update:semver-patch
-      # NFC tables participate in persisted/canonical and provider identities.
-      # Qualify Unicode 18 before this exact update (#1263; review 2026-11-06).
       - dependency-name: unicode-normalization
         versions: ["0.1.26"]
     cooldown:
