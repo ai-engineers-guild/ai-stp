@@ -236,6 +236,42 @@ impl Api {
         }
     }
 
+    pub fn heartbeat(
+        &self,
+        organization: &str,
+        body: &[u8],
+        credential: &Secret,
+    ) -> Result<Reply<serde_json::Value>> {
+        if !crate::passport::stable_id(organization, "organization") || body.len() > 4096 {
+            return Err(super::heartbeats::invalid());
+        }
+        let authorization = Zeroizing::new(format!("Bearer {}", credential.0.as_str()));
+        let agent = self.agent.borrow();
+        let response = agent
+            .put(format!(
+                "{}/v1/corporate/organizations/{organization}/telemetry/heartbeat",
+                self.origin
+            ))
+            .header("Accept", "application/json")
+            .header("Content-Type", "application/json")
+            .header("Accept-Encoding", "identity")
+            .header("X-AI-STP-Schema-Version", "1")
+            .header("X-AI-STP-Organization-Id", organization)
+            .header("Authorization", authorization.as_str())
+            .send(body)
+            .map_err(|_| super::heartbeats::uncertain())?;
+        drop(agent);
+        match self
+            .response(response, 65536)
+            .map_err(|_| super::heartbeats::uncertain())?
+        {
+            Reply::Resource(bytes) => crate::wire::parse(&bytes)
+                .map(Reply::Resource)
+                .map_err(|_| super::heartbeats::uncertain()),
+            Reply::Refused(code) => Ok(Reply::Refused(code)),
+        }
+    }
+
     pub fn reports(
         &self,
         id: Option<&str>,

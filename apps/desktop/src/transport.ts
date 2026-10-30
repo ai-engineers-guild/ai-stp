@@ -359,6 +359,14 @@ export function cmdCheckoutApply(
   });
 }
 
+export function cmdHeartbeatConsentApply(
+  plan: unknown, digest: string, confirmed: boolean,
+): Promise<CmdResult> {
+  return call("profile_apply", {
+    path: "corporate heartbeat consent apply", plan, digest, confirmed,
+  });
+}
+
 export function cmdBindingRetirementApply(
   plan: unknown,
   digest: string,

@@ -43,6 +43,28 @@ def test_zero_policy_version_is_an_explicit_signed_observation() -> None:
     assert b'"policy_version":0' in heartbeat_signature_message(ORGANIZATION, bound)
 
 
+def test_native_foreground_liveness_has_the_same_signature_preimage() -> None:
+    request = InstallationHeartbeatRequest.model_validate(
+        {
+            **PAYLOAD,
+            "account_id": "account_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "device_id": "device_01ARZ3NDEKTSV4RRFFQ69G5FAW",
+            "cli_version": "1.0.0",
+            "capabilities": ["cli.foreground-liveness"],
+            "health_state": "active",
+            "checked_at": "2030-01-02T03:04:05.000Z",
+            "policy_version": 7,
+        }
+    )
+    assert heartbeat_signature_message("organization_01ARZ3NDEKTSV4RRFFQ69G5FAX", request) == (
+        b"ai-stp:installation-heartbeat:v1\norganization_01ARZ3NDEKTSV4RRFFQ69G5FAX\n"
+        b'{"account_id":"account_01ARZ3NDEKTSV4RRFFQ69G5FAV","capabilities":["cli.foreground-liveness"],'
+        b'"checked_at":"2030-01-02T03:04:05.000Z","cli_version":"1.0.0",'
+        b'"device_id":"device_01ARZ3NDEKTSV4RRFFQ69G5FAW","health_state":"active",'
+        b'"last_sync_at":null,"policy_version":7,"schema_version":1}'
+    )
+
+
 def test_policy_change_cannot_preserve_a_previous_signature_message() -> None:
     original = InstallationHeartbeatRequest.model_validate({**PAYLOAD, "policy_version": 1})
     changed = InstallationHeartbeatRequest.model_validate({**PAYLOAD, "policy_version": 3})

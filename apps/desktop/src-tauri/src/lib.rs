@@ -506,6 +506,7 @@ async fn profile_apply(
                 "account connections apply"
                     | "account connections recovery apply"
                     | "context apply"
+                    | "corporate heartbeat consent apply"
             )
         {
             return CmdResult::failed(

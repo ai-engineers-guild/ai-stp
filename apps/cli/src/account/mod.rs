@@ -9,6 +9,7 @@ pub mod corporate;
 pub mod enrollment_recovery;
 pub mod github;
 pub mod grants;
+pub mod heartbeats;
 mod journal;
 mod model;
 pub mod project_links;

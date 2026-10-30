@@ -2,7 +2,8 @@
 
 `ai-stp` is the native CLI engine. The Cargo package lives in `apps/cli`;
 its library owns business operations and its executable renders envelope v1.
-There is no Python fallback, model client, background updater or telemetry.
+There is no Python fallback, model client or background updater.
+Corporate foreground liveness reporting requires separate reviewed local consent.
 The executable registry is the command reference: `ai-stp help --agent --json`.
 Use `task intents` and `task input-schema` for the smaller task interface.
 
@@ -79,6 +80,14 @@ the original corporate account and the same current-access checks as other
 company reads; neither enables reporting, sends a heartbeat, schedules a service
 or infers harness activity. A server without an explicit heartbeat policy
 version cannot supply the versioned policy view.
+`corporate heartbeat consent plan/apply` reviews and enables only that exact
+context and policy. `delivery` reads local consent and outbox status, `flush`
+performs one due foreground delivery, and `disable` stops it even offline.
+Retries preserve original signed bytes until acknowledgement or four-minute
+expiry. `maintain` retires expired owned payloads on the next foreground pass.
+No daemon is installed; harness runtime and managed inventory remain unknown.
+See [configuration](../../docs/contracts/cli-config.md#foreground-corporate-heartbeat)
+for the reviewed fields and delivery boundaries.
 `corporate technologies` and `corporate mappings list/show` read the organization's
 own technology directory and versioned mappings. `corporate catalog search`
 requests an authenticated organization-scoped page.
