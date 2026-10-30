@@ -205,6 +205,26 @@ physical checkout. In-place observation and registration of a physically distinc
 private copy remain available. Observation preserves the original adoption
 receipt and never releases the reservation.
 
+If the retained checkout name is absent, use the separate
+`corporate project binding-retire-missing plan --state-dir PATH --context ID
+--binding-operation ID`, then apply its exact plan/digest with
+`corporate project binding-retire-missing apply`. This requires current
+`project.link` access for the original account/company and a positive current
+result proving that exact server link is unlinked. It sends no remote unlink.
+The native engine reviews the exact pathname and full physical parent identity;
+a present file/directory, dangling link, inaccessible or replaced parent,
+reappearance, pending write or uncertain/forbidden/missing server result refuses.
+It never searches for, deletes or moves a checkout. A missing name does not prove
+the original directory is gone elsewhere.
+
+The terminal local transaction admits writer62, releases only the original
+reservation and retains a distinct receipt with its immutable adoption history.
+Use a qualified62-compatible engine afterwards; released CLI 0.2.2/schema61
+refuses to write the newer registry. Completed exact retries and
+`corporate project binding-retire-missing show --state-dir PATH --operation ID`
+read the original receipt offline even if the pathname is reused. Neither action
+changes a future independent binding, files, tasks or installation authority.
+
 For a reviewed same-object move, first review `corporate project location-anchor
 plan --state-dir PATH --context ID --binding-operation ID` while the registered
 checkout is present, then apply its exact JSON/digest with `corporate project

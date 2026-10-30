@@ -6,6 +6,7 @@ import {
   cmdProfileApply,
   cmdCheckoutApply,
   cmdBindingRetirementApply,
+  cmdMissingBindingRetirementApply,
   cmdCheckoutLocationApply,
   cmdRunRead,
   cmdTaskStart,
@@ -182,6 +183,25 @@ it("routes an exact location plan without a replacement context and omits privat
   });
   vi.mocked(invoke).mockRejectedValue(new Error("canary-location-transport"));
   expect((await cmdCheckoutLocationApply(plan, "sha256:exact", true)).error_code).toBe("IPC_THROW");
+  const entries = useDebug.getState().log;
+  expect(entries).toHaveLength(2);
+  expect(JSON.stringify(entries)).not.toContain("canary");
+  expect(entries.every((entry) => entry.result === undefined)).toBe(true);
+});
+
+
+it("keeps the missing-checkout route fixed and omits private plans and results from traces", async () => {
+  useDebug.setState({ debugMode: true });
+  const reply = { ok: true, data: { private: "canary-missing-receipt" }, error: null,
+    error_code: null, warnings: [], continuations: [] };
+  vi.mocked(invoke).mockResolvedValue(reply);
+  const plan = { kind: "corporate.project_binding.retire_missing", parent: "canary-private-parent" };
+  expect(await cmdMissingBindingRetirementApply(plan, "sha256:exact", true)).toBe(reply);
+  expect(invoke).toHaveBeenLastCalledWith("checkout_missing_binding_apply", {
+    plan, digest: "sha256:exact", confirmed: true,
+  });
+  vi.mocked(invoke).mockRejectedValue(new Error("canary-missing-transport"));
+  expect((await cmdMissingBindingRetirementApply(plan, "sha256:exact", true)).error_code).toBe("IPC_THROW");
   const entries = useDebug.getState().log;
   expect(entries).toHaveLength(2);
   expect(JSON.stringify(entries)).not.toContain("canary");

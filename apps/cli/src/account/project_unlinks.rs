@@ -1,8 +1,11 @@
 //! Durable remote unlink intent; local binding retirement is a separate review.
 
+mod absent_checkout;
 pub mod binding_retirement;
 pub(crate) mod interruption;
 mod journal;
+mod local_retirement;
+pub mod missing_checkout;
 mod model;
 pub mod retirement;
 mod workflow;

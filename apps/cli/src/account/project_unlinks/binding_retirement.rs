@@ -6,7 +6,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::{invalid, model::Snapshot, project_links, workflow};
+use super::{invalid, local_retirement, model::Snapshot, project_links, workflow};
 use crate::{
     authoring::{self, runtime},
     canonical, digest,
@@ -15,7 +15,7 @@ use crate::{
     store::{BINDING_RETIREMENT_SCHEMA, database, has_checkout_links},
 };
 
-const KIND: &str = "corporate.project_binding.retire";
+pub(super) const KIND: &str = "corporate.project_binding.retire";
 const LIMIT: u64 = 262144;
 
 fn retirement_schema(before: u32) -> Result<u32> {
@@ -190,6 +190,19 @@ pub(crate) fn for_binding(connection: &Connection, binding: &str) -> Result<Opti
     let Some(operation) = operation else {
         return Ok(None);
     };
+    let kind: String = connection
+        .query_row(
+            "SELECT kind FROM operation WHERE operation_id=?",
+            [&operation],
+            |row| row.get(0),
+        )
+        .map_err(database)?;
+    if kind == super::missing_checkout::KIND {
+        return super::missing_checkout::for_binding(connection, binding, &operation).map(Some);
+    }
+    if kind != KIND {
+        return Err(invalid());
+    }
     let detail: Option<String> = connection
         .query_row(
             "SELECT CASE WHEN length(CAST(detail AS BLOB))<=262144 THEN detail ELSE NULL END FROM operation WHERE operation_id=?",
@@ -249,32 +262,38 @@ pub fn apply(root: &Path, plan: &Plan, expected: &str, at: &str) -> Result<Value
                     return checked_output(transaction, &receipt);
                 }
                 let binding = &plan.snapshot.binding;
-                let current = project_links::binding::read_in(transaction, root, owner, &binding.source.operation_id)?;
+                let current = project_links::binding::read_in(
+                    transaction,
+                    root,
+                    owner,
+                    &binding.source.operation_id,
+                )?;
                 if current != *binding {
                     return Err(invalid());
                 }
-                project_links::binding::settled(transaction, binding)?;
-                let link = &fresh.remote_link;
-                let text = |key: &str| link[key].as_str().ok_or_else(invalid);
-                let changed = transaction.execute(
-                    "UPDATE project_link SET state='unlinked',local_revision=?,remote_revision=?,provider_revision=?,link_revision=?,updated_at=? WHERE local_project_id=? AND link_id=? AND link_revision=? AND state=?",
-                    params![text("local_revision")?,text("remote_revision")?,link["provider_revision"].as_str(),link["revision"].as_i64().ok_or_else(invalid)?,text("updated_at")?,
-                        binding.local_project["stable_id"].as_str().ok_or_else(invalid)?,binding.link["link_id"].as_str().ok_or_else(invalid)?,binding.link["revision"].as_i64().ok_or_else(invalid)?,binding.link["state"].as_str().ok_or_else(invalid)?]).map_err(database)?;
-                if changed != 1 { return Err(invalid()); }
-                let reservation = &binding.reservation;
-                let removed = transaction.execute(
-                    "DELETE FROM native_checkout_reservation WHERE request_operation_id=? AND local_project_id=? AND root_device=? AND root_inode=? AND confirmation_operation_id IS ? AND binding_operation_id=? AND context_id=?",
-                    params![reservation.request_operation_id,reservation.local_project_id,reservation.root_device,reservation.root_inode,reservation.confirmation_operation_id,reservation.binding_operation_id,reservation.context_id]).map_err(database)?;
-                if removed != 1 { return Err(invalid()); }
-                let receipt = Receipt { plan: plan.clone(), plan_digest: expected.into(), completed_at: super::super::now_after(at) };
-                let detail = canonical::bytes(&serde_json::to_value(&receipt).map_err(|_| invalid())?)?;
-                if detail.len() as u64 > LIMIT { return Err(invalid()); }
-                transaction.execute(
-                    "INSERT INTO operation(operation_id,kind,state,started_at,finished_at,detail) VALUES (?,?,'verified',?,?,?)",
-                    params![plan.operation_id,KIND,at,receipt.completed_at,String::from_utf8(detail).map_err(|_| invalid())?]).map_err(database)?;
-                transaction.execute(
-                    "INSERT INTO native_binding_retirement(binding_operation_id,request_operation_id,retirement_operation_id) VALUES (?,?,?)",
-                    params![binding.source.operation_id,binding.request.operation_id,plan.operation_id]).map_err(database)?;
+                let receipt = Receipt {
+                    plan: plan.clone(),
+                    plan_digest: expected.into(),
+                    completed_at: super::super::now_after(at),
+                };
+                let detail =
+                    canonical::bytes(&serde_json::to_value(&receipt).map_err(|_| invalid())?)?;
+                if detail.len() as u64 > LIMIT {
+                    return Err(invalid());
+                }
+                let detail = String::from_utf8(detail).map_err(|_| invalid())?;
+                local_retirement::commit(
+                    transaction,
+                    &fresh.binding,
+                    &fresh.remote_link,
+                    local_retirement::Kind::Present,
+                    &local_retirement::Terminal {
+                        operation_id: &plan.operation_id,
+                        started_at: at,
+                        completed_at: &receipt.completed_at,
+                        detail: &detail,
+                    },
+                )?;
                 checked_output(transaction, &receipt)
             })
         },

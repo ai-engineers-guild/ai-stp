@@ -1,4 +1,4 @@
-"""Verify the immutable released schema60 consumer; never claim a new compilation."""
+"""Verify an immutable released native consumer; never claim a new compilation."""
 
 from __future__ import annotations
 
@@ -10,20 +10,61 @@ import os
 import stat
 import subprocess
 import tarfile
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 REPOSITORY = "ai-engineers-guild/ai-stp"
-TAG = "cli-v0.2.1"
-TAG_OBJECT = "966d75b61c42e2516c87c020448aa441092b9e40"
-SOURCE = "3221fe08dc70630987c81997ede5af6454c988d2"
-TREE = "d8e39aad89ccdb8fa6d2043b8d561a4dd7f7eb1c"
-ASSET_ID = 686946958
-ARCHIVE_NAME = "ai-stp-cli-0.2.1-x86_64-unknown-linux-gnu.tar.gz"
-ARCHIVE_BYTES = 13_840_643
-ARCHIVE_SHA256 = "077096f96c7f912e2dab0c4bfc35e8d0ed2f0361f551331c59fb71bfd975ab72"
-BINARY_BYTES = 34_308_280
-BINARY_SHA256 = "5c19e71a6c21bac22decc19e717628d2564572465609914d30cede49625c103a"
+
+
+@dataclass(frozen=True)
+class Release:
+    version: str
+    tag_object: str
+    source: str
+    tree: str
+    asset_id: int
+    archive_bytes: int
+    archive_sha256: str
+    binary_bytes: int
+    binary_sha256: str
+    environment: str
+
+    @property
+    def tag(self) -> str:
+        return f"cli-v{self.version}"
+
+    @property
+    def archive_name(self) -> str:
+        return f"ai-stp-cli-{self.version}-x86_64-unknown-linux-gnu.tar.gz"
+
+
+RELEASES = {
+    60: Release(
+        "0.2.1",
+        "966d75b61c42e2516c87c020448aa441092b9e40",
+        "3221fe08dc70630987c81997ede5af6454c988d2",
+        "d8e39aad89ccdb8fa6d2043b8d561a4dd7f7eb1c",
+        686946958,
+        13_840_643,
+        "077096f96c7f912e2dab0c4bfc35e8d0ed2f0361f551331c59fb71bfd975ab72",
+        34_308_280,
+        "5c19e71a6c21bac22decc19e717628d2564572465609914d30cede49625c103a",
+        "LOCATION",
+    ),
+    61: Release(
+        "0.2.2",
+        "01220607e4f29adbf4f10f22077a2244039d9f2a",
+        "1327533ccbfb8d1aa92ccdd346790246f8eac28c",
+        "7bf99b51aa0e9ef169b5bb79974f2a52dad355af",
+        691115795,
+        13_944_526,
+        "01cec61a5363447a4dd9adb0dc4b934a60797661aae2fded622ed8e4e870c73f",
+        34_590_008,
+        "047f806ba78dce3cab36caaa109a9c0209af7678ba4a5abbe8a4ab7aff150491",
+        "MISSING_CHECKOUT",
+    ),
+}
 SBOM = "ai-stp-cli.cdx.json"
 
 
@@ -40,26 +81,29 @@ def api(path: str, *, binary: bool = False) -> Any:
     return result.stdout if binary else json.loads(result.stdout)
 
 
-def archive() -> bytes:
-    ref = api(f"git/ref/tags/{TAG}")
-    assert ref["object"] == {"sha": TAG_OBJECT, "type": "tag", "url": ref["object"]["url"]}
-    tag = api(f"git/tags/{TAG_OBJECT}")
-    assert tag["tag"] == TAG and tag["object"]["type"] == "commit"
-    assert tag["object"]["sha"] == SOURCE
-    assert api(f"git/commits/{SOURCE}")["tree"]["sha"] == TREE
-    release = api(f"releases/tags/{TAG}")
-    assert release["tag_name"] == TAG and not release["draft"] and not release["prerelease"]
-    assets = [item for item in release["assets"] if item["id"] == ASSET_ID]
+def archive(release: Release) -> bytes:
+    ref = api(f"git/ref/tags/{release.tag}")
+    assert ref["object"] == {"sha": release.tag_object, "type": "tag", "url": ref["object"]["url"]}
+    tag = api(f"git/tags/{release.tag_object}")
+    assert tag["tag"] == release.tag and tag["object"]["type"] == "commit"
+    assert tag["object"]["sha"] == release.source
+    assert api(f"git/commits/{release.source}")["tree"]["sha"] == release.tree
+    release = api(f"releases/tags/{release.tag}")
+    assert release["tag_name"] == release.tag and not release["draft"] and not release["prerelease"]
+    assets = [item for item in release["assets"] if item["id"] == release.asset_id]
     assert len(assets) == 1
     asset = assets[0]
-    assert asset["name"] == ARCHIVE_NAME and asset["size"] == ARCHIVE_BYTES
-    assert asset["digest"] == "sha256:" + ARCHIVE_SHA256
-    data = api(f"releases/assets/{ASSET_ID}", binary=True)
-    assert len(data) == ARCHIVE_BYTES and hashlib.sha256(data).hexdigest() == ARCHIVE_SHA256
+    assert asset["name"] == release.archive_name and asset["size"] == release.archive_bytes
+    assert asset["digest"] == "sha256:" + release.archive_sha256
+    data = api(f"releases/assets/{release.asset_id}", binary=True)
+    assert (
+        len(data) == release.archive_bytes
+        and hashlib.sha256(data).hexdigest() == release.archive_sha256
+    )
     return data
 
 
-def executable(data: bytes) -> bytes:
+def executable(data: bytes, release: Release) -> bytes:
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
         members = archive.getmembers()
         assert len(members) == 4 and {member.name for member in members} == {
@@ -68,7 +112,9 @@ def executable(data: bytes) -> bytes:
             "release.json",
             SBOM,
         }
-        assert all(member.isfile() and 0 < member.size <= BINARY_BYTES for member in members)
+        assert all(
+            member.isfile() and 0 < member.size <= release.binary_bytes for member in members
+        )
         files: dict[str, bytes] = {}
         for member in members:
             stream = archive.extractfile(member)
@@ -77,19 +123,19 @@ def executable(data: bytes) -> bytes:
                 files[member.name] = stream.read(member.size + 1)
             assert len(files[member.name]) == member.size
         binary = files["ai-stp"]
-        assert len(binary) == BINARY_BYTES and binary.startswith(b"\x7fELF")
+        assert len(binary) == release.binary_bytes and binary.startswith(b"\x7fELF")
         assert archive.getmember("ai-stp").mode & 0o7777 == 0o755
-        assert hashlib.sha256(binary).hexdigest() == BINARY_SHA256
+        assert hashlib.sha256(binary).hexdigest() == release.binary_sha256
         manifest = json.loads(files["release.json"])
         assert manifest == {
             "schema_version": 2,
             "package": "ai-stp-cli",
-            "version": "0.2.1",
+            "version": release.version,
             "release_channel": "stable",
-            "source_commit": SOURCE,
+            "source_commit": release.source,
             "target": "x86_64-unknown-linux-gnu",
             "binary": "ai-stp",
-            "binary_sha256": BINARY_SHA256,
+            "binary_sha256": release.binary_sha256,
             "license_sha256": hashlib.sha256(files["LICENSE"]).hexdigest(),
             "sbom": SBOM,
             "sbom_sha256": hashlib.sha256(files[SBOM]).hexdigest(),
@@ -97,16 +143,17 @@ def executable(data: bytes) -> bytes:
         return binary
 
 
-def prepare(root: Path) -> None:
+def prepare(root: Path, schema: int) -> None:
+    release = RELEASES[schema]
     assert root.is_absolute() and root.parent.resolve() == Path(os.environ["RUNNER_TEMP"]).resolve()
     assert "\n" not in str(root) and "\r" not in str(root)
-    binary = executable(archive())
+    binary = executable(archive(release), release)
     root.mkdir(mode=0o700)
     path = root / "ai-stp"
     with path.open("xb") as stream:
         stream.write(binary)
     path.chmod(0o755)
-    assert stat.S_ISREG(path.lstat().st_mode) and path.stat().st_size == BINARY_BYTES
+    assert stat.S_ISREG(path.lstat().st_mode) and path.stat().st_size == release.binary_bytes
     home = root / "qualification-home"
     home.mkdir(mode=0o700)
     environment = {
@@ -124,23 +171,24 @@ def prepare(root: Path) -> None:
     )
     assert not report.stderr and len(report.stdout) <= 1024 * 1024
     envelope = json.loads(report.stdout)
-    assert envelope["ok"] is True and envelope["data"]["cli_version"] == "0.2.1"
+    assert envelope["ok"] is True and envelope["data"]["cli_version"] == release.version
     paths = [tuple(command["path"]) for command in envelope["data"]["commands"]]
     assert len(paths) == len(set(paths))
     assert ("corporate", "project", "binding-retire", "plan") in paths
-    assert ("corporate", "project", "location-anchor", "plan") not in paths
+    assert (("corporate", "project", "location-anchor", "plan") in paths) == (schema == 61)
+    assert ("corporate", "project", "binding-retire-missing", "plan") not in paths
     assert not any(home.iterdir()), "metadata inventory created persistent state"
     with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as output:
-        output.write(f"AI_STP_TEST_PREVIOUS_LOCATION_CLI_BINARY={path}\n")
-        output.write(f"AI_STP_TEST_PREVIOUS_LOCATION_CLI_SOURCE={SOURCE}\n")
+        output.write(f"AI_STP_TEST_PREVIOUS_{release.environment}_CLI_BINARY={path}\n")
+        output.write(f"AI_STP_TEST_PREVIOUS_{release.environment}_CLI_SOURCE={release.source}\n")
     print(
         json.dumps(
             {
-                "previous_released_writer": 60,
-                "release_tag": TAG,
-                "source_commit": SOURCE,
-                "archive_sha256": ARCHIVE_SHA256,
-                "binary_sha256": BINARY_SHA256,
+                "previous_released_writer": schema,
+                "release_tag": release.tag,
+                "source_commit": release.source,
+                "archive_sha256": release.archive_sha256,
+                "binary_sha256": release.binary_sha256,
                 "registry_digest": envelope["data"]["registry_digest"],
                 "compiled_by_this_job": False,
             }
@@ -152,4 +200,6 @@ def prepare(root: Path) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("root", type=Path)
-    prepare(parser.parse_args().root)
+    parser.add_argument("--schema", type=int, choices=tuple(RELEASES), default=60)
+    args = parser.parse_args()
+    prepare(args.root, args.schema)

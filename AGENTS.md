@@ -87,5 +87,4 @@ primitives and direct Radix imports belong only in their owning kit component.
 
 Code, comments, identifiers, commits and documentation are English; explicitly
 localized product content may use its locale. Add no speculative dependencies,
-empty abstractions or duplicate documentation. No corporate feature work is part
-of the Rust CLI release.
+empty abstractions or duplicate documentation.
