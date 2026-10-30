@@ -1,0 +1,88 @@
+{
+  "$id": "urn:ai-stp:schema:v1:installation-heartbeat-policy",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The organization-owned cadence and enablement visible to members.",
+  "properties": {
+    "enabled": {
+      "default": true,
+      "title": "Enabled",
+      "type": "boolean"
+    },
+    "interval_seconds": {
+      "default": 21600,
+      "maximum": 2592000,
+      "minimum": 60,
+      "title": "Interval Seconds",
+      "type": "integer"
+    },
+    "inventory_scan_enabled": {
+      "default": false,
+      "title": "Inventory Scan Enabled",
+      "type": "boolean"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "policy_version": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Policy Version",
+      "type": "integer"
+    },
+    "retry_base_seconds": {
+      "default": 60,
+      "maximum": 86400,
+      "minimum": 30,
+      "title": "Retry Base Seconds",
+      "type": "integer"
+    },
+    "retry_max_seconds": {
+      "default": 3600,
+      "maximum": 604800,
+      "minimum": 60,
+      "title": "Retry Max Seconds",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stale_after_seconds": {
+      "default": 86400,
+      "maximum": 31536000,
+      "minimum": 60,
+      "title": "Stale After Seconds",
+      "type": "integer"
+    },
+    "usage_collection_enabled": {
+      "default": false,
+      "title": "Usage Collection Enabled",
+      "type": "boolean"
+    },
+    "usage_registration_required": {
+      "default": false,
+      "title": "Usage Registration Required",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "enabled",
+    "interval_seconds",
+    "inventory_scan_enabled",
+    "organization_id",
+    "policy_version",
+    "retry_base_seconds",
+    "retry_max_seconds",
+    "schema_version",
+    "stale_after_seconds",
+    "usage_collection_enabled",
+    "usage_registration_required"
+  ],
+  "title": "InstallationHeartbeatPolicy",
+  "type": "object"
+}

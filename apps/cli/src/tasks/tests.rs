@@ -87,6 +87,7 @@ fn lost_task_receipt_recovers_the_committed_child_without_source() -> Result<(),
         account_id: format!("account_{}", ulid::Ulid::generate()),
         device_id: format!("device_{}", ulid::Ulid::generate()),
     };
+    let original_owner = identity.clone();
     let row = Row::new(input, identity, "author-recovery-01", &moment())?;
     let mut store = Store::open(&root, true)?;
     store.transaction(|t| journal::save(t, &row, None))?;
@@ -113,8 +114,18 @@ fn lost_task_receipt_recovers_the_committed_child_without_source() -> Result<(),
     let done = drain(&mut store, restored)?;
     assert_eq!(done["state"], "completed");
     assert_eq!(done["goal_satisfied"], true);
+    assert_eq!(
+        done["ownership"],
+        json!({"kind":"personal",
+        "native_account_id":original_owner.account_id,"native_device_id":original_owner.device_id})
+    );
     let recorded = journal::load(&store.connection, &row.id)?;
+    let before_read = store.connection.serialize("main")?.to_vec();
     let digest = journal::encode(&recorded.view()?)?;
+    assert_eq!(store.connection.serialize("main")?.to_vec(), before_read);
+    let retained = serde_json::to_value(&recorded.payload)?;
+    assert_eq!(retained["format"], "ai-stp-native-task/1");
+    assert!(retained.get("ownership").is_none());
     assert_eq!(journal::encode(&drain(&mut store, recorded)?)?, digest);
     assert!(journal::unsettled(&store.connection)?.is_empty());
     let after: i64 =

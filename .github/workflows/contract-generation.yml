@@ -79,6 +79,10 @@ jobs:
           bun install --frozen-lockfile
           bun run api:generate
           bun run format
+      - name: Install the pinned native resource generator toolchain
+        run: bash .github/scripts/install-rust-toolchain.sh apps/cli/rust-toolchain.toml
+      - name: Generate embedded native resources from the canonical sources
+        run: cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- resources
       - name: Retain an exact source patch for review
         env:
           SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}

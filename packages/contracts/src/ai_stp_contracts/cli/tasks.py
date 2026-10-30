@@ -437,6 +437,16 @@ type TaskOutcome = Annotated[
 ]
 
 
+class NativePersonalTaskOwnership(ContractModel):
+    """Retained local authoring identity, independent of any selected company view."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    kind: Literal["personal"]
+    native_account_id: Annotated[str, Field(pattern=stable_id_pattern("account"))]
+    native_device_id: Annotated[str, Field(pattern=stable_id_pattern("device"))]
+
+
 class TaskView(ContractModel):
     """One durable agent task. Envelope `ok` is independent of `state`."""
 
@@ -451,6 +461,7 @@ class TaskView(ContractModel):
     questions: list[TaskQuestion]
     outcome: TaskOutcome | None
     child_operation_ids: list[str]
+    ownership: NativePersonalTaskOwnership | None = None
 
 
 class TaskListEntry(ContractModel):
@@ -477,6 +488,7 @@ class TaskListEntry(ContractModel):
     #: external progress, not on an answer.
     open_question_ids: list[str]
     updated_at: Timestamp
+    ownership: NativePersonalTaskOwnership | None = None
 
 
 class TaskListView(ContractModel):

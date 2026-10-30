@@ -251,6 +251,7 @@ def prove(binary: Path, home: Path, root: Path, run: Any) -> None:
         "data"
     ]
     assert history["state"] == "completed" and history["legacy_read_only"]
+    assert history["ownership"] is None
     assert (
         invoke(
             [
