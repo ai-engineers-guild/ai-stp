@@ -228,7 +228,7 @@ mod tests {
         let checkout = parent.join("missing");
         let proof = Parent::observe(&checkout)?.parent;
         let original = fs::metadata(&parent)?.permissions();
-        fs::set_permissions(&parent, fs::Permissions::from_mode(0))?;
+        fs::set_permissions(&parent, fs::Permissions::from_mode(0o000))?;
         let refused = proof.open(&checkout).is_err();
         // Restore the owned fixture even if its access-control assertion fails.
         fs::set_permissions(&parent, original)?;

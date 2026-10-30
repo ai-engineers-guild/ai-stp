@@ -633,6 +633,7 @@ def installed_locations(
             preserved / ".env"
         ).stat().st_mode == before_mode
         return driver, {
+            "missing_checkout_link_id": missing_original["effect"]["link"]["link_id"],
             "missing_checkout_writer_epoch": 62,
             "installed_explicit_missing_checkout_retirement": True,
             "missing_checkout_original_history_after_restart_and_path_reuse": True,
@@ -1289,15 +1290,20 @@ async def prove(driver_path: Path, out: Path, database_url: str, root: Path) -> 
                     "/v1/projects/links",
                     f"/v1/organizations/{organization}/project-unlink-plans",
                     f"/v1/projects/links/{proof['location_link_id']}",
+                    f"/v1/organizations/{organization}/project-link-plans",
+                    "/v1/projects/links",
+                    f"/v1/organizations/{organization}/project-unlink-plans",
+                    f"/v1/projects/links/{proof['missing_checkout_link_id']}",
                 ]
                 async with app.state.sessionmaker() as db:
-                    assert await db.scalar(select(func.count()).select_from(ProjectLinkPlan)) == 2
-                    assert await db.scalar(select(func.count()).select_from(ProjectLink)) == 2
-                    assert await db.scalar(select(func.count()).select_from(ProjectUnlinkPlan)) == 2
+                    assert await db.scalar(select(func.count()).select_from(ProjectLinkPlan)) == 3
+                    assert await db.scalar(select(func.count()).select_from(ProjectLink)) == 3
+                    assert await db.scalar(select(func.count()).select_from(ProjectUnlinkPlan)) == 3
                     links = (await db.scalars(select(ProjectLink))).all()
                     assert {link.id for link in links} == {
                         proof["link_id"],
                         proof["location_link_id"],
+                        proof["missing_checkout_link_id"],
                     }
                     assert all(
                         link.state == "unlinked" and link.organization_id == organization
@@ -1305,8 +1311,8 @@ async def prove(driver_path: Path, out: Path, database_url: str, root: Path) -> 
                     )
                 proof.update(
                     actual_api_postgresql=True,
-                    committed_mutation_posts=6,
-                    committed_mutation_requests=8,
+                    committed_mutation_posts=9,
+                    committed_mutation_requests=12,
                 )
                 out.write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
                 print(
