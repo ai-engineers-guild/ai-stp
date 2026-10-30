@@ -100,7 +100,7 @@ services:
     # different build is a development stack that cannot reproduce the
     # failure production had (`#394`).
     # yamllint disable-line rule:line-length
-    image: rustfs/rustfs:1.0.1@sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c
+    image: rustfs/rustfs:1.0.3@sha256:9ca9559533b537d10482fe923288b676ad08f92a7069d9a17327fbae3cab688b
     environment:
       # Must match AI_STP_STORAGE_* in x-app-env. If these are missing at first
       # start, rustfs falls back to built-in defaults and API gets HeadBucket 403.
@@ -129,7 +129,7 @@ services:
     # Local catch-all SMTP + web UI (http://localhost:8025): the default mail
     # path in dev — invitation mail really sends and is readable in the UI.
     # It accepts and stores every message; nothing is relayed outside.
-    image: axllent/mailpit:v1.31.6
+    image: axllent/mailpit:v1.32.0
     ports:
       # Web UI holds invitation links — loopback only, like the SMTP listener.
       - "127.0.0.1:8025:8025"
