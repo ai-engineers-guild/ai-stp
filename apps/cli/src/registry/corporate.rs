@@ -45,6 +45,9 @@ pub(super) enum Handler {
     UnlinkRetireApply,
     BindingRetirePlan,
     BindingRetireApply,
+    MissingBindingRetirePlan,
+    MissingBindingRetireApply,
+    MissingBindingRetireStatus,
     LocationAnchorPlan,
     LocationRelocatePlan,
     LocationApply,
@@ -70,6 +73,7 @@ impl Handler {
             | Self::UnlinkRetirePlan => "plan",
             Self::LinkRetirePlan
             | Self::BindingRetirePlan
+            | Self::MissingBindingRetirePlan
             | Self::LocationAnchorPlan
             | Self::LocationRelocatePlan => "plan",
             Self::LinkApply
@@ -77,6 +81,7 @@ impl Handler {
             | Self::UnlinkApply
             | Self::UnlinkRetireApply
             | Self::BindingRetireApply
+            | Self::MissingBindingRetireApply
             | Self::LocationApply => "apply",
             _ => "read",
         }
@@ -261,6 +266,54 @@ pub(super) const COMMANDS: &[Declaration] = &[
             },
         ],
         handler: super::Handler::Corporate(Handler::BindingRetireApply),
+    },
+    Declaration {
+        path: &["corporate", "project", "binding-retire-missing", "plan"],
+        summary: "Review an absent checkout under its exact physical parent and a positively unlinked original server result; retain history, files and tasks.",
+        parameters: &[
+            STATE_DIR,
+            CONTEXT,
+            Parameter {
+                name: "binding-operation",
+                summary: "Exact completed adoption operation ID; its current retained checkout name must be absent under an inspectable parent.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::MissingBindingRetirePlan),
+    },
+    Declaration {
+        path: &["corporate", "project", "binding-retire-missing", "apply"],
+        summary: "Revalidate the reviewed absence and current project.link authority; atomically release only that local binding without remote writes or file cleanup.",
+        parameters: &[
+            Parameter {
+                name: "plan",
+                summary: "Exact reviewed missing-checkout retirement JSON plan, at most 256 KiB.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Digest of the exact reviewed missing-checkout retirement.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::MissingBindingRetireApply),
+    },
+    Declaration {
+        path: &["corporate", "project", "binding-retire-missing", "show"],
+        summary: "Read the original missing-checkout retirement receipt offline without reopening a checkout or changing a later binding.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "operation",
+                summary: "Exact missing-checkout retirement operation ID.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::MissingBindingRetireStatus),
     },
     Declaration {
         path: &["corporate", "project", "unlink-retire", "plan"],
@@ -872,6 +925,30 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                 &at,
             );
         }
+        Handler::MissingBindingRetirePlan => {
+            let plan = project_unlinks::missing_checkout::plan(
+                state()?,
+                optional("context").as_deref(),
+                &text("binding-operation")?,
+                &at,
+            )?;
+            return Ok(json!({"plan_digest":plan.digest()?,"plan":plan}));
+        }
+        Handler::MissingBindingRetireApply => {
+            let plan = project_unlinks::missing_checkout::read_plan(
+                args.get_one::<PathBuf>("plan")
+                    .ok_or_else(|| Failure::input("plan is required"))?,
+            )?;
+            return project_unlinks::missing_checkout::apply(
+                plan.state_parent(),
+                &plan,
+                &text("plan-digest")?,
+                &at,
+            );
+        }
+        Handler::MissingBindingRetireStatus => {
+            return project_unlinks::missing_checkout::status(state()?, &text("operation")?);
+        }
         Handler::UnlinkRetirePlan => {
             let plan = project_unlinks::retirement::plan(
                 state()?,
@@ -1112,6 +1189,9 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         | Handler::UnlinkRetireApply
         | Handler::BindingRetirePlan
         | Handler::BindingRetireApply
+        | Handler::MissingBindingRetirePlan
+        | Handler::MissingBindingRetireApply
+        | Handler::MissingBindingRetireStatus
         | Handler::LocationAnchorPlan
         | Handler::LocationRelocatePlan
         | Handler::LocationApply

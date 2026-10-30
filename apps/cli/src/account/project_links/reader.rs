@@ -8,7 +8,7 @@ use crate::error::Result;
 
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub(super) struct Reader {
+pub(in crate::account) struct Reader {
     pub context: Context,
     pub account: Binding,
     pub organization: Value,
@@ -28,9 +28,39 @@ impl Reader {
     }
 
     pub fn validate(&self, source: &model::Plan) -> Result<()> {
+        workflow::reader_matches(&self.context, source.snapshot())?;
+        self.validate_authority()
+    }
+
+    pub fn matches_binding(context: &Context, binding: &super::binding::Snapshot) -> Result<()> {
+        let contexts::Authority::Remote {
+            account,
+            organization,
+            ..
+        } = &context.authority
+        else {
+            return Err(invalid());
+        };
+        if context.root != binding.context.root
+            || account.origin != binding.account.origin
+            || account.account_id != binding.account.account_id
+            || account.root_identity != binding.account.root_identity
+            || organization["organization_id"] != binding.link["organization_id"]
+            || organization["kind"] != "corporate"
+        {
+            return Err(invalid());
+        }
+        Ok(())
+    }
+
+    pub fn validate_binding(&self, binding: &super::binding::Snapshot) -> Result<()> {
+        Self::matches_binding(&self.context, binding)?;
+        self.validate_authority()
+    }
+
+    fn validate_authority(&self) -> Result<()> {
         self.context.digest()?;
         self.account.validate()?;
-        workflow::reader_matches(&self.context, source.snapshot())?;
         let contexts::Authority::Remote {
             account,
             organization,

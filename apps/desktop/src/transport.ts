@@ -54,6 +54,7 @@ function call(
   const contextTrace =
     command === "checkout_apply" ||
     command === "checkout_location_apply" ||
+    command === "checkout_missing_binding_apply" ||
     namespace === "context" ||
     namespace === "corporate" ||
     (namespace === "account" &&
@@ -377,4 +378,8 @@ export function cmdCheckoutLocationApply(
   return call("checkout_location_apply", {
     plan, digest, confirmed, gitExecutable: gitExecutable ?? null,
   });
+}
+
+export function cmdMissingBindingRetirementApply(plan: unknown, digest: string, confirmed: boolean): Promise<CmdResult> {
+  return call("checkout_missing_binding_apply", { plan, digest, confirmed });
 }

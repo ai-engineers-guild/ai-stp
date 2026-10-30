@@ -480,7 +480,164 @@ def installed_locations(
         assert (current / marker).read_bytes() == before_marker
         assert (current / ".env").read_bytes() == before_canary
         assert (current / ".env").stat().st_mode == before_mode
+        # Keep the accepted present-root and location61 journeys above intact.
+        # A third distinct binding proves explicit missing-checkout retirement62
+        # through the actual installed UI and its bundled native CLI.
+        missing_request = run(
+            "corporate",
+            "project",
+            "link-request",
+            "plan",
+            "--context",
+            company,
+            "--root",
+            str(current),
+            "--project",
+            project,
+            "--git-executable",
+            "/usr/bin/git",
+        )
+        apply(missing_request, "link")
+        missing_confirm = run(
+            "corporate",
+            "project",
+            "link-confirm",
+            "plan",
+            "--request-operation",
+            missing_request["plan"]["operation_id"],
+            "--git-executable",
+            "/usr/bin/git",
+        )
+        apply(missing_confirm, "link")
+        missing_adoption = run(
+            "corporate",
+            "project",
+            "link-adopt",
+            "plan",
+            "--context",
+            company,
+            "--root",
+            str(current),
+            "--request-operation",
+            missing_request["plan"]["operation_id"],
+            "--git-executable",
+            "/usr/bin/git",
+        )
+        missing_original = apply(missing_adoption, "link")
+        missing_binding = missing_adoption["plan"]["operation_id"]
+        missing_unlink = run(
+            "corporate",
+            "project",
+            "unlink-request",
+            "plan",
+            "--context",
+            company,
+            "--binding-operation",
+            missing_binding,
+        )
+        apply(missing_unlink, "unlink")
+        missing_confirm_unlink = run(
+            "corporate",
+            "project",
+            "unlink-confirm",
+            "plan",
+            "--request-operation",
+            missing_unlink["plan"]["operation_id"],
+        )
+        apply(missing_confirm_unlink, "unlink")
+        driver.close()
+        preserved = current.with_name(current.name + "-missing-preserved")
+        current.rename(preserved)
+        driver = driver_type(driver_path, environment, root / "missing-review-driver.log")
+        driver.start()
+        driver.selected(company)
+        driver.click(driver.link("Activity"))
+        driver.click(driver.button("Reload checkout operations", HISTORY))
+        driver.click(driver.button("Inspect " + missing_binding, HISTORY))
+        driver.click(driver.button("Review missing-checkout binding retirement", HISTORY))
+        missing_scope = HISTORY + ' [aria-label="Review local binding retirement"]'
+        missing = public_plan(driver, missing_scope)
+        assert missing["kind"] == "corporate.project_binding.retire_missing"
+        assert missing["registry_schema_before"] == 61 and missing["registry_schema_after"] == 62
+        assert base64.b64decode(
+            missing["snapshot"]["binding"]["checkout_root"]["utf8_base64"], validate=True
+        ) == os.fsencode(current)
+        assert missing["snapshot"]["binding"]["source"]["operation_id"] == missing_binding
+        authorize(driver, missing_scope, "Apply reviewed local binding retirement")
+        driver.wait(
+            lambda: driver.read(
+                "return document.querySelector(arguments[0]).textContent.includes("
+                "'This original local binding was retired. Its adoption receipt is preserved.');",
+                HISTORY,
+            ),
+            "installed missing-checkout retirement62",
+        )
+        missing_history = run(
+            "corporate", "project", "link", "show", "--operation", missing_binding
+        )
+        missing_receipt = missing_history["binding_retirement"]
+        assert (
+            missing_receipt["plan"] == missing
+            and missing_receipt["outcome"] == "missing_checkout_binding_retired"
+        )
+        assert (
+            missing_receipt["checkout_observation"] == "absent"
+            and missing_receipt["installation_authority"] is False
+        )
+        assert (
+            missing_history["plan"] == missing_original["plan"]
+            and missing_history["effect"] == missing_original["effect"]
+        )
+        with closing(sqlite3.connect(f"file:{registry}?mode=ro", uri=True)) as db:
+            assert db.execute("PRAGMA user_version").fetchone() == (62,)
+            assert db.execute("SELECT count(*) FROM native_checkout_reservation").fetchone() == (0,)
+            assert db.execute("SELECT count(*) FROM native_binding_retirement").fetchone() == (3,)
+        driver.close()
+        # An unrelated replacement pathname cannot invalidate original terminal history.
+        current.mkdir()
+        (current / "unowned-replacement").write_bytes(b"installed-missing-replacement-canary\n")
+        driver = driver_type(driver_path, environment, root / "missing-retired-driver.log")
+        driver.start()
+        driver.selected(company)
+        driver.click(driver.link("Activity"))
+        driver.click(driver.button("Reload checkout operations", HISTORY))
+        driver.click(driver.button("Inspect " + missing_binding, HISTORY))
+        driver.wait(
+            lambda: driver.read(
+                "return document.querySelector(arguments[0]).textContent.includes("
+                "'This original local binding was retired. Its adoption receipt is preserved.');",
+                HISTORY,
+            ),
+            "installed original missing retirement after restart and path reuse",
+        )
+        assert (
+            run("corporate", "project", "link", "show", "--operation", missing_binding)
+            == missing_history
+        )
+        assert (
+            run(
+                "corporate",
+                "project",
+                "binding-retire-missing",
+                "show",
+                "--operation",
+                missing_receipt["operation_id"],
+            )
+            == missing_receipt
+        )
+        assert (
+            current / "unowned-replacement"
+        ).read_bytes() == b"installed-missing-replacement-canary\n"
+        assert (preserved / marker).read_bytes() == before_marker
+        assert (preserved / ".env").read_bytes() == before_canary and (
+            preserved / ".env"
+        ).stat().st_mode == before_mode
         return driver, {
+            "missing_checkout_link_id": missing_original["effect"]["link"]["link_id"],
+            "missing_checkout_writer_epoch": 62,
+            "installed_explicit_missing_checkout_retirement": True,
+            "missing_checkout_original_history_after_restart_and_path_reuse": True,
+            "missing_checkout_canary_bytes_and_modes_preserved": True,
             "location_link_id": original["effect"]["link"]["link_id"],
             "location_writer_epoch": 61,
             "installed_reviewed_location_anchor": True,
@@ -1133,15 +1290,20 @@ async def prove(driver_path: Path, out: Path, database_url: str, root: Path) -> 
                     "/v1/projects/links",
                     f"/v1/organizations/{organization}/project-unlink-plans",
                     f"/v1/projects/links/{proof['location_link_id']}",
+                    f"/v1/organizations/{organization}/project-link-plans",
+                    "/v1/projects/links",
+                    f"/v1/organizations/{organization}/project-unlink-plans",
+                    f"/v1/projects/links/{proof['missing_checkout_link_id']}",
                 ]
                 async with app.state.sessionmaker() as db:
-                    assert await db.scalar(select(func.count()).select_from(ProjectLinkPlan)) == 2
-                    assert await db.scalar(select(func.count()).select_from(ProjectLink)) == 2
-                    assert await db.scalar(select(func.count()).select_from(ProjectUnlinkPlan)) == 2
+                    assert await db.scalar(select(func.count()).select_from(ProjectLinkPlan)) == 3
+                    assert await db.scalar(select(func.count()).select_from(ProjectLink)) == 3
+                    assert await db.scalar(select(func.count()).select_from(ProjectUnlinkPlan)) == 3
                     links = (await db.scalars(select(ProjectLink))).all()
                     assert {link.id for link in links} == {
                         proof["link_id"],
                         proof["location_link_id"],
+                        proof["missing_checkout_link_id"],
                     }
                     assert all(
                         link.state == "unlinked" and link.organization_id == organization
@@ -1149,8 +1311,8 @@ async def prove(driver_path: Path, out: Path, database_url: str, root: Path) -> 
                     )
                 proof.update(
                     actual_api_postgresql=True,
-                    committed_mutation_posts=6,
-                    committed_mutation_requests=8,
+                    committed_mutation_posts=9,
+                    committed_mutation_requests=12,
                 )
                 out.write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
                 print(

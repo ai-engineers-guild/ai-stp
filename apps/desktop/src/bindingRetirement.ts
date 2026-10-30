@@ -18,7 +18,7 @@ function retainedRoot(plan: Record<string, unknown>, binding: Record<string, unk
   if (current === null || originalRoot === null) return false;
   if (binding.location == null) return current === originalRoot;
   const location = record(binding.location), physical = record(location.physical);
-  if (plan.registry_schema_before !== 61 || Object.keys(location).sort().join(",") !== "operation_id,physical,plan_digest" ||
+  if (![61, 62].includes(Number(plan.registry_schema_before)) || Object.keys(location).sort().join(",") !== "operation_id,physical,plan_digest" ||
     typeof location.operation_id !== "string" || !/^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$/.test(location.operation_id) ||
     [plan.operation_id, record(binding.source).operation_id, record(binding.request).operation_id].includes(location.operation_id) ||
     typeof location.plan_digest !== "string" || !/^sha256:[0-9a-f]{64}$/.test(location.plan_digest)) return false;
@@ -29,7 +29,8 @@ function retainedRoot(plan: Record<string, unknown>, binding: Record<string, unk
     decimal(physical.volume, 64) && decimal(physical.file_id, 128);
 }
 
-function anchored(plan: Record<string, unknown>, original: Record<string, unknown>): boolean {
+export function bindingRetirementAnchored(plan: Record<string, unknown>, original: Record<string, unknown>): boolean {
+  if ("kind" in plan) return false;
   const source = retainedCheckout(original);
   if (!source || source.action !== "adopt" || original.state !== "completed") return false;
   const before = record(record(source.plan.change).snapshot),
@@ -40,8 +41,8 @@ function anchored(plan: Record<string, unknown>, original: Record<string, unknow
     remote = record(snapshot.remote_link);
   const expectedRoot = checkoutPath(root.path);
   const coordinates = ["link_id", "organization_id", "local_project_id", "remote_project_id", "provider_project_id", "plan_id", "plan_digest"];
-  return plan.schema_version === 1 && plan.registry_schema_after === (plan.registry_schema_before === 61 ? 61 : 60) &&
-    typeof plan.registry_schema_before === "number" && [57, 58, 59, 60, 61].includes(plan.registry_schema_before) &&
+  return plan.schema_version === 1 && plan.registry_schema_after === ([61, 62].includes(Number(plan.registry_schema_before)) ? plan.registry_schema_before : 60) &&
+    typeof plan.registry_schema_before === "number" && [57, 58, 59, 60, 61, 62].includes(plan.registry_schema_before) &&
     typeof plan.operation_id === "string" && plan.operation_id !== source.plan.operation_id &&
     checkoutPath(plan.state_parent) !== null && checkoutPath(plan.state_parent) === checkoutPath(source.plan.state_parent) &&
     record(binding.source).operation_id === source.plan.operation_id &&
@@ -69,7 +70,7 @@ export function bindingRetirementReview(
   const plan = record(response.data?.plan), snapshot = record(plan.snapshot), account = record(snapshot.account);
   const digest = response.data?.plan_digest;
   if (!response.ok || typeof digest !== "string" || !/^sha256:[0-9a-f]{64}$/.test(digest) ||
-    !anchored(plan, original) || context.mode !== "corporate" ||
+    !bindingRetirementAnchored(plan, original) || context.mode !== "corporate" ||
     record(snapshot.context).context_id !== context.id || account.origin !== context.origin ||
     (record(account.connection).connection_id ?? null) !== context.connection) return null;
   return { plan, digest };
@@ -77,7 +78,7 @@ export function bindingRetirementReview(
 
 export function bindingRetirementReceipt(value: unknown, original: Record<string, unknown>): boolean {
   const receipt = record(value), plan = record(receipt.plan), binding = record(record(plan.snapshot).binding);
-  return anchored(plan, original) && typeof receipt.plan_digest === "string" &&
+  return bindingRetirementAnchored(plan, original) && typeof receipt.plan_digest === "string" &&
     /^sha256:[0-9a-f]{64}$/.test(receipt.plan_digest) && receipt.operation_id === plan.operation_id &&
     receipt.state === "verified" && receipt.outcome === "local_binding_retired" &&
     receipt.binding_operation_id === record(binding.source).operation_id &&

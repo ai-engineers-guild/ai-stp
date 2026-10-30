@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import CheckoutOperations from "./components/CheckoutOperations";
+import { missingBindingRetirementReceipt, missingBindingRetirementReview } from "./missingBindingRetirement";
 import { bindingRetirementReceipt, bindingRetirementReview } from "./bindingRetirement";
 import { record, useContexts, type ContextView } from "./contexts";
 import * as transport from "./transport";
@@ -9,7 +10,7 @@ import type { CmdResult } from "./transport";
 
 vi.mock("./transport", async (original) => ({
   ...(await original<typeof import("./transport")>()),
-  cliPlan: vi.fn(), cmdBindingRetirementApply: vi.fn(), cmdCheckoutApply: vi.fn(),
+  cliPlan: vi.fn(), cmdMissingBindingRetirementApply: vi.fn(), cmdBindingRetirementApply: vi.fn(), cmdCheckoutApply: vi.fn(),
   cmdMachineHelp: vi.fn(), cmdRunRead: vi.fn(),
 }));
 const context: ContextView = { id: "context_A", label: "Company", mode: "corporate",
@@ -210,7 +211,7 @@ it("shows the current byte-preserving checkout before confirming retirement and 
 });
 
 it("preserves known61 without a location and rejects future, upgrade and downgrade substitutions", () => {
-  for (const [before, after, accepted] of [[61, 61, true], [62, 62, false], [60, 61, false], [61, 60, false]]) {
+  for (const [before, after, accepted] of [[61, 61, true], [62, 62, true], [63, 63, false], [60, 61, false], [61, 60, false]]) {
     const value = structuredClone(proposal()), plan = record(value.data!.plan);
     plan.registry_schema_before = before; plan.registry_schema_after = after;
     expect(bindingRetirementReview(value, context, original()) !== null).toBe(accepted);
@@ -245,4 +246,98 @@ it("retains a full Windows128 file ID without converting it to an imprecise numb
   expect(bindingRetirementReview(value, context, prior)).not.toBe(null);
   physical.file_id = "340282366920938463463374607431768211456";
   expect(bindingRetirementReview(value, context, prior)).toBe(null);
+});
+
+function missingProposal(): CmdResult {
+  const value = structuredClone(proposal()), old = record(value.data!.plan), snapshot = record(old.snapshot);
+  return ok({ plan_digest: retirementDigest, plan: {
+    schema_version: 1, kind: "corporate.project_binding.retire_missing", operation_id: old.operation_id,
+    state_parent: old.state_parent, created_at: "2026-10-30T00:00:00Z", expires_at: "2026-10-30T00:15:00Z",
+    registry_schema_before: 61, registry_schema_after: 62,
+    parent: { path: path("/private"), physical: { kind: "windows", volume: "18446744073709551615", file_id: "340282366920938463463374607431768211455" } },
+    snapshot: { local_identity: { account_id: "private-owner" }, binding: snapshot.binding,
+      reader: { context: snapshot.context, account: snapshot.account, organization: snapshot.organization,
+        observation: { capabilities: { capabilities: ["project.link"], authorization_revision: "current-policy" } } },
+      remote_outcome: { state: "applied", plan: { plan_id: link.plan_id, plan_digest: link.plan_digest },
+        link: snapshot.remote_link, authorization_revision: "current-policy" } },
+  } });
+}
+function missingReceipt(): Record<string, unknown> {
+  return { ...receipt(), ...missingProposal().data, outcome: "missing_checkout_binding_retired", checkout_observation: "absent" };
+}
+function enableMissing() {
+  vi.mocked(transport.cmdMachineHelp).mockResolvedValue(ok({ commands: [
+    { path: ["corporate", "project", "link", "list"], mutability: "read" },
+    { path: ["corporate", "project", "link", "show"], mutability: "read" },
+    ...["plan", "apply", "show"].map((action, index) => ({
+      path: ["corporate", "project", "binding-retire-missing", action], mutability: ["plan", "apply", "read"][index],
+    })),
+  ] }));
+  vi.mocked(transport.cliPlan).mockResolvedValue(missingProposal());
+  vi.mocked(transport.cmdMissingBindingRetirementApply).mockImplementation(async () => {
+    const value = missingReceipt(); saved = { ...saved, binding_retirement: value }; return ok(value);
+  });
+}
+it("explicitly reviews an absent checkout, preserves one uncertain retry and reloads distinct history", async () => {
+  enableMissing();
+  vi.mocked(transport.cmdMissingBindingRetirementApply).mockResolvedValueOnce({
+    ...ok({}), ok: false, error_code: "AI_STP_TIMEOUT_UNCONFIRMED", error: "Missing reply unconfirmed",
+  });
+  const mounted = render(<CheckoutOperations />);
+  await inspect();
+  fireEvent.click(screen.getByRole("button", { name: "Review missing-checkout binding retirement" }));
+  await screen.findByText("Release this absent checkout binding");
+  expect(transport.cliPlan).toHaveBeenCalledWith("corporate project binding-retire-missing plan", {
+    context: context.id, "binding-operation": "operation_adopt",
+  });
+  expect(transport.cmdMissingBindingRetirementApply).not.toHaveBeenCalled();
+  expect((screen.getByRole("button", { name: "Apply reviewed local binding retirement" }) as HTMLButtonElement).disabled).toBe(true);
+  authorize();
+  await screen.findByText("Missing reply unconfirmed");
+  expect((screen.getByRole("button", { name: "Apply reviewed local binding retirement" }) as HTMLButtonElement).disabled).toBe(true);
+  authorize();
+  await screen.findByText("This original local binding was retired. Its adoption receipt is preserved.");
+  expect(transport.cliPlan).toHaveBeenCalledTimes(1);
+  expect(transport.cmdBindingRetirementApply).not.toHaveBeenCalled();
+  expect(vi.mocked(transport.cmdMissingBindingRetirementApply).mock.calls[0]).toEqual(
+    vi.mocked(transport.cmdMissingBindingRetirementApply).mock.calls[1]);
+  mounted.unmount();
+  render(<CheckoutOperations />);
+  await inspect();
+  await screen.findByText("This original local binding was retired. Its adoption receipt is preserved.");
+  expect(screen.queryByRole("button", { name: "Review missing-checkout binding retirement" })).toBe(null);
+});
+it("rejects unknown missing-retirement meaning, parent identity, policy, lineage and outcome without falling back", () => {
+  expect(missingBindingRetirementReview(missingProposal(), context, original())).not.toBe(null);
+  expect(missingBindingRetirementReceipt(missingReceipt(), original())).toBe(true);
+  expect(bindingRetirementReview(missingProposal(), context, original())).toBe(null);
+  for (const field of ["kind", "schema", "parent", "parent-extra", "physical", "policy", "rights", "state", "lineage", "extra"]) {
+    const response = structuredClone(missingProposal()), plan = record(response.data!.plan),
+      snapshot = record(plan.snapshot), remote = record(snapshot.remote_outcome), reader = record(snapshot.reader),
+      parent = record(plan.parent), physical = record(parent.physical);
+    if (field === "kind") plan.kind = "corporate.project_binding.retire";
+    if (field === "schema") plan.registry_schema_before = 63;
+    if (field === "parent") parent.path = { display: "/private" };
+    if (field === "parent-extra") parent.unexpected = true;
+    if (field === "physical") physical.file_id = (1n << 128n).toString();
+    if (field === "policy") remote.authorization_revision = "stale-policy";
+    if (field === "rights") record(reader.observation).capabilities = { capabilities: [], authorization_revision: "current-policy" };
+    if (field === "state") record(remote.link).state = "linked";
+    if (field === "lineage") record(record(snapshot.binding).source).operation_id = "operation_other";
+    if (field === "extra") plan.unexpected = true;
+    expect(missingBindingRetirementReview(response, context, original()), field).toBe(null);
+  }
+});
+it("discards a late missing-checkout review after a context switch", async () => {
+  enableMissing();
+  let finish!: (value: CmdResult) => void;
+  vi.mocked(transport.cliPlan).mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+  render(<CheckoutOperations />);
+  await inspect();
+  fireEvent.click(screen.getByRole("button", { name: "Review missing-checkout binding retirement" }));
+  await act(async () => { useContexts.setState({ selected: { ...context, id: "context_B" } }); });
+  await act(async () => { useContexts.setState({ selected: context }); });
+  await act(async () => finish(missingProposal()));
+  expect(screen.queryByText("Release this absent checkout binding")).toBe(null);
+  expect(transport.cmdMissingBindingRetirementApply).not.toHaveBeenCalled();
 });

@@ -65,8 +65,8 @@ function anchored(plan: Record<string, unknown>, original: Record<string, unknow
   if (plan.schema_version !== 1 || !operation(plan.operation_id) || !operation(source.plan.operation_id) ||
     !operation(record(binding.request).operation_id) ||
     [source.plan.operation_id, record(binding.request).operation_id].includes(plan.operation_id) ||
-    ![57, 58, 59, 60, 61].includes(Number(plan.registry_schema_before)) ||
-    typeof plan.registry_schema_before !== "number" || plan.registry_schema_after !== 61 ||
+    ![57, 58, 59, 60, 61, 62].includes(Number(plan.registry_schema_before)) ||
+    typeof plan.registry_schema_before !== "number" || plan.registry_schema_after !== (plan.registry_schema_before === 62 ? 62 : 61) ||
     !timestamp(plan.created_at) || !timestamp(plan.expires_at) || plan.created_at >= plan.expires_at ||
     !sameLocationValue(plan.original, source.plan) ||
     checkoutPath(plan.state_parent) === null || checkoutPath(plan.state_parent) !== checkoutPath(source.plan.state_parent) ||
@@ -91,7 +91,7 @@ function anchored(plan: Record<string, unknown>, original: Record<string, unknow
     record(context.authority).kind !== "remote" ||
     remote.state !== "applied" || !["linked", "conflict"].includes(String(observed.state)) ||
     !coordinates.every((field) => field in link && cached[field] === link[field] && observed[field] === link[field]) ||
-    (binding.location != null && (!locator(binding.location, plan) || plan.registry_schema_before !== 61))) return false;
+    (binding.location != null && (!locator(binding.location, plan) || ![61, 62].includes(Number(plan.registry_schema_before))))) return false;
   if (binding.location == null && current !== checkoutPath(source.plan.checkout_root)) return false;
   if (plan.action === "anchor") return destination === current && plan.relocation === null;
   return plan.action === "relocate" && binding.location != null &&

@@ -28,6 +28,13 @@ harness files. Harness executables remain user/vendor managed.
   retained state, preserving files, tasks and harness configuration. Activity
   reads the distinct retirement receipt after restart; it never interprets an
   old adoption receipt as proof that a binding is still active.
+  If the retained checkout name is absent, use the separate missing-checkout
+  review in Activity. The CLI requires a positively unlinked original server
+  result, current original-account company access and the same inspectable
+  physical parent. A present/reappeared entry, dangling link or unavailable
+  parent refuses. Confirming releases only this original local reservation;
+  moved files remain untouched. Its distinct receipt survives restart and
+  pathname reuse. The app never falls back to this action automatically.
   Engines exposing reviewed locations can save a full-identity anchor while
   the registered checkout exists. Close the app and other processes holding
   the checkout before manually moving that same directory. Reopen Activity,

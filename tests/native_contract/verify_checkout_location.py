@@ -616,3 +616,26 @@ async def qualify(
         ),
         flush=True,
     )
+
+    from tests.native_contract.verify_missing_checkout import qualify as qualify_missing
+
+    await qualify_missing(
+        binary=binary,
+        home=home,
+        state=state,
+        app=app,
+        faults=faults,
+        run=run,
+        enact=enact,
+        login=login,
+        refused=refused,
+        organization=organization,
+        context=context,
+        actor=actor,
+        lead_context=retirement_context,
+        checkout_root=future,
+        adoption=adoption,
+        adopted=adopted,
+        connection=connection,
+        git_executable=git_executable,
+    )
