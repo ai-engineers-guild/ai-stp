@@ -26,7 +26,7 @@ INSTALL_TASK_START: Final = (
 )
 INSTALL_SETUP_START: Final = INSTALL_TASK_START
 LOGIN: Final = "ai-stp account plan --action start --provider {provider} --json"
-CLI_RELEASES_URL: Final = "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.2.2"
+CLI_RELEASES_URL: Final = "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.2.3"
 INTENTS_BOOTSTRAP: Final = "ai-stp task intents --json"
 INITIALIZE_START: Final = "ai-stp init --credential-store os_keyring --json"
 INITIALIZE_PROMPT: Final = (
