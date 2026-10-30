@@ -12,7 +12,7 @@ use cap_std::fs::Dir;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256, Sha512};
-use sigstore_tuf::{Root, Targets};
+use sigstore_tuf::{Role, Root, Targets};
 use sigstore_verify::trust_root::TrustedRoot;
 
 use crate::{
