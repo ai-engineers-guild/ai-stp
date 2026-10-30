@@ -27,7 +27,7 @@ file-guard = "=0.2.0"
 httpdate = "=1.0.3"
 clap = { version = "=4.6.7", default-features = false, features = ["std", "string", "help", "usage", "error-context"] }
 jiff = { version = "=0.2.38", default-features = false, features = ["std"] }
-jsonschema = { version = "=0.58.6", default-features = false }
+jsonschema = { version = "=0.60.0", default-features = false }
 jsonc-parser = { version = "=0.34.0", default-features = false, features = ["cst"] }
 pulldown-cmark = { version = "=0.13.5", default-features = false }
 process-wrap = { version = "=10.0.1", default-features = false, features = ["std", "process-group", "job-object"] }
