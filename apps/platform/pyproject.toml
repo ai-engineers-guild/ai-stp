@@ -10,7 +10,7 @@ dependencies = [
     "ai-stp-assurance",
     "ai-stp-sources",
     "cryptography>=44.0.0",
-    "sqlalchemy[asyncio]>=2.0.36",
+    "sqlalchemy[asyncio]>=2.1.6",
     "asyncpg>=0.30",
     "alembic>=1.13",
     "pydantic-settings>=2.16.1",
