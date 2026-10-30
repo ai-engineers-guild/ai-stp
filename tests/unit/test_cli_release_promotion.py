@@ -38,7 +38,7 @@ def _document(source: str) -> dict[str, str]:
 
 
 def _responses() -> dict[str, object]:
-    assets = []
+    assets: list[str] = []
     for target, extension, platform in [
         ("x86_64-unknown-linux-gnu", "tar.gz", "manylinux_2_39_x86_64"),
         ("aarch64-apple-darwin", "tar.gz", "macosx_15_0_arm64"),
