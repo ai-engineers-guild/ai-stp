@@ -112,7 +112,8 @@ def test_close_waits_for_the_exact_native_child_after_the_proxy_exits(tmp_path: 
         "    (root / 'child-stopped').write_text('finished')\n"
         "    raise SystemExit(0)\n"
         "signal.signal(signal.SIGTERM, stop)\n"
-        "(root / 'child-ready').write_text('ready')\n"
+        "(root / 'child-ready.tmp').write_text('ready')\n"
+        "(root / 'child-ready.tmp').replace(root / 'child-ready')\n"
         "time.sleep(60)\n"
     )
     with owned_driver(module, tmp_path, child_code=child_code) as driver:
