@@ -16,7 +16,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, TextIO
 
 import pytest
 
@@ -147,8 +147,8 @@ def test_native_child_exit_after_procfs_open_is_terminal(
         original_open = Path.open
         exited_after_open: list[int] = []
 
-        def exit_after_open(path: Path, *args: Any, **kwargs: Any) -> Any:
-            stream = original_open(path, *args, **kwargs)
+        def exit_after_open(path: Path) -> TextIO:
+            stream = original_open(path)
             if path == status:
                 child.terminate()
                 child.wait(timeout=5)
