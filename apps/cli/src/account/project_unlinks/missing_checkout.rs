@@ -23,6 +23,12 @@ use crate::{
 pub(super) const KIND: &str = "corporate.project_binding.retire_missing";
 const LIMIT: u64 = 262144;
 
+fn same_remote(before: &Value, after: &Value) -> bool {
+    ["plan", "state", "link", "authorization_revision"]
+        .iter()
+        .all(|field| before[field] == after[field])
+}
+
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct Snapshot {
@@ -85,7 +91,7 @@ impl Snapshot {
         if self.local_identity != fresh.local_identity
             || self.binding != fresh.binding
             || self.binding.checkout_root.as_os_str() != fresh.binding.checkout_root.as_os_str()
-            || self.remote_outcome != fresh.remote_outcome
+            || !same_remote(&self.remote_outcome, &fresh.remote_outcome)
         {
             return Err(invalid());
         }
@@ -140,7 +146,7 @@ fn inspect<T>(
     let (reader, remote_outcome) = read()?;
     let (fresh_reader, fresh_remote) = read()?;
     reader.unchanged(&fresh_reader)?;
-    if remote_outcome != fresh_remote {
+    if !same_remote(&remote_outcome, &fresh_remote) {
         return Err(invalid());
     }
     let snapshot = Snapshot {

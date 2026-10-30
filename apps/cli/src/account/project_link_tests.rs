@@ -3,6 +3,9 @@
 #[path = "project_location_tests.rs"]
 mod location_tests;
 
+#[path = "project_missing_checkout_tests.rs"]
+mod missing_tests;
+
 use super::*;
 use crate::{
     account::project_links,
@@ -1088,6 +1091,11 @@ fn checkout_case_with_location(
             project_links::status(root.path(), &confirmation_id)?["state"],
             "completed"
         );
+        if qualify_location {
+            missing_tests::prove(
+                &local, &checkout, &contexts, &adoption, &bound, &control, &at,
+            )?;
+        }
         Ok(())
     })();
     control.lock().map_err(|_| "peer")?.stop = true;

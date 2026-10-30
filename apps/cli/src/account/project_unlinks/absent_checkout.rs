@@ -109,6 +109,7 @@ impl Observation {
 #[cfg(all(test, any(unix, windows)))]
 mod tests {
     use super::*;
+    #[cfg(unix)]
     use cap_fs_ext::DirExt;
     use std::{error::Error, fs};
 
