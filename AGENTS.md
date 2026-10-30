@@ -65,6 +65,17 @@ check` gives the aggregate; CI runs its shards. Record commands and observed res
 on the exact final SHA in the PR. Generated output and its source change together.
 Finish with a diff review, current documentation and synchronized branches.
 
+Source authoring and ordinary code validation may share a host. Compiling checks,
+unit tests, formatting, linters and LSP use its existing managed toolchains,
+cache and leases. Real application, GUI, emulator and resource-heavy integration
+workloads use their assigned execution targets; platform acceptance stays on
+the corresponding native hosts. Keep source-check compilation separate from
+application deployment and runner-fleet admission.
+An admitted local store is sufficient for local code checks. Shared network
+storage requires acceptance of the semantics the operation actually uses; its
+unfinished adoption does not block unrelated validation in an available local
+environment. Do not change runner fencing or shared profiles to run a check.
+
 Use the existing host-managed Cargo/uv/Bun frontends and the approved network-cache
 client contract. Preserve compiler, platform, lockfile and checksum identity. Read
 Cargo's `target_directory` and `build_directory` from locked offline metadata;

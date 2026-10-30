@@ -57,6 +57,13 @@ pub(super) fn encode(value: &impl Serialize) -> Result<String> {
 }
 
 impl Row {
+    /// Version-one native tasks retain only local authoring authority. A saved
+    /// company view cannot turn that identity into corporate installation ownership.
+    pub fn ownership(&self) -> Value {
+        json!({"kind":"personal", "native_account_id":self.payload.identity.account_id,
+            "native_device_id":self.payload.identity.device_id})
+    }
+
     pub fn new(input: impl Into<Input>, identity: Identity, key: &str, at: &str) -> Result<Self> {
         let input = input.into();
         let original = encode(&input.value()?)?;
@@ -93,7 +100,7 @@ impl Row {
     }
     pub fn view(&self) -> Result<Value> {
         let mut view = json!({"schema_version":1,"task_id":self.id,"revision":self.revision,"intent":self.payload.input.intent(), "state":self.state,
-            "goal_satisfied":self.state=="completed","questions":self.questions()?,"outcome":self.outcome,"child_operation_ids":self.children()});
+            "goal_satisfied":self.state=="completed","questions":self.questions()?,"outcome":self.outcome,"child_operation_ids":self.children(),"ownership":self.ownership()});
         if let Some(handoff) = self.payload.plan.as_ref().and_then(Plan::handoff) {
             view["handoff"] = handoff;
         }
@@ -284,7 +291,7 @@ pub(super) fn legacy_view(connection: &Connection, id: &str) -> Result<Option<Va
         .map(|body| canonical::parse(body.as_bytes()))
         .transpose()?;
     let children = canonical::parse(children.as_bytes())?;
-    let view = json!({"schema_version":1,"task_id":id,"revision":revision,"intent":intent,"state":state,"goal_satisfied":goal,"questions":[],"outcome":outcome,"child_operation_ids":children,"legacy_read_only":true});
+    let view = json!({"schema_version":1,"task_id":id,"revision":revision,"intent":intent,"state":state,"goal_satisfied":goal,"questions":[],"outcome":outcome,"child_operation_ids":children,"legacy_read_only":true,"ownership":null});
     VIEW.validate(&view)?;
     Ok(Some(view))
 }

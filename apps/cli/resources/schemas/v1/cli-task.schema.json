@@ -230,6 +230,34 @@
       ],
       "type": "string"
     },
+    "NativePersonalTaskOwnership": {
+      "additionalProperties": false,
+      "description": "Retained local authoring identity, independent of any selected company view.",
+      "properties": {
+        "kind": {
+          "const": "personal",
+          "title": "Kind",
+          "type": "string"
+        },
+        "native_account_id": {
+          "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Native Account Id",
+          "type": "string"
+        },
+        "native_device_id": {
+          "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Native Device Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "native_account_id",
+        "native_device_id"
+      ],
+      "title": "NativePersonalTaskOwnership",
+      "type": "object"
+    },
     "ObjectKind": {
       "enum": [
         "component",
@@ -1612,6 +1640,17 @@
         }
       ]
     },
+    "ownership": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NativePersonalTaskOwnership"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "questions": {
       "items": {
         "$ref": "#/$defs/TaskQuestion"
@@ -1642,6 +1681,7 @@
     "goal_satisfied",
     "intent",
     "outcome",
+    "ownership",
     "questions",
     "revision",
     "schema_version",

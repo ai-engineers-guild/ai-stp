@@ -12,6 +12,7 @@ import { MemoryRouter, useNavigate } from "react-router";
 import CatalogPage from "./pages/CatalogPage";
 import RegistryPage from "./pages/RegistryPage";
 import InstallPage from "./pages/InstallPage";
+import TasksPage from "./pages/TasksPage";
 import AuthPage from "./pages/AuthPage";
 import ProfilesPage from "./pages/ProfilesPage";
 import { ResultMeta } from "./components/Result";
@@ -29,6 +30,7 @@ vi.mock("./transport", async (original) => ({
   cmdRunRead: vi.fn(),
   cmdTaskStart: vi.fn(),
   cmdTaskStatus: vi.fn(),
+  cmdTaskList: vi.fn(),
   cmdTaskAnswer: vi.fn(),
   cmdAuthComplete: vi.fn(),
   cmdAuthLogin: vi.fn(),
@@ -38,6 +40,7 @@ vi.mock("./transport", async (original) => ({
   cliPlan: vi.fn(),
   cliApplyConfirmed: vi.fn(),
 }));
+vi.mock("./components/CheckoutOperations", () => ({ default: () => null }));
 const ok = (data: Record<string, unknown> = {}): CmdResult => ({
   ok: true,
   data,
@@ -73,6 +76,14 @@ const task = (revision: number) => ({
     { question_id: "name", prompt: "Component name", actor: "human" },
   ],
 });
+const taskStep: transport.CliContinuation = {
+  kind: "command",
+  path: ["local", "apply"],
+  arguments: {},
+  missing: [],
+  argv: ["local", "apply", "--plan-digest", "sha256:original"],
+  actor: "cli",
+};
 function mount(element: React.ReactNode, route = "/") {
   return render(
     <MemoryRouter initialEntries={[route]}>{element}</MemoryRouter>,
@@ -605,6 +616,233 @@ it("does not replace a new catalog selection with the result of an already opene
   await screen.findByRole("button", { name: "Start installation" });
   expect(transport.cmdTaskStatus).not.toHaveBeenCalled();
   expect(useTaskStart.getState().key).toBeNull();
+});
+
+it("retains an unconfirmed catalog start across navigation and retries its original request", async () => {
+  vi.mocked(transport.cmdTaskStart).mockResolvedValue({
+    ...ok(),
+    ok: false,
+    error_code: "AI_STP_TIMEOUT_UNCONFIRMED",
+    error: "Inspect before retrying",
+  });
+  const request = { intent: "install", input: { source: { stable_id: "setup_original" } } };
+  await useTaskStart.getState().start(request);
+  const key = useTaskStart.getState().key;
+  mount(
+    <InstallPage />,
+    "/install?setup=setup_selected&version=1.0&digest=sha256:reviewed&harness=codex",
+  );
+  fireEvent.click(await screen.findByRole("button", { name: "Retry the same request" }));
+  await waitFor(() => expect(transport.cmdTaskStart).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(useTaskStart.getState().busy).toBe(false));
+  expect(transport.cmdTaskStart).toHaveBeenLastCalledWith("install", key, undefined, request.input);
+  expect(useTaskStart.getState().key).toBe(key);
+  expect(useTaskStart.getState().opened).toBe(false);
+  expect(transport.cmdTaskStatus).not.toHaveBeenCalled();
+});
+
+it("opens a successful start's original receipt from a catalog installation route", async () => {
+  vi.mocked(transport.cmdTaskStart).mockResolvedValue(ok(task(7)));
+  vi.mocked(transport.cmdTaskStatus).mockResolvedValue(ok(task(7)));
+  await useTaskStart.getState().start({ intent: "install" });
+  mount(
+    <InstallPage />,
+    "/install?setup=setup_selected&version=1.0&digest=sha256:reviewed&harness=codex",
+  );
+  await screen.findByText("Revision 7");
+  expect(transport.cmdTaskStatus).toHaveBeenCalledWith("task_retained");
+  expect(useTaskStart.getState().opened).toBe(true);
+  expect(useTaskStart.getState().key).toBeNull();
+  expect(transport.cmdTaskStart).toHaveBeenCalledTimes(1);
+});
+
+it("does not apply a manual task read after leaving and returning to the same task", async () => {
+  let late!: (result: CmdResult) => void;
+  let reads = 0;
+  vi.mocked(transport.cmdTaskStatus).mockImplementation(async (id) => {
+    if (id !== "task_retained") return ok({ ...task(2), task_id: id });
+    reads++;
+    if (reads === 2) return new Promise((resolve) => { late = resolve; });
+    return ok(task(reads === 1 ? 1 : 9));
+  });
+  function Journey() {
+    const navigate = useNavigate();
+    return <><button onClick={() => navigate("/install?task=task_other")}>Other task</button>
+      <button onClick={() => navigate("/install?task=task_retained")}>Original task</button><InstallPage /></>;
+  }
+  mount(<Journey />, "/install?task=task_retained");
+  await screen.findByText("Revision 1");
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  await waitFor(() => expect(transport.cmdTaskStatus).toHaveBeenCalledTimes(2));
+  fireEvent.click(screen.getByRole("button", { name: "Other task" }));
+  await screen.findByText("Revision 2");
+  fireEvent.click(screen.getByRole("button", { name: "Original task" }));
+  await screen.findByText("Revision 9");
+  await act(async () => late(ok(task(3))));
+  expect(screen.getByText("Revision 9")).toBeTruthy();
+  expect(screen.queryByText("Revision 3")).toBeNull();
+});
+
+it("does not let an old task mutation clear a later visit's pending read", async () => {
+  let finishAction!: (result: CmdResult) => void;
+  let finishRead!: (result: CmdResult) => void;
+  let reads = 0;
+  vi.mocked(transport.cmdTaskAnswer).mockReturnValue(new Promise((resolve) => { finishAction = resolve; }));
+  vi.mocked(transport.cmdTaskStatus).mockImplementation(async (id) => {
+    if (id !== "task_retained") return ok({ ...task(2), task_id: id });
+    reads++;
+    if (reads === 2) return new Promise((resolve) => { finishRead = resolve; });
+    return ok(task(reads === 1 ? 1 : 9));
+  });
+  function Journey() {
+    const navigate = useNavigate();
+    return <><button onClick={() => navigate("/install?task=task_other")}>Other task</button>
+      <button onClick={() => navigate("/install?task=task_retained")}>Original task</button><InstallPage /></>;
+  }
+  mount(<Journey />, "/install?task=task_retained");
+  fireEvent.change(await screen.findByRole("textbox", { name: "Component name" }), { target: { value: "Original answer" } });
+  fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
+  await waitFor(() => expect(transport.cmdTaskAnswer).toHaveBeenCalledTimes(1));
+  fireEvent.click(screen.getByRole("button", { name: "Other task" }));
+  await screen.findByText("Revision 2");
+  fireEvent.click(screen.getByRole("button", { name: "Original task" }));
+  await waitFor(() => expect(transport.cmdTaskStatus).toHaveBeenCalledTimes(3));
+  try {
+    await act(async () => finishAction(ok(task(3))));
+    expect(transport.cmdTaskStatus).toHaveBeenCalledTimes(3);
+    expect(screen.getByText("Reading the latest task state")).toBeTruthy();
+    expect(screen.queryByText("Revision 3")).toBeNull();
+  } finally {
+    await act(async () => finishRead(ok(task(9))));
+  }
+  await screen.findByText("Revision 9");
+});
+
+it.each([
+  { ...task(1), task_id: "task_unrequested" },
+  { ...task(1), ownership: { kind: "corporate", organization_id: "untrusted" } },
+  { ...task(1), ownership: { kind: "personal", native_account_id: "invalid", native_device_id: "invalid" } },
+])("refuses a mismatched or unsupported native task reply", async (value) => {
+  vi.mocked(transport.cmdTaskStatus).mockResolvedValue(ok(value));
+  mount(<InstallPage />, "/install?task=task_retained");
+  await screen.findByText("The engine reply does not describe the requested task and supported ownership.");
+  expect(screen.queryByRole("button", { name: "Submit answer" })).toBeNull();
+  expect(transport.cmdTaskAnswer).not.toHaveBeenCalled();
+});
+
+it("shows the original personal task owner reported by the native journal", async () => {
+  const ownership = { kind: "personal", native_account_id: "account_01ARZ3NDEKTSV4RRFFQ69G5FAV", native_device_id: "device_01ARZ3NDEKTSV4RRFFQ69G5FAW" };
+  vi.mocked(transport.cmdTaskStatus).mockResolvedValue(ok({ ...task(7), ownership }));
+  mount(<InstallPage />, "/install?task=task_retained");
+  await screen.findByText("Personal task · retained local owner");
+  expect(screen.getByText(ownership.native_account_id)).toBeTruthy();
+  expect(screen.getByText(ownership.native_device_id)).toBeTruthy();
+});
+
+it("removes old task controls when a refresh returns unsupported ownership", async () => {
+  vi.mocked(transport.cmdTaskStatus).mockResolvedValueOnce(ok(task(7)))
+    .mockResolvedValueOnce(ok({ ...task(8), ownership: { kind: "corporate" } }));
+  mount(<InstallPage />, "/install?task=task_retained");
+  await screen.findByRole("button", { name: "Submit answer" });
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  await screen.findByText("The engine reply does not describe the requested task and supported ownership.");
+  expect(screen.queryByRole("button", { name: "Submit answer" })).toBeNull();
+  expect(transport.cmdTaskAnswer).not.toHaveBeenCalled();
+});
+
+it.each([task(7), { ...task(7), task_id: "task_unrequested" }])(
+  "does not admit a failed status reply's payload as an actionable task",
+  async (data) => {
+    vi.mocked(transport.cmdTaskStatus).mockResolvedValue({
+      ...ok(data), ok: false, error: "The task receipt is unavailable", error_code: "IPC_THROW",
+    });
+    mount(<InstallPage />, "/install?task=task_retained");
+    await screen.findByText("The task receipt is unavailable");
+    expect(screen.queryByRole("button", { name: "Submit answer" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Cancel task" })).toBeNull();
+    expect(transport.cmdTaskAnswer).not.toHaveBeenCalled();
+  },
+);
+
+it("requires a fresh task read after a failed refresh before restoring task controls", async () => {
+  vi.mocked(transport.cmdTaskStatus)
+    .mockResolvedValueOnce(ok(task(7)))
+    .mockResolvedValueOnce({ ...ok(), ok: false, error: "The task receipt is unavailable", error_code: "IPC_THROW" })
+    .mockResolvedValueOnce(ok(task(9)));
+  mount(<InstallPage />, "/install?task=task_retained");
+  await screen.findByText("Revision 7");
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  await screen.findByText("The task receipt is unavailable");
+  expect(screen.queryByRole("button", { name: "Submit answer" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Cancel task" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Read task again" }));
+  await screen.findByText("Revision 9");
+  expect(screen.getByRole("button", { name: "Submit answer" })).toBeTruthy();
+  expect(transport.cmdTaskAnswer).not.toHaveBeenCalled();
+});
+
+it("does not submit a task continuation after leaving and returning during command discovery", async () => {
+  let finishHelp!: (result: CmdResult) => void;
+  vi.mocked(transport.cmdMachineHelp).mockReturnValue(new Promise((resolve) => { finishHelp = resolve; }));
+  vi.mocked(transport.cliApplyConfirmed).mockResolvedValue(ok());
+  let reads = 0;
+  vi.mocked(transport.cmdTaskStatus).mockImplementation(async (id) => ({
+    ...ok({ ...task(++reads), task_id: id }), continuations: [taskStep],
+  }));
+  function Journey() {
+    const navigate = useNavigate();
+    return <><button onClick={() => navigate("/install?task=task_other")}>Other task</button>
+      <button onClick={() => navigate("/install?task=task_retained")}>Original task</button><InstallPage /></>;
+  }
+  mount(<Journey />, "/install?task=task_retained");
+  fireEvent.click(await screen.findByRole("button", { name: "Approve and run this step" }));
+  await waitFor(() => expect(transport.cmdMachineHelp).toHaveBeenCalledTimes(1));
+  fireEvent.click(screen.getByRole("button", { name: "Other task" }));
+  await screen.findByText("Revision 2");
+  fireEvent.click(screen.getByRole("button", { name: "Original task" }));
+  await screen.findByText("Revision 3");
+  await act(async () => finishHelp(help));
+  expect(transport.cliApplyConfirmed).not.toHaveBeenCalled();
+  expect(transport.cmdTaskStatus).toHaveBeenCalledTimes(3);
+  expect(screen.getByText("Revision 3")).toBeTruthy();
+});
+
+it("submits a reviewed continuation from its unchanged task visit and reads its current receipt", async () => {
+  vi.mocked(transport.cmdTaskStatus)
+    .mockResolvedValueOnce({ ...ok(task(7)), continuations: [taskStep] })
+    .mockResolvedValueOnce(ok(task(8)));
+  vi.mocked(transport.cliApplyConfirmed).mockResolvedValue(ok({ operation_id: "operation_original" }));
+  mount(<InstallPage />, "/install?task=task_retained");
+  fireEvent.click(await screen.findByRole("button", { name: "Approve and run this step" }));
+  await screen.findByText("Revision 8");
+  expect(transport.cliApplyConfirmed).toHaveBeenCalledTimes(1);
+  expect(transport.cliApplyConfirmed).toHaveBeenCalledWith(
+    "local apply", { "plan-digest": "sha256:original" }, [], true, {},
+  );
+  expect(transport.cmdTaskStatus).toHaveBeenLastCalledWith("task_retained");
+});
+
+it("does not authorize a continuation from commands carried in a failed registry reply", async () => {
+  vi.mocked(transport.cmdTaskStatus).mockResolvedValue({ ...ok(task(7)), continuations: [taskStep] });
+  vi.mocked(transport.cmdMachineHelp).mockResolvedValue({
+    ...help, ok: false, error: "The command registry is unavailable", error_code: "IPC_THROW",
+  });
+  mount(<InstallPage />, "/install?task=task_retained");
+  fireEvent.click(await screen.findByRole("button", { name: "Approve and run this step" }));
+  await screen.findByText("The command registry is unavailable");
+  expect(transport.cliApplyConfirmed).not.toHaveBeenCalled();
+});
+
+it("keeps a refreshed Activity list when the initial read completes later", async () => {
+  let initial!: (result: CmdResult) => void;
+  vi.mocked(transport.cmdTaskList).mockReturnValueOnce(new Promise((resolve) => { initial = resolve; }))
+    .mockResolvedValueOnce(ok({ tasks: [{ task_id: "task_new", intent: "author", state: "blocked" }] }));
+  mount(<TasksPage />);
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  await screen.findByText("task_new");
+  await act(async () => initial(ok({ tasks: [{ task_id: "task_old", intent: "author", state: "blocked" }] })));
+  expect(screen.getByText("task_new")).toBeTruthy();
+  expect(screen.queryByText("task_old")).toBeNull();
 });
 
 it("offers manual context review for the native historical-identity refusal without starting a mutation", () => {
