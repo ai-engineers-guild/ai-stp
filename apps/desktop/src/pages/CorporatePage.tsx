@@ -12,6 +12,7 @@ import {
 import { EmptyState, PageHeader } from "../components/Layout";
 import { Details, ResultMeta, Spinner } from "../components/Result";
 import CheckoutPreview from "../components/CheckoutPreview";
+import HeartbeatDelivery from "../components/HeartbeatDelivery";
 
 const TABS = [
   "Projects",
@@ -445,11 +446,11 @@ export default function CorporatePage() {
               </p>
             )}
             {tab === "Heartbeat" && (
-              <p className="text-sm text-muted-foreground">
+              <><p className="text-sm text-muted-foreground">
                 Reading these views does not enable reporting. Company policy
                 is separate from your consent. Device health does not establish
                 harness usage.
-              </p>
+              </p><HeartbeatDelivery key={context.id} context={context} help={help} disabled={contextLoading} /></>
             )}
             <button
               className="btn-primary"

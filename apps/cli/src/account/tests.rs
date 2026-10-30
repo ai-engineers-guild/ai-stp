@@ -24,6 +24,8 @@ mod enrollment_recovery_tests;
 mod enrollments_tests;
 #[path = "github_tests.rs"]
 mod github_tests;
+#[path = "heartbeats_http_tests.rs"]
+mod heartbeats_http_tests;
 #[path = "ownership_tests.rs"]
 mod ownership_tests;
 #[path = "project_link_tests.rs"]

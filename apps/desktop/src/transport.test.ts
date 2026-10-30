@@ -8,6 +8,7 @@ import {
   cmdBindingRetirementApply,
   cmdMissingBindingRetirementApply,
   cmdCheckoutLocationApply,
+  cmdHeartbeatConsentApply,
   cmdRunRead,
   cmdTaskStart,
   cmdVersion,
@@ -17,6 +18,15 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 afterEach(() => {
   vi.resetAllMocks();
   useDebug.setState({ debugMode: false, log: [] });
+});
+it("omits the reviewed corporate heartbeat plan and reply from shared diagnostics", async () => {
+  useDebug.setState({ debugMode: true });
+  vi.mocked(invoke).mockResolvedValue({ ok: true, data: { private: "reply-canary" }, warnings: [], continuations: [], error: null, error_code: null });
+  await cmdHeartbeatConsentApply({ private: "plan-canary" }, "sha256:reviewed", true);
+  expect(invoke).toHaveBeenCalledWith("profile_apply", {
+    path: "corporate heartbeat consent apply", plan: { private: "plan-canary" }, digest: "sha256:reviewed", confirmed: true,
+  });
+  expect(JSON.stringify(useDebug.getState().log)).not.toMatch(/plan-canary|reply-canary/);
 });
 it("returns a structured failure when IPC throws synchronously", async () => {
   vi.mocked(invoke).mockImplementation(() => {

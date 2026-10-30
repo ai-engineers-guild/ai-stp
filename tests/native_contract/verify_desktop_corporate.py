@@ -664,6 +664,7 @@ def installed_journey(
     driver_path: Path,
     approve: Callable[[str], None],
     lose_confirmation: Callable[[], None],
+    assert_no_heartbeat_reports: Callable[[], None],
 ) -> dict[str, Any]:
     # Reuse the already qualified persistent HTTP/1 driver and fixed diagnostics.
     helpers = runpy.run_path(
@@ -807,6 +808,46 @@ def installed_journey(
                 "No heartbeat has been reported for this enrolled device.",
             ),
             "actual installed original enrollment heartbeat status",
+        )
+        assert_no_heartbeat_reports()
+        driver.click(driver.button("Review heartbeat consent"))
+        consent_scope = 'div[aria-label="Review heartbeat consent"]'
+        consent = public_plan(driver, consent_scope)
+        assert consent["context"]["context_id"] == company
+        assert consent["account"]["account_id"] == account
+        assert consent["account"]["device_id"] == heartbeat_status["device_id"]
+        assert consent["policy"] == heartbeat_policy
+        authorize(driver, consent_scope, "Enable reviewed heartbeat reporting")
+        driver.wait(
+            lambda: driver.read(
+                "return document.querySelector(arguments[0]).textContent"
+                ".includes('Local reporting: enabled.');",
+                'section[aria-label="Foreground heartbeat delivery"]',
+            ),
+            "actual installed explicit local heartbeat consent",
+        )
+        driver.click(driver.button("Check due heartbeat delivery"))
+        driver.wait(
+            lambda: driver.read(
+                "return document.querySelector(arguments[0]).textContent"
+                ".includes('Last outcome: acknowledged.');",
+                'section[aria-label="Foreground heartbeat delivery"]',
+            ),
+            "actual installed original signed heartbeat acknowledgement",
+        )
+        delivered = native(
+            binary, environment, ["corporate", "heartbeat", "delivery", "--context", company]
+        )
+        assert delivered["enabled"] and not delivered["pending"]
+        assert delivered["last_outcome"] == "acknowledged"
+        driver.click(driver.button("Disable local reporting"))
+        driver.wait(
+            lambda: driver.read(
+                "return document.querySelector(arguments[0]).textContent"
+                ".includes('Local reporting: disabled.');",
+                'section[aria-label="Foreground heartbeat delivery"]',
+            ),
+            "actual installed local heartbeat disable",
         )
         driver.click(driver.button("Projects"))
         checkout = root / unicodedata.normalize("NFD", "café-checkout")
@@ -1247,6 +1288,11 @@ def installed_journey(
             "personal_and_corporate_coexistence": True,
             "corporate_heartbeat_policy_read": True,
             "corporate_heartbeat_status_original_enrollment": True,
+            "corporate_heartbeat_explicit_consent": True,
+            "corporate_heartbeat_original_acknowledgement": True,
+            "corporate_heartbeat_disabled_after_restart": not native(
+                binary, environment, ["corporate", "heartbeat", "delivery", "--context", company]
+            )["enabled"],
             "lost_committed_confirmation": True,
             "restart_and_original_reconciliation": True,
             "active_binding_adoption": True,
@@ -1300,6 +1346,22 @@ async def prove(driver_path: Path, out: Path, database_url: str, root: Path) -> 
             def lose_confirmation() -> None:
                 asyncio.run_coroutine_threadsafe(lose(), loop).result(timeout=15)
 
+            async def no_heartbeat_reports() -> None:
+                async with app.state.sessionmaker() as db:
+                    await set_tenant_scope(db, organization)
+                    for model in [InstallationHeartbeat, InstallationHeartbeatEvent]:
+                        assert (
+                            await db.scalar(
+                                select(func.count())
+                                .select_from(model)
+                                .where(model.organization_id == organization)
+                            )
+                            == 0
+                        )
+
+            def assert_no_heartbeat_reports() -> None:
+                asyncio.run_coroutine_threadsafe(no_heartbeat_reports(), loop).result(timeout=15)
+
             try:
                 async with asyncio.timeout(15):
                     while not server.started:
@@ -1318,6 +1380,7 @@ async def prove(driver_path: Path, out: Path, database_url: str, root: Path) -> 
                     driver_path=driver_path,
                     approve=approve,
                     lose_confirmation=lose_confirmation,
+                    assert_no_heartbeat_reports=assert_no_heartbeat_reports,
                 )
                 assert faults.lose_next is None
                 assert faults.writes == [
@@ -1356,13 +1419,24 @@ async def prove(driver_path: Path, out: Path, database_url: str, root: Path) -> 
                                 .select_from(model)
                                 .where(model.organization_id == organization)
                             )
-                            == 0
+                            == 1
                         )
+                    heartbeat = await db.scalar(
+                        select(InstallationHeartbeat).where(
+                            InstallationHeartbeat.organization_id == organization
+                        )
+                    )
+                    assert heartbeat is not None and heartbeat.account_id == account
+                    assert heartbeat.capabilities == ["cli.foreground-liveness"]
+                    assert heartbeat.last_sync_at is None and heartbeat.revision == 1
+                    assert proof["corporate_heartbeat_disabled_after_restart"] is True
                 proof.update(
                     actual_api_postgresql=True,
                     committed_mutation_posts=9,
                     committed_mutation_requests=12,
                     corporate_heartbeat_reads_send_no_reports=True,
+                    corporate_heartbeat_accepted_rows=1,
+                    corporate_heartbeat_accepted_events=1,
                 )
                 out.write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
                 print(

@@ -79,6 +79,14 @@ harness files. Harness executables remain user/vendor managed.
   device's reported health when the engine advertises those read commands.
   Company enablement is separate from local consent. These views send no reports
   and do not infer harness usage or install a scheduler.
+  Engines advertising foreground delivery also offer a separate consent review,
+  showing the original context, policy, cadence and signed fields. Only after
+  confirmation does the focused app process due heartbeats for the selected
+  corporate context. Switching to personal or hiding/unfocusing the app stops
+  new passes. Local disable works offline, and expiry maintenance sends no
+  network requests. Pending retries keep original bytes and timestamps across
+  process restarts. CLI liveness does not establish harness activity or managed
+  installation coverage; neither client installs a startup service.
   A project can open a native checkout review with an existing registered root
   and optional trusted Git executable. A successful preview exposes current
   corporate repository choices for a separate recheck. Editing inputs or switching
@@ -90,7 +98,7 @@ harness files. Harness executables remain user/vendor managed.
 - **Targets**, **Discovery** and **Commands** render the connected engine's
   command descriptors with read/plan/apply gates and explicit apply confirmation.
 - **Diagnostics** offers an optional, bounded in-memory trace and an explicitly
-  copied redacted report. No telemetry or automatic diagnostic upload.
+  copied redacted report. Diagnostics are never uploaded automatically.
   Context and corporate commands retain only transport outcome and timing in
   this shared trace; their arguments, replies and error prose are omitted.
 

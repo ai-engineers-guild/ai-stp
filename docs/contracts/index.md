@@ -9,7 +9,7 @@ last_verified: "2026-10-15"
 
 | Document | Description | Verified |
 | -------- | ----- | ------- |
-| [cli-config.md](cli-config.md) | Native CLI network configuration and explicit state location. | 2026-10-14 |
+| [cli-config.md](cli-config.md) | Native CLI network configuration and explicit state location. | 2026-10-30 |
 | [cli-json.md](cli-json.md) | JSON envelope, error classes, and CLI machine-output rules. | 2026-10-14 |
 
 <!-- END CONTENTS -->

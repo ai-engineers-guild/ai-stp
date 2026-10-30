@@ -28,6 +28,7 @@ import { useApp, useDebug } from "./store";
 import { readPreference, writePreference } from "./preferences";
 import { useContexts } from "./contexts";
 import ContextSwitcher from "./components/ContextSwitcher";
+import ForegroundHeartbeat from "./components/ForegroundHeartbeat";
 import OverviewPage from "./pages/OverviewPage";
 import AuthPage from "./pages/AuthPage";
 import ProfilesPage from "./pages/ProfilesPage";
@@ -111,6 +112,7 @@ function Shell() {
   }
   return (
     <div className="app-shell">
+      <ForegroundHeartbeat />
       <a
         href="#main-content"
         className="skip-link"
