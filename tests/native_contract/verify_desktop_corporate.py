@@ -551,8 +551,8 @@ def installed_locations(
         driver = driver_type(driver_path, environment, root / "missing-review-driver.log")
         driver.start()
         driver.selected(company)
-        driver.click(driver.link("Activity"))
-        driver.click(driver.button("Reload checkout operations", HISTORY))
+        driver.navigate("tasks", keyboard=True)
+        driver.click(driver.button("Read checkout history", HISTORY))
         driver.click(driver.button("Inspect " + missing_binding, HISTORY))
         driver.click(driver.button("Review missing-checkout binding retirement", HISTORY))
         missing_scope = HISTORY + ' [aria-label="Review local binding retirement"]'
@@ -599,8 +599,8 @@ def installed_locations(
         driver = driver_type(driver_path, environment, root / "missing-retired-driver.log")
         driver.start()
         driver.selected(company)
-        driver.click(driver.link("Activity"))
-        driver.click(driver.button("Reload checkout operations", HISTORY))
+        driver.navigate("tasks", keyboard=True)
+        driver.click(driver.button("Read checkout history", HISTORY))
         driver.click(driver.button("Inspect " + missing_binding, HISTORY))
         driver.wait(
             lambda: driver.read(
