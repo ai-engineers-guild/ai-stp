@@ -159,6 +159,9 @@ export default function InstallPage() {
         if (isTask(response.data)) {
           setTask(response.data);
           setAnswers({});
+        } else if (response.error_code === "DESKTOP_TASK_CONTRACT") {
+          setTask(null);
+          setAnswers({});
         }
         setContinuations(response.continuations);
         if (showResult || !response.ok) setResult(response);
@@ -173,7 +176,9 @@ export default function InstallPage() {
     const epoch = generation.current;
     setBusy(true);
     try {
-      const response = await action();
+      const returned = await action();
+      const response = returned.ok && returned.data && "task_id" in returned.data
+        ? checkedTask(returned, task.task_id) : returned;
       if (!current.current || activeTask.current !== task.task_id || generation.current !== epoch) return;
       setResult(response);
       if (isTask(response.data) && response.data.task_id === task.task_id) setTask(response.data);

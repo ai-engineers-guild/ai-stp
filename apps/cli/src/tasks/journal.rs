@@ -291,7 +291,7 @@ pub(super) fn legacy_view(connection: &Connection, id: &str) -> Result<Option<Va
         .map(|body| canonical::parse(body.as_bytes()))
         .transpose()?;
     let children = canonical::parse(children.as_bytes())?;
-    let view = json!({"schema_version":1,"task_id":id,"revision":revision,"intent":intent,"state":state,"goal_satisfied":goal,"questions":[],"outcome":outcome,"child_operation_ids":children,"legacy_read_only":true});
+    let view = json!({"schema_version":1,"task_id":id,"revision":revision,"intent":intent,"state":state,"goal_satisfied":goal,"questions":[],"outcome":outcome,"child_operation_ids":children,"legacy_read_only":true,"ownership":null});
     VIEW.validate(&view)?;
     Ok(Some(view))
 }

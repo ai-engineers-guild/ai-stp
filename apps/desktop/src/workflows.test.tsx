@@ -693,6 +693,17 @@ it("shows the original personal task owner reported by the native journal", asyn
   expect(screen.getByText(ownership.native_device_id)).toBeTruthy();
 });
 
+it("removes old task controls when a refresh returns unsupported ownership", async () => {
+  vi.mocked(transport.cmdTaskStatus).mockResolvedValueOnce(ok(task(7)))
+    .mockResolvedValueOnce(ok({ ...task(8), ownership: { kind: "corporate" } }));
+  mount(<InstallPage />, "/install?task=task_retained");
+  await screen.findByRole("button", { name: "Submit answer" });
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  await screen.findByText("The engine reply does not describe the requested task and supported ownership.");
+  expect(screen.queryByRole("button", { name: "Submit answer" })).toBeNull();
+  expect(transport.cmdTaskAnswer).not.toHaveBeenCalled();
+});
+
 it("keeps a refreshed Activity list when the initial read completes later", async () => {
   let initial!: (result: CmdResult) => void;
   vi.mocked(transport.cmdTaskList).mockReturnValueOnce(new Promise((resolve) => { initial = resolve; }))

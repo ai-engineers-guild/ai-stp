@@ -440,6 +440,8 @@ type TaskOutcome = Annotated[
 class NativePersonalTaskOwnership(ContractModel):
     """Retained local authoring identity, independent of any selected company view."""
 
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
     kind: Literal["personal"]
     native_account_id: Annotated[str, Field(pattern=stable_id_pattern("account"))]
     native_device_id: Annotated[str, Field(pattern=stable_id_pattern("device"))]
