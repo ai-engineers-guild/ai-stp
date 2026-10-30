@@ -1,5 +1,6 @@
 """Generated web projections stay bound to the Python contract source."""
 
+import tomllib
 from pathlib import Path
 
 from ai_stp_contracts import cli_copy
@@ -19,6 +20,16 @@ def test_cli_copy_projection_contains_the_canonical_distribution() -> None:
     assert cli_copy.REGISTRY_SHOW in rendered
     assert "ai-stp use" not in rendered
     assert "@{version}" not in rendered
+
+
+def test_release_link_matches_the_native_package_version() -> None:
+    manifest_path = Path(__file__).resolve().parents[2] / "apps/cli/Cargo.toml"
+    manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
+    version = manifest["package"]["version"]
+    assert isinstance(version, str)
+    assert (
+        f"https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v{version}"
+    ) == cli_copy.CLI_RELEASES_URL
 
 
 def test_deep_link_projection_embeds_the_packaged_corpus() -> None:
