@@ -1,7 +1,13 @@
 //! Independent read/delete observer for the disposable CI Secret Service.
 //! All credential creation and replacement is exercised through the product.
 
-use std::{cell::RefCell, collections::HashMap, error::Error, fmt, time::Duration};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    error::Error,
+    fmt,
+    time::Duration,
+};
 use zbus::{
     Connection, Proxy,
     address::{Address, transport::Transport},
@@ -94,6 +100,19 @@ async fn proxy<'a>(
 }
 
 async fn find(service: &Proxy<'_>, name: &str) -> Result<Option<OwnedObjectPath>> {
+    // GNOME registers a fresh D-Bus client asynchronously. Observe standard
+    // root metadata before the first PKCS#11 lookup on this independent
+    // transport; do not replay SearchItems or borrow the product connection.
+    let collections: Vec<OwnedObjectPath> = service
+        .get_property("Collections")
+        .await
+        .map_err(|error| failed("service_collections", error))?;
+    if collections.len() > 1024
+        || collections.iter().any(|path| path.as_str() == "/")
+        || collections.iter().collect::<HashSet<_>>().len() != collections.len()
+    {
+        return Err("the fixture returned invalid bounded collection metadata".into());
+    }
     let attributes = if let Some(id) = name.strip_prefix("device-key.") {
         HashMap::from([("service", "ai-stp-v2"), ("device_id", id)])
     } else {
