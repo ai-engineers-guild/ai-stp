@@ -103,3 +103,64 @@ pub fn bytes(value: &Value) -> Result<Vec<u8>> {
     let normalized = parse(&encoded)?;
     serde_json_canonicalizer::to_vec(&normalized).map_err(|_| invalid())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn retained_project_bytes_preserve_numbers_unicode_and_key_order() -> Result<()> {
+        // Fixed RFC 8785 number representations and project NFC semantics.
+        let cases = [
+            (
+                "[333333333.33333329,1E30,4.50,2e-3,1e-27,-0.0]",
+                "[333333333.3333333,1e+30,4.5,0.002,1e-27,0]",
+            ),
+            (
+                "{\"\u{e000}\":2,\"\u{10000}\":1,\"z\":0}",
+                "{\"z\":0,\"\u{10000}\":1,\"\u{e000}\":2}",
+            ),
+            (
+                "{\"path\":\"/tmp/cafe\u{301}\",\"n\":-0.0}",
+                "{\"n\":0,\"path\":\"/tmp/caf\u{e9}\"}",
+            ),
+        ];
+        for (input, expected) in cases {
+            assert_eq!(bytes(&parse(input.as_bytes())?)?, expected.as_bytes());
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn provider_wire_paths_keep_their_distinct_retained_digest() -> Result<()> {
+        let value = serde_json::json!({"path":"/tmp/cafe\u{301}","n":-0.0});
+        let wire = serde_json_canonicalizer::to_vec(&value).map_err(|_| invalid())?;
+        assert_eq!(wire, "{\"n\":0,\"path\":\"/tmp/cafe\u{301}\"}".as_bytes());
+        assert_eq!(
+            crate::digest::bytes("ai-stp:provider-plan:v3", &wire)?,
+            "sha256:7fd86b905e7f0041c990d2d12683d36b95da8c886adf2cbaead1c15ba9ba8ca7"
+        );
+        assert_eq!(
+            crate::digest::canonical("ai-stp:passport:v1", &value)?,
+            "sha256:2ac24a235d63b8c3fc564656a0fda45bc31599aceb19048a463fd5dd8b011d55"
+        );
+        assert_ne!(wire, bytes(&value)?);
+        Ok(())
+    }
+
+    #[test]
+    fn ambiguous_or_oversized_project_json_still_refuses() {
+        for input in [
+            r#"{"a":1,"a":2}"#,
+            r#"{"a":1,"\u0061":2}"#,
+            r#"{"e\u0301":1,"\u00e9":2}"#,
+            r#"[{"a":1,"a":2}]"#,
+            "9007199254740992",
+            "-9007199254740992",
+            r#""\ufeff""#,
+        ] {
+            assert!(parse(input.as_bytes()).is_err(), "{input}");
+        }
+        assert!(bytes(&serde_json::json!(9_007_199_254_740_992_i64)).is_err());
+    }
+}
