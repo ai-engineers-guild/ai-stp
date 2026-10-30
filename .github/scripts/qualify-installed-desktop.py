@@ -898,25 +898,29 @@ def main() -> None:
             "native_account_id": local["account_id"],
             "native_device_id": local["device_id"],
         }
-        task = native(
-            binary,
-            environment,
-            [
-                "task",
-                "start",
-                "--intent",
-                "author",
-                "--idempotency-key",
-                "installed-personal-task-01",
-            ],
+        driver.navigate("install")
+        driver.click(driver.button("Create from files"))
+        driver.click(driver.find('main fieldset input[type="checkbox"]'))
+        driver.click(driver.button("Start authoring"))
+        task_id = driver.wait(
+            lambda: driver.read(
+                "return new URLSearchParams(location.hash.split('?')[1]??'').get('task');"
+            ),
+            "UI task start opened its original native receipt",
         )
         require(
-            task["state"] == "blocked"
+            isinstance(task_id, str)
+            and bool(re.fullmatch(r"task_[0-7][0-9A-HJKMNP-TV-Z]{25}", task_id)),
+            "installed UI returned an invalid task identity",
+        )
+        task = native(binary, environment, ["task", "status", "--task", task_id])
+        require(
+            task["task_id"] == task_id
+            and task["state"] == "blocked"
             and task["ownership"] == task_ownership
             and task["child_operation_ids"] == [],
             "native personal task admission differs",
         )
-        task_id = task["task_id"]
         inspect_personal_task(driver, task_id, task_ownership)
     finally:
         driver.close()
@@ -980,6 +984,7 @@ def main() -> None:
                 "native_os_keyring": True,
                 "two_offline_personal_contexts": True,
                 "view_switching_and_restart_persistence": True,
+                "personal_task_started_through_ui": True,
                 "personal_task_ownership_after_restart": True,
                 "personal_task_original_owner_after_view_switch": True,
                 "personal_task_cancelled_original_receipt": True,

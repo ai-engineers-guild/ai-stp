@@ -610,6 +610,44 @@ it("does not replace a new catalog selection with the result of an already opene
   expect(useTaskStart.getState().key).toBeNull();
 });
 
+it("retains an unconfirmed catalog start across navigation and retries its original request", async () => {
+  vi.mocked(transport.cmdTaskStart).mockResolvedValue({
+    ...ok(),
+    ok: false,
+    error_code: "AI_STP_TIMEOUT_UNCONFIRMED",
+    error: "Inspect before retrying",
+  });
+  const request = { intent: "install", input: { source: { stable_id: "setup_original" } } };
+  await useTaskStart.getState().start(request);
+  const key = useTaskStart.getState().key;
+  mount(
+    <InstallPage />,
+    "/install?setup=setup_selected&version=1.0&digest=sha256:reviewed&harness=codex",
+  );
+  fireEvent.click(await screen.findByRole("button", { name: "Retry the same request" }));
+  await waitFor(() => expect(transport.cmdTaskStart).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(useTaskStart.getState().busy).toBe(false));
+  expect(transport.cmdTaskStart).toHaveBeenLastCalledWith("install", key, undefined, request.input);
+  expect(useTaskStart.getState().key).toBe(key);
+  expect(useTaskStart.getState().opened).toBe(false);
+  expect(transport.cmdTaskStatus).not.toHaveBeenCalled();
+});
+
+it("opens a successful start's original receipt from a catalog installation route", async () => {
+  vi.mocked(transport.cmdTaskStart).mockResolvedValue(ok(task(7)));
+  vi.mocked(transport.cmdTaskStatus).mockResolvedValue(ok(task(7)));
+  await useTaskStart.getState().start({ intent: "install" });
+  mount(
+    <InstallPage />,
+    "/install?setup=setup_selected&version=1.0&digest=sha256:reviewed&harness=codex",
+  );
+  await screen.findByText("Revision 7");
+  expect(transport.cmdTaskStatus).toHaveBeenCalledWith("task_retained");
+  expect(useTaskStart.getState().opened).toBe(true);
+  expect(useTaskStart.getState().key).toBeNull();
+  expect(transport.cmdTaskStart).toHaveBeenCalledTimes(1);
+});
+
 it("does not apply a manual task read after leaving and returning to the same task", async () => {
   let late!: (result: CmdResult) => void;
   let reads = 0;

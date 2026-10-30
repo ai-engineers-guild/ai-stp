@@ -128,10 +128,6 @@ export default function InstallPage() {
   }, [taskId]);
   useEffect(() => {
     if (taskId || starter.busy || !starter.result || starter.opened) return;
-    if (params.has("setup")) {
-      starter.acknowledge();
-      return;
-    }
     const id = isTask(starter.result.data)
       ? starter.result.data.task_id
       : starter.result.error_details?.task_id;
