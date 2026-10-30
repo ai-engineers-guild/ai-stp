@@ -5,7 +5,7 @@ pub(crate) mod interruption;
 mod journal;
 pub mod location;
 mod model;
-mod reader;
+pub(in crate::account) mod reader;
 pub mod retirement;
 mod workflow;
 

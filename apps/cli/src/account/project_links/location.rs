@@ -21,7 +21,7 @@ use crate::{
     files::{self, physical::DirectoryIdentity},
     identity, passport,
     projects::{self, checkout, passports},
-    store::{CHECKOUT_LOCATION_SCHEMA, database, has_checkout_links, has_checkout_locations},
+    store::{database, has_checkout_links, has_checkout_locations, location_schema_after},
 };
 
 const KIND: &str = "corporate.project_location";
@@ -172,7 +172,7 @@ impl Plan {
             || self.reader.context.local_identity != self.local_identity
             || !self.destination.is_absolute()
             || !has_checkout_links(self.registry_schema_before)
-            || self.registry_schema_after != CHECKOUT_LOCATION_SCHEMA
+            || self.registry_schema_after != location_schema_after(self.registry_schema_before)?
             || self.expires_at != authoring::expiry(&self.created_at)?
         {
             return Err(invalid());
@@ -443,7 +443,7 @@ fn make(
         created_at: at.into(),
         expires_at: authoring::expiry(at)?,
         registry_schema_before: before,
-        registry_schema_after: CHECKOUT_LOCATION_SCHEMA,
+        registry_schema_after: location_schema_after(before)?,
         local_identity: (*owner).clone(),
         binding: held,
         original: Box::new(original),

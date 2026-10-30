@@ -2,7 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { record, records, useContexts } from "../contexts";
 import { checkoutFailure, checkoutPath, checkoutReader, checkoutReceipt, checkoutReview, retainedCheckout, type CheckoutReview } from "../checkoutLinks";
 import { bindingRetirementReceipt, bindingRetirementReview, type BindingRetirementReview } from "../bindingRetirement";
-import { cliPlan, cmdBindingRetirementApply, cmdCheckoutApply, cmdMachineHelp, cmdRunRead, type CmdResult } from "../transport";
+import { missingBindingRetirementReceipt, missingBindingRetirementReview } from "../missingBindingRetirement";
+import { cliPlan, cmdMissingBindingRetirementApply, cmdBindingRetirementApply, cmdCheckoutApply, cmdMachineHelp, cmdRunRead, type CmdResult } from "../transport";
 import { Details, ResultMeta, Spinner } from "./Result";
 import CheckoutLocation from "./CheckoutLocation";
 
@@ -17,6 +18,8 @@ export default function CheckoutOperations() {
   const [review, setReview] = useState<CheckoutReview | null>(null);
   const [nextReview, setNextReview] = useState<CheckoutReview | null>(null);
   const [retirement, setRetirement] = useState<BindingRetirementReview | null>(null);
+  const [missingRetirement, setMissingRetirement] = useState(false);
+  const [missingSupported, setMissingSupported] = useState(false);
   const [root, setRoot] = useState("");
   const [git, setGit] = useState("");
   const [confirmed, setConfirmed] = useState(false);
@@ -55,6 +58,8 @@ export default function CheckoutOperations() {
       setSupported(available);
       setRetirementSupported(["corporate project binding-retire plan", "corporate project binding-retire apply"].every((path, index) =>
         records(help?.data?.commands).some((item) => Array.isArray(item.path) && item.path.join(" ") === path && item.mutability === (index === 0 ? "plan" : "apply"))));
+      setMissingSupported(["corporate project binding-retire-missing plan", "corporate project binding-retire-missing apply", "corporate project binding-retire-missing show"].every((path, index) =>
+        records(help?.data?.commands).some((item) => Array.isArray(item.path) && item.path.join(" ") === path && item.mutability === ["plan", "apply", "read"][index])));
       if (!available) { setRows([]); return; }
       const values: Record<string, string> = { limit: "50" };
       if (next) values.cursor = next;
@@ -85,7 +90,8 @@ export default function CheckoutOperations() {
       const exact = retainedCheckout(response.data);
       if (response.ok && (!exact || exact.plan.operation_id !== id)) response = checkoutFailure();
       if (response.ok && exact?.action === "adopt" && response.data?.binding_retirement != null &&
-        !bindingRetirementReceipt(response.data.binding_retirement, record(response.data))) response = checkoutFailure();
+        !bindingRetirementReceipt(response.data.binding_retirement, record(response.data)) &&
+        !missingBindingRetirementReceipt(response.data.binding_retirement, record(response.data))) response = checkoutFailure();
       setResult(response);
       if (response.ok && exact) {
         setSelected(record(response.data));
@@ -97,21 +103,21 @@ export default function CheckoutOperations() {
   }
 
   const reader = review ? checkoutReader(context, contexts, review) : undefined;
-  async function prepareRetirement() {
+  async function prepareRetirement(missing = false) {
     if (!selected || !review || review.action !== "adopt" || selected.state !== "completed" ||
-      !reader || !context || !retirementSupported || retirement || selected.binding_retirement !== null || busy || locationBusy || switching) return;
+      !reader || !context || !(missing ? missingSupported : retirementSupported) || retirement || selected.binding_retirement !== null || busy || locationBusy || switching) return;
     const original = selected, sequence = ++epoch.current;
     setBusy(true);
     setConfirmed(false);
     try {
-      let response = await cliPlan("corporate project binding-retire plan", {
+      let response = await cliPlan(missing ? "corporate project binding-retire-missing plan" : "corporate project binding-retire plan", {
         context: reader, "binding-operation": String(review.plan.operation_id),
       });
       if (!active.current || sequence !== epoch.current) return;
-      const exact = bindingRetirementReview(response, context, original);
+      const exact = (missing ? missingBindingRetirementReview : bindingRetirementReview)(response, context, original);
       if (response.ok && !exact) response = checkoutFailure();
       setResult(response);
-      if (exact) setRetirement(exact);
+      if (exact) { setRetirement(exact); setMissingRetirement(missing); }
     } finally { if (active.current && sequence === epoch.current) setBusy(false); }
   }
 
@@ -121,9 +127,9 @@ export default function CheckoutOperations() {
     setBusy(true);
     setConfirmed(false);
     try {
-      let response = await cmdBindingRetirementApply(exact.plan, exact.digest, true);
+      let response = await (missingRetirement ? cmdMissingBindingRetirementApply : cmdBindingRetirementApply)(exact.plan, exact.digest, true);
       if (!active.current || sequence !== epoch.current) return;
-      if (response.ok && (!bindingRetirementReceipt(response.data, original) ||
+      if (response.ok && (!(missingRetirement ? missingBindingRetirementReceipt : bindingRetirementReceipt)(response.data, original) ||
         response.data?.plan_digest !== exact.digest || response.data?.operation_id !== exact.plan.operation_id)) response = checkoutFailure();
       setResult(response);
       if (response.ok) { setSelected({ ...original, binding_retirement: response.data }); setRetirement(null); }
@@ -226,9 +232,14 @@ export default function CheckoutOperations() {
               <button className="btn-outline" disabled={!reader || locked} onClick={() => void prepareRetirement()}>Review local binding retirement</button>
             </>}
           </>}
+          {missingSupported && selected.binding_retirement === null && !retirement && <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">If the retained checkout name is absent, separately review its original server link and physical parent. A moved checkout and all files remain preserved. An inaccessible parent or uncertain server result refuses.</p>
+            <button className="btn-outline" disabled={!reader || locked} onClick={() => void prepareRetirement(true)}>Review missing-checkout binding retirement</button>
+          </div>}
           {retirement && <div className="space-y-3" aria-label="Review local binding retirement">
-            <h3 className="font-medium">Release only this original local binding</h3>
+            <h3 className="font-medium">{missingRetirement ? "Release this absent checkout binding" : "Release only this original local binding"}</h3>
             <p className="text-sm text-muted-foreground">The CLI observed the exact server link as unlinked. Applying rechecks current rights and local state. It does not unlink another link or change checkout files, tasks or harness configuration.</p>
+            {missingRetirement && <p role="status">The retained checkout name was absent under the reviewed physical parent. Apply checks again. This does not prove the original directory was deleted everywhere.</p>}
             <p className="text-sm">Reviewed checkout directory:</p>
             <p className="break-all font-mono text-xs">{checkoutPath(record(record(retirement.plan.snapshot).binding).checkout_root)}</p>
             <p className="break-all font-mono text-xs">{retirement.digest}</p>

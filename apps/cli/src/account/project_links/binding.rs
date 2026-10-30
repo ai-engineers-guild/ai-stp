@@ -92,7 +92,7 @@ pub(crate) fn read_in(
 
 /// Read retained SQL lineage without treating a missing pathname as a present
 /// checkout. Explicit relocation separately proves the actual destination.
-pub(super) fn retained_in(
+pub(in crate::account) fn retained_in(
     connection: &Connection,
     root: &Path,
     owner: &Owner,

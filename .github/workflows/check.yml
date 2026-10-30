@@ -505,6 +505,14 @@ jobs:
         run: >-
           python3 .github/scripts/released-previous-native-cli.py
           "${RUNNER_TEMP}/ai-stp-previous-native-60-release"
+      - name: Verify the immutable released schema61 native writer
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python3 .github/scripts/released-previous-native-cli.py
+          "${RUNNER_TEMP}/ai-stp-previous-native-61-release" --schema 61
       - name: Ownership and corporate journeys through the native HTTP client
         if: runner.os == 'Linux'
         shell: bash

@@ -213,7 +213,7 @@ it.each(["original", "origin", "account", "company", "context", "request", "sour
     if (field === "source") record(binding.source).plan_digest = digest("f");
     if (field === "reservation") record(binding.reservation).binding_operation_id = id(9);
     if (field === "physical") record(plan.physical).inode = "99";
-    if (field === "schema") plan.registry_schema_before = 62;
+    if (field === "schema") plan.registry_schema_before = 63;
     if (field === "root") plan.destination = path("/private/café");
     if (field === "locator") binding.location = { operation_id: plan.operation_id, plan_digest: digest("b"), physical };
     response.warnings = ["private-mismatched-warning"];
