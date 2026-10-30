@@ -15,6 +15,8 @@ use std::path::PathBuf;
 #[derive(Clone, Copy)]
 pub(super) enum Handler {
     Teams,
+    HeartbeatPolicy,
+    HeartbeatStatus,
     Projects,
     Project,
     LinkTarget,
@@ -581,6 +583,18 @@ pub(super) const COMMANDS: &[Declaration] = &[
         handler: super::Handler::Corporate(Handler::Teams),
     },
     Declaration {
+        path: &["corporate", "heartbeat", "policy"],
+        summary: "Read the current corporate heartbeat policy and its version; this does not opt in or send telemetry.",
+        parameters: &[STATE_DIR, CONTEXT],
+        handler: super::Handler::Corporate(Handler::HeartbeatPolicy),
+    },
+    Declaration {
+        path: &["corporate", "heartbeat", "status"],
+        summary: "Read only the original context's enrolled device heartbeat; no inventory, invocation or reporting consent is inferred.",
+        parameters: &[STATE_DIR, CONTEXT],
+        handler: super::Handler::Corporate(Handler::HeartbeatStatus),
+    },
+    Declaration {
         path: &["corporate", "projects"],
         summary: "Read visible corporate projects, or only the authenticated person's explicit memberships.",
         parameters: &[
@@ -1112,6 +1126,8 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     }
     let request = match handler {
         Handler::Teams => Request::Teams,
+        Handler::HeartbeatPolicy => Request::HeartbeatPolicy,
+        Handler::HeartbeatStatus => Request::HeartbeatStatus,
         Handler::Projects => Request::Projects {
             membership_only: args.get_flag("membership-only"),
         },

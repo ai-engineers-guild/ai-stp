@@ -75,6 +75,10 @@ harness files. Harness executables remain user/vendor managed.
   are discarded, including after switching away and back to the same context.
   Catalog and technology pages retain their search filters for explicit next-page
   reads; catalog versions and assignment digests are visible in the result cards.
+  The Heartbeat view reads the versioned company policy or the original enrolled
+  device's reported health when the engine advertises those read commands.
+  Company enablement is separate from local consent. These views send no reports
+  and do not infer harness usage or install a scheduler.
   A project can open a native checkout review with an existing registered root
   and optional trusted Git executable. A successful preview exposes current
   corporate repository choices for a separate recheck. Editing inputs or switching
