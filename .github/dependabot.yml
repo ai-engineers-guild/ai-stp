@@ -23,6 +23,10 @@ updates:
           - version-update:semver-major
           - version-update:semver-minor
           - version-update:semver-patch
+      # NFC tables participate in persisted/canonical and provider identities.
+      # Qualify Unicode 18 before this exact update (#1263; review 2026-11-06).
+      - dependency-name: unicode-normalization
+        versions: ["0.1.26"]
     cooldown:
       default-days: 7
       semver-major-days: 14
@@ -69,6 +73,12 @@ updates:
         update-types: [minor, patch]
     commit-message:
       prefix: "chore(docs)"
+    # Its published parents pin vulnerable re2js 2.8.6; keep the qualified
+    # graph until a fixed parent release passes the full scan (#1269).
+    # Review by 2026-11-06. No advisory filter is added.
+    ignore:
+      - dependency-name: markdownlint-cli2
+        versions: ["0.24.0"]
     # A version published minutes ago has been reviewed by nobody. The
     # cooldown is the cheapest defence against a compromised release being
     # pulled in before anyone has looked at it.
