@@ -193,4 +193,50 @@ mod tests {
         assert!(checkout.symlink_metadata()?.is_symlink());
         Ok(())
     }
+
+    #[test]
+    fn raw_decomposed_parent_spelling_survives_a_retained_round_trip()
+    -> std::result::Result<(), Box<dyn Error>> {
+        let tree = tempfile::tempdir()?;
+        let parent = tree.path().join("parent-cafe\u{301}");
+        fs::create_dir(&parent)?;
+        let parent = PathBuf::from(files::location(&parent)?);
+        let checkout = parent.join("missing-cafe\u{301}");
+        let observed = Parent::observe(&checkout)?;
+        let proof = observed.parent.clone();
+        let encoded = crate::canonical::bytes(&serde_json::to_value(&proof)?)?;
+        let retained: Parent = serde_json::from_slice(&encoded)?;
+        assert_eq!(retained.path.as_os_str(), parent.as_os_str());
+        retained.open(&checkout)?;
+        assert!(
+            observed
+                .revalidate(&parent.join("missing-caf\u{e9}"))
+                .is_err()
+        );
+        assert_eq!(retained.path.as_os_str(), proof.path.as_os_str());
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_inaccessible_parent_is_not_absence() -> std::result::Result<(), Box<dyn Error>> {
+        use std::os::unix::fs::PermissionsExt;
+        let tree = tempfile::tempdir()?;
+        let parent = tree.path().join("parent");
+        fs::create_dir(&parent)?;
+        let parent = PathBuf::from(files::location(&parent)?);
+        let checkout = parent.join("missing");
+        let proof = Parent::observe(&checkout)?.parent;
+        let original = fs::metadata(&parent)?.permissions();
+        fs::set_permissions(&parent, fs::Permissions::from_mode(0))?;
+        let refused = proof.open(&checkout).is_err();
+        // Restore the owned fixture even if its access-control assertion fails.
+        fs::set_permissions(&parent, original)?;
+        assert!(
+            refused,
+            "the fixture must actually make the parent inaccessible"
+        );
+        proof.open(&checkout)?;
+        Ok(())
+    }
 }

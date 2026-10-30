@@ -43,6 +43,8 @@ impl Snapshot {
         self.local_identity.validate()?;
         self.binding.source.validate()?;
         self.binding.request.validate()?;
+        self.binding.context.digest()?;
+        self.binding.account.validate()?;
         self.reader.validate_binding(&self.binding)?;
         let binding = &self.binding;
         if self.reader.context.local_identity != self.local_identity

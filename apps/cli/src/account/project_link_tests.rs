@@ -312,7 +312,13 @@ fn checkout_journey(named: bool) -> std::result::Result<(), Box<dyn Error>> {
 #[test]
 fn reviewed_checkout_locations_preserve_immutable_binding_and_fresh_authority()
 -> std::result::Result<(), Box<dyn Error>> {
-    checkout_case_with_location(true, None, true)
+    checkout_case_with_location(true, None, true, false)
+}
+
+#[test]
+fn missing_checkout_retirement_requires_positive_unlink_and_preserves_history()
+-> std::result::Result<(), Box<dyn Error>> {
+    checkout_case_with_location(true, None, true, true)
 }
 
 #[derive(Clone, Copy)]
@@ -563,13 +569,14 @@ fn checkout_case(
     named: bool,
     retirement: Option<RetirementCase>,
 ) -> std::result::Result<(), Box<dyn Error>> {
-    checkout_case_with_location(named, retirement, false)
+    checkout_case_with_location(named, retirement, false, false)
 }
 
 fn checkout_case_with_location(
     named: bool,
     retirement: Option<RetirementCase>,
     qualify_location: bool,
+    qualify_missing: bool,
 ) -> std::result::Result<(), Box<dyn Error>> {
     let root = tempfile::tempdir()?;
     let tree = tempfile::tempdir()?;
@@ -1091,7 +1098,7 @@ fn checkout_case_with_location(
             project_links::status(root.path(), &confirmation_id)?["state"],
             "completed"
         );
-        if qualify_location {
+        if qualify_missing {
             missing_tests::prove(
                 &local, &checkout, &contexts, &adoption, &bound, &control, &at,
             )?;
