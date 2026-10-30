@@ -1,30 +1,34 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { ArrowRight, RefreshCw } from "lucide-react";
 import { cmdTaskList, type CmdResult } from "../transport";
 import { ResultMeta, Spinner } from "../components/Result";
 import { EmptyState, PageHeader, StatusBadge } from "../components/Layout";
 import CheckoutOperations from "../components/CheckoutOperations";
+import TaskOwnership from "../components/TaskOwnership";
 
 export default function TasksPage() {
   const [list, setList] = useState<CmdResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [inspectId, setInspectId] = useState("");
+  const requests = useRef(0);
   async function refresh() {
+    const request = ++requests.current;
     setBusy(true);
     try {
-      setList(await cmdTaskList());
+      const response = await cmdTaskList();
+      if (requests.current === request) setList(response);
     } finally {
-      setBusy(false);
+      if (requests.current === request) setBusy(false);
     }
   }
   useEffect(() => {
-    let current = true;
+    const request = ++requests.current;
     void cmdTaskList().then((result) => {
-      if (current) setList(result);
+      if (requests.current === request) setList(result);
     });
     return () => {
-      current = false;
+      requests.current++;
     };
   }, []);
   const tasks = (list?.data?.tasks ?? []) as {
@@ -33,6 +37,7 @@ export default function TasksPage() {
     state: string;
     harness_id?: string;
     updated_at?: string;
+    ownership?: unknown;
   }[];
   return (
     <div className="page-stack">
@@ -108,6 +113,7 @@ export default function TasksPage() {
                     <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
                       {task.task_id}
                     </p>
+                    <TaskOwnership value={task.ownership} compact />
                     {task.updated_at && (
                       <p className="mt-2 text-xs text-muted-foreground">
                         Updated {new Date(task.updated_at).toLocaleString()}

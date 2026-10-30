@@ -725,6 +725,41 @@ def native(binary: Path, environment: dict[str, str], arguments: list[str]) -> d
     return dict(envelope["data"])
 
 
+def inspect_personal_task(driver: Driver, task_id: str, ownership: dict[str, Any]) -> None:
+    """Open a real journal row through Activity, without substituting IPC."""
+    require(bool(re.fullmatch(r"task_[0-7][0-9A-HJKMNP-TV-Z]{25}", task_id)), "invalid task")
+    driver.navigate("tasks")
+    driver.click(driver.find(f'main a[href="#/install?task={task_id}"]'))
+    driver.wait(
+        lambda: driver.read(
+            "const text=document.querySelector('main').textContent;"
+            "return text.includes(arguments[0])&&text.includes(arguments[1]);",
+            task_id,
+            "Personal task · retained local owner",
+        ),
+        "native personal task ownership in the installed workspace",
+    )
+    summary = dict(
+        driver.wait(
+            lambda: driver.read(
+                "return [...document.querySelectorAll('main summary')]"
+                ".find(x=>x.textContent==='Original task identity')??null;"
+            ),
+            "original task identity disclosure",
+        )
+    )
+    driver.click(summary)
+    require(
+        driver.read(
+            "const values=[...document.querySelectorAll('main dd')].map(x=>x.textContent);"
+            "return values.includes(arguments[0])&&values.includes(arguments[1]);",
+            ownership["native_account_id"],
+            ownership["native_device_id"],
+        ),
+        "installed task workspace changed the original native owner",
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--driver", type=Path, required=True)
@@ -853,6 +888,36 @@ def main() -> None:
         )
         driver.audit_accessibility("retained-personal-profiles")
         accessibility = list(driver.accessibility)
+        local = next(
+            item["context"]["local_identity"]
+            for item in listed["contexts"]
+            if item["context"]["context_id"] == first
+        )
+        task_ownership = {
+            "kind": "personal",
+            "native_account_id": local["account_id"],
+            "native_device_id": local["device_id"],
+        }
+        task = native(
+            binary,
+            environment,
+            [
+                "task",
+                "start",
+                "--intent",
+                "author",
+                "--idempotency-key",
+                "installed-personal-task-01",
+            ],
+        )
+        require(
+            task["state"] == "blocked"
+            and task["ownership"] == task_ownership
+            and task["child_operation_ids"] == [],
+            "native personal task admission differs",
+        )
+        task_id = task["task_id"]
+        inspect_personal_task(driver, task_id, task_ownership)
     finally:
         driver.close()
     # Only this disposable fixture's GTK configuration is changed. A fresh real
@@ -881,6 +946,20 @@ def main() -> None:
         reduced_motion_observations = driver.reduced_motion_observed()
         driver.audit_accessibility("restarted-personal-profiles-reduced-motion")
         accessibility.extend(driver.accessibility)
+        inspect_personal_task(driver, task_id, task_ownership)
+        require(
+            native(binary, environment, ["task", "status", "--task", task_id]) == task,
+            "restart or view switching retargeted the original task",
+        )
+        driver.click(driver.button("Cancel task"))
+        driver.button("Start another flow")
+        cancelled = native(binary, environment, ["task", "status", "--task", task_id])
+        require(
+            cancelled["state"] == "cancelled"
+            and cancelled["ownership"] == task_ownership
+            and cancelled["child_operation_ids"] == [],
+            "installed task cancellation changed its original owner or created child effects",
+        )
     finally:
         driver.close()
     require(
@@ -901,6 +980,9 @@ def main() -> None:
                 "native_os_keyring": True,
                 "two_offline_personal_contexts": True,
                 "view_switching_and_restart_persistence": True,
+                "personal_task_ownership_after_restart": True,
+                "personal_task_original_owner_after_view_switch": True,
+                "personal_task_cancelled_original_receipt": True,
                 "independent_installed_cli_readback": True,
                 "unowned_home_instructions_preserved": True,
                 "keyboard_skip_link_focuses_content": True,

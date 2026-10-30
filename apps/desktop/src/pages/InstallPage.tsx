@@ -25,6 +25,7 @@ import { useTaskStart } from "../taskStart";
 import { useApp } from "../store";
 import { argvToCall } from "../argv";
 import TaskOutcome from "../components/TaskOutcome";
+import TaskOwnership from "../components/TaskOwnership";
 import { Details, Json, ResultMeta, Spinner } from "../components/Result";
 import { PageHeader, StatusBadge } from "../components/Layout";
 import InstallInput, {
@@ -32,6 +33,13 @@ import InstallInput, {
   installComplete,
   installInput,
 } from "../components/InstallInput";
+
+function checkedTask(response: CmdResult, id: string): CmdResult {
+  if (!response.ok || (isTask(response.data) && response.data.task_id === id)) return response;
+  return { ok: false, data: null, error_code: "DESKTOP_TASK_CONTRACT",
+    error: "The engine reply does not describe the requested task and supported ownership.",
+    warnings: [], continuations: [] };
+}
 
 export default function InstallPage() {
   const [params, setParams] = useSearchParams();
@@ -59,6 +67,8 @@ export default function InstallPage() {
   const starter = useTaskStart();
   const capabilities = useApp((state) => state.capabilities);
   const current = useRef(true);
+  const generation = useRef(0);
+  const reads = useRef(0);
   useEffect(() => {
     current.current = true;
     return () => {
@@ -92,14 +102,18 @@ export default function InstallPage() {
   }, [intent]);
   useEffect(() => {
     let active = true;
+    const epoch = ++generation.current;
+    const request = ++reads.current;
     setTask(null);
+    setResult(null);
     setAnswers({});
     setContinuations([]);
     setBusy(false);
     if (taskId) {
       setBusy(true);
-      void cmdTaskStatus(taskId).then((r) => {
-        if (!active) return;
+      void cmdTaskStatus(taskId).then((response) => {
+        if (!active || generation.current !== epoch || reads.current !== request) return;
+        const r = checkedTask(response, taskId);
         setResult(r);
         if (isTask(r.data)) setTask(r.data);
         setContinuations(r.continuations);
@@ -108,6 +122,8 @@ export default function InstallPage() {
     }
     return () => {
       active = false;
+      generation.current++;
+      reads.current++;
     };
   }, [taskId]);
   useEffect(() => {
@@ -134,28 +150,36 @@ export default function InstallPage() {
   ]);
 
   async function refresh(id: string, showResult = true) {
-    const response = await cmdTaskStatus(id);
-    if (current.current && activeTask.current === id) {
-      if (isTask(response.data)) {
-        setTask(response.data);
-        setAnswers({});
+    const epoch = generation.current;
+    const request = ++reads.current;
+    setBusy(true);
+    try {
+      const response = checkedTask(await cmdTaskStatus(id), id);
+      if (current.current && activeTask.current === id && generation.current === epoch && reads.current === request) {
+        if (isTask(response.data)) {
+          setTask(response.data);
+          setAnswers({});
+        }
+        setContinuations(response.continuations);
+        if (showResult || !response.ok) setResult(response);
       }
-      setContinuations(response.continuations);
-      if (showResult || !response.ok) setResult(response);
+      return response;
+    } finally {
+      if (current.current && activeTask.current === id && generation.current === epoch && reads.current === request) setBusy(false);
     }
-    return response;
   }
   async function step(action: () => Promise<CmdResult>) {
-    if (!task || busy) return;
+    if (!task || busy || activeTask.current !== task.task_id) return;
+    const epoch = generation.current;
     setBusy(true);
     try {
       const response = await action();
-      if (!current.current || activeTask.current !== task.task_id) return;
+      if (!current.current || activeTask.current !== task.task_id || generation.current !== epoch) return;
       setResult(response);
-      if (isTask(response.data)) setTask(response.data);
+      if (isTask(response.data) && response.data.task_id === task.task_id) setTask(response.data);
       await refresh(task.task_id, false);
     } finally {
-      if (current.current && activeTask.current === task.task_id)
+      if (current.current && activeTask.current === task.task_id && generation.current === epoch)
         setBusy(false);
     }
   }
@@ -265,6 +289,10 @@ export default function InstallPage() {
           {intentResult && !intentResult.ok && <ResultMeta r={intentResult} />}
           <p className="text-sm leading-6 text-muted-foreground">
             {intents.find((item) => item.name === intent)?.when}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            These flows create personal tasks. Selecting a company view does not
+            make them company-managed installations.
           </p>
           {unavailable && (
             <div
@@ -420,6 +448,7 @@ export default function InstallPage() {
               This retained legacy task is read-only.
             </p>
           )}
+          <TaskOwnership value={task.ownership} />
           {task.questions.map((question) =>
             question.actor === "external" || question.actor === "agent" ? (
               <p
@@ -548,8 +577,7 @@ export default function InstallPage() {
               className="btn-outline"
               disabled={locked}
               onClick={() => {
-                setBusy(true);
-                void refresh(task.task_id).finally(() => setBusy(false));
+                void refresh(task.task_id);
               }}
             >
               <RefreshCw size={14} />

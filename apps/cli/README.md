@@ -6,6 +6,12 @@ There is no Python fallback, model client, background updater or telemetry.
 The executable registry is the command reference: `ai-stp help --agent --json`.
 Use `task intents` and `task input-schema` for the smaller task interface.
 
+Native authoring and installation tasks use their original local account/device
+identity. `task status` and `task list` expose it as personal `ownership`; selecting
+a company view does not convert these tasks into company-managed installations.
+Historical or older engines without that field leave ownership unclassified.
+This read projection preserves the existing task journal and registry format.
+
 The commands below describe the CLI 0.2 / Desktop 0.1 client line. Immutable
 CLI 0.1.3 / Desktop 0.0.11 binaries retain their original command surface;
 deploying the server does not update an installed client. Match the executable's

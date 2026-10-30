@@ -300,7 +300,7 @@ pub fn list(parent: &Path) -> Result<Value> {
     let rows = journal::unsettled(&store.connection)?;
     let tasks=rows.iter().map(|row| Ok(json!({"task_id":row.id,"revision":row.revision,"intent":row.payload.input.intent(),"state":row.state,
         "harness_id":row.payload.input.harness(),"project_root":row.payload.input.project(),"scope":row.payload.input.scope(),
-        "open_question_ids":row.questions()?.iter().map(|q|q["question_id"].clone()).collect::<Vec<_>>(),"updated_at":row.updated})))
+        "open_question_ids":row.questions()?.iter().map(|q|q["question_id"].clone()).collect::<Vec<_>>(),"updated_at":row.updated,"ownership":row.ownership()})))
         .collect::<Result<Vec<_>>>()?;
     Ok(json!({"schema_version":1,"tasks":tasks}))
 }

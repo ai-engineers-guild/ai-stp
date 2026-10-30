@@ -90,6 +90,15 @@ harness files. Harness executables remain user/vendor managed.
   Context and corporate commands retain only transport outcome and timing in
   this shared trace; their arguments, replies and error prose are omitted.
 
+Existing authoring/install flows are personal tasks. Their retained local owner
+is shown in Activity and the task workspace, independently of the selected
+company view. Older engines and unclassified legacy receipts keep that ownership
+unknown. An identical interrupted start retains its key and a detached input
+snapshot; a different request is refused until the original is inspected or a
+separate request is explicitly chosen. Choosing another request does not cancel
+the first task. Task reads and replies are fenced to each visit, including a
+leave-and-return to the same task, and an old response cannot clear a newer read.
+
 The engine reports installation availability. Isolated setup execution is
 currently Linux-only; authoring and catalog reads remain available on macOS and
 Windows. The desktop does not bypass an unsupported operation.
