@@ -38,15 +38,7 @@ fn unavailable() -> Failure {
 }
 
 pub fn platform() -> Result<&'static str> {
-    match (std::env::consts::OS, std::env::consts::ARCH) {
-        ("linux", "x86_64") => Ok("linux/x86_64"),
-        ("linux", "aarch64") => Ok("linux/arm64"),
-        ("macos", "x86_64") => Ok("macos/x86_64"),
-        ("macos", "aarch64") => Ok("macos/arm64"),
-        ("windows", "x86_64") => Ok("windows/x86_64"),
-        ("windows", "aarch64") => Ok("windows/arm64"),
-        _ => Err(unavailable()),
-    }
+    crate::platform::current().ok_or_else(unavailable)
 }
 
 pub fn configuration_apply(

@@ -21,6 +21,7 @@ pub mod installation;
 pub mod migration;
 pub mod objects;
 pub mod passport;
+mod platform;
 pub mod process;
 pub mod program;
 pub mod projection;

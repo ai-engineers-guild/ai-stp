@@ -3,6 +3,8 @@
 mod composition;
 pub mod coverage;
 pub(crate) mod hosts;
+#[cfg(test)]
+mod native_tests;
 mod package;
 pub mod reports;
 pub mod scopes;
@@ -18,6 +20,7 @@ use crate::{
     error::{Failure, Result},
     objects::Objects,
     passport, projection,
+    projection::surfaces::Surface,
     provider::Info,
     selection::eligibility::{self, Evidence, Target},
     store::{Store, revisions},
@@ -79,6 +82,21 @@ pub fn compile(
     })
 }
 
+/// Compile with the fixed local configuration engine, not an external provider
+/// declaration. Existing evidence/graph/contribution checks remain shared.
+pub fn compile_native(
+    store: &mut Store,
+    setup: &Value,
+    target: &Target,
+    evidence: &BTreeMap<String, Evidence>,
+    hosts: &Hosts,
+) -> Result<Bundle> {
+    let native = crate::installation::profiles::Profiles::resolve(&target.harness_id)?;
+    store.transaction(|connection| {
+        compile_surface_snapshot(connection, setup, target, evidence, &native, hosts)
+    })
+}
+
 pub(crate) fn compile_snapshot(
     connection: &Connection,
     setup: &Value,
@@ -87,8 +105,19 @@ pub(crate) fn compile_snapshot(
     provider: &Info,
     hosts: &Hosts,
 ) -> Result<Bundle> {
+    compile_surface_snapshot(connection, setup, target, evidence, provider, hosts)
+}
+
+fn compile_surface_snapshot(
+    connection: &Connection,
+    setup: &Value,
+    target: &Target,
+    evidence: &BTreeMap<String, Evidence>,
+    provider: &dyn Surface,
+    hosts: &Hosts,
+) -> Result<Bundle> {
     let host_identities = validate_inputs(setup, hosts)?;
-    let assessment = eligibility::assess_connection(
+    let assessment = eligibility::assess_surface_connection(
         connection,
         std::slice::from_ref(setup),
         target,
@@ -148,7 +177,7 @@ fn compile_qualified(
     connection: &Connection,
     setup: &Value,
     target: &Target,
-    provider: &Info,
+    provider: &dyn Surface,
     hosts: &Hosts,
     qualified: Qualified,
     host_identities: BTreeMap<String, Option<String>>,
@@ -258,8 +287,9 @@ fn compile_qualified(
     }
     files.sort_by(|a, b| a.member.path.cmp(&b.member.path));
     bindings.sort_by(|a, b| a["stable_id"].as_str().cmp(&b["stable_id"].as_str()));
-    let input = json!({"setup":setup,"target":target,"provider_digest":digest::sha256(&canonical::bytes(provider.document())?),
+    let mut input = json!({"setup":setup,"target":target,
         "hosts":host_identities,"assessment":assessment});
+    input[provider.identity_key()] = digest::sha256(&canonical::bytes(provider.document())?).into();
     let input_digest = digest::canonical("ai-stp:plan:v1", &input)?;
     let (manifest, archive) = package::build(
         &document,

@@ -547,6 +547,13 @@ provenance and notice are retained beside the implementation. It carries no
 harness executable installer, vendor artifact/version table or updater control.
 Harness installation and updates belong to the vendor's official commands.
 
+`installation::profiles` resolves the compiled configuration scopes for the local
+execution platform. `bundle::compile_native` uses the shared exact-graph,
+eligibility, projection and contribution compiler without an external provider
+declaration. It emits configuration data, creating no harness state or installation
+authority. Profile lookup has no fallback between global, user-root and project
+scopes; the unclassified harness placeholder cannot select an installation engine.
+
 Existing `provider` commands still use the released external-component
 compatibility path; integrating the library does not change an old operation's
 identity or silently activate a new installation route. The CLI authenticates

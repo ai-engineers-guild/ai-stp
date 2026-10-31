@@ -6,7 +6,7 @@ use crate::{
     canonical, digest,
     error::{Failure, Result},
     harnesses, passport,
-    projection::Scope,
+    projection::{Scope, surfaces::Surface},
     provider::Info,
     wire::Schema,
 };
@@ -98,6 +98,20 @@ pub fn assess(
     target: &Target,
     evidence: &Evidence,
     provider: Option<&Info>,
+) -> Result<Value> {
+    assess_surface(
+        document,
+        target,
+        evidence,
+        provider.map(|value| value as &dyn Surface),
+    )
+}
+
+fn assess_surface(
+    document: &Value,
+    target: &Target,
+    evidence: &Evidence,
+    provider: Option<&dyn Surface>,
 ) -> Result<Value> {
     passport::versions::validate_document(document)?;
     if let Some(value) = document.get("entitlements")
@@ -295,6 +309,22 @@ pub(crate) fn assess_connection(
     evidence: &BTreeMap<String, Evidence>,
     provider: Option<&Info>,
 ) -> Result<Value> {
+    assess_surface_connection(
+        connection,
+        roots,
+        target,
+        evidence,
+        provider.map(|value| value as &dyn Surface),
+    )
+}
+
+pub(crate) fn assess_surface_connection(
+    connection: &rusqlite::Connection,
+    roots: &[Value],
+    target: &Target,
+    evidence: &BTreeMap<String, Evidence>,
+    provider: Option<&dyn Surface>,
+) -> Result<Value> {
     if roots.is_empty() {
         return Err(Failure::input(
             "eligibility requires an exact component or setup root",
@@ -326,7 +356,7 @@ pub(crate) fn assess_connection(
                         .ok_or_else(|| Failure::precondition("graph digest missing"))?,
                 ),
             )?;
-            assessments.push(assess(&document, target, held, provider)?);
+            assessments.push(assess_surface(&document, target, held, provider)?);
         }
     }
     let admissible =
