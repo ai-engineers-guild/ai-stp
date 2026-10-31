@@ -760,6 +760,28 @@ def inspect_personal_task(driver: Driver, task_id: str, ownership: dict[str, Any
     )
 
 
+def inspect_task_trace(
+    driver: Driver, commands: tuple[str, ...], forbidden: tuple[str, ...]
+) -> None:
+    """Inspect actual diagnostic rows after native task effects and readbacks."""
+    driver.navigate("debug")
+    for name in commands:
+        entry = driver.wait(
+            lambda command_name=name: driver.read(
+                "return [...document.querySelectorAll('main li button')]"
+                ".find(b=>b.querySelector('span.w-40')?.textContent===arguments[0])??null;",
+                command_name,
+            ),
+            "actual private task trace entry",
+        )
+        driver.click(entry)
+        text = driver.read("return arguments[0].closest('li').textContent;", entry)
+        require(
+            "[private content omitted]" in text and all(value not in text for value in forbidden),
+            "shared diagnostics retained private task content",
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--driver", type=Path, required=True)
@@ -876,6 +898,13 @@ def main() -> None:
         require(
             identity["credential_store"] == "os_keyring", "native key silently used file storage"
         )
+        driver.navigate("debug")
+        trace_toggle = driver.find('main input[type="checkbox"]')
+        require(
+            not driver.read("return arguments[0].checked;", trace_toggle), "trace is not opt-in"
+        )
+        driver.click(trace_toggle)
+        require(driver.read("return arguments[0].checked;", trace_toggle), "trace was not enabled")
         driver.navigate("profiles")
         first = driver.create_context("Installed personal one")
         second = driver.create_context("Installed personal two")
@@ -922,6 +951,11 @@ def main() -> None:
             "native personal task admission differs",
         )
         inspect_personal_task(driver, task_id, task_ownership)
+        inspect_task_trace(
+            driver,
+            ("task_start", "task_status", "task_list"),
+            (task_id, local["account_id"], local["device_id"]),
+        )
     finally:
         driver.close()
     # Only this disposable fixture's GTK configuration is changed. A fresh real
@@ -964,6 +998,11 @@ def main() -> None:
             and cancelled["child_operation_ids"] == [],
             "installed task cancellation changed its original owner or created child effects",
         )
+        inspect_task_trace(
+            driver,
+            ("task_cancel", "task_status", "task_list"),
+            (task_id, local["account_id"], local["device_id"]),
+        )
     finally:
         driver.close()
     require(
@@ -988,6 +1027,7 @@ def main() -> None:
                 "personal_task_ownership_after_restart": True,
                 "personal_task_original_owner_after_view_switch": True,
                 "personal_task_cancelled_original_receipt": True,
+                "installed_personal_task_trace_privacy": True,
                 "independent_installed_cli_readback": True,
                 "unowned_home_instructions_preserved": True,
                 "keyboard_skip_link_focuses_content": True,
