@@ -223,17 +223,26 @@ async def test_bound_heartbeat_refuses_stale_and_reenabled_policy_without_breaki
 
 
 @pytest.mark.parametrize("change", ["policy", "expiry", "device"])
+@pytest.mark.parametrize("activity", ["missing", "stale", "fresh"])
 async def test_queued_heartbeat_rechecks_admission_after_actual_tenant_lock_wait(
     heartbeat_client: tuple[AsyncClient, async_sessionmaker[AsyncSession]],
     monkeypatch: pytest.MonkeyPatch,
     change: str,
+    activity: str,
 ) -> None:
     client, sessionmaker = heartbeat_client
     account, device, token = await _account_with_device(sessionmaker)
-    organization = await _bootstrap(client, account, f"hb-policy-lock-0001-{change}")
+    organization = await _bootstrap(client, account, f"hb-policy-lock-0001-{change}-{activity}")
     path = f"/v1/corporate/organizations/{organization}/telemetry/heartbeat"
     auth = {"Authorization": f"Bearer {token}"}
     async with sessionmaker() as db:
+        original_device = await db.get(Device, device)
+        assert original_device is not None
+        original_device.last_seen_at = (
+            None
+            if activity == "missing"
+            else _now() - timedelta(seconds=61 if activity == "stale" else 0)
+        )
         await set_tenant_scope(db, organization)
         db.add(
             TelemetryPolicy(

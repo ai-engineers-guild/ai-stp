@@ -412,6 +412,18 @@ async def test_last_seen_at_writes_once_per_minute_not_per_request(
             via_cookie=False,
         )
 
+    # Tenant writers can authenticate before acquiring their mutation lock
+    # without retaining an observational write lock on this device.
+    context = await verify_raw_token(
+        db,
+        issued.raw_token,
+        admin_account_ids=frozenset(),
+        via_cookie=False,
+        touch_device=False,
+    )
+    assert context.account_id == account.id and context.device_id == device.id
+    assert device.last_seen_at is None
+
     # First request establishes the timestamp.
     await verify()
     first_seen = device.last_seen_at
