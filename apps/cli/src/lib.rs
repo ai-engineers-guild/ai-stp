@@ -17,6 +17,7 @@ mod files;
 pub mod harnesses;
 mod http;
 pub mod identity;
+pub mod installation;
 pub mod migration;
 pub mod objects;
 pub mod passport;

@@ -70,6 +70,7 @@ interface AppState {
 }
 
 let refreshRequest: Promise<void> | null = null;
+let authGeneration = 0;
 export const useApp = create<AppState>((set) => ({
   cliVersion: null,
   cliOk: null,
@@ -110,7 +111,9 @@ export const useApp = create<AppState>((set) => ({
     return refreshRequest;
   },
   refreshAuth: async () => {
+    const generation = ++authGeneration;
     const res = await cmdAuthStatus();
-    set({ auth: res.ok ? res.data : null, authResult: res });
+    if (generation === authGeneration)
+      set({ auth: res.ok ? res.data : null, authResult: res });
   },
 }));

@@ -52,7 +52,11 @@ harness files. Harness executables remain user/vendor managed.
 - **Account** drives device login, expiration, session refresh and retained
   operation recovery. It offers only methods reported by the selected server
   and supported by the native engine; discovery failure requires an explicit
-  retry. Credentials stay in the CLI's selected store.
+  retry. Status reads retain the newest observation, and replies or browser
+  failures from an earlier account visit cannot change the current view.
+  Stopping approval ends that polling attempt; a later browser result cannot
+  restart it. The retained native account operation remains available through
+  an explicit status read. Credentials stay in the CLI's selected store.
 - **Connections** creates and recovers independent native enrollments through
   reviewed plans, opens each account session separately and retains native offline,
   personal and corporate context observations. It exposes the exact registry
@@ -98,9 +102,14 @@ harness files. Harness executables remain user/vendor managed.
 - **Targets**, **Discovery** and **Commands** render the connected engine's
   command descriptors with read/plan/apply gates and explicit apply confirmation.
 - **Diagnostics** offers an optional, bounded in-memory trace and an explicitly
-  copied redacted report. Diagnostics are never uploaded automatically.
-  Context and corporate commands retain only transport outcome and timing in
-  this shared trace; their arguments, replies and error prose are omitted.
+  copied report containing only application/platform information and call
+  timing, outcomes and error codes. Export omits local paths, command arguments,
+  replies and error prose independently of the local trace. Diagnostics are
+  never uploaded automatically.
+  Account, context, corporate and task commands retain only transport outcome and
+  timing in this shared trace; their arguments, replies and error prose are
+  omitted. Device confirmation codes and verification links remain available
+  to the sign-in UI and are removed from diagnostic copies.
 
 Existing authoring/install flows are personal tasks. Their retained local owner
 is shown in Activity and the task workspace, independently of the selected

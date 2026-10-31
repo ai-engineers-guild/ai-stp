@@ -29,9 +29,12 @@ A setup configures one harness. Component kinds are `instruction`, `skill`, `mcp
 `hook`, `command`, `agent`, `plugin`, `setting` and `cli`. Published setup/component
 versions are exact and immutable. Author identity and byte verification are separate.
 
-The CLI selects, validates and assembles. Only the public harness installation
-component writes final harness state. Setup systems are ai-stp components with
-separate repositories. Harness executables remain user/vendor managed; never
+The CLI selects, validates and assembles. Harness configuration belongs to the
+first-party native installation implementation and its qualified transaction
+writer. Integrate setup-system logic into ai-stp; do not create a separate setup
+product or release dependency. Preserve exact historical external-provider plans,
+artifacts and receipts through their original compatibility path. Harness
+executables remain user/vendor managed through official vendor commands; never
 install, pin, update or remove them. The system does not call model APIs or require
 a model key. Active-agent changes require staged replacement, handoff and restart.
 A mechanical refusal is a refusal, not permission for an alternate bypass.

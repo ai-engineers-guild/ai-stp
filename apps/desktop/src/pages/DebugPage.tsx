@@ -26,10 +26,26 @@ export default function DebugPage() {
   }
 
   async function copyBundle() {
+    // The shared report has its own allowlist. Local inspection may contain
+    // paths and command content, including fields added by future commands.
     const bundle = {
       generated_at: new Date().toISOString(),
-      environment: info?.data,
-      ipc_log: log.slice(0, 50),
+      environment: info?.data
+        ? {
+            app_version: info.data.app_version,
+            platform: info.data.platform,
+            arch: info.data.arch,
+            cli_found: info.data.cli_found,
+            cli_source: info.data.cli_source,
+          }
+        : null,
+      ipc_log: log.slice(0, 50).map(({ ts, cmd, ms, ok, error_code }) => ({
+        ts,
+        cmd,
+        ms,
+        ok,
+        error_code,
+      })),
     };
     try {
       await navigator.clipboard.writeText(JSON.stringify(bundle, null, 2));
@@ -131,6 +147,7 @@ export default function DebugPage() {
             <li key={e.id}>
               <button
                 onClick={() => setExpanded(expanded === e.id ? null : e.id)}
+                aria-expanded={expanded === e.id}
                 className="flex w-full items-center gap-3 px-4 py-1.5 text-left hover:bg-accent"
               >
                 <span

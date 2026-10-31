@@ -559,6 +559,52 @@ class Driver:
             "persisted selected view",
         )
 
+    def enable_private_trace(self) -> None:
+        self.navigate("debug", keyboard=True)
+        self.wait(
+            lambda: self.read(
+                "return document.querySelector('main h1')?.textContent==='Diagnostics';"
+            ),
+            "diagnostic page committed after leaving workspace settings",
+        )
+        toggle = self.find('main input[type="checkbox"]')
+        require(not self.read("return arguments[0].checked;", toggle), "trace is not opt-in")
+        self.click(toggle)
+        self.wait(
+            lambda: self.read(
+                "return document.querySelector('main h1')?.textContent==='Diagnostics'&&"
+                "document.querySelector('main input[type=checkbox]')?.checked===true;"
+            ),
+            "actual diagnostic opt-in committed",
+        )
+
+    def inspect_private_trace(self, commands: tuple[str, ...], forbidden: tuple[str, ...]) -> None:
+        """Inspect actual diagnostic rows after native effects and readbacks."""
+        self.navigate("debug", keyboard=True)
+        for name in commands:
+            entry = self.wait(
+                lambda command_name=name: self.read(
+                    "return [...document.querySelectorAll('main li button')]"
+                    ".find(b=>b.querySelector('span.w-40')?.textContent===arguments[0])??null;",
+                    command_name,
+                ),
+                "actual private diagnostic entry",
+            )
+            self.command("POST", f"/element/{entry[ELEMENT]}/value", {"text": "\ue007"})
+            text = self.wait(
+                lambda entry=entry: self.read(
+                    "return arguments[0].getAttribute('aria-expanded')==='true'?"
+                    "arguments[0].closest('li').textContent:null;",
+                    entry,
+                ),
+                "expanded native diagnostic row committed",
+            )
+            require(
+                "[private content omitted]" in text
+                and all(value not in text for value in forbidden),
+                "shared diagnostics retained private task content",
+            )
+
     def close(self) -> None:
         if sys.exception() is not None and not self.log.closed:
             with contextlib.suppress(OSError, ValueError):
@@ -876,6 +922,7 @@ def main() -> None:
         require(
             identity["credential_store"] == "os_keyring", "native key silently used file storage"
         )
+        driver.enable_private_trace()
         driver.navigate("profiles")
         first = driver.create_context("Installed personal one")
         second = driver.create_context("Installed personal two")
@@ -898,7 +945,7 @@ def main() -> None:
             "native_account_id": local["account_id"],
             "native_device_id": local["device_id"],
         }
-        driver.navigate("install")
+        driver.navigate("install", keyboard=True)
         driver.click(driver.button("Create from files"))
         driver.click(driver.find('main fieldset input[type="checkbox"]'))
         driver.click(driver.button("Start authoring"))
@@ -922,6 +969,10 @@ def main() -> None:
             "native personal task admission differs",
         )
         inspect_personal_task(driver, task_id, task_ownership)
+        driver.inspect_private_trace(
+            ("task_start", "task_status", "task_list"),
+            (task_id, local["account_id"], local["device_id"]),
+        )
     finally:
         driver.close()
     # Only this disposable fixture's GTK configuration is changed. A fresh real
@@ -964,6 +1015,10 @@ def main() -> None:
             and cancelled["child_operation_ids"] == [],
             "installed task cancellation changed its original owner or created child effects",
         )
+        driver.inspect_private_trace(
+            ("task_cancel", "task_status", "task_list"),
+            (task_id, local["account_id"], local["device_id"]),
+        )
     finally:
         driver.close()
     require(
@@ -988,6 +1043,7 @@ def main() -> None:
                 "personal_task_ownership_after_restart": True,
                 "personal_task_original_owner_after_view_switch": True,
                 "personal_task_cancelled_original_receipt": True,
+                "installed_personal_task_trace_privacy": True,
                 "independent_installed_cli_readback": True,
                 "unowned_home_instructions_preserved": True,
                 "keyboard_skip_link_focuses_content": True,

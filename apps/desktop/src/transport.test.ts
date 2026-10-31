@@ -11,10 +11,115 @@ import {
   cmdHeartbeatConsentApply,
   cmdRunRead,
   cmdTaskStart,
+  cmdTaskStatus,
+  cmdTaskAnswer,
+  cmdTaskContinue,
+  cmdTaskCancel,
+  cmdTaskList,
+  cmdAuthLogin,
+  cmdAuthStatus,
+  cmdAuthComplete,
+  cmdAuthLogout,
   cmdVersion,
 } from "./transport";
 import { useDebug } from "./store";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+
+it("omits personal task replies, retained ownership and free prose from shared diagnostics", async () => {
+  useDebug.setState({ debugMode: true });
+  const reply = {
+    ok: true,
+    data: {
+      project_root: "/canary/private/project",
+      ownership: { native_account_id: "canary-account" },
+      questions: [{ description: "canary-private-question" }],
+    },
+    warnings: ["canary-private-warning"],
+    continuations: [{ arguments: { value: "canary-private-answer" } }],
+    error: null,
+    error_code: null,
+  };
+  vi.mocked(invoke).mockResolvedValue(reply);
+  expect(await cmdTaskStart("author", "canary-key", "/canary/input.json")).toBe(
+    reply,
+  );
+  expect(await cmdTaskStatus("canary-task")).toBe(reply);
+  await cmdTaskAnswer(
+    "canary-task",
+    "canary-revision",
+    "canary-question",
+    "canary-answer",
+  );
+  await cmdTaskContinue("canary-task", "canary-revision");
+  await cmdTaskCancel("canary-task", "canary-revision");
+  await cmdTaskList();
+  await cmdRunRead(" task   status ", { task: "canary-task" });
+  await cliPlan("task start", { "input-path": "/canary/input.json" });
+  vi.mocked(invoke).mockResolvedValue({
+    ...reply,
+    ok: false,
+    error: "canary-private-error",
+    error_code: "TASK_STALE",
+  });
+  expect((await cmdTaskStatus("canary-task")).error).toBe(
+    "canary-private-error",
+  );
+  vi.mocked(invoke).mockRejectedValue(new Error("canary-private-transport"));
+  expect(
+    (await cmdTaskCancel("canary-task", "canary-revision")).error_code,
+  ).toBe("IPC_THROW");
+  const entries = useDebug.getState().log;
+  expect(entries).toHaveLength(10);
+  expect(JSON.stringify(entries)).not.toContain("canary");
+  expect(entries.every((entry) => entry.result === undefined)).toBe(true);
+  expect(entries.some((entry) => entry.error_code === "TASK_STALE")).toBe(true);
+});
+
+it("omits account confirmation, origin and session content from shared diagnostics", async () => {
+  useDebug.setState({ debugMode: true });
+  const reply = {
+    ok: true,
+    data: {
+      session: {
+        user_code: "canary-confirmation",
+        verification_uri_complete:
+          "https://canary-origin/verify?code=canary-confirmation",
+      },
+    },
+    error: null,
+    error_code: null,
+    warnings: ["canary-private-warning"],
+    continuations: [],
+  };
+  vi.mocked(invoke).mockResolvedValue(reply);
+  expect(await cmdAuthStatus("canary-connection")).toBe(reply);
+  await cmdAuthLogin("github", "https://canary-origin", "canary-connection");
+  await cmdAuthComplete(false, "canary-connection");
+  await cmdAuthLogout("canary-connection");
+  await cmdRunRead("account connections show", {
+    connection: "canary-connection",
+  });
+  await cliPlan("account plan", {
+    "api-url": "https://canary-origin",
+    provider: "github",
+  });
+  vi.mocked(invoke).mockResolvedValue({
+    ...reply,
+    ok: false,
+    error: "canary-private-error",
+    error_code: "SESSION_REVOKED",
+  });
+  expect((await cmdAuthStatus()).error).toBe("canary-private-error");
+  vi.mocked(invoke).mockRejectedValue(new Error("canary-private-transport"));
+  expect((await cmdAuthStatus()).error_code).toBe("IPC_THROW");
+  const entries = useDebug.getState().log;
+  expect(entries).toHaveLength(8);
+  expect(JSON.stringify(entries)).not.toContain("canary");
+  expect(entries.every((entry) => entry.result === undefined)).toBe(true);
+  expect(entries.some((entry) => entry.error_code === "SESSION_REVOKED")).toBe(
+    true,
+  );
+});
 afterEach(() => {
   vi.resetAllMocks();
   useDebug.setState({ debugMode: false, log: [] });
@@ -59,8 +164,7 @@ it("does not retain form content or generic task answers in a diagnostic trace",
   const log = JSON.stringify(useDebug.getState().log);
   expect(log).not.toContain("private user input");
   expect(log).not.toContain("another private answer");
-  expect(log).toContain("[task input]");
-  expect(log).toContain("[user answer]");
+  expect(log).toContain("[private content omitted]");
 });
 
 it("keeps company content out of the shared trace while returning the full reply to its caller", async () => {

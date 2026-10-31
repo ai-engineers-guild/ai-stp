@@ -718,6 +718,7 @@ def installed_journey(
         )
         identity = native(binary, environment, ["device", "show"])
         assert identity["credential_store"] == "os_keyring"
+        driver.enable_private_trace()
         driver.navigate("profiles")
         offline = driver.create_context("Installed offline personal")
         driver.select_context("Installed offline personal", offline)
@@ -746,6 +747,18 @@ def installed_journey(
             "session"
         ]
         assert pending["state"] == "pending"
+        driver.inspect_private_trace(
+            ("auth_login", "auth_status"), (origin, connection, pending["user_code"])
+        )
+        driver.navigate("profiles")
+        driver.click(driver.find(f'main a[href="#/auth?connection={connection}"]'))
+        driver.wait(
+            lambda: driver.read(
+                "return document.querySelector('main').textContent.includes(arguments[0]);",
+                pending["user_code"],
+            ),
+            "original device confirmation after account navigation",
+        )
         approve(pending["user_code"])
         driver.click(driver.button("Open browser and confirm"))
         driver.wait(
@@ -1286,6 +1299,8 @@ def installed_journey(
             "browser_approval": "synthetic_fixture_only",
             "live_sso_account_linking_qualified": False,
             "personal_and_corporate_coexistence": True,
+            "installed_account_trace_privacy": True,
+            "pending_account_confirmation_after_navigation": True,
             "corporate_heartbeat_policy_read": True,
             "corporate_heartbeat_status_original_enrollment": True,
             "corporate_heartbeat_explicit_consent": True,

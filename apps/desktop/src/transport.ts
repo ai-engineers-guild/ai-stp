@@ -48,44 +48,22 @@ function call(
   const pathTokens =
     typeof argsRec.path === "string" ? argsRec.path.trim().split(/\s+/) : [];
   const namespace = pathTokens[0] ?? null;
-  // The trace is shared across views and may be copied as a report. Context
-  // plans and company replies contain directory, repository and policy data;
-  // key-name redaction cannot make that content safe for this shared log.
-  const contextTrace =
+  // Shared reports must not carry account confirmation links, session details
+  // or personal/company task content. Key-name redaction cannot sanitize errors,
+  // warnings or free-form plans; callers still receive the original reply.
+  const privateTrace =
+    command.startsWith("auth_") ||
+    command.startsWith("task_") ||
     command === "checkout_apply" ||
     command === "checkout_location_apply" ||
     command === "checkout_missing_binding_apply" ||
     namespace === "context" ||
     namespace === "corporate" ||
-    (namespace === "account" &&
-      pathTokens[1] === "connections" &&
-      pathTokens[2] === "recovery");
-  // args go through redact like results — plus `task answer`'s `value`,
-  // which is free user text the debug bundle would otherwise carry
-  // verbatim; key-name redaction cannot see it, so it is named here.
-  const tracedArgs: Record<string, unknown> = contextTrace
-    ? { path: namespace, content: "[context content omitted]" }
-    : command === "task_answer" && "value" in argsRec
-      ? {
-          ...(redact(argsRec) as Record<string, unknown>),
-          value: "[user answer]",
-        }
-      : command === "task_start" && "input" in argsRec
-        ? {
-            ...(redact(argsRec) as Record<string, unknown>),
-            input: "[task input]",
-          }
-        : (redact(argsRec) as Record<string, unknown>);
-  if (
-    argsRec.path === "task answer" &&
-    tracedArgs.values &&
-    typeof tracedArgs.values === "object"
-  ) {
-    tracedArgs.values = {
-      ...(tracedArgs.values as Record<string, unknown>),
-      value: "[user answer]",
-    };
-  }
+    namespace === "account" ||
+    namespace === "task";
+  const tracedArgs: Record<string, unknown> = privateTrace
+    ? { path: namespace ?? command, content: "[private content omitted]" }
+    : (redact(argsRec) as Record<string, unknown>);
   const trace = (e: Omit<IpcEntry, "id" | "ts">) => {
     if (useDebug.getState().debugMode) useDebug.getState().push(e);
   };
@@ -99,8 +77,8 @@ function call(
           ms: Math.round(performance.now() - t0),
           ok: r.ok,
           error_code: r.error_code,
-          error: contextTrace && r.error ? "[context error omitted]" : r.error,
-          result: contextTrace ? undefined : (redact(r) as CmdResult),
+          error: privateTrace && r.error ? "[private error omitted]" : r.error,
+          result: privateTrace ? undefined : (redact(r) as CmdResult),
         });
         return r;
       },
@@ -111,7 +89,7 @@ function call(
           ms: Math.round(performance.now() - t0),
           ok: null,
           error_code: "IPC_THROW",
-          error: contextTrace ? "[context IPC error omitted]" : String(e),
+          error: privateTrace ? "[private IPC error omitted]" : String(e),
         });
         return {
           ok: false,
