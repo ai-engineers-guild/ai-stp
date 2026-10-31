@@ -9455,6 +9455,10 @@ export type InstallationHeartbeatPolicy = {
    */
   organization_id: string;
   /**
+   * Policy Version
+   */
+  policy_version: number;
+  /**
    * Retry Base Seconds
    */
   retry_base_seconds: number;
@@ -9509,6 +9513,10 @@ export type InstallationHeartbeatRequest = {
    */
   health_state: "active" | "partial" | "failing" | "disabled";
   last_sync_at?: Timestamp | null;
+  /**
+   * Policy Version
+   */
+  policy_version?: number | null;
   /**
    * Schema Version
    */

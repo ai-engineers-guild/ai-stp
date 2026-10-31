@@ -57,6 +57,10 @@ class HeartbeatPolicyDisabled(ValueError):
     """The organization has disabled installation heartbeat writes."""
 
 
+class HeartbeatConflict(ValueError):
+    """The signed observation conflicts with policy or retained evidence."""
+
+
 class HeartbeatSubjectRevoked(ValueError):
     """The installation's account or device revoked telemetry processing."""
 
@@ -70,9 +74,10 @@ async def organization_policy(
 ) -> InstallationHeartbeatPolicy:
     """Return the tenant's public heartbeat settings or compatibility defaults."""
     await set_tenant_scope(db, organization_id)
-    row = await db.get(TelemetryPolicy, organization_id)
+    row = await db.get(TelemetryPolicy, organization_id, populate_existing=True)
     return InstallationHeartbeatPolicy(
         organization_id=organization_id,
+        policy_version=0 if row is None else row.policy_version,
         enabled=True if row is None else row.heartbeat_enabled,
         inventory_scan_enabled=False if row is None else row.inventory_scan_enabled,
         usage_collection_enabled=False if row is None else row.usage_collection_enabled,
@@ -216,14 +221,19 @@ async def record_heartbeat(
     """Coalesce one heartbeat onto the (organization, device) row.
 
     The caller has already bound account/device to the authenticated session;
-    this layer owns ordering, coalescing, and the skew guard. The returned
-    view carries the evaluated health for `now`.
+    this layer owns ordering, coalescing, and the skew guard. The HTTP writer
+    retains the tenant mutation lock through commit, serializing policy changes
+    with this check and write. The returned view carries evaluated health for `now`.
     """
     now = now or utcnow()
     policy = await organization_policy(db, organization_id=organization_id)
     policy_row = await db.get(TelemetryPolicy, organization_id)
     if not policy.enabled:
         raise HeartbeatPolicyDisabled("heartbeat reporting is disabled for this organization")
+    if report.policy_version is not None and report.policy_version != policy.policy_version:
+        raise HeartbeatConflict(
+            "heartbeat policy changed; a new observation requires the current policy"
+        )
     try:
         await require_subject_active(
             db,
@@ -268,6 +278,24 @@ async def record_heartbeat(
     else:
         if row.account_id != report.account_id:
             raise HeartbeatRejected("device heartbeat is bound to a different account")
+        if not accepted and report.policy_version is not None:
+            previous = to_view(row, now=now, stale_after=stale_after)
+            if parse_timestamp(previous.checked_at) == checked_at:
+                event = await db.get(
+                    InstallationHeartbeatEvent, (organization_id, report.device_id, checked_at)
+                )
+                if event is None or event.policy_version != report.policy_version:
+                    raise HeartbeatConflict(
+                        "heartbeat timestamp has no retained acknowledgement for this policy"
+                    )
+                if (
+                    previous.cli_version != report.cli_version
+                    or previous.capabilities != report.capabilities
+                    or previous.last_sync_at
+                    != (None if last_sync_at is None else format_timestamp(last_sync_at))
+                    or previous.reported_state != report.health_state
+                ):
+                    raise HeartbeatConflict("heartbeat timestamp records a different observation")
         if accepted:
             row.cli_version = report.cli_version
             row.capabilities = list(report.capabilities)

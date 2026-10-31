@@ -31,6 +31,84 @@ fn fixture(source: &str, operation: &str) -> Result<Value> {
 }
 
 #[test]
+fn heartbeat_policy_reads_require_an_explicit_version_and_original_organization() -> Result<()> {
+    let request = Request::HeartbeatPolicy;
+    let (url, body) = request.wire("https://corporate.example.test", ORGANIZATION, ACCOUNT)?;
+    assert_eq!(
+        url.path(),
+        format!("/v1/corporate/organizations/{ORGANIZATION}/telemetry/heartbeat/policy")
+    );
+    assert!(body.is_none() && url.query().is_none());
+    let original = json!({"schema_version":1,"organization_id":ORGANIZATION,
+        "policy_version":0,"enabled":true,"inventory_scan_enabled":false,
+        "usage_collection_enabled":false,"usage_registration_required":false,
+        "interval_seconds":21600,"retry_base_seconds":60,"retry_max_seconds":3600,
+        "stale_after_seconds":86400});
+    let mut extended = original.clone();
+    extended["future_private"] = json!({"token":"heartbeat-private-canary"});
+    assert_eq!(request.project(&extended, ORGANIZATION, ACCOUNT)?, original);
+    for version in [Value::Null, json!(-1), json!(false), json!("0")] {
+        let mut changed = original.clone();
+        changed["policy_version"] = version;
+        assert!(request.project(&changed, ORGANIZATION, ACCOUNT).is_err());
+    }
+    let mut absent = original.clone();
+    absent
+        .as_object_mut()
+        .ok_or_else(invalid)?
+        .remove("policy_version");
+    assert!(request.project(&absent, ORGANIZATION, ACCOUNT).is_err());
+    let mut foreign = original;
+    foreign["organization_id"] = "organization_01ARZ3NDEKTSV4RRFFQ69G5FAV".into();
+    assert!(request.project(&foreign, ORGANIZATION, ACCOUNT).is_err());
+    Ok(())
+}
+
+#[test]
+fn heartbeat_status_never_substitutes_another_enrollment_or_invents_unknown_health() -> Result<()> {
+    let device = "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
+    let request = Request::HeartbeatStatus;
+    let (url, body) = request.wire("https://corporate.example.test", ORGANIZATION, ACCOUNT)?;
+    assert_eq!(
+        url.path(),
+        format!("/v1/corporate/organizations/{ORGANIZATION}/telemetry/heartbeat")
+    );
+    assert!(body.is_none() && url.query().is_none());
+    let mut status = json!({"schema_version":1,"organization_id":ORGANIZATION,
+        "device_id":device,"health_state":"unknown","evaluated_at":"2026-10-31T00:00:00.000Z",
+        "stale_after_seconds":86400,"heartbeat":null});
+    assert_eq!(request.project(&status, ORGANIZATION, ACCOUNT)?, status);
+    heartbeat_device(&status, device)?;
+    assert!(heartbeat_device(&status, "device_01ARZ3NDEKTSV4RRFFQ69G5FAV").is_err());
+    status["health_state"] = "active".into();
+    assert!(request.project(&status, ORGANIZATION, ACCOUNT).is_err());
+    status["health_state"] = "partial".into();
+    status["heartbeat"] = json!({"schema_version":1,"organization_id":ORGANIZATION,
+        "account_id":ACCOUNT,"device_id":device,"cli_version":"0.2.3",
+        "capabilities":["cli.heartbeat"],"last_sync_at":null,"reported_state":"partial",
+        "health_state":"partial","checked_at":"2026-10-31T00:00:00.000Z",
+        "received_at":"2026-10-31T00:00:00.000Z","revision":1,"stale_after_seconds":86400});
+    let original = status.clone();
+    status["heartbeat"]["future_private"] = "heartbeat-private-canary".into();
+    assert_eq!(request.project(&status, ORGANIZATION, ACCOUNT)?, original);
+    for (field, other) in [
+        ("account_id", json!("account_01ARZ3NDEKTSV4RRFFQ69G5FAV")),
+        ("device_id", json!("device_01ARZ3NDEKTSV4RRFFQ69G5FAV")),
+        (
+            "organization_id",
+            json!("organization_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
+        ),
+        ("health_state", json!("active")),
+        ("stale_after_seconds", json!(60)),
+    ] {
+        let mut mixed = original.clone();
+        mixed["heartbeat"][field] = other;
+        assert!(request.project(&mixed, ORGANIZATION, ACCOUNT).is_err());
+    }
+    Ok(())
+}
+
+#[test]
 fn current_link_reads_keep_exact_identity_and_drop_wire_extensions() -> Result<()> {
     let original = fixture(CONTEXT, "readProjectLink")?;
     let id = text(&original, "link_id")?.to_owned();

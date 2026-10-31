@@ -4,7 +4,7 @@ use super::{Declaration, Parameter, ParameterType, STATE_DIR};
 use crate::{
     account::{
         corporate::{self, ObjectKind, Request},
-        project_links, project_unlinks,
+        heartbeats, project_links, project_unlinks,
     },
     error::{Failure, Result},
 };
@@ -15,6 +15,14 @@ use std::path::PathBuf;
 #[derive(Clone, Copy)]
 pub(super) enum Handler {
     Teams,
+    HeartbeatPolicy,
+    HeartbeatStatus,
+    HeartbeatConsentPlan,
+    HeartbeatConsentApply,
+    HeartbeatDelivery,
+    HeartbeatFlush,
+    HeartbeatDisable,
+    HeartbeatMaintain,
     Projects,
     Project,
     LinkTarget,
@@ -63,7 +71,8 @@ pub(super) enum Handler {
 impl Handler {
     pub fn mutability(self) -> &'static str {
         match self {
-            Self::Preview
+            Self::HeartbeatConsentPlan
+            | Self::Preview
             | Self::LinkPreview
             | Self::LinkRequestPlan
             | Self::LinkConfirmPlan
@@ -76,7 +85,11 @@ impl Handler {
             | Self::MissingBindingRetirePlan
             | Self::LocationAnchorPlan
             | Self::LocationRelocatePlan => "plan",
-            Self::LinkApply
+            Self::HeartbeatConsentApply
+            | Self::HeartbeatFlush
+            | Self::HeartbeatDisable
+            | Self::HeartbeatMaintain
+            | Self::LinkApply
             | Self::LinkRetireApply
             | Self::UnlinkApply
             | Self::UnlinkRetireApply
@@ -93,6 +106,12 @@ const CONTEXT: Parameter = Parameter {
     summary: "Exact saved corporate context; absence resolves the selected view once for this new read.",
     kind: ParameterType::String,
     required: false,
+};
+const HEARTBEAT_CONTEXT: Parameter = Parameter {
+    name: "context",
+    summary: "Exact original saved corporate context; never use an ambient selected view for delivery.",
+    kind: ParameterType::String,
+    required: true,
 };
 const QUERY: Parameter = Parameter {
     name: "query",
@@ -581,6 +600,67 @@ pub(super) const COMMANDS: &[Declaration] = &[
         handler: super::Handler::Corporate(Handler::Teams),
     },
     Declaration {
+        path: &["corporate", "heartbeat", "policy"],
+        summary: "Read the current corporate heartbeat policy and its version; this does not opt in or send telemetry.",
+        parameters: &[STATE_DIR, CONTEXT],
+        handler: super::Handler::Corporate(Handler::HeartbeatPolicy),
+    },
+    Declaration {
+        path: &["corporate", "heartbeat", "status"],
+        summary: "Read only the original context's enrolled device heartbeat; no inventory, invocation or reporting consent is inferred.",
+        parameters: &[STATE_DIR, CONTEXT],
+        handler: super::Handler::Corporate(Handler::HeartbeatStatus),
+    },
+    Declaration {
+        path: &["corporate", "heartbeat", "consent", "plan"],
+        summary: "Review explicit local consent for content-free foreground device liveness under the current company policy; sends no report.",
+        parameters: &[STATE_DIR, HEARTBEAT_CONTEXT],
+        handler: super::Handler::Corporate(Handler::HeartbeatConsentPlan),
+    },
+    Declaration {
+        path: &["corporate", "heartbeat", "consent", "apply"],
+        summary: "Enable only the exact reviewed context/policy; no service or startup entry is installed.",
+        parameters: &[
+            Parameter {
+                name: "plan",
+                summary: "Original reviewed consent plan JSON file.",
+                kind: ParameterType::Path,
+                required: true,
+            },
+            Parameter {
+                name: "plan-digest",
+                summary: "Exact reviewed plan digest.",
+                kind: ParameterType::String,
+                required: true,
+            },
+        ],
+        handler: super::Handler::Corporate(Handler::HeartbeatConsentApply),
+    },
+    Declaration {
+        path: &["corporate", "heartbeat", "delivery"],
+        summary: "Read local consent, pacing and original outbox status without network access or payload disclosure.",
+        parameters: &[STATE_DIR, HEARTBEAT_CONTEXT],
+        handler: super::Handler::Corporate(Handler::HeartbeatDelivery),
+    },
+    Declaration {
+        path: &["corporate", "heartbeat", "flush"],
+        summary: "When explicitly enabled and due, observe or retry one original signed device heartbeat in this foreground process.",
+        parameters: &[STATE_DIR, HEARTBEAT_CONTEXT],
+        handler: super::Handler::Corporate(Handler::HeartbeatFlush),
+    },
+    Declaration {
+        path: &["corporate", "heartbeat", "disable"],
+        summary: "Disable local consent and retire only this context's queued payload, including after logout/offline.",
+        parameters: &[STATE_DIR, HEARTBEAT_CONTEXT],
+        handler: super::Handler::Corporate(Handler::HeartbeatDisable),
+    },
+    Declaration {
+        path: &["corporate", "heartbeat", "maintain"],
+        summary: "Locally retire expired owned heartbeat payloads at foreground startup; sends no network requests.",
+        parameters: &[STATE_DIR],
+        handler: super::Handler::Corporate(Handler::HeartbeatMaintain),
+    },
+    Declaration {
         path: &["corporate", "projects"],
         summary: "Read visible corporate projects, or only the authenticated person's explicit memberships.",
         parameters: &[
@@ -859,6 +939,20 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     };
     let at = format!("{:.3}", jiff::Timestamp::now());
     match handler {
+        Handler::HeartbeatConsentPlan => {
+            return heartbeats::consent_plan(state()?, &text("context")?, &at);
+        }
+        Handler::HeartbeatConsentApply => {
+            let plan = heartbeats::read_plan(
+                args.get_one::<PathBuf>("plan")
+                    .ok_or_else(|| Failure::input("plan is required"))?,
+            )?;
+            return heartbeats::consent_apply(&plan, &text("plan-digest")?, &at);
+        }
+        Handler::HeartbeatDelivery => return heartbeats::status(state()?, &text("context")?),
+        Handler::HeartbeatFlush => return heartbeats::flush(state()?, &text("context")?),
+        Handler::HeartbeatDisable => return heartbeats::disable(state()?, &text("context")?),
+        Handler::HeartbeatMaintain => return heartbeats::maintain(state()?),
         Handler::LocationStatus => {
             return project_links::location::status(state()?, &text("operation")?);
         }
@@ -1112,6 +1206,8 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     }
     let request = match handler {
         Handler::Teams => Request::Teams,
+        Handler::HeartbeatPolicy => Request::HeartbeatPolicy,
+        Handler::HeartbeatStatus => Request::HeartbeatStatus,
         Handler::Projects => Request::Projects {
             membership_only: args.get_flag("membership-only"),
         },
@@ -1196,7 +1292,13 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         | Handler::LocationRelocatePlan
         | Handler::LocationApply
         | Handler::LocationStatus
-        | Handler::LocationList => {
+        | Handler::LocationList
+        | Handler::HeartbeatConsentPlan
+        | Handler::HeartbeatConsentApply
+        | Handler::HeartbeatDelivery
+        | Handler::HeartbeatFlush
+        | Handler::HeartbeatDisable
+        | Handler::HeartbeatMaintain => {
             return Err(Failure::input("link coordinates are absent"));
         }
     };

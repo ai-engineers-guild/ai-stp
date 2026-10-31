@@ -12,6 +12,7 @@ import {
 import { EmptyState, PageHeader } from "../components/Layout";
 import { Details, ResultMeta, Spinner } from "../components/Result";
 import CheckoutPreview from "../components/CheckoutPreview";
+import HeartbeatDelivery from "../components/HeartbeatDelivery";
 
 const TABS = [
   "Projects",
@@ -20,6 +21,7 @@ const TABS = [
   "Mappings",
   "Catalog",
   "Assignments",
+  "Heartbeat",
 ] as const;
 type Tab = (typeof TABS)[number];
 
@@ -47,6 +49,12 @@ export default function CorporatePage() {
     name: string;
   } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [heartbeatView, setHeartbeatView] = useState<"policy" | "status">("policy");
+  const heartbeatPath = `corporate heartbeat ${heartbeatView}`;
+  const heartbeatSupported = help?.ok === true && records(help.data?.commands).some(
+    (command) => Array.isArray(command.path) && command.path.join(" ") === heartbeatPath &&
+      command.mutability === "read",
+  );
   const epoch = useRef(0);
   const request = useRef(0);
   const active = useRef(false);
@@ -62,6 +70,7 @@ export default function CorporatePage() {
     setProjects([]);
     setTechnologies([]);
     setCheckoutProject(null);
+    setHeartbeatView("policy");
     return () => {
       active.current = false;
       epoch.current++;
@@ -97,6 +106,7 @@ export default function CorporatePage() {
   ) {
     if (!context || context.mode !== "corporate" || contextLoading || busy)
       return;
+    if (tab === "Heartbeat" && !heartbeatSupported) return;
     const view = context.id,
       viewEpoch = epoch.current,
       sequence = ++request.current;
@@ -114,6 +124,9 @@ export default function CorporatePage() {
           break;
         case "Teams":
           path = "corporate teams";
+          break;
+        case "Heartbeat":
+          path = heartbeatPath;
           break;
         case "Technologies":
           path = "corporate technologies";
@@ -203,7 +216,8 @@ export default function CorporatePage() {
       ? offset + rows.length
       : null;
   const unavailable =
-    help?.ok === false || (help?.ok === true && !harnesses.length);
+    help?.ok === false ||
+    (help?.ok === true && (tab === "Heartbeat" ? !heartbeatSupported : !harnesses.length));
   const checkoutSupported = records(help?.data?.commands).some(
     (command) =>
       Array.isArray(command.path) &&
@@ -279,7 +293,9 @@ export default function CorporatePage() {
             ))}
           </div>
           {unavailable && (
-            <EmptyState title="This engine does not advertise company reads">
+            <EmptyState title={tab === "Heartbeat"
+              ? "This engine does not advertise this heartbeat read"
+              : "This engine does not advertise company reads"}>
               Use a matching CLI and desktop release to open these views.
             </EmptyState>
           )}
@@ -291,6 +307,18 @@ export default function CorporatePage() {
             }}
           >
             <div className="grid gap-4 md:grid-cols-2">
+              {tab === "Heartbeat" && (
+                <label className="field-label">
+                  Heartbeat view
+                  <select className="input" value={heartbeatView} onChange={(event) => {
+                    invalidate();
+                    setHeartbeatView(event.target.value as "policy" | "status");
+                  }}>
+                    <option value="policy">Reporting policy</option>
+                    <option value="status">Enrolled device status</option>
+                  </select>
+                </label>
+              )}
               {tab === "Projects" && (
                 <label className="flex items-center gap-2 text-sm">
                   <input
@@ -417,6 +445,13 @@ export default function CorporatePage() {
                 Projects or Technologies to choose a scope.
               </p>
             )}
+            {tab === "Heartbeat" && (
+              <><p className="text-sm text-muted-foreground">
+                Reading these views does not enable reporting. Company policy
+                is separate from your consent. Device health does not establish
+                harness usage.
+              </p><HeartbeatDelivery key={context.id} context={context} help={help} disabled={contextLoading} /></>
+            )}
             <button
               className="btn-primary"
               disabled={
@@ -431,6 +466,7 @@ export default function CorporatePage() {
               <RefreshCw size={15} aria-hidden="true" />
               {tab === "Assignments"
                 ? "Preview assignments"
+                : tab === "Heartbeat" ? `Read heartbeat ${heartbeatView}`
                 : `Read ${tab.toLowerCase()}`}
             </button>
           </form>
@@ -463,7 +499,30 @@ export default function CorporatePage() {
                   </p>
                 </div>
               )}
-              {!rows.length ? (
+              {tab === "Heartbeat" ? (
+                <div className="card space-y-3 p-5">
+                  {heartbeatView === "policy" ? (
+                    <dl className="grid gap-2 text-sm">
+                      <dt>Company reporting policy</dt>
+                      <dd>{data.enabled === true ? "Enabled by company" :
+                        data.enabled === false ? "Disabled by company" : "Not reported"}</dd>
+                      <dt>Policy version</dt><dd>{String(data.policy_version ?? "Not reported")}</dd>
+                      <dt>Reporting interval</dt><dd>{typeof data.interval_seconds === "number"
+                        ? `${data.interval_seconds} seconds` : "Not reported"}</dd>
+                    </dl>
+                  ) : (
+                    <>
+                      <dl className="grid gap-2 text-sm">
+                        <dt>Enrolled device</dt><dd className="break-all font-mono">{String(data.device_id ?? "Not reported")}</dd>
+                        <dt>Reported device health</dt><dd>{String(data.health_state ?? "Not reported")}</dd>
+                      </dl>
+                      {data.heartbeat === null && <p className="text-sm text-muted-foreground">
+                        No heartbeat has been reported for this enrolled device.
+                      </p>}
+                    </>
+                  )}
+                </div>
+              ) : !rows.length ? (
                 <EmptyState title="No matching records">
                   This is the result for the selected company and current
                   permissions.

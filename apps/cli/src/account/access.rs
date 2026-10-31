@@ -376,6 +376,47 @@ impl Access {
         }
     }
 
+    pub(super) fn sign_heartbeat(
+        &self,
+        organization: &str,
+        body: &serde_json::Value,
+    ) -> Result<[u8; 64]> {
+        self.revalidate()?;
+        if !self.verified
+            || self.offline
+            || body["account_id"] != self.binding.account_id
+            || body["device_id"] != self.binding.device_id
+        {
+            return Err(refused("heartbeat_authorization_changed"));
+        }
+        let bytes = super::heartbeats::signature_message(organization, body)?;
+        let signature = self.state.plan.sign(&self.identity, &bytes)?;
+        self.revalidate()?;
+        Ok(signature)
+    }
+
+    pub(super) fn heartbeat(&self, organization: &str, body: &[u8]) -> Result<serde_json::Value> {
+        self.revalidate()?;
+        if !self.verified || self.offline {
+            return Err(refused("heartbeat_authorization_changed"));
+        }
+        super::heartbeats::write_body(
+            organization,
+            &self.binding.account_id,
+            &self.binding.device_id,
+            body,
+        )?;
+        let Session::Authorized { access_token, .. } = &self.state.session else {
+            return Err(refused("account_required"));
+        };
+        let reply = self.api.heartbeat(organization, body, access_token)?;
+        self.revalidate()?;
+        match reply {
+            Reply::Resource(value) => Ok(value),
+            Reply::Refused(code) => Err(super::grants::refusal(code)),
+        }
+    }
+
     pub(super) fn reports(
         &self,
         id: Option<&str>,

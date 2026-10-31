@@ -1,5 +1,33 @@
 {
   "$defs": {
+    "NativePersonalTaskOwnership": {
+      "additionalProperties": false,
+      "description": "Retained local authoring identity, independent of any selected company view.",
+      "properties": {
+        "kind": {
+          "const": "personal",
+          "title": "Kind",
+          "type": "string"
+        },
+        "native_account_id": {
+          "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Native Account Id",
+          "type": "string"
+        },
+        "native_device_id": {
+          "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Native Device Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "native_account_id",
+        "native_device_id"
+      ],
+      "title": "NativePersonalTaskOwnership",
+      "type": "object"
+    },
     "TaskId": {
       "pattern": "^task_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
       "type": "string"
@@ -37,6 +65,17 @@
           "title": "Open Question Ids",
           "type": "array"
         },
+        "ownership": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NativePersonalTaskOwnership"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "project_root": {
           "default": "",
           "title": "Project Root",
@@ -72,6 +111,7 @@
         "harness_id",
         "intent",
         "open_question_ids",
+        "ownership",
         "project_root",
         "revision",
         "scope",

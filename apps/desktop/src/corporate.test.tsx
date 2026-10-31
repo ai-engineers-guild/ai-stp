@@ -66,6 +66,18 @@ const reply = (id: string, name: string) =>
       },
     },
   });
+const heartbeatHelp = () => ok({
+  commands: ["policy", "status"].map((view) => ({
+    path: ["corporate", "heartbeat", view], mutability: "read", parameters: [],
+  })),
+});
+const heartbeatReply = (id: string, data: Record<string, unknown>) => ok({
+  observation_digest: "sha256:heartbeat-fixture",
+  observation: {
+    context: { context_id: id }, data,
+    observation: { capabilities: { generated_at: "now", expires_at: "later" } },
+  },
+});
 beforeEach(() => {
   vi.clearAllMocks();
   useContexts.setState({
@@ -108,6 +120,80 @@ async function ready() {
     ).toBe(false),
   );
 }
+
+it("reads an explicitly advertised heartbeat policy without enabling corporate reporting", async () => {
+  vi.mocked(transport.cmdMachineHelp).mockResolvedValue(heartbeatHelp());
+  vi.mocked(transport.cmdRunRead).mockResolvedValue(heartbeatReply(A.id, {
+    enabled: true, policy_version: 4, interval_seconds: 900,
+  }));
+  mount();
+  fireEvent.click(screen.getByRole("button", { name: "Heartbeat" }));
+  const button = screen.getByRole("button", { name: "Read heartbeat policy" });
+  await waitFor(() => expect(button.hasAttribute("disabled")).toBe(false));
+  expect(transport.cmdRunRead).not.toHaveBeenCalled();
+  fireEvent.click(button);
+  await screen.findByText("Enabled by company");
+  expect(screen.getByText("900 seconds")).toBeTruthy();
+  expect(screen.getByText("4")).toBeTruthy();
+  expect(screen.getByText(/Company policy is separate from your consent/)).toBeTruthy();
+  expect(transport.cmdRunRead).toHaveBeenCalledWith("corporate heartbeat policy", { context: A.id }, []);
+  expect(transport.cliPlan).not.toHaveBeenCalled();
+  expect(transport.cmdProfileApply).not.toHaveBeenCalled();
+  expect(screen.queryByRole("button", { name: /Enable reporting/i })).toBeNull();
+});
+
+it("reads the original enrollment's unknown heartbeat without presenting harness usage", async () => {
+  vi.mocked(transport.cmdMachineHelp).mockResolvedValue(heartbeatHelp());
+  vi.mocked(transport.cmdRunRead).mockResolvedValue(heartbeatReply(A.id, {
+    device_id: "device_original", health_state: "unknown", heartbeat: null,
+  }));
+  mount();
+  fireEvent.click(screen.getByRole("button", { name: "Heartbeat" }));
+  fireEvent.change(screen.getByRole("combobox", { name: "Heartbeat view" }), { target: { value: "status" } });
+  const button = screen.getByRole("button", { name: "Read heartbeat status" });
+  await waitFor(() => expect(button.hasAttribute("disabled")).toBe(false));
+  fireEvent.click(button);
+  await screen.findByText("No heartbeat has been reported for this enrolled device.");
+  expect(screen.getByText("device_original")).toBeTruthy();
+  expect(screen.getByText("unknown")).toBeTruthy();
+  expect(transport.cmdRunRead).toHaveBeenCalledTimes(1);
+  expect(transport.cmdRunRead).toHaveBeenCalledWith("corporate heartbeat status", { context: A.id }, []);
+});
+
+it.each(["missing", "apply"])("refuses heartbeat reads when the engine declaration is %s", async (mode) => {
+  vi.mocked(transport.cmdMachineHelp).mockResolvedValue(ok({
+    commands: mode === "missing" ? [] : [{ path: ["corporate", "heartbeat", "policy"], mutability: mode }],
+  }));
+  mount();
+  fireEvent.click(screen.getByRole("button", { name: "Heartbeat" }));
+  await screen.findByText("This engine does not advertise this heartbeat read");
+  const button = screen.getByRole("button", { name: "Read heartbeat policy" });
+  expect(button.hasAttribute("disabled")).toBe(true);
+  fireEvent.submit(button.closest("form")!);
+  expect(transport.cmdRunRead).not.toHaveBeenCalled();
+});
+
+it("discards private heartbeat policy from a previous company after switching views", async () => {
+  let previous!: (result: CmdResult) => void;
+  vi.mocked(transport.cmdMachineHelp).mockResolvedValue(heartbeatHelp());
+  vi.mocked(transport.cmdRunRead)
+    .mockReturnValueOnce(new Promise((resolve) => { previous = resolve; }))
+    .mockResolvedValueOnce(heartbeatReply(B.id, { enabled: false, policy_version: 9, interval_seconds: 1800 }));
+  mount();
+  fireEvent.click(screen.getByRole("button", { name: "Heartbeat" }));
+  const button = screen.getByRole("button", { name: "Read heartbeat policy" });
+  await waitFor(() => expect(button.hasAttribute("disabled")).toBe(false));
+  fireEvent.click(button);
+  await waitFor(() => expect(transport.cmdRunRead).toHaveBeenCalledTimes(1));
+  act(() => useContexts.setState({ selected: B }));
+  fireEvent.click(screen.getByRole("button", { name: "Read heartbeat policy" }));
+  await screen.findByText("Disabled by company");
+  await act(async () => previous(heartbeatReply(A.id, { enabled: true, policy_version: 123, private_field: "previous-company-canary" })));
+  expect(screen.getByText("9")).toBeTruthy();
+  expect(screen.queryByText("123")).toBeNull();
+  expect(screen.queryByText(/previous-company-canary/)).toBeNull();
+  expect(transport.cmdRunRead).toHaveBeenLastCalledWith("corporate heartbeat policy", { context: B.id }, []);
+});
 
 it("opens the selected project's advertised native checkout review", async () => {
   vi.mocked(transport.cmdRunRead).mockResolvedValue(reply(A.id, "Our project"));

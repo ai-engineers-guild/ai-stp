@@ -81,6 +81,14 @@ contract!(
     ASSIGNMENTS,
     "/resources/schemas/v1/corporate-assignment-plan.schema.json"
 );
+contract!(
+    HEARTBEAT_POLICY,
+    "/resources/schemas/v1/installation-heartbeat-policy.schema.json"
+);
+contract!(
+    HEARTBEAT_STATUS,
+    "/resources/schemas/v1/installation-heartbeat-status.schema.json"
+);
 
 #[derive(Clone, Copy, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -93,6 +101,8 @@ pub enum ObjectKind {
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Request {
     Teams,
+    HeartbeatPolicy,
+    HeartbeatStatus,
     Projects {
         membership_only: bool,
     },
@@ -262,6 +272,8 @@ impl Request {
         let base = format!("/v1/corporate/organizations/{organization}");
         let route = match self {
             Self::Teams => format!("{base}/teams"),
+            Self::HeartbeatPolicy => format!("{base}/telemetry/heartbeat/policy"),
+            Self::HeartbeatStatus => format!("{base}/telemetry/heartbeat"),
             Self::Projects {
                 membership_only: true,
             } => format!("{base}/members/{account}/projects"),
@@ -360,6 +372,8 @@ impl Request {
     ) -> Result<Value> {
         let schema = match self {
             Self::Teams => &TEAMS,
+            Self::HeartbeatPolicy => &HEARTBEAT_POLICY,
+            Self::HeartbeatStatus => &HEARTBEAT_STATUS,
             Self::Projects { .. } => &PROJECTS,
             Self::Project { .. } => &PROJECT,
             Self::LinkTarget { .. } => &LINK_TARGET,
@@ -387,6 +401,8 @@ impl Request {
         if matches!(
             self,
             Self::Project { .. }
+                | Self::HeartbeatPolicy
+                | Self::HeartbeatStatus
                 | Self::LinkTarget { .. }
                 | Self::LinkCurrent { .. }
                 | Self::Mappings
@@ -395,6 +411,26 @@ impl Request {
         ) && value["organization_id"] != organization
         {
             return Err(invalid());
+        }
+        if matches!(self, Self::HeartbeatPolicy) && value["policy_version"].as_u64().is_none() {
+            return Err(Failure::precondition(
+                "the server does not report the required heartbeat policy revision",
+            ));
+        }
+        if matches!(self, Self::HeartbeatStatus) {
+            let heartbeat = &value["heartbeat"];
+            if heartbeat.is_null() {
+                if value["health_state"] != "unknown" {
+                    return Err(invalid());
+                }
+            } else if heartbeat["organization_id"] != organization
+                || heartbeat["account_id"] != account
+                || heartbeat["device_id"] != value["device_id"]
+                || heartbeat["health_state"] != value["health_state"]
+                || heartbeat["stale_after_seconds"] != value["stale_after_seconds"]
+            {
+                return Err(invalid());
+            }
         }
         if let Self::Project { project_id } = self
             && value["project_id"] != *project_id
@@ -562,6 +598,13 @@ pub(super) fn authority(organization: &Value, observation: &Value) -> Value {
     ])
 }
 
+fn heartbeat_device(value: &Value, device: &str) -> Result<()> {
+    if value["device_id"] != device {
+        return Err(invalid());
+    }
+    Ok(())
+}
+
 pub fn observe(root: &Path, context: Option<&str>, request: Request) -> Result<Value> {
     request.validate()?;
     let context = contexts::resolve(root, context)?;
@@ -598,6 +641,9 @@ pub fn observe(root: &Path, context: Option<&str>, request: Request) -> Result<V
     }
     let data = access.corporate(&request, organization_id)?;
     let data = request.project(&data, organization_id, &access.binding().account_id)?;
+    if matches!(request, Request::HeartbeatStatus) {
+        heartbeat_device(&data, &access.binding().device_id)?;
+    }
     let (current, current_observation) = contexts::remote(&mut access, Some(organization_id))?;
     if authority(&organization, &observation) != authority(&current, &current_observation) {
         return Err(Failure::precondition(

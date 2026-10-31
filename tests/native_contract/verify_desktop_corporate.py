@@ -35,6 +35,7 @@ from tests.support.postgres import isolated_database
 from ai_stp_api.app import create_app
 from ai_stp_api.slices.auth.device_flow import approve_device_authorization
 from ai_stp_foundation.ids import new_id
+from ai_stp_platform.heartbeat_models import InstallationHeartbeat, InstallationHeartbeatEvent
 from ai_stp_platform.models import Account
 from ai_stp_platform.organization_models import (
     CorporateProject,
@@ -44,6 +45,7 @@ from ai_stp_platform.organization_models import (
     ProjectLinkPlan,
     ProjectUnlinkPlan,
 )
+from ai_stp_platform.tenant_scope import set_tenant_scope
 
 PROFILE_REVIEW = 'section[aria-label="Review native profile plan"]'
 CHECKOUT_REVIEW = 'section[aria-label="Review corporate checkout change"]'
@@ -662,6 +664,7 @@ def installed_journey(
     driver_path: Path,
     approve: Callable[[str], None],
     lose_confirmation: Callable[[], None],
+    assert_no_heartbeat_reports: Callable[[], None],
 ) -> dict[str, Any]:
     # Reuse the already qualified persistent HTTP/1 driver and fixed diagnostics.
     helpers = runpy.run_path(
@@ -772,6 +775,81 @@ def installed_journey(
         company = profile_review(driver, company_plan)["change"]["context"]["context_id"]
         choose(driver, "Selected context view", company, scope='section[aria-label="Context view"]')
         driver.selected(company)
+        heartbeat_policy = native(
+            binary, environment, ["corporate", "heartbeat", "policy", "--context", company]
+        )["observation"]["data"]
+        assert type(heartbeat_policy["policy_version"]) is int
+        driver.navigate("corporate", keyboard=True)
+        driver.click(driver.button("Heartbeat"))
+        driver.click(driver.button("Read heartbeat policy"))
+        driver.wait(
+            lambda: driver.read(
+                "const dt=[...document.querySelectorAll('main dt')]"
+                ".find(x=>x.textContent==='Policy version');"
+                "return dt?.nextElementSibling?.textContent===arguments[0];",
+                str(heartbeat_policy["policy_version"]),
+            ),
+            "actual installed heartbeat policy read",
+        )
+        choose(driver, "Heartbeat view", "status")
+        driver.click(driver.button("Read heartbeat status"))
+        heartbeat_status = native(
+            binary, environment, ["corporate", "heartbeat", "status", "--context", company]
+        )["observation"]["data"]
+        assert heartbeat_status["heartbeat"] is None
+        assert heartbeat_status["health_state"] == "unknown"
+        driver.wait(
+            lambda: driver.read(
+                "const dt=[...document.querySelectorAll('main dt')]"
+                ".find(x=>x.textContent==='Enrolled device');"
+                "return dt?.nextElementSibling?.textContent===arguments[0]&&"
+                "document.querySelector('main').textContent.includes(arguments[1]);",
+                heartbeat_status["device_id"],
+                "No heartbeat has been reported for this enrolled device.",
+            ),
+            "actual installed original enrollment heartbeat status",
+        )
+        assert_no_heartbeat_reports()
+        driver.click(driver.button("Review heartbeat consent"))
+        consent_scope = 'div[aria-label="Review heartbeat consent"]'
+        consent = public_plan(driver, consent_scope)
+        assert consent["context"]["context_id"] == company
+        assert consent["account"]["account_id"] == account
+        assert consent["account"]["device_id"] == heartbeat_status["device_id"]
+        assert consent["policy"] == heartbeat_policy
+        authorize(driver, consent_scope, "Enable reviewed heartbeat reporting")
+        driver.wait(
+            lambda: driver.read(
+                "return document.querySelector(arguments[0]).textContent"
+                ".includes('Local reporting: enabled.');",
+                'section[aria-label="Foreground heartbeat delivery"]',
+            ),
+            "actual installed explicit local heartbeat consent",
+        )
+        driver.click(driver.button("Check due heartbeat delivery"))
+        driver.wait(
+            lambda: driver.read(
+                "return document.querySelector(arguments[0]).textContent"
+                ".includes('Last outcome: acknowledged.');",
+                'section[aria-label="Foreground heartbeat delivery"]',
+            ),
+            "actual installed original signed heartbeat acknowledgement",
+        )
+        delivered = native(
+            binary, environment, ["corporate", "heartbeat", "delivery", "--context", company]
+        )
+        assert delivered["enabled"] and not delivered["pending"]
+        assert delivered["last_outcome"] == "acknowledged"
+        driver.click(driver.button("Disable local reporting"))
+        driver.wait(
+            lambda: driver.read(
+                "return document.querySelector(arguments[0]).textContent"
+                ".includes('Local reporting: disabled.');",
+                'section[aria-label="Foreground heartbeat delivery"]',
+            ),
+            "actual installed local heartbeat disable",
+        )
+        driver.click(driver.button("Projects"))
         checkout = root / unicodedata.normalize("NFD", "café-checkout")
         neighbor = root / unicodedata.normalize("NFC", "café-checkout")
         assert str(checkout) != str(neighbor)
@@ -1208,6 +1286,13 @@ def installed_journey(
             "browser_approval": "synthetic_fixture_only",
             "live_sso_account_linking_qualified": False,
             "personal_and_corporate_coexistence": True,
+            "corporate_heartbeat_policy_read": True,
+            "corporate_heartbeat_status_original_enrollment": True,
+            "corporate_heartbeat_explicit_consent": True,
+            "corporate_heartbeat_original_acknowledgement": True,
+            "corporate_heartbeat_disabled_after_restart": not native(
+                binary, environment, ["corporate", "heartbeat", "delivery", "--context", company]
+            )["enabled"],
             "lost_committed_confirmation": True,
             "restart_and_original_reconciliation": True,
             "active_binding_adoption": True,
@@ -1261,6 +1346,22 @@ async def prove(driver_path: Path, out: Path, database_url: str, root: Path) -> 
             def lose_confirmation() -> None:
                 asyncio.run_coroutine_threadsafe(lose(), loop).result(timeout=15)
 
+            async def no_heartbeat_reports() -> None:
+                async with app.state.sessionmaker() as db:
+                    await set_tenant_scope(db, organization)
+                    for model in [InstallationHeartbeat, InstallationHeartbeatEvent]:
+                        assert (
+                            await db.scalar(
+                                select(func.count())
+                                .select_from(model)
+                                .where(model.organization_id == organization)
+                            )
+                            == 0
+                        )
+
+            def assert_no_heartbeat_reports() -> None:
+                asyncio.run_coroutine_threadsafe(no_heartbeat_reports(), loop).result(timeout=15)
+
             try:
                 async with asyncio.timeout(15):
                     while not server.started:
@@ -1279,6 +1380,7 @@ async def prove(driver_path: Path, out: Path, database_url: str, root: Path) -> 
                     driver_path=driver_path,
                     approve=approve,
                     lose_confirmation=lose_confirmation,
+                    assert_no_heartbeat_reports=assert_no_heartbeat_reports,
                 )
                 assert faults.lose_next is None
                 assert faults.writes == [
@@ -1309,10 +1411,32 @@ async def prove(driver_path: Path, out: Path, database_url: str, root: Path) -> 
                         link.state == "unlinked" and link.organization_id == organization
                         for link in links
                     )
+                    await set_tenant_scope(db, organization)
+                    for model in [InstallationHeartbeat, InstallationHeartbeatEvent]:
+                        assert (
+                            await db.scalar(
+                                select(func.count())
+                                .select_from(model)
+                                .where(model.organization_id == organization)
+                            )
+                            == 1
+                        )
+                    heartbeat = await db.scalar(
+                        select(InstallationHeartbeat).where(
+                            InstallationHeartbeat.organization_id == organization
+                        )
+                    )
+                    assert heartbeat is not None and heartbeat.account_id == account
+                    assert heartbeat.capabilities == ["cli.foreground-liveness"]
+                    assert heartbeat.last_sync_at is None and heartbeat.revision == 1
+                    assert proof["corporate_heartbeat_disabled_after_restart"] is True
                 proof.update(
                     actual_api_postgresql=True,
                     committed_mutation_posts=9,
                     committed_mutation_requests=12,
+                    corporate_heartbeat_reads_send_no_reports=True,
+                    corporate_heartbeat_accepted_rows=1,
+                    corporate_heartbeat_accepted_events=1,
                 )
                 out.write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
                 print(

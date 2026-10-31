@@ -32,10 +32,10 @@
       "case_id": "readInstallationHeartbeatPolicy.telemetry",
       "operation_id": "readInstallationHeartbeatPolicy",
       "kind": "positive",
-      "why": "An installation reads its organization's opt-in and retry cadence.",
+      "why": "An installation reads the unconfigured organization's compatibility policy and retry cadence; this does not grant local reporting consent.",
       "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}},
       "status": 200,
-      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "enabled": true, "inventory_scan_enabled": false, "usage_collection_enabled": false, "usage_registration_required": false, "interval_seconds": 21600, "retry_base_seconds": 60, "retry_max_seconds": 3600, "stale_after_seconds": 86400}
+      "body": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "policy_version": 0, "enabled": true, "inventory_scan_enabled": false, "usage_collection_enabled": false, "usage_registration_required": false, "interval_seconds": 21600, "retry_base_seconds": 60, "retry_max_seconds": 3600, "stale_after_seconds": 86400}
     },
     {
       "case_id": "recordCorporateTelemetryEvent.telemetry",

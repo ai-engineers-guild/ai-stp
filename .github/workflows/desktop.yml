@@ -10,6 +10,11 @@ name: desktop
 on:
   workflow_call:
   workflow_dispatch:
+    inputs:
+      packages_only:
+        description: Build diagnostic packages without application acceptance or release permission
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -36,6 +41,13 @@ jobs:
         # than `ubuntu-latest`, which moves to Ubuntu 26.04 from 2026-10-19.
         os: [ubuntu-24.04, macos-15, windows-2025]
     steps:
+      - name: Confine package-only diagnosis to its explicit manual workflow
+        if: inputs.packages_only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_EVENT_NAME}" = workflow_dispatch
+          test "${GITHUB_WORKFLOW}" = desktop
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
@@ -146,7 +158,7 @@ jobs:
           cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml --
           desktop-package-probe
       - name: Install the release package on the disposable Linux runner
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && !inputs.packages_only
         shell: bash
         run: |
           set -euo pipefail
@@ -163,7 +175,7 @@ jobs:
           cargo install tauri-driver --version 2.1.0 --locked
           --root "${RUNNER_TEMP}/ai-stp-webdriver"
       - name: Three installed Linux Desktop journeys with bundled CLI and native vault
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && !inputs.packages_only
         shell: bash
         run: |
           set -euo pipefail
@@ -174,7 +186,7 @@ jobs:
               "${RUNNER_TEMP}/installed-desktop-proof-${round}.json"
           done
       - name: Prepare the actual corporate API fixture on Linux
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && !inputs.packages_only
         shell: bash
         run: |
           set -euo pipefail
@@ -186,7 +198,7 @@ jobs:
           bash .github/scripts/install-uv.sh 0.13.5 "${RUNNER_TEMP}/uv"
           echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
       - name: Installed corporate onboarding, lost reply and original binding recovery
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && !inputs.packages_only
         shell: bash
         env:
           AI_STP_TEST_DB_URL: postgresql+asyncpg://ai_stp:ai_stp_dev@127.0.0.1:15434/ai_stp
@@ -201,7 +213,7 @@ jobs:
           uv sync --locked
           bash .github/scripts/check-native-secret-service.sh --installed-corporate-desktop
       - name: Retain the public installed corporate checkout result
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && !inputs.packages_only
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: installed-linux-corporate-checkout-proof
@@ -209,7 +221,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - name: Retain public installed Desktop results
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && !inputs.packages_only
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: installed-linux-desktop-proof
@@ -219,7 +231,46 @@ jobs:
       - name: Upload bundles
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: ai-stp-desktop-${{ matrix.os }}
+          name: ai-stp-desktop-${{ inputs.packages_only && 'preflight-' || '' }}${{ matrix.os }}
           path: |
             apps/desktop/src-tauri/target/release/bundle/
           if-no-files-found: warn
+      - name: Prepare the existing native drivers for Linux diagnosis
+        if: runner.os == 'Linux' && inputs.packages_only
+        shell: bash
+        run: |
+          set -euo pipefail
+          drivers="${RUNNER_TEMP}/native-desktop-drivers"
+          mkdir "${drivers}"
+          install -m 755 "${RUNNER_TEMP}/ai-stp-webdriver/bin/tauri-driver" \
+            "${drivers}/tauri-driver"
+          install -m 755 /usr/bin/WebKitWebDriver "${drivers}/WebKitWebDriver"
+          cp /usr/share/doc/webkit2gtk-driver/copyright \
+            "${drivers}/WebKitWebDriver.COPYRIGHT"
+          dpkg-query --show webkit2gtk-driver > "${drivers}/webkit-version.txt"
+          cd "${drivers}"
+          sha256sum -- tauri-driver WebKitWebDriver \
+            WebKitWebDriver.COPYRIGHT webkit-version.txt > SHA256SUMS
+      - name: Retain the pinned drivers for native Linux diagnosis
+        if: runner.os == 'Linux' && inputs.packages_only
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: desktop-preflight-linux-driver
+          path: ${{ runner.temp }}/native-desktop-drivers/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Record that diagnostic packages have no application acceptance
+        if: inputs.packages_only
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '{"schema_version":1,"source_sha":"%s",%s}\n' "${GITHUB_SHA}" \
+            '"application_acceptance":false,"release_authorized":false' \
+            > "${RUNNER_TEMP}/desktop-preflight.json"
+      - name: Retain diagnostic intent separately from acceptance proofs
+        if: inputs.packages_only
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: desktop-preflight-intent-${{ matrix.os }}
+          path: ${{ runner.temp }}/desktop-preflight.json
+          if-no-files-found: error

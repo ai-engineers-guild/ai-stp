@@ -75,6 +75,18 @@ harness files. Harness executables remain user/vendor managed.
   are discarded, including after switching away and back to the same context.
   Catalog and technology pages retain their search filters for explicit next-page
   reads; catalog versions and assignment digests are visible in the result cards.
+  The Heartbeat view reads the versioned company policy or the original enrolled
+  device's reported health when the engine advertises those read commands.
+  Company enablement is separate from local consent. These views send no reports
+  and do not infer harness usage or install a scheduler.
+  Engines advertising foreground delivery also offer a separate consent review,
+  showing the original context, policy, cadence and signed fields. Only after
+  confirmation does the focused app process due heartbeats for the selected
+  corporate context. Switching to personal or hiding/unfocusing the app stops
+  new passes. Local disable works offline, and expiry maintenance sends no
+  network requests. Pending retries keep original bytes and timestamps across
+  process restarts. CLI liveness does not establish harness activity or managed
+  installation coverage; neither client installs a startup service.
   A project can open a native checkout review with an existing registered root
   and optional trusted Git executable. A successful preview exposes current
   corporate repository choices for a separate recheck. Editing inputs or switching
@@ -86,9 +98,23 @@ harness files. Harness executables remain user/vendor managed.
 - **Targets**, **Discovery** and **Commands** render the connected engine's
   command descriptors with read/plan/apply gates and explicit apply confirmation.
 - **Diagnostics** offers an optional, bounded in-memory trace and an explicitly
-  copied redacted report. No telemetry or automatic diagnostic upload.
+  copied redacted report. Diagnostics are never uploaded automatically.
   Context and corporate commands retain only transport outcome and timing in
   this shared trace; their arguments, replies and error prose are omitted.
+
+Existing authoring/install flows are personal tasks. Their retained local owner
+is shown in Activity and the task workspace, independently of the selected
+company view. Older engines and unclassified legacy receipts keep that ownership
+unknown. An identical interrupted start retains its key and a detached input
+snapshot; a different request is refused until the original is inspected or a
+separate request is explicitly chosen. Choosing another request does not cancel
+the first task. Catalog navigation retains an unconfirmed start and its original
+retry key; a confirmed start opens its original task receipt. Task reads and
+replies are fenced to each visit, including a leave-and-return to the same task,
+and an old response cannot clear a newer read.
+If a task read fails, its old controls are removed until a successful explicit
+read. A continuation waiting for command discovery is submitted only while its
+original task visit is still current; leaving and returning does not revive it.
 
 The engine reports installation availability. Isolated setup execution is
 currently Linux-only; authoring and catalog reads remain available on macOS and
@@ -141,7 +167,10 @@ through external WebKit WebDriver under Xvfb. The disposable session has its own
 GNOME credential service and private home. The journey initializes the native
 vault through Settings, reviews two offline personal contexts, switches views,
 restarts the app and compares the retained state with the installed bundled CLI.
-It verifies the default credential store and preserves unrelated home files.
+It starts an authoring task through the UI, reopens its original owner from
+Activity after restart and view switching, and cancels that same blocked task.
+Independent installed CLI reads verify ownership and the absence of child
+effects. It verifies the default credential store and preserves unrelated home files.
 Three fresh private sessions must each pass the complete journey. The external
 driver uses one persistent HTTP connection; failed UI commands are not replayed.
 Those three journeys qualify personal contexts. A separate mandatory Linux

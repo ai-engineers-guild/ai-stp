@@ -2,9 +2,16 @@
 
 `ai-stp` is the native CLI engine. The Cargo package lives in `apps/cli`;
 its library owns business operations and its executable renders envelope v1.
-There is no Python fallback, model client, background updater or telemetry.
+There is no Python fallback, model client or background updater.
+Corporate foreground liveness reporting requires separate reviewed local consent.
 The executable registry is the command reference: `ai-stp help --agent --json`.
 Use `task intents` and `task input-schema` for the smaller task interface.
+
+Native authoring and installation tasks use their original local account/device
+identity. `task status` and `task list` expose it as personal `ownership`; selecting
+a company view does not convert these tasks into company-managed installations.
+Historical or older engines without that field leave ownership unclassified.
+This read projection preserves the existing task journal and registry format.
 
 The commands below describe the CLI 0.2 / Desktop 0.1 client line. Immutable
 CLI 0.1.3 / Desktop 0.0.11 binaries retain their original command surface;
@@ -66,6 +73,21 @@ read through a saved corporate context. `corporate projects --membership-only`
 uses the authenticated person's explicit project memberships; visibility alone
 does not establish assignment membership. Corporate project IDs use the server's
 `remote_project_` namespace, separately from local project passports.
+`corporate heartbeat policy` reads the current heartbeat settings and explicit
+policy version. `corporate heartbeat status` reads only the context's own
+enrolled device, including an unknown state before its first report. Both use
+the original corporate account and the same current-access checks as other
+company reads; neither enables reporting, sends a heartbeat, schedules a service
+or infers harness activity. A server without an explicit heartbeat policy
+version cannot supply the versioned policy view.
+`corporate heartbeat consent plan/apply` reviews and enables only that exact
+context and policy. `delivery` reads local consent and outbox status, `flush`
+performs one due foreground delivery, and `disable` stops it even offline.
+Retries preserve original signed bytes until acknowledgement or four-minute
+expiry. `maintain` retires expired owned payloads on the next foreground pass.
+No daemon is installed; harness runtime and managed inventory remain unknown.
+See [configuration](../../docs/contracts/cli-config.md#foreground-corporate-heartbeat)
+for the reviewed fields and delivery boundaries.
 `corporate technologies` and `corporate mappings list/show` read the organization's
 own technology directory and versioned mappings. `corporate catalog search`
 requests an authenticated organization-scoped page.
