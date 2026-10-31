@@ -48,7 +48,7 @@ def test_every_owning_job_is_joined_into_qualification() -> None:
     experiment = yaml.safe_load((ROOT / ".github/workflows/wasi-confinement.yml").read_text())
     assert experiment["jobs"]["confinement"]["needs"] == "component"
     assert set(experiment["jobs"]["confinement"]["strategy"]["matrix"]["os"]) == {
-        "ubuntu-24.04",
+        "ubuntu-26.04",
         "macos-15",
         "windows-2025",
     }

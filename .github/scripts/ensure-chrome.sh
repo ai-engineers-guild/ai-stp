@@ -7,7 +7,7 @@
 # Chrome again on every run — fifty-nine seconds on its longest job — and the
 # local recipes fetched chromium, which the config does not use at all.
 #
-# Every current runner image ships Chrome (measured on ubuntu-24.04,
+# Every current runner image ships Chrome (measured on ubuntu-24.04 and ubuntu-26.04,
 # windows-2022 and macos-15), and so does a normal developer machine. The
 # download is the fallback for when that stops being true, not the default.
 set -euo pipefail

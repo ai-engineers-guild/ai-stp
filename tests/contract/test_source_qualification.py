@@ -110,7 +110,7 @@ class QualificationTests(unittest.TestCase):
                         job["strategy"],
                         {
                             "fail-fast": "false",
-                            "matrix": {"os": ["ubuntu-latest", "macos-latest", "windows-latest"]},
+                            "matrix": {"os": ["ubuntu-26.04", "macos-latest", "windows-latest"]},
                         },
                     )
                     self.assertEqual(job["name"], "integration-native-${{ matrix.os }}")
