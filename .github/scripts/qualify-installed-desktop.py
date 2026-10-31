@@ -764,7 +764,7 @@ def inspect_task_trace(
     driver: Driver, commands: tuple[str, ...], forbidden: tuple[str, ...]
 ) -> None:
     """Inspect actual diagnostic rows after native task effects and readbacks."""
-    driver.navigate("debug")
+    driver.navigate("debug", keyboard=True)
     for name in commands:
         entry = driver.wait(
             lambda command_name=name: driver.read(
@@ -898,7 +898,7 @@ def main() -> None:
         require(
             identity["credential_store"] == "os_keyring", "native key silently used file storage"
         )
-        driver.navigate("debug")
+        driver.navigate("debug", keyboard=True)
         driver.wait(
             lambda: driver.read(
                 "return document.querySelector('main h1')?.textContent==='Diagnostics';"
@@ -933,7 +933,7 @@ def main() -> None:
             "native_account_id": local["account_id"],
             "native_device_id": local["device_id"],
         }
-        driver.navigate("install")
+        driver.navigate("install", keyboard=True)
         driver.click(driver.button("Create from files"))
         driver.click(driver.find('main fieldset input[type="checkbox"]'))
         driver.click(driver.button("Start authoring"))
