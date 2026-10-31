@@ -50,6 +50,7 @@ export default function AuthPage() {
   const connection = params.get("connection") || undefined;
   const activeConnection = useRef(connection);
   const viewEpoch = useRef(0);
+  const statusRequest = useRef(0);
   useLayoutEffect(() => {
     viewEpoch.current++;
     activeConnection.current = connection;
@@ -81,8 +82,13 @@ export default function AuthPage() {
       return useApp.getState().authResult;
     }
     const epoch = viewEpoch.current;
+    const request = ++statusRequest.current;
     const result = await cmdAuthStatus(connection);
-    if (activeConnection.current === connection && viewEpoch.current === epoch)
+    if (
+      activeConnection.current === connection &&
+      viewEpoch.current === epoch &&
+      statusRequest.current === request
+    )
       setNamedStatus({ connection, epoch, result });
     return result;
   }, [connection, refreshLegacy]);
@@ -92,7 +98,16 @@ export default function AuthPage() {
   const [availability, setAvailability] = useState<CmdResult | null>(null);
   const [discoveredFor, setDiscoveredFor] = useState<string | undefined>();
   const [attempt, setAttempt] = useState(0);
-  const [result, setResult] = useState<CmdResult | null>(null);
+  const [lastResult, setLastResult] = useState<{
+    connection: string | undefined;
+    epoch: number;
+    result: CmdResult;
+  } | null>(null);
+  const result =
+    lastResult?.connection === connection &&
+    lastResult?.epoch === viewEpoch.current
+      ? lastResult.result
+      : null;
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [now, setNow] = useState(Date.now());
@@ -108,7 +123,8 @@ export default function AuthPage() {
       : undefined;
   useEffect(() => {
     mounted.current = true;
-    setResult(null);
+    setLastResult(null);
+    setOpenError(false);
     setBusy(false);
     setWaiting(false);
     void refreshAuth();
@@ -184,7 +200,7 @@ export default function AuthPage() {
         activeConnection.current === selected &&
         viewEpoch.current === epoch
       ) {
-        setResult(response);
+        setLastResult({ connection: selected, epoch, result: response });
         await refreshAuth();
       }
     } finally {
@@ -205,30 +221,35 @@ export default function AuthPage() {
     const epoch = viewEpoch.current;
     const abort = new AbortController();
     controller.current = abort;
+    const current = () =>
+      mounted.current &&
+      !abort.signal.aborted &&
+      controller.current === abort &&
+      activeConnection.current === connection &&
+      viewEpoch.current === epoch;
     setWaiting(true);
     setOpenError(false);
     try {
       try {
         await openUrl(url);
       } catch {
-        if (mounted.current) setOpenError(true);
+        if (current()) setOpenError(true);
       }
       let nextSession = session;
       let failures = 0;
-      while (!abort.signal.aborted && Date.now() < expiresAt) {
+      while (current() && Date.now() < expiresAt) {
         const next = Date.parse(String(nextSession.next_poll_at ?? ""));
         const delay = Number.isFinite(next)
           ? Math.max(0, next - Date.now())
           : Math.max(1, Number(nextSession.interval) || 5) * 1000;
         await pause(Math.min(Math.max(delay, 1000), 30000), abort.signal);
-        if (abort.signal.aborted || Date.now() >= expiresAt) break;
+        if (!current() || Date.now() >= expiresAt) break;
         if (Number.isFinite(next) && Date.now() < next) continue;
         const response = await cmdAuthComplete(false, connection);
-        if (abort.signal.aborted) break;
-        setResult(response);
+        if (!current()) break;
+        setLastResult({ connection, epoch, result: response });
         const refreshed = await refreshAuth();
-        if (abort.signal.aborted || activeConnection.current !== connection)
-          break;
+        if (!current()) break;
         nextSession = (refreshed?.data?.session ?? {}) as Record<
           string,
           unknown
@@ -253,11 +274,7 @@ export default function AuthPage() {
         } else failures = 0;
       }
     } finally {
-      if (
-        mounted.current &&
-        controller.current === abort &&
-        viewEpoch.current === epoch
-      ) {
+      if (current()) {
         setWaiting(false);
         await refreshAuth();
       }
