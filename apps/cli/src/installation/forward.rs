@@ -48,6 +48,9 @@ const STAGING: &str = "transaction";
 /// # Errors
 /// Refuses links, aliases, oversized files or a replaced physical target.
 pub fn observe(target: &Target, path: &str) -> Result<(Observation, Option<Content>)> {
+    if target.is_internal(path) {
+        return Err(invalid());
+    }
     let root = target.directory()?;
     let identity = dir_id(&root)?;
     let result = files::read(&root, path)?;
@@ -343,6 +346,9 @@ impl Writer {
     /// # Errors
     /// Refuses special files, aliases, changed ancestors, or oversized contents.
     pub fn read(&self, path: &str) -> Result<(Observation, Option<Content>)> {
+        if crate::installation::target::internal_path(path, &self.control_name) {
+            return Err(invalid());
+        }
         self.revalidate()?;
         files::read(&self.root, path)
     }

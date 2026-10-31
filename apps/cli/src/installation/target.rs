@@ -44,6 +44,10 @@ impl Target {
         self.root.join(&self.control)
     }
 
+    pub(crate) fn is_internal(&self, path: &str) -> bool {
+        internal_path(path, &self.control)
+    }
+
     pub(crate) fn directory(&self) -> Result<Dir> {
         let directory = open(&self.root)?;
         if super::identity::directory(&directory).map_err(|source| invalid().with_source(source))?
@@ -55,6 +59,12 @@ impl Target {
             .try_clone()
             .map_err(|source| invalid().with_source(source))
     }
+}
+
+pub(crate) fn internal_path(path: &str, control: &str) -> bool {
+    path.split('/')
+        .next()
+        .is_some_and(|part| unicase::UniCase::new(part) == unicase::UniCase::new(control))
 }
 
 pub(crate) fn open(path: &Path) -> Result<Dir> {
@@ -206,7 +216,8 @@ mod tests {
         std::fs::create_dir_all(real.join("child"))?;
         std::fs::write(real.join("child/unowned"), b"preserve")?;
         let command = PathBuf::from(std::env::var_os("SystemRoot").ok_or("SystemRoot absent")?)
-            .join("System32/cmd.exe");
+            .join("System32")
+            .join("cmd.exe");
         let result = std::process::Command::new(command)
             .env("AI_STP_INSTALLATION_JUNCTION", &alias)
             .env("AI_STP_INSTALLATION_REAL", &real)
@@ -215,7 +226,16 @@ mod tests {
             .output()?;
         assert!(
             result.status.success(),
-            "native junction fixture was not created"
+            "native junction fixture was not created: {}; stdout={}; stderr={}",
+            result.status,
+            String::from_utf8_lossy(&result.stdout)
+                .chars()
+                .take(1024)
+                .collect::<String>(),
+            String::from_utf8_lossy(&result.stderr)
+                .chars()
+                .take(1024)
+                .collect::<String>()
         );
         assert!(Target::resolve(&alias, ".control").is_err());
         assert!(Target::resolve(&alias.join("child"), ".control").is_err());

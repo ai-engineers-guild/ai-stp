@@ -86,6 +86,46 @@ fn an_external_component_database_is_refused_without_migration_or_byte_changes()
 }
 
 #[test]
+fn configuration_effects_cannot_read_or_overwrite_the_transaction_namespace() {
+    let (root, target, admission) = fixture();
+    let mut writer = Writer::acquire(&target, ".control").unwrap();
+    let database = target.control_directory().join("forward/records.sqlite3");
+    let before = fs::read(&database).unwrap();
+    for path in [
+        ".control/forward/records.sqlite3",
+        ".CONTROL/target.lock",
+        ".control/journal.json",
+    ] {
+        assert!(writer.read(path).is_err());
+        assert!(
+            writer
+                .change(path, Some(content(b"untrusted component")))
+                .is_err()
+        );
+        let mut injected = writer.change("allowed", Some(content(b"desired"))).unwrap();
+        injected.path = path.into();
+        assert!(
+            writer
+                .prepare(&admission, &serde_json::json!({}), &[injected])
+                .is_err()
+        );
+    }
+    assert!(
+        writer
+            .change(".control-neighbor", Some(content(b"desired")))
+            .is_ok()
+    );
+    assert!(matches!(
+        writer.progress(&admission).unwrap(),
+        Progress::Absent
+    ));
+    assert_eq!(fs::read(database).unwrap(), before);
+    drop(writer);
+    drop(target);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn preparation_survives_restart_without_opening_the_publication_window() {
     for boundary in 0..3 {
         let (root, target, admission) = fixture();
