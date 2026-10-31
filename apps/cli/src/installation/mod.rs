@@ -15,6 +15,16 @@ pub mod target;
 
 pub use error::{Error, ReasonCode, Result};
 
+#[cfg(all(test, windows))]
+fn private_fixture(root: &std::path::Path) -> std::result::Result<(), Box<dyn std::error::Error>> {
+    let user = win_custody::current_user_sid_string()?;
+    win_custody::SecurityDescriptor::from_sddl(&format!(
+        "D:P(A;OICI;FA;;;{user})(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)"
+    ))?
+    .apply_to_tree(root, true)?;
+    Ok(())
+}
+
 mod canonical {
     use super::{Error, ReasonCode, Result};
 

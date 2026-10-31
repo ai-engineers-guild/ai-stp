@@ -172,6 +172,8 @@ mod tests {
     fn actual_plain_target_and_owned_transaction_work()
     -> std::result::Result<(), Box<dyn std::error::Error>> {
         let root = tempfile::tempdir()?;
+        #[cfg(windows)]
+        super::super::private_fixture(root.path())?;
         let target = Target::resolve(&root.path().canonicalize()?, ".control")?;
         let writer = super::super::forward::Writer::acquire(&target, ".control")?;
         let change = writer.change(

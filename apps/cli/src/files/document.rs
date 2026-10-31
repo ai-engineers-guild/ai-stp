@@ -1,7 +1,7 @@
 //! Publish one complete private document without replacing an existing path.
 
 #[cfg(windows)]
-mod windows;
+pub(crate) mod windows;
 
 use crate::{
     error::{Failure, Result},

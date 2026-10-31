@@ -67,6 +67,26 @@ fn invalid() -> Error {
     )
 }
 
+fn private_control(directory: &Dir) -> Result<()> {
+    let invalid = || {
+        Error::new(
+            ReasonCode::InvalidTarget,
+            "installation transaction directory must be private to the current user and OS administrators",
+        )
+    };
+    #[cfg(unix)]
+    {
+        use cap_std::fs::PermissionsExt;
+        if io(directory.dir_metadata())?.permissions().mode() & 0o777 != 0o700 {
+            return Err(invalid());
+        }
+    }
+    #[cfg(windows)]
+    crate::files::document::windows::private(directory, true)
+        .map_err(|source| invalid().with_source(source))?;
+    Ok(())
+}
+
 /// Desired file bytes and portable permission bits, never a before-image.
 #[derive(Clone, Debug)]
 pub struct Content {
@@ -280,18 +300,21 @@ impl Writer {
         }
         let root = target.directory()?;
         let identity = dir_id(&root)?;
-        let created = match root.create_dir(control_name) {
+        let mut builder = cap_std::fs::DirBuilder::new();
+        builder.recursive(false);
+        #[cfg(unix)]
+        {
+            use cap_std::fs::DirBuilderExt;
+            builder.mode(0o700);
+        }
+        let created = match root.create_dir_with(control_name, &builder) {
             Ok(()) => true,
             Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => false,
             Err(error) => return Err(invalid().with_source(error)),
         };
         let control = io(root.open_dir_nofollow(control_name))?;
+        private_control(&control)?;
         if created {
-            #[cfg(unix)]
-            {
-                use cap_std::fs::PermissionsExt;
-                io(control.set_permissions(".", cap_std::fs::Permissions::from_mode(0o700)))?;
-            }
             files::sync(&control)?;
             files::sync(&root)?;
         }
@@ -313,6 +336,7 @@ impl Writer {
     }
 
     fn revalidate(&self) -> Result<()> {
+        private_control(&self.control)?;
         let root = open_root(&self.path)?;
         if dir_id(&root)? != self.identity
             || dir_id(&io(root.open_dir_nofollow(&self.control_name))?)? != self.control_identity
@@ -377,6 +401,7 @@ impl Writer {
     /// # Errors
     /// Refuses operation-id reuse with a different plan or replaced physical state.
     pub fn progress(&self, admission: &Admission) -> Result<Progress> {
+        self.revalidate()?;
         admission.validate()?;
         self.revalidate()?;
         let Some(record) = self.store.record(admission)? else {
@@ -585,6 +610,7 @@ impl Writer {
         changes: &[Change],
         outcome: &serde_json::Value,
     ) -> Result<()> {
+        self.revalidate()?;
         let record = self.store.record(admission)?.ok_or_else(invalid)?;
         if record.phase != "applying" {
             return Err(invalid());

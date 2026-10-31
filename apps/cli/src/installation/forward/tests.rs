@@ -15,6 +15,8 @@ fn fixture() -> (PathBuf, Target, Admission) {
     let root = std::env::temp_dir().join(format!("forward-config-{}-{serial}", std::process::id()));
     fs::create_dir(&root).unwrap();
     let root = fs::canonicalize(root).unwrap();
+    #[cfg(windows)]
+    super::super::private_fixture(&root).unwrap();
     let target = Target::resolve(&root, ".control").unwrap();
     let admission = Admission {
         operation_id: "operation_FORWARD_1".into(),
@@ -28,6 +30,87 @@ fn fixture() -> (PathBuf, Target, Admission) {
 
 fn content(bytes: &[u8]) -> Content {
     Content::new(bytes.to_vec(), 0o600).unwrap()
+}
+
+#[cfg(unix)]
+#[test]
+fn an_existing_shared_control_directory_refuses_without_repair_or_private_records() {
+    use std::os::unix::fs::PermissionsExt;
+    let (root, target, _) = fixture();
+    let control = target.control_directory();
+    fs::create_dir(&control).unwrap();
+    fs::set_permissions(&control, fs::Permissions::from_mode(0o755)).unwrap();
+    fs::write(control.join("unowned"), b"preserve").unwrap();
+    assert!(Writer::acquire(&target, ".control").is_err());
+    assert_eq!(fs::read_dir(&control).unwrap().count(), 1);
+    assert_eq!(fs::read(control.join("unowned")).unwrap(), b"preserve");
+    assert_eq!(
+        fs::metadata(&control).unwrap().permissions().mode() & 0o777,
+        0o755
+    );
+    drop(target);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(windows)]
+#[test]
+fn an_existing_shared_control_acl_refuses_without_repair_or_private_records() {
+    let (root, target, _) = fixture();
+    let control = target.control_directory();
+    fs::create_dir(&control).unwrap();
+    fs::write(control.join("unowned"), b"preserve").unwrap();
+    let user = win_custody::current_user_sid_string().unwrap();
+    win_custody::SecurityDescriptor::from_sddl(&format!("D:P(A;OICI;FA;;;{user})(A;OICI;FR;;;WD)"))
+        .unwrap()
+        .apply_to_tree(&control, true)
+        .unwrap();
+    assert!(Writer::acquire(&target, ".control").is_err());
+    assert_eq!(fs::read_dir(&control).unwrap().count(), 1);
+    assert_eq!(fs::read(control.join("unowned")).unwrap(), b"preserve");
+    let everyone = win_custody::OwnedSid::from_string("S-1-1-0").unwrap();
+    assert!(
+        win_custody::ObjectSecurityDescriptor::query_file(&control)
+            .unwrap()
+            .dacl()
+            .unwrap()
+            .allowed_aces()
+            .any(|ace| ace.trustee_matches(&everyone))
+    );
+    drop(target);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn widened_control_permissions_stop_an_already_held_writer_before_admission() {
+    use std::os::unix::fs::PermissionsExt;
+    let (root, target, admission) = fixture();
+    let mut writer = Writer::acquire(&target, ".control").unwrap();
+    let control = target.control_directory();
+    let database = control.join("forward/records.sqlite3");
+    let before = fs::read(&database).unwrap();
+    fs::set_permissions(&control, fs::Permissions::from_mode(0o755)).unwrap();
+    assert!(
+        writer
+            .admit(&admission, &serde_json::json!({}), &[])
+            .is_err()
+    );
+    assert!(writer.progress(&admission).is_err());
+    assert!(writer.change("config", Some(content(b"private"))).is_err());
+    assert!(
+        writer
+            .finish(&admission, &[], &serde_json::json!({}))
+            .is_err()
+    );
+    assert_eq!(fs::read(&database).unwrap(), before);
+    assert!(!root.join("config").exists());
+    assert_eq!(
+        fs::metadata(&control).unwrap().permissions().mode() & 0o777,
+        0o755
+    );
+    drop(writer);
+    drop(target);
+    fs::remove_dir_all(root).unwrap();
 }
 
 #[test]
