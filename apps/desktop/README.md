@@ -102,7 +102,10 @@ harness files. Harness executables remain user/vendor managed.
 - **Targets**, **Discovery** and **Commands** render the connected engine's
   command descriptors with read/plan/apply gates and explicit apply confirmation.
 - **Diagnostics** offers an optional, bounded in-memory trace and an explicitly
-  copied redacted report. Diagnostics are never uploaded automatically.
+  copied report containing only application/platform information and call
+  timing, outcomes and error codes. Export omits local paths, command arguments,
+  replies and error prose independently of the local trace. Diagnostics are
+  never uploaded automatically.
   Account, context, corporate and task commands retain only transport outcome and
   timing in this shared trace; their arguments, replies and error prose are
   omitted. Device confirmation codes and verification links remain available
