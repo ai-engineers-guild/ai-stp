@@ -6,7 +6,7 @@ use std::{
     path::Path,
 };
 
-use cap_fs_ext::{DirExt, FollowSymlinks, MetadataExt, OpenOptionsFollowExt, OpenOptionsSyncExt};
+use cap_fs_ext::{FollowSymlinks, MetadataExt, OpenOptionsFollowExt, OpenOptionsSyncExt};
 use cap_std::fs::{Dir, Metadata, OpenOptions};
 use serde::{Deserialize, Serialize};
 
@@ -58,13 +58,7 @@ pub(super) fn mode(metadata: &Metadata) -> u32 {
 }
 
 pub(super) fn valid_path(path: &str) -> bool {
-    !path.is_empty()
-        && path.len() <= 4096
-        && !path.contains(['\\', ':', '\0'])
-        && path.split('/').count() <= 64
-        && path.split('/').all(|part| {
-            !part.is_empty() && !matches!(part, "." | "..") && !part.ends_with(['.', ' '])
-        })
+    crate::archive::safe_path(path) && path.split('/').count() <= 64
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]

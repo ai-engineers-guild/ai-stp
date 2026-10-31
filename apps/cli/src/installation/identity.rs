@@ -7,6 +7,24 @@ use std::io;
 // integer IDs must not pass through JavaScript's 53-bit numeric representation.
 pub(super) type Identity = [u8; 25];
 
+fn plain(metadata: &cap_std::fs::Metadata, directory: bool) -> io::Result<()> {
+    use cap_fs_ext::MetadataExt;
+    if metadata.is_symlink()
+        || metadata.is_dir() != directory
+        || (!directory && (!metadata.is_file() || metadata.nlink() != 1))
+    {
+        return Err(io::Error::other("installation object is not plain"));
+    }
+    #[cfg(windows)]
+    {
+        use cap_std::fs::MetadataExt;
+        if metadata.file_attributes() & 0x400 != 0 {
+            return Err(io::Error::other("installation object is a reparse point"));
+        }
+    }
+    Ok(())
+}
+
 fn encode(kind: u8, volume: u64, file: u128) -> Identity {
     let mut value = [0; 25];
     value[0] = kind;
@@ -16,10 +34,11 @@ fn encode(kind: u8, volume: u64, file: u128) -> Identity {
 }
 
 pub(super) fn directory(directory: &Dir) -> io::Result<Identity> {
+    let metadata = directory.dir_metadata()?;
+    plain(&metadata, true)?;
     #[cfg(unix)]
     {
         use cap_fs_ext::MetadataExt;
-        let metadata = directory.dir_metadata()?;
         Ok(encode(1, metadata.dev(), u128::from(metadata.ino())))
     }
     #[cfg(windows)]
@@ -34,10 +53,11 @@ pub(super) fn directory(directory: &Dir) -> io::Result<Identity> {
 }
 
 pub(super) fn file(file: &File) -> io::Result<Identity> {
+    let metadata = file.metadata()?;
+    plain(&metadata, false)?;
     #[cfg(unix)]
     {
         use cap_fs_ext::MetadataExt;
-        let metadata = file.metadata()?;
         Ok(encode(1, metadata.dev(), u128::from(metadata.ino())))
     }
     #[cfg(windows)]
@@ -52,10 +72,11 @@ pub(super) fn file(file: &File) -> io::Result<Identity> {
 }
 
 pub(super) fn standard_file(file: &std::fs::File) -> io::Result<Identity> {
+    let metadata = cap_std::fs::Metadata::from_file(file)?;
+    plain(&metadata, false)?;
     #[cfg(unix)]
     {
-        use std::os::unix::fs::MetadataExt;
-        let metadata = file.metadata()?;
+        use cap_fs_ext::MetadataExt;
         Ok(encode(1, metadata.dev(), u128::from(metadata.ino())))
     }
     #[cfg(windows)]
@@ -70,7 +91,7 @@ pub(super) fn standard_file(file: &std::fs::File) -> io::Result<Identity> {
 }
 
 #[cfg(windows)]
-fn windows(file: &impl std::os::windows::io::AsHandle) -> io::Result<Identity> {
+fn windows(file: &impl fs_id::GetID) -> io::Result<Identity> {
     let identity = fs_id::FileID::new(file).map_err(io::Error::other)?;
     Ok(encode(
         2,

@@ -31,6 +31,61 @@ fn content(bytes: &[u8]) -> Content {
 }
 
 #[test]
+fn portable_effect_paths_refuse_case_aliases_parent_files_and_windows_devices() {
+    let (root, target, _admission) = fixture();
+    let writer = Writer::acquire(&target, ".control").unwrap();
+    for paths in [
+        ["Owned", "owned"],
+        ["Config/a", "config/b"],
+        ["leaf", "leaf/nested"],
+    ] {
+        let changes: Vec<_> = paths
+            .iter()
+            .map(|path| writer.change(path, Some(content(b"desired"))).unwrap())
+            .collect();
+        assert!(
+            validate_changes(&changes).is_err(),
+            "conflicting effects were accepted: {paths:?}"
+        );
+    }
+    for path in [
+        "CON",
+        "nested/AUX.txt",
+        "LPT1",
+        "COM\u{b9}.json",
+        "wild?card",
+        "trailing.",
+        "cafe\u{301}/file",
+    ] {
+        assert!(
+            writer.change(path, Some(content(b"desired"))).is_err(),
+            "nonportable effect was accepted: {path}"
+        );
+    }
+    assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
+    drop(writer);
+    drop(target);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn an_external_component_database_is_refused_without_migration_or_byte_changes() {
+    let (root, target, _admission) = fixture();
+    let directory = target.control_directory().join("forward");
+    fs::create_dir_all(&directory).unwrap();
+    let database = directory.join("records.sqlite3");
+    let db = rusqlite::Connection::open(&database).unwrap();
+    db.execute_batch("PRAGMA application_id=1095976535; PRAGMA user_version=1; CREATE TABLE original(value TEXT); INSERT INTO original VALUES('retained external transaction');").unwrap();
+    drop(db);
+    let before = fs::read(&database).unwrap();
+    assert!(Writer::acquire(&target, ".control").is_err());
+    assert_eq!(fs::read(&database).unwrap(), before);
+    assert!(!directory.join("records.sqlite3-journal").exists());
+    drop(target);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn preparation_survives_restart_without_opening_the_publication_window() {
     for boundary in 0..3 {
         let (root, target, admission) = fixture();
@@ -111,6 +166,7 @@ fn preparation_survives_restart_without_opening_the_publication_window() {
             assert_eq!(fs::read(root.join("owned")).unwrap(), b"desired");
         }
         assert!(!target.control_directory().join("backups").exists());
+        drop(target);
         fs::remove_dir_all(root).unwrap();
     }
 }
@@ -184,6 +240,7 @@ fn cancellation_closes_admission_gaps_without_resurrecting_or_erasing_operations
         assert_eq!(fs::read(root.join("owned")).unwrap(), b"later bytes");
         assert!(!target.control_directory().join("backups").exists());
         drop(writer);
+        drop(target);
         fs::remove_dir_all(root).unwrap();
     }
 }
@@ -301,6 +358,7 @@ fn interrupted_files_and_metadata_resume_without_before_images_or_historical_rea
     );
     drop(writer);
     assert_no_payloads(&target);
+    drop(target);
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -345,6 +403,7 @@ fn interrupted_removal_finishes_original_metadata_without_deleting_later_files()
     drop(writer);
     assert_no_payloads(&target);
     assert!(!target.control_directory().join("backups").exists());
+    drop(target);
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -384,12 +443,13 @@ fn admission_and_recovery_refuse_foreign_content_and_replaced_parent_directories
         b"external edit"
     );
     drop(writer);
+    drop(target);
     fs::remove_dir_all(root).unwrap();
 }
 
 #[test]
 fn closed_transaction_scope_releases_its_lock_with_a_retained_descriptor() {
-    let (root, _target, _admission) = fixture();
+    let (root, target, _admission) = fixture();
     fs::create_dir(root.join("metadata")).unwrap();
     let directory =
         cap_std::fs::Dir::open_ambient_dir(&root, cap_std::ambient_authority()).unwrap();
@@ -397,5 +457,6 @@ fn closed_transaction_scope_releases_its_lock_with_a_retained_descriptor() {
         &directory, "metadata",
     );
     drop(directory);
+    drop(target);
     fs::remove_dir_all(root).unwrap();
 }

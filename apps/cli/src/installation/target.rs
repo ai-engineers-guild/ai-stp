@@ -5,11 +5,12 @@ use cap_fs_ext::DirExt;
 use cap_std::fs::Dir;
 use std::path::{Component, Path, PathBuf};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct Target {
     root: PathBuf,
     control: String,
     identity: super::identity::Identity,
+    held: Dir,
 }
 
 impl Target {
@@ -19,7 +20,7 @@ impl Target {
             || path
                 .components()
                 .any(|part| matches!(part, Component::CurDir | Component::ParentDir))
-            || control.is_empty()
+            || !crate::archive::safe_path(control)
             || control.contains(['/', '\\', ':'])
             || matches!(control, "." | "..")
         {
@@ -32,6 +33,7 @@ impl Target {
             root: path.to_owned(),
             control: control.into(),
             identity,
+            held: directory,
         })
     }
 
@@ -49,7 +51,9 @@ impl Target {
         {
             return Err(invalid());
         }
-        Ok(directory)
+        self.held
+            .try_clone()
+            .map_err(|source| invalid().with_source(source))
     }
 }
 
@@ -105,6 +109,7 @@ fn invalid() -> Error {
 mod tests {
     use super::*;
 
+    #[cfg(unix)]
     #[test]
     fn original_directory_is_required_even_before_the_first_writer()
     -> std::result::Result<(), Box<dyn std::error::Error>> {
@@ -118,6 +123,25 @@ mod tests {
         assert!(target.directory().is_err());
         assert!(super::super::forward::Writer::acquire(&target, ".control").is_err());
         assert!(!path.join(".control").exists());
+        Ok(())
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn held_original_directory_blocks_substitution_before_the_first_writer()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let root = tempfile::tempdir()?;
+        let physical = root.path().canonicalize()?;
+        let original = physical.join("original");
+        let moved = physical.join("retained");
+        std::fs::create_dir(&original)?;
+        let target = Target::resolve(&original, ".control")?;
+        assert!(std::fs::rename(&original, &moved).is_err());
+        assert!(target.directory().is_ok());
+        assert!(!original.join(".control").exists());
+        drop(target);
+        std::fs::rename(&original, &moved)?;
+        assert!(moved.is_dir());
         Ok(())
     }
 
@@ -164,6 +188,40 @@ mod tests {
         assert!(Target::resolve(&link.join("child"), ".control").is_err());
         assert!(Target::resolve(&link, ".control").is_err());
         assert!(!real.join("child/.control").exists());
+        Ok(())
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn junctions_at_the_target_or_an_ancestor_refuse_without_target_effects()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
+        use std::os::windows::process::CommandExt;
+        let root = tempfile::tempdir()?;
+        let canonical = root.path().canonicalize()?;
+        let text = canonical.to_str().ok_or("fixture is not Unicode")?;
+        let ordinary = PathBuf::from(text.strip_prefix(r"\\?\").unwrap_or(text));
+        assert_eq!(ordinary.canonicalize()?, canonical);
+        let real = ordinary.join("real");
+        let alias = ordinary.join("alias");
+        std::fs::create_dir_all(real.join("child"))?;
+        std::fs::write(real.join("child/unowned"), b"preserve")?;
+        let command = PathBuf::from(std::env::var_os("SystemRoot").ok_or("SystemRoot absent")?)
+            .join("System32/cmd.exe");
+        let result = std::process::Command::new(command)
+            .env("AI_STP_INSTALLATION_JUNCTION", &alias)
+            .env("AI_STP_INSTALLATION_REAL", &real)
+            .args(["/D", "/V:OFF", "/S", "/C"])
+            .raw_arg(r#""mklink /J "%AI_STP_INSTALLATION_JUNCTION%" "%AI_STP_INSTALLATION_REAL%"""#)
+            .output()?;
+        assert!(
+            result.status.success(),
+            "native junction fixture was not created"
+        );
+        assert!(Target::resolve(&alias, ".control").is_err());
+        assert!(Target::resolve(&alias.join("child"), ".control").is_err());
+        assert!(!real.join("child/.control").exists());
+        assert_eq!(std::fs::read(real.join("child/unowned"))?, b"preserve");
+        std::fs::remove_dir(alias)?;
         Ok(())
     }
 }

@@ -16,7 +16,9 @@ const PREPARED_OPERATIONS: &str = r#"CREATE TABLE "operations" (id TEXT PRIMARY 
 const ACTIVE: &str =
     "CREATE UNIQUE INDEX one_active ON operations(active) WHERE active IS NOT NULL";
 const CHANGES: &str = "CREATE TABLE changes (operation TEXT NOT NULL, sequence INTEGER NOT NULL, metadata BLOB NOT NULL, payload BLOB, PRIMARY KEY(operation,sequence)) STRICT, WITHOUT ROWID";
-const APPLICATION: i64 = 0x4153_4657;
+// First-party records are distinct from the external component's ASFW store.
+// Its owner identity and recovery context must never be implicitly migrated.
+const APPLICATION: i64 = 0x4153_4957;
 const CONTROL: &str = "forward";
 const META_LIMIT: usize = 8 * 1024 * 1024;
 // Reserve space above the 64 MiB effect bound for final provenance metadata.
