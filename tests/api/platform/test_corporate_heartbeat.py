@@ -255,28 +255,33 @@ async def test_queued_heartbeat_rechecks_admission_after_actual_tenant_lock_wait
             )
         )
         await db.commit()
-    async with sessionmaker() as writer:
+    async with sessionmaker() as writer, sessionmaker() as observer:
         await set_tenant_scope(writer, organization)
         await writer.scalar(
             select(Organization).where(Organization.id == organization).with_for_update()
         )
         pid = await writer.scalar(text("SELECT pg_backend_pid()"))
         assert isinstance(pid, int)
+        blocked = text(
+            "SELECT EXISTS (SELECT 1 FROM pg_stat_activity "
+            "WHERE datname=current_database() "
+            "AND :owner_pid=ANY(pg_blocking_pids(pid)))"
+        )
+        # Deliberately take a statistics snapshot before the request exists.
+        # PostgreSQL caches pg_stat_activity for the observer's transaction;
+        # a poll in that same transaction would never discover a new backend.
+        assert not await observer.scalar(blocked, {"owner_pid": pid})
         pending = asyncio.create_task(
             _put(client, path, json=_payload(account, device, policy_version=1), headers=auth)
         )
         try:
             # Observe a real PostgreSQL wait on this fixture's writer. A sleep
             # alone cannot establish ordering or the policy snapshot in use.
-            async with sessionmaker() as observer, asyncio.timeout(10):
-                while not await observer.scalar(
-                    text(
-                        "SELECT EXISTS (SELECT 1 FROM pg_stat_activity "
-                        "WHERE datname=current_database() "
-                        "AND :owner_pid=ANY(pg_blocking_pids(pid)))"
-                    ),
-                    {"owner_pid": pid},
-                ):
+            async with asyncio.timeout(10):
+                while True:
+                    await observer.rollback()
+                    if await observer.scalar(blocked, {"owner_pid": pid}):
+                        break
                     assert not pending.done(), "heartbeat bypassed the held tenant mutation lock"
                     await asyncio.sleep(0.05)
             if change == "policy":
