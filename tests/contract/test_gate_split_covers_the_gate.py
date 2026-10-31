@@ -233,11 +233,11 @@ def test_setup_is_split_and_each_job_prepares_only_its_own_part() -> None:
 def test_cli_and_web_tests_run_on_three_os_and_backend_stays_on_linux() -> None:
     """ADR-0116: client tests see three operating systems; the server does not."""
     workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
-    three = {"ubuntu-latest", "macos-latest", "windows-latest"}
+    three = {"ubuntu-26.04", "macos-latest", "windows-latest"}
     jobs = workflow["jobs"]
     for name in ("cli", "web-unit", "web-e2e", "web-profiles"):
         assert set(jobs[name]["strategy"]["matrix"]["os"]) == three, name
-    assert jobs["tests"]["runs-on"] == "ubuntu-latest"
+    assert jobs["tests"]["runs-on"] == "ubuntu-26.04"
     native = "\n".join(step.get("run", "") for step in jobs["cli"]["steps"])
     assert "cargo test --locked" in native
     assert "--package ai-stp-cli " not in native
@@ -253,7 +253,7 @@ def test_pr_native_checks_cover_platform_specific_code_and_real_vault_processes(
     assert native["if"] == "github.event_name == 'pull_request'"
     assert native["strategy"]["fail-fast"] is False
     assert set(native["strategy"]["matrix"]["os"]) == {
-        "ubuntu-latest",
+        "ubuntu-26.04",
         "macos-latest",
         "windows-latest",
     }

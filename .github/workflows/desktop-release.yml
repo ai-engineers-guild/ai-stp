@@ -26,7 +26,7 @@ concurrency:
 jobs:
   guard:
     name: verify-tag-and-version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -83,7 +83,7 @@ jobs:
   release:
     name: publish-github-release
     needs: bundle
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     environment:
       name: desktop-release
