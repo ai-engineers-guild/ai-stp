@@ -190,10 +190,10 @@ def test_every_bun_lockfile_is_readable_by_the_pinned_bun() -> None:
     pinned = re.search(r'BUN_VERSION:\s*"([0-9][^"]*)"', workflow.read_text(encoding="utf-8"))
     assert pinned, "the gate no longer pins a bun version"
 
-    #: What the pinned bun writes and reads: 1.3.x wrote 1, 1.4 writes 2 and
-    #: refuses to read nothing. Raise this together with `BUN_VERSION`, after
-    #: regenerating every lockfile with the bun being pinned.
-    readable = 2
+    #: Bun 1.4.4 reads its ordinary version2 lockfiles and version3 for scoped
+    #: overrides. The frozen native installs also validate the actual parser;
+    #: an unknown format must not pass this source-level compatibility guard.
+    readable = {2, 3}
     lockfiles = sorted(ROOT.glob("*/bun.lock")) + sorted(ROOT.glob("*/*/bun.lock"))
     lockfiles = [path for path in lockfiles if "node_modules" not in path.parts]
     assert lockfiles, "no bun lockfile found"
@@ -203,7 +203,7 @@ def test_every_bun_lockfile_is_readable_by_the_pinned_bun() -> None:
         match = re.search(r'"lockfileVersion"\s*:\s*([0-9]+)', path.read_text(encoding="utf-8"))
         assert match, f"{path.relative_to(ROOT)} declares no lockfileVersion"
         declared = int(match.group(1))
-        assert declared == readable, (
+        assert declared in readable, (
             f"{path.relative_to(ROOT)} is lockfileVersion {declared}; "
             f"bun {pinned.group(1)} reads {readable}"
         )

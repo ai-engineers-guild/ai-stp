@@ -22,7 +22,7 @@ const help = ok({ commands: [["delivery", "read"], ["consent plan", "plan"], ["c
 const preview = () => {
   const account = { origin: A.origin, connection: { connection_id: A.connection }, account_id: "account_original", device_id: "device_original", public_key: "original" };
   return ok({ context_digest: digest, plan_digest: digest, plan: { schema_version: 1, action: "corporate.heartbeat.consent",
-    plan_id: "plan_01ARZ3NDEKTSV4RRFFQ69G5FAV", created_at: "2030-01-01T00:00:00.000Z", expires_at: "2030-01-01T00:10:00.000Z", policy_version: 7,
+    plan_id: "plan_01ARZ3NDEKTSV4RRFFQ69G5FAV", created_at: "2030-01-01T00:00:00.123Z", expires_at: "2030-01-01T00:10:00.123Z", policy_version: 7,
     policy: { enabled: true, policy_version: 7, interval_seconds: 21600, retry_base_seconds: 60 },
     account, context: { context_id: A.id, authority: { kind: "remote", account, organization: { kind: "corporate" } } } },
     disclosure: { coverage: "cli_foreground_liveness_only", harness_runtime_coverage: "unknown", managed_inventory: "none", startup_service_installed: false } });
@@ -75,6 +75,9 @@ it("requires the reviewed original context, origin, policy and bounded disclosur
   expect(consentReview(preview(), { ...A, id: "context_B" }, digest)).toBeNull();
   expect(consentReview(preview(), { ...A, origin: "https://other.example.test" }, digest)).toBeNull();
   expect(consentReview(preview(), A, `sha256:${"b".repeat(64)}`)).toBeNull();
+  const rounded = preview();
+  (rounded.data!.plan as Record<string, unknown>).expires_at = "2030-01-01T00:10:00.000Z";
+  expect(consentReview(rounded, A, digest)).toBeNull();
   const response = preview();
   response.data!.disclosure = { coverage: "all-harnesses" };
   expect(consentReview(response, A, digest)).toBeNull();

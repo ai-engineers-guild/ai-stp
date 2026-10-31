@@ -216,6 +216,28 @@ impl Fixture {
 }
 
 #[test]
+fn heartbeat_consent_preserves_fractional_expiry_for_desktop_review()
+-> std::result::Result<(), Box<dyn Error>> {
+    for millisecond in [1, 123, 999] {
+        let mut fixture = Fixture::new()?;
+        let second = fixture.at.parse::<jiff::Timestamp>()?.as_second();
+        let created = jiff::Timestamp::from_millisecond(second * 1000 + millisecond)?;
+        fixture.at = format!("{created:.3}");
+        let review = heartbeats::consent_plan(fixture.root.path(), &fixture.context, &fixture.at)?;
+        let plan = &review["plan"];
+        assert_eq!(plan["created_at"], fixture.at);
+        let expires = plan["expires_at"]
+            .as_str()
+            .ok_or("expiry")?
+            .parse::<jiff::Timestamp>()?;
+        assert_eq!(expires.as_millisecond() - created.as_millisecond(), 600_000);
+        let consent: heartbeats::ConsentPlan = serde_json::from_value(plan.clone())?;
+        assert_eq!(review["plan_digest"], consent.digest()?);
+    }
+    Ok(())
+}
+
+#[test]
 fn heartbeat_restart_retries_exact_signed_bytes_without_following_selection()
 -> std::result::Result<(), Box<dyn Error>> {
     let fixture = Fixture::new()?;
