@@ -540,9 +540,18 @@ runner or automatic toolchain manager is included. Use the executable registry f
 
 ## Setup components and installation
 
-Setup systems are ai-stp installation components with separate public repositories
-with a single CLI entrypoint. The CLI authenticates their exact releases and invokes them itself;
-users do not install a second setup-manager product. `provider/managed.rs` owns
+Setup configuration is first-party ai-stp functionality. The native
+`installation` library owns forward transactions, original physical bindings,
+no-follow file publication, cancellation and retained outcomes. Its source
+provenance and notice are retained beside the implementation. It carries no
+harness executable installer, vendor artifact/version table or updater control.
+Harness installation and updates belong to the vendor's official commands.
+
+Existing `provider` commands still use the released external-component
+compatibility path; integrating the library does not change an old operation's
+identity or silently activate a new installation route. The CLI authenticates
+those exact legacy releases and invokes them itself; users do not install a
+second setup-manager product. `provider/managed.rs` currently owns
 the build default. An explicit component release remains exact, and a retained
 operation never floats to a new release. Full publisher identity, signed
 environment, digest, profile and protocol checks precede invocation.

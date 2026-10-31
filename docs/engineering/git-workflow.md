@@ -64,5 +64,9 @@ If GitHub CI is unavailable, a complete `just check` on the exact head may suppl
 the evidence; record the commands and results in the merge. Correct mistakes with
 a follow-up PR or revert commit. Publishing a release remains an explicit task.
 
-Setup-component changes, artifact releases and consumer pin updates are separate
-repository operations, each qualified before the dependent change lands.
+First-party setup configuration changes follow this repository workflow and
+release with the native CLI/Desktop. Historical external-provider artifacts and
+consumer pins retain their original exact publication and qualification contract;
+an integrated configuration change does not rewrite an old operation identity.
+Harness executables use the vendor's official installation/update commands and
+are outside the setup configuration release.

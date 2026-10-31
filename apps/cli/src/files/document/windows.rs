@@ -4,7 +4,7 @@ use crate::error::{Failure, Result};
 use std::os::windows::io::AsHandle;
 use win_custody::{ObjectSecurityDescriptor, OwnedSid, current_user_sid_string};
 
-pub(super) fn private(handle: &impl AsHandle, directory: bool) -> Result<()> {
+pub(crate) fn private(handle: &impl AsHandle, directory: bool) -> Result<()> {
     let refused = || {
         Failure::precondition(
             "document export requires a Windows ACL limited to the current user, SYSTEM and administrators",
