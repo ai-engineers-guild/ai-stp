@@ -49,42 +49,21 @@ function call(
     typeof argsRec.path === "string" ? argsRec.path.trim().split(/\s+/) : [];
   const namespace = pathTokens[0] ?? null;
   // Shared reports must not carry account confirmation links, session details
-  // or company content. Key-name redaction alone cannot sanitize their errors,
+  // or personal/company task content. Key-name redaction cannot sanitize errors,
   // warnings or free-form plans; callers still receive the original reply.
   const privateTrace =
     command.startsWith("auth_") ||
+    command.startsWith("task_") ||
     command === "checkout_apply" ||
     command === "checkout_location_apply" ||
     command === "checkout_missing_binding_apply" ||
     namespace === "context" ||
     namespace === "corporate" ||
-    namespace === "account";
-  // args go through redact like results — plus `task answer`'s `value`,
-  // which is free user text the debug bundle would otherwise carry
-  // verbatim; key-name redaction cannot see it, so it is named here.
+    namespace === "account" ||
+    namespace === "task";
   const tracedArgs: Record<string, unknown> = privateTrace
     ? { path: namespace ?? command, content: "[private content omitted]" }
-    : command === "task_answer" && "value" in argsRec
-      ? {
-          ...(redact(argsRec) as Record<string, unknown>),
-          value: "[user answer]",
-        }
-      : command === "task_start" && "input" in argsRec
-        ? {
-            ...(redact(argsRec) as Record<string, unknown>),
-            input: "[task input]",
-          }
-        : (redact(argsRec) as Record<string, unknown>);
-  if (
-    argsRec.path === "task answer" &&
-    tracedArgs.values &&
-    typeof tracedArgs.values === "object"
-  ) {
-    tracedArgs.values = {
-      ...(tracedArgs.values as Record<string, unknown>),
-      value: "[user answer]",
-    };
-  }
+    : (redact(argsRec) as Record<string, unknown>);
   const trace = (e: Omit<IpcEntry, "id" | "ts">) => {
     if (useDebug.getState().debugMode) useDebug.getState().push(e);
   };

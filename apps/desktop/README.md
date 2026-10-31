@@ -103,7 +103,7 @@ harness files. Harness executables remain user/vendor managed.
   command descriptors with read/plan/apply gates and explicit apply confirmation.
 - **Diagnostics** offers an optional, bounded in-memory trace and an explicitly
   copied redacted report. Diagnostics are never uploaded automatically.
-  Account, context and corporate commands retain only transport outcome and
+  Account, context, corporate and task commands retain only transport outcome and
   timing in this shared trace; their arguments, replies and error prose are
   omitted. Device confirmation codes and verification links remain available
   to the sign-in UI and are removed from diagnostic copies.
