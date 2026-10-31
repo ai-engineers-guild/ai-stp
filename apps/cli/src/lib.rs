@@ -1,5 +1,6 @@
 //! Headless native services. The executable only renders their result.
 
+pub mod installation;
 pub mod account;
 mod archive;
 pub mod artifacts;
