@@ -70,7 +70,7 @@ pub(super) fn standard_file(file: &std::fs::File) -> io::Result<Identity> {
 }
 
 #[cfg(windows)]
-fn windows(file: &impl std::os::windows::io::AsHandle) -> io::Result<Identity> {
+fn windows(file: &impl fs_id::GetID) -> io::Result<Identity> {
     let identity = fs_id::FileID::new(file).map_err(io::Error::other)?;
     Ok(encode(
         2,

@@ -114,13 +114,20 @@ pub struct Change {
 /// # Errors
 /// Refuses duplicate paths, excessive files or more than 64 MiB of desired bytes.
 pub fn validate_changes(changes: &[Change]) -> Result<()> {
-    let mut paths = std::collections::BTreeSet::new();
+    let mut paths = std::collections::BTreeMap::new();
     let mut bytes = 0_usize;
     if changes.len() > store::CHANGE_LIMIT - 2 {
         return Err(invalid());
     }
     for change in changes {
-        if !files::valid_path(&change.path) || !paths.insert(&change.path) {
+        if !files::valid_path(&change.path)
+            || paths
+                .insert(
+                    unicase::UniCase::new(change.path.as_str()),
+                    change.path.as_str(),
+                )
+                .is_some()
+        {
             return Err(invalid());
         }
         if let Some(content) = &change.after {
@@ -130,6 +137,27 @@ pub fn validate_changes(changes: &[Change]) -> Result<()> {
         if bytes > 64 * 1024 * 1024 {
             return Err(invalid());
         }
+    }
+    let mut previous: Option<&str> = None;
+    for path in paths.values().copied() {
+        if let Some(previous) = previous {
+            for (left, right) in previous.split('/').zip(path.split('/')) {
+                if unicase::UniCase::new(left) != unicase::UniCase::new(right) {
+                    break;
+                }
+                if left != right {
+                    return Err(invalid());
+                }
+            }
+        }
+        let mut parent = path;
+        while let Some((ancestor, _)) = parent.rsplit_once('/') {
+            if paths.contains_key(&unicase::UniCase::new(ancestor)) {
+                return Err(invalid());
+            }
+            parent = ancestor;
+        }
+        previous = Some(path);
     }
     Ok(())
 }

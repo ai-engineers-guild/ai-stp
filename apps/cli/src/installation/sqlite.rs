@@ -24,7 +24,7 @@ use crate::installation::{Error, ReasonCode, Result};
 pub(crate) const DATABASE: &str = "records.sqlite3";
 pub(crate) const JOURNAL: &str = "records.sqlite3-journal";
 pub(crate) const LOCK: &str = "records.lock";
-pub(crate) const NAME: &str = "ai-stp-records-v1";
+pub(crate) const NAME: &str = "ai-stp-installation-records-v1";
 const FILE_LIMIT: u64 = 256 * 1024 * 1024;
 type FileId = crate::installation::identity::Identity;
 
@@ -197,7 +197,7 @@ impl Scope {
         }
         if !REGISTERED.get_or_init(|| {
             register_static(
-                c"ai-stp-records-v1".to_owned(),
+                c"ai-stp-installation-records-v1".to_owned(),
                 Confined,
                 RegisterOpts {
                     make_default: false,

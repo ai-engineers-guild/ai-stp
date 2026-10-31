@@ -257,6 +257,12 @@ pub fn require_clean_for_planning(
     Ok(())
 }
 
+fn valid_legacy_backup_ref(value: &str) -> bool {
+    value.strip_prefix("slot-").is_some_and(|digits| {
+        digits.len() == 12 && digits.bytes().all(|byte| byte.is_ascii_digit())
+    })
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used, clippy::panic)]
@@ -384,10 +390,4 @@ mod tests {
         let error = require_clean_for_planning(&control, &transaction, &[slot]).unwrap_err();
         assert_eq!(error.reason(), ReasonCode::RecoveryRequired);
     }
-}
-
-fn valid_legacy_backup_ref(value: &str) -> bool {
-    value.strip_prefix("slot-").is_some_and(|digits| {
-        digits.len() == 12 && digits.bytes().all(|byte| byte.is_ascii_digit())
-    })
 }

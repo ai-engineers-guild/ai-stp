@@ -5,11 +5,12 @@ use cap_fs_ext::DirExt;
 use cap_std::fs::Dir;
 use std::path::{Component, Path, PathBuf};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct Target {
     root: PathBuf,
     control: String,
     identity: super::identity::Identity,
+    held: Dir,
 }
 
 impl Target {
@@ -19,7 +20,7 @@ impl Target {
             || path
                 .components()
                 .any(|part| matches!(part, Component::CurDir | Component::ParentDir))
-            || control.is_empty()
+            || !crate::archive::safe_path(control)
             || control.contains(['/', '\\', ':'])
             || matches!(control, "." | "..")
         {
@@ -32,6 +33,7 @@ impl Target {
             root: path.to_owned(),
             control: control.into(),
             identity,
+            held: directory,
         })
     }
 
@@ -49,7 +51,9 @@ impl Target {
         {
             return Err(invalid());
         }
-        Ok(directory)
+        self.held
+            .try_clone()
+            .map_err(|source| invalid().with_source(source))
     }
 }
 
@@ -105,6 +109,7 @@ fn invalid() -> Error {
 mod tests {
     use super::*;
 
+    #[cfg(unix)]
     #[test]
     fn original_directory_is_required_even_before_the_first_writer()
     -> std::result::Result<(), Box<dyn std::error::Error>> {
@@ -118,6 +123,25 @@ mod tests {
         assert!(target.directory().is_err());
         assert!(super::super::forward::Writer::acquire(&target, ".control").is_err());
         assert!(!path.join(".control").exists());
+        Ok(())
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn held_original_directory_blocks_substitution_before_the_first_writer()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let root = tempfile::tempdir()?;
+        let physical = root.path().canonicalize()?;
+        let original = physical.join("original");
+        let moved = physical.join("retained");
+        std::fs::create_dir(&original)?;
+        let target = Target::resolve(&original, ".control")?;
+        assert!(std::fs::rename(&original, &moved).is_err());
+        assert!(target.directory().is_ok());
+        assert!(!original.join(".control").exists());
+        drop(target);
+        std::fs::rename(&original, &moved)?;
+        assert!(moved.is_dir());
         Ok(())
     }
 
