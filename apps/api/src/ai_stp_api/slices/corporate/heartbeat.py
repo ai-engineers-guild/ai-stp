@@ -16,9 +16,9 @@ from sqlalchemy import and_, func, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
-from ai_stp_api.deps import Db, require_auth
+from ai_stp_api.deps import Db, require_auth, require_auth_without_device_touch
 from ai_stp_api.errors import ApiError, ErrorCategory
-from ai_stp_api.session import AuthContext
+from ai_stp_api.session import AuthContext, refresh_device_last_seen
 from ai_stp_api.slices.corporate import service
 from ai_stp_api.slices.devices.crypto import verify_ed25519
 from ai_stp_contracts.corporate import OrganizationId
@@ -55,7 +55,7 @@ _TELEMETRY_READ = "telemetry.read"
 async def write_heartbeat(
     organization_id: OrganizationId,
     payload: InstallationHeartbeatRequest,
-    ctx: Annotated[AuthContext, Depends(require_auth)],
+    ctx: Annotated[AuthContext, Depends(require_auth_without_device_touch)],
     db: Db,
 ) -> InstallationHeartbeat:
     """Coalesce one heartbeat for the session's own device installation."""
@@ -112,6 +112,10 @@ async def write_heartbeat(
         raise ApiError(ErrorCategory.PERMISSION, str(error)) from error
     except heartbeat_service.HeartbeatRejected as error:
         raise ApiError(ErrorCategory.VALIDATION, str(error)) from error
+    # Authentication must not retain a device activity write while awaiting
+    # the tenant lock: a tenant writer may revoke that same device. Record
+    # activity only after the authoritative checks and accepted observation.
+    await refresh_device_last_seen(db, device)
     await db.commit()
     return view
 

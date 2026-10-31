@@ -111,7 +111,7 @@ def public_plan(driver: Any, scope: str) -> dict[str, Any]:
         observed = driver.read(
             "return {ready:!!document.querySelector(arguments[0]),"
             "codes:[...document.querySelectorAll('main [role=alert]')]"
-            ".flatMap(x=>x.textContent.match(/\\b(?:AI_STP_|DESKTOP_)[A-Z_]+|\\bCONTEXT_VIEW\\b/g)??[])};",
+            ".flatMap(x=>x.textContent.match(/\\b(?:AI_STP_|DESKTOP_)[A-Z_]+|\\b(?:CONTEXT_VIEW|HEARTBEAT_VIEW)\\b/g)??[])};",
             scope,
         )
         if observed["ready"]:

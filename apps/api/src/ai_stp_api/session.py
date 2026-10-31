@@ -143,6 +143,7 @@ async def verify_raw_token(
     via_cookie: bool,
     allow_onboarding: bool = False,
     allow_refresh: bool = False,
+    touch_device: bool = True,
 ) -> AuthContext:
     """Hash ``raw_token``, look up the session and return an AuthContext.
 
@@ -175,15 +176,8 @@ async def verify_raw_token(
             "legal onboarding is required",
             details={"reason": "onboarding_pending"},
         )
-    if row.device is not None:
-        now = datetime.now(UTC)
-        last_seen = row.device.last_seen_at
-        # `last_seen_at` is observational, not a correctness input: writing it
-        # on every request turns the hot auth path into a write per read. A
-        # one-minute granularity keeps "last active" honest without the churn.
-        if last_seen is None or now - last_seen >= _LAST_SEEN_WRITE_INTERVAL:
-            row.device.last_seen_at = now
-            await db.flush()
+    if touch_device and row.device is not None:
+        await refresh_device_last_seen(db, row.device)
     return AuthContext(
         account_id=row.account_id,
         session_id=row.id,
@@ -192,6 +186,18 @@ async def verify_raw_token(
         is_admin=row.account_id in admin_account_ids,
         via_cookie=via_cookie,
     )
+
+
+async def refresh_device_last_seen(db: AsyncSession, device: Device) -> None:
+    """Refresh observational activity after the caller's required lock order."""
+    now = datetime.now(UTC)
+    last_seen = device.last_seen_at
+    # A one-minute granularity preserves last-active reporting without a write
+    # on every read. Callers holding tenant locks must acquire them before this
+    # observational device write, rather than retaining a device lock in auth.
+    if last_seen is None or now - last_seen >= _LAST_SEEN_WRITE_INTERVAL:
+        device.last_seen_at = now
+        await db.flush()
 
 
 def device_active_or_none(device: Device | None) -> bool:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import tomllib
 from datetime import UTC, date, datetime
@@ -20,6 +21,43 @@ AUDITED_SOURCES = {
     LEGACY_VERSION: LEGACY_CHECKSUM,
     "0.12.1": "d2f6c7dbe95a6ed67ad9f18e57daf93a2f034c524b99fd2b76d18fdfeb6660aa",
 }
+MINIMATCH_ADVISORY = "GHSA-g3hv-75wg-m249"
+MINIMATCH_REVIEW_BEFORE = date(2026, 11, 3)
+MINIMATCH_LOCK_SHA256 = "e9071387f6b3e03b1f516ae5dea7232c2533e99c79a4092ad5ff1e5d1f8de791"
+MINIMATCH_MANIFEST_SHA256 = "28e8733bbaca225354b4cea0f787328dd5db3e084794b0dbae10c06747a3b824"
+
+
+def validate_minimatch_scope(
+    lock: bytes, manifest: bytes, config: dict[str, Any], today: date
+) -> bool:
+    """Fence the complete reviewed graph, including every package integrity.
+
+    The original npm minimatch3.1.5 source lacks firstPhasePreProcess,
+    secondPhasePreProcess and optimizationLevel from this advisory. Its
+    integrity-verified source and six legacy CommonJS consumers are assessed
+    in #1308. Modern consumers use patched11.0.3. Any graph or manifest change
+    requires new source review; another version cannot inherit this decision.
+    """
+    entries = config.get("IgnoredVulns", [])
+    if not isinstance(entries, list) or any(not isinstance(item, dict) for item in entries):
+        raise ValueError("invalid minimatch advisory configuration")
+    selected = [item for item in entries if item.get("id") == MINIMATCH_ADVISORY]
+    if not selected:
+        return False
+    if (
+        len(selected) != 1
+        or selected[0].get("ignoreUntil") != MINIMATCH_REVIEW_BEFORE
+        or today >= MINIMATCH_REVIEW_BEFORE
+        or not isinstance(selected[0].get("reason"), str)
+        or not selected[0]["reason"].strip()
+    ):
+        raise ValueError("minimatch source assessment needs current explicit review")
+    if (
+        hashlib.sha256(lock).hexdigest() != MINIMATCH_LOCK_SHA256
+        or hashlib.sha256(manifest).hexdigest() != MINIMATCH_MANIFEST_SHA256
+    ):
+        raise ValueError("minimatch dependency graph differs from the reviewed original sources")
+    return True
 
 
 def _legacy_edge(dependency: str, only_legacy: bool) -> bool:
@@ -91,6 +129,17 @@ def main() -> None:
             checked += int(validate_scope(lock, config, datetime.now(UTC).date()))
         except ValueError as error:
             raise SystemExit(f"advisory scope refused for {scope}: {error}") from error
+    web = ROOT / "apps/web"
+    config_path = web / "osv-scanner.toml"
+    try:
+        minimatch_checked = validate_minimatch_scope(
+            (web / "bun.lock").read_bytes(),
+            (web / "package.json").read_bytes(),
+            tomllib.loads(config_path.read_text()) if config_path.exists() else {},
+            datetime.now(UTC).date(),
+        )
+    except ValueError as error:
+        raise SystemExit(f"advisory scope refused for apps/web: {error}") from error
     print(
         json.dumps(
             {
@@ -98,6 +147,8 @@ def main() -> None:
                 "audited_legacy_version": LEGACY_VERSION,
                 "validated_scopes": checked,
                 "review_before": REVIEW_BEFORE.isoformat(),
+                "minimatch3_source_assessment": minimatch_checked,
+                "minimatch_review_before": MINIMATCH_REVIEW_BEFORE.isoformat(),
             }
         )
     )

@@ -126,6 +126,21 @@ async def require_auth(
     auth: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> AuthContext:
     """Resolve the opaque session from Bearer or cookie and enforce CSRF."""
+    return await _require_auth(request, db, auth, touch_device=True)
+
+
+async def require_auth_without_device_touch(
+    request: Request,
+    db: Db,
+    auth: Annotated[AuthSettings, Depends(get_auth_settings)],
+) -> AuthContext:
+    """Authenticate identically while leaving activity writes to a locked caller."""
+    return await _require_auth(request, db, auth, touch_device=False)
+
+
+async def _require_auth(
+    request: Request, db: AsyncSession, auth: AuthSettings, *, touch_device: bool
+) -> AuthContext:
     bearer = _extract_bearer(request)
     cookie = _extract_cookie_token(request, auth.cookie_name)
     if bearer is not None:
@@ -141,6 +156,7 @@ async def require_auth(
         raw,
         admin_account_ids=auth.admin_ids(),
         via_cookie=via_cookie,
+        touch_device=touch_device,
     )
     request.state.auth_context = context
     return context

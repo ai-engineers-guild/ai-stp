@@ -295,7 +295,7 @@ pub fn consent_plan(root: &Path, context_id: &str, now: &str) -> Result<Value> {
         action: "corporate.heartbeat.consent".into(),
         plan_id: format!("plan_{}", ulid::Ulid::generate()),
         created_at: now.into(),
-        expires_at: at(time(now)? + 600)?,
+        expires_at: super::model::after(now, 600)?,
         account: access.binding().clone(),
         policy_version: policy["policy_version"].as_u64().ok_or_else(invalid)?,
         policy,
