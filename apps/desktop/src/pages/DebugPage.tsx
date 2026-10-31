@@ -131,6 +131,7 @@ export default function DebugPage() {
             <li key={e.id}>
               <button
                 onClick={() => setExpanded(expanded === e.id ? null : e.id)}
+                aria-expanded={expanded === e.id}
                 className="flex w-full items-center gap-3 px-4 py-1.5 text-left hover:bg-accent"
               >
                 <span

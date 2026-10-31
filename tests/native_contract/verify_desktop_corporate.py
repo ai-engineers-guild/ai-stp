@@ -751,21 +751,9 @@ def installed_journey(
             "session"
         ]
         assert pending["state"] == "pending"
-        driver.navigate("debug")
-        for command_name in ("auth_login", "auth_status"):
-            entry = driver.wait(
-                lambda command_name=command_name: driver.read(
-                    "return [...document.querySelectorAll('main li button')]"
-                    ".find(button=>[...button.querySelectorAll('span')]"
-                    ".some(span=>span.textContent===arguments[0]));",
-                    command_name,
-                ),
-                "actual account trace entry",
-            )
-            driver.click(entry)
-            trace = driver.read("return arguments[0].closest('li').textContent;", entry)
-            assert "[private content omitted]" in trace
-            assert all(value not in trace for value in (origin, connection, pending["user_code"]))
+        driver.inspect_private_trace(
+            ("auth_login", "auth_status"), (origin, connection, pending["user_code"])
+        )
         driver.navigate("profiles")
         driver.click(driver.find(f'main a[href="#/auth?connection={connection}"]'))
         driver.wait(

@@ -559,6 +559,33 @@ class Driver:
             "persisted selected view",
         )
 
+    def inspect_private_trace(self, commands: tuple[str, ...], forbidden: tuple[str, ...]) -> None:
+        """Inspect actual diagnostic rows after native effects and readbacks."""
+        self.navigate("debug", keyboard=True)
+        for name in commands:
+            entry = self.wait(
+                lambda command_name=name: self.read(
+                    "return [...document.querySelectorAll('main li button')]"
+                    ".find(b=>b.querySelector('span.w-40')?.textContent===arguments[0])??null;",
+                    command_name,
+                ),
+                "actual private diagnostic entry",
+            )
+            self.command("POST", f"/element/{entry[ELEMENT]}/value", {"text": "\ue007"})
+            text = self.wait(
+                lambda entry=entry: self.read(
+                    "return arguments[0].getAttribute('aria-expanded')==='true'?"
+                    "arguments[0].closest('li').textContent:null;",
+                    entry,
+                ),
+                "expanded native diagnostic row committed",
+            )
+            require(
+                "[private content omitted]" in text
+                and all(value not in text for value in forbidden),
+                "shared diagnostics retained private task content",
+            )
+
     def close(self) -> None:
         if sys.exception() is not None and not self.log.closed:
             with contextlib.suppress(OSError, ValueError):
@@ -760,28 +787,6 @@ def inspect_personal_task(driver: Driver, task_id: str, ownership: dict[str, Any
     )
 
 
-def inspect_task_trace(
-    driver: Driver, commands: tuple[str, ...], forbidden: tuple[str, ...]
-) -> None:
-    """Inspect actual diagnostic rows after native task effects and readbacks."""
-    driver.navigate("debug", keyboard=True)
-    for name in commands:
-        entry = driver.wait(
-            lambda command_name=name: driver.read(
-                "return [...document.querySelectorAll('main li button')]"
-                ".find(b=>b.querySelector('span.w-40')?.textContent===arguments[0])??null;",
-                command_name,
-            ),
-            "actual private task trace entry",
-        )
-        driver.command("POST", f"/element/{entry[ELEMENT]}/value", {"text": "\ue007"})
-        text = driver.read("return arguments[0].closest('li').textContent;", entry)
-        require(
-            "[private content omitted]" in text and all(value not in text for value in forbidden),
-            "shared diagnostics retained private task content",
-        )
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--driver", type=Path, required=True)
@@ -957,8 +962,7 @@ def main() -> None:
             "native personal task admission differs",
         )
         inspect_personal_task(driver, task_id, task_ownership)
-        inspect_task_trace(
-            driver,
+        driver.inspect_private_trace(
             ("task_start", "task_status", "task_list"),
             (task_id, local["account_id"], local["device_id"]),
         )
@@ -1004,8 +1008,7 @@ def main() -> None:
             and cancelled["child_operation_ids"] == [],
             "installed task cancellation changed its original owner or created child effects",
         )
-        inspect_task_trace(
-            driver,
+        driver.inspect_private_trace(
             ("task_cancel", "task_status", "task_list"),
             (task_id, local["account_id"], local["device_id"]),
         )
