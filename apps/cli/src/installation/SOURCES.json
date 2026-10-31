@@ -1,0 +1,63 @@
+{
+  "license": "AGPL-3.0-or-later",
+  "source_repository": "https://github.com/NDDev-Technocracy-Archive/codex-setup-system",
+  "source_commit": "bbb0077776f56ffca0c509a91039a6e9d9caa73c",
+  "source_tag": "0.0.95",
+  "scope": "shared configuration transaction code only; no vendor software lifecycle, artifact tables, private presets or setup-manager product",
+  "files": [
+    {
+      "path": "apps/cli/src/installation/error.rs",
+      "source_path": "crates/setup-core/src/error.rs",
+      "source_blob": "9cc4e2a19ed7f4c078f7c6b1138e4d80dbd311c0",
+      "original_sha256": "95b3985b84f57fcf55c680d3e0d1fdb6a72465604caaeac7d6af6e0f4b8a0634"
+    },
+    {
+      "path": "apps/cli/src/installation/lock.rs",
+      "source_path": "crates/setup-core/src/lock.rs",
+      "source_blob": "c1db24d98b47c975cc428a54f6310480d2e8f6a1",
+      "original_sha256": "4722e049784ed0e601518b0725f35af0ac9ef0c95ca84d44682e65c6bc9b0a6a"
+    },
+    {
+      "path": "apps/cli/src/installation/sqlite.rs",
+      "source_path": "crates/setup-core/src/sqlite.rs",
+      "source_blob": "cd2148126c4b340b6d0c7941983eea76d2fad9c3",
+      "original_sha256": "79b1254a5074b4e9eafc08f38a492e7a67dec3763e83e7891d0588651d556069"
+    },
+    {
+      "path": "apps/cli/src/installation/journal.rs",
+      "source_path": "crates/setup-core/src/journal.rs",
+      "source_blob": "8c409620226e63a87d50262b3d1e1fc36c147241",
+      "original_sha256": "d048b64243040a18137e3ae8e95daef2cf8f78ebebceed1db9543f550f17bcad"
+    },
+    {
+      "path": "apps/cli/src/installation/forward.rs",
+      "source_path": "crates/setup-core/src/forward.rs",
+      "source_blob": "9095f6a0dd20ab42f124414fe54399ffa75fffb7",
+      "original_sha256": "3b755b0adeb5e12c7403f6e9fddb7967a541167a0566d8a365c962d2be747927"
+    },
+    {
+      "path": "apps/cli/src/installation/forward/files.rs",
+      "source_path": "crates/setup-core/src/forward/files.rs",
+      "source_blob": "fb13c49de1cf364f63c3a267b91605049cb6a45a",
+      "original_sha256": "34725c5c29bfc445b425687a0c3948271bb14f8783d3b6f54db494e5a66511df"
+    },
+    {
+      "path": "apps/cli/src/installation/forward/preparation.rs",
+      "source_path": "crates/setup-core/src/forward/preparation.rs",
+      "source_blob": "afe4580113cdec6eae027b0ff2ba82ff9a017c53",
+      "original_sha256": "b884609f70a1ec4a759707ecdb2ae465a6114ad270202ed0b18c30d5c08d3d4c"
+    },
+    {
+      "path": "apps/cli/src/installation/forward/store.rs",
+      "source_path": "crates/setup-core/src/forward/store.rs",
+      "source_blob": "bf87181e5a253ea34cc1746a2f41534b4033b486",
+      "original_sha256": "5c48b0007e2da61b1260fd78c9db7c87fa7fbd60c0fb43c7c87a65ac1f0f3acd"
+    },
+    {
+      "path": "apps/cli/src/installation/forward/tests.rs",
+      "source_path": "crates/setup-core/src/forward/tests.rs",
+      "source_blob": "4e03b2708f7b965cf258a26b5d8ca9ce0c72cb13",
+      "original_sha256": "dbf30bacc4767ae71fcbfeb45c0b65ca0f803577ed8b28e191f3fc59ab676700"
+    }
+  ]
+}
