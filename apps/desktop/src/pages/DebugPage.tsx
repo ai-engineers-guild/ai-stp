@@ -26,10 +26,26 @@ export default function DebugPage() {
   }
 
   async function copyBundle() {
+    // The shared report has its own allowlist. Local inspection may contain
+    // paths and command content, including fields added by future commands.
     const bundle = {
       generated_at: new Date().toISOString(),
-      environment: info?.data,
-      ipc_log: log.slice(0, 50),
+      environment: info?.data
+        ? {
+            app_version: info.data.app_version,
+            platform: info.data.platform,
+            arch: info.data.arch,
+            cli_found: info.data.cli_found,
+            cli_source: info.data.cli_source,
+          }
+        : null,
+      ipc_log: log.slice(0, 50).map(({ ts, cmd, ms, ok, error_code }) => ({
+        ts,
+        cmd,
+        ms,
+        ok,
+        error_code,
+      })),
     };
     try {
       await navigator.clipboard.writeText(JSON.stringify(bundle, null, 2));
