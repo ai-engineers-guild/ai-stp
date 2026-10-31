@@ -69,6 +69,59 @@ fn portable_effect_paths_refuse_case_aliases_parent_files_and_windows_devices() 
 }
 
 #[test]
+fn final_metadata_is_checked_together_with_all_admitted_effects() {
+    for prior in [false, true] {
+        let (root, target, admission) = fixture();
+        let mut writer = Writer::acquire(&target, ".control").unwrap();
+        let initial = if prior {
+            vec![
+                writer
+                    .change("Config/a", Some(content(b"desired")))
+                    .unwrap(),
+            ]
+        } else {
+            vec![]
+        };
+        writer
+            .admit(&admission, &serde_json::json!({}), &initial)
+            .unwrap();
+        writer.apply(&admission).unwrap();
+        let mut conflicting = vec![];
+        if !prior {
+            conflicting.push(
+                writer
+                    .change("Config/a", Some(content(b"desired")))
+                    .unwrap(),
+            );
+        }
+        conflicting.push(writer.change("config/b", Some(content(b"alias"))).unwrap());
+        let outcome = serde_json::json!({"state":"verified"});
+        assert!(
+            writer.finish(&admission, &conflicting, &outcome).is_err(),
+            "finalization admitted a case-ambiguous namespace; prior={prior}"
+        );
+        assert!(matches!(
+            writer.progress(&admission).unwrap(),
+            Progress::Applying(_)
+        ));
+        assert!(!root.join("config/b").exists());
+        let metadata = writer
+            .change("state.json", Some(content(b"owned metadata")))
+            .unwrap();
+        writer.finish(&admission, &[metadata], &outcome).unwrap();
+        writer.apply(&admission).unwrap();
+        assert_eq!(writer.complete(&admission).unwrap(), outcome);
+        assert_eq!(
+            fs::read(root.join("state.json")).unwrap(),
+            b"owned metadata"
+        );
+        drop(writer);
+        drop(target);
+        fs::remove_dir_all(root).unwrap();
+    }
+}
+
+#[test]
 fn an_external_component_database_is_refused_without_migration_or_byte_changes() {
     let (root, target, _admission) = fixture();
     let directory = target.control_directory().join("forward");

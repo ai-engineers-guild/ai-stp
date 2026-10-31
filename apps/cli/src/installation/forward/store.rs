@@ -22,7 +22,7 @@ const APPLICATION: i64 = 0x4153_4957;
 const CONTROL: &str = "forward";
 const META_LIMIT: usize = 8 * 1024 * 1024;
 // Reserve space above the 64 MiB effect bound for final provenance metadata.
-const PAYLOAD_LIMIT: usize = 96 * 1024 * 1024;
+pub(super) const PAYLOAD_LIMIT: usize = 96 * 1024 * 1024;
 pub(super) const CHANGE_LIMIT: usize = 8192;
 
 fn sql<T>(value: rusqlite::Result<T>) -> Result<T> {

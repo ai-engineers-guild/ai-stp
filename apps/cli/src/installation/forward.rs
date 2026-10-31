@@ -117,13 +117,19 @@ pub struct Change {
 /// # Errors
 /// Refuses duplicate paths, excessive files or more than 64 MiB of desired bytes.
 pub fn validate_changes(changes: &[Change]) -> Result<()> {
+    validate_effects(changes.iter(), store::CHANGE_LIMIT - 2, 64 * 1024 * 1024)
+}
+
+fn validate_effects<'a>(
+    changes: impl Iterator<Item = &'a Change>,
+    limit: usize,
+    byte_limit: usize,
+) -> Result<()> {
     let mut paths = std::collections::BTreeMap::new();
     let mut bytes = 0_usize;
-    if changes.len() > store::CHANGE_LIMIT - 2 {
-        return Err(invalid());
-    }
-    for change in changes {
-        if !files::valid_path(&change.path)
+    for (index, change) in changes.enumerate() {
+        if index >= limit
+            || !files::valid_path(&change.path)
             || paths
                 .insert(
                     unicase::UniCase::new(change.path.as_str()),
@@ -137,7 +143,7 @@ pub fn validate_changes(changes: &[Change]) -> Result<()> {
             content.validate()?;
             bytes = bytes.checked_add(content.bytes.len()).ok_or_else(invalid)?;
         }
-        if bytes > 64 * 1024 * 1024 {
+        if bytes > byte_limit {
             return Err(invalid());
         }
     }
@@ -584,11 +590,17 @@ impl Writer {
             return Err(invalid());
         }
         let existing = self.store.changes(&admission.operation_id)?;
+        // Final metadata shares the same namespace and aggregate payload bound
+        // as the admitted configuration. Validate references without cloning
+        // desired file bytes or admitting a later case/ancestor collision.
+        validate_effects(
+            existing.iter().chain(changes),
+            store::CHANGE_LIMIT,
+            store::PAYLOAD_LIMIT,
+        )?;
         self.verify(&existing)?;
         for change in changes {
-            if existing.iter().any(|old| old.path == change.path)
-                || self.read(&change.path)?.0 != change.before
-            {
+            if self.read(&change.path)?.0 != change.before {
                 return Err(invalid());
             }
         }
