@@ -559,6 +559,25 @@ class Driver:
             "persisted selected view",
         )
 
+    def enable_private_trace(self) -> None:
+        self.navigate("debug", keyboard=True)
+        self.wait(
+            lambda: self.read(
+                "return document.querySelector('main h1')?.textContent==='Diagnostics';"
+            ),
+            "diagnostic page committed after leaving workspace settings",
+        )
+        toggle = self.find('main input[type="checkbox"]')
+        require(not self.read("return arguments[0].checked;", toggle), "trace is not opt-in")
+        self.click(toggle)
+        self.wait(
+            lambda: self.read(
+                "return document.querySelector('main h1')?.textContent==='Diagnostics'&&"
+                "document.querySelector('main input[type=checkbox]')?.checked===true;"
+            ),
+            "actual diagnostic opt-in committed",
+        )
+
     def inspect_private_trace(self, commands: tuple[str, ...], forbidden: tuple[str, ...]) -> None:
         """Inspect actual diagnostic rows after native effects and readbacks."""
         self.navigate("debug", keyboard=True)
@@ -903,19 +922,7 @@ def main() -> None:
         require(
             identity["credential_store"] == "os_keyring", "native key silently used file storage"
         )
-        driver.navigate("debug", keyboard=True)
-        driver.wait(
-            lambda: driver.read(
-                "return document.querySelector('main h1')?.textContent==='Diagnostics';"
-            ),
-            "diagnostic page committed after leaving workspace settings",
-        )
-        trace_toggle = driver.find('main input[type="checkbox"]')
-        require(
-            not driver.read("return arguments[0].checked;", trace_toggle), "trace is not opt-in"
-        )
-        driver.click(trace_toggle)
-        require(driver.read("return arguments[0].checked;", trace_toggle), "trace was not enabled")
+        driver.enable_private_trace()
         driver.navigate("profiles")
         first = driver.create_context("Installed personal one")
         second = driver.create_context("Installed personal two")

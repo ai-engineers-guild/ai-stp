@@ -718,11 +718,7 @@ def installed_journey(
         )
         identity = native(binary, environment, ["device", "show"])
         assert identity["credential_store"] == "os_keyring"
-        driver.navigate("debug")
-        trace_toggle = driver.find('main input[type="checkbox"]')
-        assert not driver.read("return arguments[0].checked;", trace_toggle)
-        driver.click(trace_toggle)
-        assert driver.read("return arguments[0].checked;", trace_toggle)
+        driver.enable_private_trace()
         driver.navigate("profiles")
         offline = driver.create_context("Installed offline personal")
         driver.select_context("Installed offline personal", offline)
