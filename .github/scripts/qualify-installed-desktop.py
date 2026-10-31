@@ -899,6 +899,12 @@ def main() -> None:
             identity["credential_store"] == "os_keyring", "native key silently used file storage"
         )
         driver.navigate("debug")
+        driver.wait(
+            lambda: driver.read(
+                "return document.querySelector('main h1')?.textContent==='Diagnostics';"
+            ),
+            "diagnostic page committed after leaving workspace settings",
+        )
         trace_toggle = driver.find('main input[type="checkbox"]')
         require(
             not driver.read("return arguments[0].checked;", trace_toggle), "trace is not opt-in"
