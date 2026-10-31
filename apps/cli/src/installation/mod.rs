@@ -10,6 +10,7 @@ pub mod forward;
 mod identity;
 pub mod journal;
 pub mod lock;
+pub mod profiles;
 pub(crate) mod sqlite;
 pub mod target;
 

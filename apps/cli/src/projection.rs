@@ -1,6 +1,7 @@
 //! Exact provider surfaces and target-relative ownership, independent of discovery.
 
 pub mod artifact;
+pub(crate) mod surfaces;
 
 use std::{collections::BTreeSet, sync::OnceLock};
 
