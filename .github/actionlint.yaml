@@ -1,0 +1,6 @@
+# GitHub-hosted Ubuntu 26.04 images (actions/runner-images). actionlint 1.7.12 predates them and
+# reports the labels as unknown (rhysd/actionlint#682); remove once a release lists them.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04
+    - ubuntu-26.04-arm

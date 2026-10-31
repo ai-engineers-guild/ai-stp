@@ -38,8 +38,8 @@ jobs:
       matrix:
         # Linux bundles need the glibc of the image that built them, so the leg
         # pins the image the shipped bundles were built and tested on rather
-        # than `ubuntu-latest`, which moves to Ubuntu 26.04 from 2026-10-19.
-        os: [ubuntu-24.04, macos-15, windows-2025]
+        # than `ubuntu-26.04`, which moves to Ubuntu 26.04 from 2026-10-19.
+        os: [ubuntu-26.04, macos-15, windows-2025]
     steps:
       - name: Confine package-only diagnosis to its explicit manual workflow
         if: inputs.packages_only

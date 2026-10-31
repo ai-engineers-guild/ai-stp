@@ -37,7 +37,7 @@ jobs:
     permissions:
       contents: write
       actions: read
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     # Serialising promotion is the point: two runs advancing one ref would
     # race, and a deployment interrupted between transfer and health check
@@ -216,7 +216,7 @@ jobs:
       && github.event.workflow_run.head_branch == 'main'
     permissions:
       contents: read
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # The wait below plus checkout and setup. Larger than the wait, so a
     # timeout means the job was starved rather than the target being late.
     #
