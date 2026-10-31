@@ -774,7 +774,7 @@ def inspect_task_trace(
             ),
             "actual private task trace entry",
         )
-        driver.click(entry)
+        driver.command("POST", f"/element/{entry[ELEMENT]}/value", {"text": "\ue007"})
         text = driver.read("return arguments[0].closest('li').textContent;", entry)
         require(
             "[private content omitted]" in text and all(value not in text for value in forbidden),
