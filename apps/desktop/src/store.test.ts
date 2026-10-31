@@ -1,9 +1,58 @@
 import { afterEach, expect, it, vi } from "vitest";
+import type { CmdResult } from "./transport";
+
+vi.mock("./transport", () => ({
+  cmdAuthStatus: vi.fn(),
+  cmdCapabilities: vi.fn(),
+  cmdDoctor: vi.fn(),
+  cmdRunRead: vi.fn(),
+  cmdVersion: vi.fn(),
+}));
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.resetModules();
+  vi.resetAllMocks();
 });
+
+it.each([true, false])(
+  "does not replace a newer account observation with an old successful reply: %s",
+  async (success) => {
+    const { useApp } = await import("./store");
+    const { cmdAuthStatus } = await import("./transport");
+    let finish!: (value: CmdResult) => void;
+    const latest: CmdResult = {
+      ok: success,
+      data: success ? { session: { state: "absent" } } : null,
+      error: success ? null : "Session unavailable",
+      error_code: success ? null : "SESSION_REVOKED",
+      warnings: [],
+      continuations: [],
+    };
+    vi.mocked(cmdAuthStatus)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(latest);
+    const previous = useApp.getState().refreshAuth();
+    await useApp.getState().refreshAuth();
+    finish({
+      ...latest,
+      ok: true,
+      error: null,
+      error_code: null,
+      data: {
+        session: { state: "authorized", account_id: "previous-account" },
+      },
+    });
+    await previous;
+    expect(useApp.getState().authResult).toBe(latest);
+    expect(useApp.getState().auth).toBe(latest.data);
+  },
+);
 
 it.each([
   undefined,

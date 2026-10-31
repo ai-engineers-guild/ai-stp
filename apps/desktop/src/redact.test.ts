@@ -18,18 +18,21 @@ describe("redact", () => {
     expect(r.data.list[0].api_key).toBe("[redacted]");
   });
 
-  it("keeps user-facing and diagnostic fields", () => {
+  it("omits device confirmation material while keeping benign diagnostic fields", () => {
     const env = {
       data: {
         user_code: "DKSX-8RAT",
+        verification_uri: "https://x/?code=DKSX-8RAT",
         verification_uri_complete: "https://x/?code=DKSX-8RAT",
         credential_store: "os_keyring",
         id: "task_1",
       },
     };
     const r = redact(env) as typeof env;
-    expect(r.data.user_code).toBe("DKSX-8RAT");
-    expect(r.data.verification_uri_complete).toContain("DKSX-8RAT");
+    expect(r.data.user_code).toBe("[redacted]");
+    expect(r.data.verification_uri).toBe("[redacted]");
+    expect(r.data.verification_uri_complete).toBe("[redacted]");
+    expect(env.data.user_code).toBe("DKSX-8RAT");
     expect(r.data.credential_store).toBe("os_keyring");
     expect(r.data.id).toBe("task_1");
   });

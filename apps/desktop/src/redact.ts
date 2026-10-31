@@ -1,8 +1,8 @@
-/** Debug-trace redaction: keys that may carry bearer material are masked
- *  before a result lands in the IPC log or a copied diagnostic bundle.
- *  `user_code` stays — it is meant to be read aloud to the user. */
+/** Sanitize diagnostic copies, including temporary device confirmation codes
+ *  and verification links. The original reply remains available to the UI. */
 
-const SECRET_KEY = /(^|_)(device_code|token|secret|password|credential|key)s?$/i;
+const SECRET_KEY =
+  /(^|_)(device_code|user_code|verification_uri(?:_complete)?|token|secret|password|credential|key)s?$/i;
 
 export function redact(v: unknown): unknown {
   if (Array.isArray(v)) return v.map(redact);

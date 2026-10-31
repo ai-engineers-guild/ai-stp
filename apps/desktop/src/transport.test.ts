@@ -11,10 +11,60 @@ import {
   cmdHeartbeatConsentApply,
   cmdRunRead,
   cmdTaskStart,
+  cmdAuthLogin,
+  cmdAuthStatus,
+  cmdAuthComplete,
+  cmdAuthLogout,
   cmdVersion,
 } from "./transport";
 import { useDebug } from "./store";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+
+it("omits account confirmation, origin and session content from shared diagnostics", async () => {
+  useDebug.setState({ debugMode: true });
+  const reply = {
+    ok: true,
+    data: {
+      session: {
+        user_code: "canary-confirmation",
+        verification_uri_complete:
+          "https://canary-origin/verify?code=canary-confirmation",
+      },
+    },
+    error: null,
+    error_code: null,
+    warnings: ["canary-private-warning"],
+    continuations: [],
+  };
+  vi.mocked(invoke).mockResolvedValue(reply);
+  expect(await cmdAuthStatus("canary-connection")).toBe(reply);
+  await cmdAuthLogin("github", "https://canary-origin", "canary-connection");
+  await cmdAuthComplete(false, "canary-connection");
+  await cmdAuthLogout("canary-connection");
+  await cmdRunRead("account connections show", {
+    connection: "canary-connection",
+  });
+  await cliPlan("account plan", {
+    "api-url": "https://canary-origin",
+    provider: "github",
+  });
+  vi.mocked(invoke).mockResolvedValue({
+    ...reply,
+    ok: false,
+    error: "canary-private-error",
+    error_code: "SESSION_REVOKED",
+  });
+  expect((await cmdAuthStatus()).error).toBe("canary-private-error");
+  vi.mocked(invoke).mockRejectedValue(new Error("canary-private-transport"));
+  expect((await cmdAuthStatus()).error_code).toBe("IPC_THROW");
+  const entries = useDebug.getState().log;
+  expect(entries).toHaveLength(8);
+  expect(JSON.stringify(entries)).not.toContain("canary");
+  expect(entries.every((entry) => entry.result === undefined)).toBe(true);
+  expect(entries.some((entry) => entry.error_code === "SESSION_REVOKED")).toBe(
+    true,
+  );
+});
 afterEach(() => {
   vi.resetAllMocks();
   useDebug.setState({ debugMode: false, log: [] });
