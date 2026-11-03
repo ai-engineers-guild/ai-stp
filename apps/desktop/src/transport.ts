@@ -340,10 +340,15 @@ export function cmdCheckoutApply(
 }
 
 export function cmdHeartbeatConsentApply(
-  plan: unknown, digest: string, confirmed: boolean,
+  plan: unknown,
+  digest: string,
+  confirmed: boolean,
 ): Promise<CmdResult> {
   return call("profile_apply", {
-    path: "corporate heartbeat consent apply", plan, digest, confirmed,
+    path: "corporate heartbeat consent apply",
+    plan,
+    digest,
+    confirmed,
   });
 }
 
@@ -353,7 +358,12 @@ export function cmdBindingRetirementApply(
   confirmed: boolean,
 ): Promise<CmdResult> {
   return call("checkout_apply", {
-    plan, digest, confirmed, context: null, gitExecutable: null, retireBinding: true,
+    plan,
+    digest,
+    confirmed,
+    context: null,
+    gitExecutable: null,
+    retireBinding: true,
   });
 }
 
@@ -364,18 +374,32 @@ export function cmdCheckoutLocationApply(
   gitExecutable?: string,
 ): Promise<CmdResult> {
   return call("checkout_location_apply", {
-    plan, digest, confirmed, gitExecutable: gitExecutable ?? null,
+    plan,
+    digest,
+    confirmed,
+    gitExecutable: gitExecutable ?? null,
   });
 }
 
-export function cmdMissingBindingRetirementApply(plan: unknown, digest: string, confirmed: boolean): Promise<CmdResult> {
+export function cmdMissingBindingRetirementApply(
+  plan: unknown,
+  digest: string,
+  confirmed: boolean,
+): Promise<CmdResult> {
   return call("checkout_missing_binding_apply", { plan, digest, confirmed });
 }
 
 /** Native setup data is private and the original reviewed context is retained. */
-export function cmdNativeConfigurationPlan(context:string,input:Record<string,unknown>):Promise<CmdResult> {
-  return call("native_configuration_plan",{context,input});
+export function cmdNativeConfigurationPlan(
+  context: string,
+  input: Record<string, unknown>,
+): Promise<CmdResult> {
+  return call("native_configuration_plan", { context, input });
 }
-export function cmdNativeConfigurationPrepare(plan:Record<string,unknown>,digest:string,confirmed:boolean):Promise<CmdResult> {
-  return call("native_configuration_prepare",{plan,digest,confirmed});
+export function cmdNativeConfigurationPrepare(
+  plan: Record<string, unknown>,
+  digest: string,
+  confirmed: boolean,
+): Promise<CmdResult> {
+  return call("native_configuration_prepare", { plan, digest, confirmed });
 }
