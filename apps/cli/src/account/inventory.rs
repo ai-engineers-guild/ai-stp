@@ -200,8 +200,22 @@ fn view(context: &Context, record: Option<&Record>) -> Result<Value> {
     "scheduler_registered":false}),
     )
 }
+fn owned_components(body: &Value) -> Result<()> {
+    for snapshot in body["snapshots"].as_array().ok_or_else(invalid)? {
+        for component in snapshot["components"].as_array().ok_or_else(invalid)? {
+            if component["source"] != "managed"
+                || component["stable_id"].as_str().is_none()
+                || component["version"].as_str().is_none()
+            {
+                return Err(invalid());
+            }
+        }
+    }
+    Ok(())
+}
 fn validate_body(context: &Context, account: &Binding, body: &Value) -> Result<()> {
     BATCH.validate(body)?;
+    owned_components(body)?;
     for snapshot in body["snapshots"].as_array().ok_or_else(invalid)? {
         if snapshot["organization_id"] != org(context)?
             || snapshot["employee_id"] != account.account_id
@@ -516,7 +530,25 @@ mod tests {
             assert!(BATCH.validate(&snapshot(bad)).is_err());
         }
         item["source"] = "external".into();
-        assert!(BATCH.validate(&snapshot(item)).is_err());
+        assert!(owned_components(&snapshot(item)).is_err());
         Ok(())
     }
+}
+
+#[cfg(test)]
+pub(crate) fn fixture_pending(root: &Path, context: &str, body: Value, at: &str) -> Result<()> {
+    let context = contexts::resolve(root, Some(context))?;
+    let dir = directory(&context, false)?.ok_or_else(invalid)?;
+    let mut record = load(&dir, &context)?.ok_or_else(invalid)?;
+    validate_body(&context, &record.account, &body)?;
+    if !record.enabled || record.pending.is_some() {
+        return Err(invalid());
+    }
+    record.pending = Some(Pending {
+        digest: hash(&body)?,
+        body,
+        links: vec![],
+        expires_at: super::model::after(at, 86400)?,
+    });
+    record.save(&dir)
 }
