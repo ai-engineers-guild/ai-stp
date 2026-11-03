@@ -199,6 +199,14 @@ declaration. The shared package reader verifies the exact native profile and com
 payload. Compilation and reading create no harness state or installation authority. Profile lookup has no fallback between global, user-root and project
 scopes; the unclassified harness placeholder cannot select an installation engine.
 
+`installation::planning` captures a separate native observation format with the
+original context, exact graph/profile/eligibility inputs and full physical roots.
+It preserves raw path spellings and file preconditions without before-images or
+configuration writes. Corporate plans require a positively linked original
+checkout and fresh exact assignment/policy observations. Context selection cannot
+retarget the plan. This library format does not enable a new installation route;
+protected effects still require separately qualified custody and authorization.
+
 Existing `provider` commands still use the released external-component
 compatibility path; integrating the library does not change an old operation's
 identity or silently activate a new installation route. The CLI authenticates

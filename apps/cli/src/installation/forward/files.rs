@@ -78,6 +78,12 @@ pub struct Observation {
     pub(super) file: Option<Stamp>,
 }
 
+impl Observation {
+    pub(crate) fn byte_length(&self) -> usize {
+        self.file.as_ref().map_or(0, |file| file.length)
+    }
+}
+
 pub(super) fn parent(
     root: &Dir,
     path: &str,
