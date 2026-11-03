@@ -1,7 +1,7 @@
 //! Coordinate publication with the unchanged locks used by released writers.
 use super::{CONTROLS, Custody, Target, adoption::Adoption, forward, invalid, marker, native};
 use crate::{error::Result, installation::lock::TargetLock};
-use cap_fs_ext::DirExt;
+use cap_fs_ext::{DirExt, MetadataExt};
 use cap_std::fs::Dir;
 use std::ffi::OsStr;
 
@@ -34,10 +34,24 @@ pub(super) fn lock_only(target: &Target, directory: &Dir, control: &str) -> Resu
     if !lock {
         return Ok(false);
     }
-    let content = native(forward::observe(target, &format!("{control}/target.lock")))?
-        .1
-        .ok_or_else(invalid)?;
-    Ok(content.bytes.is_empty())
+    // A Windows exclusive lock also denies data reads through another
+    // handle. Observe the zero-length plain-file metadata without reading it.
+    let metadata = directory
+        .symlink_metadata("target.lock")
+        .map_err(|_| invalid())?;
+    #[cfg(windows)]
+    {
+        use cap_std::fs::MetadataExt as _;
+        if metadata.file_attributes() & 0x400 != 0 {
+            return Ok(false);
+        }
+    }
+    Ok(
+        metadata.is_file()
+            && !metadata.is_symlink()
+            && metadata.nlink() == 1
+            && metadata.len() == 0,
+    )
 }
 pub(crate) struct Locks {
     held: Vec<TargetLock>,
