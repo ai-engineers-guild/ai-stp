@@ -18,6 +18,7 @@ pub(super) enum Handler {
     Confirm,
     RemovePlan,
     RetirePlan,
+    Custody,
     Effective,
     Pending,
 }
@@ -25,7 +26,7 @@ impl Handler {
     pub fn mutability(self) -> &'static str {
         match self {
             Self::Plan | Self::RemovePlan | Self::RetirePlan => "plan",
-            Self::Status | Self::Effective | Self::Pending => "read",
+            Self::Status | Self::Effective | Self::Pending | Self::Custody => "read",
             _ => "apply",
         }
     }
@@ -43,6 +44,12 @@ const DIGEST: Parameter = Parameter {
     required: true,
 };
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["configuration", "native", "custody"],
+        summary: "Inspect OS-user ownership metadata and positively missing folders across original state directories without changing files.",
+        parameters: &[STATE_DIR],
+        handler: super::Handler::Configuration(Handler::Custody),
+    },
     Declaration {
         path: &["configuration", "native", "retire", "plan"],
         summary: "Review metadata-only release of positively absent target references; preserve history, live files and other owners.",
@@ -164,6 +171,7 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             runtime::effective(root, args.get_one::<String>("context").map(String::as_str))
         }
         Handler::Pending => runtime::pending(root),
+        Handler::Custody => runtime::custody(),
         Handler::Plan => runtime::plan(
             root,
             args.get_one::<String>("context").map(String::as_str),

@@ -284,7 +284,7 @@ pub(crate) fn pending(root: &Path, custody: &Custody, review: &Review) -> Result
     Ok(
         json!({"pending":{"kind":"retire_missing","operation_id":review.operation_id(),"plan_digest":review.digest()?,
         "original_context":value(&original.context)?,"harness_id":original.target.harness_id,
-        "custody":custody.status(review)?},"other_state_pending":false}),
+        "controller":value(&data.controller)?,"custody":custody.status(review)?},"other_state_pending":false}),
     )
 }
 pub fn read(path: &Path, expected: &str) -> Result<Review> {

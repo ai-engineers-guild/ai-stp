@@ -243,3 +243,40 @@ fn retained_retirement(
 pub fn retire_plan(root: &Path, operation: &str, expected: &str, at: &str) -> Result<Value> {
     planning::retirement::plan(root, &existing()?, operation, expected, at)
 }
+
+/// Explicit local OS-user metadata read, including original state directories
+/// that are gone. No account session or source authorization is inferred.
+pub fn custody() -> Result<Value> {
+    let Some(custody) = Custody::existing_user()? else {
+        return Ok(json!({"operations":[],"authorization_granted":false}));
+    };
+    let mut operations = Vec::new();
+    for operation in custody.current_operations()? {
+        let review = custody.retained(&operation)?.ok_or_else(invalid)?;
+        let Some(plan) = review.original_plan()? else {
+            continue;
+        };
+        let document = plan.value()?;
+        let current = custody.current_scopes(&operation)?;
+        let mut roots = Vec::new();
+        for (scope, held) in document["roots"].as_object().ok_or_else(invalid)? {
+            let scope_value: Scope = serde_json::from_value(json!(scope)).map_err(|_| invalid())?;
+            if !current.contains(&scope_value) {
+                continue;
+            }
+            let path = files::deserialize_path(held["directory"]["path"].clone())?;
+            let state = if crate::files::absence::Parent::observe(&path).is_ok() {
+                "missing"
+            } else {
+                "present_or_unavailable"
+            };
+            roots.push(json!({"scope":scope,"directory":held["directory"],"state":state}));
+        }
+        operations.push(
+            json!({"operation_id":operation,"plan_digest":review.digest()?,
+            "original_context":document["context"],"setup":document["setup"],
+            "harness_id":document["target"]["harness_id"],"roots":roots}),
+        );
+    }
+    Ok(json!({"operations":operations,"authorization_granted":false}))
+}
