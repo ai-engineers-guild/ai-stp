@@ -54,10 +54,12 @@ function call(
   const privateTrace =
     command.startsWith("auth_") ||
     command.startsWith("task_") ||
+    command.startsWith("native_configuration_") ||
     command === "checkout_apply" ||
     command === "checkout_location_apply" ||
     command === "checkout_missing_binding_apply" ||
     namespace === "context" ||
+    namespace === "configuration" ||
     namespace === "corporate" ||
     namespace === "account" ||
     namespace === "task";
@@ -368,4 +370,12 @@ export function cmdCheckoutLocationApply(
 
 export function cmdMissingBindingRetirementApply(plan: unknown, digest: string, confirmed: boolean): Promise<CmdResult> {
   return call("checkout_missing_binding_apply", { plan, digest, confirmed });
+}
+
+/** Native setup data is private and the original reviewed context is retained. */
+export function cmdNativeConfigurationPlan(context:string,input:Record<string,unknown>):Promise<CmdResult> {
+  return call("native_configuration_plan",{context,input});
+}
+export function cmdNativeConfigurationPrepare(plan:Record<string,unknown>,digest:string,confirmed:boolean):Promise<CmdResult> {
+  return call("native_configuration_prepare",{plan,digest,confirmed});
 }
