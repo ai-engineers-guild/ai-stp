@@ -278,6 +278,7 @@ fn preparation_survives_restart_without_opening_the_publication_window() {
                 &serde_json::json!({"exact":true}),
                 &[change],
                 true,
+                false,
             )
             .unwrap();
         if boundary == 1 {
