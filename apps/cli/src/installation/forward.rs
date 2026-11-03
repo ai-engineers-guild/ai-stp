@@ -477,7 +477,7 @@ impl Writer {
         context: &serde_json::Value,
         changes: &[Change],
     ) -> Result<()> {
-        self.admit_inner(admission, context, changes, false)
+        self.admit_inner(admission, context, changes, false, false)
     }
 
     fn admit_inner(
@@ -486,6 +486,7 @@ impl Writer {
         context: &serde_json::Value,
         changes: &[Change],
         prepared: bool,
+        retained_metadata: bool,
     ) -> Result<()> {
         admission.validate()?;
         validate_changes(changes)?;
@@ -502,7 +503,8 @@ impl Writer {
                 return Err(invalid());
             }
         }
-        self.store.admit(admission, context, changes, prepared)
+        self.store
+            .admit(admission, context, changes, prepared, retained_metadata)
     }
 
     fn unchanged(&self, admission: &Admission) -> Result<()> {

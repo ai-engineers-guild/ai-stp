@@ -345,7 +345,10 @@ impl Custody {
                 return Err(invalid());
             }
         }
-        native(self.writer.prepare(&admission, &review.value()?, &[]))
+        native(
+            self.writer
+                .prepare_retained_metadata(&admission, &review.value()?, &[]),
+        )
     }
     pub fn start(&self, review: &Review) -> Result<()> {
         self.private_root()?;

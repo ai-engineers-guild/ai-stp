@@ -21,6 +21,7 @@ const CHANGES: &str = "CREATE TABLE changes (operation TEXT NOT NULL, sequence I
 const APPLICATION: i64 = 0x4153_4957;
 const CONTROL: &str = "forward";
 const META_LIMIT: usize = 8 * 1024 * 1024;
+const RETAINED_CONTEXT: &[u8] = b"ASIW metadata context v1\0";
 // Reserve space above the 64 MiB effect bound for final provenance metadata.
 pub(super) const PAYLOAD_LIMIT: usize = 96 * 1024 * 1024;
 pub(super) const CHANGE_LIMIT: usize = 8192;
@@ -44,6 +45,23 @@ fn decode<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> Result<T> {
     serde_json::from_slice(bytes).map_err(|_| invalid())
 }
 
+fn encode_context(value: &serde_json::Value, retained: bool) -> Result<Vec<u8>> {
+    let data = encode(value)?;
+    if retained {
+        let mut bytes = RETAINED_CONTEXT.to_vec();
+        bytes.extend(data);
+        Ok(bytes)
+    } else {
+        Ok(data)
+    }
+}
+fn decode_context(bytes: &[u8]) -> Result<(serde_json::Value, bool)> {
+    match bytes.strip_prefix(RETAINED_CONTEXT) {
+        Some(data) => Ok((decode(data)?, true)),
+        None => Ok((decode(bytes)?, false)),
+    }
+}
+
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct Metadata {
@@ -55,6 +73,7 @@ struct Metadata {
 pub(super) struct Record {
     pub(super) admission: Admission,
     pub(super) context: serde_json::Value,
+    pub(super) retained_metadata: bool,
     pub(super) stage: Option<files::Identity>,
     pub(super) phase: String,
     pub(super) outcome: Option<serde_json::Value>,
@@ -200,9 +219,11 @@ impl Store {
             if phase == "completed" && outcome.is_none() {
                 return Err(invalid());
             }
+            let (context, retained_metadata) = decode_context(&context)?;
             Ok(Record {
                 admission: admission.clone(),
-                context: decode(&context)?,
+                context,
+                retained_metadata,
                 stage: stage.map(|v| decode(&v)).transpose()?,
                 phase,
                 outcome,
@@ -272,6 +293,7 @@ impl Store {
         context: &serde_json::Value,
         changes: &[Change],
         prepared: bool,
+        retained_metadata: bool,
     ) -> Result<()> {
         self.idle()?;
         if prepared {
@@ -286,7 +308,7 @@ impl Store {
                     admission.operation_id,
                     admission.plan_digest,
                     encode(admission)?,
-                    encode(context)?,
+                    encode_context(context, retained_metadata)?,
                     if prepared { "prepared" } else { "applying" },
                 ],
             ))?;
@@ -365,6 +387,17 @@ impl Store {
         ))
     }
 
+    fn terminal_context(&self, id: &str) -> Result<Vec<u8>> {
+        let bytes =
+            sql(self
+                .db
+                .query_row("SELECT context FROM operations WHERE id=?", [id], |row| {
+                    row.get::<_, Vec<u8>>(0)
+                }))?;
+        let (_, retain) = decode_context(&bytes)?;
+        Ok(if retain { bytes } else { b"{}".to_vec() })
+    }
+
     pub(super) fn cancel(
         &mut self,
         admission: &Admission,
@@ -376,8 +409,8 @@ impl Store {
         let result = (|| {
             if admitted {
                 if sql(self.db.execute(
-                    "UPDATE operations SET phase='completed',active=NULL,context=x'7b7d',outcome=?1 WHERE id=?2 AND digest=?3 AND (phase='prepared' OR (phase='applying' AND stage IS NULL)) AND active=1",
-                    params![encode(outcome)?, admission.operation_id, admission.plan_digest],
+                    "UPDATE operations SET phase='completed',active=NULL,context=?4,outcome=?1 WHERE id=?2 AND digest=?3 AND (phase='prepared' OR (phase='applying' AND stage IS NULL)) AND active=1",
+                    params![encode(outcome)?, admission.operation_id, admission.plan_digest,self.terminal_context(&admission.operation_id)?],
                 ))? != 1 {
                     return Err(invalid());
                 }
@@ -489,7 +522,7 @@ impl Store {
             sql(self
                 .db
                 .execute("DELETE FROM changes WHERE operation=?1", [id]))?;
-            if sql(self.db.execute("UPDATE operations SET phase='completed',active=NULL,context=x'7b7d' WHERE id=?1 AND phase='finishing' AND outcome IS NOT NULL", [id]))? != 1 { return Err(invalid()); }
+            if sql(self.db.execute("UPDATE operations SET phase='completed',active=NULL,context=?2 WHERE id=?1 AND phase='finishing' AND outcome IS NOT NULL", params![id,self.terminal_context(id)?]))? != 1 { return Err(invalid()); }
             Ok(())
         })();
         self.end(result)
