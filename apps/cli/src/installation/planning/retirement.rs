@@ -80,6 +80,10 @@ impl Record {
             return Err(invalid());
         }
         drop(owner);
+        self.revalidate_absence()
+    }
+    fn revalidate_absence(&self) -> Result<()> {
+        self.validate()?;
         let original = self.original()?;
         for (scope, parent) in &self.missing {
             parent.open(
@@ -106,7 +110,9 @@ pub(crate) fn validate(data: &Value) -> Result<()> {
     parse(data).map(|_| ())
 }
 pub(crate) fn revalidate(data: &Value) -> Result<()> {
-    parse(data)?.revalidate()
+    // Prepared retirement is an exact OS-user metadata operation. Recovery
+    // never needs a replacement enrollment or grants another file effect.
+    parse(data)?.revalidate_absence()
 }
 
 fn capture(
@@ -251,7 +257,7 @@ pub fn apply(root: &Path, custody: &mut Custody, review: &Review) -> Result<Valu
         return Ok(status["result"]["native_result"].clone());
     }
     if status["state"] == "prepared" {
-        data.revalidate()?;
+        data.revalidate_absence()?;
         custody.start(review)?;
     } else if !matches!(status["state"].as_str(), Some("applying" | "finishing")) {
         return Err(invalid());

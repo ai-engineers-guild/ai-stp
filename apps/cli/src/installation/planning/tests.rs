@@ -1238,6 +1238,7 @@ fn positively_missing_target_retirement_preserves_history_and_releases_no_live_f
     // Original state loss does not turn OS-user metadata retirement into a
     // replacement enrollment, an online grant or another account's file write.
     std::fs::remove_dir_all(&state)?;
+    std::fs::remove_dir_all(&controller)?;
     let result = retirement::apply(&controller, &mut custody, &parsed)?;
     assert_eq!(result["state"], "retired");
     assert_eq!(result["original_context"]["context_id"], context);
@@ -1260,6 +1261,9 @@ fn positively_missing_target_retirement_preserves_history_and_releases_no_live_f
         std::fs::read(target.join("user-note"))?,
         b"later unowned target"
     );
+    std::fs::create_dir(&controller)?;
+    let initialize = crate::identity::plan(&controller, crate::identity::Storage::File, &at)?;
+    crate::identity::apply(&initialize, &initialize.digest()?, &at)?;
     let saved = contexts::create_plan(&controller, "Controller personal", None, None, &at)?;
     let saved_value = serde_json::to_value(&saved)?;
     let other_context = saved_value["change"]["context"]["context_id"]
