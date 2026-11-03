@@ -147,6 +147,17 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
             .ok_or_else(|| Failure::input("required native argument is absent"))
     };
     let root = path("state-dir")?;
+    // Persisted native context roots use the checked ordinary Windows spelling.
+    // Normalize an existing CLI input through the same resolver; retained absent
+    // roots keep their exact original spelling for metadata-only history.
+    #[cfg(windows)]
+    let resolved = if root.exists() {
+        PathBuf::from(crate::files::location(root)?)
+    } else {
+        root.to_owned()
+    };
+    #[cfg(windows)]
+    let root = resolved.as_path();
     let at = format!("{:.3}", jiff::Timestamp::now());
     match handler {
         Handler::Effective => {
