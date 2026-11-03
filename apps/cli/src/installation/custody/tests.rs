@@ -573,6 +573,9 @@ fn real_writer_recovers_reviewed_files_and_preserves_unowned_host_bytes()
         .bytes
         .push(b'!');
     assert!(bound.verify_publications(&target, &changed).is_err());
+    let mut reordered = changes.clone();
+    reordered.swap(0, 1);
+    assert!(bound.verify_publications(&target, &reordered).is_err());
     let retained = Review::parse(&serde_json::to_vec(&bound.value()?)?, &bound.digest()?)?;
     retained.verify_publications(&target, &changes)?;
     custody.prepare(&review, &review.digest()?)?;
