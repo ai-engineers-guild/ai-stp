@@ -4,6 +4,8 @@
 //! or recovery. These markers are operational metadata, never backup payloads.
 
 pub(crate) mod adoption;
+mod locks;
+pub(crate) use locks::Locks;
 
 use super::{custody::Custody, forward, target::Target};
 use crate::{
@@ -60,6 +62,7 @@ pub(crate) fn review_with(
         }
         match super::target::child(&directory, std::ffi::OsStr::new(control)) {
             Ok(_) if adoption.is_some_and(|proof| proof.control() == control) => (),
+            Ok(directory) if locks::lock_only(target, &directory, control)? => (),
             Ok(_) => return Err(invalid()),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
             Err(_) => return Err(invalid()),

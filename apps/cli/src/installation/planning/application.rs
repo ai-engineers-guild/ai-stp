@@ -136,6 +136,7 @@ pub fn apply_prepared(
             );
         }
     }
+    let mut legacy_locks = Vec::new();
     if candidate.is_none() {
         plan.authorize(root)?;
         let idle = if writes_configuration {
@@ -143,6 +144,16 @@ pub fn apply_prepared(
         } else {
             None
         };
+        // All unchanged legacy locks are held before the first journal or
+        // configuration publication. A busy old writer leaves preparation
+        // cancellable; no historical SDK can pass its journal check mid-apply.
+        for (scope, target) in &targets {
+            legacy_locks.push(crate::installation::legacy::Locks::acquire(
+                target,
+                custody,
+                adoptions.get(scope),
+            )?);
+        }
         if status["state"] == "prepared" {
             custody.start(&review)?;
         }
@@ -158,6 +169,15 @@ pub fn apply_prepared(
                 return Err(invalid());
             }
             native(writer.apply_checked(&admission, || {
+                for locks in &legacy_locks {
+                    locks.revalidate().map_err(|error| {
+                        crate::installation::Error::new(
+                            crate::installation::ReasonCode::RecoveryRequired,
+                            "legacy writer coordination changed",
+                        )
+                        .with_source(error)
+                    })?;
+                }
                 for (scope, proof) in &adoptions {
                     proof
                         .revalidate(
