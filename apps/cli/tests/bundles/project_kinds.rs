@@ -200,6 +200,15 @@ pub(super) fn journey(
                 &provider,
                 &Hosts::new(),
             )?;
+            let native = bundle::reader::Package::read_native(
+                store,
+                &built.archive,
+                harness,
+                Scope::Project,
+                &Hosts::new(),
+            )?;
+            assert_eq!(native.setup, setup);
+            assert_eq!(native.binding.artifact_digest, built.artifact_digest);
             if let Some(old) = previous {
                 assert_ne!(
                     old, built.artifact_digest,

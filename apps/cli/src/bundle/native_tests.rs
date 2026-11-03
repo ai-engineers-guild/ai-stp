@@ -271,7 +271,7 @@ fn change_package(
 }
 
 #[test]
-fn shared_reader_checks_actual_packages_for_all_seven_harnesses_and_nineteen_scopes()
+fn shared_reader_checks_actual_authored_packages_for_all_seven_harnesses()
 -> std::result::Result<(), Box<dyn std::error::Error>> {
     let temporary = tempfile::tempdir()?;
     let root = temporary.path().canonicalize()?;
@@ -324,13 +324,15 @@ fn shared_reader_checks_actual_packages_for_all_seven_harnesses_and_nineteen_sco
                 ))
             })
             .collect::<Result<BTreeMap<_, _>>>()?;
-        for profile in projection::profiles()?
-            .iter()
-            .filter(|profile| profile.harness_id == harness.harness_id)
+        // Embedded authoring deliberately captures its declared native scope;
+        // it does not invent project adaptations for a global source.
+        let scope: projection::Scope = serde_json::from_value(
+            plan.component["adaptations"][0]["scope_adaptations"][0]["scope"].clone(),
+        )?;
         {
             let target = Target {
                 harness_id: harness.harness_id.clone(),
-                scope: profile.target_scope,
+                scope,
                 os: os.into(),
                 arch: arch.into(),
                 harness_version: "unknown".into(),
@@ -351,7 +353,7 @@ fn shared_reader_checks_actual_packages_for_all_seven_harnesses_and_nineteen_sco
                 &mut store,
                 &package.archive,
                 &harness.harness_id,
-                profile.target_scope,
+                scope,
                 &Hosts::new(),
             )?;
             assert_eq!(read.setup, setup);
@@ -360,6 +362,6 @@ fn shared_reader_checks_actual_packages_for_all_seven_harnesses_and_nineteen_sco
             checked += 1;
         }
     }
-    assert_eq!(checked, 19);
+    assert_eq!(checked, 7);
     Ok(())
 }
