@@ -24,6 +24,8 @@ import {
   cmdNativeConfigurationPlan,
   cmdNativeConfigurationPrepare,
   cmdNativeInventoryEnable,
+  cmdSetupAcquisitionPlan,
+  cmdSetupAcquisitionApply,
 } from "./transport";
 import { useDebug } from "./store";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -424,6 +426,8 @@ it("keeps native setup reviews and original contexts out of shared diagnostics",
     true,
   );
   await cmdNativeInventoryEnable({ context: "canary-company" }, "canary-digest", true);
+  await cmdSetupAcquisitionPlan("canary-setup","1.0");
+  await cmdSetupAcquisitionApply({source:"canary-plan"},"canary-digest",true);
   await cmdRunRead("configuration native pending");
   await cliApplyConfirmed(
     "configuration native apply",

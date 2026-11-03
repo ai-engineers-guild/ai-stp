@@ -634,7 +634,7 @@ async fn setup_acquisition_apply(
                 "Review the exact public setup graph before downloading",
             );
         }
-        if plan["operation"]["action"] != "catalog.acquire"
+        if plan["operation"]["action"] != "catalog.setup.acquire"
             || plan["operation"]
                 .get("access")
                 .is_some_and(|access| !access.is_null())

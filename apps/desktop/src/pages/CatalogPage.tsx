@@ -183,7 +183,7 @@ export default function CatalogPage() {
       if (!alive.current) return;
       const plan=record(response.data?.plan), operation=record(plan.operation), setup=record(operation.setup), passport=record(setup.passport);
       const digest=response.data?.plan_digest;
-      if (response.ok && operation.action==="catalog.acquire" && operation.access==null &&
+      if (response.ok && operation.action==="catalog.setup.acquire" && operation.access==null &&
           passport.stable_id===id && passport.version===version.version &&
           setup.passport_digest===version.passport_digest && typeof operation.endpoint==="string" &&
           typeof digest==="string" && /^sha256:[0-9a-f]{64}$/.test(digest)) {
