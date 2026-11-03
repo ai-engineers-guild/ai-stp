@@ -20,6 +20,7 @@ import socket
 import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 import urllib.request
 from pathlib import Path
@@ -1164,8 +1165,13 @@ def main() -> None:
             ("task_start", "task_status", "task_list"),
             (task_id, local["account_id"], local["device_id"]),
         )
+        # Authoring inputs contain only a separate synthetic content directory,
+        # never coordinates derived from the private vault fixture environment.
+        native_fixture = Path(
+            tempfile.mkdtemp(prefix="ai-stp-native-content.", dir=os.environ["RUNNER_TEMP"])
+        )
         native_target, native_id, native_digest = prepare_native_setup(
-            driver, binary, environment, root, first
+            driver, binary, environment, native_fixture, first
         )
         driver.navigate("profiles")
         driver.select_context("Installed personal two", second)
