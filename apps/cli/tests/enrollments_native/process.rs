@@ -547,5 +547,95 @@ fn public_native_configuration_keeps_original_context_across_cli_restarts()
         json!([])
     );
     assert!(execute(&["configuration", "native", "pending"])?["pending"].is_null());
+    let another = execute(&[
+        "configuration",
+        "native",
+        "plan",
+        "--context",
+        &contexts[0],
+        "--input",
+        input.to_str().ok_or("native input")?,
+    ])?;
+    let source = another["plan"]["operation_id"]
+        .as_str()
+        .ok_or("new source")?;
+    let source_digest = another["plan_digest"].as_str().ok_or("new source digest")?;
+    enact(&another, &["configuration", "native", "prepare"])?;
+    let original = execute(&[
+        "configuration",
+        "native",
+        "apply",
+        "--operation",
+        source,
+        "--plan-digest",
+        source_digest,
+    ])?;
+    fs::remove_dir_all(&target)?;
+    let ownership = execute(&["configuration", "native", "custody"])?;
+    assert_eq!(ownership["operations"][0]["operation_id"], source);
+    assert_eq!(ownership["operations"][0]["roots"][0]["state"], "missing");
+    let retired = execute(&[
+        "configuration",
+        "native",
+        "retire",
+        "plan",
+        "--operation",
+        source,
+        "--plan-digest",
+        source_digest,
+    ])?;
+    let operation = retired["plan"]["operation_id"]
+        .as_str()
+        .ok_or("retirement")?;
+    let expected = retired["plan_digest"].as_str().ok_or("retirement digest")?;
+    enact(&retired, &["configuration", "native", "prepare"])?;
+    assert_eq!(
+        execute(&["configuration", "native", "pending"])?["pending"]["kind"],
+        "retire_missing"
+    );
+    let receipt = execute(&[
+        "configuration",
+        "native",
+        "apply",
+        "--operation",
+        operation,
+        "--plan-digest",
+        expected,
+    ])?;
+    assert_eq!(receipt["state"], "retired");
+    assert_eq!(receipt["original_context"]["context_id"], contexts[0]);
+    assert_eq!(receipt["configuration_changed"], false);
+    assert_eq!(
+        execute(&["configuration", "native", "custody"])?["operations"],
+        json!([])
+    );
+    fs::create_dir(&target)?;
+    fs::write(target.join("user-note"), b"later unowned folder")?;
+    assert_eq!(
+        execute(&[
+            "configuration",
+            "native",
+            "apply",
+            "--operation",
+            operation,
+            "--plan-digest",
+            expected
+        ])?,
+        receipt
+    );
+    assert_eq!(
+        execute(&[
+            "configuration",
+            "native",
+            "apply",
+            "--operation",
+            source,
+            "--plan-digest",
+            source_digest
+        ])?,
+        original
+    );
+    assert!(!target.join("AGENTS.md").exists());
+    assert_eq!(fs::read(target.join("user-note"))?, b"later unowned folder");
     Ok(())
 }
