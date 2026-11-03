@@ -34,10 +34,10 @@ pub(crate) struct Observation {
 }
 
 fn current_parent(path: &Path) -> Result<Dir> {
-    if PathBuf::from(files::location(path)?).as_os_str() != path.as_os_str() {
-        return Err(invalid());
-    }
-    Dir::open_ambient_dir(path, cap_std::ambient_authority()).map_err(|_| invalid())
+    // Walk the original OS spelling without following links. This supports
+    // non-Unicode parents and both Windows drive spellings without converting
+    // the proof into a normalized display path.
+    crate::installation::target::open(path).map_err(|_| invalid())
 }
 
 impl Parent {

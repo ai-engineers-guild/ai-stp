@@ -1341,9 +1341,9 @@ fn partial_missing_scope_retirement_keeps_live_ownership_and_its_original_subjec
     let root = temporary.path().canonicalize()?;
     let state = root.join("state");
     let global = root.join("global");
-    let project = root.join("project");
+    let user = root.join("user");
     let metadata = root.join("custody");
-    for path in [&state, &global, &project, &metadata] {
+    for path in [&state, &global, &user, &metadata] {
         std::fs::create_dir(path)?;
     }
     use std::os::unix::fs::PermissionsExt;
@@ -1372,19 +1372,19 @@ fn partial_missing_scope_retirement_keeps_live_ownership_and_its_original_subjec
         .find(|(id, _)| id.starts_with("component_"))
         .map(|(id, evidence)| (id.clone(), evidence.passport_digest.clone()))
         .ok_or("first component")?;
-    let source = root.join("project source");
+    let source = root.join("user source");
     std::fs::create_dir(&source)?;
     std::fs::write(
-        source.join("guide.md"),
-        b"# Project fixture\nReview this project.\n",
+        source.join("SKILL.md"),
+        b"---\nname: user-review\ndescription: Review current source.\n---\nReview the current change.\n",
     )?;
     let authored = embedded::plan(
         &mut store,
         embedded::Request {
             directory: source,
             harness_id: "codex".into(),
-            component_type: "instruction".into(),
-            name: "project-guide".into(),
+            component_type: "skill".into(),
+            name: "user-review".into(),
             license_spdx: "MIT".into(),
         },
         owner.clone(),
@@ -1440,8 +1440,8 @@ fn partial_missing_scope_retirement_keeps_live_ownership_and_its_original_subjec
             },
         );
     }
-    input.roots.insert(Scope::Project, project.clone());
-    input.placements = BTreeMap::from([(first, Scope::Global), (second, Scope::Project)]);
+    input.roots.insert(Scope::UserRoot, user.clone());
+    input.placements = BTreeMap::from([(first, Scope::Global), (second, Scope::UserRoot)]);
     drop(store);
     drop(owner);
     let planned = create(&state, context, &input, &at)?;
@@ -1457,9 +1457,11 @@ fn partial_missing_scope_retirement_keeps_live_ownership_and_its_original_subjec
         &expected,
         &at,
     )?;
-    assert!(global.join("AGENTS.md").is_file() && project.join("AGENTS.md").is_file());
-    std::fs::write(global.join("user-note"), b"live unowned file stays")?;
-    std::fs::remove_dir_all(&project)?;
+    assert!(
+        global.join("AGENTS.md").is_file() && user.join("skills/user-review/SKILL.md").is_file()
+    );
+    std::fs::write(user.join("user-note"), b"live unowned file stays")?;
+    std::fs::remove_dir_all(&global)?;
     let reviewed = retirement::plan(&state, &custody, &planned.plan.operation_id, &expected, &at)?;
     let review = crate::installation::custody::Review::parse(
         &serde_json::to_vec(&reviewed["plan"])?,
@@ -1471,10 +1473,10 @@ fn partial_missing_scope_retirement_keeps_live_ownership_and_its_original_subjec
     retirement::apply(&state, &mut custody, &review)?;
     assert_eq!(
         custody.current_scopes(&planned.plan.operation_id)?,
-        BTreeSet::from([Scope::Global])
+        BTreeSet::from([Scope::UserRoot])
     );
     assert!(
-        global.join("AGENTS.md").is_file(),
+        user.join("skills/user-review/SKILL.md").is_file(),
         "metadata retirement must preserve live configuration"
     );
     let removal = create_removal(&state, &custody, &planned.plan.operation_id, &expected, &at)?;
@@ -1484,10 +1486,10 @@ fn partial_missing_scope_retirement_keeps_live_ownership_and_its_original_subjec
     let digest = reviewed.digest()?;
     reviewed.prepare(&state, &mut custody, &digest, &at)?;
     apply_prepared(&state, &mut custody, &removal.operation_id, &digest, &at)?;
-    assert!(!global.join("AGENTS.md").exists());
-    assert!(!project.exists());
+    assert!(!user.join("skills/user-review/SKILL.md").exists());
+    assert!(!global.exists());
     assert_eq!(
-        std::fs::read(global.join("user-note"))?,
+        std::fs::read(user.join("user-note"))?,
         b"live unowned file stays"
     );
     assert_eq!(custody.inspect()?["claims"], json!([]));
