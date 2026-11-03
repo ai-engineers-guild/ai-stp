@@ -144,6 +144,8 @@ pub struct Plan {
     pub(super) operation: Operation,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) source_operation: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) subject_anchor: Option<DirectoryIdentity>,
     pub(super) created_at: String,
     pub(super) expires_at: String,
     pub(super) state: Directory,
@@ -210,6 +212,12 @@ impl Plan {
                     | ("windows", DirectoryIdentity::Windows { .. })
             )
         };
+        if let Some(anchor) = &self.subject_anchor {
+            anchor.validate()?;
+            if self.operation != Operation::Remove || !kind_matches(anchor) {
+                return Err(invalid());
+            }
+        }
         if !kind_matches(&self.state.physical) {
             return Err(invalid());
         }
@@ -260,7 +268,7 @@ impl Plan {
             || self.scope_bindings.iter().any(|(id, scope)| {
                 !passport::stable_id(id, "component")
                     || !ids.contains(id.as_str())
-                    || !self.roots.contains_key(scope)
+                    || (self.operation != Operation::Remove && !self.roots.contains_key(scope))
             })
             || self.graph_nodes.iter().any(|node| {
                 passport::stable_id(&node.stable_id, "component")

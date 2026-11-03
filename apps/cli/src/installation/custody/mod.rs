@@ -198,6 +198,27 @@ impl Custody {
         Ok(rows)
     }
 
+    pub(crate) fn current_scopes(
+        &self,
+        operation: &str,
+    ) -> Result<BTreeSet<crate::projection::Scope>> {
+        if !crate::passport::stable_id(operation, "operation") {
+            return Err(invalid());
+        }
+        Ok(self
+            .snapshot()?
+            .entries
+            .iter()
+            .flat_map(|entry| {
+                entry
+                    .references
+                    .values()
+                    .filter(|reference| reference.operation_id.as_deref() == Some(operation))
+                    .map(|reference| reference.subject.scope)
+            })
+            .collect())
+    }
+
     pub fn current_operations(&self) -> Result<BTreeSet<String>> {
         Ok(self
             .snapshot()?

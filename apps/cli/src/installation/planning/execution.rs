@@ -76,7 +76,7 @@ impl Plan {
             "ai-stp:installation-operation:v1",
             &json!({
                 "kind":"native.configuration.subject","state":self.state.physical,
-            "setup_anchor":self.roots.get(&Scope::Project).or_else(||self.roots.get(&Scope::Global)).or_else(||self.roots.get(&Scope::UserRoot)).map(|root|&root.directory.physical),
+            "setup_anchor":self.subject_anchor.as_ref().or_else(||self.roots.get(&Scope::Project).or_else(||self.roots.get(&Scope::Global)).or_else(||self.roots.get(&Scope::UserRoot)).map(|root|&root.directory.physical)),
                 "context_id":self.context.context_id,"local_identity":self.context.local_identity,
                 "remote":remote,"harness_id":self.target.harness_id,"scope":scope,
                 "physical_root":binding(target)?.physical,

@@ -31,6 +31,26 @@ fn capture(
     {
         return Err(invalid());
     }
+    let current = custody.current_scopes(source)?;
+    if current.is_empty() {
+        return Err(invalid());
+    }
+    plan.subject_anchor = Some(
+        plan.subject_anchor
+            .clone()
+            .or_else(|| {
+                plan.roots
+                    .get(&crate::projection::Scope::Project)
+                    .or_else(|| plan.roots.get(&crate::projection::Scope::Global))
+                    .or_else(|| plan.roots.get(&crate::projection::Scope::UserRoot))
+                    .map(|root| root.directory.physical.clone())
+            })
+            .ok_or_else(invalid)?,
+    );
+    plan.roots.retain(|scope, _| current.contains(scope));
+    if !plan.roots.contains_key(&plan.target.scope) {
+        plan.target.scope = *plan.roots.keys().next().ok_or_else(invalid)?;
+    }
     for (scope, held) in &plan.roots {
         let target = native(Target::resolve(&held.directory.path, super::CONTROL))?;
         if binding(&target)? != held.directory {
