@@ -197,7 +197,8 @@ impl Custody {
                     locator.root = change.subject.root.clone();
                     let observed = locator.observe()?;
                     if observed.value.as_ref() != Some(&entry.value)
-                        || (entry.address.file.is_some()
+                        || (matches!(entry.ownership, Ownership::Whole)
+                            && entry.address.file.is_some()
                             && entry.address.file != observed.address.file)
                     {
                         return Err(invalid());
@@ -248,7 +249,8 @@ impl Custody {
                 let index = if let Some(index) = matched {
                     let entry = &after.entries[index];
                     if desired.observed.value.as_ref() != Some(&entry.value)
-                        || (entry.address.file.is_some()
+                        || (matches!(entry.ownership, Ownership::Whole)
+                            && entry.address.file.is_some()
                             && entry.address.file != desired.observed.address.file)
                         || (entry.value != desired.value && !entry.references.is_empty())
                     {
