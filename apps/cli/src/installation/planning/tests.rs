@@ -875,3 +875,80 @@ fn native_confirmation_consumer() -> std::result::Result<(), Box<dyn Error>> {
     println!("NATIVE_CONFIRMED:{}", serde_json::to_string(&confirmed)?);
     Ok(())
 }
+
+#[cfg(unix)]
+#[test]
+fn serialized_native_trust_and_access_flags_never_grant_a_private_effect()
+-> std::result::Result<(), Box<dyn Error>> {
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().canonicalize()?;
+    let state = root.join("state");
+    let target = root.join("target");
+    let metadata = root.join("custody");
+    for path in [&state, &target, &metadata] {
+        std::fs::create_dir(path)?;
+    }
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&metadata, std::fs::Permissions::from_mode(0o700))?;
+    let at = format!("{:.3}", jiff::Timestamp::now());
+    let init = crate::identity::plan(&state, crate::identity::Storage::File, &at)?;
+    crate::identity::apply(&init, &init.digest()?, &at)?;
+    let saved = contexts::create_plan(&state, "Original local owner", None, None, &at)?;
+    let document = serde_json::to_value(&saved)?;
+    let id = document["change"]["context"]["context_id"]
+        .as_str()
+        .ok_or("context")?;
+    contexts::apply(&saved, &saved.digest()?, &at)?;
+    let owner = runtime::owner(&state)?;
+    let mut store = owner.open(false)?;
+    let foreign = Identity {
+        account_id: format!("account_{}", ulid::Ulid::generate()),
+        device_id: format!("device_{}", ulid::Ulid::generate()),
+    };
+    let mut forged = request(
+        &mut store,
+        &root.join("source"),
+        target.clone(),
+        foreign,
+        &at,
+    )?;
+    forged.target.owner_id = owner.account_id.clone();
+    for (id, evidence) in &mut forged.evidence {
+        evidence.author_verified = true;
+        evidence.component_verified = true;
+        evidence.checks_current = true;
+        evidence.consented = true;
+        forged.target.grants.insert(format!("{id}:1"));
+        forged
+            .target
+            .pinned_passport_digests
+            .insert(evidence.passport_digest.clone());
+        forged
+            .target
+            .accessible_passport_digests
+            .insert(evidence.passport_digest.clone());
+    }
+    forged.target.access_context_digest = Some(digest::sha256(b"not actual account access"));
+    drop(store);
+    drop(owner);
+    let observation = create(&state, id, &forged, &at)?;
+    let custody = crate::installation::custody::Custody::open(&metadata)?;
+    let refused = match Reviewed::create(&state, &observation.plan, &custody, &at) {
+        Ok(_) => return Err("serialized access flags authorized a private write".into()),
+        Err(error) => error,
+    };
+    assert!(matches!(
+        refused.kind,
+        crate::error::ErrorKind::Precondition
+    ));
+    assert!(
+        refused.details["eligibility"]["refusals"]
+            .as_array()
+            .ok_or("refusals")?
+            .iter()
+            .any(|item| item["code"] == "grant_missing")
+    );
+    assert!(std::fs::read_dir(&target)?.next().is_none());
+    assert!(custody.pending()?.is_none());
+    Ok(())
+}
