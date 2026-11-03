@@ -79,33 +79,33 @@ def qualify(binary: Path, root: Path) -> None:
                "passport_digest": digest_canonical("ai-stp:passport:v1", document)},
                "harness_id": "codex", "operation": "install", "roots": {"global": "/tmp/target"}}
     (root / "request.json").write_text(json.dumps(request))
-    reviewed = run("configuration", "plan", "--context", contexts[0], "--input", "/tmp/request.json")
+    reviewed = run("configuration", "native", "plan", "--context", contexts[0], "--input", "/tmp/request.json")
     assert not (root / "target/AGENTS.md").exists()
     operation, digest = reviewed["plan"]["operation_id"], reviewed["plan_digest"]
-    prepared = enact(reviewed, "configuration", "prepare")
+    prepared = enact(reviewed, "configuration", "native", "prepare")
     assert prepared["configuration_changed"] is False
     assert not (root / "target/AGENTS.md").exists()
     selected = run("context", "select", "plan", "--context", contexts[1])
     enact(selected, "context", "apply")
-    pending = run("configuration", "pending")["pending"]
+    pending = run("configuration", "native", "pending")["pending"]
     assert pending["operation_id"] == operation and pending["plan_digest"] == digest
     assert pending["original_context"]["context_id"] == contexts[0]
-    applied = run("configuration", "apply", "--operation", operation, "--plan-digest", digest)
+    applied = run("configuration", "native", "apply", "--operation", operation, "--plan-digest", digest)
     assert applied["original_context"]["context_id"] == contexts[0]
     assert applied["load_state"] == "not_observed"
     assert "Native guidance" in (root / "target/AGENTS.md").read_text()
-    assert run("configuration", "apply", "--operation", operation, "--plan-digest", digest) == applied
-    assert not run("configuration", "effective", "--context", contexts[1])["setups"]
-    assert len(run("configuration", "effective", "--context", contexts[0])["setups"]) == 1
-    removed_plan = run("configuration", "remove", "plan", "--operation", operation, "--plan-digest", digest)
+    assert run("configuration", "native", "apply", "--operation", operation, "--plan-digest", digest) == applied
+    assert not run("configuration", "native", "effective", "--context", contexts[1])["setups"]
+    assert len(run("configuration", "native", "effective", "--context", contexts[0])["setups"]) == 1
+    removed_plan = run("configuration", "native", "remove", "plan", "--operation", operation, "--plan-digest", digest)
     removal, removal_digest = removed_plan["plan"]["operation_id"], removed_plan["plan_digest"]
-    enact(removed_plan, "configuration", "prepare")
-    run("configuration", "apply", "--operation", removal, "--plan-digest", removal_digest)
+    enact(removed_plan, "configuration", "native", "prepare")
+    run("configuration", "native", "apply", "--operation", removal, "--plan-digest", removal_digest)
     assert not (root / "target/AGENTS.md").exists()
     assert (root / "target/user-note").read_text() == "unowned file stays\n"
     assert (root / "target/.codex-setup-system/journal.json").is_file()
     assert run("context", "list")["selected"]["context_id"] == contexts[1]
-    assert not run("configuration", "effective", "--context", contexts[0])["setups"]
+    assert not run("configuration", "native", "effective", "--context", contexts[0])["setups"]
     assert not (root / "home/.local/share/ai-stp-custody").is_symlink()
     print(json.dumps({"native_cli_lifecycle": "passed", "original_context": True,
                       "offline_os_user_namespace": True, "unowned_preserved": True}))
