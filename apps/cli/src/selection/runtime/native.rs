@@ -130,3 +130,73 @@ pub(crate) fn authorize(
         Ok(())
     })
 }
+
+pub(crate) struct Decisions {
+    pub harness_id: String,
+    pub scope: Scope,
+    pub pins: BTreeSet<String>,
+    pub permissions: BTreeSet<String>,
+}
+/// Establish initial selection data and release the account lock before native
+/// plan construction performs its independent original-context observations.
+pub(crate) fn observe(
+    root: &Path,
+    context: &Context,
+    setup: &Value,
+    decisions: Decisions,
+) -> Result<(Target, BTreeMap<String, eligibility::Evidence>)> {
+    let owner = owner(root)?;
+    context.require_current_native_identity(&owner)?;
+    if context.root != root {
+        return Err(Failure::precondition(
+            "native planning changed its original state",
+        ));
+    }
+    let (os, arch) = crate::platform::current()
+        .and_then(|p| p.split_once('/'))
+        .ok_or_else(|| Failure::precondition("native platform unavailable"))?;
+    let program = crate::program::observe(&decisions.harness_id, None)?;
+    let target = Target {
+        harness_id: decisions.harness_id,
+        scope: decisions.scope,
+        os: os.into(),
+        arch: arch.into(),
+        harness_version: program["version"].as_str().unwrap_or("").into(),
+        owner_id: owner.account_id.clone(),
+        capabilities: Default::default(),
+        permissions: decisions.permissions,
+        entitlements: Default::default(),
+        env_present: Default::default(),
+        grants: Default::default(),
+        accessible_passport_digests: Default::default(),
+        access_context_digest: None,
+        pinned_passport_digests: Default::default(),
+        owned_passport_digests: Default::default(),
+        for_redistribution: false,
+    };
+    let request = access::Request::native(context, decisions.pins.clone())?;
+    let access = access::Observed::capture(
+        root,
+        &owner,
+        &[vec![setup.clone()]],
+        access::Intent::Review(&request),
+    )?;
+    access.require_native_account(context)?;
+    let mut store = owner.planning()?;
+    let observed = store.transaction(|connection| {
+        let mut observed = inputs_scope(
+            connection,
+            std::slice::from_ref(setup),
+            target,
+            super::MAX_CONTENT,
+            true,
+        )?;
+        access.apply(&mut observed)?;
+        for evidence in observed.evidence.values_mut() {
+            evidence.consented = decisions.pins.contains(&evidence.passport_digest);
+        }
+        access.revalidate()?;
+        Ok(observed)
+    })?;
+    Ok((observed.target, observed.evidence))
+}
