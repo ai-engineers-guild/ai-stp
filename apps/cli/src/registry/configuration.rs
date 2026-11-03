@@ -43,7 +43,7 @@ const DIGEST: Parameter = Parameter {
 };
 pub(super) const COMMANDS: &[Declaration] = &[
     Declaration {
-        path: &["configuration", "effective"],
+        path: &["configuration", "native", "effective"],
         summary: "Read current owned setup references and drift for one saved context without manufacturing runtime health.",
         parameters: &[
             STATE_DIR,
@@ -57,13 +57,13 @@ pub(super) const COMMANDS: &[Declaration] = &[
         handler: super::Handler::Configuration(Handler::Effective),
     },
     Declaration {
-        path: &["configuration", "pending"],
+        path: &["configuration", "native", "pending"],
         summary: "Recover the original active native operation and digest after losing caller files or replies.",
         parameters: &[STATE_DIR],
         handler: super::Handler::Configuration(Handler::Pending),
     },
     Declaration {
-        path: &["configuration", "plan"],
+        path: &["configuration", "native", "plan"],
         summary: "Review an exact setup through the native engine and original saved context without changing harness files.",
         parameters: &[
             STATE_DIR,
@@ -83,7 +83,7 @@ pub(super) const COMMANDS: &[Declaration] = &[
         handler: super::Handler::Configuration(Handler::Plan),
     },
     Declaration {
-        path: &["configuration", "prepare"],
+        path: &["configuration", "native", "prepare"],
         summary: "Prepare exact native desired bytes and original custody; publish no harness configuration.",
         parameters: &[
             STATE_DIR,
@@ -98,31 +98,31 @@ pub(super) const COMMANDS: &[Declaration] = &[
         handler: super::Handler::Configuration(Handler::Prepare),
     },
     Declaration {
-        path: &["configuration", "apply"],
+        path: &["configuration", "native", "apply"],
         summary: "Apply or replay the retained original native operation with fresh authority and consumer checks before every file effect.",
         parameters: &[STATE_DIR, OPERATION, DIGEST],
         handler: super::Handler::Configuration(Handler::Apply),
     },
     Declaration {
-        path: &["configuration", "status"],
+        path: &["configuration", "native", "status"],
         summary: "Read original native state and custody receipts; changing the selected context cannot redirect this operation.",
         parameters: &[STATE_DIR, OPERATION, DIGEST],
         handler: super::Handler::Configuration(Handler::Status),
     },
     Declaration {
-        path: &["configuration", "cancel"],
+        path: &["configuration", "native", "cancel"],
         summary: "Cancel or replay an exact unpublished native preparation, including after plan expiry and lost caller files.",
         parameters: &[STATE_DIR, OPERATION, DIGEST],
         handler: super::Handler::Configuration(Handler::Cancel),
     },
     Declaration {
-        path: &["configuration", "confirm"],
+        path: &["configuration", "native", "confirm"],
         summary: "Confirm the exact installed setup from a genuine later selected-harness process using every original root.",
         parameters: &[STATE_DIR, OPERATION, DIGEST],
         handler: super::Handler::Configuration(Handler::Confirm),
     },
     Declaration {
-        path: &["configuration", "remove", "plan"],
+        path: &["configuration", "native", "remove", "plan"],
         summary: "Review removal of the effective setup owned by one original operation; preserve shared refs and unowned data.",
         parameters: &[STATE_DIR, OPERATION, DIGEST],
         handler: super::Handler::Configuration(Handler::RemovePlan),
