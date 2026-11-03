@@ -36,9 +36,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Linux bundles need the glibc of the image that built them, so the leg
-        # pins the image the shipped bundles were built and tested on rather
-        # than `ubuntu-26.04`, which moves to Ubuntu 26.04 from 2026-10-19.
+        # Linux bundles use the selected Ubuntu 26.04/glibc baseline. Native
+        # installed acceptance must use these exact packaged bytes.
         os: [ubuntu-26.04, macos-15, windows-2025]
     steps:
       - name: Confine package-only diagnosis to its explicit manual workflow
