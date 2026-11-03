@@ -20,6 +20,7 @@ import {
 } from "../nativeConfiguration";
 import { Details, ResultMeta, Spinner } from "../components/Result";
 import { EmptyState, PageHeader, StatusBadge } from "../components/Layout";
+import NativeInventory from "../components/NativeInventory";
 
 export default function TargetsPage() {
   const [params] = useSearchParams();
@@ -509,7 +510,7 @@ export default function TargetsPage() {
               {operation.phase === "configured" && operation.restartRequired === false && (
                 <p className="mt-4 text-sm">Configuration is current. This operation did not require a restart.</p>
               )}
-              {operation.phase === "confirmed" && <p className="mt-4 text-sm">A new harness session was confirmed. Runtime loading remains unobserved.</p>}
+              {operation.phase === "confirmed" && <p className="mt-4 text-sm">The original operation is confirmed. Runtime loading remains unobserved.</p>}
               {operation.phase !== "review" && (
                 <button
                   className="btn-secondary mt-4"
@@ -521,6 +522,7 @@ export default function TargetsPage() {
               )}
             </section>
           )}
+          {selected?.mode === "corporate" && record(capabilities?.data?.native_inventory).available === true && <NativeInventory context={selected} />}
           {busy && <Spinner label="Checking the original native operation" />}
           {result && <ResultMeta r={result} />}
         </>

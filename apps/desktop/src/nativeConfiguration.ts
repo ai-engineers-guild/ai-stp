@@ -88,6 +88,7 @@ export function nativeStatus(result: CmdResult): NativeOperation | null {
   const operation = String(data.operation_id ?? ""), digest = String(data.review_digest ?? "");
   if (!id.test(operation) || !hash.test(digest) ||
       receipt.operation_id !== operation || receipt.review_digest !== digest ||
+      record(receipt.original_context).context_id !== context.context_id ||
       typeof context.context_id !== "string" || typeof context.label !== "string" ||
       typeof receipt.harness_id !== "string" ||
       !["configured", "confirmed"].includes(String(data.state)) ||
