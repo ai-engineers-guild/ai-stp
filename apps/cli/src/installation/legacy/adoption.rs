@@ -150,7 +150,11 @@ impl Adoption {
         {
             return Err(invalid());
         }
-        terminal(&control)?;
+        terminal(&control).map_err(|_| {
+            crate::error::Failure::precondition(
+                "legacy forward history is unfinished or has an unsupported layout",
+            )
+        })?;
         let (state, body) = native(forward::observe(target, state_path))?;
         let body = crate::wire::parse(&body.ok_or_else(invalid)?.bytes)?;
         if body["state_schema"] != 4
@@ -163,7 +167,9 @@ impl Adoption {
             || body["setup_version_passport_digest"] != setup["passport_digest"]
             || body["drift_state"] != "clean"
         {
-            return Err(invalid());
+            return Err(crate::error::Failure::precondition(
+                "legacy state does not identify this exact supported setup and harness",
+            ));
         }
         let path = Path::new(body["canonical_target"].as_str().ok_or_else(invalid)?);
         let claimed = native(Target::resolve(path, ".ai-stp-native"))?;
@@ -182,7 +188,9 @@ impl Adoption {
             || rights.is_empty()
             || rights.len() > 2000
         {
-            return Err(invalid());
+            return Err(crate::error::Failure::precondition(
+                "legacy written paths do not exactly match the reviewed setup",
+            ));
         }
         let fields_path = format!("{name}/written-fields.json");
         let (fields, ledger) = native(forward::observe(target, &fields_path))?;
