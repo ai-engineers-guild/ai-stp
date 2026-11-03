@@ -136,6 +136,37 @@ fn links(access: &Access, context: &Context, values: &[Value]) -> Result<()> {
     Ok(())
 }
 
+fn validate_links(links: &[Value], body: &Value) -> Result<()> {
+    let mut ids = BTreeSet::new();
+    let mut projects = BTreeSet::new();
+    if links.len() > 64 {
+        return Err(invalid());
+    }
+    for link in links {
+        let fields = link.as_object().ok_or_else(invalid)?;
+        let id = link["link_id"].as_str().ok_or_else(invalid)?;
+        let project = link["project_id"].as_str().ok_or_else(invalid)?;
+        if fields.len() != 2
+            || !passport::stable_id(id, "project_link")
+            || !passport::stable_id(project, "remote_project")
+            || !ids.insert(id)
+        {
+            return Err(invalid());
+        }
+        projects.insert(project);
+    }
+    let expected = body["snapshots"]
+        .as_array()
+        .ok_or_else(invalid)?
+        .iter()
+        .filter_map(|snapshot| snapshot["project_id"].as_str())
+        .collect::<BTreeSet<_>>();
+    if projects != expected {
+        return Err(invalid());
+    }
+    Ok(())
+}
+
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct Pending {
@@ -176,6 +207,7 @@ impl Record {
                 return Err(invalid());
             }
             validate_body(context, &self.account, &pending.body)?;
+            validate_links(&pending.links, &pending.body)?;
         }
         Ok(())
     }
@@ -548,6 +580,16 @@ mod tests {
         let mut item = json!({"location_digest":format!("sha256:{}","a".repeat(64)),"kind":"instruction","harness":"codex","source":"managed","state":"present","stable_id":"component_fixture","version":"1.0","setup_stable_id":null,"setup_version":null});
         let snapshot = |item: Value| json!({"schema_version":1,"snapshots":[{"schema_version":1,"scan_id":"native_inventory_fixture","organization_id":"organization_01ARZ3NDEKTSV4RRFFQ69G5FAV","employee_id":"account_01ARZ3NDEKTSV4RRFFQ69G5FAV","device_id":"fixture-device","project_id":null,"scope":"global","scanned_at":"2026-11-03T00:00:00.000Z","complete":false,"components":[item]}]});
         BATCH.validate(&snapshot(item.clone()))?;
+        let mut duplicate = snapshot(item.clone());
+        let repeated = duplicate["snapshots"][0].clone();
+        duplicate["snapshots"]
+            .as_array_mut()
+            .ok_or_else(invalid)?
+            .push(repeated);
+        assert!(owned_components(&duplicate).is_err());
+        let mut wrong_scope = snapshot(item.clone());
+        wrong_scope["snapshots"][0]["scope"] = json!("project");
+        assert!(owned_components(&wrong_scope).is_err());
         for key in ["path", "prompt", "content", "arguments", "api_key"] {
             let mut bad = item.clone();
             bad[key] = "private-canary".into();
