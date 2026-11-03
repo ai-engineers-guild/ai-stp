@@ -119,14 +119,14 @@ done
 test "${fixture_collection}" != / && test "${fixture_locked}" = '(<false>,)'
 
 if [[ "${fixture_mode}" == desktop ]]; then
-  xvfb-run --auto-servernum python .github/scripts/qualify-installed-desktop.py \
+  timeout --signal=TERM --kill-after=5s 300s xvfb-run --server-num=99 python .github/scripts/qualify-installed-desktop.py \
     --driver "${RUNNER_TEMP}/ai-stp-webdriver/bin/tauri-driver" \
     --out "${RUNNER_TEMP}/installed-desktop-proof.json"
   exit
 fi
 
 if [[ "${fixture_mode}" == corporate-desktop ]]; then
-  xvfb-run --auto-servernum uv run --no-sync python -m tests.native_contract.verify_desktop_corporate \
+  timeout --signal=TERM --kill-after=5s 300s xvfb-run --server-num=99 uv run --no-sync python -m tests.native_contract.verify_desktop_corporate \
     --driver "${RUNNER_TEMP}/ai-stp-webdriver/bin/tauri-driver" \
     --out "${RUNNER_TEMP}/installed-corporate-desktop-proof.json"
   exit
@@ -156,13 +156,23 @@ checks=(cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
 listing="$("${checks[@]}" --ignored --list)"
 printf '%s\n' "${listing}"
 selected=0
+native_configuration_case=process::public_native_configuration_keeps_original_context_across_cli_restarts
+native_selected=0
 while IFS= read -r line; do
   if [[ "${line}" == *': test' ]]; then
     selected=$((selected + 1))
+    if [[ "${line}" == "${native_configuration_case}: test" ]]; then
+      native_selected=$((native_selected + 1))
+    fi
   fi
 done <<<"${listing}"
-test "${selected}" -eq 3
+test "${selected}" -eq 4
+test "${native_selected}" -eq 1
 for ((round=1; round<=fixture_rounds; round++)); do
   printf 'Native vault fixture round %s/%s\n' "${round}" "${fixture_rounds}"
-  "${checks[@]}" --ignored
+  "${checks[@]}" --ignored --skip "${native_configuration_case}"
 done
+
+# One real configuration lifecycle follows the repeated owned-slot checks.
+# Its OS-user coordinator belongs to this disposable VM, never the desktop host.
+"${checks[@]}" "${native_configuration_case}" --ignored --exact
