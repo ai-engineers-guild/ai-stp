@@ -491,6 +491,9 @@ impl Plan {
         {
             return Err(invalid());
         }
+        // Fresh account access must precede its own registry observation.
+        drop(store);
+        drop(owner);
         crate::selection::runtime::native::authorize(
             root,
             &self.context,
