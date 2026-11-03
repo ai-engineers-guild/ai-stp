@@ -636,3 +636,62 @@ fn closed_transaction_scope_releases_its_lock_with_a_retained_descriptor() {
     drop(target);
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn current_authority_is_rechecked_before_each_retained_file_effect() {
+    let (root, target, admission) = fixture();
+    let mut writer = Writer::acquire(&target, ".control").unwrap();
+    let changes = vec![
+        writer.change("first", Some(content(b"first"))).unwrap(),
+        writer.change("second", Some(content(b"second"))).unwrap(),
+    ];
+    writer
+        .prepare(
+            &admission,
+            &serde_json::json!({"original_actor":"retained"}),
+            &changes,
+        )
+        .unwrap();
+    writer.start(&admission).unwrap();
+    let mut calls = 0;
+    assert!(
+        writer
+            .apply_checked(&admission, || {
+                calls += 1;
+                if calls == 2 {
+                    Err(Error::new(
+                        ReasonCode::UnsupportedOperation,
+                        "authority revoked",
+                    ))
+                } else {
+                    Ok(())
+                }
+            })
+            .is_err()
+    );
+    assert_eq!(calls, 2);
+    assert_eq!(fs::read(root.join("first")).unwrap(), b"first");
+    assert!(!root.join("second").exists());
+    assert!(matches!(
+        writer.progress(&admission).unwrap(),
+        Progress::Applying(_)
+    ));
+    drop(writer);
+    let mut writer = Writer::acquire(&target, ".control").unwrap();
+    let mut resumed = 0;
+    writer
+        .apply_checked(&admission, || {
+            resumed += 1;
+            Ok(())
+        })
+        .unwrap();
+    assert_eq!(resumed, 2);
+    assert_eq!(fs::read(root.join("second")).unwrap(), b"second");
+    let result = serde_json::json!({"original_actor":"retained","state":"verified"});
+    writer.finish(&admission, &[], &result).unwrap();
+    writer.apply_checked(&admission, || Ok(())).unwrap();
+    assert_eq!(writer.complete(&admission).unwrap(), result);
+    drop(writer);
+    drop(target);
+    fs::remove_dir_all(root).unwrap();
+}
