@@ -365,3 +365,196 @@ fn shared_reader_checks_actual_authored_packages_for_all_seven_harnesses()
     assert_eq!(checked, 7);
     Ok(())
 }
+
+#[test]
+fn native_scope_packages_establish_complete_coverage_only_as_their_exact_set()
+-> std::result::Result<(), Box<dyn std::error::Error>> {
+    use crate::authoring::setups;
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().canonicalize()?;
+    let mut store = Store::open(&root, true)?;
+    let identity = Identity {
+        account_id: "account_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
+        device_id: "device_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
+    };
+    let at = "2026-11-03T00:00:00.000Z";
+    let mut components = Vec::new();
+    for (kind, name, leaf, content) in [
+        (
+            "instruction",
+            "native-guidance",
+            "guide.md",
+            "# Guidance\nVerify each change.\n",
+        ),
+        (
+            "skill",
+            "native-review",
+            "SKILL.md",
+            "---\nname: native-review\ndescription: Review current source.\n---\nInspect the current change.\n",
+        ),
+    ] {
+        let input = root.join(kind);
+        std::fs::create_dir(&input)?;
+        std::fs::write(input.join(leaf), content)?;
+        let plan = embedded::plan(
+            &mut store,
+            embedded::Request {
+                directory: input,
+                harness_id: "codex".into(),
+                component_type: kind.into(),
+                name: name.into(),
+                license_spdx: "MIT".into(),
+            },
+            identity.clone(),
+            at,
+        )?;
+        embedded::apply(&mut store, &plan, &plan.digest()?, &identity, at)?;
+        components.push(plan.component);
+    }
+    let planned = setups::plan(
+        &mut store,
+        setups::Request {
+            harness_id: "codex".into(),
+            name: "Native scoped setup".into(),
+            description: "One exact setup across two declared roots.".into(),
+            purpose: "Verify complete native scope coverage without an external declaration."
+                .into(),
+            requirements: None,
+            members: components
+                .iter()
+                .map(|document| {
+                    Ok(setups::Member {
+                        stable_id: text(document, "stable_id")?.into(),
+                        version: text(document, "version")?.into(),
+                        passport_digest: digest::canonical("ai-stp:passport:v1", document)?,
+                    })
+                })
+                .collect::<Result<Vec<_>>>()?,
+        },
+        identity.clone(),
+        at,
+    )?;
+    let document = setups::apply(&mut store, &planned, &planned.digest()?, &identity, at)?;
+    let setup = json!({"stable_id":document["stable_id"],"version":document["version"],
+        "passport_digest":digest::canonical("ai-stp:passport:v1", &document)?});
+    components.push(document);
+    let evidence = components
+        .iter()
+        .map(|document| {
+            Ok((
+                text(document, "stable_id")?.into(),
+                Evidence {
+                    passport_digest: digest::canonical("ai-stp:passport:v1", document)?,
+                    registrable: true,
+                    blocked: false,
+                    author_verified: false,
+                    component_verified: false,
+                    checks_current: false,
+                    consented: true,
+                },
+            ))
+        })
+        .collect::<Result<BTreeMap<_, _>>>()?;
+    let (os, arch) = crate::platform::current()
+        .and_then(|v| v.split_once('/'))
+        .ok_or("unsupported fixture platform")?;
+    let target = Target {
+        harness_id: "codex".into(),
+        scope: projection::Scope::Global,
+        os: os.into(),
+        arch: arch.into(),
+        harness_version: "unknown".into(),
+        owner_id: identity.account_id,
+        capabilities: BTreeSet::new(),
+        permissions: BTreeSet::new(),
+        entitlements: BTreeSet::new(),
+        env_present: BTreeSet::new(),
+        grants: BTreeSet::new(),
+        accessible_passport_digests: BTreeSet::new(),
+        access_context_digest: None,
+        pinned_passport_digests: BTreeSet::new(),
+        owned_passport_digests: BTreeSet::new(),
+        for_redistribution: false,
+    };
+    let hosts = BTreeMap::from([
+        (projection::Scope::Global, Hosts::new()),
+        (projection::Scope::UserRoot, Hosts::new()),
+    ]);
+    let changes: i64 = store
+        .connection
+        .query_row("SELECT total_changes()", [], |row| row.get(0))?;
+    assert!(compile_native(&mut store, &setup, &target, &evidence, &Hosts::new()).is_err());
+    let compiled = scopes::compile_native(
+        &mut store,
+        &setup,
+        &target,
+        &evidence,
+        &hosts,
+        &BTreeMap::new(),
+    )?;
+    assert_eq!(compiled.bundles.len(), 2);
+    let inputs = compiled
+        .bundles
+        .iter()
+        .map(|(scope, bundle)| {
+            Ok((
+                *scope,
+                reader::Input {
+                    archive: &bundle.archive,
+                    hosts: hosts.get(scope).ok_or("host absent")?,
+                },
+            ))
+        })
+        .collect::<std::result::Result<BTreeMap<_, _>, Box<dyn std::error::Error>>>()?;
+    let packages = reader::Package::read_native_set(&mut store, "codex", &inputs)?;
+    assert_eq!(packages.len(), 2);
+    for (scope, input) in &inputs {
+        assert!(
+            reader::Package::read_native(&mut store, input.archive, "codex", *scope, input.hosts)
+                .is_err()
+        );
+        let partial = BTreeMap::from([(
+            *scope,
+            reader::Input {
+                archive: input.archive,
+                hosts: input.hosts,
+            },
+        )]);
+        assert!(reader::Package::read_native_set(&mut store, "codex", &partial).is_err());
+    }
+    let wrong = BTreeMap::from([
+        (
+            projection::Scope::Global,
+            reader::Input {
+                archive: inputs[&projection::Scope::UserRoot].archive,
+                hosts: &hosts[&projection::Scope::Global],
+            },
+        ),
+        (
+            projection::Scope::UserRoot,
+            reader::Input {
+                archive: inputs[&projection::Scope::Global].archive,
+                hosts: &hosts[&projection::Scope::UserRoot],
+            },
+        ),
+    ]);
+    assert!(reader::Package::read_native_set(&mut store, "codex", &wrong).is_err());
+    let repeated = scopes::compile_native(
+        &mut store,
+        &setup,
+        &target,
+        &evidence,
+        &hosts,
+        &BTreeMap::new(),
+    )?;
+    for (scope, bundle) in &compiled.bundles {
+        assert_eq!(bundle.archive, repeated.bundles[scope].archive);
+    }
+    assert_eq!(
+        store
+            .connection
+            .query_row("SELECT total_changes()", [], |row| row.get::<_, i64>(0))?,
+        changes
+    );
+    Ok(())
+}

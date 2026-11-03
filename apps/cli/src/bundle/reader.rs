@@ -32,6 +32,12 @@ pub struct Binding {
     pub bundle_size: usize,
 }
 
+/// Original observed host bytes for one declared scope, without filesystem access.
+pub struct Input<'a> {
+    pub archive: &'a [u8],
+    pub hosts: &'a super::Hosts,
+}
+
 pub struct Package {
     manifest: Value,
     archive_paths: Vec<String>,
@@ -130,6 +136,20 @@ impl Package {
         scope: Scope,
         hosts: &super::Hosts,
     ) -> Result<Self> {
+        let package = Self::read_native_shape(bytes, harness, scope)?;
+        super::coverage::verify_payload(
+            store,
+            &package.setup,
+            harness,
+            scope,
+            &package.adaptations,
+            &package.files,
+            hosts,
+        )?;
+        Ok(package)
+    }
+
+    fn read_native_shape(bytes: &[u8], harness: &str, scope: Scope) -> Result<Self> {
         let package = Self::read(bytes)?;
         let native = crate::installation::profiles::Profiles::resolve(harness)?;
         let profile = native.profile(scope).ok_or_else(invalid)?;
@@ -180,16 +200,57 @@ impl Package {
         {
             return Err(invalid());
         }
-        super::coverage::verify_payload(
-            store,
-            &package.setup,
-            harness,
-            scope,
-            &package.adaptations,
-            &package.files,
-            hosts,
-        )?;
         Ok(package)
+    }
+
+    /// Verify one complete multi-root setup as a unit. Per-root source subsets
+    /// remain subsets; only their exact union establishes graph coverage.
+    pub fn read_native_set(
+        store: &mut Store,
+        harness: &str,
+        inputs: &BTreeMap<Scope, Input<'_>>,
+    ) -> Result<BTreeMap<Scope, Self>> {
+        if !(1..=3).contains(&inputs.len()) {
+            return Err(invalid());
+        }
+        let (mut archive_bytes, mut host_bytes) = (0usize, 0usize);
+        let mut packages = BTreeMap::new();
+        for (scope, input) in inputs {
+            archive_bytes = archive_bytes
+                .checked_add(input.archive.len())
+                .ok_or_else(invalid)?;
+            for host in input.hosts.values().flatten() {
+                host_bytes = host_bytes.checked_add(host.len()).ok_or_else(invalid)?;
+            }
+            if archive_bytes > super::MAX_BYTES || host_bytes > super::MAX_BYTES {
+                return Err(invalid());
+            }
+            packages.insert(
+                *scope,
+                Self::read_native_shape(input.archive, harness, *scope)?,
+            );
+        }
+        let setup = &packages.values().next().ok_or_else(invalid)?.setup;
+        if packages.values().any(|package| &package.setup != setup) {
+            return Err(invalid());
+        }
+        let payloads = packages
+            .iter()
+            .map(|(scope, package)| {
+                Ok((
+                    *scope,
+                    super::coverage::ScopedPayload {
+                        bindings: &package.adaptations,
+                        files: &package.files,
+                        hosts: inputs.get(scope).ok_or_else(invalid)?.hosts,
+                    },
+                ))
+            })
+            .collect::<Result<BTreeMap<_, _>>>()?;
+        store.transaction(|connection| {
+            super::coverage::verify_scoped_payloads(connection, setup, harness, &payloads)
+        })?;
+        Ok(packages)
     }
 
     pub fn ownership(&self) -> Result<Value> {

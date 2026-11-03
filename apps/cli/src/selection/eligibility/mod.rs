@@ -107,7 +107,7 @@ pub fn assess(
     )
 }
 
-fn assess_surface(
+pub(crate) fn assess_surface(
     document: &Value,
     target: &Target,
     evidence: &Evidence,
