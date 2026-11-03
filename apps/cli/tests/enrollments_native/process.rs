@@ -275,14 +275,20 @@ fn executable_restarts_preserve_native_connections_and_refuse_stale_context_sele
 
 /// This test uses the real OS-user coordinator, not an environment-selected copy.
 /// Explicit CI invocation confines that persistent metadata to a disposable user.
-#[cfg(any(target_os = "macos", windows))]
 #[test]
 #[ignore = "requires a disposable native CI OS-user and its existing credential vault"]
 fn public_native_configuration_keeps_original_context_across_cli_restarts()
 -> Result<(), Box<dyn Error>> {
     assert_eq!(std::env::var("GITHUB_ACTIONS").as_deref(), Ok("true"));
     let runner = std::env::var("RUNNER_OS")?;
-    assert!(["macOS", "Windows"].contains(&runner.as_str()));
+    assert!(["Linux", "macOS", "Windows"].contains(&runner.as_str()));
+    assert!(std::env::var_os("RUNNER_TEMP").is_some());
+    if runner == "Linux" {
+        assert_eq!(
+            std::env::var("AI_STP_TEST_SECRET_SERVICE").as_deref(),
+            Ok("isolated")
+        );
+    }
     use ai_stp_cli::{digest, installation::custody::Custody};
     use serde_json::json;
     assert!(
