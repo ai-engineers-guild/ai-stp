@@ -118,6 +118,7 @@ impl Adoption {
             }
             match crate::installation::target::child(&root, std::ffi::OsStr::new(other)) {
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
+                Ok(directory) if super::locks::lock_only(target, &directory, other)? => (),
                 Ok(directory) if marker.is_some() => {
                     let journal =
                         native(forward::observe(target, &format!("{other}/journal.json")))?

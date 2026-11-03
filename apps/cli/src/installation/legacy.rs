@@ -4,6 +4,8 @@
 //! or recovery. These markers are operational metadata, never backup payloads.
 
 pub(crate) mod adoption;
+mod locks;
+pub(crate) use locks::Locks;
 
 use super::{custody::Custody, forward, target::Target};
 use crate::{
@@ -60,6 +62,7 @@ pub(crate) fn review_with(
         }
         match super::target::child(&directory, std::ffi::OsStr::new(control)) {
             Ok(_) if adoption.is_some_and(|proof| proof.control() == control) => (),
+            Ok(directory) if locks::lock_only(target, &directory, control)? => (),
             Ok(_) => return Err(invalid()),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
             Err(_) => return Err(invalid()),
@@ -187,6 +190,34 @@ mod tests {
         assert!(!target.control_directory().exists());
         Ok(())
     }
+    #[test]
+    fn busy_legacy_writer_refuses_before_publication_and_empty_coordination_can_retry()
+    -> std::result::Result<(), Box<dyn Error>> {
+        let (_temporary, target, custody) = fixture()?;
+        let control = target.root().join(".codex-setup-system");
+        std::fs::create_dir(&control)?;
+        let writer = crate::installation::lock::TargetLock::acquire(&control)?;
+        assert!(Locks::acquire(&target, &custody, None).is_err());
+        assert!(!target.root().join("AGENTS.md").exists());
+        assert!(!control.join("journal.json").exists());
+        drop(writer);
+        let held = Locks::acquire(&target, &custody, None)?;
+        held.revalidate()?;
+        assert_eq!(review(&target, &custody)?.len(), 7);
+        drop(held);
+        std::fs::write(
+            control.join("original-receipt"),
+            b"unknown external custody",
+        )?;
+        assert!(Locks::acquire(&target, &custody, None).is_err());
+        assert!(review(&target, &custody).is_err());
+        assert_eq!(
+            std::fs::read(control.join("original-receipt"))?,
+            b"unknown external custody"
+        );
+        Ok(())
+    }
+
     #[cfg(target_os = "linux")]
     #[test]
     #[ignore = "requires an independently verified published external Codex setup component"]
@@ -212,8 +243,31 @@ mod tests {
                 output_limit: 65536,
             })
         };
+        let held = Locks::acquire(&target, &custody, None)?;
+        let busy = run()?;
+        assert!(!busy.status.success());
+        assert!(std::str::from_utf8(&busy.stderr)?.contains("lock"));
+        assert!(!target.root().join("AGENTS.md").exists());
+        held.revalidate()?;
+        drop(held);
+        // The human SDK may create its own empty control layout before trying
+        // the lock. Preserve it; use a separate untouched target to prove the
+        // permanent journal barrier rather than treating it as native custody.
+        let (_fenced, target, custody) = fixture()?;
         publish(&target, &review(&target, &custody)?)?;
-        let output = run()?;
+        let output = crate::process::run(crate::process::Request {
+            executable: std::path::Path::new(&binary),
+            arguments: &[
+                "install".into(),
+                "minimal".into(),
+                "--target".into(),
+                target.root().as_os_str().into(),
+            ],
+            directory: target.root(),
+            environment: &[("PATH".into(), "".into())],
+            timeout: std::time::Duration::from_secs(10),
+            output_limit: 65536,
+        })?;
         assert!(!output.status.success());
         let stderr = std::str::from_utf8(&output.stderr)?;
         assert!(stderr.contains("journal schema 2"), "{stderr}");
