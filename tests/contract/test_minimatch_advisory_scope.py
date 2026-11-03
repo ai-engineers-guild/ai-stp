@@ -17,7 +17,7 @@ from scripts.safety.check_advisory_scope import (
 
 ROOT = Path(__file__).resolve().parents[2]
 WEB = ROOT / "apps/web"
-TODAY = date(2026, 10, 31)
+TODAY = date(2026, 11, 3)
 
 
 def config() -> dict[str, Any]:
