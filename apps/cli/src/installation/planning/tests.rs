@@ -442,21 +442,94 @@ fn contribution_planning_preserves_unowned_host_permissions_and_contents()
         "[mcp_servers.review]\ncommand = \"review-helper\"\n",
     )?;
     let identity = actor();
-    let authored = embedded::plan(
+    use crate::{
+        authoring::{adoption, discovery, passports, releases, setups},
+        harnesses,
+        provider::Info,
+        store::versions::Increment,
+    };
+    let report = discovery::at(
+        &input,
+        "codex",
+        harnesses::Scope::Global,
+        harnesses::Root::Config,
+    )?;
+    let candidate = report
+        .components
+        .into_iter()
+        .find(|component| component.component_type == "mcp")
+        .ok_or("MCP discovery")?;
+    let adopted = adoption::plan(
         &mut store,
-        embedded::Request {
-            directory: input,
+        adoption::Source {
+            root: input,
             harness_id: "codex".into(),
-            component_type: "mcp".into(),
-            name: "native-mcp".into(),
-            license_spdx: "MIT".into(),
+            scope: harnesses::Scope::Global,
+            root_kind: harnesses::Root::Config,
+            candidate_id: candidate.candidate_id,
         },
         identity.clone(),
         AT,
     )?;
-    embedded::apply(&mut store, &authored, &authored.digest()?, &identity, AT)?;
-    request.setup = json!({"stable_id":authored.setup["stable_id"],"version":authored.setup["version"],"passport_digest":digest::canonical("ai-stp:passport:v1",&authored.setup)?});
-    request.evidence = [&authored.component, &authored.setup]
+    let draft = adoption::apply(&mut store, &adopted, &adopted.digest()?, &identity, AT)?;
+    let patch = passports::plan(
+        &mut store,
+        draft["stable_id"].as_str().ok_or("id")?,
+        draft["revision_id"].as_str().ok_or("revision")?,
+        passports::Patch::try_from(json!({
+            "name":"native-mcp","description":"Review current source.","tags":["review"],"license":{"spdx_id":"MIT","redistribution_allowed":true},
+            "permissions":{"filesystem":[],"network":[],"process":[]},"supported_os":[std::env::consts::OS],"supported_arch":[if cfg!(target_arch="aarch64"){"arm64"}else{"x86_64"}]
+        }))?,
+        identity.clone(),
+        AT,
+    )?;
+    let draft = passports::apply(&mut store, &patch, &patch.digest()?, &identity, AT)?;
+    // Genuine historical declaration data qualifies source authoring only; the
+    // native plan/compiler itself has no external executable dependency.
+    let declarations: Vec<Value> = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/provider-declarations-0.0.95.json"
+    )))?;
+    let provider = Info::parse(&serde_json::to_vec(
+        declarations
+            .iter()
+            .find(|d| d["harness_id"] == "codex")
+            .ok_or("declaration")?,
+    )?)?;
+    let release = releases::plan(
+        &mut store,
+        draft["stable_id"].as_str().ok_or("id")?,
+        draft["revision_id"].as_str().ok_or("revision")?,
+        Increment::Minor,
+        std::slice::from_ref(&provider),
+        identity.clone(),
+        AT,
+    )?;
+    let component = releases::apply(&mut store, &release, &release.digest()?, &identity, AT)?;
+    assert_eq!(
+        component["adaptations"][0]["scope_adaptations"][0]["members"][0]["ownership"],
+        "contribution"
+    );
+    let composed = setups::plan(
+        &mut store,
+        setups::Request {
+            harness_id: "codex".into(),
+            name: "Native contribution".into(),
+            description: "Preserve unowned host state.".into(),
+            purpose: "Plan an explicitly authored contribution.".into(),
+            requirements: None,
+            members: vec![setups::Member {
+                stable_id: component["stable_id"].as_str().ok_or("id")?.into(),
+                version: component["version"].as_str().ok_or("version")?.into(),
+                passport_digest: digest::canonical("ai-stp:passport:v1", &component)?,
+            }],
+        },
+        identity.clone(),
+        AT,
+    )?;
+    let setup = setups::apply(&mut store, &composed, &composed.digest()?, &identity, AT)?;
+    request.setup = json!({"stable_id":setup["stable_id"],"version":setup["version"],"passport_digest":digest::canonical("ai-stp:passport:v1",&setup)?});
+    request.evidence = [&component, &setup]
         .into_iter()
         .map(|document| {
             Ok((
