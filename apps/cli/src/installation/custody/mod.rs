@@ -6,6 +6,7 @@
 mod effects;
 mod model;
 mod placement;
+mod publications;
 #[cfg(test)]
 mod tests;
 use crate::{
@@ -308,6 +309,7 @@ impl Custody {
             after,
             effects,
             native_plan: None,
+            publications: None,
         };
         review.digest()?;
         Ok(review)

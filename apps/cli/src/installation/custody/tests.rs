@@ -562,6 +562,19 @@ fn real_writer_recovers_reviewed_files_and_preserves_unowned_host_bytes()
     ]);
     let changes = review.configuration_changes(&target, &desired)?;
     assert_eq!(changes.len(), 2);
+    let bound = review.clone().bind_publications(&[(&target, &changes)])?;
+    bound.verify_publications(&target, &changes)?;
+    assert_ne!(bound.digest()?, review.digest()?);
+    let mut changed = changes.clone();
+    changed[0]
+        .after
+        .as_mut()
+        .ok_or("desired content")?
+        .bytes
+        .push(b'!');
+    assert!(bound.verify_publications(&target, &changed).is_err());
+    let retained = Review::parse(&serde_json::to_vec(&bound.value()?)?, &bound.digest()?)?;
+    retained.verify_publications(&target, &changes)?;
     custody.prepare(&review, &review.digest()?)?;
     let admission = native_admission(&review)?;
     {

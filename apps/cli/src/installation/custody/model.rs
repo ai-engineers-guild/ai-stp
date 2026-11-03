@@ -365,9 +365,14 @@ pub struct Review {
     pub(super) after: Snapshot,
     pub(super) effects: Vec<Effect>,
     pub(super) native_plan: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) publications: Option<Vec<super::publications::Publication>>,
 }
 impl Review {
     pub fn digest(&self) -> Result<String> {
+        if let Some(publications) = &self.publications {
+            super::publications::validate(publications)?;
+        }
         if let Some(plan) = &self.native_plan {
             let digest = digest::canonical("ai-stp:installation-operation:v1", plan)?;
             crate::installation::planning::Plan::parse(
