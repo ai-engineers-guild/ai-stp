@@ -299,7 +299,7 @@ export default function CatalogPage() {
                   {kind === "setup" && version.lifecycle === "active" && (
                     <Link
                       className="btn-outline shrink-0"
-                      to={`/install?${new URLSearchParams({ intent: "install", setup: String(summary?.stable_id ?? ""), version: version.version, digest: version.passport_digest, harness: String(summary?.latest_harness_id ?? "") })}`}
+                      to={`/targets?${new URLSearchParams({ setup: String(summary?.stable_id ?? ""), version: version.version, digest: version.passport_digest, harness: String(summary?.latest_harness_id ?? "") })}`}
                     >
                       Review installation
                       <ArrowRight size={13} />

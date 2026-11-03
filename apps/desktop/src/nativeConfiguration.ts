@@ -9,6 +9,7 @@ export interface NativeOperation {
   plan: Record<string, unknown> | null;
   phase: string;
   stateParent: string | null;
+  restartRequired?: boolean;
 }
 function originalState(context: Record<string, unknown>): string | null {
   if (typeof context.root === "string") return context.root;
@@ -79,6 +80,24 @@ export function nativePending(result: CmdResult): NativeOperation | null {
     stateParent: originalState(context),
   };
 }
+/** A completed original operation remains inspectable after an app restart. */
+export function nativeStatus(result: CmdResult): NativeOperation | null {
+  if (!result.ok) return null;
+  const data = record(result.data), context = record(data.original_context);
+  const receipt = record(data.receipt);
+  const operation = String(data.operation_id ?? ""), digest = String(data.review_digest ?? "");
+  if (!id.test(operation) || !hash.test(digest) ||
+      receipt.operation_id !== operation || receipt.review_digest !== digest ||
+      record(receipt.original_context).context_id !== context.context_id ||
+      typeof context.context_id !== "string" || typeof context.label !== "string" ||
+      typeof receipt.harness_id !== "string" ||
+      !["configured", "confirmed"].includes(String(data.state)) ||
+      typeof receipt.restart_required !== "boolean") return null;
+  return {operation,digest,context:context.context_id,label:context.label,
+    harness:receipt.harness_id,phase:String(data.state),plan:null,
+    stateParent:originalState(context),restartRequired:receipt.restart_required};
+}
+
 export function nativeArguments(
   operation: NativeOperation,
 ): Record<string, string> {

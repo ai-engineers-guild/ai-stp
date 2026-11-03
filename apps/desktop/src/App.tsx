@@ -14,7 +14,6 @@ import {
   Bug,
   Home,
   ListChecks,
-  MonitorSmartphone,
   Moon,
   Package,
   Radar,
@@ -49,14 +48,13 @@ const GROUPS = [
       { to: "/", icon: Home, label: "Overview" },
       { to: "/catalog", icon: Package, label: "Catalog" },
       { to: "/corporate", icon: Building2, label: "Company" },
-      { to: "/install", icon: Wrench, label: "Setups" },
+      { to: "/targets", icon: Wrench, label: "Setups" },
       { to: "/tasks", icon: ListChecks, label: "Activity" },
     ],
   },
   {
     label: "Tools",
     items: [
-      { to: "/targets", icon: MonitorSmartphone, label: "Targets" },
       { to: "/discover", icon: Radar, label: "Discovery" },
       { to: "/registry", icon: SquareTerminal, label: "Commands" },
     ],

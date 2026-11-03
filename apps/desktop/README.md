@@ -10,11 +10,11 @@ receives public JSON envelopes. Harness programs remain user/vendor managed.
 | --- | --- |
 | Overview / Settings | Read health, identity and capabilities; explicitly initialize the chosen credential store. Existing Python state needs the CLI's reviewed in-place migration. |
 | Connections | Create/recover independent enrollments and offline/personal/corporate contexts through exact plans. Review registry upgrades before application. |
-| Catalog / Setups | Search the catalog, choose exact setup coordinates, author components and start personal installation tasks with explicit authorization. |
+| Catalog / Setups | Choose an exact local setup, review file changes, prepare/apply/recover its original native operation, and inspect ownership or removal. Create components from local files. |
 | Activity | Inspect original tasks and corporate checkout operations, retained plans, outcomes and recovery after restart. |
 | Account | Discover server-supported sign-in, authorize in the browser and inspect/refresh the original enrolled session. |
 | Company | Read projects, mappings, catalog and assignment previews; review separate checkout linking/adoption/retirement/location operations. |
-| Targets / Discovery / Commands | Use the connected engine's descriptors with read/plan/apply gates and explicit apply confirmation. |
+| Discovery / Commands | Inspect the engine's descriptors and advanced read/plan/apply operations with explicit apply confirmation. |
 | Diagnostics | Enable an optional bounded in-memory trace and explicitly copy a content-free diagnostic report. |
 
 Context selection is a view preference. Existing tasks and mutations retain their
@@ -28,7 +28,9 @@ in Activity before starting again. Identical interrupted task starts keep their
 retry identity while the app is running. Choosing a separate request does not
 cancel the original. Failed task reads remove stale controls until an explicit
 successful read. Account/task responses from earlier visits cannot change the
-current view.
+current view. Native preparation is recovered in Setups after app restart;
+completed operations remain inspectable in their original context. A new-session
+confirmation never claims vendor loading or runtime health.
 
 Checkout adoption, retirement and location changes have distinct receipts.
 Retiring a positively unlinked binding releases its reservation without deleting
@@ -45,6 +47,11 @@ disable stops new passes. Pending retries retain original bytes/timestamps;
 unsupported usage and installation observations remain unknown. No startup
 service or reporting scheduler is installed.
 
+Company inventory has separate reviewed consent in Setups. Collection and exact-
+batch delivery are explicit foreground actions, scoped to original native owned
+receipts and current company policy. It sends no paths, contents or prompts and
+does not claim complete discovery. Local disable retires unsent reporting.
+
 Diagnostic copies include application/platform metadata, call timing, outcomes
 and error codes. They omit local paths, command arguments/replies, error prose,
 account codes and private task content. No automatic diagnostic upload occurs.
@@ -55,7 +62,8 @@ account codes and private task content. No automatic diagnostic upload occurs.
   Linux retains the existing session bus for OS keyring access. A timeout leaves
   effects unconfirmed.
 - `src-tauri/` owns async IPC, serialized mutations and private temporary plan/input
-  files, removed after use. Form objects are bounded to 16 KiB; the CLI validates them.
+  files, removed after use. Bounds depend on the operation (native requests 128 KiB,
+  full native reviews 8 MiB); the CLI validates every object and digest.
 - `src/transport.ts` is the IPC boundary; `store.ts` shares engine state and
   `taskStart.ts` retains a logical start's retry identity. Common components use
   shared theme roles, vendored IBM Plex fonts, visible focus and reduced motion.

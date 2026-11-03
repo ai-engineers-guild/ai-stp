@@ -8,7 +8,7 @@ runtime. The executable is the command reference:
 ai-stp init --credential-store os_keyring --json
 ai-stp help --agent --json
 ai-stp task intents --json
-ai-stp task input-schema --intent install --json
+ai-stp configuration native pending --json
 ```
 
 Read `capabilities --json` before planning a platform-specific operation. Commands
@@ -25,15 +25,15 @@ older operating systems are not implicitly qualified. Linux uses the system GNU
 C runtime and Windows the Microsoft C runtime. macOS and Windows artifacts do
 not carry an OS application certificate or notarization.
 
-| Capability                                                                          | Linux                                                 | macOS / Windows                                                                                   |
-| ----------------------------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Native metadata, source analysis, authoring, catalog, account, sync and publication | Implemented                                           | Built and exercised by platform CI                                                                |
-| Archive-owned CLI installation/update                                               | Implemented                                           | Exercised by platform CI                                                                          |
-| Isolated provider execution, setup installation and active-session handoff          | Implemented                                           | Unavailable; explicit refusal                                                                     |
-| In-place legacy state transfer                                                      | Real SQLite/WAL and interrupted file-credential proof | macOS file-credential proof; Windows rejects file credentials, native keyring adapter is compiled |
+| Capability | Linux | macOS / Windows |
+| --- | --- | --- |
+| Native metadata, authoring, catalog, account, sync and publication | Implemented | Native CI |
+| Native configuration, physical custody and process handoff | Implemented | Native CI |
+| Archive-owned CLI installation/update | Implemented | Native CI |
+| Historical external-provider execution | Isolated compatibility route | Explicit refusal |
+| Legacy state transfer | SQLite/WAL and file-credential proof | macOS file credentials; Windows requires its native vault |
 
-`capabilities` reports the running platform and installation boundary. Build
-success is not a claim that an unavailable provider sandbox works on that OS.
+Read the running engine's capabilities before selecting an operation.
 Harness executables are user/vendor managed: ai-stp observes the installed
 version and exact program identity, but never installs, pins, updates or removes
 the harness. Exact setup and installation-component versions remain immutable.
@@ -101,7 +101,7 @@ State-taking commands accept `--state-dir`. Otherwise the CLI uses
 `AI_STP_STATE_DIR`, then `$XDG_DATA_HOME/ai-stp`, with
 `$HOME/.local/share/ai-stp` as the XDG fallback. This preserves the previous
 cross-platform location. `state path`, `doctor` and metadata reads create nothing.
-`capabilities` lists readable registry and snapshot schemas 53–56. `snapshot inspect`
+`capabilities` lists readable registry and snapshot schemas. `snapshot inspect`
 reads an explicitly supplied standalone SQLite backup with its exact SHA-256 digest.
 
 ```sh
@@ -183,129 +183,99 @@ refuse. Corporate setup application and managed inventory are not enabled by a
 personal task or a read-only assignment preview. Harness programs remain managed
 through their vendors' official commands.
 
-## Setup components and installation
+## Setup configuration
 
-Setup configuration is first-party ai-stp functionality. The native
-`installation` library owns forward transactions, original physical bindings,
-no-follow file publication, cancellation and retained outcomes. Its source
-provenance and notice are retained beside the implementation. It carries no
-harness executable installer, vendor artifact/version table or updater control.
-Harness installation and updates belong to the vendor's official commands.
+Use `configuration native` for new first-party configuration on all supported
+platforms. It compiles an exact local setup graph for one to three existing
+global, user-root or project folders. Compilation and review grant no later
+execution rights. Harness programs stay user/vendor managed.
 
-`installation::profiles` resolves the compiled configuration scopes for the local
-execution platform. `bundle::compile_native` uses the shared exact-graph,
-eligibility, projection and contribution compiler without an external provider
-declaration. The shared package reader verifies the exact native profile and complete source
-payload. Compilation and reading create no harness state or installation authority. Profile lookup has no fallback between global, user-root and project
-scopes; the unclassified harness placeholder cannot select an installation engine.
+Save a request using the exact local setup coordinates:
 
-`installation::planning` captures a separate native observation format with the
-original context, exact graph/profile/eligibility inputs and full physical roots.
-It preserves raw path spellings and file preconditions without before-images or
-configuration writes. Corporate plans require a positively linked original
-checkout and fresh exact assignment/policy observations. Context selection cannot
-retarget the plan. This library format does not enable a new installation route;
-protected effects still require separately qualified custody and authorization.
+```json
+{
+  "schema_version": 1,
+  "setup": {
+    "stable_id": "setup_…",
+    "version": "1.0",
+    "passport_digest": "sha256:…"
+  },
+  "harness_id": "codex",
+  "operation": "install",
+  "roots": {"global": "/absolute/configuration"},
+  "trust": "exact_setup"
+}
+```
 
-Existing `provider` commands still use the released external-component
-compatibility path; integrating the library does not change an old operation's
-identity or silently activate a new installation route. The CLI authenticates
-those exact legacy releases and invokes them itself; users do not install a
-second setup-manager product. `provider/managed.rs` currently owns
-the build default. An explicit component release remains exact, and a retained
-operation never floats to a new release. Full publisher identity, signed
-environment, digest, profile and protocol checks precede invocation.
+`trust: "exact_setup"` explicitly trusts the reviewed immutable graph; it does
+not fabricate private access, company assignments or grants. Omit it to use
+existing pins/ownership. Corporate input also requires its original checkout
+binding; current company/project/source authority is checked before every effect.
 
-The native `install` task takes a closed JSON input from `task input-schema`:
-exact setup coordinates, harness, one to three explicit roots and operation.
-The task retains compiler/configuration plans and child receipts. It does not
-implicitly select a setup. Each component prepares before publication; partial
-publication requires forward recovery. Lost final task receipts recover the
-original operation without source ZIPs. Cancellation before publication unwinds
-preparation; committed work is reconciled, not guessed to be cancelled.
+```sh
+ai-stp configuration native plan --context CONTEXT --input request.json --json
+# Save data.plan as review.json; retain data.plan_digest.
+ai-stp configuration native prepare --plan review.json --plan-digest DIGEST --json
+ai-stp configuration native apply --operation OPERATION --plan-digest DIGEST --json
+ai-stp configuration native status --operation OPERATION --plan-digest DIGEST --json
+```
 
-An active Linux harness uses `activation: "handoff"` or the explicit
-`configuration set prepare/apply/confirm` flow. It stages all roots, observes old
-consumers exiting, publishes while stopped and confirms from a newly started
-consumer. Unsupported launchers must be stopped explicitly. Process observation
-is not a global process-start lock. Existing compatibility operations retain their original component writer;
-no in-place half-update of an active agent is authorized.
-Direct apply also checks observed consumers when its caller uses a different
-configuration home, including the desktop's filtered CLI environment.
+Use the original `--state-dir` throughout. Selection changes only the view.
+`pending` recovers an admitted operation without its plan file; `cancel` cancels
+unpublished preparation. Exact retries retain original context and bytes.
+Preparation fences older CLI writers; forward recovery handles partial writes.
+Configuration is not atomic across physical roots.
+
+When `restart_required` is true, stop the observed harness sessions before apply,
+start a new session afterwards and run `configuration native confirm` with the
+original operation/digest/state directory. Confirmation observes a new process,
+not vendor loading or runtime health.
+
+`effective --context CONTEXT` reads current ownership and drift. Review updates
+with `"operation": "replace"` in the same physical scope set. Use
+`configuration native remove plan --operation OPERATION --plan-digest DIGEST`
+for removal, followed by prepare/apply. Shared references and unowned fields/files
+are preserved; conflicting or drifted ownership refuses. Custody belongs to the
+OS user across state directories and ignores HOME/XDG selectors.
+
+Explicit `"operation": "adopt"` accepts a terminal supported external 0.0.95
+installation only when its original setup ID/version, ownership ledger and
+actual values agree. Its old receipts and SQLite history stay unchanged.
+Ambiguous owners and unfinished legacy work refuse. Historical `provider`,
+`configuration set` and personal `task install` operations retain their exact
+Linux compatibility route and immutable external-component identity.
+
+Corporate inventory has separate consent:
+`corporate inventory consent plan/apply`, `status`, `scan`, `flush` and `disable`.
+It reports only actual owned native components, opaque locations and observed
+file states under current company policy. Collection/delivery are explicit
+foreground actions; retries keep the original batch. Local disable works offline.
+It neither performs complete external discovery nor measures runtime loading.
 
 ## Build and verification
 
-The manual `provider-release-qualification` workflow authenticates an exact
-seven-component release and reads its declarations under measured Linux
-isolation on Ubuntu 26.04. It requires project profiles and compares each
-artifact's source with its published tag. Its public JSON observations support
-release review and catalog updates; they are not installation permits or proof
-of configuration application. Provider execution and report generation stay in
-the disposable CI environment.
-
-Rust 1.99.1 is pinned in `rust-toolchain.toml`. The SQLite capability VFS build
-needs libclang (the selected Xcode toolchain on macOS, the Visual Studio Clang
-component on Windows, or the system development library on Linux). The
-repository-only Rust build tool in `xtask/` finds that installed toolchain; the shipped executable does not need libclang.
-Linux wheel packaging requires binutils `readelf` to verify the declared glibc
-floor against the actual executable. Linux tests also require `dbus-daemon` for a private bus with no service activation;
-the cleanup regression does not use the user's session bus or services.
+Use the pinned Rust/Bun/uv and existing managed compiler/cache frontends. The
+SQLite VFS build needs libclang; shipped executables do not. Linux packaging
+also needs `readelf` to check the actual glibc floor, and credential tests use a
+disposable Secret Service bus.
 
 ```sh
 just cli-gen          # Refresh embedded shared contracts after back-gen
-just cli-check
-just desktop-check
+just cli-check        # Static checks, Rust tests, release binary and real SQLite contract
+just desktop-check    # UI, Rust crates, actual optimized sidecar and resource probe
 ```
 
-The native gate runs formatting, Clippy, Rust tests, the optimized release build
-and real envelope/SQLite regression. Builds, archive/SBOM/wheel packaging and
-desktop resource probes use Rust.
-Cargo build messages identify the executable used by regressions, release archives
-and desktop sidecar packaging. A checkout-local `target/` is not required. Existing
-managed Cargo/uv/Bun frontends, including the NDS Cleaner profile, retain their
-shared caches and selected compiler; do not add a second cache-placement policy.
-Use only the host owner's approved network-cache contract; keep private endpoints
-and client configuration outside the repository. With the existing managed Cargo
-frontend, `cargo metadata --manifest-path apps/cli/Cargo.toml --locked --offline
---no-deps --format-version 1` reports the effective `target_directory` and
-`build_directory` from the repository root. Consume these fields directly rather
-than constructing cache paths. If the pinned compiler or its admitted lane is
-unavailable, stop without installing a toolchain or changing the shared profile.
-Frozen release artifacts stay outside mutable build caches. Native GC and NDS
-Cleaner own cleanup after ownership, leases and 72 hours of idle use are verified;
-installed environments and application state are not idle cache entries.
-The CLI regression keeps its Python validation environment in the user data
-directory under `uv/projects`, isolated by checkout identity. An explicit
-`UV_PROJECT_ENVIRONMENT` takes precedence. Package downloads remain in uv's managed
-cache, and changing checkouts does not retarget another checkout's editable imports.
-The libclang adapter uses Cargo's effective artifact directory. CI exercises native
-checks with artifacts outside the checkout on Linux, macOS and Windows.
-Pull requests run all-target native Clippy and library units on all three OSes.
-All three execute the owned-slot native credential and independent CLI-process
-cases. Linux uses a disposable Secret Service bus with 200 fresh concurrent
-clients and 10 rounds in PRs; full main retains all 100 rounds, complete native/API
-interoperability, packaging and installed desktop journeys.
-The macOS observer checks exact slot presence without decrypting another
-executable's secret; successive CLI processes read and revalidate their own keys.
-The fixture never changes Keychain access control.
-Run the native CLI locally through that profile. Build and run backend, web and
-docs changes on the production server; desktop bundles are qualified in CI.
-The published source crate includes generated resources under `resources/`;
-`just cli-gen` projects the shared sources and `cli-static` rejects drift.
-Independent server interoperability proofs live in `tests/native_contract`;
-they validate the native output against the actual Python server models in CI.
-The Linux job also runs `verify_ownership.py` against migrated PostgreSQL and the
-HTTP API, acquiring an exact setup before and after repeated component ownership
-transfers. For server-side qualification, set `AI_STP_TEST_DB_URL` to a disposable PostgreSQL
-server with database creation rights and run `just cli-ownership-regress`.
-Native child processes run without Python on PATH. `tests/startup.rs` proves
-read-only first-run behavior and refusal to replace a legacy identity.
-`tests/distribution.rs` proves archive ownership, replay, a modeled interrupted
-publication and foreign-prefix refusal.
-`tests/native_contract/verify_migration.py` includes
-real process termination across the writer-transfer boundary on Unix.
+Consume Cargo metadata's effective artifact directories instead of inventing
+target paths. Cache ownership, leases and cleanup belong to the managed frontend;
+application state and installed environments are not build caches.
+Published source includes generated `resources/`; `cli-static` rejects drift.
 
-Release builds use thin LTO and stripped symbols. Benchmark the optimized
-executable in an isolated home; do not infer startup performance from debug
-builds. Desktop bundles this same native executable and remains a process-contract
-client. Its UI and gates are documented in `apps/desktop/README.md`.
+Native CI covers Linux, macOS and Windows. `tests/native_contract` checks real
+server models and SQLite transfer; `enrollments_native` checks existing native
+vaults and independent CLI processes. The manual `provider-release-qualification`
+workflow remains an exact authenticated legacy-component proof. None of these
+observations grants installation authority.
+
+Release builds use thin LTO and stripped symbols. Desktop bundles the same
+optimized executable; see [Desktop](../desktop/README.md). Release artifacts and
+qualification evidence belong to their GitHub releases and source PRs.

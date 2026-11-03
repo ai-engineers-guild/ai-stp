@@ -272,3 +272,280 @@ fn executable_restarts_preserve_native_connections_and_refuse_stale_context_sele
     assert!(!state_directory.join("ai-stp-v2-account").exists());
     Ok(())
 }
+
+/// This test uses the real OS-user coordinator, not an environment-selected copy.
+/// Explicit CI invocation confines that persistent metadata to a disposable user.
+#[test]
+#[ignore = "requires a disposable native CI OS-user and its existing credential vault"]
+fn public_native_configuration_keeps_original_context_across_cli_restarts()
+-> Result<(), Box<dyn Error>> {
+    assert_eq!(std::env::var("GITHUB_ACTIONS").as_deref(), Ok("true"));
+    let runner = std::env::var("RUNNER_OS")?;
+    assert!(["Linux", "macOS", "Windows"].contains(&runner.as_str()));
+    assert!(std::env::var_os("RUNNER_TEMP").is_some());
+    if runner == "Linux" {
+        assert_eq!(
+            std::env::var("AI_STP_TEST_SECRET_SERVICE").as_deref(),
+            Ok("isolated")
+        );
+    }
+    use ai_stp_cli::{digest, installation::custody::Custody};
+    use serde_json::json;
+    assert!(
+        Custody::existing_user()?.is_none(),
+        "disposable user must start without native custody"
+    );
+    let temporary = tempfile::tempdir()?;
+    let home = temporary.path().canonicalize()?;
+    let state = home.join("native state é");
+    let target = home.join("target");
+    let source = home.join("source");
+    for directory in [&state, &target, &source] {
+        fs::create_dir(directory)?;
+    }
+    fs::write(
+        source.join("guide.md"),
+        b"# Native setup\nVerify affected behavior.\n",
+    )?;
+    fs::write(target.join("user-note"), b"unowned data stays\n")?;
+    let state_path = state.to_str().ok_or("state path")?;
+    let initial = run(
+        &home,
+        &[
+            "device",
+            "initialize",
+            "plan",
+            "--state-dir",
+            state_path,
+            "--credential-store",
+            "os_keyring",
+        ],
+        0,
+    )?;
+    let _slot = owned_slot(&format!(
+        "device-key.{}",
+        initial["plan"]["device_id"].as_str().ok_or("device")?
+    ))?;
+    apply(&home, &["device", "initialize", "apply"], &initial, 0)?;
+    let execute = |arguments: &[&str]| -> Result<Value, Box<dyn Error>> {
+        let mut env: Vec<(std::ffi::OsString, std::ffi::OsString)> =
+            vec![("PATH".into(), "".into())];
+        for (name, value) in std::env::vars_os() {
+            if [
+                "SYSTEMROOT",
+                "WINDIR",
+                "TMP",
+                "TEMP",
+                "TMPDIR",
+                "HOME",
+                "USERPROFILE",
+                "DBUS_SESSION_BUS_ADDRESS",
+                "XDG_RUNTIME_DIR",
+            ]
+            .iter()
+            .any(|allowed| name.to_string_lossy().eq_ignore_ascii_case(allowed))
+            {
+                env.push((name, value));
+            }
+        }
+        let mut args = arguments
+            .iter()
+            .map(std::ffi::OsString::from)
+            .collect::<Vec<_>>();
+        if arguments.get(..2) != Some(&["context", "apply"][..]) {
+            args.extend(["--state-dir".into(), state.as_os_str().into()]);
+        }
+        args.push("--json".into());
+        let output = ai_stp_cli::process::run(ai_stp_cli::process::Request {
+            executable: Path::new(env!("CARGO_BIN_EXE_ai-stp")),
+            arguments: &args,
+            directory: &home,
+            environment: &env,
+            timeout: Duration::from_secs(30),
+            output_limit: 8 * 1024 * 1024,
+        })?;
+        assert!(output.stderr.is_empty(), "unexpected native CLI stderr");
+        let envelope: Value = serde_json::from_slice(&output.stdout)?;
+        let command = arguments
+            .iter()
+            .take_while(|argument| !argument.starts_with("--"))
+            .copied()
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(output.status.success(), "{command}: {envelope}");
+        assert_eq!(envelope["ok"], true, "{envelope}");
+        Ok(envelope["data"].clone())
+    };
+    let enact = |data: &Value, command: &[&str]| -> Result<Value, Box<dyn Error>> {
+        let file = home.join("native-reviewed.json");
+        fs::write(&file, serde_json::to_vec(&data["plan"])?)?;
+        let mut args = command.to_vec();
+        args.extend([
+            "--plan",
+            file.to_str().ok_or("plan path")?,
+            "--plan-digest",
+            data["plan_digest"].as_str().ok_or("plan digest")?,
+        ]);
+        execute(&args)
+    };
+    let mut contexts = Vec::new();
+    for label in ["Original native context", "Another view"] {
+        let plan = execute(&["context", "create", "plan", "--label", label])?;
+        contexts.push(
+            plan["plan"]["change"]["context"]["context_id"]
+                .as_str()
+                .ok_or("context")?
+                .to_owned(),
+        );
+        enact(&plan, &["context", "apply"])?;
+    }
+    let input = home.join("author-input.json");
+    fs::write(
+        &input,
+        serde_json::to_vec(
+            &json!({"schema_version":1,"directory":source,"harness_id":"codex",
+        "component_type":"instruction","name":"native-cli-platform-fixture","license_spdx":"MIT"}),
+        )?,
+    )?;
+    let author = execute(&[
+        "task",
+        "start",
+        "--intent",
+        "author",
+        "--idempotency-key",
+        "native-platform-author-0001",
+        "--input",
+        input.to_str().ok_or("author input")?,
+    ])?;
+    assert_eq!(author["state"], "completed", "{author}");
+    let setup = author["outcome"]["setup_id"].as_str().ok_or("setup")?;
+    let version = execute(&[
+        "local",
+        "version",
+        "show",
+        "--kind",
+        "setup",
+        "--id",
+        setup,
+        "--version",
+        "1.0",
+    ])?;
+    fn passport<'a>(value: &'a Value, id: &str) -> Option<&'a Value> {
+        let object = value.as_object()?;
+        if value["kind"] == "setup" && value["stable_id"] == id {
+            return Some(value);
+        }
+        object.values().find_map(|value| passport(value, id))
+    }
+    let passport = passport(&version, setup).ok_or("exact setup passport")?;
+    let input = home.join("native-input.json");
+    fs::write(
+        &input,
+        serde_json::to_vec(
+            &json!({"schema_version":1,"setup":{"stable_id":setup,"version":"1.0",
+        "passport_digest":digest::canonical("ai-stp:passport:v1",passport)?},"harness_id":"codex","operation":"install","roots":{"global":target}}),
+        )?,
+    )?;
+    let review = execute(&[
+        "configuration",
+        "native",
+        "plan",
+        "--context",
+        &contexts[0],
+        "--input",
+        input.to_str().ok_or("native input")?,
+    ])?;
+    assert_eq!(review["configuration_changed"], false);
+    let operation = review["plan"]["operation_id"].as_str().ok_or("operation")?;
+    let expected = review["plan_digest"].as_str().ok_or("review digest")?;
+    let selection = execute(&["context", "select", "plan", "--context", &contexts[1]])?;
+    enact(&selection, &["context", "apply"])?;
+    enact(&review, &["configuration", "native", "prepare"])?;
+    let pending = execute(&["configuration", "native", "pending"])?;
+    assert_eq!(
+        pending["pending"]["original_context"]["context_id"],
+        contexts[0]
+    );
+    let receipt = execute(&[
+        "configuration",
+        "native",
+        "apply",
+        "--operation",
+        operation,
+        "--plan-digest",
+        expected,
+    ])?;
+    assert_eq!(receipt["original_context"]["context_id"], contexts[0]);
+    assert_eq!(receipt["load_state"], "not_observed");
+    assert_eq!(receipt["configuration_changed"], true);
+    assert_eq!(
+        execute(&[
+            "configuration",
+            "native",
+            "apply",
+            "--operation",
+            operation,
+            "--plan-digest",
+            expected
+        ])?,
+        receipt
+    );
+    assert!(target.join("AGENTS.md").is_file());
+    assert_eq!(
+        execute(&["context", "list"])?["selected"]["context_id"],
+        contexts[1]
+    );
+    assert_eq!(
+        execute(&[
+            "configuration",
+            "native",
+            "effective",
+            "--context",
+            &contexts[1]
+        ])?["setups"],
+        json!([])
+    );
+    let owned = execute(&[
+        "configuration",
+        "native",
+        "effective",
+        "--context",
+        &contexts[0],
+    ])?;
+    assert_eq!(owned["setups"][0]["ownership_state"], "matching");
+    let remove = execute(&[
+        "configuration",
+        "native",
+        "remove",
+        "plan",
+        "--operation",
+        operation,
+        "--plan-digest",
+        expected,
+    ])?;
+    enact(&remove, &["configuration", "native", "prepare"])?;
+    let removal = execute(&[
+        "configuration",
+        "native",
+        "apply",
+        "--operation",
+        remove["plan"]["operation_id"].as_str().ok_or("removal")?,
+        "--plan-digest",
+        remove["plan_digest"].as_str().ok_or("removal digest")?,
+    ])?;
+    assert_eq!(removal["operation"], "remove");
+    assert!(!target.join("AGENTS.md").exists());
+    assert_eq!(fs::read(target.join("user-note"))?, b"unowned data stays\n");
+    assert_eq!(
+        execute(&[
+            "configuration",
+            "native",
+            "effective",
+            "--context",
+            &contexts[0]
+        ])?["setups"],
+        json!([])
+    );
+    assert!(execute(&["configuration", "native", "pending"])?["pending"].is_null());
+    Ok(())
+}

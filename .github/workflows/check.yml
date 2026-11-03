@@ -256,6 +256,13 @@ jobs:
         run: >-
           cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- build
           cargo test --locked --test enrollments_native
+      - name: Public native configuration across independent CLI processes
+        if: runner.os != 'Linux'
+        shell: bash
+        run: >-
+          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- build
+          cargo test --locked --test enrollments_native
+          public_native_configuration_keeps_original_context_across_cli_restarts -- --ignored
       - name: Install the isolated Linux credential fixture
         if: runner.os == 'Linux'
         shell: bash
@@ -466,6 +473,13 @@ jobs:
           cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build cargo test --locked
           cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
             cargo build --locked --release --bins --examples
+      - name: Public native configuration across independent CLI processes
+        if: runner.os != 'Linux'
+        shell: bash
+        run: >-
+          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- build
+          cargo test --locked --test enrollments_native
+          public_native_configuration_keeps_original_context_across_cli_restarts -- --ignored
       - name: Install the isolated Linux credential fixture
         if: runner.os == 'Linux'
         shell: bash

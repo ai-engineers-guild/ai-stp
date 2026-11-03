@@ -55,6 +55,7 @@ function call(
     command.startsWith("auth_") ||
     command.startsWith("task_") ||
     command.startsWith("native_configuration_") ||
+    command === "native_inventory_enable" ||
     command === "checkout_apply" ||
     command === "checkout_location_apply" ||
     command === "checkout_missing_binding_apply" ||
@@ -402,4 +403,12 @@ export function cmdNativeConfigurationPrepare(
   confirmed: boolean,
 ): Promise<CmdResult> {
   return call("native_configuration_prepare", { plan, digest, confirmed });
+}
+
+export function cmdNativeInventoryEnable(
+  plan: Record<string, unknown>,
+  digest: string,
+  confirmed: boolean,
+): Promise<CmdResult> {
+  return call("native_inventory_enable", {plan,digest,confirmed});
 }
