@@ -593,6 +593,67 @@ async fn native_inventory_enable(
     .map_err(|error| error.to_string())
 }
 
+/// Catalog browsing is public; this downloads exact graphs without a private
+/// enrollment, harness execution or configuration mutation.
+#[tauri::command]
+async fn setup_acquisition_plan(
+    state: tauri::State<'_, Arc<AppState>>,
+    stable_id: String,
+    version: String,
+) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        run_cli(
+            &st,
+            &[
+                "registry".into(),
+                "acquire".into(),
+                "plan".into(),
+                "--id".into(),
+                stable_id,
+                "--version".into(),
+                version,
+            ],
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())
+}
+#[tauri::command]
+async fn setup_acquisition_apply(
+    state: tauri::State<'_, Arc<AppState>>,
+    plan: serde_json::Value,
+    digest: String,
+    confirmed: bool,
+) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        if !confirmed {
+            return CmdResult::failed(
+                "DESKTOP_CONFIRMATION_REQUIRED",
+                "Review the exact public setup graph before downloading",
+            );
+        }
+        let file = match PublicPlanFile::bounded(&plan, 16 * 1024 * 1024) {
+            Ok(file) => file,
+            Err(error) => return CmdResult::failed("DESKTOP_USAGE", error),
+        };
+        run_cli_mutating(
+            &st,
+            &[
+                "local".into(),
+                "apply".into(),
+                "--plan".into(),
+                file.0.to_string_lossy().into_owned(),
+                "--plan-digest".into(),
+                digest,
+            ],
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())
+}
+
 /// Only reviewed native profile plans may cross this in-memory public bridge.
 #[tauri::command]
 async fn profile_apply(
@@ -1271,6 +1332,8 @@ pub fn run() {
             native_configuration_plan,
             native_configuration_prepare,
             native_inventory_enable,
+            setup_acquisition_plan,
+            setup_acquisition_apply,
             checkout_apply,
             checkout_location_apply,
             checkout_missing_binding_apply,

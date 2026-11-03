@@ -23,8 +23,8 @@ pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
 /// it or a healthy apply is killed mid-flight.
 pub const MUTATING_TIMEOUT: Duration = Duration::from_secs(420);
 /// Output caps: stdout must hold one envelope (envelope.rs rejects past
-/// 4 MiB anyway); stderr is diagnostics only.
-const MAX_STDOUT_BYTES: usize = 4 * 1024 * 1024 + 64;
+/// the envelope limit anyway); stderr is diagnostics only.
+const MAX_STDOUT_BYTES: usize = crate::envelope::MAX_STDOUT_BYTES + 64;
 const MAX_STDERR_BYTES: usize = 256 * 1024;
 /// Grace for drain threads after the child exits — a grandchild that
 /// inherited the pipes must not pin `run` forever.
