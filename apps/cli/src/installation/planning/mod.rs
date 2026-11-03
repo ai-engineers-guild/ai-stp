@@ -331,17 +331,24 @@ fn capture(
             }
             if file.contribution.is_some()
                 && hosts.get(&scope).and_then(|hosts| hosts.get(&path))
-                    != Some(&current.map(|content| content.bytes))
+                    != Some(&current.as_ref().map(|content| content.bytes.clone()))
             {
                 return Err(invalid());
             }
+            let after_mode = if cfg!(unix) && file.contribution.is_some() {
+                current.as_ref().map_or(file.mode, |content| content.mode)
+            } else if cfg!(unix) {
+                file.mode
+            } else {
+                0o600
+            };
             files.insert(
                 path,
                 File {
                     before,
                     after_digest: digest::sha256(&file.bytes),
                     after_bytes: file.bytes.len(),
-                    after_mode: if cfg!(unix) { file.mode } else { 0o600 },
+                    after_mode,
                     owner: file.owner,
                     contribution: file
                         .contribution

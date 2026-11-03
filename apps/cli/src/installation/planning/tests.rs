@@ -415,3 +415,78 @@ fn assignment_observations_freeze_exact_policy_without_becoming_execution_grants
     }
     Ok(())
 }
+
+#[cfg(unix)]
+#[test]
+fn contribution_planning_preserves_unowned_host_permissions_and_contents()
+-> std::result::Result<(), Box<dyn Error>> {
+    use std::os::unix::fs::PermissionsExt;
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().canonicalize()?;
+    let state = root.join("state");
+    let target = root.join("target");
+    std::fs::create_dir(&state)?;
+    std::fs::create_dir(&target)?;
+    let mut store = Store::open(&state, true)?;
+    let mut request = request(
+        &mut store,
+        &root.join("guidance"),
+        target.clone(),
+        actor(),
+        AT,
+    )?;
+    let input = root.join("mcp");
+    std::fs::create_dir(&input)?;
+    std::fs::write(
+        input.join("config.toml"),
+        "[mcp_servers.review]\ncommand = \"review-helper\"\n",
+    )?;
+    let identity = actor();
+    let authored = embedded::plan(
+        &mut store,
+        embedded::Request {
+            directory: input,
+            harness_id: "codex".into(),
+            component_type: "mcp".into(),
+            name: "native-mcp".into(),
+            license_spdx: "MIT".into(),
+        },
+        identity.clone(),
+        AT,
+    )?;
+    embedded::apply(&mut store, &authored, &authored.digest()?, &identity, AT)?;
+    request.setup = json!({"stable_id":authored.setup["stable_id"],"version":authored.setup["version"],"passport_digest":digest::canonical("ai-stp:passport:v1",&authored.setup)?});
+    request.evidence = [&authored.component, &authored.setup]
+        .into_iter()
+        .map(|document| {
+            Ok((
+                document["stable_id"].as_str().ok_or_else(invalid)?.into(),
+                Evidence {
+                    passport_digest: digest::canonical("ai-stp:passport:v1", document)?,
+                    registrable: true,
+                    blocked: false,
+                    author_verified: false,
+                    component_verified: false,
+                    checks_current: false,
+                    consented: true,
+                },
+            ))
+        })
+        .collect::<crate::error::Result<BTreeMap<_, _>>>()?;
+    let path = target.join("config.toml");
+    let original = b"[unowned]\nvalue = \"keep-the-original-host\"\n";
+    std::fs::write(&path, original)?;
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+    let planned = capture(&mut store, context(&state, identity), None, &request, AT)?;
+    assert_eq!(
+        planned.plan.roots[&Scope::Global].files["config.toml"].after_mode,
+        0o600
+    );
+    assert_eq!(std::fs::read(&path)?, original);
+    assert_eq!(
+        std::fs::metadata(&path)?.permissions().mode() & 0o777,
+        0o600
+    );
+    assert!(!target.join(CONTROL).exists());
+    Ok(())
+}
