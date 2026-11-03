@@ -236,6 +236,38 @@ impl Api {
         }
     }
 
+    pub fn installation_inventory(
+        &self,
+        organization: &str,
+        body: &[u8],
+        credential: &Secret,
+    ) -> Result<Reply<serde_json::Value>> {
+        if !crate::passport::stable_id(organization, "organization") || body.len() > 4 * 1024 * 1024
+        {
+            return Err(super::invalid());
+        }
+        let authorization = Zeroizing::new(format!("Bearer {}", credential.0.as_str()));
+        let agent = self.agent.borrow();
+        let response = agent
+            .post(format!(
+                "{}/v1/corporate/organizations/{organization}/telemetry/installation-inventory",
+                self.origin
+            ))
+            .header("Accept", "application/json")
+            .header("Content-Type", "application/json")
+            .header("Accept-Encoding", "identity")
+            .header("X-AI-STP-Schema-Version", "1")
+            .header("X-AI-STP-Organization-Id", organization)
+            .header("Authorization", authorization.as_str())
+            .send(body)
+            .map_err(|_| unavailable())?;
+        drop(agent);
+        match self.response(response, 65536)? {
+            Reply::Resource(bytes) => crate::wire::parse(&bytes).map(Reply::Resource),
+            Reply::Refused(code) => Ok(Reply::Refused(code)),
+        }
+    }
+
     pub fn heartbeat(
         &self,
         organization: &str,

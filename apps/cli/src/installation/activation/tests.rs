@@ -89,8 +89,24 @@ fn command(
     }
     command
 }
+fn start_process(command: &mut Command) -> std::io::Result<Child> {
+    // Retry only kernel ETXTBSY before a process exists, never its outcome.
+    for attempt in 0..50 {
+        match command.spawn() {
+            Err(error)
+                if cfg!(target_os = "linux")
+                    && error.raw_os_error() == Some(26)
+                    && attempt < 49 =>
+            {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            outcome => return outcome,
+        }
+    }
+    unreachable!("bounded fixture spawn returns its final result")
+}
 fn spawn(mut command: Command) -> std::result::Result<Consumer, Box<dyn Error>> {
-    let mut consumer = Consumer(Some(command.spawn()?));
+    let mut consumer = Consumer(Some(start_process(&mut command)?));
     let output = consumer
         .0
         .as_mut()
@@ -188,9 +204,9 @@ fn all_seven_native_consumers_require_stop_and_a_genuine_new_session()
         std::fs::write(&review, serde_json::to_vec(&handoff.value()?)?)?;
         // A strictly later Linux scheduler tick removes timestamp ambiguity.
         std::thread::sleep(Duration::from_millis(30));
-        let output = command(&executable, &home, &project, definition, &global)
-            .env(CONFIRM, &review)
-            .output()?;
+        let mut confirmation = command(&executable, &home, &project, definition, &global);
+        confirmation.env(CONFIRM, &review);
+        let output = start_process(&mut confirmation)?.wait_with_output()?;
         assert!(
             output.status.success(),
             "{}: {}",

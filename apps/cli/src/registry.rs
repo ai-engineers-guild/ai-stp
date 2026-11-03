@@ -9,6 +9,7 @@ mod corporate;
 mod distribution;
 mod github;
 mod grants;
+mod inventory;
 mod local;
 mod migration;
 mod providers;
@@ -40,6 +41,7 @@ enum Handler {
     Account(account::Handler),
     Context(contexts::Handler),
     Configuration(configuration::Handler),
+    Inventory(inventory::Handler),
     Corporate(corporate::Handler),
     Attestation(attestation::Handler),
     Grant(grants::Handler),
@@ -756,6 +758,7 @@ fn declarations() -> impl Iterator<Item = &'static Declaration> {
         .chain(account::COMMANDS)
         .chain(contexts::COMMANDS)
         .chain(configuration::COMMANDS)
+        .chain(inventory::COMMANDS)
         .chain(corporate::COMMANDS)
         .chain(migration::COMMANDS)
         .chain(grants::COMMANDS)
@@ -835,6 +838,7 @@ fn mutability(handler: Handler) -> &'static str {
         Handler::Account(handler) => handler.mutability(),
         Handler::Context(handler) => handler.mutability(),
         Handler::Configuration(handler) => handler.mutability(),
+        Handler::Inventory(handler) => handler.mutability(),
         Handler::Corporate(handler) => handler.mutability(),
         Handler::Migration(handler) => handler.mutability(),
         Handler::Grant(handler) => handler.mutability(),
@@ -943,6 +947,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::Account(handler) => account::dispatch(handler, leaf),
         Handler::Context(handler) => contexts::dispatch(handler, leaf),
         Handler::Configuration(handler) => configuration::dispatch(handler, leaf),
+        Handler::Inventory(handler) => inventory::dispatch(handler, leaf),
         Handler::Corporate(handler) => corporate::dispatch(handler, leaf),
         Handler::Migration(handler) => migration::dispatch(handler, leaf),
         Handler::Grant(handler) => grants::dispatch(handler, leaf),
@@ -962,6 +967,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
             "task_intents": crate::tasks::INTENTS, "supported_harnesses": if cfg!(target_os = "linux") { &config::HARNESSES[..] } else { &[] },
             "configuration_installation": if cfg!(target_os = "linux") { "supported" } else { "unavailable" },
             "native_authoring_harnesses": config::HARNESSES,
+            "native_inventory":{"available":crate::platform::current().is_some(),"coverage":"owned_native_only","foreground_only":true},
             "native_configuration":{"available":crate::platform::current().is_some(),"harnesses":config::HARNESSES,
                 "operations":["plan","prepare","apply","status","cancel","confirm","remove","effective","pending"],
                 "process_handoff":true,"vendor_programs_managed":false,"runtime_loading_observed":false},

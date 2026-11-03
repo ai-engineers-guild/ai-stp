@@ -5,6 +5,7 @@
 
 mod application;
 mod execution;
+mod inventory;
 mod model;
 mod removal;
 mod retained;
@@ -13,6 +14,7 @@ mod tests;
 
 pub use application::{apply_prepared, configuration_status, confirm_session, effective, pending};
 pub use execution::{Reviewed, cancel_preparation};
+pub use inventory::inventory_observation;
 pub use model::{Operation, Plan, Planned, Request};
 pub use removal::create_removal;
 

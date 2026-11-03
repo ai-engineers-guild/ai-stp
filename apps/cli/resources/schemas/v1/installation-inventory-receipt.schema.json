@@ -1,0 +1,51 @@
+{
+  "$id": "urn:ai-stp:schema:v1:installation-inventory-receipt",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "accepted_ids": {
+      "items": {
+        "maxLength": 80,
+        "minLength": 8,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{7,79}$",
+        "type": "string"
+      },
+      "title": "Accepted Ids",
+      "type": "array"
+    },
+    "duplicate_ids": {
+      "items": {
+        "maxLength": 80,
+        "minLength": 8,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{7,79}$",
+        "type": "string"
+      },
+      "title": "Duplicate Ids",
+      "type": "array"
+    },
+    "rejected_ids": {
+      "items": {
+        "maxLength": 80,
+        "minLength": 8,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{7,79}$",
+        "type": "string"
+      },
+      "title": "Rejected Ids",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "accepted_ids",
+    "duplicate_ids",
+    "rejected_ids",
+    "schema_version"
+  ],
+  "title": "InstallationInventoryReceipt",
+  "type": "object"
+}
