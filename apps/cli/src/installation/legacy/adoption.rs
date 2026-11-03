@@ -28,6 +28,8 @@ pub(crate) struct Evidence {
     database: Option<forward::Observation>,
     rights: BTreeMap<String, Ownership>,
 }
+#[cfg(test)]
+mod tests;
 pub(crate) struct Adoption {
     evidence: Evidence,
     root: [u8; 25],
