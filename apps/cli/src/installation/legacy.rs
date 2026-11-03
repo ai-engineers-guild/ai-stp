@@ -216,7 +216,7 @@ mod tests {
 pub(crate) fn marker(target: &Target, custody: &Custody) -> Result<Vec<u8>> {
     let directory = native(target.directory())?;
     let identity = DirectoryIdentity::capture(&directory)?;
-    crate::canonical::bytes(&json!({"schema_version":2,
+    let marker = crate::canonical::bytes(&json!({"schema_version":2,
         "format":"ai-stp-native-custody-fence/1","target":identity,
         "coordinator":custody.physical_identity()?,"phase":"committed",
         "operation_id":"native-custody","operation":"native-custody",
