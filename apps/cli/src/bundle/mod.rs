@@ -6,6 +6,7 @@ pub(crate) mod hosts;
 #[cfg(test)]
 mod native_tests;
 mod package;
+pub mod reader;
 pub mod reports;
 pub mod scopes;
 

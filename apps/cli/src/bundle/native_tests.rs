@@ -106,6 +106,99 @@ fn native_compilation_keeps_exact_payload_and_refusals_without_external_declarat
         .find(|entry| entry.path == "files/AGENTS.md")
         .ok_or("payload absent")?;
     assert_eq!(file.bytes.as_ref(), guidance);
+    let extracted = reader::Package::read_native(
+        &mut store,
+        &bundle.archive,
+        "codex",
+        projection::Scope::Global,
+        &Hosts::new(),
+    )?;
+    assert_eq!(extracted.setup, setup);
+    assert_eq!(extracted.files["AGENTS.md"].bytes, guidance);
+    assert_eq!(extracted.binding.artifact_digest, bundle.artifact_digest);
+    assert!(
+        reader::Package::read_native(
+            &mut store,
+            &bundle.archive,
+            "codex",
+            projection::Scope::Project,
+            &Hosts::new(),
+        )
+        .is_err()
+    );
+    assert!(
+        reader::Package::read_native(
+            &mut store,
+            &bundle.archive,
+            "claude-code",
+            projection::Scope::Global,
+            &Hosts::new(),
+        )
+        .is_err()
+    );
+    let unrelated_host = Hosts::from([("config.toml".into(), Some(b"unowned = true".to_vec()))]);
+    assert!(
+        reader::Package::read_native(
+            &mut store,
+            &bundle.archive,
+            "codex",
+            projection::Scope::Global,
+            &unrelated_host,
+        )
+        .is_err()
+    );
+    for (field, value) in [
+        (
+            "projection_profile",
+            json!({"profile_id":"foreign","profile_digest":digest::sha256(b"foreign"),"target_scope":"global"}),
+        ),
+        ("target_scope", json!("project")),
+        ("component_adaptations", json!([])),
+        ("managed_paths", json!([])),
+        ("input_digest", json!("invalid")),
+    ] {
+        let changed = change_package(&bundle.archive, |manifest, _| {
+            manifest[field] = value;
+            Ok(())
+        })?;
+        // Historical extraction keeps its original data interpretation. A
+        // rehashed manifest is still not native profile/source authority.
+        assert!(reader::Package::read(&changed).is_ok(), "legacy {field}");
+        assert!(
+            reader::Package::read_native(
+                &mut store,
+                &changed,
+                "codex",
+                projection::Scope::Global,
+                &Hosts::new(),
+            )
+            .is_err(),
+            "native {field}"
+        );
+    }
+    let substituted = change_package(&bundle.archive, |manifest, entries| {
+        let entry = entries
+            .iter_mut()
+            .find(|entry| entry.path == "files/AGENTS.md")
+            .ok_or("payload absent")?;
+        entry.bytes = b"Unrelated but self-consistent package bytes.\n"
+            .to_vec()
+            .into();
+        manifest["files"][0]["digest"] = digest::sha256(&entry.bytes).into();
+        manifest["files"][0]["byte_length"] = json!(entry.bytes.len());
+        Ok(())
+    })?;
+    assert!(reader::Package::read(&substituted).is_ok());
+    assert!(
+        reader::Package::read_native(
+            &mut store,
+            &substituted,
+            "codex",
+            projection::Scope::Global,
+            &Hosts::new(),
+        )
+        .is_err()
+    );
     let repeated = compile_native(&mut store, &setup, &target, &evidence, &Hosts::new())?;
     assert_eq!(bundle.archive, repeated.archive);
 
@@ -148,4 +241,31 @@ fn native_compilation_keeps_exact_payload_and_refusals_without_external_declarat
     );
     assert_eq!(std::fs::read(input.join("guide.md"))?, guidance);
     Ok(())
+}
+
+// Construct packages whose internal hashes are valid, so rejection proves the
+// native source/profile checks rather than merely a damaged ZIP or digest.
+fn change_package(
+    bytes: &[u8],
+    change: impl FnOnce(
+        &mut Value,
+        &mut Vec<archive::Entry<'_>>,
+    ) -> std::result::Result<(), Box<dyn std::error::Error>>,
+) -> std::result::Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let limits = archive::Limits {
+        entries: MAX_FILES + 6,
+        file_bytes: MAX_FILE_BYTES,
+        content_bytes: MAX_BYTES,
+        archive_bytes: MAX_BYTES,
+    };
+    let mut entries = archive::decode(bytes, limits)?;
+    let mut manifest = crate::wire::parse(&entries[0].bytes)?;
+    change(&mut manifest, &mut entries)?;
+    manifest
+        .as_object_mut()
+        .ok_or("manifest absent")?
+        .remove("bundle_digest");
+    manifest["bundle_digest"] = digest::canonical("ai-stp:bundle:v1", &manifest)?.into();
+    entries[0].bytes = canonical::bytes(&manifest)?.into();
+    Ok(archive::encode(&entries, limits)?)
 }
