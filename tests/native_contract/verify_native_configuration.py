@@ -18,7 +18,7 @@ from ai_stp_foundation.digests import digest_canonical
 def qualify(binary: Path, root: Path) -> None:
     for name in ("home", "state", "target", "source"):
         (root / name).mkdir()
-    (root / "passwd").write_text("root:x:0:0:Native fixture:/fixture/home:/bin/sh\n")
+    (root / "passwd").write_text("root:x:0:0:Native fixture:/tmp/home:/bin/sh\n")
     (root / "group").write_text("root:x:0:\n")
     (root / "source/guide.md").write_text("# Native guidance\nVerify affected behavior.\n")
     (root / "target/user-note").write_text("unowned file stays\n")
@@ -26,8 +26,8 @@ def qualify(binary: Path, root: Path) -> None:
         "/usr/bin/bwrap", "--unshare-user", "--uid", "0", "--gid", "0",
         "--unshare-pid", "--unshare-net", "--die-with-parent", "--new-session",
         "--ro-bind", "/", "/", "--proc", "/proc", "--dev", "/dev",
-        "--bind", str(root), "/fixture", "--ro-bind", str(root / "passwd"), "/etc/passwd",
-        "--ro-bind", str(root / "group"), "/etc/group", "--chdir", "/fixture",
+        "--ro-bind", str(root / "passwd"), "/etc/passwd", "--ro-bind", str(root / "group"), "/etc/group",
+        "--bind", str(root), "/tmp", "--chdir", "/tmp",
         "--clearenv", "--setenv", "PATH", "", "--setenv", "HOME", "/decoy",
         "--setenv", "USERPROFILE", "/decoy", "--setenv", "XDG_DATA_HOME", "/decoy",
         str(binary),
@@ -35,7 +35,7 @@ def qualify(binary: Path, root: Path) -> None:
 
     def run(*args: str, expected: int = 0) -> dict[str, Any]:
         result = subprocess.run(
-            [*prefix, *args, *([] if args[:2] == ("context", "apply") else ["--state-dir", "/fixture/state"]), "--json"],
+            [*prefix, *args, *([] if args[:2] == ("context", "apply") else ["--state-dir", "/tmp/state"]), "--json"],
             capture_output=True, timeout=60, check=False,
         )
         assert result.returncode == expected, (args, result.stdout.decode(), result.stderr.decode())
@@ -47,7 +47,7 @@ def qualify(binary: Path, root: Path) -> None:
     def enact(data: dict[str, Any], *args: str) -> dict[str, Any]:
         name = f"plan-{len(list(root.glob('plan-*.json')))}.json"
         (root / name).write_text(json.dumps(data["plan"]))
-        return run(*args, "--plan", f"/fixture/{name}", "--plan-digest", data["plan_digest"])
+        return run(*args, "--plan", f"/tmp/{name}", "--plan-digest", data["plan_digest"])
 
     run("init", "--credential-store", "file")
     contexts = []
@@ -55,10 +55,10 @@ def qualify(binary: Path, root: Path) -> None:
         plan = run("context", "create", "plan", "--label", label)
         contexts.append(plan["plan"]["change"]["context"]["context_id"])
         enact(plan, "context", "apply")
-    author_input = {"schema_version": 1, "directory": "/fixture/source", "harness_id": "codex",
+    author_input = {"schema_version": 1, "directory": "/tmp/source", "harness_id": "codex",
                     "component_type": "instruction", "name": "native-fixture", "license_spdx": "MIT"}
     (root / "author.json").write_text(json.dumps(author_input))
-    author = run("task", "start", "--intent", "author", "--idempotency-key", "native-cli-author-fixture-0001", "--input", "/fixture/author.json")
+    author = run("task", "start", "--intent", "author", "--idempotency-key", "native-cli-author-fixture-0001", "--input", "/tmp/author.json")
     assert author["state"] == "completed", author
     setup_id = author["outcome"]["setup_id"]
     version = run("local", "version", "show", "--kind", "setup", "--id", setup_id, "--version", "1.0")
@@ -77,9 +77,9 @@ def qualify(binary: Path, root: Path) -> None:
     assert document is not None, version
     request = {"schema_version": 1, "setup": {"stable_id": setup_id, "version": "1.0",
                "passport_digest": digest_canonical("ai-stp:passport:v1", document)},
-               "harness_id": "codex", "operation": "install", "roots": {"global": "/fixture/target"}}
+               "harness_id": "codex", "operation": "install", "roots": {"global": "/tmp/target"}}
     (root / "request.json").write_text(json.dumps(request))
-    reviewed = run("configuration", "plan", "--context", contexts[0], "--input", "/fixture/request.json")
+    reviewed = run("configuration", "plan", "--context", contexts[0], "--input", "/tmp/request.json")
     assert not (root / "target/AGENTS.md").exists()
     operation, digest = reviewed["plan"]["operation_id"], reviewed["plan_digest"]
     prepared = enact(reviewed, "configuration", "prepare")
