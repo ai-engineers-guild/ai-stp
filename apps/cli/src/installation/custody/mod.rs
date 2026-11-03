@@ -103,6 +103,15 @@ impl Custody {
     }
     /// Join the one OS-user coordinator, independently of state, HOME and XDG
     /// selectors. This explicitly initializes only private operational metadata.
+    /// Inspect existing OS-user state without creating its namespace.
+    pub fn existing_user() -> Result<Option<Self>> {
+        let Some((path, namespace)) = placement::existing()? else {
+            return Ok(None);
+        };
+        let mut custody = Self::open(&path)?;
+        custody._namespace = Some(namespace);
+        Ok(Some(custody))
+    }
     pub fn open_user() -> Result<Self> {
         let (path, namespace) = placement::initialize()?;
         let mut custody = Self::open(&path)?;
