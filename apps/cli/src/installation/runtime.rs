@@ -181,19 +181,36 @@ pub fn apply(root: &Path, operation: &str, digest: &str, at: &str) -> Result<Val
     planning::apply_prepared(root, &mut Custody::open_user()?, operation, digest, at)
 }
 pub fn status(root: &Path, operation: &str, digest: &str) -> Result<Value> {
-    planning::configuration_status(root, &Custody::open_user()?, operation, digest)
+    planning::configuration_status(root, &existing()?, operation, digest)
 }
 pub fn cancel(root: &Path, operation: &str, digest: &str, at: &str) -> Result<Value> {
     planning::cancel_preparation(root, &mut Custody::open_user()?, operation, digest, at)
 }
 pub fn confirm(root: &Path, operation: &str, digest: &str, at: &str) -> Result<Value> {
-    planning::confirm_session(root, &Custody::open_user()?, operation, digest, at)
+    planning::confirm_session(root, &existing()?, operation, digest, at)
 }
 
 pub fn effective(root: &Path, context: Option<&str>) -> Result<Value> {
     let context = contexts::resolve(root, context)?;
-    planning::effective(root, &Custody::open_user()?, &context)
+    let Some(custody) = Custody::existing_user()? else {
+        return Ok(
+            json!({"context_id":context.context_id,"setups":[],"authorization_granted":false}),
+        );
+    };
+    planning::effective(root, &custody, &context)
 }
 pub fn pending(root: &Path) -> Result<Value> {
-    planning::pending(root, &Custody::open_user()?)
+    let Some(custody) = Custody::existing_user()? else {
+        return Ok(json!({"pending":null,"other_state_pending":false}));
+    };
+    planning::pending(root, &custody)
+}
+
+fn existing() -> Result<Custody> {
+    Custody::existing_user()?.ok_or_else(|| {
+        Failure::new(
+            crate::error::ErrorKind::NotFound,
+            "this OS user has no native configuration operations",
+        )
+    })
 }

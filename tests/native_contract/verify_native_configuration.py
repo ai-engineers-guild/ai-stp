@@ -79,6 +79,9 @@ def qualify(binary: Path, root: Path) -> None:
                "passport_digest": digest_canonical("ai-stp:passport:v1", document)},
                "harness_id": "codex", "operation": "install", "roots": {"global": "/tmp/target"}}
     (root / "request.json").write_text(json.dumps(request))
+    assert not run("configuration", "native", "effective", "--context", contexts[0])["setups"]
+    assert run("configuration", "native", "pending")["pending"] is None
+    assert not (root / "home/.local/share/ai-stp-custody").exists()
     reviewed = run("configuration", "native", "plan", "--context", contexts[0], "--input", "/tmp/request.json")
     assert not (root / "target/AGENTS.md").exists()
     operation, digest = reviewed["plan"]["operation_id"], reviewed["plan_digest"]
@@ -106,6 +109,7 @@ def qualify(binary: Path, root: Path) -> None:
     assert (root / "target/.codex-setup-system/journal.json").is_file()
     assert run("context", "list")["selected"]["context_id"] == contexts[1]
     assert not run("configuration", "native", "effective", "--context", contexts[0])["setups"]
+    assert (root / "home/.local/share/ai-stp-custody").is_dir()
     assert not (root / "home/.local/share/ai-stp-custody").is_symlink()
     print(json.dumps({"native_cli_lifecycle": "passed", "original_context": True,
                       "offline_os_user_namespace": True, "unowned_preserved": True}))
