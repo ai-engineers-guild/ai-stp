@@ -248,12 +248,26 @@ mod tests {
         assert!(!busy.status.success());
         assert!(std::str::from_utf8(&busy.stderr)?.contains("lock"));
         assert!(!target.root().join("AGENTS.md").exists());
-        // This small writer fixture prepares after coordination directories
-        // exist. Production stages first and takes these locks before apply.
-        publish(&target, &review(&target, &custody)?)?;
         held.revalidate()?;
         drop(held);
-        let output = run()?;
+        // The human SDK may create its own empty control layout before trying
+        // the lock. Preserve it; use a separate untouched target to prove the
+        // permanent journal barrier rather than treating it as native custody.
+        let (_fenced, target, custody) = fixture()?;
+        publish(&target, &review(&target, &custody)?)?;
+        let output = crate::process::run(crate::process::Request {
+            executable: std::path::Path::new(&binary),
+            arguments: &[
+                "install".into(),
+                "minimal".into(),
+                "--target".into(),
+                target.root().as_os_str().into(),
+            ],
+            directory: target.root(),
+            environment: &[("PATH".into(), "".into())],
+            timeout: std::time::Duration::from_secs(10),
+            output_limit: 65536,
+        })?;
         assert!(!output.status.success());
         let stderr = std::str::from_utf8(&output.stderr)?;
         assert!(stderr.contains("journal schema 2"), "{stderr}");
