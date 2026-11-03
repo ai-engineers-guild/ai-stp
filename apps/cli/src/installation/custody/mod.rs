@@ -3,8 +3,10 @@
 //! This coordinator stores metadata and verifies actual file values. The native
 //! runtime separately owns authorization, handoff and the configuration writer.
 
+mod effects;
 mod model;
 mod placement;
+mod publications;
 #[cfg(test)]
 mod tests;
 use crate::{
@@ -47,6 +49,18 @@ fn state_digest(value: &Snapshot) -> Result<String> {
         "ai-stp:installation-operation:v1",
         &serde_json::to_value(value).map_err(|_| invalid())?,
     )
+}
+
+fn claim_id(operation: &str, address: &model::Address, ownership: &Ownership) -> Result<String> {
+    let fingerprint = digest::canonical(
+        "ai-stp:installation-operation:v1",
+        &json!({
+            "kind":"native.physical_claim","operation_id":operation,"address":address,"ownership":ownership,
+        }),
+    )?;
+    let id = u128::from_str_radix(fingerprint.get(7..39).ok_or_else(invalid)?, 16)
+        .map_err(|_| invalid())?;
+    Ok(format!("claim_{}", ulid::Ulid::from(id)))
 }
 
 pub struct Custody {
@@ -246,7 +260,11 @@ impl Custody {
                         return Err(invalid());
                     }
                     after.entries.push(Entry {
-                        id: format!("claim_{}", ulid::Ulid::generate()),
+                        id: claim_id(
+                            &operation_id,
+                            &desired.observed.address,
+                            &desired.observed.locator.ownership,
+                        )?,
                         address: desired.observed.address.clone(),
                         ownership: desired.observed.locator.ownership.clone(),
                         value: desired.value.clone(),
@@ -291,6 +309,7 @@ impl Custody {
             after,
             effects,
             native_plan: None,
+            publications: None,
         };
         review.digest()?;
         Ok(review)

@@ -487,3 +487,262 @@ fn drift_after_preparation_cannot_start_the_original_custody_publication()
     assert_eq!(claim_count(&custody)?, 0);
     Ok(())
 }
+
+fn native_admission(review: &Review) -> Result<forward::Admission> {
+    Ok(forward::Admission {
+        operation_id: review.operation_id.clone(),
+        plan_digest: review.digest()?,
+        operation: "replace".into(),
+        target_precondition_digest: review.before_digest.clone(),
+        target_scope: Some("project".into()),
+    })
+}
+fn publish_review(
+    custody: &mut Custody,
+    target: &Target,
+    review: &Review,
+    desired: &BTreeMap<String, forward::Content>,
+) -> Result<()> {
+    let changes = review.configuration_changes(target, desired)?;
+    custody.prepare(review, &review.digest()?)?;
+    let admission = native_admission(review)?;
+    let mut writer = native(Writer::acquire(target, ".native-fixture"))?;
+    native(writer.prepare(&admission, &review.value()?, &changes))?;
+    custody.start(review)?;
+    native(writer.start(&admission))?;
+    native(writer.apply(&admission))?;
+    native(writer.finish(&admission, &[], &json!({"state":"completed"})))?;
+    native(writer.apply(&admission))?;
+    native(writer.complete(&admission))?;
+    custody.complete(review)?;
+    Ok(())
+}
+
+#[test]
+fn real_writer_recovers_reviewed_files_and_preserves_unowned_host_bytes()
+-> std::result::Result<(), Box<dyn Error>> {
+    let (_temporary, metadata, path) = fixture()?;
+    let target = target(&path)?;
+    let original =
+        b"{\n // Keep this owner comment.\n \"unowned\":{\"value\":\"private-canary\"}\n}\n";
+    put(&path.join("config.jsonc"), original)?;
+    // The adapter must derive rights from the review, not from other fields
+    // present in incoming assembled bytes.
+    let incoming=br#"{"unowned":{"value":"must-not-replace"},"mcpServers":{"review":{"command":"review-helper"}}}"#;
+    let mut custody = Custody::open(&metadata)?;
+    let review = custody.review(
+        operation(),
+        &[Change {
+            subject: subject("original-native-context", &target)?,
+            desired: vec![
+                desired(&target, b"reviewed guidance")?,
+                Desired::capture(
+                    &target,
+                    "config.jsonc",
+                    Ownership::Contribution {
+                        parser_id: "json/1".into(),
+                        key: "mcpServers".into(),
+                    },
+                    incoming,
+                    0o600,
+                    source(),
+                )?,
+            ],
+        }],
+    )?;
+    let desired = BTreeMap::from([
+        (
+            "AGENTS.md".into(),
+            native(forward::Content::new(b"reviewed guidance".to_vec(), 0o600))?,
+        ),
+        (
+            "config.jsonc".into(),
+            native(forward::Content::new(incoming.to_vec(), 0o600))?,
+        ),
+    ]);
+    let changes = review.configuration_changes(&target, &desired)?;
+    assert_eq!(changes.len(), 2);
+    let bound = review.clone().bind_publications(&[(&target, &changes)])?;
+    bound.verify_publications(&target, &changes)?;
+    assert_ne!(bound.digest()?, review.digest()?);
+    let mut changed = changes.clone();
+    changed[0]
+        .after
+        .as_mut()
+        .ok_or("desired content")?
+        .bytes
+        .push(b'!');
+    assert!(bound.verify_publications(&target, &changed).is_err());
+    let retained = Review::parse(&serde_json::to_vec(&bound.value()?)?, &bound.digest()?)?;
+    retained.verify_publications(&target, &changes)?;
+    custody.prepare(&review, &review.digest()?)?;
+    let admission = native_admission(&review)?;
+    {
+        let mut writer = native(Writer::acquire(&target, ".native-fixture"))?;
+        native(writer.prepare(&admission, &review.value()?, &changes))?;
+        custody.start(&review)?;
+        native(writer.start(&admission))?;
+        let mut calls = 0;
+        let interrupted = writer.apply_checked(&admission, || {
+            calls += 1;
+            if calls == 2 {
+                return Err(crate::installation::Error::new(
+                    crate::installation::ReasonCode::StateUnavailable,
+                    "fixture: current authority unavailable",
+                ));
+            }
+            Ok(())
+        });
+        assert!(interrupted.is_err());
+        assert_eq!(calls, 2);
+    }
+    assert_eq!(std::fs::read(path.join("AGENTS.md"))?, b"reviewed guidance");
+    assert_eq!(std::fs::read(path.join("config.jsonc"))?, original);
+    drop(custody);
+    let mut custody = Custody::open(&metadata)?;
+    let recovered = custody.pending()?.ok_or("original custody review")?;
+    assert_eq!(recovered.digest()?, review.digest()?);
+    let mut writer = native(Writer::acquire(&target, ".native-fixture"))?;
+    let (held, context) = native(writer.pending())?.ok_or("original desired payload")?;
+    assert_eq!(held, admission);
+    assert_eq!(context, recovered.value()?);
+    native(writer.apply_checked(&admission, || Ok(())))?;
+    native(writer.finish(&admission, &[], &json!({"state":"completed"})))?;
+    native(writer.apply(&admission))?;
+    native(writer.complete(&admission))?;
+    let receipt = custody.complete(&recovered)?;
+    let host = std::fs::read(path.join("config.jsonc"))?;
+    let text = std::str::from_utf8(&host)?;
+    assert!(text.contains("Keep this owner comment."));
+    assert!(text.contains("private-canary"));
+    assert!(!text.contains("must-not-replace"));
+    assert!(text.contains("review-helper"));
+    assert_eq!(claim_count(&custody)?, 2);
+    assert_eq!(custody.complete(&recovered)?, receipt);
+    assert_eq!(std::fs::read(path.join("config.jsonc"))?, host);
+    Ok(())
+}
+
+#[test]
+fn structured_key_replacement_and_last_withdrawal_use_the_real_native_writer()
+-> std::result::Result<(), Box<dyn Error>> {
+    use crate::authoring::contribution::{self, Format};
+    for (file, original, old, incoming) in [
+        (
+            "config.jsonc",
+            b"{\n // Keep this owner comment.\n \"unowned\":{\"value\":\"private-canary\"}\n}\n"
+                .as_slice(),
+            br#"{"mcpServers":{"review":{"command":"review-helper"}}}"#.as_slice(),
+            br#"{"hooks":{"ready":{}},"unowned":{"value":"must-not-replace"}}"#.as_slice(),
+        ),
+        (
+            "config.toml",
+            b"# Keep this owner comment.\n[unowned]\nvalue='private-canary'\n".as_slice(),
+            b"[mcpServers.review]\ncommand='review-helper'\n".as_slice(),
+            b"[hooks.ready]\n[unowned]\nvalue='must-not-replace'\n".as_slice(),
+        ),
+    ] {
+        let (_temporary, metadata, path) = fixture()?;
+        let target = target(&path)?;
+        put(&path.join(file), original)?;
+        let mut custody = Custody::open(&metadata)?;
+        let subject = subject("original-native-context", &target)?;
+        let kind = |key: &str| Ownership::Contribution {
+            parser_id: if file.ends_with("toml") {
+                "toml/1"
+            } else {
+                "json/1"
+            }
+            .into(),
+            key: key.into(),
+        };
+        let initial = custody.review(
+            operation(),
+            &[Change {
+                subject: subject.clone(),
+                desired: vec![Desired::capture(
+                    &target,
+                    file,
+                    kind("mcpServers"),
+                    old,
+                    0o600,
+                    source(),
+                )?],
+            }],
+        )?;
+        publish_review(
+            &mut custody,
+            &target,
+            &initial,
+            &BTreeMap::from([(
+                file.into(),
+                native(forward::Content::new(old.to_vec(), 0o600))?,
+            )]),
+        )?;
+        let replace = custody.review(
+            operation(),
+            &[Change {
+                subject: subject.clone(),
+                desired: vec![Desired::capture(
+                    &target,
+                    file,
+                    kind("hooks"),
+                    incoming,
+                    0o600,
+                    source(),
+                )?],
+            }],
+        )?;
+        publish_review(
+            &mut custody,
+            &target,
+            &replace,
+            &BTreeMap::from([(
+                file.into(),
+                native(forward::Content::new(incoming.to_vec(), 0o600))?,
+            )]),
+        )?;
+        let host = std::fs::read(path.join(file))?;
+        let format = Format::for_path(file)?;
+        assert!(contribution::extract(format, &host, "mcpServers").is_err());
+        assert!(contribution::extract(format, &host, "hooks").is_ok());
+        assert!(std::str::from_utf8(&host)?.contains("private-canary"));
+        assert!(!std::str::from_utf8(&host)?.contains("must-not-replace"));
+        let remove = custody.review(
+            operation(),
+            &[Change {
+                subject,
+                desired: vec![],
+            }],
+        )?;
+        publish_review(&mut custody, &target, &remove, &BTreeMap::new())?;
+        let final_host = std::fs::read(path.join(file))?;
+        assert!(contribution::extract(format, &final_host, "hooks").is_err());
+        assert!(std::str::from_utf8(&final_host)?.contains("Keep this owner comment."));
+        assert!(std::str::from_utf8(&final_host)?.contains("private-canary"));
+        assert_eq!(claim_count(&custody)?, 0);
+    }
+    Ok(())
+}
+
+#[test]
+fn repeating_an_unchanged_native_review_preserves_the_exact_digest()
+-> std::result::Result<(), Box<dyn Error>> {
+    let (_temporary, metadata, path) = fixture()?;
+    let target = target(&path)?;
+    let custody = Custody::open(&metadata)?;
+    let operation = operation();
+    let build = || {
+        custody.review(
+            operation.clone(),
+            &[Change {
+                subject: subject("original-context", &target)?,
+                desired: vec![desired(&target, b"exact native guidance")?],
+            }],
+        )
+    };
+    assert_eq!(build()?.value()?, build()?.value()?);
+    assert_eq!(build()?.digest()?, build()?.digest()?);
+    assert!(std::fs::read_dir(&path)?.next().is_none());
+    Ok(())
+}
