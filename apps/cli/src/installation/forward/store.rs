@@ -333,6 +333,19 @@ impl Store {
         Ok(())
     }
 
+    pub(super) fn active_admission(&self) -> Result<Option<Admission>> {
+        self.scope.validate()?;
+        let row = sql(self
+            .db
+            .query_row(
+                "SELECT admission FROM operations WHERE active=1",
+                [],
+                |row| row.get::<_, Vec<u8>>(0),
+            )
+            .optional())?;
+        row.map(|bytes| decode(&bytes)).transpose()
+    }
+
     pub(super) fn has_active(&self) -> Result<bool> {
         sql(self.db.query_row(
             "SELECT EXISTS(SELECT 1 FROM operations WHERE active=1)",
