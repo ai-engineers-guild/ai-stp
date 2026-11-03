@@ -171,3 +171,11 @@ pub fn cancel(root: &Path, operation: &str, digest: &str, at: &str) -> Result<Va
 pub fn confirm(root: &Path, operation: &str, digest: &str, at: &str) -> Result<Value> {
     planning::confirm_session(root, &Custody::open_user()?, operation, digest, at)
 }
+
+pub fn effective(root: &Path, context: Option<&str>) -> Result<Value> {
+    let context = contexts::resolve(root, context)?;
+    planning::effective(root, &Custody::open_user()?, &context)
+}
+pub fn pending(root: &Path) -> Result<Value> {
+    planning::pending(root, &Custody::open_user()?)
+}

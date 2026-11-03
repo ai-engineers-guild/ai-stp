@@ -243,3 +243,46 @@ pub fn confirm_session(
     result["kind"] = "native.configuration.confirmed".into();
     plan.transition(root, expected, "confirmed", &result, at)
 }
+
+/// Current references, scoped to the requested original saved context.
+pub fn effective(
+    root: &Path,
+    custody: &Custody,
+    context: &crate::account::contexts::Context,
+) -> Result<Value> {
+    let mut setups = Vec::new();
+    for operation in custody.current_operations()? {
+        let Some(review) = custody.retained(&operation)? else {
+            continue;
+        };
+        let Some(plan) = review.original_plan()? else {
+            continue;
+        };
+        if plan.state.path != root || plan.context.context_id != context.context_id {
+            continue;
+        }
+        let (state, receipt) = plan.native_state(root, &review.digest()?)?;
+        setups.push(json!({"operation_id":operation,"plan_digest":review.digest()?,"setup":plan.setup,
+            "harness_id":plan.target.harness_id,"context_id":plan.context.context_id,
+            "roots":plan.roots.iter().map(|(scope,root)|Ok((scope.as_str(),value(&root.directory)?))).collect::<Result<BTreeMap<_,_>>>()?,
+            "state":state,"receipt":receipt,
+            "ownership_state":if custody.verify_operation(&plan.operation_id).is_ok(){"matching"}else{"drifted_or_unavailable"},
+            "load_state":"not_observed"}));
+    }
+    Ok(json!({"context_id":context.context_id,"setups":setups,"authorization_granted":false}))
+}
+/// Recover the original active operation without a caller plan file.
+pub fn pending(root: &Path, custody: &Custody) -> Result<Value> {
+    let Some(review) = custody.pending()? else {
+        return Ok(json!({"pending":null,"other_state_pending":false}));
+    };
+    let plan = review.original_plan()?.ok_or_else(invalid)?;
+    if plan.state.path != root {
+        return Ok(json!({"pending":null,"other_state_pending":true}));
+    }
+    Ok(
+        json!({"pending":{"operation_id":plan.operation_id,"plan_digest":review.digest()?,
+        "original_context":value(&plan.context)?,"setup":plan.setup,"harness_id":plan.target.harness_id,
+        "custody":custody.status(&review)?},"other_state_pending":false}),
+    )
+}

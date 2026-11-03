@@ -11,7 +11,7 @@ mod retained;
 #[cfg(test)]
 mod tests;
 
-pub use application::{apply_prepared, configuration_status, confirm_session};
+pub use application::{apply_prepared, configuration_status, confirm_session, effective, pending};
 pub use execution::{Reviewed, cancel_preparation};
 pub use model::{Operation, Plan, Planned, Request};
 pub use removal::create_removal;

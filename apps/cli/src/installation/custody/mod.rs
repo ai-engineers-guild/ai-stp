@@ -156,6 +156,44 @@ impl Custody {
             json!({"revision":snapshot.revision,"claims":snapshot.entries,"authorization_granted":false}),
         )
     }
+    pub fn current_operations(&self) -> Result<BTreeSet<String>> {
+        Ok(self
+            .snapshot()?
+            .entries
+            .iter()
+            .flat_map(|entry| {
+                entry
+                    .references
+                    .values()
+                    .filter_map(|reference| reference.operation_id.clone())
+            })
+            .collect())
+    }
+    pub fn verify_operation(&self, operation: &str) -> Result<()> {
+        let snapshot = self.snapshot()?;
+        let mut found = false;
+        for entry in &snapshot.entries {
+            for reference in entry
+                .references
+                .values()
+                .filter(|r| r.operation_id.as_deref() == Some(operation))
+            {
+                found = true;
+                let observed = reference.locator.observe()?;
+                if observed.value.as_ref() != Some(&entry.value)
+                    || (matches!(entry.ownership, Ownership::Whole)
+                        && entry.address.file != observed.address.file)
+                {
+                    return Err(invalid());
+                }
+            }
+        }
+        if !found {
+            return Err(invalid());
+        }
+        Ok(())
+    }
+
     pub fn origin_operations(&self, subjects: &[Subject]) -> Result<BTreeSet<String>> {
         let snapshot = self.snapshot()?;
         let mut operations = BTreeSet::new();

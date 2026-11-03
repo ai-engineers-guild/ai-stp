@@ -17,12 +17,14 @@ pub(super) enum Handler {
     Cancel,
     Confirm,
     RemovePlan,
+    Effective,
+    Pending,
 }
 impl Handler {
     pub fn mutability(self) -> &'static str {
         match self {
             Self::Plan | Self::RemovePlan => "plan",
-            Self::Status => "read",
+            Self::Status | Self::Effective | Self::Pending => "read",
             _ => "apply",
         }
     }
@@ -40,6 +42,26 @@ const DIGEST: Parameter = Parameter {
     required: true,
 };
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["configuration", "effective"],
+        summary: "Read current owned setup references and drift for one saved context without manufacturing runtime health.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "context",
+                summary: "Saved context ID; omission uses the current selected preference for this read only.",
+                kind: ParameterType::String,
+                required: false,
+            },
+        ],
+        handler: super::Handler::Configuration(Handler::Effective),
+    },
+    Declaration {
+        path: &["configuration", "pending"],
+        summary: "Recover the original active native operation and digest after losing caller files or replies.",
+        parameters: &[STATE_DIR],
+        handler: super::Handler::Configuration(Handler::Pending),
+    },
     Declaration {
         path: &["configuration", "plan"],
         summary: "Review an exact setup through the native engine and original saved context without changing harness files.",
@@ -120,6 +142,10 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
     let root = path("state-dir")?;
     let at = format!("{:.3}", jiff::Timestamp::now());
     match handler {
+        Handler::Effective => {
+            runtime::effective(root, args.get_one::<String>("context").map(String::as_str))
+        }
+        Handler::Pending => runtime::pending(root),
         Handler::Plan => runtime::plan(
             root,
             args.get_one::<String>("context").map(String::as_str),
