@@ -190,6 +190,34 @@ mod tests {
         assert!(!target.control_directory().exists());
         Ok(())
     }
+    #[test]
+    fn busy_legacy_writer_refuses_before_publication_and_empty_coordination_can_retry()
+    -> std::result::Result<(), Box<dyn Error>> {
+        let (_temporary, target, custody) = fixture()?;
+        let control = target.root().join(".codex-setup-system");
+        std::fs::create_dir(&control)?;
+        let writer = crate::installation::lock::TargetLock::acquire(&control)?;
+        assert!(Locks::acquire(&target, &custody, None).is_err());
+        assert!(!target.root().join("AGENTS.md").exists());
+        assert!(!control.join("journal.json").exists());
+        drop(writer);
+        let held = Locks::acquire(&target, &custody, None)?;
+        held.revalidate()?;
+        assert_eq!(review(&target, &custody)?.len(), 7);
+        drop(held);
+        std::fs::write(
+            control.join("original-receipt"),
+            b"unknown external custody",
+        )?;
+        assert!(Locks::acquire(&target, &custody, None).is_err());
+        assert!(review(&target, &custody).is_err());
+        assert_eq!(
+            std::fs::read(control.join("original-receipt"))?,
+            b"unknown external custody"
+        );
+        Ok(())
+    }
+
     #[cfg(target_os = "linux")]
     #[test]
     #[ignore = "requires an independently verified published external Codex setup component"]
@@ -215,7 +243,15 @@ mod tests {
                 output_limit: 65536,
             })
         };
-        publish(&target, &review(&target, &custody)?)?;
+        let changes = review(&target, &custody)?;
+        let held = Locks::acquire(&target, &custody, None)?;
+        let busy = run()?;
+        assert!(!busy.status.success());
+        assert!(std::str::from_utf8(&busy.stderr)?.contains("lock"));
+        assert!(!target.root().join("AGENTS.md").exists());
+        publish(&target, &changes)?;
+        held.revalidate()?;
+        drop(held);
         let output = run()?;
         assert!(!output.status.success());
         let stderr = std::str::from_utf8(&output.stderr)?;
