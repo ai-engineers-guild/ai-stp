@@ -78,8 +78,17 @@ impl Locks {
             } else if !lock_only(target, &control, name)? {
                 return Err(invalid());
             }
+            #[cfg(unix)]
+            control
+                .open(".")
+                .and_then(|file| file.sync_all())
+                .map_err(|_| invalid())?;
             held.push(lock);
         }
+        #[cfg(unix)]
+        root.open(".")
+            .and_then(|file| file.sync_all())
+            .map_err(|_| invalid())?;
         let locks = Self { held };
         locks.revalidate()?;
         Ok(locks)
