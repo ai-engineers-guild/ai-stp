@@ -88,10 +88,15 @@ fn parent() -> Result<(PathBuf, Vec<&'static str>)> {
     }
     #[cfg(windows)]
     {
+        // An explicit token makes shell expansion use the account profile,
+        // rather than environment strings inherited by this process.
+        let token = winsafe::HPROCESS::GetCurrentProcess()
+            .OpenProcessToken(winsafe::co::TOKEN::QUERY | winsafe::co::TOKEN::IMPERSONATE)
+            .map_err(|_| invalid())?;
         let path = winsafe::SHGetKnownFolderPath(
             &winsafe::co::KNOWNFOLDERID::LocalAppData,
             winsafe::co::KF::DEFAULT,
-            None,
+            Some(&token),
         )
         .map_err(|_| invalid())?;
         Ok((
