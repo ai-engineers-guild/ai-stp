@@ -365,6 +365,8 @@ pub(super) struct Effect {
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Review {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) missing_retirement: Option<serde_json::Value>,
     pub(super) format: String,
     pub(super) operation_id: String,
     pub(super) before_digest: String,
@@ -380,6 +382,17 @@ pub struct Review {
 }
 impl Review {
     pub fn digest(&self) -> Result<String> {
+        if let Some(data) = &self.missing_retirement {
+            crate::installation::planning::retirement::validate(data)?;
+            if self.native_plan.is_some()
+                || self.activation.is_some()
+                || self.publications.is_some()
+                || self.legacy_adoptions.is_some()
+                || !self.effects.is_empty()
+            {
+                return Err(invalid());
+            }
+        }
         if let Some(proofs) = &self.legacy_adoptions {
             if proofs.is_empty() || proofs.len() > 3 {
                 return Err(invalid());
@@ -437,6 +450,12 @@ impl Review {
             "ai-stp:installation-operation:v1",
             &serde_json::to_value(self).map_err(|_| invalid())?,
         )
+    }
+    pub(crate) fn retirement(&self) -> Option<&serde_json::Value> {
+        self.missing_retirement.as_ref()
+    }
+    pub(crate) fn operation_id(&self) -> &str {
+        &self.operation_id
     }
     /// Original data only: reading it neither opens a root nor grants authority.
     pub fn original_plan(&self) -> Result<Option<crate::installation::planning::Plan>> {

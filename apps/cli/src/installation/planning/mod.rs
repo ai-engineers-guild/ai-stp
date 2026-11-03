@@ -9,6 +9,7 @@ mod inventory;
 mod model;
 mod removal;
 mod retained;
+pub(crate) mod retirement;
 #[cfg(test)]
 mod tests;
 
