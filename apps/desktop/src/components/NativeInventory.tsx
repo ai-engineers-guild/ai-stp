@@ -70,7 +70,7 @@ export default function NativeInventory({context}: {context: ContextView}) {
       Reports run only when you request them.
     </p>
     <p className="mt-3 text-sm">Local consent: {status?.ok ? enabled ? "enabled" : "disabled" : "unavailable"} · {context.label}</p>
-    {status?.data?.pending_digest && <p className="mt-2 text-sm">An exact report is waiting for delivery. Retry delivery before collecting another report.</p>}
+    {Boolean(status?.data?.pending_digest) && <p className="mt-2 text-sm">An exact report is waiting for delivery. Retry delivery before collecting another report.</p>}
     <div className="mt-4 flex flex-wrap gap-3">
       <button className="btn-secondary" disabled={busy} onClick={() => void refresh(context.id)}>Read consent</button>
       {!enabled && <button className="btn-primary" disabled={busy} onClick={() => void disclose()}>Review inventory consent</button>}

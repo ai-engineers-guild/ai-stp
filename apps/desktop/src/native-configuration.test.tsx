@@ -14,7 +14,7 @@ import { useContexts } from "./contexts";
 import { useApp } from "./store";
 import * as transport from "./transport";
 import type { CmdResult } from "./transport";
-import { confirmationCommand, nativeReview } from "./nativeConfiguration";
+import { confirmationCommand, nativeReview, nativeStatus } from "./nativeConfiguration";
 vi.mock("./transport", () => ({
   cmdRunRead: vi.fn(),
   cliPlan: vi.fn(),
@@ -215,4 +215,24 @@ it("copies the raw original state spelling rather than a normalized display path
       ok({ plan: { ...plan, operation_id: "other" }, plan_digest: DIGEST }),
     ),
   ).toBeNull();
+});
+
+it("opens the exact original status after restart and preserves the no-restart receipt", () => {
+  const receipt = {operation_id:OP,review_digest:DIGEST,original_context:context,harness_id:"codex",restart_required:false};
+  const response = ok({operation_id:OP,review_digest:DIGEST,original_context:context,state:"configured",receipt});
+  const original = nativeStatus(response);
+  expect(original?.context).toBe(A);
+  expect(original?.restartRequired).toBe(false);
+  expect(confirmationCommand(original!,"linux")).toContain("'/original state'");
+  expect(nativeStatus(ok({...response.data,receipt:{...receipt,operation_id:"operation_other"}}))).toBeNull();
+});
+it("takes an exact catalog selection into native adoption review", async () => {
+  vi.mocked(transport.cmdNativeConfigurationPlan).mockResolvedValue(reviewed);
+  render(<MemoryRouter initialEntries={["/targets?setup=setup_selected&version=2.0&digest="+DIGEST+"&harness=codex"]}><TargetsPage /></MemoryRouter>);
+  fireEvent.change(screen.getByLabelText("Global configuration folder"), {target:{value:"/fixture/config"}});
+  fireEvent.change(screen.getByLabelText("Change"), {target:{value:"adopt"}});
+  fireEvent.click(screen.getByRole("button",{name:"Review setup"}));
+  await waitFor(() => expect(transport.cmdNativeConfigurationPlan).toHaveBeenCalledWith(A,expect.objectContaining({
+    setup:{stable_id:"setup_selected",version:"2.0",passport_digest:DIGEST},operation:"adopt",
+  })));
 });
