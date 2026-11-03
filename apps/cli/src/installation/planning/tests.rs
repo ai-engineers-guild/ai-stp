@@ -314,3 +314,100 @@ fn original_context_survives_selection_and_restart_while_expired_admission_refus
     assert!(std::fs::read_dir(&target)?.next().is_none());
     Ok(())
 }
+
+#[test]
+fn assignment_observations_freeze_exact_policy_without_becoming_execution_grants()
+-> std::result::Result<(), Box<dyn Error>> {
+    use crate::account::access::Binding;
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().canonicalize()?;
+    let organization = json!({"schema_version":1,"organization_id":"organization_01ARZ3NDEKTSV4RRFFQ69G5FAV","kind":"corporate","display_name":"Company","membership_revision":1});
+    let account = Binding {
+        origin: "https://company.example".into(),
+        account_id: actor().account_id,
+        device_id: actor().device_id,
+        revision: "operation_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
+        root_identity: ["0".into(), "0".into()],
+        public_key: "fixture-public-key".into(),
+        credential_store: crate::identity::Storage::OsKeyring,
+        connection: None,
+    };
+    let observation = json!({"schema_version":1,"mode":"corporate","organization_id":organization["organization_id"],
+        "capabilities":{"schema_version":1,"registry_version":2,"mode":"corporate","context_kind":"corporate","organization_id":organization["organization_id"],
+        "authorization_revision":"corporate:fixture:1","issued_at":AT,"generated_at":AT,"expires_at":"2026-11-03T01:00:00.000Z","capabilities":["organization.read","assignment.read","project.read"],"unavailable":{}}});
+    let mut context = context(&root, actor());
+    context.authority = Authority::Remote {
+        account: Box::new(account.clone()),
+        organization: organization.clone(),
+        observation: observation.clone(),
+    };
+    context.digest()?;
+    let setup = json!({"stable_id":"setup_01ARZ3NDEKTSV4RRFFQ69G5FAV","version":"1.0","passport_digest":digest::sha256(b"exact-setup")});
+    let link = json!({"organization_id":organization["organization_id"],"remote_project_id":"remote_project_01ARZ3NDEKTSV4RRFFQ69G5FAV"});
+    let item = json!({"object_kind":"setup","stable_id":setup["stable_id"],"state":"assigned","action":"install","outcome":"missing", "harness":"codex",
+        "version":setup["version"],"passport_digest":setup["passport_digest"],"assignment_id":"assignment-fixture"});
+    let assigned = json!({"context":context,"account":account,"organization":organization,"observation":observation,"online_verified":true,"observation_only":true,"installation_authority":false,
+        "data":{"organization_id":link["organization_id"],"project_id":link["remote_project_id"],"account_id":account.account_id,"harness":"codex","technology_id":null,"items":[item],"total":1}});
+    let linked = assigned.clone();
+    let proof = assignment(&context, &link, &linked, &assigned, "codex", &setup)?;
+    assert_eq!(proof.0.as_deref(), Some("assignment-fixture"));
+    let mut refreshed = assigned.clone();
+    refreshed["account"]["revision"] = "operation_01ARZ3NDEKTSV4RRFFQ69G5FAW".into();
+    refreshed["observation"]["capabilities"]["generated_at"] = "2026-11-03T00:01:00.000Z".into();
+    refreshed["observation"]["capabilities"]["issued_at"] = "2026-11-03T00:01:00.000Z".into();
+    assert_eq!(
+        assignment(&context, &link, &linked, &refreshed, "codex", &setup)?,
+        proof
+    );
+    for altered in [
+        {
+            let mut v = assigned.clone();
+            v["data"]["items"][0]["passport_digest"] = digest::sha256(b"another-setup").into();
+            v
+        },
+        {
+            let mut v = assigned.clone();
+            v["data"]["items"][0]["state"] = "revoked".into();
+            v
+        },
+        {
+            let mut v = assigned.clone();
+            v["data"]["items"][0]["outcome"] = "conflicting".into();
+            v
+        },
+        {
+            let mut v = assigned.clone();
+            v["data"]["project_id"] = "remote_project_01ARZ3NDEKTSV4RRFFQ69G5FAW".into();
+            v
+        },
+        {
+            let mut v = assigned.clone();
+            v["account"]["origin"] = "https://another.example".into();
+            v
+        },
+        {
+            let mut v = assigned.clone();
+            v["observation"]["capabilities"]["authorization_revision"] =
+                "corporate:fixture:2".into();
+            v
+        },
+        {
+            let mut v = assigned.clone();
+            v["online_verified"] = false.into();
+            v
+        },
+        {
+            let mut v = assigned.clone();
+            v["installation_authority"] = true.into();
+            v
+        },
+        {
+            let mut v = assigned.clone();
+            v["data"]["items"] = json!([item.clone(), item]);
+            v
+        },
+    ] {
+        assert!(assignment(&context, &link, &linked, &altered, "codex", &setup).is_err());
+    }
+    Ok(())
+}

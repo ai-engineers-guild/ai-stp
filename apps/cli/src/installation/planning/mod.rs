@@ -1,6 +1,6 @@
 //! Exact native installation observations, distinct from external provider plans.
 //!
-//! Planning creates no transaction, target metadata or configuration writes.
+//! Planning creates no configuration transaction, target metadata or harness writes.
 //! A retained document is data, never a grant for later protected effects.
 
 mod model;
@@ -13,7 +13,7 @@ use super::{forward, profiles::Profiles, target::Target};
 use crate::{
     account::{
         contexts::{self, Context},
-        project_links,
+        corporate as company, project_links,
     },
     authoring::runtime,
     bundle::{
@@ -51,7 +51,13 @@ fn binding(target: &Target) -> Result<model::Directory> {
         physical: DirectoryIdentity::capture(&native(target.directory())?)?,
     })
 }
-fn corporate(root: &Path, context: &Context, id: Option<&str>) -> Result<Option<Corporate>> {
+fn corporate(
+    root: &Path,
+    context: &Context,
+    id: Option<&str>,
+    harness: &str,
+    setup: &Value,
+) -> Result<Option<Corporate>> {
     let is_corporate = matches!(&context.authority,
         contexts::Authority::Remote { organization,.. } if organization["kind"]=="corporate");
     match (is_corporate, id) {
@@ -59,6 +65,37 @@ fn corporate(root: &Path, context: &Context, id: Option<&str>) -> Result<Option<
         (true, Some(id)) => {
             let (_, held) = project_links::binding::capture(root, id)?;
             project_links::reader::Reader::matches_binding(context, &held)?;
+            if held.link["state"] != "linked" {
+                return Err(invalid());
+            }
+            let linked = company::observe(
+                root,
+                Some(&context.context_id),
+                company::Request::LinkOutcome {
+                    plan_id: held.link["plan_id"].as_str().ok_or_else(invalid)?.into(),
+                },
+            )?;
+            let link = &linked["observation"];
+            if link["data"]["state"] != "applied" || link["data"]["link"] != held.link {
+                return Err(invalid());
+            }
+            let assigned = company::observe(
+                root,
+                Some(&context.context_id),
+                company::Request::AssignmentPreview {
+                    harness: harness.into(),
+                    project_id: Some(
+                        held.link["remote_project_id"]
+                            .as_str()
+                            .ok_or_else(invalid)?
+                            .into(),
+                    ),
+                    technology_id: None,
+                },
+            )?;
+            let assigned = &assigned["observation"];
+            let (assignment_id, assignment_digest, authorization_digest) =
+                assignment(context, &held.link, link, assigned, harness, setup)?;
             Ok(Some(Corporate {
                 binding_operation_id: id.into(),
                 binding_digest: digest::canonical("ai-stp:plan:v1", &value(&held)?)?,
@@ -78,11 +115,101 @@ fn corporate(root: &Path, context: &Context, id: Option<&str>) -> Result<Option<
                     .into(),
                 link_id: held.link["link_id"].as_str().ok_or_else(invalid)?.into(),
                 link_digest: digest::canonical("ai-stp:plan:v1", &held.link)?,
+                authorization_digest,
+                assignment_digest,
+                assignment_id,
                 checkout_root: held.checkout_root,
             }))
         }
         _ => Err(invalid()),
     }
+}
+
+// A current assignment remains an observation. The original explicit native
+// operation and fresh protected-effect checks are separate authorization layers.
+fn assignment(
+    context: &Context,
+    link: &Value,
+    linked: &Value,
+    assigned: &Value,
+    harness: &str,
+    setup: &Value,
+) -> Result<(Option<String>, String, String)> {
+    context.digest()?;
+    let contexts::Authority::Remote {
+        account,
+        organization,
+        ..
+    } = &context.authority
+    else {
+        return Err(invalid());
+    };
+    let fresh: crate::account::access::Binding =
+        serde_json::from_value(assigned["account"].clone()).map_err(|_| invalid())?;
+    let mut previous: crate::account::access::Binding =
+        serde_json::from_value(linked["account"].clone()).map_err(|_| invalid())?;
+    fresh.validate()?;
+    previous.validate()?;
+    previous.revision.clone_from(&fresh.revision);
+    let mut expected = account.as_ref().clone();
+    expected.revision.clone_from(&fresh.revision);
+    if fresh != previous
+        || fresh != expected
+        || organization["kind"] != "corporate"
+        || organization["organization_id"] != link["organization_id"]
+    {
+        return Err(invalid());
+    }
+    let data = &assigned["data"];
+    if assigned["context"] != value(context)?
+        || linked["context"] != value(context)?
+        || assigned["online_verified"] != true
+        || linked["online_verified"] != true
+        || assigned["observation_only"] != true
+        || assigned["installation_authority"] != false
+        || assigned["account"]["origin"] != linked["account"]["origin"]
+        || assigned["account"]["account_id"] != linked["account"]["account_id"]
+        || assigned["account"]["device_id"] != linked["account"]["device_id"]
+        || company::authority(&assigned["organization"], &assigned["observation"])
+            != company::authority(&linked["organization"], &linked["observation"])
+        || data["organization_id"] != link["organization_id"]
+        || data["project_id"] != link["remote_project_id"]
+        || data["account_id"] != assigned["account"]["account_id"]
+        || data["harness"] != harness
+        || !data["technology_id"].is_null()
+    {
+        return Err(invalid());
+    }
+    let matching = data["items"]
+        .as_array()
+        .ok_or_else(invalid)?
+        .iter()
+        .filter(|item| item["object_kind"] == "setup" && item["stable_id"] == setup["stable_id"])
+        .collect::<Vec<_>>();
+    let [item] = matching.as_slice() else {
+        return Err(invalid());
+    };
+    if item["state"] != "assigned"
+        || !matches!(item["action"].as_str(), Some("install" | "update" | "none"))
+        || !matches!(
+            item["outcome"].as_str(),
+            Some("missing" | "installed" | "outdated")
+        )
+        || item["harness"] != harness
+        || item["version"] != setup["version"]
+        || item["passport_digest"] != setup["passport_digest"]
+    {
+        return Err(invalid());
+    }
+    let id = item["assignment_id"].as_str().map(str::to_owned);
+    Ok((
+        id,
+        digest::canonical("ai-stp:plan:v1", data)?,
+        digest::canonical(
+            "ai-stp:plan:v1",
+            &company::authority(&assigned["organization"], &assigned["observation"]),
+        )?,
+    ))
 }
 
 /// Freeze one original context and complete native package set without writes.
@@ -96,7 +223,13 @@ pub fn create(root: &Path, context_id: &str, request: &Request, at: &str) -> Res
     if context.root != root || request.target.owner_id != owner.account_id {
         return Err(invalid());
     }
-    let corporate = corporate(root, &context, request.corporate_binding.as_deref())?;
+    let corporate = corporate(
+        root,
+        &context,
+        request.corporate_binding.as_deref(),
+        &request.target.harness_id,
+        &request.setup,
+    )?;
     let planned = capture(&mut owner.planning()?, context, corporate, request, at)?;
     if planned.plan.state.physical != expected_state {
         return Err(invalid());
@@ -260,7 +393,8 @@ fn capture(
 
 impl Plan {
     /// Revalidate local observations before a separately authorized preparation.
-    /// This performs no remote authorization and grants no protected effect.
+    /// Corporate observations are refreshed through the original account; this
+    /// still grants no protected effect and creates no harness state.
     pub fn revalidate(&self, root: &Path, at: &str) -> Result<()> {
         self.validate()?;
         let at = at.parse::<jiff::Timestamp>().map_err(|_| invalid())?;
@@ -285,6 +419,8 @@ impl Plan {
                 self.corporate
                     .as_ref()
                     .map(|c| c.binding_operation_id.as_str()),
+                &self.target.harness_id,
+                &self.setup,
             )?)? != value(&self.corporate)?
         {
             return Err(invalid());

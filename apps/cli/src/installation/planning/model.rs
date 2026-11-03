@@ -68,6 +68,9 @@ pub(super) struct Corporate {
     pub remote_project_id: String,
     pub link_id: String,
     pub link_digest: String,
+    pub authorization_digest: String,
+    pub assignment_digest: String,
+    pub assignment_id: Option<String>,
     #[serde(
         serialize_with = "files::serialize_path",
         deserialize_with = "files::deserialize_path"
@@ -303,6 +306,9 @@ impl Plan {
                 if !passport::stable_id(&company.binding_operation_id, "operation")
                     || !hash(&company.binding_digest)
                     || !hash(&company.link_digest)
+                    || !hash(&company.authorization_digest)
+                    || !hash(&company.assignment_digest)
+                    || company.assignment_id.as_deref().is_some_and(|id| !text(id))
                     || organization["organization_id"] != company.organization_id
                     || account.origin != company.original_account.origin
                     || account.account_id != company.original_account.account_id

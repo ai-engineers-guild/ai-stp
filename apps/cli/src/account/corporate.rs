@@ -582,7 +582,7 @@ impl Request {
     }
 }
 
-pub(super) fn authority(organization: &Value, observation: &Value) -> Value {
+pub(crate) fn authority(organization: &Value, observation: &Value) -> Value {
     let capabilities = &observation["capabilities"];
     json!([
         organization["organization_id"],
