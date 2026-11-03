@@ -634,6 +634,16 @@ async fn setup_acquisition_apply(
                 "Review the exact public setup graph before downloading",
             );
         }
+        if plan["operation"]["action"] != "catalog.acquire"
+            || plan["operation"]
+                .get("access")
+                .is_some_and(|access| !access.is_null())
+        {
+            return CmdResult::failed(
+                "DESKTOP_USAGE",
+                "Only an exact public catalog acquisition may use this route",
+            );
+        }
         let file = match PublicPlanFile::bounded(&plan, 16 * 1024 * 1024) {
             Ok(file) => file,
             Err(error) => return CmdResult::failed("DESKTOP_USAGE", error),
