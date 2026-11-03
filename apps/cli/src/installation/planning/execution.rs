@@ -76,6 +76,7 @@ impl Plan {
             "ai-stp:installation-operation:v1",
             &json!({
                 "kind":"native.configuration.subject","state":self.state.physical,
+            "setup_anchor":self.roots.get(&Scope::Project).or_else(||self.roots.get(&Scope::Global)).or_else(||self.roots.get(&Scope::UserRoot)).map(|root|&root.directory.physical),
                 "context_id":self.context.context_id,"local_identity":self.context.local_identity,
                 "remote":remote,"harness_id":self.target.harness_id,"scope":scope,
                 "physical_root":binding(target)?.physical,
@@ -180,6 +181,44 @@ impl Reviewed {
             });
             targets.insert(*scope, target);
             desired.insert(*scope, files);
+        }
+        let subjects = ownership
+            .iter()
+            .map(|change| change.subject.clone())
+            .collect::<Vec<_>>();
+        let origins = custody.origin_operations(&subjects)?;
+        match plan.operation {
+            super::Operation::Install if !origins.is_empty() => {
+                return Err(crate::error::Failure::precondition(
+                    "this setup target already has an effective operation; review a replacement",
+                ));
+            }
+            super::Operation::Replace => {
+                if origins.is_empty() {
+                    return Err(crate::error::Failure::precondition(
+                        "there is no effective setup to replace; review installation or remove the prior scope set first",
+                    ));
+                }
+                for origin in origins {
+                    let previous = custody
+                        .retained(&origin)?
+                        .ok_or_else(invalid)?
+                        .original_plan()?
+                        .ok_or_else(invalid)?;
+                    if previous.roots.len() != plan.roots.len()
+                        || previous.roots.iter().any(|(scope, root)| {
+                            plan.roots
+                                .get(scope)
+                                .is_none_or(|now| now.directory.physical != root.directory.physical)
+                        })
+                    {
+                        return Err(crate::error::Failure::precondition(
+                            "changing a setup's physical scope set requires removing its previous operation first",
+                        ));
+                    }
+                }
+            }
+            _ => (),
         }
         let review = custody
             .review(plan.operation_id.clone(), &ownership)?
