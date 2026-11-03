@@ -56,4 +56,9 @@ Intentional file modification by another process of the same user outside the co
 
 ## Supported versions
 
-Until the first public release, only the current version from the default branch is supported. After the first release, the support window for major lines will be recorded here.
+Use the latest qualified CLI 0.2 and Desktop 0.1 patch releases published in
+[GitHub Releases](https://github.com/ai-engineers-guild/ai-stp/releases). Report
+issues against their exact version/source; unpublished development is not a
+released security update. Earlier binaries remain immutable and do not receive
+in-place fixes. The retired Python CLI is historical source; existing state
+requires the native engine's explicit migration workflow.

@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 use super::{Bundle, Hosts, Qualified, composition::Composition, exact, invalid, text};
 use crate::{
     error::Result,
-    projection::{self, Scope},
+    projection::{self, Scope, surfaces::Surface},
     provider::Info,
     selection::{
         eligibility::{self, Evidence, Target},
@@ -39,12 +39,44 @@ pub fn compile(
     })
 }
 
+/// Compile the complete exact graph through fixed native scopes. A component
+/// needs one explicit eligible placement; no global/project fallback is added.
+pub fn compile_native(
+    store: &mut Store,
+    setup: &Value,
+    target: &Target,
+    evidence: &BTreeMap<String, Evidence>,
+    hosts: &BTreeMap<Scope, Hosts>,
+    placements: &BTreeMap<String, Scope>,
+) -> Result<Compiled> {
+    let native = crate::installation::profiles::Profiles::resolve(&target.harness_id)?;
+    store.transaction(|connection| {
+        compile_surface_snapshot(
+            connection, setup, target, evidence, &native, hosts, placements,
+        )
+    })
+}
+
 pub(crate) fn compile_snapshot(
     connection: &Connection,
     setup: &Value,
     target: &Target,
     evidence: &BTreeMap<String, Evidence>,
     provider: &Info,
+    hosts: &BTreeMap<Scope, Hosts>,
+    placements: &BTreeMap<String, Scope>,
+) -> Result<Compiled> {
+    compile_surface_snapshot(
+        connection, setup, target, evidence, provider, hosts, placements,
+    )
+}
+
+fn compile_surface_snapshot(
+    connection: &Connection,
+    setup: &Value,
+    target: &Target,
+    evidence: &BTreeMap<String, Evidence>,
+    provider: &dyn Surface,
     hosts: &BTreeMap<Scope, Hosts>,
     placements: &BTreeMap<String, Scope>,
 ) -> Result<Compiled> {
@@ -92,7 +124,7 @@ pub(crate) fn compile_snapshot(
         })?;
         let mut scoped = target.clone();
         scoped.scope = routed.assigned.get(id).copied().unwrap_or(first);
-        assessments.push(eligibility::assess(
+        assessments.push(eligibility::assess_surface(
             document,
             &scoped,
             held,

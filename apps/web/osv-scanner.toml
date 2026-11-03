@@ -3,5 +3,5 @@
 # integrity or deadline before scan_lockfile.sh permits this configuration.
 [[IgnoredVulns]]
 id = "GHSA-g3hv-75wg-m249"
-ignoreUntil = 2026-11-03
-reason = "The original npm minimatch3.1.5 source lacks firstPhasePreProcess/secondPhasePreProcess/optimizationLevel from this advisory; modern consumers use patched11.0.3. Exact whole-graph SHA256 and expiry are enforced before filtering. Source/integrity and legacy API assessment: https://github.com/ai-engineers-guild/ai-stp/issues/1308"
+ignoreUntil = 2026-11-10
+reason = "Owner-authorized exact source re-review on 2026-11-03, bounded until 2026-11-10. The original npm minimatch3.1.5 source lacks firstPhasePreProcess/secondPhasePreProcess/optimizationLevel from this advisory; modern consumers use patched11.0.3. Exact whole-graph SHA256 and expiry are enforced before filtering. Source/integrity and legacy API assessment: https://github.com/ai-engineers-guild/ai-stp/issues/1308"
