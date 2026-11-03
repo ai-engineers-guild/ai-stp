@@ -124,7 +124,14 @@ export default function TargetsPage() {
       if (!alive.current) return;
       setResult(response);
       setConfirmed(false);
-      if (response.ok) setOperation({ ...held, phase: "prepared" });
+      if (response.ok)
+        setOperation({
+          ...held,
+          phase:
+            typeof response.data?.state === "string"
+              ? response.data.state
+              : "prepared",
+        });
       await refresh();
     } finally {
       if (alive.current) setBusy(false);
