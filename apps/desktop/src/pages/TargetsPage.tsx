@@ -61,7 +61,13 @@ export default function TargetsPage() {
     setEffective(owned);
     setOtherPending(pending.data?.other_state_pending === true);
     const recovered = nativePending(pending);
-    if (recovered && !operationRef.current) setOperation(recovered);
+    if (
+      recovered &&
+      (!operationRef.current ||
+        operationRef.current.operation === recovered.operation)
+    ) {
+      setOperation({ ...recovered, plan: operationRef.current?.plan ?? null });
+    }
   }
   useEffect(() => {
     alive.current = true;
@@ -181,10 +187,9 @@ export default function TargetsPage() {
         description="Review and apply exact setups. Harness executables stay under your control."
       />
       {native.available !== true ? (
-        <EmptyState
-          title="Native configuration unavailable"
-          description="Use a CLI/Desktop pair with the qualified native configuration engine."
-        />
+        <EmptyState title="Native configuration unavailable">
+          Use a CLI/Desktop pair with the qualified native configuration engine.
+        </EmptyState>
       ) : (
         <>
           <section className="card p-5" aria-label="Effective setup">
@@ -226,7 +231,7 @@ export default function TargetsPage() {
                       {String(record(item.setup).version)}
                     </p>
                   </div>
-                  <StatusBadge status={String(item.ownership_state)} />
+                  <StatusBadge state={String(item.ownership_state)} />
                   <button
                     className="btn-secondary"
                     disabled={!editable}
@@ -383,7 +388,7 @@ export default function TargetsPage() {
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold">Original operation</h2>
-                <StatusBadge status={operation.phase} />
+                <StatusBadge state={operation.phase} />
               </div>
               <p className="mt-3">
                 {operation.label} · {operation.harness}
@@ -401,7 +406,7 @@ export default function TargetsPage() {
               </p>
               {operation.plan && (
                 <Details
-                  title="Reviewed file effects"
+                  label="Reviewed file effects"
                   value={{
                     publications: operation.plan.publications,
                     handoff: operation.plan.activation,
