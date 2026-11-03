@@ -10,7 +10,7 @@ use crate::{
     provider::Info,
     wire::Schema,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -22,7 +22,8 @@ static ASSESSMENT: Schema = Schema::definition(
     "CandidateEligibility",
 );
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Target {
     pub harness_id: String,
     pub scope: Scope,
@@ -40,10 +41,10 @@ pub struct Target {
     pub grants: BTreeSet<String>,
     /// Exact current catalog access established by the owning runtime. This
     /// confers neither ownership nor trust and is never a cached grant.
-    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub accessible_passport_digests: BTreeSet<String>,
     /// Account/origin/device binding, stable across a same-account refresh.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub access_context_digest: Option<String>,
     pub pinned_passport_digests: BTreeSet<String>,
     /// Exact historical ownership established by the local attachment receipt.

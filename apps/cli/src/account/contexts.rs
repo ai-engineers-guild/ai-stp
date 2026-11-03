@@ -187,7 +187,7 @@ fn encode(value: &impl Serialize) -> Result<String> {
 impl Context {
     /// Mutation planners resolve the saved context first. Historical contexts
     /// remain valid for selection and original reads, not fresh local intent.
-    pub(super) fn require_current_native_identity(
+    pub(crate) fn require_current_native_identity(
         &self,
         current: &authoring::Identity,
     ) -> Result<()> {
@@ -805,7 +805,7 @@ pub fn show(root: &Path, context: &str, refresh: bool) -> Result<Value> {
 
 /// Resolve a new command's preference once; retained commands carry their own
 /// context. Loading a view never creates membership or installation authority.
-pub(super) fn resolve(root: &Path, context: Option<&str>) -> Result<Context> {
+pub(crate) fn resolve(root: &Path, context: Option<&str>) -> Result<Context> {
     let id = super::identity_at(root)?;
     let held = {
         let store = Store::planning_at(id.root_directory())?;
