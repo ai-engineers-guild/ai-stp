@@ -19,6 +19,11 @@ const CONTROLS: [&str; 7] = [
     ".opencode-setup-system",
     ".antigravity-setup-system",
 ];
+pub(crate) fn is_guard(path: &str) -> bool {
+    CONTROLS
+        .iter()
+        .any(|control| path == format!("{control}/journal.json"))
+}
 fn invalid() -> Failure {
     Failure::precondition(
         "existing external configuration custody requires its explicit adoption or original recovery before native installation",

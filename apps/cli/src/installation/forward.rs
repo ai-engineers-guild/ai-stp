@@ -396,6 +396,28 @@ impl Writer {
         })
     }
 
+    /// Read the original outcome already staged for final metadata publication.
+    ///
+    /// # Errors
+    /// Refuses another original request or replaced physical metadata.
+    pub fn staged_result(&self, admission: &Admission) -> Result<Option<serde_json::Value>> {
+        self.revalidate()?;
+        admission.validate()?;
+        Ok(self.store.record(admission)?.ok_or_else(invalid)?.outcome)
+    }
+
+    /// Read retained desired effects for exact comparison with their owning
+    /// native review before resuming. Never log or export these file payloads.
+    ///
+    /// # Errors
+    /// Refuses another operation, changed root or corrupt retained payloads.
+    pub fn desired(&self, admission: &Admission) -> Result<Vec<Change>> {
+        self.revalidate()?;
+        admission.validate()?;
+        self.store.record(admission)?.ok_or_else(invalid)?;
+        self.store.changes(&admission.operation_id)
+    }
+
     /// Read an original current or historical request without applying files.
     ///
     /// # Errors

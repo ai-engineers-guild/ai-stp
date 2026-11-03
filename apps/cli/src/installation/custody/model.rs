@@ -367,9 +367,34 @@ pub struct Review {
     pub(super) native_plan: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) publications: Option<Vec<super::publications::Publication>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) activation: Option<crate::installation::activation::Handoff>,
 }
 impl Review {
     pub fn digest(&self) -> Result<String> {
+        if let Some(activation) = &self.activation {
+            let activation = activation.value()?;
+            let plan = self.native_plan.as_ref().ok_or_else(invalid)?;
+            let roots = plan["roots"].as_object().ok_or_else(invalid)?;
+            let mut expected = roots
+                .values()
+                .map(|root| crate::canonical::bytes(&root["directory"]))
+                .collect::<Result<Vec<_>>>()?;
+            let mut actual = activation["roots"]
+                .as_array()
+                .ok_or_else(invalid)?
+                .iter()
+                .map(crate::canonical::bytes)
+                .collect::<Result<Vec<_>>>()?;
+            expected.sort();
+            actual.sort();
+            if expected != actual
+                || activation["harness_id"] != plan["target"]["harness_id"]
+                || activation["native_os"] != plan["target"]["os"]
+            {
+                return Err(invalid());
+            }
+        }
         if let Some(publications) = &self.publications {
             super::publications::validate(publications)?;
         }
@@ -410,6 +435,33 @@ impl Review {
                 )
             })
             .transpose()
+    }
+
+    /// Verify owned final values before a new-session receipt. Unowned host
+    /// fields are outside this custody claim and remain untouched.
+    pub fn verify_configuration(&self) -> Result<()> {
+        self.digest()?;
+        for effect in &self.effects {
+            if effect.locator.observe()?.value != effect.after {
+                return Err(invalid());
+            }
+        }
+        Ok(())
+    }
+    pub fn bind_handoff(
+        mut self,
+        handoff: crate::installation::activation::Handoff,
+    ) -> Result<Self> {
+        if self.activation.is_some() {
+            return Err(invalid());
+        }
+        self.activation = Some(handoff);
+        self.digest()?;
+        Ok(self)
+    }
+    pub fn handoff(&self) -> Result<Option<crate::installation::activation::Handoff>> {
+        self.digest()?;
+        Ok(self.activation.clone())
     }
 
     pub fn bind_native(mut self, plan: &crate::installation::planning::Plan) -> Result<Self> {

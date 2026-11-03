@@ -21,6 +21,7 @@ struct Content {
 pub(super) struct Publication {
     root: Root,
     path: String,
+    sequence: usize,
     before: forward::Observation,
     after: Option<Content>,
 }
@@ -29,13 +30,15 @@ fn capture(target: &Target, changes: &[forward::Change]) -> Result<Vec<Publicati
     let root = Root::capture(target)?;
     changes
         .iter()
-        .map(|change| {
+        .enumerate()
+        .map(|(sequence, change)| {
             if target.is_internal(&change.path) {
                 return Err(invalid());
             }
             Ok(Publication {
                 root: root.clone(),
                 path: change.path.clone(),
+                sequence,
                 before: change.before.clone(),
                 after: change.after.as_ref().map(|content| Content {
                     digest: digest::sha256(&content.bytes),
@@ -81,6 +84,17 @@ pub(super) fn validate(publications: &[Publication]) -> Result<()> {
     Ok(())
 }
 impl Review {
+    /// Number of actual configuration changes, excluding fixed legacy guards.
+    pub fn configuration_effect_count(&self) -> Result<usize> {
+        self.digest()?;
+        Ok(self
+            .publications
+            .as_ref()
+            .ok_or_else(invalid)?
+            .iter()
+            .filter(|p| !crate::installation::legacy::is_guard(&p.path))
+            .count())
+    }
     /// Freeze every complete file effect, including compatibility metadata.
     /// The retained document contains fingerprints rather than host payloads.
     pub fn bind_publications(mut self, roots: &[(&Target, &[forward::Change])]) -> Result<Self> {
@@ -91,7 +105,7 @@ impl Review {
         for (target, changes) in roots {
             publications.extend(capture(target, changes)?);
         }
-        publications.sort_by(|a, b| (a.root.identity, &a.path).cmp(&(b.root.identity, &b.path)));
+        publications.sort_by_key(|a| (a.root.identity, a.sequence));
         validate(&publications)?;
         self.publications = Some(publications);
         self.digest()?;
@@ -108,7 +122,7 @@ impl Review {
             .cloned()
             .collect();
         let mut actual = capture(target, changes)?;
-        actual.sort_by(|a, b| a.path.cmp(&b.path));
+        actual.sort_by_key(|a| a.sequence);
         if actual != expected {
             return Err(invalid());
         }

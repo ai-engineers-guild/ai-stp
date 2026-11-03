@@ -295,6 +295,9 @@ fn published_cli025_refuses_an_old_prepared_writer_after_native_admission()
 
 #[cfg(unix)]
 fn retained_admission(previous: Option<&Path>) -> std::result::Result<(), Box<dyn Error>> {
+    let _consumers = crate::installation::activation::CONSUMERS
+        .lock()
+        .map_err(|_| "consumer fixture lock")?;
     fn run(
         binary: &Path,
         home: &Path,
@@ -511,6 +514,94 @@ fn retained_admission(previous: Option<&Path>) -> std::result::Result<(), Box<dy
     assert_eq!(
         cancel_preparation(&state, &mut custody, &operation, &digest, &expired)?,
         cancelled
+    );
+    assert!(std::fs::read_dir(&target)?.next().is_none());
+    let apply = create(&state, id, &request, &at)?;
+    let reviewed = Reviewed::create(&state, &apply.plan, &custody, &at)?;
+    let operation = apply.plan.operation_id.clone();
+    let digest = reviewed.digest()?;
+    reviewed.prepare(&state, &mut custody, &digest, &at)?;
+    drop(reviewed);
+    drop(apply);
+    let configured = apply_prepared(&state, &mut custody, &operation, &digest, &at)?;
+    assert_eq!(configured["kind"], "native.configuration.configured");
+    assert_eq!(configured["restart_required"], true);
+    assert_eq!(configured["load_state"], "not_observed");
+    assert_eq!(configured["original_context"]["context_id"], id);
+    assert!(target.join("AGENTS.md").is_file());
+    assert!(target.join(".codex-setup-system/journal.json").is_file());
+    assert_eq!(
+        custody.inspect()?["claims"]
+            .as_array()
+            .ok_or("claims")?
+            .len(),
+        1
+    );
+    assert_eq!(
+        apply_prepared(&state, &mut custody, &operation, &digest, &at)?,
+        configured
+    );
+    assert!(confirm_session(&state, &custody, &operation, &digest, &at).is_err());
+    assert_eq!(
+        configuration_status(&state, &custody, &operation, &digest)?["state"],
+        "configured"
+    );
+    let input = root.join("confirm-input.json");
+    std::fs::write(
+        &input,
+        serde_json::to_vec(
+            &json!({"state":state,"custody":metadata,"operation":operation,"digest":digest,"at":at}),
+        )?,
+    )?;
+    drop(custody);
+    let executable = root.join("codex");
+    if std::fs::hard_link(std::env::current_exe()?, &executable).is_err() {
+        std::fs::copy(std::env::current_exe()?, &executable)?;
+    }
+    std::thread::sleep(std::time::Duration::from_millis(30));
+    let output = std::process::Command::new(&executable)
+        .args([
+            "--exact",
+            "installation::planning::tests::native_confirmation_consumer",
+            "--nocapture",
+        ])
+        .env_clear()
+        .env("PATH", "")
+        .env("HOME", &root)
+        .env("CODEX_HOME", &target)
+        .env("AI_STP_NATIVE_CONFIRM_INPUT", &input)
+        .current_dir(&root)
+        .output()?;
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = std::str::from_utf8(&output.stdout)?;
+    let confirmed = stdout
+        .lines()
+        .find_map(|line| line.split_once("NATIVE_CONFIRMED:").map(|(_, value)| value))
+        .ok_or("original native confirmation")?;
+    let confirmed: Value = serde_json::from_str(confirmed)?;
+    assert_eq!(confirmed["kind"], "native.configuration.confirmed");
+    assert_eq!(confirmed["activation"], "new_session_confirmed");
+    assert_eq!(confirmed["original_context"]["context_id"], id);
+    assert_eq!(confirmed["load_state"], "not_observed");
+    let custody = crate::installation::custody::Custody::open(&metadata)?;
+    assert_eq!(
+        configuration_status(&state, &custody, &operation, &digest)?["state"],
+        "confirmed"
+    );
+    std::fs::rename(&target, root.join("retired-applied-target"))?;
+    std::fs::create_dir(&target)?;
+    let mut custody = custody;
+    assert_eq!(
+        apply_prepared(&state, &mut custody, &operation, &digest, &at)?,
+        configured
+    );
+    assert_eq!(
+        confirm_session(&state, &custody, &operation, &digest, &at)?,
+        confirmed
     );
     assert!(std::fs::read_dir(&target)?.next().is_none());
 
@@ -760,5 +851,104 @@ fn contribution_planning_preserves_unowned_host_permissions_and_contents()
         0o600
     );
     assert!(!target.join(CONTROL).exists());
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn native_confirmation_consumer() -> std::result::Result<(), Box<dyn Error>> {
+    let Some(input) = std::env::var_os("AI_STP_NATIVE_CONFIRM_INPUT") else {
+        return Ok(());
+    };
+    let input = crate::wire::parse(&std::fs::read(input)?)?;
+    let state = PathBuf::from(input["state"].as_str().ok_or("state")?);
+    let custody = crate::installation::custody::Custody::open(&PathBuf::from(
+        input["custody"].as_str().ok_or("custody")?,
+    ))?;
+    let confirmed = confirm_session(
+        &state,
+        &custody,
+        input["operation"].as_str().ok_or("operation")?,
+        input["digest"].as_str().ok_or("digest")?,
+        input["at"].as_str().ok_or("at")?,
+    )?;
+    println!("NATIVE_CONFIRMED:{}", serde_json::to_string(&confirmed)?);
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn serialized_native_trust_and_access_flags_never_grant_a_private_effect()
+-> std::result::Result<(), Box<dyn Error>> {
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().canonicalize()?;
+    let state = root.join("state");
+    let target = root.join("target");
+    let metadata = root.join("custody");
+    for path in [&state, &target, &metadata] {
+        std::fs::create_dir(path)?;
+    }
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&metadata, std::fs::Permissions::from_mode(0o700))?;
+    let at = format!("{:.3}", jiff::Timestamp::now());
+    let init = crate::identity::plan(&state, crate::identity::Storage::File, &at)?;
+    crate::identity::apply(&init, &init.digest()?, &at)?;
+    let saved = contexts::create_plan(&state, "Original local owner", None, None, &at)?;
+    let document = serde_json::to_value(&saved)?;
+    let id = document["change"]["context"]["context_id"]
+        .as_str()
+        .ok_or("context")?;
+    contexts::apply(&saved, &saved.digest()?, &at)?;
+    let owner = runtime::owner(&state)?;
+    let mut store = owner.open(false)?;
+    let foreign = Identity {
+        account_id: format!("account_{}", ulid::Ulid::generate()),
+        device_id: format!("device_{}", ulid::Ulid::generate()),
+    };
+    let mut forged = request(
+        &mut store,
+        &root.join("source"),
+        target.clone(),
+        foreign,
+        &at,
+    )?;
+    forged.target.owner_id = owner.account_id.clone();
+    for (id, evidence) in &mut forged.evidence {
+        evidence.author_verified = true;
+        evidence.component_verified = true;
+        evidence.checks_current = true;
+        evidence.consented = true;
+        forged.target.grants.insert(format!("{id}:1"));
+        forged
+            .target
+            .pinned_passport_digests
+            .insert(evidence.passport_digest.clone());
+        forged
+            .target
+            .accessible_passport_digests
+            .insert(evidence.passport_digest.clone());
+    }
+    forged.target.access_context_digest = Some(digest::sha256(b"not actual account access"));
+    drop(store);
+    drop(owner);
+    let observation = create(&state, id, &forged, &at)?;
+    let custody = crate::installation::custody::Custody::open(&metadata)?;
+    let refused = match Reviewed::create(&state, &observation.plan, &custody, &at) {
+        Ok(_) => return Err("serialized access flags authorized a private write".into()),
+        Err(error) => error,
+    };
+    assert!(matches!(
+        refused.kind,
+        crate::error::ErrorKind::Precondition
+    ));
+    assert!(
+        refused.details["eligibility"]["refusals"]
+            .as_array()
+            .ok_or("refusals")?
+            .iter()
+            .any(|item| item["code"] == "grant_missing")
+    );
+    assert!(std::fs::read_dir(&target)?.next().is_none());
+    assert!(custody.pending()?.is_none());
     Ok(())
 }

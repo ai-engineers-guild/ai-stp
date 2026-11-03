@@ -573,6 +573,9 @@ fn real_writer_recovers_reviewed_files_and_preserves_unowned_host_bytes()
         .bytes
         .push(b'!');
     assert!(bound.verify_publications(&target, &changed).is_err());
+    let mut reordered = changes.clone();
+    reordered.swap(0, 1);
+    assert!(bound.verify_publications(&target, &reordered).is_err());
     let retained = Review::parse(&serde_json::to_vec(&bound.value()?)?, &bound.digest()?)?;
     retained.verify_publications(&target, &changes)?;
     custody.prepare(&review, &review.digest()?)?;
@@ -751,5 +754,57 @@ fn repeating_an_unchanged_native_review_preserves_the_exact_digest()
     assert_eq!(build()?.value()?, build()?.value()?);
     assert_eq!(build()?.digest()?, build()?.digest()?);
     assert!(std::fs::read_dir(&path)?.next().is_none());
+    Ok(())
+}
+
+#[test]
+fn unowned_host_edits_do_not_revoke_an_unchanged_named_contribution()
+-> std::result::Result<(), Box<dyn Error>> {
+    let (_temporary, metadata, path) = fixture()?;
+    let target = target(&path)?;
+    let mut custody = Custody::open(&metadata)?;
+    let subject = subject("contribution-owner", &target)?;
+    let original = br#"{"unowned":{"value":"first"}}"#;
+    put(&path.join("config.json"), original)?;
+    let incoming = br#"{"mcpServers":{"review":{"command":"review-helper"}}}"#;
+    let review = custody.review(
+        operation(),
+        &[Change {
+            subject: subject.clone(),
+            desired: vec![Desired::capture(
+                &target,
+                "config.json",
+                Ownership::Contribution {
+                    parser_id: "json/1".into(),
+                    key: "mcpServers".into(),
+                },
+                incoming,
+                0o600,
+                source(),
+            )?],
+        }],
+    )?;
+    publish_review(
+        &mut custody,
+        &target,
+        &review,
+        &BTreeMap::from([(
+            "config.json".into(),
+            native(forward::Content::new(incoming.to_vec(), 0o600))?,
+        )]),
+    )?;
+    put(&path.join("config.json"),br#"{"unowned":{"value":"edited-by-user"},"mcpServers":{"review":{"command":"review-helper"}}}"#)?;
+    let remove = custody.review(
+        operation(),
+        &[Change {
+            subject,
+            desired: vec![],
+        }],
+    )?;
+    publish_review(&mut custody, &target, &remove, &BTreeMap::new())?;
+    let current: Value = serde_json::from_slice(&std::fs::read(path.join("config.json"))?)?;
+    assert_eq!(current["unowned"]["value"], "edited-by-user");
+    assert!(current.get("mcpServers").is_none());
+    assert_eq!(claim_count(&custody)?, 0);
     Ok(())
 }

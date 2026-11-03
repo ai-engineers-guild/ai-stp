@@ -54,6 +54,27 @@ fn invalid() -> Failure {
 }
 
 impl Request {
+    pub(super) fn native(
+        context: &crate::account::contexts::Context,
+        pins: BTreeSet<String>,
+    ) -> Result<Self> {
+        use crate::account::contexts::Authority;
+        let (account, connection) = match &context.authority {
+            Authority::Local => (false, None),
+            Authority::Remote { account, .. } => (
+                true,
+                account.connection.as_ref().map(|c| c.connection_id.clone()),
+            ),
+        };
+        let request = Self {
+            trust_pins: pins,
+            account,
+            connection,
+        };
+        request.validate()?;
+        Ok(request)
+    }
+
     pub fn read(path: Option<&Path>) -> Result<Self> {
         let request = path
             .map(|path| {
@@ -243,6 +264,30 @@ impl Observed {
         };
         observed.revalidate()?;
         Ok(observed)
+    }
+
+    pub(super) fn require_native_account(
+        &self,
+        context: &crate::account::contexts::Context,
+    ) -> Result<()> {
+        use crate::account::contexts::Authority;
+        self.revalidate()?;
+        match (&context.authority, &self.account) {
+            (Authority::Local, None) => Ok(()),
+            (Authority::Remote { account, .. }, Some(current)) => {
+                let mut expected = account.as_ref().clone();
+                expected.revision.clone_from(&current.binding().revision);
+                if expected != *current.binding() {
+                    return Err(Failure::precondition(
+                        "native private access changed its original account, connection or origin",
+                    ));
+                }
+                Ok(())
+            }
+            _ => Err(Failure::precondition(
+                "native private access changed its original account boundary",
+            )),
+        }
     }
 
     pub fn revalidate(&self) -> Result<()> {
