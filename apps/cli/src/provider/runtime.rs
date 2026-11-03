@@ -3,6 +3,8 @@
 #[cfg(target_os = "linux")]
 mod configuration;
 #[cfg(target_os = "linux")]
+pub(crate) use configuration::{native_parent, native_published, native_sessions};
+#[cfg(target_os = "linux")]
 pub mod entry;
 #[cfg(target_os = "linux")]
 mod execution;
