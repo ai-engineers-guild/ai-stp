@@ -275,6 +275,7 @@ fn executable_restarts_preserve_native_connections_and_refuse_stale_context_sele
 
 /// This test uses the real OS-user coordinator, not an environment-selected copy.
 /// Explicit CI invocation confines that persistent metadata to a disposable user.
+#[cfg(any(target_os = "macos", windows))]
 #[test]
 #[ignore = "requires a disposable native CI OS-user and its existing credential vault"]
 fn public_native_configuration_keeps_original_context_across_cli_restarts()
@@ -359,7 +360,13 @@ fn public_native_configuration_keeps_original_context_across_cli_restarts()
         })?;
         assert!(output.stderr.is_empty(), "unexpected native CLI stderr");
         let envelope: Value = serde_json::from_slice(&output.stdout)?;
-        assert!(output.status.success(), "{envelope}");
+        let command = arguments
+            .iter()
+            .take_while(|argument| !argument.starts_with("--"))
+            .copied()
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(output.status.success(), "{command}: {envelope}");
         assert_eq!(envelope["ok"], true, "{envelope}");
         Ok(envelope["data"].clone())
     };
