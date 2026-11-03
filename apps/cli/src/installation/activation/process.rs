@@ -119,7 +119,11 @@ fn wrapper(process: &Process) -> bool {
         .exe()
         .and_then(stem)
         .or_else(|| process.name().to_str())
-        .is_some_and(|v| matches!(v, "node" | "bun" | "deno"))
+        .is_some_and(|v| {
+            ["node", "bun", "deno"]
+                .iter()
+                .any(|name| v.eq_ignore_ascii_case(name))
+        })
 }
 fn matches(definition: &harnesses::Definition, process: &Process) -> bool {
     if process
@@ -150,7 +154,11 @@ fn matches(definition: &harnesses::Definition, process: &Process) -> bool {
 fn contexts(process: &Process, definition: &harnesses::Definition) -> Result<Option<Vec<PathBuf>>> {
     let allowed = [
         Some("HOME"),
-        Some("USERPROFILE"),
+        if cfg!(windows) {
+            Some("USERPROFILE")
+        } else {
+            None
+        },
         Some("XDG_CONFIG_HOME"),
         definition.root_override.as_deref(),
     ];

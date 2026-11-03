@@ -231,15 +231,14 @@ impl Handoff {
                 return Err(unavailable());
             }
         }
-        if let Some(confirmed) = &self.confirmed {
-            if confirmed.harness_id != self.harness_id
+        if let Some(confirmed) = &self.confirmed
+            && (confirmed.harness_id != self.harness_id
                 || self.sessions.contains(confirmed)
                 || !confirmed
                     .stamp
-                    .after(self.published.as_ref().ok_or_else(unavailable)?)?
-            {
-                return Err(unavailable());
-            }
+                    .after(self.published.as_ref().ok_or_else(unavailable)?)?)
+        {
+            return Err(unavailable());
         }
         Ok(())
     }
@@ -300,17 +299,17 @@ impl Handoff {
             if let Some(session) = current
                 .iter()
                 .find(|s| s.pid == pid && s.stamp == stamp && s.harness_id == self.harness_id)
+                && !self.sessions.contains(session)
+                && session.stamp.after(publication)?
             {
-                if !self.sessions.contains(session) && session.stamp.after(publication)? {
-                    for target in &targets {
-                        if !observe(&[target])?.contains(session) {
-                            return Err(unavailable());
-                        }
+                for target in &targets {
+                    if !observe(&[target])?.contains(session) {
+                        return Err(unavailable());
                     }
-                    self.confirmed = Some(session.clone());
-                    self.validate()?;
-                    return Ok(session.clone());
                 }
+                self.confirmed = Some(session.clone());
+                self.validate()?;
+                return Ok(session.clone());
             }
             if parent <= 1 || parent == pid {
                 break;
