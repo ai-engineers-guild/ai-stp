@@ -156,6 +156,41 @@ impl Custody {
             json!({"revision":snapshot.revision,"claims":snapshot.entries,"authorization_granted":false}),
         )
     }
+    pub fn origin_operations(&self, subjects: &[Subject]) -> Result<BTreeSet<String>> {
+        let snapshot = self.snapshot()?;
+        let mut operations = BTreeSet::new();
+        for subject in subjects {
+            for reference in snapshot
+                .entries
+                .iter()
+                .filter_map(|entry| entry.references.get(&subject.key))
+            {
+                operations.insert(reference.operation_id.clone().ok_or_else(invalid)?);
+            }
+        }
+        Ok(operations)
+    }
+
+    /// A historical setup cannot withdraw a newer operation's effective refs.
+    pub fn require_origin(&self, subjects: &[Subject], operation: &str) -> Result<()> {
+        let snapshot = self.snapshot()?;
+        for subject in subjects {
+            let references = snapshot
+                .entries
+                .iter()
+                .filter_map(|entry| entry.references.get(&subject.key))
+                .collect::<Vec<_>>();
+            if references.is_empty()
+                || references
+                    .iter()
+                    .any(|reference| reference.operation_id.as_deref() != Some(operation))
+            {
+                return Err(invalid());
+            }
+        }
+        Ok(())
+    }
+
     pub fn review(&self, operation_id: String, changes: &[Change]) -> Result<Review> {
         if !(1..=3).contains(&changes.len())
             || !crate::passport::stable_id(&operation_id, "operation")
@@ -280,6 +315,7 @@ impl Custody {
                 entry.references.insert(
                     change.subject.key.clone(),
                     Reference {
+                        operation_id: Some(operation_id.clone()),
                         subject: change.subject.clone(),
                         source: desired.source.clone(),
                         locator: desired.observed.locator.clone(),

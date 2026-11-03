@@ -24,6 +24,9 @@ impl Plan {
     /// Reassemble from original immutable local sources, never from caller
     /// payloads or an ambient context. Every observed field must remain exact.
     pub fn recompile(&self, root: &Path, at: &str) -> Result<Planned> {
+        if self.operation == super::Operation::Remove {
+            return Err(invalid());
+        }
         self.revalidate(root, at)?;
         let owner = runtime::owner(root)?;
         let request = Request {
@@ -56,7 +59,7 @@ impl Plan {
         }
         Ok(rebuilt)
     }
-    fn subject(&self, scope: Scope, target: &Target) -> Result<custody::Subject> {
+    pub(super) fn subject(&self, scope: Scope, target: &Target) -> Result<custody::Subject> {
         let remote = match &self.context.authority {
             Authority::Local => Value::Null,
             Authority::Remote {
@@ -73,6 +76,7 @@ impl Plan {
             "ai-stp:installation-operation:v1",
             &json!({
                 "kind":"native.configuration.subject","state":self.state.physical,
+            "setup_anchor":self.roots.get(&Scope::Project).or_else(||self.roots.get(&Scope::Global)).or_else(||self.roots.get(&Scope::UserRoot)).map(|root|&root.directory.physical),
                 "context_id":self.context.context_id,"local_identity":self.context.local_identity,
                 "remote":remote,"harness_id":self.target.harness_id,"scope":scope,
                 "physical_root":binding(target)?.physical,
@@ -94,7 +98,12 @@ pub struct Reviewed {
 }
 impl Reviewed {
     pub fn create(root: &Path, plan: &Plan, custody: &Custody, at: &str) -> Result<Self> {
-        let rebuilt = plan.recompile(root, at)?;
+        let rebuilt = if plan.operation == super::Operation::Remove {
+            plan.revalidate(root, at)?;
+            super::removal::rebuild(root, plan, custody)?
+        } else {
+            plan.recompile(root, at)?
+        };
         let plan = rebuilt.plan;
         let mut targets = BTreeMap::new();
         let mut desired = BTreeMap::new();
@@ -103,6 +112,20 @@ impl Reviewed {
             let target = native(Target::resolve(&root.directory.path, super::CONTROL))?;
             if binding(&target)? != root.directory {
                 return Err(invalid());
+            }
+            if plan.operation == super::Operation::Remove {
+                let subject = plan.subject(*scope, &target)?;
+                custody.require_origin(
+                    std::slice::from_ref(&subject),
+                    plan.source_operation.as_deref().ok_or_else(invalid)?,
+                )?;
+                ownership.push(custody::Change {
+                    subject,
+                    desired: vec![],
+                });
+                targets.insert(*scope, target);
+                desired.insert(*scope, BTreeMap::new());
+                continue;
             }
             let package = Package::read(rebuilt.packages.get(scope).ok_or_else(invalid)?)?;
             if value(&package.binding)? != value(&root.package)?
@@ -115,8 +138,8 @@ impl Reviewed {
             for (path, file) in package.files {
                 let expected = root.files.get(&path).ok_or_else(invalid)?;
                 if file.owner != expected.owner
-                    || digest::sha256(&file.bytes) != expected.after_digest
-                    || file.bytes.len() != expected.after_bytes
+                    || Some(digest::sha256(&file.bytes)) != expected.after_digest
+                    || Some(file.bytes.len()) != expected.after_bytes
                 {
                     return Err(invalid());
                 }
@@ -137,7 +160,7 @@ impl Reviewed {
                     &path,
                     kind,
                     &file.bytes,
-                    expected.after_mode,
+                    expected.after_mode.ok_or_else(invalid)?,
                     custody::Source {
                         stable_id: owner.stable_id.clone(),
                         version: owner.version.clone(),
@@ -146,7 +169,10 @@ impl Reviewed {
                 )?);
                 files.insert(
                     path,
-                    native(forward::Content::new(file.bytes, expected.after_mode))?,
+                    native(forward::Content::new(
+                        file.bytes,
+                        expected.after_mode.ok_or_else(invalid)?,
+                    ))?,
                 );
             }
             ownership.push(custody::Change {
@@ -155,6 +181,44 @@ impl Reviewed {
             });
             targets.insert(*scope, target);
             desired.insert(*scope, files);
+        }
+        let subjects = ownership
+            .iter()
+            .map(|change| change.subject.clone())
+            .collect::<Vec<_>>();
+        let origins = custody.origin_operations(&subjects)?;
+        match plan.operation {
+            super::Operation::Install if !origins.is_empty() => {
+                return Err(crate::error::Failure::precondition(
+                    "this setup target already has an effective operation; review a replacement",
+                ));
+            }
+            super::Operation::Replace => {
+                if origins.is_empty() {
+                    return Err(crate::error::Failure::precondition(
+                        "there is no effective setup to replace; review installation or remove the prior scope set first",
+                    ));
+                }
+                for origin in origins {
+                    let previous = custody
+                        .retained(&origin)?
+                        .ok_or_else(invalid)?
+                        .original_plan()?
+                        .ok_or_else(invalid)?;
+                    if previous.roots.len() != plan.roots.len()
+                        || previous.roots.iter().any(|(scope, root)| {
+                            plan.roots
+                                .get(scope)
+                                .is_none_or(|now| now.directory.physical != root.directory.physical)
+                        })
+                    {
+                        return Err(crate::error::Failure::precondition(
+                            "changing a setup's physical scope set requires removing its previous operation first",
+                        ));
+                    }
+                }
+            }
+            _ => (),
         }
         let review = custody
             .review(plan.operation_id.clone(), &ownership)?
@@ -248,6 +312,7 @@ pub(super) fn admission(plan: &Plan, digest: &str, scope: Scope) -> Result<forwa
         operation: match plan.operation {
             super::Operation::Install => "install",
             super::Operation::Replace => "replace",
+            super::Operation::Remove => "remove",
         }
         .into(),
         target_precondition_digest: digest::canonical(

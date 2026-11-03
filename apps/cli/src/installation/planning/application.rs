@@ -54,7 +54,7 @@ fn configured(plan: &Plan, review: &Review, handoff: &Handoff) -> Result<Value> 
     Ok(
         json!({"schema_version":1,"kind":"native.configuration.configured","operation_id":plan.operation_id,
         "review_digest":review.digest()?,"original_context":value(&plan.context)?,"setup":plan.setup,
-        "graph_digest":plan.graph_digest,"harness_id":plan.target.harness_id,"handoff":handoff.value()?,
+        "graph_digest":plan.graph_digest,"operation":plan.operation,"harness_id":plan.target.harness_id,"handoff":handoff.value()?,
         "configuration_changed":changes>0,"restart_required":changes>0,
         "activation":if changes>0{"restart_required"}else{"unchanged"},"load_state":"not_observed"}),
     )

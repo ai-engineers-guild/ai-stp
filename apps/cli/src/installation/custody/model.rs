@@ -276,6 +276,8 @@ pub struct Change {
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Reference {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub operation_id: Option<String>,
     pub subject: Subject,
     pub source: Source,
     pub locator: Locator,
@@ -331,7 +333,11 @@ impl Snapshot {
             for (key, reference) in &entry.references {
                 reference.subject.validate()?;
                 reference.source.validate()?;
-                if key != &reference.subject.key
+                if reference
+                    .operation_id
+                    .as_ref()
+                    .is_some_and(|id| !passport::stable_id(id, "operation"))
+                    || key != &reference.subject.key
                     || reference.locator.root != reference.subject.root
                     || reference.locator.ownership != entry.ownership
                 {

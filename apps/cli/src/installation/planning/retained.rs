@@ -161,6 +161,8 @@ impl Plan {
         {
             return Err(invalid());
         }
+        let terminal =
+            to == "confirmed" || (to == "configured" && result["restart_required"] == false);
         let result = String::from_utf8(crate::canonical::bytes(result)?).map_err(|_| invalid())?;
         if result.len() > 256 * 1024 {
             return Err(invalid());
@@ -175,7 +177,7 @@ impl Plan {
             if !matches!((before.as_str(),to),("prepared","applying")|("applying","configured")|("configured","confirmed")) {return Err(invalid());}
             let sequence:i64=transaction.query_row("SELECT coalesce(max(sequence),0)+1 FROM operation_event WHERE operation_id=?",[&self.operation_id],|row|row.get(0)).map_err(store::database)?;
             transaction.execute("INSERT INTO operation_event(operation_id,sequence,at,state_before,state_after,result,evidence,global_sequence) VALUES (?,?,?,?,?,?,NULL,NULL)",rusqlite::params![self.operation_id,sequence,at,before,to,result]).map_err(store::database)?;
-            let rows=transaction.execute("UPDATE operation SET state=?,finished_at=? WHERE operation_id=? AND kind=? AND state=? AND detail=?",rusqlite::params![to,if to=="confirmed"{Some(at)}else{None},self.operation_id,KIND,before,detail]).map_err(store::database)?;
+            let rows=transaction.execute("UPDATE operation SET state=?,finished_at=coalesce(finished_at,?) WHERE operation_id=? AND kind=? AND state=? AND detail=?",rusqlite::params![to,if terminal{Some(at)}else{None},self.operation_id,KIND,before,detail]).map_err(store::database)?;
             if rows!=1 {return Err(invalid());}
             crate::wire::parse(result.as_bytes())
         })
