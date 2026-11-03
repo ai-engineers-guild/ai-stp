@@ -90,6 +90,11 @@ contract!(
     "/resources/schemas/v1/installation-heartbeat-status.schema.json"
 );
 
+contract!(
+    INVENTORY_POLICY,
+    "/resources/schemas/v1/corporate-telemetry-policy-view.schema.json"
+);
+
 #[derive(Clone, Copy, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum ObjectKind {
@@ -102,6 +107,7 @@ pub enum ObjectKind {
 pub enum Request {
     Teams,
     HeartbeatPolicy,
+    InventoryPolicy,
     HeartbeatStatus,
     Projects {
         membership_only: bool,
@@ -273,6 +279,7 @@ impl Request {
         let route = match self {
             Self::Teams => format!("{base}/teams"),
             Self::HeartbeatPolicy => format!("{base}/telemetry/heartbeat/policy"),
+            Self::InventoryPolicy => format!("{base}/telemetry/policy"),
             Self::HeartbeatStatus => format!("{base}/telemetry/heartbeat"),
             Self::Projects {
                 membership_only: true,
@@ -373,6 +380,7 @@ impl Request {
         let schema = match self {
             Self::Teams => &TEAMS,
             Self::HeartbeatPolicy => &HEARTBEAT_POLICY,
+            Self::InventoryPolicy => &INVENTORY_POLICY,
             Self::HeartbeatStatus => &HEARTBEAT_STATUS,
             Self::Projects { .. } => &PROJECTS,
             Self::Project { .. } => &PROJECT,
@@ -402,6 +410,7 @@ impl Request {
             self,
             Self::Project { .. }
                 | Self::HeartbeatPolicy
+                | Self::InventoryPolicy
                 | Self::HeartbeatStatus
                 | Self::LinkTarget { .. }
                 | Self::LinkCurrent { .. }

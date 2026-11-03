@@ -808,3 +808,48 @@ fn unowned_host_edits_do_not_revoke_an_unchanged_named_contribution()
     assert_eq!(claim_count(&custody)?, 0);
     Ok(())
 }
+
+#[test]
+fn inventory_observes_only_actual_current_refs_and_never_discloses_file_contents_or_paths()
+-> std::result::Result<(), Box<dyn Error>> {
+    let (_temporary, metadata, path) = fixture()?;
+    let target = target(&path)?;
+    let mut custody = Custody::open(&metadata)?;
+    let id = operation();
+    let review = custody.review(
+        id.clone(),
+        &[Change {
+            subject: subject("inventory-native-subject", &target)?,
+            desired: vec![desired(&target, b"PRIVATE-INVENTORY-FILE-CANARY")?],
+        }],
+    )?;
+    custody.prepare(&review, &review.digest()?)?;
+    custody.start(&review)?;
+    put(&path.join("AGENTS.md"), b"PRIVATE-INVENTORY-FILE-CANARY")?;
+    custody.complete(&review)?;
+    let observations = custody.inventory(&id)?;
+    assert_eq!(observations.len(), 1);
+    assert_eq!(observations[0]["state"], "present");
+    assert_eq!(observations[0]["source"], serde_json::to_value(source())?);
+    let encoded = serde_json::to_string(&observations)?;
+    for private in [
+        "PRIVATE-INVENTORY-FILE-CANARY",
+        "AGENTS.md",
+        path.to_str().ok_or("fixture path")?,
+    ] {
+        assert!(!encoded.contains(private));
+    }
+    assert!(custody.inventory(&operation())?.is_empty());
+    put(&path.join("AGENTS.md"), b"changed outside the setup")?;
+    assert_eq!(custody.inventory(&id)?[0]["state"], "modified");
+    std::fs::remove_file(path.join("AGENTS.md"))?;
+    assert_eq!(custody.inventory(&id)?[0]["state"], "missing");
+    assert_eq!(
+        custody.inspect()?["claims"]
+            .as_array()
+            .ok_or("claims")?
+            .len(),
+        1
+    );
+    Ok(())
+}

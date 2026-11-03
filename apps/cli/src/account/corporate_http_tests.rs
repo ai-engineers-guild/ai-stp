@@ -20,6 +20,8 @@ struct Control {
     stop: bool,
     gate: Option<(mpsc::SyncSender<()>, mpsc::Receiver<()>)>,
     previews: Vec<Value>,
+    inventory_posts: Vec<Value>,
+    inventory_policy: u64,
     reads: Vec<String>,
 }
 
@@ -131,6 +133,51 @@ fn serve(
     if control.bump {
         control.revision += 1;
         control.bump = false;
+    }
+    if route.ends_with("/telemetry/policy") {
+        assert!(header.starts_with("GET "));
+        return respond(
+            socket,
+            200,
+            json!({"schema_version":1,"organization_id":organization,"raw_retention_days":1,
+            "aggregate_retention_days":30,"legal_basis":"consent","notice_text":"Content-free owned fixture inventory", "notice_revision":1,
+            "inventory_scan_enabled":true,"policy_version":control.inventory_policy,"updated_at":at}),
+        );
+    }
+    if route.ends_with("/telemetry/installation-inventory") {
+        assert!(header.starts_with("POST "));
+        assert_eq!(organization, FIRST);
+        let request = crate::wire::parse(&body).map_err(std::io::Error::other)?;
+        for snapshot in request["snapshots"]
+            .as_array()
+            .ok_or_else(|| std::io::Error::other("inventory snapshots"))?
+        {
+            assert_eq!(snapshot["organization_id"], FIRST);
+            assert_eq!(snapshot["employee_id"], account);
+            assert_eq!(snapshot["device_id"], device);
+        }
+        control.inventory_posts.push(request.clone());
+        if control.inventory_posts.len() == 1 {
+            socket.shutdown(std::net::Shutdown::Both)?;
+            return Ok(());
+        }
+        assert!(
+            control
+                .inventory_posts
+                .windows(2)
+                .all(|pair| pair[0] == pair[1])
+        );
+        let ids = request["snapshots"]
+            .as_array()
+            .ok_or_else(|| std::io::Error::other("snapshots"))?
+            .iter()
+            .map(|s| s["scan_id"].clone())
+            .collect::<Vec<_>>();
+        return respond(
+            socket,
+            200,
+            json!({"schema_version":1,"accepted_ids":[],"duplicate_ids":ids,"rejected_ids":[]}),
+        );
     }
     if route.starts_with("/v1/projects/links/") {
         assert!(header.starts_with("GET ") && body.is_empty());
@@ -291,6 +338,8 @@ fn exercise(named: bool) -> std::result::Result<(), Box<dyn Error>> {
         stop: false,
         gate: None,
         previews: vec![],
+        inventory_posts: vec![],
+        inventory_policy: 1,
         reads: vec![],
     }));
     let server_control = control.clone();
@@ -345,6 +394,51 @@ fn exercise(named: bool) -> std::result::Result<(), Box<dyn Error>> {
             contexts::apply(&plan, &plan.digest()?, &at)?;
             Ok(())
         };
+        select(&contexts[1])?;
+        assert_eq!(
+            super::super::inventory::status(root.path(), &contexts[0])?["enabled"],
+            false
+        );
+        let inventory = super::super::inventory::consent_plan(root.path(), &contexts[0], &at)?;
+        let input = root.path().join("inventory-consent.json");
+        fs::write(&input, serde_json::to_vec(&inventory["plan"])?)?;
+        super::super::inventory::consent_apply(
+            &input,
+            inventory["plan_digest"]
+                .as_str()
+                .ok_or("inventory digest")?,
+            &at,
+        )?;
+        let context = contexts::resolve(root.path(), Some(&contexts[0]))?;
+        let crate::account::contexts::Authority::Remote {
+            account: sender, ..
+        } = context.authority
+        else {
+            return Err("corporate context".into());
+        };
+        let body = json!({"schema_version":1,"snapshots":[{"schema_version":1,"scan_id":"native_inventory_http_original","organization_id":FIRST,
+            "employee_id":sender.account_id,"device_id":sender.device_id,"project_id":null,"scope":"global","scanned_at":at,"complete":false,
+            "components":[{"location_digest":format!("sha256:{}","a".repeat(64)),"kind":"instruction","harness":"codex","source":"managed","state":"present","stable_id":"component_fixture","version":"1.0","setup_stable_id":null,"setup_version":null}]}]});
+        super::super::inventory::fixture_pending(root.path(), &contexts[0], body, &at)?;
+        let before = super::super::inventory::status(root.path(), &contexts[0])?;
+        assert!(super::super::inventory::flush(root.path(), &contexts[0], &at).is_err());
+        assert_eq!(
+            super::super::inventory::status(root.path(), &contexts[0])?["pending_digest"],
+            before["pending_digest"]
+        );
+        let acknowledged = super::super::inventory::flush(root.path(), &contexts[0], &at)?;
+        assert_eq!(acknowledged["outcome"]["state"], "acknowledged");
+        assert_eq!(
+            super::super::inventory::status(root.path(), &contexts[1])?["enabled"],
+            false
+        );
+        control.lock().map_err(|_| "fixture")?.inventory_policy = 2;
+        assert!(super::super::inventory::scan(root.path(), &contexts[0], &at).is_err());
+        super::super::inventory::disable(root.path(), &contexts[0])?;
+        assert_eq!(
+            super::super::inventory::status(root.path(), &contexts[0])?["enabled"],
+            false
+        );
         select(&contexts[0])?;
         let (started, read_started) = mpsc::sync_channel(1);
         let (resume, continue_read) = mpsc::sync_channel(1);
