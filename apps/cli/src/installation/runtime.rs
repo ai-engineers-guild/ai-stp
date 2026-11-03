@@ -143,6 +143,24 @@ fn read_review(path: &Path, expected: &str) -> Result<Plan> {
 pub fn prepare(root: &Path, input: &Path, expected: &str, at: &str) -> Result<Value> {
     let plan = read_review(input, expected)?;
     let mut custody = Custody::open_user()?;
+    let operation = plan.value()?["operation_id"]
+        .as_str()
+        .ok_or_else(invalid)?
+        .to_owned();
+    if let Some(retained) = custody.retained(&operation)? {
+        if retained.digest()? != expected
+            || retained.original_plan()?.ok_or_else(invalid)?.value()? != plan.value()?
+        {
+            return Err(invalid());
+        }
+        let status = planning::configuration_status(root, &custody, &operation, expected)?;
+        let phase = status["custody"]["state"].as_str().ok_or_else(invalid)?;
+        return Ok(
+            json!({"kind":"native.configuration.preparation","operation_id":operation,"plan_digest":expected,
+            "state":if phase=="completed"{status["state"].as_str().unwrap_or("configured")}else{phase},"custody":status["custody"],
+            "configuration_changed":false,"execution_authorized":false}),
+        );
+    }
     let reviewed = Reviewed::create(root, &plan, &custody, at)?;
     if reviewed.digest()? != expected {
         return Err(Failure::precondition(
