@@ -118,6 +118,7 @@ pub(super) fn initialize() -> Result<(PathBuf, OwnedDirectory)> {
             Ok(child) => directory = child,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 let mut builder = cap_std::fs::DirBuilder::new();
+                builder.recursive(false);
                 #[cfg(unix)]
                 {
                     use cap_std::fs::DirBuilderExt;
