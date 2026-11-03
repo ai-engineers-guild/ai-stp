@@ -165,6 +165,39 @@ impl Custody {
             json!({"revision":snapshot.revision,"claims":snapshot.entries,"authorization_granted":false}),
         )
     }
+    /// Content-free observations of refs actually owned by this operation.
+    pub fn inventory(&self, operation: &str) -> Result<Vec<Value>> {
+        let snapshot = self.snapshot()?;
+        let mut rows = Vec::new();
+        for entry in snapshot.entries {
+            for reference in entry
+                .references
+                .values()
+                .filter(|r| r.operation_id.as_deref() == Some(operation))
+            {
+                let state = match reference.locator.observe() {
+                    Ok(observed)
+                        if observed.value.as_ref() == Some(&entry.value)
+                            && (!matches!(entry.ownership, Ownership::Whole)
+                                || entry.address.file == observed.address.file) =>
+                    {
+                        "present"
+                    }
+                    Ok(observed) if observed.value.is_none() => "missing",
+                    Ok(_) => "modified",
+                    Err(_) => "unknown",
+                };
+                let location = digest::canonical(
+                    "ai-stp:installation-operation:v1",
+                    &json!({"kind":"native.inventory.location",
+                    "subject":reference.subject.key,"root":reference.locator.root.identity,"path":reference.locator.path,"ownership":entry.ownership}),
+                )?;
+                rows.push(json!({"location_digest":location,"source":reference.source,"harness":reference.subject.harness,"state":state}));
+            }
+        }
+        Ok(rows)
+    }
+
     pub fn current_operations(&self) -> Result<BTreeSet<String>> {
         Ok(self
             .snapshot()?
