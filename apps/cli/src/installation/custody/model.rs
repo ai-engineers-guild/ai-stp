@@ -446,10 +446,11 @@ impl Review {
         {
             return Err(invalid());
         }
-        digest::canonical(
-            "ai-stp:installation-operation:v1",
-            &serde_json::to_value(self).map_err(|_| invalid())?,
-        )
+        let document = serde_json::to_value(self).map_err(|_| invalid())?;
+        if crate::canonical::bytes(&document)?.len() > LIMIT {
+            return Err(invalid());
+        }
+        digest::canonical("ai-stp:installation-operation:v1", &document)
     }
     pub(crate) fn retirement(&self) -> Option<&serde_json::Value> {
         self.missing_retirement.as_ref()
