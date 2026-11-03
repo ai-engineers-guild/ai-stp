@@ -36,7 +36,11 @@ pub fn review(target: &Target, custody: &Custody) -> Result<Vec<forward::Change>
     let identity = DirectoryIdentity::capture(&directory)?;
     let marker = crate::canonical::bytes(&json!({"schema_version":2,
         "format":"ai-stp-native-custody-fence/1","target":identity,
-        "coordinator":custody.physical_identity()?}))?;
+        "coordinator":custody.physical_identity()?,"phase":"committed",
+        "operation_id":"native-custody","operation":"native-custody",
+        "plan_digest":crate::digest::sha256(b"ai-stp-native-custody-fence/1"),
+        "target_precondition_digest":crate::digest::canonical("ai-stp:installation-operation:v1",&serde_json::to_value(&identity).map_err(|_|invalid())?)?,
+        "backup_ref":null}))?;
     let mut changes = Vec::new();
     for control in CONTROLS {
         let path = format!("{control}/journal.json");
