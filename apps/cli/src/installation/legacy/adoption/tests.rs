@@ -92,7 +92,13 @@ fn exact_terminal_adoption_preserves_legacy_data_and_only_publishes_writer_fence
     let review = custody.review_adopting(operation.clone(), &desired, &proofs)?;
     assert!(
         review
-            .configuration_changes(&fixture.target, &desired[0].desired)?
+            .configuration_changes(
+                &fixture.target,
+                &BTreeMap::from([(
+                    "AGENTS.md".into(),
+                    forward::Content::new(b"exact legacy guidance\n".to_vec(), 0o600)?
+                )])
+            )?
             .is_empty()
     );
     let guards = super::super::review_with(&fixture.target, &custody, Some(&proofs[0]))?;
