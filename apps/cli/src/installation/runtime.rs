@@ -248,7 +248,7 @@ pub fn retire_plan(root: &Path, operation: &str, expected: &str, at: &str) -> Re
 /// that are gone. No account session or source authorization is inferred.
 pub fn custody() -> Result<Value> {
     let Some(custody) = Custody::existing_user()? else {
-        return Ok(json!({"operations":[],"authorization_granted":false}));
+        return Ok(json!({"operations":[],"pending":null,"authorization_granted":false}));
     };
     let mut operations = Vec::new();
     for operation in custody.current_operations()? {
@@ -279,5 +279,24 @@ pub fn custody() -> Result<Value> {
             "harness_id":document["target"]["harness_id"],"roots":roots}),
         );
     }
-    Ok(json!({"operations":operations,"authorization_granted":false}))
+    let pending = if let Some(review) = custody.pending()? {
+        let document = review.value()?;
+        let metadata = document["missing_retirement"].is_object();
+        let original = if metadata {
+            &document["missing_retirement"]["original_plan"]
+        } else {
+            &document["native_plan"]
+        };
+        let controller = if metadata {
+            &document["missing_retirement"]["controller"]
+        } else {
+            &original["state"]
+        };
+        json!({"operation_id":review.operation_id(),"plan_digest":review.digest()?,
+            "metadata_only":metadata,"controller_state":controller["path"],"original_context":original["context"],
+            "state":custody.status(&review)?["state"]})
+    } else {
+        Value::Null
+    };
+    Ok(json!({"operations":operations,"pending":pending,"authorization_granted":false}))
 }

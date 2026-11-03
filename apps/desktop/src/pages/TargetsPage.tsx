@@ -309,6 +309,7 @@ export default function TargetsPage() {
                 <button className="btn-secondary mt-3" disabled={!editable} onClick={() => void reviewExisting(item,"retire")}>Review missing-folder retirement</button>
               </div>)}
             {custodyView?.ok && records(custodyView.data?.operations).every(item => records(item.roots).every(root => root.state !== "missing")) && <p className="mt-3 text-sm">No owned folder was positively observed as missing.</p>}
+            {record(custodyView?.data?.pending).operation_id != null && <Details label="Retained original recovery coordinates" value={custodyView?.data?.pending}/>}
             {custodyView && !custodyView.ok && <ResultMeta r={custodyView}/>}
           </section>
           {otherPending && (

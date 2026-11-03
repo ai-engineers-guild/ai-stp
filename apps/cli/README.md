@@ -236,7 +236,11 @@ with `"operation": "replace"` in the same physical scope set. Use
 `configuration native remove plan --operation OPERATION --plan-digest DIGEST`
 for removal, followed by prepare/apply. Shared references and unowned fields/files
 are preserved; conflicting or drifted ownership refuses. Custody belongs to the
-OS user across state directories and ignores HOME/XDG selectors.
+OS user across state directories and ignores HOME/XDG selectors. `custody` explicitly inspects local ownership and original pending
+recovery coordinates across state directories. For positively absent folders,
+`configuration native retire plan --operation OPERATION --plan-digest DIGEST`
+releases only their metadata references through prepare/apply. It preserves
+history, live files and other owners; it grants no file or account access.
 
 Explicit `"operation": "adopt"` accepts a terminal supported external 0.0.95
 installation only when its original setup ID/version, ownership ledger and
