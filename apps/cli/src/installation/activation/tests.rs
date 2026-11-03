@@ -44,8 +44,13 @@ impl Consumer {
             .as_mut()
             .ok_or("consumer stdin")?
             .write_all(b"finish\n")?;
-        if !child.wait()?.success() {
-            return Err("consumer failed".into());
+        let output = child.wait_with_output()?;
+        if !output.status.success() {
+            return Err(format!(
+                "consumer failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )
+            .into());
         }
         Ok(())
     }
@@ -93,8 +98,14 @@ fn spawn(mut command: Command) -> std::result::Result<Consumer, Box<dyn Error>> 
         .stdout
         .take()
         .ok_or("stdout")?;
-    for line in BufReader::new(output.take(8192)).lines().take(32) {
-        if line? == "consumer-ready" {
+    let mut output = BufReader::new(output.take(8192));
+    for _ in 0..32 {
+        let mut line = String::new();
+        if output.read_line(&mut line)? == 0 {
+            break;
+        }
+        if line.contains("consumer-ready") {
+            consumer.0.as_mut().ok_or("consumer")?.stdout = Some(output.into_inner().into_inner());
             return Ok(consumer);
         }
     }
@@ -182,7 +193,10 @@ fn all_seven_native_consumers_require_stop_and_a_genuine_new_session()
         let stdout = std::str::from_utf8(&output.stdout)?;
         let session = stdout
             .lines()
-            .find_map(|line| line.strip_prefix("CONFIRMED_SESSION:"))
+            .find_map(|line| {
+                line.split_once("CONFIRMED_SESSION:")
+                    .map(|(_, value)| value)
+            })
             .ok_or("new session confirmation")?;
         let session: Session = serde_json::from_str(session)?;
         assert_eq!(session.harness_id, definition.harness_id);
