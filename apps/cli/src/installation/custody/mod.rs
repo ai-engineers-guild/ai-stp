@@ -3,6 +3,7 @@
 //! This coordinator stores metadata and verifies actual file values. The native
 //! runtime separately owns authorization, handoff and the configuration writer.
 
+mod effects;
 mod model;
 mod placement;
 #[cfg(test)]

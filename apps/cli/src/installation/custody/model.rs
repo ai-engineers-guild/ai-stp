@@ -20,7 +20,7 @@ pub enum Ownership {
     Contribution { parser_id: String, key: String },
 }
 impl Ownership {
-    fn format(&self, path: &str) -> Result<Format> {
+    pub(super) fn format(&self, path: &str) -> Result<Format> {
         let Self::Contribution { parser_id, key } = self else {
             return Err(invalid());
         };
@@ -71,7 +71,7 @@ pub(super) struct Root {
     pub identity: Identity,
 }
 impl Root {
-    fn capture(target: &Target) -> Result<Self> {
+    pub(super) fn capture(target: &Target) -> Result<Self> {
         Ok(Self {
             path: target.root().to_owned(),
             identity: crate::installation::identity::directory(&native(target.directory())?)
@@ -128,7 +128,7 @@ pub(super) struct Value {
     pub mode: Option<u32>,
 }
 impl Value {
-    fn of(ownership: &Ownership, path: &str, bytes: &[u8], mode: u32) -> Result<Self> {
+    pub(super) fn of(ownership: &Ownership, path: &str, bytes: &[u8], mode: u32) -> Result<Self> {
         Ok(match ownership {
             Ownership::Whole => Self {
                 digest: digest::sha256(bytes),
