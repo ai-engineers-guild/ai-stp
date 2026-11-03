@@ -132,6 +132,10 @@ impl Custody {
         snapshot.validate(self.identity)?;
         Ok(snapshot)
     }
+    pub(crate) fn physical_identity(&self) -> Result<crate::files::physical::DirectoryIdentity> {
+        self.private_root()?;
+        crate::files::physical::DirectoryIdentity::capture(&native(self.target.directory())?)
+    }
     pub fn inspect(&self) -> Result<Value> {
         let snapshot = self.snapshot()?;
         Ok(
