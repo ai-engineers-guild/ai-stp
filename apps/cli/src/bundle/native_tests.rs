@@ -269,3 +269,97 @@ fn change_package(
     entries[0].bytes = canonical::bytes(&manifest)?.into();
     Ok(archive::encode(&entries, limits)?)
 }
+
+#[test]
+fn shared_reader_checks_actual_packages_for_all_seven_harnesses_and_nineteen_scopes()
+-> std::result::Result<(), Box<dyn std::error::Error>> {
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().canonicalize()?;
+    let input = root.join("input");
+    std::fs::create_dir(&input)?;
+    std::fs::write(input.join("guide.md"), b"# Guidance\nVerify each change.\n")?;
+    let mut store = Store::open(&root, true)?;
+    let identity = Identity {
+        account_id: "account_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
+        device_id: "device_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
+    };
+    let (os, arch) = crate::platform::current()
+        .and_then(|platform| platform.split_once('/'))
+        .ok_or("unsupported fixture platform")?;
+    let at = "2026-11-03T00:00:00.000Z";
+    let mut checked = 0;
+    for harness in crate::harnesses::definitions()? {
+        if harness.harness_id == "undefined" {
+            continue;
+        }
+        let plan = embedded::plan(
+            &mut store,
+            embedded::Request {
+                directory: input.clone(),
+                harness_id: harness.harness_id.clone(),
+                component_type: "instruction".into(),
+                name: format!("native-{}", harness.harness_id),
+                license_spdx: "MIT".into(),
+            },
+            identity.clone(),
+            at,
+        )?;
+        embedded::apply(&mut store, &plan, &plan.digest()?, &identity, at)?;
+        let setup = json!({"stable_id":plan.setup["stable_id"],"version":plan.setup["version"],
+            "passport_digest":digest::canonical("ai-stp:passport:v1", &plan.setup)?});
+        let evidence = [&plan.component, &plan.setup]
+            .into_iter()
+            .map(|document| {
+                Ok((
+                    text(document, "stable_id")?.to_owned(),
+                    Evidence {
+                        passport_digest: digest::canonical("ai-stp:passport:v1", document)?,
+                        registrable: true,
+                        blocked: false,
+                        author_verified: false,
+                        component_verified: false,
+                        checks_current: false,
+                        consented: true,
+                    },
+                ))
+            })
+            .collect::<Result<BTreeMap<_, _>>>()?;
+        for profile in projection::profiles()?
+            .iter()
+            .filter(|profile| profile.harness_id == harness.harness_id)
+        {
+            let target = Target {
+                harness_id: harness.harness_id.clone(),
+                scope: profile.target_scope,
+                os: os.into(),
+                arch: arch.into(),
+                harness_version: "unknown".into(),
+                owner_id: identity.account_id.clone(),
+                capabilities: BTreeSet::new(),
+                permissions: BTreeSet::new(),
+                entitlements: BTreeSet::new(),
+                env_present: BTreeSet::new(),
+                grants: BTreeSet::new(),
+                accessible_passport_digests: BTreeSet::new(),
+                access_context_digest: None,
+                pinned_passport_digests: BTreeSet::new(),
+                owned_passport_digests: BTreeSet::new(),
+                for_redistribution: false,
+            };
+            let package = compile_native(&mut store, &setup, &target, &evidence, &Hosts::new())?;
+            let read = reader::Package::read_native(
+                &mut store,
+                &package.archive,
+                &harness.harness_id,
+                profile.target_scope,
+                &Hosts::new(),
+            )?;
+            assert_eq!(read.setup, setup);
+            assert_eq!(read.binding.artifact_digest, package.artifact_digest);
+            assert!(!read.files.is_empty());
+            checked += 1;
+        }
+    }
+    assert_eq!(checked, 19);
+    Ok(())
+}

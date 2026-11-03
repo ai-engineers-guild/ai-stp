@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use jiff::Timestamp;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{Value, json};
 
 use super::Info;
