@@ -82,6 +82,28 @@ impl Observation {
     pub(crate) fn byte_length(&self) -> usize {
         self.file.as_ref().map_or(0, |file| file.length)
     }
+    pub(crate) fn address(
+        &self,
+        root: Identity,
+        path: &str,
+    ) -> (Identity, String, Option<Identity>) {
+        let (parent, remaining) =
+            self.parents
+                .last_key_value()
+                .map_or((root, path), |(prefix, id)| {
+                    (
+                        *id,
+                        path.strip_prefix(prefix)
+                            .and_then(|tail| tail.strip_prefix('/'))
+                            .unwrap_or(path),
+                    )
+                });
+        (
+            parent,
+            remaining.to_owned(),
+            self.file.as_ref().map(|file| file.identity),
+        )
+    }
 }
 
 pub(super) fn parent(

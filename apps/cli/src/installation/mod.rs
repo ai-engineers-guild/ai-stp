@@ -5,6 +5,7 @@
 //! Its forward writer retains desired bytes, original physical bindings and
 //! immutable outcomes; it never captures previous user content.
 
+pub mod custody;
 pub mod error;
 pub mod forward;
 mod identity;
