@@ -20,13 +20,15 @@ COMPONENT_NEXT_STEP: Final = (
 SETUP_NEXT_STEP: Final = COMPONENT_NEXT_STEP
 INSTALL_TASK_START: Final = (
     "Use ai-stp to configure my installed harness with {stable_id}{version_label}. "
-    "Start with `ai-stp task intents --json`, inspect the exact object and gather "
-    "the local target, source and provider facts required by the install input schema. "
+    "Start with `ai-stp capabilities --json` and `ai-stp task intents --json`; "
+    "inspect and acquire the exact graph in its original local library. "
+    "Choose the original saved context and explicit existing folders, then review "
+    "the first-party `configuration native` plan and prepare/stop/apply/restart/confirm flow. "
     "Keep harness installation and updates under its own management."
 )
 INSTALL_SETUP_START: Final = INSTALL_TASK_START
 LOGIN: Final = "ai-stp account plan --action start --provider {provider} --json"
-CLI_RELEASES_URL: Final = "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.2.5"
+CLI_RELEASES_URL: Final = "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.3.0"
 INTENTS_BOOTSTRAP: Final = "ai-stp task intents --json"
 INITIALIZE_START: Final = "ai-stp init --credential-store os_keyring --json"
 INITIALIZE_PROMPT: Final = (
