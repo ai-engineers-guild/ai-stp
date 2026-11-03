@@ -240,3 +240,29 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(all(test, unix))]
+mod raw_parent_tests {
+    use super::*;
+    use std::{
+        error::Error,
+        ffi::OsString,
+        os::unix::{ffi::OsStringExt, fs::symlink},
+    };
+    #[test]
+    fn raw_non_unicode_parent_is_inspectable_but_a_link_never_proves_absence()
+    -> std::result::Result<(), Box<dyn Error>> {
+        let temporary = tempfile::tempdir()?;
+        let root = temporary.path().canonicalize()?;
+        let parent = root.join(OsString::from_vec(b"parent-\xff".to_vec()));
+        std::fs::create_dir(&parent)?;
+        let missing = parent.join("missing");
+        let observed = Parent::observe(&missing)?;
+        let retained: Parent = serde_json::from_value(serde_json::to_value(&observed.parent)?)?;
+        retained.open(&missing)?;
+        let alias = root.join("alias");
+        symlink(&parent, &alias)?;
+        assert!(Parent::observe(&alias.join("missing")).is_err());
+        Ok(())
+    }
+}
