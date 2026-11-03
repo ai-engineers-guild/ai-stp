@@ -673,6 +673,20 @@ impl Writer {
         self.verify(&changes)
     }
 
+    /// Observe an already published exact desired set without republishing it.
+    /// This is a recovery fact, never a grant for another effect.
+    pub(crate) fn changes_applied(&self, admission: &Admission) -> Result<bool> {
+        let record = self.store.record(admission)?.ok_or_else(invalid)?;
+        if record.phase != "finishing" {
+            return Ok(false);
+        }
+        let changes = self.store.changes(&admission.operation_id)?;
+        if changes.is_empty() {
+            return Ok(false);
+        }
+        Ok(self.verify(&changes).is_ok())
+    }
+
     fn verify(&self, changes: &[Change]) -> Result<()> {
         for change in changes {
             let (now, _) = self.read(&change.path)?;

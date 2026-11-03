@@ -1,7 +1,8 @@
 //! Explicit OS-user custody retirement for positively absent target folders.
 //! This releases metadata refs, never files, private access or source authority.
 
-use super::{Directory, Operation, Plan, binding, invalid, native, value};
+use super::model::Directory;
+use super::{Operation, Plan, binding, invalid, native, value};
 use crate::{
     authoring::{Identity, runtime},
     digest,

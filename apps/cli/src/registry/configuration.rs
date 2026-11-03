@@ -17,13 +17,14 @@ pub(super) enum Handler {
     Cancel,
     Confirm,
     RemovePlan,
+    RetirePlan,
     Effective,
     Pending,
 }
 impl Handler {
     pub fn mutability(self) -> &'static str {
         match self {
-            Self::Plan | Self::RemovePlan => "plan",
+            Self::Plan | Self::RemovePlan | Self::RetirePlan => "plan",
             Self::Status | Self::Effective | Self::Pending => "read",
             _ => "apply",
         }
@@ -42,6 +43,12 @@ const DIGEST: Parameter = Parameter {
     required: true,
 };
 pub(super) const COMMANDS: &[Declaration] = &[
+    Declaration {
+        path: &["configuration", "native", "retire", "plan"],
+        summary: "Review metadata-only release of positively absent target references; preserve history, live files and other owners.",
+        parameters: &[STATE_DIR, OPERATION, DIGEST],
+        handler: super::Handler::Configuration(Handler::RetirePlan),
+    },
     Declaration {
         path: &["configuration", "native", "effective"],
         summary: "Read current owned setup references and drift for one saved context without manufacturing runtime health.",
@@ -157,6 +164,9 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
         Handler::Status => runtime::status(root, text("operation")?, text("plan-digest")?),
         Handler::Cancel => runtime::cancel(root, text("operation")?, text("plan-digest")?, &at),
         Handler::Confirm => runtime::confirm(root, text("operation")?, text("plan-digest")?, &at),
+        Handler::RetirePlan => {
+            runtime::retire_plan(root, text("operation")?, text("plan-digest")?, &at)
+        }
         Handler::RemovePlan => {
             runtime::remove_plan(root, text("operation")?, text("plan-digest")?, &at)
         }

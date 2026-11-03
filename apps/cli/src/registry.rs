@@ -969,7 +969,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
             "native_authoring_harnesses": config::HARNESSES,
             "native_inventory":{"available":crate::platform::current().is_some(),"coverage":"owned_native_only","foreground_only":true},
             "native_configuration":{"available":crate::platform::current().is_some(),"harnesses":config::HARNESSES,
-                "operations":["plan","prepare","apply","status","cancel","confirm","remove","effective","pending"],
+                "operations":["plan","prepare","apply","status","cancel","confirm","remove","retire","effective","pending"],
                 "process_handoff":true,"vendor_programs_managed":false,"runtime_loading_observed":false},
             "runtime": "rust", "os": std::env::consts::OS, "architecture": std::env::consts::ARCH, "catalog_enabled": true, "sync_enabled": false,
             "state_access": "native_registry_with_explicit_legacy_transfer", "cache_access": "explicit_public_catalog_cache",

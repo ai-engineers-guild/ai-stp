@@ -692,18 +692,22 @@ impl Custody {
             Progress::Finishing => (),
             _ => return Err(invalid()),
         }
-        native(self.writer.apply_checked(&admission, || {
-            if let Some(data) = review.retirement() {
-                crate::installation::planning::retirement::revalidate(data).map_err(|error| {
-                    crate::installation::Error::new(
-                        crate::installation::ReasonCode::RecoveryRequired,
-                        "missing-target retirement observations changed",
-                    )
-                    .with_source(error)
-                })?;
-            }
-            Ok(())
-        }))?;
+        if review.retirement().is_none() || !native(self.writer.changes_applied(&admission))? {
+            native(self.writer.apply_checked(&admission, || {
+                if let Some(data) = review.retirement() {
+                    crate::installation::planning::retirement::revalidate(data).map_err(
+                        |error| {
+                            crate::installation::Error::new(
+                                crate::installation::ReasonCode::RecoveryRequired,
+                                "missing-target retirement observations changed",
+                            )
+                            .with_source(error)
+                        },
+                    )?;
+                }
+                Ok(())
+            }))?;
+        }
         native(self.writer.complete(&admission))
     }
 }
