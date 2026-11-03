@@ -479,6 +479,41 @@ fn retained_admission(previous: Option<&Path>) -> std::result::Result<(), Box<dy
         custody.pending()?.ok_or("pending native review")?.value()?,
         reviewed.value()?
     );
+    let operation = fresh.plan.operation_id.clone();
+    let digest = reviewed.digest()?;
+    let original = reviewed.value()?;
+    let expired = fresh.plan.expires_at.clone();
+    drop(reviewed);
+    drop(same);
+    drop(fresh);
+    drop(custody);
+    std::fs::remove_dir_all(root.join("source"))?;
+    let mut custody = crate::installation::custody::Custody::open(&metadata)?;
+    let recovered = custody
+        .retained(&operation)?
+        .ok_or("retained preparation")?;
+    assert_eq!(recovered.value()?, original);
+    assert_eq!(
+        recovered
+            .original_plan()?
+            .ok_or("original plan")?
+            .context
+            .context_id,
+        id
+    );
+    let cancelled = cancel_preparation(&state, &mut custody, &operation, &digest, &expired)?;
+    assert_eq!(cancelled["state"], "cancelled");
+    assert!(custody.pending()?.is_none());
+    assert!(!target.join("AGENTS.md").exists());
+    assert!(!target.join(".codex-setup-system").exists());
+    std::fs::rename(&target, root.join("retired-target"))?;
+    std::fs::create_dir(&target)?;
+    assert_eq!(
+        cancel_preparation(&state, &mut custody, &operation, &digest, &expired)?,
+        cancelled
+    );
+    assert!(std::fs::read_dir(&target)?.next().is_none());
+
     assert_eq!(contexts::list(&state)?["selected"]["context_id"], second_id);
     Ok(())
 }
