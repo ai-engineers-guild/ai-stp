@@ -154,8 +154,9 @@ def prove(binary: Path, root: Path) -> None:
         60,
         61,
         62,
+        63,
     ]
-    assert capabilities["snapshot_schema_versions"] == [53, 54, 55, 56, 57, 58, 59, 60, 61, 62]
+    assert capabilities["snapshot_schema_versions"] == [53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]
     assert run(binary, home, ["version"])["data"]["runtime"] == "rust"
     assert (
         "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v"
