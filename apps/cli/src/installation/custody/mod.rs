@@ -286,6 +286,7 @@ impl Custody {
             before_digest: state_digest(&before)?,
             after,
             effects,
+            native_plan: None,
         };
         review.digest()?;
         Ok(review)
@@ -333,6 +334,22 @@ impl Custody {
         }
         native(self.writer.start(&Self::admission(review)?))
     }
+    pub fn status(&self, review: &Review) -> Result<Value> {
+        self.private_root()?;
+        let admission = Self::admission(review)?;
+        let (state, result) = match native(self.writer.progress(&admission))? {
+            Progress::Absent => ("absent", None),
+            Progress::Prepared(_) => ("prepared", None),
+            Progress::Applying(_) => ("applying", None),
+            Progress::Finishing => ("finishing", None),
+            Progress::Completed(value) => ("completed", Some(value)),
+            Progress::Cancelled(value) => ("cancelled", Some(value)),
+        };
+        Ok(
+            json!({"operation_id":review.operation_id,"review_digest":admission.plan_digest,"state":state,"result":result,"authorization_granted":false}),
+        )
+    }
+
     pub fn cancel(&mut self, review: &Review) -> Result<Value> {
         native(self.writer.cancel(&Self::admission(review)?))
     }

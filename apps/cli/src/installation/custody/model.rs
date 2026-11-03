@@ -364,9 +364,21 @@ pub struct Review {
     pub(super) before_digest: String,
     pub(super) after: Snapshot,
     pub(super) effects: Vec<Effect>,
+    pub(super) native_plan: Option<serde_json::Value>,
 }
 impl Review {
     pub fn digest(&self) -> Result<String> {
+        if let Some(plan) = &self.native_plan {
+            let digest = digest::canonical("ai-stp:installation-operation:v1", plan)?;
+            crate::installation::planning::Plan::parse(
+                &serde_json::to_vec(plan).map_err(|_| invalid())?,
+                &digest,
+            )?;
+            if plan["operation_id"] != self.operation_id {
+                return Err(invalid());
+            }
+        }
+
         if self.after.revision != self.operation_id
             || self.format != "ai-stp-native-custody-review/1"
             || !passport::stable_id(&self.operation_id, "operation")
@@ -379,6 +391,11 @@ impl Review {
             "ai-stp:installation-operation:v1",
             &serde_json::to_value(self).map_err(|_| invalid())?,
         )
+    }
+    pub fn bind_native(mut self, plan: &crate::installation::planning::Plan) -> Result<Self> {
+        self.native_plan = Some(plan.value()?);
+        self.digest()?;
+        Ok(self)
     }
     pub fn parse(bytes: &[u8], expected: &str) -> Result<Self> {
         if bytes.len() > LIMIT || !hash(expected) {
