@@ -338,7 +338,7 @@ fn assignment_observations_freeze_exact_policy_without_becoming_execution_grants
     };
     let observation = json!({"schema_version":1,"mode":"corporate","organization_id":organization["organization_id"],
         "capabilities":{"schema_version":1,"registry_version":2,"mode":"corporate","context_kind":"corporate","organization_id":organization["organization_id"],
-        "authorization_revision":"corporate:fixture:1","issued_at":AT,"generated_at":AT,"expires_at":"2026-11-03T01:00:00.000Z","capabilities":["organization.read","assignment.read","project.read"],"unavailable":{}}});
+        "authorization_revision":"corporate:fixture:1","issued_at":AT,"generated_at":AT,"expires_at":"2026-11-03T01:00:00.000Z","capabilities":["assignment.read","organization.read","project.read"],"unavailable":{}}});
     let mut context = context(&root, actor());
     context.authority = Authority::Remote {
         account: Box::new(account.clone()),
