@@ -546,6 +546,65 @@ fn retained_admission(previous: Option<&Path>) -> std::result::Result<(), Box<dy
         configuration_status(&state, &custody, &operation, &digest)?["state"],
         "configured"
     );
+    let input = root.join("confirm-input.json");
+    std::fs::write(
+        &input,
+        serde_json::to_vec(
+            &json!({"state":state,"custody":metadata,"operation":operation,"digest":digest,"at":at}),
+        )?,
+    )?;
+    drop(custody);
+    let executable = root.join("codex");
+    if std::fs::hard_link(std::env::current_exe()?, &executable).is_err() {
+        std::fs::copy(std::env::current_exe()?, &executable)?;
+    }
+    std::thread::sleep(std::time::Duration::from_millis(30));
+    let output = std::process::Command::new(&executable)
+        .args([
+            "--exact",
+            "installation::planning::tests::native_confirmation_consumer",
+            "--nocapture",
+        ])
+        .env_clear()
+        .env("PATH", "")
+        .env("HOME", &root)
+        .env("CODEX_HOME", &target)
+        .env("AI_STP_NATIVE_CONFIRM_INPUT", &input)
+        .current_dir(&root)
+        .output()?;
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = std::str::from_utf8(&output.stdout)?;
+    let confirmed = stdout
+        .lines()
+        .find_map(|line| line.split_once("NATIVE_CONFIRMED:").map(|(_, value)| value))
+        .ok_or("original native confirmation")?;
+    let confirmed: Value = serde_json::from_str(confirmed)?;
+    assert_eq!(confirmed["kind"], "native.configuration.confirmed");
+    assert_eq!(confirmed["activation"], "new_session_confirmed");
+    assert_eq!(confirmed["original_context"]["context_id"], id);
+    assert_eq!(confirmed["load_state"], "not_observed");
+    let custody = crate::installation::custody::Custody::open(&metadata)?;
+    assert_eq!(
+        configuration_status(&state, &custody, &operation, &digest)?["state"],
+        "confirmed"
+    );
+    std::fs::rename(&target, root.join("retired-applied-target"))?;
+    std::fs::create_dir(&target)?;
+    let mut custody = custody;
+    assert_eq!(
+        apply_prepared(&state, &mut custody, &operation, &digest, &at)?,
+        configured
+    );
+    assert_eq!(
+        confirm_session(&state, &custody, &operation, &digest, &at)?,
+        confirmed
+    );
+    assert!(std::fs::read_dir(&target)?.next().is_none());
+
     assert_eq!(contexts::list(&state)?["selected"]["context_id"], second_id);
     Ok(())
 }
@@ -792,5 +851,27 @@ fn contribution_planning_preserves_unowned_host_permissions_and_contents()
         0o600
     );
     assert!(!target.join(CONTROL).exists());
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn native_confirmation_consumer() -> std::result::Result<(), Box<dyn Error>> {
+    let Some(input) = std::env::var_os("AI_STP_NATIVE_CONFIRM_INPUT") else {
+        return Ok(());
+    };
+    let input = crate::wire::parse(&std::fs::read(input)?)?;
+    let state = PathBuf::from(input["state"].as_str().ok_or("state")?);
+    let custody = crate::installation::custody::Custody::open(&PathBuf::from(
+        input["custody"].as_str().ok_or("custody")?,
+    ))?;
+    let confirmed = confirm_session(
+        &state,
+        &custody,
+        input["operation"].as_str().ok_or("operation")?,
+        input["digest"].as_str().ok_or("digest")?,
+        input["at"].as_str().ok_or("at")?,
+    )?;
+    println!("NATIVE_CONFIRMED:{}", serde_json::to_string(&confirmed)?);
     Ok(())
 }
