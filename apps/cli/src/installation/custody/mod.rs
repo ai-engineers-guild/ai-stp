@@ -324,6 +324,13 @@ impl Custody {
         native(self.writer.prepare(&admission, &review.value()?, &[]))
     }
     pub fn start(&self, review: &Review) -> Result<()> {
+        self.private_root()?;
+        for effect in &review.effects {
+            let current = effect.locator.observe()?;
+            if current.before != effect.observation || current.value != effect.before {
+                return Err(invalid());
+            }
+        }
         native(self.writer.start(&Self::admission(review)?))
     }
     pub fn cancel(&mut self, review: &Review) -> Result<Value> {

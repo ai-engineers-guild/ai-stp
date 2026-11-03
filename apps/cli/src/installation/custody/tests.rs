@@ -458,3 +458,25 @@ fn os_user_custody_address_cannot_be_split_by_state_or_home_environment()
     assert!(!answers[0].starts_with(temporary.path()));
     Ok(())
 }
+
+#[test]
+fn drift_after_preparation_cannot_start_the_original_custody_publication()
+-> std::result::Result<(), Box<dyn Error>> {
+    let (_temporary, metadata, path) = fixture()?;
+    let target = target(&path)?;
+    let mut custody = Custody::open(&metadata)?;
+    let plan = custody.review(
+        operation(),
+        &[Change {
+            subject: subject("owner", &target)?,
+            desired: vec![desired(&target, b"planned")?],
+        }],
+    )?;
+    custody.prepare(&plan, &plan.digest()?)?;
+    put(&path.join("AGENTS.md"), b"new-unowned-data")?;
+    assert!(custody.start(&plan).is_err());
+    assert_eq!(std::fs::read(path.join("AGENTS.md"))?, b"new-unowned-data");
+    custody.cancel(&plan)?;
+    assert_eq!(claim_count(&custody)?, 0);
+    Ok(())
+}
