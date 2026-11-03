@@ -1149,3 +1149,178 @@ fn published_external_installation_is_adopted_without_rewriting_its_state_or_asf
     );
     Ok(())
 }
+
+#[cfg(unix)]
+#[test]
+fn positively_missing_target_retirement_preserves_history_and_releases_no_live_files()
+-> std::result::Result<(), Box<dyn Error>> {
+    let _consumers = crate::installation::activation::CONSUMERS
+        .lock()
+        .map_err(|_| "consumer fixture lock")?;
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().canonicalize()?;
+    let state = root.join("original state");
+    let controller = root.join("another state");
+    let target = root.join("target");
+    let metadata = root.join("custody");
+    for path in [&state, &controller, &target, &metadata] {
+        std::fs::create_dir(path)?;
+    }
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&metadata, std::fs::Permissions::from_mode(0o700))?;
+    let at = format!("{:.3}", jiff::Timestamp::now());
+    for path in [&state, &controller] {
+        let init = crate::identity::plan(path, crate::identity::Storage::File, &at)?;
+        crate::identity::apply(&init, &init.digest()?, &at)?;
+    }
+    let saved = contexts::create_plan(&state, "Original missing target", None, None, &at)?;
+    let saved_value = serde_json::to_value(&saved)?;
+    let context = saved_value["change"]["context"]["context_id"]
+        .as_str()
+        .ok_or("context")?;
+    contexts::apply(&saved, &saved.digest()?, &at)?;
+    let owner = runtime::owner(&state)?;
+    let mut store = owner.open(false)?;
+    let input = request(
+        &mut store,
+        &root.join("source"),
+        target.clone(),
+        owner.clone(),
+        &at,
+    )?;
+    drop(store);
+    drop(owner);
+    let native = create(&state, context, &input, &at)?;
+    let source = native.plan.operation_id.clone();
+    let mut custody = crate::installation::custody::Custody::open(&metadata)?;
+    let reviewed = Reviewed::create(&state, &native.plan, &custody, &at)?;
+    let source_digest = reviewed.digest()?;
+    reviewed.prepare(&state, &mut custody, &source_digest, &at)?;
+    drop(reviewed);
+    let configured = apply_prepared(&state, &mut custody, &source, &source_digest, &at)?;
+    assert!(
+        retirement::plan(&controller, &custody, &source, &source_digest, &at).is_err(),
+        "a live target is not absent"
+    );
+    std::fs::remove_dir_all(&target)?;
+    let retired_plan = retirement::plan(&controller, &custody, &source, &source_digest, &at)?;
+    let parsed = crate::installation::custody::Review::parse(
+        &serde_json::to_vec(&retired_plan["plan"])?,
+        retired_plan["plan_digest"]
+            .as_str()
+            .ok_or("retirement digest")?,
+    )?;
+    let expected = parsed.digest()?;
+    retirement::prepare(&controller, &mut custody, &parsed, &expected, &at)?;
+    std::fs::create_dir(&target)?;
+    std::fs::write(target.join("user-note"), b"replacement remains unowned")?;
+    assert!(
+        retirement::apply(&controller, &mut custody, &parsed).is_err(),
+        "reappearing targets must refuse before metadata publication"
+    );
+    assert_eq!(custody.status(&parsed)?["state"], "prepared");
+    retirement::cancel(&controller, &mut custody, &parsed)?;
+    assert_eq!(
+        std::fs::read(target.join("user-note"))?,
+        b"replacement remains unowned"
+    );
+    assert_eq!(custody.current_scopes(&source)?.len(), 1);
+    std::fs::remove_dir_all(&target)?;
+    let retired_plan = retirement::plan(&controller, &custody, &source, &source_digest, &at)?;
+    let parsed = crate::installation::custody::Review::parse(
+        &serde_json::to_vec(&retired_plan["plan"])?,
+        retired_plan["plan_digest"]
+            .as_str()
+            .ok_or("retirement digest")?,
+    )?;
+    let expected = parsed.digest()?;
+    retirement::prepare(&controller, &mut custody, &parsed, &expected, &at)?;
+    // Original state loss does not turn OS-user metadata retirement into a
+    // replacement enrollment, an online grant or another account's file write.
+    std::fs::remove_dir_all(&state)?;
+    let result = retirement::apply(&controller, &mut custody, &parsed)?;
+    assert_eq!(result["state"], "retired");
+    assert_eq!(result["original_context"]["context_id"], context);
+    assert_eq!(result["source_operation"], source);
+    assert_eq!(result["configuration_changed"], false);
+    assert!(custody.current_scopes(&source)?.is_empty());
+    assert_eq!(custody.inspect()?["claims"], json!([]));
+    assert_eq!(
+        apply_prepared(&state, &mut custody, &source, &source_digest, &at)?,
+        configured
+    );
+    std::fs::create_dir(&target)?;
+    std::fs::write(target.join("user-note"), b"later unowned target")?;
+    assert_eq!(
+        retirement::apply(&controller, &mut custody, &parsed)?,
+        result
+    );
+    assert!(!target.join("AGENTS.md").exists());
+    assert_eq!(
+        std::fs::read(target.join("user-note"))?,
+        b"later unowned target"
+    );
+    let saved = contexts::create_plan(&controller, "Controller personal", None, None, &at)?;
+    let saved_value = serde_json::to_value(&saved)?;
+    let other_context = saved_value["change"]["context"]["context_id"]
+        .as_str()
+        .ok_or("other context")?;
+    contexts::apply(&saved, &saved.digest()?, &at)?;
+    let other_target = root.join("unrelated target");
+    std::fs::create_dir(&other_target)?;
+    let owner = runtime::owner(&controller)?;
+    let mut store = owner.open(false)?;
+    let input = request(
+        &mut store,
+        &root.join("other source"),
+        other_target.clone(),
+        owner.clone(),
+        &at,
+    )?;
+    drop(store);
+    drop(owner);
+    let native = create(&controller, other_context, &input, &at)?;
+    let reviewed = Reviewed::create(&controller, &native.plan, &custody, &at)?;
+    let digest = reviewed.digest()?;
+    reviewed.prepare(&controller, &mut custody, &digest, &at)?;
+    apply_prepared(
+        &controller,
+        &mut custody,
+        &native.plan.operation_id,
+        &digest,
+        &at,
+    )?;
+    let after = custody.inspect()?;
+    assert_eq!(
+        retirement::apply(&controller, &mut custody, &parsed)?,
+        result
+    );
+    assert_eq!(
+        custody.inspect()?,
+        after,
+        "historical retirement must never remove a later reference"
+    );
+    let removal = create_removal(
+        &controller,
+        &custody,
+        &native.plan.operation_id,
+        &digest,
+        &at,
+    )?;
+    let reviewed = Reviewed::create(&controller, &removal, &custody, &at)?;
+    let digest = reviewed.digest()?;
+    reviewed.prepare(&controller, &mut custody, &digest, &at)?;
+    apply_prepared(
+        &controller,
+        &mut custody,
+        &removal.operation_id,
+        &digest,
+        &at,
+    )?;
+    assert!(!other_target.join("AGENTS.md").exists());
+    assert_eq!(
+        std::fs::read(target.join("user-note"))?,
+        b"later unowned target"
+    );
+    Ok(())
+}

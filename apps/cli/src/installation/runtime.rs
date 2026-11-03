@@ -2,7 +2,7 @@
 
 use super::{
     custody::Custody,
-    planning::{self, Operation, Plan, Reviewed},
+    planning::{self, Operation, Reviewed},
 };
 use crate::{
     account::contexts,
