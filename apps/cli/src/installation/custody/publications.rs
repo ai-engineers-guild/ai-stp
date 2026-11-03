@@ -105,8 +105,7 @@ impl Review {
         for (target, changes) in roots {
             publications.extend(capture(target, changes)?);
         }
-        publications
-            .sort_by(|a, b| (a.root.identity, a.sequence).cmp(&(b.root.identity, b.sequence)));
+        publications.sort_by_key(|a| (a.root.identity, a.sequence));
         validate(&publications)?;
         self.publications = Some(publications);
         self.digest()?;
