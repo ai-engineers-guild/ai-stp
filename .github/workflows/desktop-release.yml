@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Desktop version being released (digits, e.g. 0.2.0)
+        description: Desktop version being released (digits, e.g. 0.4.0)
         required: true
         type: string
 
