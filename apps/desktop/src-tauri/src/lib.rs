@@ -489,6 +489,72 @@ async fn cli_plan(
     gated_run(state.inner().clone(), path, values, flags, repeated, "plan").await
 }
 
+/// Structured native setup input is staged privately; the CLI owns validation.
+#[tauri::command]
+async fn native_configuration_plan(
+    state: tauri::State<'_, Arc<AppState>>,
+    context: String,
+    input: serde_json::Value,
+) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let file = match PublicPlanFile::bounded(&input, 128 * 1024) {
+            Ok(file) => file,
+            Err(error) => return CmdResult::failed("DESKTOP_USAGE", error),
+        };
+        run_cli(
+            &st,
+            &[
+                "configuration".into(),
+                "native".into(),
+                "plan".into(),
+                "--context".into(),
+                context,
+                "--input".into(),
+                file.0.to_string_lossy().into_owned(),
+            ],
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())
+}
+/// The approved complete native review crosses IPC as data, not argv authority.
+#[tauri::command]
+async fn native_configuration_prepare(
+    state: tauri::State<'_, Arc<AppState>>,
+    plan: serde_json::Value,
+    digest: String,
+    confirmed: bool,
+) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        if !confirmed {
+            return CmdResult::failed(
+                "DESKTOP_CONFIRMATION_REQUIRED",
+                "Review the exact native setup and its original context",
+            );
+        }
+        let file = match PublicPlanFile::bounded(&plan, 8 * 1024 * 1024) {
+            Ok(file) => file,
+            Err(error) => return CmdResult::failed("DESKTOP_USAGE", error),
+        };
+        run_cli_mutating(
+            &st,
+            &[
+                "configuration".into(),
+                "native".into(),
+                "prepare".into(),
+                "--plan".into(),
+                file.0.to_string_lossy().into_owned(),
+                "--plan-digest".into(),
+                digest,
+            ],
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())
+}
+
 /// Only reviewed native profile plans may cross this in-memory public bridge.
 #[tauri::command]
 async fn profile_apply(
@@ -1164,6 +1230,8 @@ pub fn run() {
             cli_plan,
             cli_apply_confirmed,
             profile_apply,
+            native_configuration_plan,
+            native_configuration_prepare,
             checkout_apply,
             checkout_location_apply,
             checkout_missing_binding_apply,
