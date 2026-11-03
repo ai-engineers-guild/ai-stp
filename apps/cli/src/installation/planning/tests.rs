@@ -592,6 +592,57 @@ fn retained_admission(previous: Option<&Path>) -> std::result::Result<(), Box<dy
         configuration_status(&state, &custody, &operation, &digest)?["state"],
         "confirmed"
     );
+    let mut replacement = request;
+    replacement.operation = Operation::Replace;
+    let update = create(&state, id, &replacement, &at)?;
+    let reviewed = Reviewed::create(&state, &update.plan, &custody, &at)?;
+    let update_operation = update.plan.operation_id.clone();
+    let update_digest = reviewed.digest()?;
+    let mut custody = custody;
+    reviewed.prepare(&state, &mut custody, &update_digest, &at)?;
+    let updated = apply_prepared(&state, &mut custody, &update_operation, &update_digest, &at)?;
+    assert_eq!(updated["configuration_changed"], false);
+    assert_eq!(updated["restart_required"], false);
+    assert!(
+        create_removal(&state, &custody, &operation, &digest, &at).is_err(),
+        "a historical setup cannot remove a newer effective operation"
+    );
+    let remove = create_removal(&state, &custody, &update_operation, &update_digest, &at)?;
+    let removal_operation = remove.operation_id.clone();
+    let reviewed = Reviewed::create(&state, &remove, &custody, &at)?;
+    let removal_digest = reviewed.digest()?;
+    std::fs::write(target.join("user-note"), b"unowned file stays")?;
+    reviewed.prepare(&state, &mut custody, &removal_digest, &at)?;
+    let removed = apply_prepared(
+        &state,
+        &mut custody,
+        &removal_operation,
+        &removal_digest,
+        &at,
+    )?;
+    assert_eq!(removed["operation"], "remove");
+    assert!(!target.join("AGENTS.md").exists());
+    assert_eq!(
+        std::fs::read(target.join("user-note"))?,
+        b"unowned file stays"
+    );
+    assert!(target.join(".codex-setup-system/journal.json").exists());
+    assert!(
+        custody.inspect()?["claims"]
+            .as_array()
+            .ok_or("claims")?
+            .is_empty()
+    );
+    assert_eq!(
+        apply_prepared(
+            &state,
+            &mut custody,
+            &removal_operation,
+            &removal_digest,
+            &at
+        )?,
+        removed
+    );
     std::fs::rename(&target, root.join("retired-applied-target"))?;
     std::fs::create_dir(&target)?;
     let mut custody = custody;
