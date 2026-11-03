@@ -17,7 +17,7 @@ from ai_stp_foundation.digests import digest_canonical
 
 def qualify(binary: Path, root: Path) -> None:
     for name in ("home", "state", "target", "source"):
-        (root / name).mkdir()
+        (root / name).mkdir(mode=0o700)
     (root / "passwd").write_text("root:x:0:0:Native fixture:/tmp/home:/bin/sh\n")
     (root / "group").write_text("root:x:0:\n")
     (root / "source/guide.md").write_text("# Native guidance\nVerify affected behavior.\n")
