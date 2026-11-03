@@ -56,11 +56,14 @@ function call(
     command.startsWith("task_") ||
     command.startsWith("native_configuration_") ||
     command === "native_inventory_enable" ||
+    command.startsWith("setup_acquisition_") ||
     command === "checkout_apply" ||
     command === "checkout_location_apply" ||
     command === "checkout_missing_binding_apply" ||
     namespace === "context" ||
     namespace === "configuration" ||
+    namespace === "local" ||
+    (namespace === "registry" && pathTokens[1] === "acquire") ||
     namespace === "corporate" ||
     namespace === "account" ||
     namespace === "task";
@@ -411,4 +414,11 @@ export function cmdNativeInventoryEnable(
   confirmed: boolean,
 ): Promise<CmdResult> {
   return call("native_inventory_enable", {plan,digest,confirmed});
+}
+
+export function cmdSetupAcquisitionPlan(stableId:string,version:string):Promise<CmdResult> {
+  return call("setup_acquisition_plan",{stableId,version});
+}
+export function cmdSetupAcquisitionApply(plan:Record<string,unknown>,digest:string,confirmed:boolean):Promise<CmdResult> {
+  return call("setup_acquisition_apply",{plan,digest,confirmed});
 }

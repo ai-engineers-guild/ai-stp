@@ -706,3 +706,15 @@ fn bundled_sidecar_spawns_under_runner_env() {
     assert!(schema.ok);
     assert_eq!(schema.data.unwrap()["additionalProperties"], false);
 }
+
+#[test]
+fn bounded_native_review_envelopes_fit_the_transport_and_oversized_output_still_refuses() {
+    let mut envelope: serde_json::Value =
+        serde_json::from_slice(&fixture("version-ok.json")).unwrap();
+    envelope["data"] = serde_json::json!({"plan":{"metadata":"x".repeat(8*1024*1024)}});
+    let bytes = serde_json::to_vec(&envelope).unwrap();
+    assert!(bytes.len() > 8 * 1024 * 1024);
+    assert!(parse(&bytes).unwrap().ok);
+    let oversized = vec![b' '; ai_stp_desktop_core::envelope::MAX_STDOUT_BYTES + 1];
+    assert!(matches!(parse(&oversized), Err(ParseFailure::NotJson(_))));
+}
