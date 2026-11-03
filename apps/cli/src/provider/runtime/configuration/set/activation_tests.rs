@@ -6,11 +6,11 @@ use std::{
     ffi::OsStr,
     process::{Command, Stdio},
     result::Result,
-    sync::{Mutex, MutexGuard},
+    sync::MutexGuard,
 };
 
 // Invalid-root consumers must not overlap the process-wide observer's control.
-static CONSUMERS: Mutex<()> = Mutex::new(());
+use crate::installation::activation::CONSUMERS;
 
 struct Consumer {
     child: std::process::Child,
