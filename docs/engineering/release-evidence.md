@@ -1,6 +1,6 @@
 ---
 description: "Where native release and deployment evidence is produced and verified."
-last_verified: "2026-11-04"
+last_verified: "2026-11-03"
 ---
 
 # Release evidence
