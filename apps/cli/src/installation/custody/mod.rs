@@ -4,6 +4,7 @@
 //! runtime separately owns authorization, handoff and the configuration writer.
 
 mod model;
+mod placement;
 #[cfg(test)]
 mod tests;
 use crate::{
@@ -16,6 +17,7 @@ use crate::{
 };
 pub use model::{Change, Desired, Observed, Ownership, Review, Source, Subject};
 use model::{Effect, Entry, Identity, Reference, Snapshot};
+pub use placement::user_directory;
 use serde_json::{Value, json};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -51,6 +53,7 @@ pub struct Custody {
     target: Target,
     writer: Writer,
     identity: Identity,
+    _namespace: Option<crate::files::OwnedDirectory>,
 }
 impl Custody {
     /// Acquire the runtime-selected private metadata root. Configuration targets
@@ -81,8 +84,18 @@ impl Custody {
             target,
             writer,
             identity,
+            _namespace: None,
         })
     }
+    /// Join the one OS-user coordinator, independently of state, HOME and XDG
+    /// selectors. This explicitly initializes only private operational metadata.
+    pub fn open_user() -> Result<Self> {
+        let (path, namespace) = placement::initialize()?;
+        let mut custody = Self::open(&path)?;
+        custody._namespace = Some(namespace);
+        Ok(custody)
+    }
+
     fn private_root(&self) -> Result<()> {
         let directory = native(self.target.directory())?;
         #[cfg(unix)]

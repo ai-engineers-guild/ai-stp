@@ -74,12 +74,12 @@ security-framework = "=3.7.0"
 keyring-core = "=1.0.1"
 
 [target.'cfg(any(target_os = "linux", target_os = "macos"))'.dependencies]
-rustix = { version = "=1.1.5", features = ["fs"] }
+rustix = { version = "=1.1.5", features = ["fs", "process"] }
 
 [target.'cfg(windows)'.dependencies]
 fs-id = "=0.2.0"
 win-custody = "=0.1.1"
-winsafe = { version = "=0.0.29", default-features = false, features = ["kernel"] }
+winsafe = { version = "=0.0.29", default-features = false, features = ["kernel", "advapi", "shell"] }
 winx = "=0.36.4"
 windows-native-keyring-store = "=1.1.0"
 
