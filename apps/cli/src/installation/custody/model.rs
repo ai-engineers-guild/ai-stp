@@ -209,7 +209,7 @@ impl Observed {
             .transpose();
         let value = match value {
             Ok(v) => v,
-            Err(e) if e.kind == ErrorKind::NotFound => None,
+            Err(e) if matches!(e.kind, ErrorKind::NotFound) => None,
             Err(e) => return Err(e),
         };
         let (parent, remaining, file) = before.address(root.identity, path);

@@ -287,3 +287,142 @@ fn metadata_lock_and_replaced_target_refuse_before_claiming_unknown_data()
     assert!(std::fs::read_dir(&path)?.next().is_none());
     Ok(())
 }
+
+#[test]
+fn independent_contribution_owners_preserve_each_other_and_unowned_fields()
+-> std::result::Result<(), Box<dyn Error>> {
+    let (_temporary, metadata, path) = fixture()?;
+    let target = target(&path)?;
+    let a = subject("company-a", &target)?;
+    let b = subject("personal-b", &target)?;
+    let mut custody = Custody::open(&metadata)?;
+    let file = path.join("config.json");
+    let original = br#"{"unowned":{"value":"private-canary"}}"#;
+    put(&file, original)?;
+    let kind_a = Ownership::Contribution {
+        parser_id: "json/1".into(),
+        key: "mcpServers".into(),
+    };
+    let kind_b = Ownership::Contribution {
+        parser_id: "json/1".into(),
+        key: "hooks".into(),
+    };
+    let after_a=br#"{"unowned":{"value":"private-canary"},"mcpServers":{"review":{"command":"review-helper"}}}"#;
+    let wanted_a = Desired::capture(
+        &target,
+        "config.json",
+        kind_a.clone(),
+        after_a,
+        0o600,
+        source(),
+    )?;
+    let plan = custody.review(
+        operation(),
+        &[Change {
+            subject: a.clone(),
+            desired: vec![wanted_a],
+        }],
+    )?;
+    custody.prepare(&plan, &plan.digest()?)?;
+    assert_eq!(std::fs::read(&file)?, original);
+    custody.start(&plan)?;
+    put(&file, after_a)?;
+    custody.complete(&plan)?;
+    let after_b=br#"{"unowned":{"value":"private-canary"},"mcpServers":{"review":{"command":"review-helper"}},"hooks":{"ready":{}}}"#;
+    let wanted_b = Desired::capture(&target, "config.json", kind_b, after_b, 0o600, source())?;
+    let plan = custody.review(
+        operation(),
+        &[Change {
+            subject: b.clone(),
+            desired: vec![wanted_b],
+        }],
+    )?;
+    custody.prepare(&plan, &plan.digest()?)?;
+    custody.start(&plan)?;
+    put(&file, after_b)?;
+    custody.complete(&plan)?;
+    assert_eq!(claim_count(&custody)?, 2);
+    let plan = custody.review(
+        operation(),
+        &[Change {
+            subject: a,
+            desired: vec![],
+        }],
+    )?;
+    custody.prepare(&plan, &plan.digest()?)?;
+    custody.start(&plan)?;
+    let only_b = br#"{"unowned":{"value":"private-canary"},"hooks":{"ready":{}}}"#;
+    put(&file, only_b)?;
+    custody.complete(&plan)?;
+    assert_eq!(claim_count(&custody)?, 1);
+    let data: Value = serde_json::from_slice(&std::fs::read(&file)?)?;
+    assert_eq!(data["unowned"]["value"], "private-canary");
+    assert!(data.get("hooks").is_some());
+    let plan = custody.review(
+        operation(),
+        &[Change {
+            subject: b,
+            desired: vec![],
+        }],
+    )?;
+    custody.prepare(&plan, &plan.digest()?)?;
+    custody.start(&plan)?;
+    put(&file, original)?;
+    custody.complete(&plan)?;
+    assert_eq!(claim_count(&custody)?, 0);
+    assert_eq!(std::fs::read(&file)?, original);
+    Ok(())
+}
+
+#[test]
+fn existing_unowned_contribution_and_overlapping_root_roles_are_not_adopted()
+-> std::result::Result<(), Box<dyn Error>> {
+    let (_temporary, metadata, path) = fixture()?;
+    let target = target(&path)?;
+    let mut custody = Custody::open(&metadata)?;
+    let existing = br#"{"mcpServers":{"unowned":{"command":"user-program"}}}"#;
+    put(&path.join("config.json"), existing)?;
+    let ownership = Ownership::Contribution {
+        parser_id: "json/1".into(),
+        key: "mcpServers".into(),
+    };
+    let wanted = Desired::capture(&target, "config.json", ownership, existing, 0o600, source())?;
+    assert!(
+        custody
+            .review(
+                operation(),
+                &[Change {
+                    subject: subject("new-owner", &target)?,
+                    desired: vec![wanted]
+                }]
+            )
+            .is_err()
+    );
+    assert_eq!(std::fs::read(path.join("config.json"))?, existing);
+    let whole = custody.review(
+        operation(),
+        &[Change {
+            subject: subject("first", &target)?,
+            desired: vec![desired(&target, b"guidance")?],
+        }],
+    )?;
+    custody.prepare(&whole, &whole.digest()?)?;
+    custody.start(&whole)?;
+    put(&path.join("AGENTS.md"), b"guidance")?;
+    custody.complete(&whole)?;
+    let nested = path.join("nested");
+    std::fs::create_dir(&nested)?;
+    let nested = super::tests::target(&nested)?;
+    assert!(
+        custody
+            .review(
+                operation(),
+                &[Change {
+                    subject: subject("nested-owner", &nested)?,
+                    desired: vec![desired(&nested, b"nested")?]
+                }]
+            )
+            .is_err()
+    );
+    Ok(())
+}
