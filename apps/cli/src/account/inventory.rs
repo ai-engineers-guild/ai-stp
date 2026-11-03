@@ -438,8 +438,20 @@ pub fn flush(root: &Path, context: &str, at: &str) -> Result<Value> {
     let bytes = encode(&pending.body)?;
     validate_body(&context, access.binding(), &pending.body)?;
     let reply = access.installation_inventory(org(&context)?, &bytes)?;
-    RECEIPT.validate(&reply)?;
-    let wanted = pending.body["snapshots"]
+    let rejected = acknowledge(&pending.body, &reply)?;
+    record.pending = None;
+    record.outcome =
+        Some(json!({"state":if rejected{"refused"}else{"acknowledged"},"receipt":reply}));
+    if rejected {
+        record.enabled = false;
+    }
+    record.save(&dir)?;
+    view(&context, Some(&record))
+}
+
+fn acknowledge(body: &Value, reply: &Value) -> Result<bool> {
+    RECEIPT.validate(reply)?;
+    let wanted = body["snapshots"]
         .as_array()
         .ok_or_else(invalid)?
         .iter()
@@ -461,12 +473,50 @@ pub fn flush(root: &Path, context: &str, at: &str) -> Result<Value> {
     if seen != wanted {
         return Err(invalid());
     }
-    record.pending = None;
-    record.outcome =
-        Some(json!({"state":if rejected{"refused"}else{"acknowledged"},"receipt":reply}));
-    if rejected {
-        record.enabled = false;
+    Ok(rejected)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn body() -> Value {
+        json!({"snapshots":[{"scan_id":"native_inventory_original"}]})
     }
-    record.save(&dir)?;
-    view(&context, Some(&record))
+    #[test]
+    fn inventory_receipts_acknowledge_only_the_exact_original_partition() -> Result<()> {
+        let body = body();
+        for field in ["accepted_ids", "duplicate_ids"] {
+            let mut reply =
+                json!({"schema_version":1,"accepted_ids":[],"duplicate_ids":[],"rejected_ids":[]});
+            reply[field] = json!(["native_inventory_original"]);
+            assert!(!acknowledge(&body, &reply)?);
+        }
+        assert!(acknowledge(
+            &body,
+            &json!({"schema_version":1,"accepted_ids":[],"duplicate_ids":[],"rejected_ids":["native_inventory_original"]})
+        )?);
+        for reply in [
+            json!({"schema_version":1,"accepted_ids":[],"duplicate_ids":[],"rejected_ids":[]}),
+            json!({"schema_version":1,"accepted_ids":["native_inventory_other"],"duplicate_ids":[],"rejected_ids":[]}),
+            json!({"schema_version":1,"accepted_ids":["native_inventory_original"],"duplicate_ids":["native_inventory_original"],"rejected_ids":[]}),
+        ] {
+            assert!(acknowledge(&body, &reply).is_err());
+        }
+        Ok(())
+    }
+    #[test]
+    fn wire_inventory_has_no_fields_for_paths_payloads_prompts_or_unmanaged_coordinates()
+    -> Result<()> {
+        let mut item = json!({"location_digest":format!("sha256:{}","a".repeat(64)),"kind":"instruction","harness":"codex","source":"managed","state":"present","stable_id":"component_fixture","version":"1.0","setup_stable_id":null,"setup_version":null});
+        let snapshot = |item: Value| json!({"schema_version":1,"snapshots":[{"schema_version":1,"scan_id":"native_inventory_fixture","organization_id":"organization_01ARZ3NDEKTSV4RRFFQ69G5FAV","employee_id":"account_01ARZ3NDEKTSV4RRFFQ69G5FAV","device_id":"fixture-device","project_id":null,"scope":"global","scanned_at":"2026-11-03T00:00:00Z","complete":false,"components":[item]}]});
+        BATCH.validate(&snapshot(item.clone()))?;
+        for key in ["path", "prompt", "content", "arguments", "api_key"] {
+            let mut bad = item.clone();
+            bad[key] = "private-canary".into();
+            assert!(BATCH.validate(&snapshot(bad)).is_err());
+        }
+        item["source"] = "external".into();
+        assert!(BATCH.validate(&snapshot(item)).is_err());
+        Ok(())
+    }
 }
