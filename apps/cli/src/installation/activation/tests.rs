@@ -172,6 +172,13 @@ fn all_seven_native_consumers_require_stop_and_a_genuine_new_session()
         consumer.finish()?;
         let idle = handoff.require_idle()?;
         idle.revalidate()?;
+        let mut intervening = spawn(command(&executable, &home, &project, definition, &global))?;
+        assert!(
+            idle.revalidate().is_err(),
+            "an idle guard must refuse a later consumer"
+        );
+        intervening.finish()?;
+        idle.revalidate()?;
         handoff.published()?;
         assert!(
             handoff.confirm().is_err(),
