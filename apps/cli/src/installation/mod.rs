@@ -10,6 +10,7 @@ pub mod error;
 pub mod forward;
 mod identity;
 pub mod journal;
+pub mod legacy;
 pub mod lock;
 pub mod planning;
 pub mod profiles;
