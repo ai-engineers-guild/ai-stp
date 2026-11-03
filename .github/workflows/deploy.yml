@@ -37,7 +37,7 @@ jobs:
     permissions:
       contents: write
       actions: read
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     # Serialising promotion is the point: two runs advancing one ref would
     # race, and a deployment interrupted between transfer and health check
@@ -128,7 +128,7 @@ jobs:
           assert release["prerelease"] is False and release["published_at"]
           names = set()
           for target, extension, platform in [
-              ("x86_64-unknown-linux-gnu", "tar.gz", "manylinux_2_39_x86_64"),
+              ("x86_64-unknown-linux-gnu", "tar.gz", "manylinux_2_43_x86_64"),
               ("aarch64-apple-darwin", "tar.gz", "macosx_15_0_arm64"),
               ("x86_64-pc-windows-msvc", "zip", "win_amd64"),
           ]:
@@ -216,7 +216,7 @@ jobs:
       && github.event.workflow_run.head_branch == 'main'
     permissions:
       contents: read
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # The wait below plus checkout and setup. Larger than the wait, so a
     # timeout means the job was starved rather than the target being late.
     #

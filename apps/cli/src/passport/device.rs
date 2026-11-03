@@ -73,17 +73,9 @@ fn current(connection: &Connection, identity: &Identity) -> Result<Option<Value>
 }
 
 fn observations() -> Result<Value> {
-    let os = match std::env::consts::OS {
-        "linux" => "linux",
-        "macos" => "macos",
-        "windows" => "windows",
-        _ => return Err(invalid()),
-    };
-    let arch = match std::env::consts::ARCH {
-        "x86_64" => "x86_64",
-        "aarch64" => "arm64",
-        _ => return Err(invalid()),
-    };
+    let (os, arch) = crate::platform::current()
+        .and_then(|platform| platform.split_once('/'))
+        .ok_or_else(invalid)?;
     // Execution platform, not a hardware inventory or evidence of installed
     // harnesses. In particular, translation layers may run a different ISA.
     Ok(json!({"operating_system":os,"architecture":arch,

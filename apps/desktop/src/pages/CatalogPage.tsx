@@ -5,11 +5,14 @@ import {
   cmdCatalogSearch,
   cmdCatalogShow,
   cmdMachineHelp,
+  cmdSetupAcquisitionPlan,
+  cmdSetupAcquisitionApply,
   descriptorChoices,
   type CmdResult,
 } from "../transport";
 import { Details, ResultMeta, Spinner } from "../components/Result";
 import { EmptyState, PageHeader } from "../components/Layout";
+import { record } from "../contexts";
 
 type Item = Record<string, unknown>;
 function ItemList({
@@ -82,10 +85,15 @@ export default function CatalogPage() {
   const [cursor, setCursor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [detailBusy, setDetailBusy] = useState(false);
+  const [download,setDownload] = useState<{plan:Record<string,unknown>;digest:string;id:string;version:string;passport:string;harness:string;endpoint:string;components:number;complete:boolean} | null>(null);
+  const [downloadResult,setDownloadResult] = useState<CmdResult | null>(null);
+  const [downloadApproved,setDownloadApproved] = useState(false), [downloadBusy,setDownloadBusy] = useState(false);
+  const alive=useRef(true);
   const generation = useRef(0);
   const detailGeneration = useRef(0);
   useEffect(() => {
     let active = true;
+    alive.current=true;
     void cmdMachineHelp().then((response) => {
       if (!active) return;
       setHelp(response);
@@ -98,6 +106,7 @@ export default function CatalogPage() {
     });
     return () => {
       active = false;
+      alive.current=false;
       generation.current++;
       detailGeneration.current++;
     };
@@ -163,6 +172,40 @@ export default function CatalogPage() {
     } finally {
       if (request === detailGeneration.current) setDetailBusy(false);
     }
+  }
+  async function reviewDownload(version:{version:string;passport_digest:string}) {
+    const summary=record(detail?.data?.summary);
+    const id=String(summary.stable_id ?? ""), harness=String(summary.latest_harness_id ?? "");
+    if (!id || downloadBusy) return;
+    setDownloadBusy(true);setDownloadApproved(false);
+    try {
+      const response=await cmdSetupAcquisitionPlan(id,version.version);
+      if (!alive.current) return;
+      const plan=record(response.data?.plan), operation=record(plan.operation), setup=record(operation.setup), passport=record(setup.passport);
+      const digest=response.data?.plan_digest;
+      if (response.ok && operation.action==="catalog.setup.acquire" && operation.access==null &&
+          passport.stable_id===id && passport.version===version.version &&
+          setup.passport_digest===version.passport_digest && typeof operation.endpoint==="string" &&
+          typeof digest==="string" && /^sha256:[0-9a-f]{64}$/.test(digest)) {
+        setDownload({plan,digest,id,version:version.version,passport:version.passport_digest,harness,
+          endpoint:operation.endpoint,components:Object.keys(record(operation.components)).length,complete:false});
+        setDownloadResult(response);
+      } else {
+        setDownload(null);
+        setDownloadResult(response.ok ? {...response,ok:false,data:null,error_code:"DESKTOP_ACQUISITION_CONTRACT",error:"The graph differs from the exact catalog selection. Read the catalog again."} : response);
+      }
+    } finally {if (alive.current) setDownloadBusy(false);}
+  }
+  async function applyDownload() {
+    const held=download;
+    if (!held || !downloadApproved || downloadBusy) return;
+    setDownloadBusy(true);
+    try {
+      const response=await cmdSetupAcquisitionApply(held.plan,held.digest,true);
+      if (!alive.current) return;
+      setDownloadResult(response);setDownloadApproved(false);
+      if (response.ok) setDownload({...held,complete:true});
+    } finally {if (alive.current) setDownloadBusy(false);}
   }
   const summary = detail?.data?.summary as Item | undefined;
   const versions = (detail?.data?.versions ?? []) as {
@@ -297,13 +340,16 @@ export default function CatalogPage() {
                     </p>
                   </div>
                   {kind === "setup" && version.lifecycle === "active" && (
+                    <div className="flex flex-wrap gap-3">
+                    <button className="btn-secondary" disabled={downloadBusy} onClick={()=>void reviewDownload(version)}>Download exact graph</button>
                     <Link
                       className="btn-outline shrink-0"
-                      to={`/install?${new URLSearchParams({ intent: "install", setup: String(summary?.stable_id ?? ""), version: version.version, digest: version.passport_digest, harness: String(summary?.latest_harness_id ?? "") })}`}
+                      to={`/targets?${new URLSearchParams({ setup: String(summary?.stable_id ?? ""), version: version.version, digest: version.passport_digest, harness: String(summary?.latest_harness_id ?? "") })}`}
                     >
-                      Review installation
+                      Review local installation
                       <ArrowRight size={13} />
                     </Link>
+                    </div>
                   )}
                 </li>
               ))}
@@ -312,6 +358,19 @@ export default function CatalogPage() {
           {detail.data && <Details value={detail.data} />}
         </section>
       )}
+      {download && <section className="card p-5" aria-label="Exact setup download">
+        <h2 className="text-lg font-semibold">Download exact public setup</h2>
+        <p className="mt-2 text-sm">This saves the reviewed graph in its original local library. It does not configure folders or run a harness.</p>
+        <p className="mt-3 break-all text-sm">{download.id} · {download.version}</p>
+        <p className="mt-1 break-all text-sm text-muted-foreground">{download.endpoint} · {download.components} components</p>
+        <Details label="Exact source identity" value={{passport_digest:download.passport,plan_digest:download.digest}}/>
+        {!download.complete ? <>
+          <label className="mt-4 flex gap-2 text-sm"><input type="checkbox" checked={downloadApproved} disabled={downloadBusy} onChange={event=>setDownloadApproved(event.target.checked)}/>Download this exact graph to the reviewed local library.</label>
+          <button className="btn-primary mt-3" disabled={downloadBusy || !downloadApproved} onClick={()=>void applyDownload()}>Download reviewed graph</button>
+        </> : <Link className="btn-primary mt-4" to={"/targets?"+new URLSearchParams({setup:download.id,version:download.version,digest:download.passport,harness:download.harness})}>Configure downloaded setup</Link>}
+      </section>}
+      {downloadBusy && <Spinner label="Checking the exact public setup graph"/>}
+      {downloadResult && <ResultMeta r={downloadResult}/>}
       {items.length > 0 && (
         <section className="space-y-4">
           <div className="flex justify-between">

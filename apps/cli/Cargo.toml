@@ -1,6 +1,6 @@
 [package]
 name = "ai-stp-cli"
-version = "0.2.5"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.99"
 repository = "https://github.com/ai-engineers-guild/ai-stp"
@@ -29,7 +29,7 @@ clap = { version = "=4.6.7", default-features = false, features = ["std", "strin
 jiff = { version = "=0.2.38", default-features = false, features = ["std"] }
 jsonschema = { version = "=0.60.0", default-features = false }
 jsonc-parser = { version = "=0.34.0", default-features = false, features = ["cst"] }
-pulldown-cmark = { version = "=0.13.5", default-features = false }
+pulldown-cmark = { version = "=0.13.6", default-features = false }
 process-wrap = { version = "=10.0.1", default-features = false, features = ["std", "process-group", "job-object"] }
 rusqlite = { version = "=0.40.2", features = ["bundled", "serialize", "hooks", "limits"] }
 sqlite-plugin = "=0.11.0"
@@ -69,17 +69,19 @@ zbus = { version = "=6.1.0", default-features = false, features = ["default-rt",
 [target.'cfg(target_os = "macos")'.dependencies]
 apple-native-keyring-store = { version = "=1.0.2", features = ["keychain"] }
 security-framework = "=3.7.0"
+libproc = "=0.14.11"
 
 [target.'cfg(any(target_os = "macos", windows))'.dependencies]
 keyring-core = "=1.0.1"
+sysinfo = { version = "=0.40.1", default-features = false, features = ["system"] }
 
 [target.'cfg(any(target_os = "linux", target_os = "macos"))'.dependencies]
-rustix = { version = "=1.1.5", features = ["fs"] }
+rustix = { version = "=1.1.5", features = ["fs", "process"] }
 
 [target.'cfg(windows)'.dependencies]
 fs-id = "=0.2.0"
 win-custody = "=0.1.1"
-winsafe = { version = "=0.0.29", default-features = false, features = ["kernel"] }
+winsafe = { version = "=0.0.29", default-features = false, features = ["kernel", "advapi", "shell"] }
 winx = "=0.36.4"
 windows-native-keyring-store = "=1.1.0"
 

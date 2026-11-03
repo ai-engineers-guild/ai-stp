@@ -6,6 +6,7 @@ mod tests;
 pub(crate) mod access;
 pub mod bundles;
 pub mod matrix;
+pub(crate) mod native;
 mod program;
 pub mod reports;
 pub mod sessions;
@@ -191,8 +192,18 @@ fn inputs(connection: &Connection, roots: &[Value], target: Target) -> Result<In
 fn inputs_with_budget(
     connection: &Connection,
     roots: &[Value],
+    target: Target,
+    budget: u64,
+) -> Result<Inputs> {
+    inputs_scope(connection, roots, target, budget, true)
+}
+
+fn inputs_scope(
+    connection: &Connection,
+    roots: &[Value],
     mut target: Target,
     budget: u64,
+    verify_sources: bool,
 ) -> Result<Inputs> {
     let closure = graph::exact(connection, roots)?;
     let mut documents = Vec::new();
@@ -234,12 +245,14 @@ fn inputs_with_budget(
                 .owned_passport_digests
                 .insert(passport_digest.clone());
         }
-        if document["kind"] == "component" {
-            freezing::verify(connection, document)?;
-        } else {
-            let bytes =
-                revisions::read_content(connection, text(&document["artifact"], "digest")?)?;
-            setups::verify_definition(document, &bytes)?;
+        if verify_sources {
+            if document["kind"] == "component" {
+                freezing::verify(connection, document)?;
+            } else {
+                let bytes =
+                    revisions::read_content(connection, text(&document["artifact"], "digest")?)?;
+                setups::verify_definition(document, &bytes)?;
+            }
         }
         for variable in document["required_env"].as_array().into_iter().flatten() {
             let name = text(variable, "name")?;

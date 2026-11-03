@@ -202,13 +202,27 @@ fn context(pid: u32, definition: &harnesses::Definition) -> Result<Vec<PathBuf>>
     Ok(paths)
 }
 
-fn overlaps(paths: &[PathBuf], targets: &[Target]) -> Result<bool> {
+trait ObservedRoot {
+    fn disjoint_from(&self, other: &Dir) -> Result<()>;
+}
+impl ObservedRoot for Target {
+    fn disjoint_from(&self, other: &Dir) -> Result<()> {
+        self.disjoint(other)
+    }
+}
+impl ObservedRoot for &crate::installation::target::Target {
+    fn disjoint_from(&self, other: &Dir) -> Result<()> {
+        let root = self.directory().map_err(|_| invalid())?;
+        crate::files::physical::require_disjoint(&root, other)
+    }
+}
+fn overlaps(paths: &[PathBuf], targets: &[impl ObservedRoot]) -> Result<bool> {
     for path in paths {
         match Dir::open_ambient_dir(path, cap_std::ambient_authority()) {
             Ok(directory)
                 if targets
                     .iter()
-                    .any(|target| target.disjoint(&directory).is_err()) =>
+                    .any(|target| target.disjoint_from(&directory).is_err()) =>
             {
                 return Ok(true);
             }
@@ -220,7 +234,7 @@ fn overlaps(paths: &[PathBuf], targets: &[Target]) -> Result<bool> {
     Ok(false)
 }
 
-fn observe(targets: &[Target]) -> Result<Vec<Session>> {
+fn observe(targets: &[impl ObservedRoot]) -> Result<Vec<Session>> {
     let boot_id = boot()?;
     let mut sessions = Vec::new();
     for entry in fs::read_dir("/proc").map_err(|_| invalid())? {
@@ -414,4 +428,19 @@ pub(super) fn confirm(plan: &Plan, handoff: &Handoff) -> Result<Session> {
     Err(Failure::precondition(
         "confirmation must be called by a new harness session after verified configuration publication",
     ))
+}
+
+// The native engine shares this qualified Linux observer without changing the
+// historical session/journal representation or accepting serialized authority.
+pub(crate) fn native_sessions(
+    targets: &[&crate::installation::target::Target],
+) -> Result<Vec<Session>> {
+    retry(|| observe(targets))
+}
+pub(crate) fn native_published() -> Result<Moment> {
+    published()
+}
+pub(crate) fn native_parent(pid: u32) -> Result<Option<(u32, String, u64)>> {
+    let boot = boot()?;
+    Ok(process(pid)?.map(|process| (process.parent, boot, process.started)))
 }

@@ -1,5 +1,6 @@
 //! Bounded input and display paths shared by read services.
 
+pub(crate) mod absence;
 pub(crate) mod document;
 mod owned;
 pub(crate) mod physical;

@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 pub const SUPPORTED_SCHEMA_MAJOR: u64 = 1;
-pub const MAX_STDOUT_BYTES: usize = 4 * 1024 * 1024;
+// Native reviews and exact acquisition plans are bounded to 8 MiB plus their envelope.
+pub const MAX_STDOUT_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CliError {

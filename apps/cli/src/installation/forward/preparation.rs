@@ -14,9 +14,44 @@ impl Writer {
         context: &serde_json::Value,
         changes: &[Change],
     ) -> Result<serde_json::Value> {
+        self.prepare_context(admission, context, changes, false)
+    }
+
+    /// Prepare a context containing intent/observation metadata only, preserving
+    /// that metadata for original-operation history. Never place file payloads
+    /// or secret values in this context; desired payload rows are still deleted.
+    ///
+    /// # Errors
+    /// Refuses a changed request, another active operation or incompatible history.
+    pub fn prepare_retained_metadata(
+        &mut self,
+        admission: &Admission,
+        context: &serde_json::Value,
+        changes: &[Change],
+    ) -> Result<serde_json::Value> {
+        self.prepare_context(admission, context, changes, true)
+    }
+
+    fn prepare_context(
+        &mut self,
+        admission: &Admission,
+        context: &serde_json::Value,
+        changes: &[Change],
+        retain: bool,
+    ) -> Result<serde_json::Value> {
         match self.progress(admission)? {
-            Progress::Absent => self.admit_inner(admission, context, changes, true)?,
-            Progress::Prepared(_) => (),
+            Progress::Absent => self.admit_inner(admission, context, changes, true, retain)?,
+            Progress::Prepared(_) => {
+                if retain
+                    && !self
+                        .store
+                        .record(admission)?
+                        .ok_or_else(invalid)?
+                        .retained_metadata
+                {
+                    return Err(invalid());
+                }
+            }
             Progress::Completed(outcome) | Progress::Cancelled(outcome) => return Ok(outcome),
             Progress::Applying(_) | Progress::Finishing => return Err(invalid()),
         }

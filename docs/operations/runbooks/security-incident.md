@@ -1,16 +1,19 @@
 ---
-description: "Runbook: security incident."
-last_verified: "2026-08-03"
+description: "Contain an affected published version and preserve recovery evidence."
+last_verified: "2026-11-03"
 ---
 
 # Security incident
 
-1. Stop distribution of the exact artifact or provider version.
-2. Move the version to the `blocked` state and exclude it from automatic installation.
-3. Do not publish secrets or exploitation details.
-4. Identify the source commit, digest, downloads, permissions, and affected installations.
-5. If necessary, revoke the compromised device or provider key.
-6. Preserve the audit trail and evidence.
-7. Release a corrected new version without rewriting the old one.
-8. Notify affected users through a secure channel.
-9. Add a regression test and update the threat model and runbook.
+1. Identify the exact affected version, source commit, artifact digest and known
+   installations. Report privately through [the security policy](../../../SECURITY.md).
+2. Block the affected catalog version and stop further distribution/selection
+   through the owning publication service. Preserve immutable source, artifacts,
+   original plans and operation outcomes for investigation and recovery.
+3. Revoke compromised device credentials or publisher access through their owning
+   account/service. Inspect pending operations; an unknown outcome is not a
+   successful cancellation or rollback.
+4. Qualify and publish a corrected new version through the normal client release
+   checks. Verify actual served bytes and affected native application journeys.
+5. Notify affected users through a secure channel and add a regression covering
+   the observed failure. Keep secrets and exploitation details out of public logs.

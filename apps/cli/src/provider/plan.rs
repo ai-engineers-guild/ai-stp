@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use jiff::Timestamp;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{Value, json};
 
 use super::Info;
@@ -25,7 +25,7 @@ fn invalid() -> Failure {
     Failure::precondition("the provider plan does not match its exact request and observations")
 }
 
-pub(super) fn hash(value: &str) -> bool {
+pub(crate) fn hash(value: &str) -> bool {
     value.strip_prefix("sha256:").is_some_and(|value| {
         value.len() == 64
             && value
@@ -34,14 +34,7 @@ pub(super) fn hash(value: &str) -> bool {
     })
 }
 
-#[derive(Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct Binding {
-    pub(crate) bundle_format: String,
-    pub(crate) bundle_digest: String,
-    pub(crate) artifact_digest: String,
-    pub(crate) bundle_size: usize,
-}
+pub(crate) use crate::bundle::reader::Binding;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]

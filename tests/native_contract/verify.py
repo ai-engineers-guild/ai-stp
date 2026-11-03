@@ -78,6 +78,8 @@ def prove(binary: Path, root: Path) -> None:
     home.mkdir()
     help_data = run(binary, home, ["help", "--agent"])["data"]
     MachineHelp.model_validate(help_data)
+    paths = [tuple(command["path"]) for command in help_data["commands"]]
+    assert len(paths) == len(set(paths)), "the command registry contains ambiguous duplicate paths"
     contracts = Path(__file__).resolve().parents[2] / "docs/contracts"
     exit_document = (contracts / "cli-json.md").read_text(encoding="utf-8")
     section = exit_document.split("## Exit codes", 1)[1].split("\n## ", 1)[0]
@@ -154,8 +156,9 @@ def prove(binary: Path, root: Path) -> None:
         60,
         61,
         62,
+        63,
     ]
-    assert capabilities["snapshot_schema_versions"] == [53, 54, 55, 56, 57, 58, 59, 60, 61, 62]
+    assert capabilities["snapshot_schema_versions"] == [53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]
     assert run(binary, home, ["version"])["data"]["runtime"] == "rust"
     assert (
         "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v"
@@ -252,6 +255,7 @@ def prove(binary: Path, root: Path) -> None:
         (60, "binding_retirement.sql"),
         (61, "checkout_location.sql"),
         (62, None),  # Same SQL layout; explicit absent-checkout terminal meaning.
+        (63, None),  # Same SQL layout; original native configuration intent fence.
     ]:
         with closing(sqlite3.connect(backup)) as fixture:
             if migration is not None:
@@ -283,7 +287,7 @@ def prove(binary: Path, root: Path) -> None:
         }
         assert before == after, "snapshot reads changed fixture bytes or created sidecars"
     with closing(sqlite3.connect(backup)) as newer:
-        newer.execute("PRAGMA user_version=63")
+        newer.execute("PRAGMA user_version=64")
         newer.commit()
     newer_digest = "sha256:" + hashlib.sha256(backup.read_bytes()).hexdigest()
     run(

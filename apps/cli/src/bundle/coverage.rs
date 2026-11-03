@@ -199,7 +199,6 @@ fn verify_files(
     Ok(())
 }
 
-#[cfg(target_os = "linux")]
 pub(crate) struct ScopedPayload<'a> {
     pub bindings: &'a [Value],
     pub files: &'a BTreeMap<String, File>,
@@ -208,7 +207,6 @@ pub(crate) struct ScopedPayload<'a> {
 
 /// Verify the complete graph once, then every assigned package and cross-root
 /// logical conflict. A valid partial package cannot establish setup coverage.
-#[cfg(target_os = "linux")]
 pub(crate) fn verify_scoped_payloads(
     connection: &Connection,
     setup: &Value,

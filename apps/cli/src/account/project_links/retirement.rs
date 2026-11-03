@@ -193,6 +193,7 @@ impl Plan {
                 BINDING_RETIREMENT_SCHEMA,
                 CHECKOUT_LOCATION_SCHEMA,
                 crate::store::MISSING_CHECKOUT_RETIREMENT_SCHEMA,
+                crate::store::NATIVE_CONFIGURATION_SCHEMA,
             ]
             .contains(&self.registry_schema_before)
             || self.registry_schema_after

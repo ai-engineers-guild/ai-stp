@@ -1,207 +1,95 @@
 # ai-stp desktop
 
-A Tauri 2 application over the bundled, optimized Rust CLI. The CLI owns all
-business operations, credentials, SQLite state and harness installation. The
-webview receives public JSON envelopes; it never invokes providers or writes
-harness files. Harness executables remain user/vendor managed.
+A Tauri 2 client of the bundled, optimized Rust CLI. The engine owns business
+operations, credentials, SQLite state and harness configuration. The webview
+receives public JSON envelopes. Harness programs remain user/vendor managed.
 
 ## Use
 
-- **Overview** shows engine health, local identity and platform capabilities.
-- **Settings** explicitly initializes a workspace with the selected credential
-  store. Existing Python state requires the migration plan and exact digest
-  exposed through Commands; initialization never replaces it.
-- **Catalog** searches separate authoritative/experimental lanes. A published
-  setup version can prefill the installation form with its exact ID and digest.
-- **Setups** creates components through CLI questions or starts installation
-  from explicit coordinates and target directories. Advanced inputs can use an
-  existing JSON file. Starting and answering can execute changes immediately;
-  the UI requires authorization and the CLI validates the full request.
-- **Activity** lists unfinished tasks and opens any retained task by ID.
-  Corporate checkout history is read from the native journal across saved views.
-  Inspect the original plan and explicitly reconcile an unknown outcome through
-  a current context for the same account/company. Switching views cannot retarget
-  the original operation; unknown results retain their reservations.
-  A completed adoption keeps its original receipt. When the exact server link
-  has been unlinked, a separate native review can release only that local
-  binding's reservation. It rechecks current rights, physical checkout and
-  retained state, preserving files, tasks and harness configuration. Activity
-  reads the distinct retirement receipt after restart; it never interprets an
-  old adoption receipt as proof that a binding is still active.
-  If the retained checkout name is absent, use the separate missing-checkout
-  review in Activity. The CLI requires a positively unlinked original server
-  result, current original-account company access and the same inspectable
-  physical parent. A present/reappeared entry, dangling link or unavailable
-  parent refuses. Confirming releases only this original local reservation;
-  moved files remain untouched. Its distinct receipt survives restart and
-  pathname reuse. The app never falls back to this action automatically.
-  Engines exposing reviewed locations can save a full-identity anchor while
-  the registered checkout exists. Close the app and other processes holding
-  the checkout before manually moving that same directory. Reopen Activity,
-  inspect the original adoption and review the existing destination. Applying
-  the confirmed native plan updates only location metadata; the app does not
-  move files. The CLI requires the original path to be absent, unchanged Git
-  topology, matching physical identity, current company access and no conflicting
-  work. Copies or a missing anchor require separate recovery. Recorded locations
-  and their exact receipts remain readable after later moves and retirement;
-  an old receipt does not establish the present directory. Unconfirmed replies
-  retain the same plan and offer offline outcome lookup before an explicit retry.
-  Recovery reads the current revision; an uncertain start retains its retry
-  identity in memory across navigation. After restarting the app, inspect
-  Activity before starting again.
-- **Account** drives device login, expiration, session refresh and retained
-  operation recovery. It offers only methods reported by the selected server
-  and supported by the native engine; discovery failure requires an explicit
-  retry. Status reads retain the newest observation, and replies or browser
-  failures from an earlier account visit cannot change the current view.
-  Stopping approval ends that polling attempt; a later browser result cannot
-  restart it. The retained native account operation remains available through
-  an explicit status read. Credentials stay in the CLI's selected store.
-- **Connections** creates and recovers independent native enrollments through
-  reviewed plans, opens each account session separately and retains native offline,
-  personal and corporate context observations. It exposes the exact registry
-  format upgrade before application. View selection preserves existing operations
-  and harness files; current organization access is an explicit online read.
-  The existing local-owner session can be admitted as a context through the same
-  reviewed flow, preserving its original key and credential journal.
-  After native identity recovery, an older saved view can still read history.
-  A new checkout review requires a current identity; its native refusal offers
-  **Review current context** in Connections. Use the same existing sign-in and
-  company for a fresh reviewed context, then select it explicitly. The app does
-  not rewrite old views, transfer original intents or start another sign-in.
-- The sidebar selects an existing personal or corporate context for new company
-  reads. Selection is a local preference; retained tasks keep their original
-  authority. The account shortcut opens the selected named connection.
-- **Company** explicitly reads projects, teams, technologies, immutable mappings
-  and the organization catalog. Assignment previews offer every harness reported
-  by the engine and use an empty company-managed inventory. They do not apply
-  installations or include personal setup files. Replies from an earlier context
-  are discarded, including after switching away and back to the same context.
-  Catalog and technology pages retain their search filters for explicit next-page
-  reads; catalog versions and assignment digests are visible in the result cards.
-  The Heartbeat view reads the versioned company policy or the original enrolled
-  device's reported health when the engine advertises those read commands.
-  Company enablement is separate from local consent. These views send no reports
-  and do not infer harness usage or install a scheduler.
-  Engines advertising foreground delivery also offer a separate consent review,
-  showing the original context, policy, cadence and signed fields. Only after
-  confirmation does the focused app process due heartbeats for the selected
-  corporate context. Switching to personal or hiding/unfocusing the app stops
-  new passes. Local disable works offline, and expiry maintenance sends no
-  network requests. Pending retries keep original bytes and timestamps across
-  process restarts. CLI liveness does not establish harness activity or managed
-  installation coverage; neither client installs a startup service.
-  A project can open a native checkout review with an existing registered root
-  and optional trusted Git executable. A successful preview exposes current
-  corporate repository choices for a separate recheck. Editing inputs or switching
-  contexts clears the observation. Engines exposing durable linking offer separate
-  reviewed requests, confirmations and local binding adoption. Each exact plan
-  needs explicit authorization. An unconfirmed reply retains its original intent
-  for Activity rather than starting another request. Linking grants no harness
-  installation authority.
-- **Targets**, **Discovery** and **Commands** render the connected engine's
-  command descriptors with read/plan/apply gates and explicit apply confirmation.
-- **Diagnostics** offers an optional, bounded in-memory trace and an explicitly
-  copied report containing only application/platform information and call
-  timing, outcomes and error codes. Export omits local paths, command arguments,
-  replies and error prose independently of the local trace. Diagnostics are
-  never uploaded automatically.
-  Account, context, corporate and task commands retain only transport outcome and
-  timing in this shared trace; their arguments, replies and error prose are
-  omitted. Device confirmation codes and verification links remain available
-  to the sign-in UI and are removed from diagnostic copies.
+| View | Responsibility |
+| --- | --- |
+| Overview / Settings | Read health, identity and capabilities; explicitly initialize the chosen credential store. Existing Python state needs the CLI's reviewed in-place migration. |
+| Connections | Create/recover independent enrollments and offline/personal/corporate contexts through exact plans. Review registry upgrades before application. |
+| Catalog / Setups | Review/download an exact public catalog graph, choose the local setup and review file changes, prepare/apply/recover its original native operation, and inspect ownership, removal or missing-folder recovery. Create components from local files. |
+| Activity | Inspect original tasks and corporate checkout operations, retained plans, outcomes and recovery after restart. |
+| Account | Discover server-supported sign-in, authorize in the browser and inspect/refresh the original enrolled session. |
+| Company | Read projects, mappings, catalog and assignment previews; review separate checkout linking/adoption/retirement/location operations. |
+| Discovery / Commands | Inspect the engine's descriptors and advanced read/plan/apply operations with explicit apply confirmation. |
+| Diagnostics | Enable an optional bounded in-memory trace and explicitly copy a content-free diagnostic report. |
 
-Existing authoring/install flows are personal tasks. Their retained local owner
-is shown in Activity and the task workspace, independently of the selected
-company view. Older engines and unclassified legacy receipts keep that ownership
-unknown. An identical interrupted start retains its key and a detached input
-snapshot; a different request is refused until the original is inspected or a
-separate request is explicitly chosen. Choosing another request does not cancel
-the first task. Catalog navigation retains an unconfirmed start and its original
-retry key; a confirmed start opens its original task receipt. Task reads and
-replies are fenced to each visit, including a leave-and-return to the same task,
-and an old response cannot clear a newer read.
-If a task read fails, its old controls are removed until a successful explicit
-read. A continuation waiting for command discovery is submitted only while its
-original task visit is still current; leaving and returning does not revive it.
+Context selection is a view preference. Existing tasks and mutations retain their
+original account/device/context, even after navigation or restart. Personal task
+receipts do not establish corporate installation inventory. Cached company reads
+and assignment previews grant no installation authority; unsupported platform
+operations refuse according to the engine's capabilities.
 
-The engine reports installation availability. Isolated setup execution is
-currently Linux-only; authoring and catalog reads remain available on macOS and
-Windows. The desktop does not bypass an unsupported operation.
+If a start or apply reply is uncertain, inspect its original retained operation
+in Activity before starting again. Identical interrupted task starts keep their
+retry identity while the app is running. Choosing a separate request does not
+cancel the original. Failed task reads remove stale controls until an explicit
+successful read. Account/task responses from earlier visits cannot change the
+current view. Native preparation is recovered in Setups after app restart;
+completed operations remain inspectable in their original context. A new-session
+confirmation never claims vendor loading or runtime health.
+
+Checkout adoption, retirement and location changes have distinct receipts.
+Retiring a positively unlinked binding releases its reservation without deleting
+files or changing harness configuration. Missing-checkout recovery requires the
+original inspectable parent; relocation requires a previously reviewed physical
+anchor and records an already moved directory. Inspect the original plan/outcome;
+unknown, replaced or conflicting targets refuse. The
+[CLI guide](../cli/README.md#contexts-and-recovery) describes the shared boundary.
+
+Company heartbeat is separately enabled by server policy and reviewed local
+consent. Only the focused app processes due foreground reports for the selected
+corporate context. Personal selection, hiding/unfocusing the app or offline local
+disable stops new passes. Pending retries retain original bytes/timestamps;
+unsupported usage and installation observations remain unknown. No startup
+service or reporting scheduler is installed.
+
+Company inventory has separate reviewed consent in Setups. Collection and exact-
+batch delivery are explicit foreground actions, scoped to original native owned
+receipts and current company policy. It sends no paths, contents or prompts and
+does not claim complete discovery. Local disable retires unsent reporting.
+
+Diagnostic copies include application/platform metadata, call timing, outcomes
+and error codes. They omit local paths, command arguments/replies, error prose,
+account codes and private task content. No automatic diagnostic upload occurs.
 
 ## Code
 
-- `core/`: envelope parsing, descriptor-driven argv, executable resolution,
-  filtered environment and bounded process execution. Linux session bus access
-  is preserved for the existing OS keyring. A timeout leaves effects unconfirmed.
-- `src-tauri/`: asynchronous IPC wrappers, serialized mutations and temporary
-  public plan/input files. Form input is an object bounded to 16 KiB and passed
-  unchanged to CLI schema validation; files are private and removed after use.
-- `src/transport.ts`: the single IPC boundary. `store.ts` shares engine state;
-  `taskStart.ts` retains a logical start's retry identity. Pages render the
-  native contract; common visual primitives live in `components/` and `index.css`.
-
-The app uses the shared web theme roles, vendored IBM Plex fonts, light/dark
-appearance, visible keyboard focus and reduced-motion preferences. Technical
-responses remain available in expandable details.
+- `core/` resolves the engine and runs bounded processes with a filtered environment.
+  Linux retains the existing session bus for OS keyring access. A timeout leaves
+  effects unconfirmed.
+- `src-tauri/` owns async IPC, serialized mutations and private temporary plan/input
+  files, removed after use. Bounds depend on the operation (native requests 128 KiB,
+  full native reviews 8 MiB); the CLI validates every object and digest.
+- `src/transport.ts` is the IPC boundary; `store.ts` shares engine state and
+  `taskStart.ts` retains a logical start's retry identity. Common components use
+  shared theme roles, vendored IBM Plex fonts, visible focus and reduced motion.
 
 ## Develop and verify
 
-Use the Rust version in `apps/cli/rust-toolchain.toml` and the repository's pinned
-Bun version. Native build and bundle probes run through the Rust tool in
-`apps/cli/xtask`; desktop builds do not need Python or uv. Tauri needs the
-platform webview development packages.
+Use the repository's pinned Rust/Bun and the existing managed toolchains/cache.
+Tauri needs the native webview development packages. From `apps/desktop`,
+`bun run tauri dev` starts the app; frontend-only `bun run dev` has no native IPC.
 
 ```sh
-just desktop-gen       # Format Rust
-just desktop-check     # Frontend, both Rust crates, real optimized sidecar
-just desktop-bundle-test # Probe an existing packaged CLI resource tree
+just desktop-gen          # Format Rust
+just desktop-check        # Frontend, Rust crates and actual optimized sidecar
+just desktop-bundle-test  # Verify an existing packaged CLI resource tree
 ```
 
-From `apps/desktop`, `bun run tauri dev` starts the native app. `bun run dev`
-starts the frontend only and cannot perform operations without Tauri IPC.
-Tests isolate IPC responses; sidecar regressions execute the actual native CLI.
-
-Linux installed-package qualification also scans the real webview with the
-axe-core artifact pinned by the existing web lock. It checks both themes,
-retained personal profiles, keyboard skip-link activation and actual loading
-indicators after an owned GTK reduced-motion preference and app restart.
-Reports retain rule IDs, impacts, counts and bounded contrast operands;
-incomplete axe checks still need review. Startup and CLI read timings are
-observations, not an
-assertion of a performance budget or complete screen-reader conformance.
-
-Linux CI also installs its release Debian package and drives the installed app
-through external WebKit WebDriver under Xvfb. The disposable session has its own
-GNOME credential service and private home. The journey initializes the native
-vault through Settings, reviews two offline personal contexts, switches views,
-restarts the app and compares the retained state with the installed bundled CLI.
-It starts an authoring task through the UI, reopens its original owner from
-Activity after restart and view switching, and cancels that same blocked task.
-Independent installed CLI reads verify ownership and the absence of child
-effects. It verifies the default credential store and preserves unrelated home files.
-Three fresh private sessions must each pass the complete journey. The external
-driver uses one persistent HTTP connection; failed UI commands are not replayed.
-Those three journeys qualify personal contexts. A separate mandatory Linux
-journey uses the same installed package and driver with an isolated actual
-API/PostgreSQL: named OS-vault enrollment, synthetic browser approval, corporate
-context creation, registered checkout review, explicit request/confirmation,
-lost committed reply, application restart, original-outcome reconciliation and
-reviewed local binding adoption. Installed CLI, SQL rows and unowned files are
-read back independently. Its separate proof does not qualify live SSO account
-linking, harness installation or activation.
-
-Release bundles require their own `cli/ai-stp-desktop-cli` resource. A missing
-bundled engine fails closed. Development can use `AI_STP_CLI` or PATH when no
-bundled resource is present; a missing configured executable also fails closed.
-The compile-time stub never overwrites a real sidecar.
+Release packages require `cli/ai-stp-desktop-cli`; missing bundled engines refuse.
+Development may use `AI_STP_CLI` or PATH only when no bundled resource is present.
+The compile-time stub never overwrites a real sidecar. Sidecar tests run the
+actual CLI; UI unit tests isolate IPC responses. Installed application acceptance
+and native platform qualification remain separate from compilation.
 
 ## Release
 
-Tag the verified commit `desktop-vX.Y.Z`, matching all desktop manifest versions,
-then dispatch `.github/workflows/desktop-release.yml` on that tag. The workflow
-requires the exact current successful main qualification, then uses the same
-three-OS Desktop workflow to check and package the release. Its installed Linux
-journeys run against the published package before the six installers and
-`SHA256SUMS` are uploaded. The publisher runs without a source checkout.
-Bundles are currently unsigned; no signing credentials are configured.
+Tag the verified source `desktop-vX.Y.Z`, matching all desktop manifest versions,
+then dispatch `.github/workflows/desktop-release.yml` on the tag. It checks/packages
+Linux, macOS and Windows installers and publishes `SHA256SUMS`. Bundles are
+unsigned; no application signing credentials are configured. Exact source and
+qualification receipts belong to the GitHub release and source PR.

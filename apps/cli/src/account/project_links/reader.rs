@@ -8,7 +8,7 @@ use crate::error::Result;
 
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub(in crate::account) struct Reader {
+pub(crate) struct Reader {
     pub context: Context,
     pub account: Binding,
     pub organization: Value,

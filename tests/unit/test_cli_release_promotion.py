@@ -14,7 +14,7 @@ REPOSITORY = "ai-engineers-guild/ai-stp"
 HEAD = "a" * 40
 TAG_OBJECT = "b" * 40
 RELEASE_SOURCE = "c" * 40
-TAG = "cli-v0.2.3"
+TAG = "cli-v0.3.0"
 SOURCE_PATH = "contents/packages/contracts/src/ai_stp_contracts/cli_copy.py?ref=" + HEAD
 
 
@@ -40,23 +40,23 @@ def _document(source: str) -> dict[str, str]:
 def _responses() -> dict[str, object]:
     assets: list[str] = []
     for target, extension, platform in [
-        ("x86_64-unknown-linux-gnu", "tar.gz", "manylinux_2_39_x86_64"),
+        ("x86_64-unknown-linux-gnu", "tar.gz", "manylinux_2_43_x86_64"),
         ("aarch64-apple-darwin", "tar.gz", "macosx_15_0_arm64"),
         ("x86_64-pc-windows-msvc", "zip", "win_amd64"),
     ]:
         assets.extend(
             [
-                f"ai-stp-cli-0.2.3-{target}.{extension}",
-                f"ai_stp-0.2.3-py3-none-{platform}.whl",
+                f"ai-stp-cli-0.3.0-{target}.{extension}",
+                f"ai_stp-0.3.0-py3-none-{platform}.whl",
             ]
         )
-    assets.append("ai-stp-cli-0.2.3.crate")
+    assets.append("ai-stp-cli-0.3.0.crate")
     assets += [name + ".sha256" for name in assets]
     return {
         SOURCE_PATH: _document(
             'CLI_RELEASES_URL: str = "https://github.com/'
             + REPOSITORY
-            + '/releases/tag/cli-v0.2.3"\n'
+            + '/releases/tag/cli-v0.3.0"\n'
             'raise RuntimeError("candidate source must never execute")\n'
         ),
         "releases/tags/" + TAG: {
@@ -127,6 +127,7 @@ def test_promotion_accepts_a_complete_published_ancestor_without_executing_sourc
         "wrong-tag",
         "missing-asset",
         "duplicate-asset",
+        "wrong-linux-abi",
         "unuploaded",
         "empty-asset",
         "missing-digest",
@@ -163,6 +164,9 @@ def test_promotion_refuses_unpublished_incomplete_or_unrelated_downloads(
         release["assets"].pop()
     elif case == "duplicate-asset":
         release["assets"][-1] = asset
+    elif case == "wrong-linux-abi":
+        for entry in release["assets"]:
+            entry["name"] = entry["name"].replace("manylinux_2_43", "manylinux_2_39")
     elif case == "unuploaded":
         asset["state"] = "starter"
     elif case == "empty-asset":
@@ -183,12 +187,12 @@ def test_promotion_refuses_unpublished_incomplete_or_unrelated_downloads(
         literal = (
             'CLI_RELEASES_URL: str = "https://github.com/'
             + REPOSITORY
-            + '/releases/tag/cli-v0.2.3"\n'
+            + '/releases/tag/cli-v0.3.0"\n'
         )
         source = {
             "nonliteral-source": 'CLI_RELEASES_URL: str = str("do not execute")\n',
             "wrong-origin": literal.replace("github.com", "example.invalid"),
-            "unstable-version": literal.replace("0.2.3", "0.2.3-rc.1"),
+            "unstable-version": literal.replace("0.3.0", "0.3.0-rc.1"),
             "duplicate-source": literal + literal,
         }[case]
         responses[SOURCE_PATH] = _document(source)

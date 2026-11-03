@@ -5,11 +5,17 @@
 //! Its forward writer retains desired bytes, original physical bindings and
 //! immutable outcomes; it never captures previous user content.
 
+pub mod activation;
+pub mod custody;
 pub mod error;
 pub mod forward;
 mod identity;
 pub mod journal;
+pub mod legacy;
 pub mod lock;
+pub mod planning;
+pub mod profiles;
+pub mod runtime;
 pub(crate) mod sqlite;
 pub mod target;
 

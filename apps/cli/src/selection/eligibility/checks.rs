@@ -1,5 +1,5 @@
 use super::{Assessment, CAPABILITIES, Target};
-use crate::{error::Result, provider::Info};
+use crate::{error::Result, projection::surfaces::Surface};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
 use unicode_normalization::UnicodeNormalization;
@@ -151,7 +151,7 @@ pub(super) fn provider(
     document: &Value,
     scope: Option<&Value>,
     target: &Target,
-    provider: Option<&Info>,
+    provider: Option<&dyn Surface>,
 ) {
     let provider = provider.filter(|info| info.document()["harness_id"] == target.harness_id);
     let Some(provider) = provider else {

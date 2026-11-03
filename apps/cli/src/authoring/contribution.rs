@@ -225,7 +225,6 @@ pub fn assemble(
 
 /// Replace recorded keys using one assembled bundle contribution, or withdraw
 /// them. The complete host stays in memory; unowned syntax is retained.
-#[cfg(target_os = "linux")]
 pub(crate) fn reconcile(
     format: Format,
     host: &[u8],

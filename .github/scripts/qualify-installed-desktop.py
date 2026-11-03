@@ -20,6 +20,7 @@ import socket
 import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 import urllib.request
 from pathlib import Path
@@ -806,6 +807,196 @@ def inspect_personal_task(driver: Driver, task_id: str, ownership: dict[str, Any
     )
 
 
+NATIVE_OPERATION = 'section[aria-label="Original configuration operation"]'
+
+
+def native_operation(driver: Driver) -> tuple[str, str]:
+    text = driver.wait(
+        lambda: driver.read(
+            "return document.querySelector(arguments[0]+' p.font-mono')?.textContent;",
+            NATIVE_OPERATION,
+        ),
+        "original native operation coordinates",
+    )
+    operations = re.findall(r"operation_[0-7][0-9A-HJKMNP-TV-Z]{25}", text)
+    digests = re.findall(r"sha256:[0-9a-f]{64}", text)
+    require(len(operations) == len(digests) == 1, "ambiguous native UI coordinates")
+    return operations[0], digests[0]
+
+
+def prepare_native_setup(
+    driver: Driver, binary: Path, environment: dict[str, str], root: Path, context: str
+) -> tuple[Path, str, str]:
+    """Prepare through installed UI; only the public CLI authors the fixture graph."""
+    source, target = root / "native-source", root / "native-target"
+    source.mkdir(mode=0o700)
+    target.mkdir(mode=0o700)
+    (source / "guide.md").write_bytes(b"# Installed native setup canary\nPreserve user data.\n")
+    (target / "user-note").write_bytes(b"unowned installed fixture\n")
+    (target / "user-note").chmod(0o640)
+    request = root / "native-author.json"
+    request.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "directory": str(source),
+                "harness_id": "codex",
+                "component_type": "instruction",
+                "name": "installed-native-setup",
+                "license_spdx": "MIT",
+            }
+        )
+    )
+    authored = native(
+        binary,
+        environment,
+        [
+            "task",
+            "start",
+            "--intent",
+            "author",
+            "--idempotency-key",
+            "installed-native-author-1",
+            "--input",
+            str(request),
+        ],
+    )
+    require(authored["state"] == "completed", "native fixture authoring did not complete")
+    setup = authored["outcome"]["setup_id"]
+    versions = native(binary, environment, ["local", "version", "list", "--id", setup])
+    require(len(versions["versions"]) == 1, "fixture must have one immutable setup version")
+    version = versions["versions"][0]
+    driver.navigate("targets")
+    for label, value in (
+        ("Setup ID", setup),
+        ("Exact version", version["version"]),
+        ("Passport digest", version["passport_digest"]),
+        ("Global configuration folder", str(target)),
+    ):
+        element = driver.wait(
+            lambda label=label: driver.read(
+                "const label=[...document.querySelectorAll('main label')]"
+                ".find(x=>x.textContent.trim()===arguments[0]);"
+                "const input=label?.querySelector('input');"
+                "return input&&!input.disabled?input:null;",
+                label,
+            ),
+            label,
+        )
+        driver.command("POST", f"/element/{element[ELEMENT]}/clear", {})
+        driver.command("POST", f"/element/{element[ELEMENT]}/value", {"text": value})
+    driver.click(driver.button("Review setup"))
+    operation, digest = native_operation(driver)
+    require(
+        driver.read(
+            "return document.querySelector(arguments[0]).textContent.includes('AGENTS.md');",
+            NATIVE_OPERATION,
+        ),
+        "installed UI did not expose the actual configuration file change",
+    )
+    checkbox = driver.find(NATIVE_OPERATION + ' input[type="checkbox"]')
+    require(not driver.read("return arguments[0].checked;", checkbox), "native review preconfirmed")
+    driver.click(checkbox)
+    driver.click(driver.button("Prepare reviewed setup", NATIVE_OPERATION))
+    driver.button("Apply when sessions are stopped", NATIVE_OPERATION)
+    pending = native(binary, environment, ["configuration", "native", "pending"])["pending"]
+    require(
+        pending["operation_id"] == operation
+        and pending["plan_digest"] == digest
+        and pending["original_context"]["context_id"] == context
+        and not (target / "AGENTS.md").exists(),
+        "native preparation changed files or original ownership",
+    )
+    return target, operation, digest
+
+
+def finish_native_setup(
+    driver: Driver,
+    binary: Path,
+    environment: dict[str, str],
+    target: Path,
+    operation: str,
+    digest: str,
+    first: str,
+    second: str,
+) -> None:
+    """Recover and remove via actual installed controls after restart/view change."""
+    driver.navigate("targets")
+    require(native_operation(driver) == (operation, digest), "restart retargeted native recovery")
+    require(
+        driver.read(
+            "return document.querySelector(arguments[0]).textContent"
+            ".includes('This operation keeps its original');",
+            NATIVE_OPERATION,
+        ),
+        "original context warning was lost after restart",
+    )
+    driver.click(driver.button("Apply when sessions are stopped", NATIVE_OPERATION))
+    driver.button("Read original status", NATIVE_OPERATION)
+    status = native(
+        binary,
+        environment,
+        ["configuration", "native", "status", "--operation", operation, "--plan-digest", digest],
+    )
+    require(
+        status["state"] == "configured"
+        and status["original_context"]["context_id"] == first
+        and b"Installed native setup canary" in (target / "AGENTS.md").read_bytes(),
+        "installed native recovery did not configure the original setup",
+    )
+    effective = native(
+        binary, environment, ["configuration", "native", "effective", "--context", first]
+    )
+    require(
+        len(effective["setups"]) == 1
+        and effective["setups"][0]["operation_id"] == operation
+        and effective["setups"][0]["ownership_state"] == "matching"
+        and effective["setups"][0]["load_state"] == "not_observed"
+        and native(
+            binary, environment, ["configuration", "native", "effective", "--context", second]
+        )["setups"]
+        == [],
+        "native setup ownership moved to the selected view",
+    )
+    driver.navigate("profiles")
+    driver.select_context("Installed personal one", first)
+    driver.navigate("targets")
+    driver.click(driver.button("Review removal"))
+    driver.find(NATIVE_OPERATION + ' input[type="checkbox"]')
+    removal, removal_digest = native_operation(driver)
+    require(removal != operation, "removal reused the original installation identity")
+    driver.click(driver.find(NATIVE_OPERATION + ' input[type="checkbox"]'))
+    driver.click(driver.button("Prepare reviewed setup", NATIVE_OPERATION))
+    driver.click(driver.button("Apply when sessions are stopped", NATIVE_OPERATION))
+    driver.button("Read original status", NATIVE_OPERATION)
+    removed = native(
+        binary,
+        environment,
+        [
+            "configuration",
+            "native",
+            "status",
+            "--operation",
+            removal,
+            "--plan-digest",
+            removal_digest,
+        ],
+    )
+    require(
+        removed["state"] == "configured"
+        and removed["original_context"]["context_id"] == first
+        and not (target / "AGENTS.md").exists()
+        and (target / "user-note").read_bytes() == b"unowned installed fixture\n"
+        and (target / "user-note").stat().st_mode & 0o777 == 0o640
+        and native(
+            binary, environment, ["configuration", "native", "effective", "--context", first]
+        )["setups"]
+        == []
+        and native(binary, environment, ["configuration", "native", "pending"])["pending"] is None,
+        "installed native removal changed unowned files or left ownership pending",
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--driver", type=Path, required=True)
@@ -945,7 +1136,8 @@ def main() -> None:
             "native_account_id": local["account_id"],
             "native_device_id": local["device_id"],
         }
-        driver.navigate("install", keyboard=True)
+        driver.navigate("targets", keyboard=True)
+        driver.click(driver.find('main a[href="#/install?intent=author"]'))
         driver.click(driver.button("Create from files"))
         driver.click(driver.find('main fieldset input[type="checkbox"]'))
         driver.click(driver.button("Start authoring"))
@@ -973,6 +1165,16 @@ def main() -> None:
             ("task_start", "task_status", "task_list"),
             (task_id, local["account_id"], local["device_id"]),
         )
+        # Authoring inputs contain only a separate synthetic content directory,
+        # never coordinates derived from the private vault fixture environment.
+        native_fixture = Path(
+            tempfile.mkdtemp(prefix="ai-stp-native-content.", dir=os.environ["RUNNER_TEMP"])
+        )
+        native_target, native_id, native_digest = prepare_native_setup(
+            driver, binary, environment, native_fixture, first
+        )
+        driver.navigate("profiles")
+        driver.select_context("Installed personal two", second)
     finally:
         driver.close()
     # Only this disposable fixture's GTK configuration is changed. A fresh real
@@ -985,10 +1187,9 @@ def main() -> None:
     try:
         driver.start()
         restart_start_ms = driver.startup_ms
-        driver.selected(first)
+        driver.selected(second)
         driver.observe_reduced_motion()
         driver.navigate("profiles")
-        driver.select_context("Installed personal two", second)
         listed = native(binary, environment, ["context", "list"])
         require(
             listed["selected"]["context_id"] == second and len(listed["contexts"]) == 2,
@@ -1019,6 +1220,9 @@ def main() -> None:
             ("task_cancel", "task_status", "task_list"),
             (task_id, local["account_id"], local["device_id"]),
         )
+        finish_native_setup(
+            driver, binary, environment, native_target, native_id, native_digest, first, second
+        )
     finally:
         driver.close()
     require(
@@ -1034,6 +1238,15 @@ def main() -> None:
                 "native_version": version,
                 "webdriver_transport": "persistent_http1",
                 "installed_cli_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
+                "installed_app_sha256": hashlib.sha256(
+                    Path("/usr/bin/ai-stp-desktop").read_bytes()
+                ).hexdigest(),
+                "installed_native_setup_ui_review": True,
+                "native_setup_preparation_without_configuration_write": True,
+                "native_setup_original_context_recovery_after_restart": True,
+                "native_setup_applied_and_removed_through_ui": True,
+                "native_setup_unowned_file_and_permissions_preserved": True,
+                "native_setup_runtime_loading": "not_observed",
                 "actual_release_package": True,
                 "actual_bundled_cli_ipc": True,
                 "native_os_keyring": True,

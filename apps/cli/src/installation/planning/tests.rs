@@ -1,0 +1,1497 @@
+use super::*;
+use crate::{
+    account::contexts::{Authority, Context},
+    authoring::{Identity, embedded},
+    selection::eligibility::{Evidence, Target as SelectionTarget},
+};
+use serde_json::json;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    error::Error,
+    path::PathBuf,
+};
+
+const AT: &str = "2026-11-03T00:00:00.000Z";
+fn actor() -> Identity {
+    Identity {
+        account_id: "account_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
+        device_id: "device_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
+    }
+}
+fn context(root: &Path, identity: Identity) -> Context {
+    Context {
+        schema_version: 1,
+        context_id: format!("context_{}", ulid::Ulid::generate()),
+        label: "Local plan fixture".into(),
+        root: root.to_owned(),
+        root_identity: ["0".into(), "0".into()],
+        local_identity: identity,
+        observed_at: AT.into(),
+        authority: Authority::Local,
+    }
+}
+fn request(
+    store: &mut Store,
+    input: &Path,
+    target: PathBuf,
+    identity: Identity,
+    at: &str,
+) -> std::result::Result<Request, Box<dyn Error>> {
+    std::fs::create_dir(input)?;
+    std::fs::write(
+        input.join("guide.md"),
+        b"# Native guidance\nVerify the affected behavior.\n",
+    )?;
+    let authored = embedded::plan(
+        store,
+        embedded::Request {
+            directory: input.to_owned(),
+            harness_id: "codex".into(),
+            component_type: "instruction".into(),
+            name: "native-guidance".into(),
+            license_spdx: "MIT".into(),
+        },
+        identity.clone(),
+        at,
+    )?;
+    embedded::apply(store, &authored, &authored.digest()?, &identity, at)?;
+    let setup = json!({"stable_id":authored.setup["stable_id"],"version":authored.setup["version"],"passport_digest":digest::canonical("ai-stp:passport:v1",&authored.setup)?});
+    let evidence = [&authored.component, &authored.setup]
+        .into_iter()
+        .map(|document| {
+            Ok((
+                document["stable_id"]
+                    .as_str()
+                    .ok_or_else(invalid)?
+                    .to_owned(),
+                Evidence {
+                    passport_digest: digest::canonical("ai-stp:passport:v1", document)?,
+                    registrable: true,
+                    blocked: false,
+                    author_verified: false,
+                    component_verified: false,
+                    checks_current: false,
+                    consented: true,
+                },
+            ))
+        })
+        .collect::<crate::error::Result<BTreeMap<_, _>>>()?;
+    let (os, arch) = crate::platform::current()
+        .and_then(|p| p.split_once('/'))
+        .ok_or("platform")?;
+    Ok(Request {
+        operation: Operation::Install,
+        setup,
+        target: SelectionTarget {
+            harness_id: "codex".into(),
+            scope: Scope::Global,
+            os: os.into(),
+            arch: arch.into(),
+            harness_version: "unknown".into(),
+            owner_id: identity.account_id,
+            capabilities: BTreeSet::new(),
+            permissions: BTreeSet::new(),
+            entitlements: BTreeSet::new(),
+            env_present: BTreeSet::new(),
+            grants: BTreeSet::new(),
+            accessible_passport_digests: BTreeSet::new(),
+            access_context_digest: None,
+            pinned_passport_digests: BTreeSet::new(),
+            owned_passport_digests: BTreeSet::new(),
+            for_redistribution: false,
+        },
+        evidence,
+        roots: BTreeMap::from([(Scope::Global, target)]),
+        placements: BTreeMap::new(),
+        corporate_binding: None,
+    })
+}
+fn parse(value: &Value) -> crate::error::Result<Plan> {
+    let digest = digest::canonical("ai-stp:installation-operation:v1", value)?;
+    Plan::parse(&serde_json::to_vec(value).map_err(|_| invalid())?, &digest)
+}
+
+#[test]
+fn native_plan_retains_actual_roots_and_source_without_writes_or_before_images()
+-> std::result::Result<(), Box<dyn Error>> {
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().canonicalize()?;
+    let state = root.join("state");
+    std::fs::create_dir(&state)?;
+    let target = root.join("Cafe\u{301}");
+    std::fs::create_dir(&target)?;
+    let before = b"PRIVATE-UNOWNED-BEFORE-IMAGE-CANARY\n";
+    std::fs::write(target.join("AGENTS.md"), before)?;
+    let mut store = Store::open(&state, true)?;
+    let request = request(
+        &mut store,
+        &root.join("source"),
+        target.clone(),
+        actor(),
+        AT,
+    )?;
+    let changes: i64 = store
+        .connection
+        .query_row("SELECT total_changes()", [], |row| row.get(0))?;
+    let native = capture(&mut store, context(&state, actor()), None, &request, AT)?;
+    assert_eq!(native.packages.len(), 1);
+    let document = native.plan.value()?;
+    let encoded = serde_json::to_vec(&document)?;
+    assert!(!String::from_utf8(encoded.clone())?.contains("PRIVATE-UNOWNED-BEFORE-IMAGE-CANARY"));
+    let mut excessive = document.clone();
+    excessive["roots"]["global"]["files"]["AGENTS.md"]["before"]["file"]["length"] =
+        (64 * 1024 * 1024 + 1).into();
+    assert!(parse(&excessive).is_err());
+    let retained = Plan::parse(&encoded, &native.plan.digest()?)?;
+    assert_eq!(
+        retained.roots[&Scope::Global].directory.path.as_os_str(),
+        target.as_os_str()
+    );
+    assert_eq!(retained.value()?, document);
+    retained.revalidate_targets()?;
+    assert_eq!(std::fs::read(target.join("AGENTS.md"))?, before);
+    assert!(!target.join(CONTROL).exists());
+    assert_eq!(
+        store
+            .connection
+            .query_row("SELECT total_changes()", [], |row| row.get::<_, i64>(0))?,
+        changes
+    );
+    std::fs::write(
+        target.join("AGENTS.md"),
+        b"changed outside the original plan",
+    )?;
+    assert!(retained.revalidate_targets().is_err());
+    assert_eq!(
+        parse(&document)?.value()?,
+        document,
+        "history parsing must not reopen current targets"
+    );
+    assert!(!target.join(CONTROL).exists());
+    Ok(())
+}
+
+#[test]
+fn closed_native_format_preserves_full_windows_ids_and_refuses_foreign_or_changed_frames()
+-> std::result::Result<(), Box<dyn Error>> {
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().canonicalize()?;
+    let state = root.join("state");
+    let target = root.join("target");
+    std::fs::create_dir(&state)?;
+    std::fs::create_dir(&target)?;
+    let mut store = Store::open(&state, true)?;
+    let request = request(&mut store, &root.join("source"), target, actor(), AT)?;
+    let plan = capture(&mut store, context(&state, actor()), None, &request, AT)?.plan;
+    let document = plan.value()?;
+    for changed in [
+        {
+            let mut v = document.clone();
+            v["format"] = "ai-stp-external-installation/1".into();
+            v
+        },
+        {
+            let mut v = document.clone();
+            v["foreign_authority"] = true.into();
+            v
+        },
+        {
+            let mut v = document.clone();
+            v["scope_bindings"] = json!({});
+            v
+        },
+        {
+            let mut v = document.clone();
+            v["roots"]["global"]["extra"] = true.into();
+            v
+        },
+        {
+            let mut v = document.clone();
+            v["expires_at"] = "2026-11-03T01:00:00.000Z".into();
+            v
+        },
+        {
+            let mut v = document.clone();
+            v["setup"]["version"] = "999.0".into();
+            v
+        },
+    ] {
+        assert!(parse(&changed).is_err());
+    }
+    let mut windows = document.clone();
+    windows["target"]["os"] = "windows".into();
+    windows["state"]["physical"] =
+        json!({"kind":"windows","volume":u64::MAX.to_string(),"file_id":u128::MAX.to_string()});
+    windows["roots"]["global"]["directory"]["physical"] =
+        json!({"kind":"windows","volume":u64::MAX.to_string(),"file_id":u128::MAX.to_string()});
+    for file in windows["roots"]["global"]["files"]
+        .as_object_mut()
+        .ok_or("files")?
+        .values_mut()
+    {
+        file["after_mode"] = 0o600.into();
+    }
+    let retained = parse(&windows)?;
+    assert_eq!(retained.value()?, windows);
+    let changed =
+        json!({"kind":"windows","volume":u64::MAX.to_string(),"file_id":u64::MAX.to_string()});
+    assert_ne!(windows["roots"]["global"]["directory"]["physical"], changed);
+    assert!(Plan::parse(&serde_json::to_vec(&document)?, "sha256:wrong").is_err());
+    let legacy = json!({"schema_version":1,"action":"configuration.install","operation_id":document["operation_id"]});
+    assert!(parse(&legacy).is_err());
+    Ok(())
+}
+
+#[test]
+fn replaced_root_and_duplicate_physical_roles_refuse_without_target_state()
+-> std::result::Result<(), Box<dyn Error>> {
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().canonicalize()?;
+    let state = root.join("state");
+    let target = root.join("target");
+    std::fs::create_dir(&state)?;
+    std::fs::create_dir(&target)?;
+    let mut store = Store::open(&state, true)?;
+    let mut request = request(
+        &mut store,
+        &root.join("source"),
+        target.clone(),
+        actor(),
+        AT,
+    )?;
+    let plan = capture(&mut store, context(&state, actor()), None, &request, AT)?.plan;
+    request.roots.insert(Scope::Project, target.clone());
+    assert!(capture(&mut store, context(&state, actor()), None, &request, AT).is_err());
+    assert!(!target.join(CONTROL).exists());
+    std::fs::rename(&target, root.join("original"))?;
+    std::fs::create_dir(&target)?;
+    assert!(plan.revalidate_targets().is_err());
+    assert!(std::fs::read_dir(&target)?.next().is_none());
+    assert!(parse(&plan.value()?).is_ok());
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn original_context_survives_selection_and_restart_while_expired_admission_refuses()
+-> std::result::Result<(), Box<dyn Error>> {
+    retained_admission(None)
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore = "requires the independently verified published CLI 0.2.5 binary"]
+fn published_cli025_refuses_an_old_prepared_writer_after_native_admission()
+-> std::result::Result<(), Box<dyn Error>> {
+    let binary =
+        std::env::var_os("AI_STP_TEST_PREVIOUS_CLI_BINARY").ok_or("previous CLI binary")?;
+    let binary = PathBuf::from(binary);
+    assert_eq!(
+        digest::sha256(&std::fs::read(&binary)?),
+        "sha256:34cdfc0e9a18ba0f9edb0c028b6223b648a53f4e488d310f6fc26e859dbe9508"
+    );
+    retained_admission(Some(&binary))
+}
+
+#[cfg(unix)]
+fn retained_admission(previous: Option<&Path>) -> std::result::Result<(), Box<dyn Error>> {
+    let _consumers = crate::installation::activation::CONSUMERS
+        .lock()
+        .map_err(|_| "consumer fixture lock")?;
+    fn run(
+        binary: &Path,
+        home: &Path,
+        args: &[std::ffi::OsString],
+        expected: i32,
+    ) -> std::result::Result<Value, Box<dyn Error>> {
+        let output = crate::process::run(crate::process::Request {
+            executable: binary,
+            arguments: args,
+            directory: home,
+            environment: &[
+                ("HOME".into(), home.as_os_str().into()),
+                ("PATH".into(), "".into()),
+            ],
+            timeout: std::time::Duration::from_secs(10),
+            output_limit: 1024 * 1024,
+        })?;
+        assert_eq!(output.status.code(), Some(expected));
+        assert!(output.stderr.is_empty());
+        Ok(serde_json::from_slice(&output.stdout)?)
+    }
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().canonicalize()?;
+    let state = root.join("state");
+    let target = root.join("target");
+    std::fs::create_dir(&state)?;
+    std::fs::create_dir(&target)?;
+    let at = format!("{:.3}", jiff::Timestamp::now());
+    let init = crate::identity::plan(&state, crate::identity::Storage::File, &at)?;
+    crate::identity::apply(&init, &init.digest()?, &at)?;
+    let first = contexts::create_plan(&state, "First", None, None, &at)?;
+    let first_value = serde_json::to_value(&first)?;
+    let id = first_value["change"]["context"]["context_id"]
+        .as_str()
+        .ok_or("context id")?;
+    contexts::apply(&first, &first.digest()?, &at)?;
+    let owner = runtime::owner(&state)?;
+    let actor = crate::authoring::Identity {
+        account_id: owner.account_id.clone(),
+        device_id: owner.device_id.clone(),
+    };
+    let mut store = owner.open(false)?;
+    let request = request(&mut store, &root.join("source"), target.clone(), actor, &at)?;
+    drop(store);
+    let planned = create(&state, id, &request, &at)?;
+    let second = contexts::create_plan(&state, "Second", None, None, &at)?;
+    let second_value = serde_json::to_value(&second)?;
+    let second_id = second_value["change"]["context"]["context_id"]
+        .as_str()
+        .ok_or("context id")?;
+    contexts::apply(&second, &second.digest()?, &at)?;
+    let select = contexts::select_plan(&state, second_id, &at)?;
+    contexts::apply(&select, &select.digest()?, &at)?;
+    let parsed = Plan::parse(
+        &serde_json::to_vec(&planned.plan.value()?)?,
+        &planned.plan.digest()?,
+    )?;
+    parsed.revalidate(&state, &at)?;
+    assert_eq!(parsed.context.context_id, id);
+    assert_eq!(contexts::list(&state)?["selected"]["context_id"], second_id);
+    assert!(parsed.revalidate(&state, &parsed.expires_at).is_err());
+    let old_plan = if let Some(binary) = previous {
+        let before = run(
+            binary,
+            &root,
+            &[
+                "context".into(),
+                "create".into(),
+                "plan".into(),
+                "--label".into(),
+                "Old retained writer".into(),
+                "--state-dir".into(),
+                state.as_os_str().into(),
+                "--json".into(),
+            ],
+            0,
+        )?;
+        assert_eq!(before["ok"], true);
+        let path = root.join("old-context-plan.json");
+        std::fs::write(&path, serde_json::to_vec(&before["data"]["plan"])?)?;
+        Some((
+            path,
+            before["data"]["plan_digest"]
+                .as_str()
+                .ok_or("old plan digest")?
+                .to_owned(),
+        ))
+    } else {
+        None
+    };
+    let review = digest::sha256(b"exact shared custody review");
+    let admitted = parsed.admit(&state, &parsed.digest()?, &review, &at)?;
+    assert_eq!(admitted["writer_fence"], 63);
+    assert_eq!(admitted["state"], "prepared");
+    assert_eq!(admitted["authorization_granted"], false);
+    assert_eq!(admitted["original_context"]["context_id"], id);
+    assert_eq!(
+        parsed.admit(&state, &parsed.digest()?, &review, &parsed.expires_at)?,
+        admitted
+    );
+    assert!(
+        parsed
+            .admit(
+                &state,
+                &parsed.digest()?,
+                &digest::sha256(b"other review"),
+                &at
+            )
+            .is_err()
+    );
+    assert_eq!(contexts::list(&state)?["selected"]["context_id"], second_id);
+    if let (Some(binary), Some((path, digest))) = (previous, old_plan) {
+        let before = runtime::owner(&state)?
+            .planning()?
+            .connection
+            .serialize("main")?
+            .to_vec();
+        let refusal = run(
+            binary,
+            &root,
+            &[
+                "context".into(),
+                "apply".into(),
+                "--plan".into(),
+                path.as_os_str().into(),
+                "--plan-digest".into(),
+                digest.into(),
+                "--json".into(),
+            ],
+            4,
+        )?;
+        assert_eq!(refusal["error"]["code"], "AI_STP_PRECONDITION_FAILED");
+        assert!(
+            refusal["error"]["message"]
+                .as_str()
+                .ok_or("refusal message")?
+                .contains("registry schema is unsupported")
+        );
+        let after = runtime::owner(&state)?
+            .planning()?
+            .connection
+            .serialize("main")?
+            .to_vec();
+        assert_eq!(before, after);
+        println!(
+            "published CLI 0.2.5: old prepared write refused; exact admitted registry unchanged"
+        );
+    }
+    assert!(std::fs::read_dir(&target)?.next().is_none());
+    let fresh = create(&state, id, &request, &at)?;
+    let metadata = root.join("custody");
+    std::fs::create_dir(&metadata)?;
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&metadata, std::fs::Permissions::from_mode(0o700))?;
+    let mut custody = crate::installation::custody::Custody::open(&metadata)?;
+    let reviewed = Reviewed::create(&state, &fresh.plan, &custody, &at)?;
+    let same = Reviewed::create(&state, &fresh.plan, &custody, &at)?;
+    assert_eq!(reviewed.digest()?, same.digest()?);
+    assert_eq!(
+        fresh.plan.recompile(&state, &at)?.plan.value()?,
+        fresh.plan.value()?
+    );
+    let prepared = reviewed.prepare(&state, &mut custody, &reviewed.digest()?, &at)?;
+    assert_eq!(prepared["configuration_changed"], false);
+    assert_eq!(prepared["execution_authorized"], false);
+    assert_eq!(prepared["intent"]["original_context"]["context_id"], id);
+    assert_eq!(
+        reviewed.prepare(&state, &mut custody, &reviewed.digest()?, &at)?,
+        prepared
+    );
+    assert!(target.join(CONTROL).is_dir());
+    assert!(!target.join("AGENTS.md").exists());
+    assert!(!target.join(".codex-setup-system").exists());
+    assert_eq!(
+        custody.inspect()?["claims"]
+            .as_array()
+            .ok_or("custody claims")?
+            .len(),
+        0
+    );
+    assert_eq!(
+        custody.pending()?.ok_or("pending native review")?.value()?,
+        reviewed.value()?
+    );
+    let operation = fresh.plan.operation_id.clone();
+    let digest = reviewed.digest()?;
+    let original = reviewed.value()?;
+    let expired = fresh.plan.expires_at.clone();
+    drop(reviewed);
+    drop(same);
+    drop(fresh);
+    drop(custody);
+    std::fs::remove_dir_all(root.join("source"))?;
+    let mut custody = crate::installation::custody::Custody::open(&metadata)?;
+    let recovered = custody
+        .retained(&operation)?
+        .ok_or("retained preparation")?;
+    assert_eq!(recovered.value()?, original);
+    assert_eq!(
+        recovered
+            .original_plan()?
+            .ok_or("original plan")?
+            .context
+            .context_id,
+        id
+    );
+    let cancelled = cancel_preparation(&state, &mut custody, &operation, &digest, &expired)?;
+    assert_eq!(cancelled["state"], "cancelled");
+    assert!(custody.pending()?.is_none());
+    assert!(!target.join("AGENTS.md").exists());
+    assert!(!target.join(".codex-setup-system").exists());
+    std::fs::rename(&target, root.join("retired-target"))?;
+    std::fs::create_dir(&target)?;
+    assert_eq!(
+        cancel_preparation(&state, &mut custody, &operation, &digest, &expired)?,
+        cancelled
+    );
+    assert!(std::fs::read_dir(&target)?.next().is_none());
+    let apply = create(&state, id, &request, &at)?;
+    let reviewed = Reviewed::create(&state, &apply.plan, &custody, &at)?;
+    let operation = apply.plan.operation_id.clone();
+    let digest = reviewed.digest()?;
+    reviewed.prepare(&state, &mut custody, &digest, &at)?;
+    drop(reviewed);
+    drop(apply);
+    let configured = apply_prepared(&state, &mut custody, &operation, &digest, &at)?;
+    assert_eq!(configured["kind"], "native.configuration.configured");
+    assert_eq!(configured["restart_required"], true);
+    assert_eq!(configured["load_state"], "not_observed");
+    assert_eq!(configured["original_context"]["context_id"], id);
+    assert!(target.join("AGENTS.md").is_file());
+    assert!(target.join(".codex-setup-system/journal.json").is_file());
+    assert_eq!(
+        custody.inspect()?["claims"]
+            .as_array()
+            .ok_or("claims")?
+            .len(),
+        1
+    );
+    assert_eq!(
+        apply_prepared(&state, &mut custody, &operation, &digest, &at)?,
+        configured
+    );
+    assert!(confirm_session(&state, &custody, &operation, &digest, &at).is_err());
+    assert_eq!(
+        configuration_status(&state, &custody, &operation, &digest)?["state"],
+        "configured"
+    );
+    let input = root.join("confirm-input.json");
+    std::fs::write(
+        &input,
+        serde_json::to_vec(
+            &json!({"state":state,"custody":metadata,"operation":operation,"digest":digest,"at":at}),
+        )?,
+    )?;
+    drop(custody);
+    let executable = root.join("codex");
+    if std::fs::hard_link(std::env::current_exe()?, &executable).is_err() {
+        std::fs::copy(std::env::current_exe()?, &executable)?;
+    }
+    std::thread::sleep(std::time::Duration::from_millis(30));
+    let output = std::process::Command::new(&executable)
+        .args([
+            "--exact",
+            "installation::planning::tests::native_confirmation_consumer",
+            "--nocapture",
+        ])
+        .env_clear()
+        .env("PATH", "")
+        .env("HOME", &root)
+        .env("CODEX_HOME", &target)
+        .env("AI_STP_NATIVE_CONFIRM_INPUT", &input)
+        .current_dir(&root)
+        .output()?;
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = std::str::from_utf8(&output.stdout)?;
+    let confirmed = stdout
+        .lines()
+        .find_map(|line| line.split_once("NATIVE_CONFIRMED:").map(|(_, value)| value))
+        .ok_or("original native confirmation")?;
+    let confirmed: Value = serde_json::from_str(confirmed)?;
+    assert_eq!(confirmed["kind"], "native.configuration.confirmed");
+    assert_eq!(confirmed["activation"], "new_session_confirmed");
+    assert_eq!(confirmed["original_context"]["context_id"], id);
+    assert_eq!(confirmed["load_state"], "not_observed");
+    let custody = crate::installation::custody::Custody::open(&metadata)?;
+    assert_eq!(
+        configuration_status(&state, &custody, &operation, &digest)?["state"],
+        "confirmed"
+    );
+    let mut replacement = request;
+    replacement.operation = Operation::Replace;
+    let update = create(&state, id, &replacement, &at)?;
+    let reviewed = Reviewed::create(&state, &update.plan, &custody, &at)?;
+    let update_operation = update.plan.operation_id.clone();
+    let update_digest = reviewed.digest()?;
+    let mut custody = custody;
+    reviewed.prepare(&state, &mut custody, &update_digest, &at)?;
+    let updated = apply_prepared(&state, &mut custody, &update_operation, &update_digest, &at)?;
+    assert_eq!(updated["configuration_changed"], false);
+    assert_eq!(updated["restart_required"], false);
+    assert!(
+        create_removal(&state, &custody, &operation, &digest, &at).is_err(),
+        "a historical setup cannot remove a newer effective operation"
+    );
+    let remove = create_removal(&state, &custody, &update_operation, &update_digest, &at)?;
+    let removal_operation = remove.operation_id.clone();
+    let reviewed = Reviewed::create(&state, &remove, &custody, &at)?;
+    let removal_digest = reviewed.digest()?;
+    std::fs::write(target.join("user-note"), b"unowned file stays")?;
+    reviewed.prepare(&state, &mut custody, &removal_digest, &at)?;
+    let removed = apply_prepared(
+        &state,
+        &mut custody,
+        &removal_operation,
+        &removal_digest,
+        &at,
+    )?;
+    assert_eq!(removed["operation"], "remove");
+    assert!(!target.join("AGENTS.md").exists());
+    assert_eq!(
+        std::fs::read(target.join("user-note"))?,
+        b"unowned file stays"
+    );
+    assert!(target.join(".codex-setup-system/journal.json").exists());
+    assert!(
+        custody.inspect()?["claims"]
+            .as_array()
+            .ok_or("claims")?
+            .is_empty()
+    );
+    assert_eq!(
+        apply_prepared(
+            &state,
+            &mut custody,
+            &removal_operation,
+            &removal_digest,
+            &at
+        )?,
+        removed
+    );
+    std::fs::rename(&target, root.join("retired-applied-target"))?;
+    std::fs::create_dir(&target)?;
+    let mut custody = custody;
+    assert_eq!(
+        apply_prepared(&state, &mut custody, &operation, &digest, &at)?,
+        configured
+    );
+    assert_eq!(
+        confirm_session(&state, &custody, &operation, &digest, &at)?,
+        confirmed
+    );
+    assert!(std::fs::read_dir(&target)?.next().is_none());
+
+    assert_eq!(contexts::list(&state)?["selected"]["context_id"], second_id);
+    Ok(())
+}
+
+#[test]
+fn assignment_observations_freeze_exact_policy_without_becoming_execution_grants()
+-> std::result::Result<(), Box<dyn Error>> {
+    use crate::account::access::Binding;
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().canonicalize()?;
+    let organization = json!({"schema_version":1,"organization_id":"organization_01ARZ3NDEKTSV4RRFFQ69G5FAV","kind":"corporate","display_name":"Company","membership_revision":1});
+    let account = Binding {
+        origin: "https://company.example".into(),
+        account_id: actor().account_id,
+        device_id: actor().device_id,
+        revision: "operation_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
+        root_identity: ["0".into(), "0".into()],
+        public_key: "fixture-public-key".into(),
+        credential_store: crate::identity::Storage::OsKeyring,
+        connection: None,
+    };
+    let observation = json!({"schema_version":1,"mode":"corporate","organization_id":organization["organization_id"],
+        "capabilities":{"schema_version":1,"registry_version":2,"mode":"corporate","context_kind":"corporate","organization_id":organization["organization_id"],
+        "authorization_revision":"corporate:fixture:1","issued_at":AT,"generated_at":AT,"expires_at":"2026-11-03T01:00:00.000Z","capabilities":["assignment.read","organization.read","project.read"],"unavailable":{}}});
+    let mut context = context(&root, actor());
+    context.authority = Authority::Remote {
+        account: Box::new(account.clone()),
+        organization: organization.clone(),
+        observation: observation.clone(),
+    };
+    context.digest()?;
+    let setup = json!({"stable_id":"setup_01ARZ3NDEKTSV4RRFFQ69G5FAV","version":"1.0","passport_digest":digest::sha256(b"exact-setup")});
+    let link = json!({"organization_id":organization["organization_id"],"remote_project_id":"remote_project_01ARZ3NDEKTSV4RRFFQ69G5FAV"});
+    let item = json!({"object_kind":"setup","stable_id":setup["stable_id"],"state":"assigned","action":"install","outcome":"missing", "harness":"codex",
+        "version":setup["version"],"passport_digest":setup["passport_digest"],"assignment_id":"assignment-fixture"});
+    let assigned = json!({"context":context,"account":account,"organization":organization,"observation":observation,"online_verified":true,"observation_only":true,"installation_authority":false,
+        "data":{"organization_id":link["organization_id"],"project_id":link["remote_project_id"],"account_id":account.account_id,"harness":"codex","technology_id":null,"items":[item],"total":1}});
+    let linked = assigned.clone();
+    let proof = assignment(&context, &link, &linked, &assigned, "codex", &setup)?;
+    assert_eq!(proof.0.as_deref(), Some("assignment-fixture"));
+    let mut refreshed = assigned.clone();
+    refreshed["account"]["revision"] = "operation_01ARZ3NDEKTSV4RRFFQ69G5FAW".into();
+    refreshed["observation"]["capabilities"]["generated_at"] = "2026-11-03T00:01:00.000Z".into();
+    refreshed["observation"]["capabilities"]["issued_at"] = "2026-11-03T00:01:00.000Z".into();
+    assert_eq!(
+        assignment(&context, &link, &linked, &refreshed, "codex", &setup)?,
+        proof
+    );
+    for altered in [
+        {
+            let mut v = assigned.clone();
+            v["data"]["items"][0]["passport_digest"] = digest::sha256(b"another-setup").into();
+            v
+        },
+        {
+            let mut v = assigned.clone();
+            v["data"]["items"][0]["state"] = "revoked".into();
+            v
+        },
+        {
+            let mut v = assigned.clone();
+            v["data"]["items"][0]["outcome"] = "conflicting".into();
+            v
+        },
+        {
+            let mut v = assigned.clone();
+            v["data"]["project_id"] = "remote_project_01ARZ3NDEKTSV4RRFFQ69G5FAW".into();
+            v
+        },
+        {
+            let mut v = assigned.clone();
+            v["account"]["origin"] = "https://another.example".into();
+            v
+        },
+        {
+            let mut v = assigned.clone();
+            v["observation"]["capabilities"]["authorization_revision"] =
+                "corporate:fixture:2".into();
+            v
+        },
+        {
+            let mut v = assigned.clone();
+            v["online_verified"] = false.into();
+            v
+        },
+        {
+            let mut v = assigned.clone();
+            v["installation_authority"] = true.into();
+            v
+        },
+        {
+            let mut v = assigned.clone();
+            v["data"]["items"] = json!([item.clone(), item]);
+            v
+        },
+    ] {
+        assert!(assignment(&context, &link, &linked, &altered, "codex", &setup).is_err());
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn contribution_planning_preserves_unowned_host_permissions_and_contents()
+-> std::result::Result<(), Box<dyn Error>> {
+    use std::os::unix::fs::PermissionsExt;
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().canonicalize()?;
+    let state = root.join("state");
+    let target = root.join("target");
+    std::fs::create_dir(&state)?;
+    std::fs::create_dir(&target)?;
+    let mut store = Store::open(&state, true)?;
+    let mut request = request(
+        &mut store,
+        &root.join("guidance"),
+        target.clone(),
+        actor(),
+        AT,
+    )?;
+    let input = root.join("mcp");
+    std::fs::create_dir(&input)?;
+    std::fs::write(
+        input.join("config.toml"),
+        "[mcp_servers.review]\ncommand = \"review-helper\"\n",
+    )?;
+    let identity = actor();
+    use crate::{
+        authoring::{adoption, discovery, passports, releases, setups},
+        harnesses,
+        provider::Info,
+        store::versions::Increment,
+    };
+    let report = discovery::at(
+        &input,
+        "codex",
+        harnesses::Scope::Global,
+        harnesses::Root::Config,
+    )?;
+    let candidate = report
+        .components
+        .into_iter()
+        .find(|component| component.component_type == "mcp")
+        .ok_or("MCP discovery")?;
+    let adopted = adoption::plan(
+        &mut store,
+        adoption::Source {
+            root: input,
+            harness_id: "codex".into(),
+            scope: harnesses::Scope::Global,
+            root_kind: harnesses::Root::Config,
+            candidate_id: candidate.candidate_id,
+        },
+        identity.clone(),
+        AT,
+    )?;
+    let draft = adoption::apply(&mut store, &adopted, &adopted.digest()?, &identity, AT)?;
+    let patch = passports::plan(
+        &mut store,
+        draft["stable_id"].as_str().ok_or("id")?,
+        draft["revision_id"].as_str().ok_or("revision")?,
+        passports::Patch::try_from(json!({
+            "name":"native-mcp","description":"Review current source.","tags":["review"],"license":{"spdx_id":"MIT","redistribution_allowed":true},
+            "permissions":{"filesystem":[],"network":[],"process":[]},"supported_os":[std::env::consts::OS],"supported_arch":[if cfg!(target_arch="aarch64"){"arm64"}else{"x86_64"}]
+        }))?,
+        identity.clone(),
+        AT,
+    )?;
+    let draft = passports::apply(&mut store, &patch, &patch.digest()?, &identity, AT)?;
+    // Genuine historical declaration data qualifies source authoring only; the
+    // native plan/compiler itself has no external executable dependency.
+    let declarations: Vec<Value> = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/provider-declarations-0.0.95.json"
+    )))?;
+    let provider = Info::parse(&serde_json::to_vec(
+        declarations
+            .iter()
+            .find(|d| d["harness_id"] == "codex")
+            .ok_or("declaration")?,
+    )?)?;
+    let release = releases::plan(
+        &mut store,
+        draft["stable_id"].as_str().ok_or("id")?,
+        draft["revision_id"].as_str().ok_or("revision")?,
+        Increment::Minor,
+        std::slice::from_ref(&provider),
+        identity.clone(),
+        AT,
+    )?;
+    let component = releases::apply(&mut store, &release, &release.digest()?, &identity, AT)?;
+    assert_eq!(
+        component["adaptations"][0]["scope_adaptations"][0]["members"][0]["ownership"],
+        "contribution"
+    );
+    let composed = setups::plan(
+        &mut store,
+        setups::Request {
+            harness_id: "codex".into(),
+            name: "Native contribution".into(),
+            description: "Preserve unowned host state.".into(),
+            purpose: "Plan an explicitly authored contribution.".into(),
+            requirements: None,
+            members: vec![setups::Member {
+                stable_id: component["stable_id"].as_str().ok_or("id")?.into(),
+                version: component["version"].as_str().ok_or("version")?.into(),
+                passport_digest: digest::canonical("ai-stp:passport:v1", &component)?,
+            }],
+        },
+        identity.clone(),
+        AT,
+    )?;
+    let setup = setups::apply(&mut store, &composed, &composed.digest()?, &identity, AT)?;
+    request.setup = json!({"stable_id":setup["stable_id"],"version":setup["version"],"passport_digest":digest::canonical("ai-stp:passport:v1",&setup)?});
+    request.evidence = [&component, &setup]
+        .into_iter()
+        .map(|document| {
+            Ok((
+                document["stable_id"].as_str().ok_or_else(invalid)?.into(),
+                Evidence {
+                    passport_digest: digest::canonical("ai-stp:passport:v1", document)?,
+                    registrable: true,
+                    blocked: false,
+                    author_verified: false,
+                    component_verified: false,
+                    checks_current: false,
+                    consented: true,
+                },
+            ))
+        })
+        .collect::<crate::error::Result<BTreeMap<_, _>>>()?;
+    let path = target.join("config.toml");
+    let original = b"[unowned]\nvalue = \"keep-the-original-host\"\n";
+    std::fs::write(&path, original)?;
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+    let planned = capture(&mut store, context(&state, identity), None, &request, AT)?;
+    assert_eq!(
+        planned.plan.roots[&Scope::Global].files["config.toml"].after_mode,
+        Some(0o600)
+    );
+    assert_eq!(std::fs::read(&path)?, original);
+    assert_eq!(
+        std::fs::metadata(&path)?.permissions().mode() & 0o777,
+        0o600
+    );
+    assert!(!target.join(CONTROL).exists());
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn native_confirmation_consumer() -> std::result::Result<(), Box<dyn Error>> {
+    let Some(input) = std::env::var_os("AI_STP_NATIVE_CONFIRM_INPUT") else {
+        return Ok(());
+    };
+    let input = crate::wire::parse(&std::fs::read(input)?)?;
+    let state = PathBuf::from(input["state"].as_str().ok_or("state")?);
+    let custody = crate::installation::custody::Custody::open(&PathBuf::from(
+        input["custody"].as_str().ok_or("custody")?,
+    ))?;
+    let confirmed = confirm_session(
+        &state,
+        &custody,
+        input["operation"].as_str().ok_or("operation")?,
+        input["digest"].as_str().ok_or("digest")?,
+        input["at"].as_str().ok_or("at")?,
+    )?;
+    println!("NATIVE_CONFIRMED:{}", serde_json::to_string(&confirmed)?);
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn serialized_native_trust_and_access_flags_never_grant_a_private_effect()
+-> std::result::Result<(), Box<dyn Error>> {
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().canonicalize()?;
+    let state = root.join("state");
+    let target = root.join("target");
+    let metadata = root.join("custody");
+    for path in [&state, &target, &metadata] {
+        std::fs::create_dir(path)?;
+    }
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&metadata, std::fs::Permissions::from_mode(0o700))?;
+    let at = format!("{:.3}", jiff::Timestamp::now());
+    let init = crate::identity::plan(&state, crate::identity::Storage::File, &at)?;
+    crate::identity::apply(&init, &init.digest()?, &at)?;
+    let saved = contexts::create_plan(&state, "Original local owner", None, None, &at)?;
+    let document = serde_json::to_value(&saved)?;
+    let id = document["change"]["context"]["context_id"]
+        .as_str()
+        .ok_or("context")?;
+    contexts::apply(&saved, &saved.digest()?, &at)?;
+    let owner = runtime::owner(&state)?;
+    let mut store = owner.open(false)?;
+    let foreign = Identity {
+        account_id: format!("account_{}", ulid::Ulid::generate()),
+        device_id: format!("device_{}", ulid::Ulid::generate()),
+    };
+    let mut forged = request(
+        &mut store,
+        &root.join("source"),
+        target.clone(),
+        foreign,
+        &at,
+    )?;
+    forged.target.owner_id = owner.account_id.clone();
+    for (id, evidence) in &mut forged.evidence {
+        evidence.author_verified = true;
+        evidence.component_verified = true;
+        evidence.checks_current = true;
+        evidence.consented = true;
+        forged.target.grants.insert(format!("{id}:1"));
+        forged
+            .target
+            .pinned_passport_digests
+            .insert(evidence.passport_digest.clone());
+        forged
+            .target
+            .accessible_passport_digests
+            .insert(evidence.passport_digest.clone());
+    }
+    forged.target.access_context_digest = Some(digest::sha256(b"not actual account access"));
+    drop(store);
+    drop(owner);
+    let observation = create(&state, id, &forged, &at)?;
+    let custody = crate::installation::custody::Custody::open(&metadata)?;
+    let refused = match Reviewed::create(&state, &observation.plan, &custody, &at) {
+        Ok(_) => return Err("serialized access flags authorized a private write".into()),
+        Err(error) => error,
+    };
+    assert!(matches!(
+        refused.kind,
+        crate::error::ErrorKind::Precondition
+    ));
+    assert!(
+        refused.details["eligibility"]["refusals"]
+            .as_array()
+            .ok_or("refusals")?
+            .iter()
+            .any(|item| item["code"] == "grant_missing")
+    );
+    assert!(std::fs::read_dir(&target)?.next().is_none());
+    assert!(custody.pending()?.is_none());
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore = "requires independently verified published codex-setup-system 0.0.95"]
+fn published_external_installation_is_adopted_without_rewriting_its_state_or_asfw_history()
+-> std::result::Result<(), Box<dyn Error>> {
+    let _consumers = crate::installation::activation::CONSUMERS
+        .lock()
+        .map_err(|_| "consumer fixture lock")?;
+    let binary = PathBuf::from(
+        std::env::var_os("AI_STP_TEST_PREVIOUS_SETUP_BINARY").ok_or("published setup binary")?,
+    );
+    let binary_digest = digest::sha256(&std::fs::read(&binary)?);
+    assert_eq!(
+        binary_digest,
+        "sha256:97cf3c8ed85945d12eef6ab1065d8a64ef406aac5f51383fbd68550753989384"
+    );
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().canonicalize()?;
+    let state = root.join("state");
+    let target = root.join("target");
+    std::fs::create_dir(&state)?;
+    std::fs::create_dir(&target)?;
+    let at = format!("{:.3}", jiff::Timestamp::now());
+    let init = crate::identity::plan(&state, crate::identity::Storage::File, &at)?;
+    crate::identity::apply(&init, &init.digest()?, &at)?;
+    let saved = contexts::create_plan(&state, "Adoption original", None, None, &at)?;
+    let saved_value = serde_json::to_value(&saved)?;
+    let id = saved_value["change"]["context"]["context_id"]
+        .as_str()
+        .ok_or("context")?;
+    contexts::apply(&saved, &saved.digest()?, &at)?;
+    let owner = runtime::owner(&state)?;
+    let actor = Identity {
+        account_id: owner.account_id.clone(),
+        device_id: owner.device_id.clone(),
+    };
+    let mut store = owner.open(false)?;
+    let mut request = request(&mut store, &root.join("source"), target.clone(), actor, &at)?;
+    drop(store);
+    let planned = create(&state, id, &request, &at)?;
+    let bytes = planned.packages.get(&Scope::Global).ok_or("package")?;
+    let package = crate::bundle::reader::Package::read(bytes)?;
+    let bundle_path = root.join("old-input.zip");
+    std::fs::write(&bundle_path, bytes)?;
+    let flags: Vec<std::ffi::OsString> = vec![
+        "--bundle".into(),
+        bundle_path.as_os_str().into(),
+        "--bundle-format".into(),
+        package.binding.bundle_format.into(),
+        "--bundle-digest".into(),
+        package.binding.bundle_digest.into(),
+        "--artifact-digest".into(),
+        package.binding.artifact_digest.into(),
+        "--bundle-size".into(),
+        package.binding.bundle_size.to_string().into(),
+    ];
+    let run = |command: &str,
+               arguments: Vec<std::ffi::OsString>|
+     -> std::result::Result<Value, Box<dyn Error>> {
+        let mut args = vec![
+            command.into(),
+            "--target".into(),
+            target.as_os_str().into(),
+            "--json".into(),
+        ];
+        args.extend(arguments);
+        let output = crate::process::run(crate::process::Request {
+            executable: &binary,
+            arguments: &args,
+            directory: &root,
+            environment: &[("PATH".into(), "".into())],
+            timeout: std::time::Duration::from_secs(10),
+            output_limit: 4 * 1024 * 1024,
+        })?;
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        Ok(serde_json::from_slice(&output.stdout)?)
+    };
+    let mut arguments: Vec<std::ffi::OsString> = vec![
+        "--operation".into(),
+        "install".into(),
+        "--recovery-mode".into(),
+        "forward".into(),
+        "--provider-release-digest".into(),
+        binary_digest.clone().into(),
+        "--operation-id".into(),
+        format!("operation_{}", ulid::Ulid::generate()).into(),
+        "--expires-at".into(),
+        planned.plan.expires_at.clone().into(),
+    ];
+    arguments.extend(flags.clone());
+    let old = run("plan-operation", arguments)?;
+    assert_eq!(old["state"], "planned", "{old}");
+    let plan_path = root.join("old-plan.json");
+    std::fs::write(&plan_path, crate::canonical::bytes(&old["plan"])?)?;
+    let mut arguments: Vec<std::ffi::OsString> = vec![
+        "--plan".into(),
+        plan_path.as_os_str().into(),
+        "--plan-digest".into(),
+        old["plan_digest"].as_str().ok_or("digest")?.into(),
+        "--provider-release-digest".into(),
+        binary_digest.into(),
+    ];
+    arguments.extend(flags);
+    let installed = run("apply-operation", arguments.clone())?;
+    assert_eq!(installed["state"], "verified", "{installed}");
+    let state_path = target.join("NDDEV-CODEX-PROVIDER.json");
+    let db_path = target.join(".codex-setup-system/forward/records.sqlite3");
+    let state_bytes = std::fs::read(&state_path)?;
+    let database_bytes = std::fs::read(&db_path)?;
+    let guidance = std::fs::read(target.join("AGENTS.md"))?;
+    request.operation = Operation::Adopt;
+    let adoption = create(&state, id, &request, &at)?;
+    let metadata = root.join("custody");
+    std::fs::create_dir(&metadata)?;
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&metadata, std::fs::Permissions::from_mode(0o700))?;
+    let mut custody = crate::installation::custody::Custody::open(&metadata)?;
+    let reviewed = Reviewed::create(&state, &adoption.plan, &custody, &at)?;
+    let expected = reviewed.digest()?;
+    reviewed.prepare(&state, &mut custody, &expected, &at)?;
+    drop(reviewed);
+    let receipt = apply_prepared(
+        &state,
+        &mut custody,
+        &adoption.plan.operation_id,
+        &expected,
+        &at,
+    )?;
+    assert_eq!(receipt["configuration_changed"], false);
+    assert_eq!(receipt["restart_required"], false);
+    assert_eq!(std::fs::read(state_path)?, state_bytes);
+    assert_eq!(std::fs::read(db_path)?, database_bytes);
+    assert_eq!(std::fs::read(target.join("AGENTS.md"))?, guidance);
+    let refused = run("apply-operation", arguments)?;
+    assert_eq!(refused["state"], "refused", "{refused}");
+    assert_eq!(std::fs::read(target.join("AGENTS.md"))?, guidance);
+    println!(
+        "published 0.0.95 creates the setup; native adoption preserves original state and ASFW bytes; historical external replay refuses"
+    );
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn positively_missing_target_retirement_preserves_history_and_releases_no_live_files()
+-> std::result::Result<(), Box<dyn Error>> {
+    let _consumers = crate::installation::activation::CONSUMERS
+        .lock()
+        .map_err(|_| "consumer fixture lock")?;
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().canonicalize()?;
+    let state = root.join("original state");
+    let controller = root.join("another state");
+    let target = root.join("target");
+    let metadata = root.join("custody");
+    for path in [&state, &controller, &target, &metadata] {
+        std::fs::create_dir(path)?;
+    }
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&metadata, std::fs::Permissions::from_mode(0o700))?;
+    let at = format!("{:.3}", jiff::Timestamp::now());
+    for path in [&state, &controller] {
+        let init = crate::identity::plan(path, crate::identity::Storage::File, &at)?;
+        crate::identity::apply(&init, &init.digest()?, &at)?;
+    }
+    let saved = contexts::create_plan(&state, "Original missing target", None, None, &at)?;
+    let saved_value = serde_json::to_value(&saved)?;
+    let context = saved_value["change"]["context"]["context_id"]
+        .as_str()
+        .ok_or("context")?;
+    contexts::apply(&saved, &saved.digest()?, &at)?;
+    let owner = runtime::owner(&state)?;
+    let mut store = owner.open(false)?;
+    let input = request(
+        &mut store,
+        &root.join("source"),
+        target.clone(),
+        owner.clone(),
+        &at,
+    )?;
+    drop(store);
+    drop(owner);
+    let native = create(&state, context, &input, &at)?;
+    let source = native.plan.operation_id.clone();
+    let mut custody = crate::installation::custody::Custody::open(&metadata)?;
+    let reviewed = Reviewed::create(&state, &native.plan, &custody, &at)?;
+    let source_digest = reviewed.digest()?;
+    reviewed.prepare(&state, &mut custody, &source_digest, &at)?;
+    drop(reviewed);
+    let configured = apply_prepared(&state, &mut custody, &source, &source_digest, &at)?;
+    assert!(
+        retirement::plan(&controller, &custody, &source, &source_digest, &at).is_err(),
+        "a live target is not absent"
+    );
+    std::fs::remove_dir_all(&target)?;
+    let retired_plan = retirement::plan(&controller, &custody, &source, &source_digest, &at)?;
+    let parsed = crate::installation::custody::Review::parse(
+        &serde_json::to_vec(&retired_plan["plan"])?,
+        retired_plan["plan_digest"]
+            .as_str()
+            .ok_or("retirement digest")?,
+    )?;
+    let expected = parsed.digest()?;
+    retirement::prepare(&controller, &mut custody, &parsed, &expected, &at)?;
+    std::fs::create_dir(&target)?;
+    std::fs::write(target.join("user-note"), b"replacement remains unowned")?;
+    assert!(
+        retirement::apply(&controller, &mut custody, &parsed).is_err(),
+        "reappearing targets must refuse before metadata publication"
+    );
+    assert_eq!(custody.status(&parsed)?["state"], "prepared");
+    retirement::cancel(&controller, &mut custody, &parsed)?;
+    assert_eq!(
+        std::fs::read(target.join("user-note"))?,
+        b"replacement remains unowned"
+    );
+    assert_eq!(custody.current_scopes(&source)?.len(), 1);
+    std::fs::remove_dir_all(&target)?;
+    let retired_plan = retirement::plan(&controller, &custody, &source, &source_digest, &at)?;
+    let parsed = crate::installation::custody::Review::parse(
+        &serde_json::to_vec(&retired_plan["plan"])?,
+        retired_plan["plan_digest"]
+            .as_str()
+            .ok_or("retirement digest")?,
+    )?;
+    let expected = parsed.digest()?;
+    retirement::prepare(&controller, &mut custody, &parsed, &expected, &at)?;
+    // Original state loss does not turn OS-user metadata retirement into a
+    // replacement enrollment, an online grant or another account's file write.
+    std::fs::remove_dir_all(&state)?;
+    std::fs::remove_dir_all(&controller)?;
+    let result = retirement::apply(&controller, &mut custody, &parsed)?;
+    assert_eq!(result["state"], "retired");
+    assert_eq!(result["original_context"]["context_id"], context);
+    assert_eq!(result["source_operation"], source);
+    assert_eq!(result["configuration_changed"], false);
+    assert!(custody.current_scopes(&source)?.is_empty());
+    assert_eq!(custody.inspect()?["claims"], json!([]));
+    assert_eq!(
+        apply_prepared(&state, &mut custody, &source, &source_digest, &at)?,
+        configured
+    );
+    std::fs::create_dir(&target)?;
+    std::fs::write(target.join("user-note"), b"later unowned target")?;
+    assert_eq!(
+        retirement::apply(&controller, &mut custody, &parsed)?,
+        result
+    );
+    assert!(!target.join("AGENTS.md").exists());
+    assert_eq!(
+        std::fs::read(target.join("user-note"))?,
+        b"later unowned target"
+    );
+    std::fs::create_dir(&controller)?;
+    let initialize = crate::identity::plan(&controller, crate::identity::Storage::File, &at)?;
+    crate::identity::apply(&initialize, &initialize.digest()?, &at)?;
+    let saved = contexts::create_plan(&controller, "Controller personal", None, None, &at)?;
+    let saved_value = serde_json::to_value(&saved)?;
+    let other_context = saved_value["change"]["context"]["context_id"]
+        .as_str()
+        .ok_or("other context")?;
+    contexts::apply(&saved, &saved.digest()?, &at)?;
+    let other_target = root.join("unrelated target");
+    std::fs::create_dir(&other_target)?;
+    let owner = runtime::owner(&controller)?;
+    let mut store = owner.open(false)?;
+    let input = request(
+        &mut store,
+        &root.join("other source"),
+        other_target.clone(),
+        owner.clone(),
+        &at,
+    )?;
+    drop(store);
+    drop(owner);
+    let native = create(&controller, other_context, &input, &at)?;
+    let reviewed = Reviewed::create(&controller, &native.plan, &custody, &at)?;
+    let digest = reviewed.digest()?;
+    reviewed.prepare(&controller, &mut custody, &digest, &at)?;
+    apply_prepared(
+        &controller,
+        &mut custody,
+        &native.plan.operation_id,
+        &digest,
+        &at,
+    )?;
+    let after = custody.inspect()?;
+    assert_eq!(
+        retirement::apply(&controller, &mut custody, &parsed)?,
+        result
+    );
+    assert_eq!(
+        custody.inspect()?,
+        after,
+        "historical retirement must never remove a later reference"
+    );
+    let removal = create_removal(
+        &controller,
+        &custody,
+        &native.plan.operation_id,
+        &digest,
+        &at,
+    )?;
+    let reviewed = Reviewed::create(&controller, &removal, &custody, &at)?;
+    let digest = reviewed.digest()?;
+    reviewed.prepare(&controller, &mut custody, &digest, &at)?;
+    apply_prepared(
+        &controller,
+        &mut custody,
+        &removal.operation_id,
+        &digest,
+        &at,
+    )?;
+    assert!(!other_target.join("AGENTS.md").exists());
+    assert_eq!(
+        std::fs::read(target.join("user-note"))?,
+        b"later unowned target"
+    );
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn partial_missing_scope_retirement_keeps_live_ownership_and_its_original_subject_anchor()
+-> std::result::Result<(), Box<dyn Error>> {
+    use crate::authoring::setups;
+    let _consumers = crate::installation::activation::CONSUMERS
+        .lock()
+        .map_err(|_| "consumer fixture lock")?;
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().canonicalize()?;
+    let state = root.join("state");
+    let global = root.join("global");
+    let user = root.join("user");
+    let metadata = root.join("custody");
+    for path in [&state, &global, &user, &metadata] {
+        std::fs::create_dir(path)?;
+    }
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&metadata, std::fs::Permissions::from_mode(0o700))?;
+    let at = format!("{:.3}", jiff::Timestamp::now());
+    let init = crate::identity::plan(&state, crate::identity::Storage::File, &at)?;
+    crate::identity::apply(&init, &init.digest()?, &at)?;
+    let saved = contexts::create_plan(&state, "Two native scopes", None, None, &at)?;
+    let saved_value = serde_json::to_value(&saved)?;
+    let context = saved_value["change"]["context"]["context_id"]
+        .as_str()
+        .ok_or("context")?;
+    contexts::apply(&saved, &saved.digest()?, &at)?;
+    let owner = runtime::owner(&state)?;
+    let mut store = owner.open(false)?;
+    let mut input = request(
+        &mut store,
+        &root.join("global source"),
+        global.clone(),
+        owner.clone(),
+        &at,
+    )?;
+    let (first, first_digest) = input
+        .evidence
+        .iter()
+        .find(|(id, _)| id.starts_with("component_"))
+        .map(|(id, evidence)| (id.clone(), evidence.passport_digest.clone()))
+        .ok_or("first component")?;
+    let source = root.join("user source");
+    std::fs::create_dir(&source)?;
+    std::fs::write(
+        source.join("SKILL.md"),
+        b"---\nname: user-review\ndescription: Review current source.\n---\nReview the current change.\n",
+    )?;
+    let authored = embedded::plan(
+        &mut store,
+        embedded::Request {
+            directory: source,
+            harness_id: "codex".into(),
+            component_type: "skill".into(),
+            name: "user-review".into(),
+            license_spdx: "MIT".into(),
+        },
+        owner.clone(),
+        &at,
+    )?;
+    embedded::apply(&mut store, &authored, &authored.digest()?, &owner, &at)?;
+    let second = authored.component["stable_id"]
+        .as_str()
+        .ok_or("second component")?
+        .to_owned();
+    let composite = setups::plan(
+        &mut store,
+        setups::Request {
+            harness_id: "codex".into(),
+            name: "two-scope-native".into(),
+            description: "Two exact fixture scopes".into(),
+            purpose: "Qualify partial missing-target retirement".into(),
+            members: vec![
+                setups::Member {
+                    stable_id: first.clone(),
+                    version: "1.0".into(),
+                    passport_digest: first_digest,
+                },
+                setups::Member {
+                    stable_id: second.clone(),
+                    version: authored.component["version"]
+                        .as_str()
+                        .ok_or("version")?
+                        .into(),
+                    passport_digest: digest::canonical("ai-stp:passport:v1", &authored.component)?,
+                },
+            ],
+            requirements: None,
+        },
+        owner.clone(),
+        &at,
+    )?;
+    setups::apply(&mut store, &composite, &composite.digest()?, &owner, &at)?;
+    input.setup = json!({"stable_id":composite.passport["stable_id"],"version":composite.passport["version"],
+        "passport_digest":digest::canonical("ai-stp:passport:v1",&composite.passport)?});
+    input.evidence.retain(|id, _| id.starts_with("component_"));
+    for document in [&authored.component, &composite.passport] {
+        input.evidence.insert(
+            document["stable_id"].as_str().ok_or("document")?.into(),
+            Evidence {
+                passport_digest: digest::canonical("ai-stp:passport:v1", document)?,
+                registrable: true,
+                blocked: false,
+                author_verified: false,
+                component_verified: false,
+                checks_current: false,
+                consented: true,
+            },
+        );
+    }
+    input.roots.insert(Scope::UserRoot, user.clone());
+    input.placements = BTreeMap::from([(first, Scope::Global), (second, Scope::UserRoot)]);
+    drop(store);
+    drop(owner);
+    let planned = create(&state, context, &input, &at)?;
+    let mut custody = crate::installation::custody::Custody::open(&metadata)?;
+    let reviewed = Reviewed::create(&state, &planned.plan, &custody, &at)?;
+    let expected = reviewed.digest()?;
+    reviewed.prepare(&state, &mut custody, &expected, &at)?;
+    drop(reviewed);
+    apply_prepared(
+        &state,
+        &mut custody,
+        &planned.plan.operation_id,
+        &expected,
+        &at,
+    )?;
+    assert!(
+        global.join("AGENTS.md").is_file() && user.join("skills/user-review/SKILL.md").is_file()
+    );
+    std::fs::write(user.join("user-note"), b"live unowned file stays")?;
+    std::fs::remove_dir_all(&global)?;
+    let reviewed = retirement::plan(&state, &custody, &planned.plan.operation_id, &expected, &at)?;
+    let review = crate::installation::custody::Review::parse(
+        &serde_json::to_vec(&reviewed["plan"])?,
+        reviewed["plan_digest"]
+            .as_str()
+            .ok_or("retirement digest")?,
+    )?;
+    retirement::prepare(&state, &mut custody, &review, &review.digest()?, &at)?;
+    retirement::apply(&state, &mut custody, &review)?;
+    assert_eq!(
+        custody.current_scopes(&planned.plan.operation_id)?,
+        BTreeSet::from([Scope::UserRoot])
+    );
+    assert!(
+        user.join("skills/user-review/SKILL.md").is_file(),
+        "metadata retirement must preserve live configuration"
+    );
+    let removal = create_removal(&state, &custody, &planned.plan.operation_id, &expected, &at)?;
+    assert_eq!(removal.roots.len(), 1);
+    assert!(removal.subject_anchor.is_some());
+    let reviewed = Reviewed::create(&state, &removal, &custody, &at)?;
+    let digest = reviewed.digest()?;
+    reviewed.prepare(&state, &mut custody, &digest, &at)?;
+    apply_prepared(&state, &mut custody, &removal.operation_id, &digest, &at)?;
+    assert!(!user.join("skills/user-review/SKILL.md").exists());
+    assert!(!global.exists());
+    assert_eq!(
+        std::fs::read(user.join("user-note"))?,
+        b"live unowned file stays"
+    );
+    assert_eq!(custody.inspect()?["claims"], json!([]));
+    Ok(())
+}

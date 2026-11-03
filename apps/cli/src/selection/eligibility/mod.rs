@@ -6,11 +6,11 @@ use crate::{
     canonical, digest,
     error::{Failure, Result},
     harnesses, passport,
-    projection::Scope,
+    projection::{Scope, surfaces::Surface},
     provider::Info,
     wire::Schema,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -22,7 +22,8 @@ static ASSESSMENT: Schema = Schema::definition(
     "CandidateEligibility",
 );
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Target {
     pub harness_id: String,
     pub scope: Scope,
@@ -40,10 +41,10 @@ pub struct Target {
     pub grants: BTreeSet<String>,
     /// Exact current catalog access established by the owning runtime. This
     /// confers neither ownership nor trust and is never a cached grant.
-    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub accessible_passport_digests: BTreeSet<String>,
     /// Account/origin/device binding, stable across a same-account refresh.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub access_context_digest: Option<String>,
     pub pinned_passport_digests: BTreeSet<String>,
     /// Exact historical ownership established by the local attachment receipt.
@@ -53,7 +54,8 @@ pub struct Target {
 
 /// Established by the owning runtime, never accepted as an authentication proof.
 /// The exact digest prevents applying one version's evidence to another version.
-#[derive(Clone, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Evidence {
     pub passport_digest: String,
     pub registrable: bool,
@@ -98,6 +100,20 @@ pub fn assess(
     target: &Target,
     evidence: &Evidence,
     provider: Option<&Info>,
+) -> Result<Value> {
+    assess_surface(
+        document,
+        target,
+        evidence,
+        provider.map(|value| value as &dyn Surface),
+    )
+}
+
+pub(crate) fn assess_surface(
+    document: &Value,
+    target: &Target,
+    evidence: &Evidence,
+    provider: Option<&dyn Surface>,
 ) -> Result<Value> {
     passport::versions::validate_document(document)?;
     if let Some(value) = document.get("entitlements")
@@ -295,6 +311,22 @@ pub(crate) fn assess_connection(
     evidence: &BTreeMap<String, Evidence>,
     provider: Option<&Info>,
 ) -> Result<Value> {
+    assess_surface_connection(
+        connection,
+        roots,
+        target,
+        evidence,
+        provider.map(|value| value as &dyn Surface),
+    )
+}
+
+pub(crate) fn assess_surface_connection(
+    connection: &rusqlite::Connection,
+    roots: &[Value],
+    target: &Target,
+    evidence: &BTreeMap<String, Evidence>,
+    provider: Option<&dyn Surface>,
+) -> Result<Value> {
     if roots.is_empty() {
         return Err(Failure::input(
             "eligibility requires an exact component or setup root",
@@ -326,7 +358,7 @@ pub(crate) fn assess_connection(
                         .ok_or_else(|| Failure::precondition("graph digest missing"))?,
                 ),
             )?;
-            assessments.push(assess(&document, target, held, provider)?);
+            assessments.push(assess_surface(&document, target, held, provider)?);
         }
     }
     let admissible =

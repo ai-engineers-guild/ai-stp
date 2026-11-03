@@ -396,6 +396,72 @@ impl Writer {
         })
     }
 
+    /// Read the original outcome already staged for final metadata publication.
+    ///
+    /// # Errors
+    /// Refuses another original request or replaced physical metadata.
+    pub fn staged_result(&self, admission: &Admission) -> Result<Option<serde_json::Value>> {
+        self.revalidate()?;
+        admission.validate()?;
+        Ok(self.store.record(admission)?.ok_or_else(invalid)?.outcome)
+    }
+
+    /// Read retained desired effects for exact comparison with their owning
+    /// native review before resuming. Never log or export these file payloads.
+    ///
+    /// # Errors
+    /// Refuses another operation, changed root or corrupt retained payloads.
+    pub fn desired(&self, admission: &Admission) -> Result<Vec<Change>> {
+        self.revalidate()?;
+        admission.validate()?;
+        self.store.record(admission)?.ok_or_else(invalid)?;
+        self.store.changes(&admission.operation_id)
+    }
+
+    /// Read an original current or historical request without applying files.
+    ///
+    /// # Errors
+    /// Refuses malformed operation records or replaced physical metadata.
+    pub fn retained(&self, id: &str) -> Result<Option<(Admission, serde_json::Value)>> {
+        if id.is_empty()
+            || id.len() > 128
+            || !id
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-'))
+        {
+            return Err(invalid());
+        }
+        self.revalidate()?;
+        let Some(admission) = self.store.admission(id)? else {
+            return Ok(None);
+        };
+        admission.validate()?;
+        if admission.operation_id != id {
+            return Err(invalid());
+        }
+        let record = self.store.record(&admission)?.ok_or_else(invalid)?;
+        Ok(Some((admission, record.context)))
+    }
+
+    /// Read the sole retained unfinished intent without publishing its effects.
+    ///
+    /// # Errors
+    /// Refuses foreign metadata, malformed admission or replaced directories.
+    pub fn pending(&self) -> Result<Option<(Admission, serde_json::Value)>> {
+        self.revalidate()?;
+        let Some(admission) = self.store.active_admission()? else {
+            return Ok(None);
+        };
+        admission.validate()?;
+        let record = self.store.record(&admission)?.ok_or_else(invalid)?;
+        if !matches!(record.phase.as_str(), "prepared" | "applying" | "finishing")
+            || record.outcome.is_some()
+        {
+            return Err(invalid());
+        }
+        Ok(Some((admission, record.context)))
+    }
+
     /// Inspect exactly this original request, never another pending operation.
     ///
     /// # Errors
@@ -433,7 +499,7 @@ impl Writer {
         context: &serde_json::Value,
         changes: &[Change],
     ) -> Result<()> {
-        self.admit_inner(admission, context, changes, false)
+        self.admit_inner(admission, context, changes, false, false)
     }
 
     fn admit_inner(
@@ -442,6 +508,7 @@ impl Writer {
         context: &serde_json::Value,
         changes: &[Change],
         prepared: bool,
+        retained_metadata: bool,
     ) -> Result<()> {
         admission.validate()?;
         validate_changes(changes)?;
@@ -458,7 +525,8 @@ impl Writer {
                 return Err(invalid());
             }
         }
-        self.store.admit(admission, context, changes, prepared)
+        self.store
+            .admit(admission, context, changes, prepared, retained_metadata)
     }
 
     fn unchanged(&self, admission: &Admission) -> Result<()> {
@@ -573,6 +641,20 @@ impl Writer {
     /// # Errors
     /// Refuses foreign file changes, changed parent identities or an unrelated journal.
     pub fn apply(&self, admission: &Admission) -> Result<()> {
+        self.apply_checked(admission, || Ok(()))
+    }
+
+    /// Recheck the owning runtime's current authority before every protected
+    /// file effect. The original retained request/bytes remain unchanged when a
+    /// later check refuses; recovery must use this same admission.
+    ///
+    /// # Errors
+    /// Propagates an authority refusal before publication and retains progress.
+    pub fn apply_checked(
+        &self,
+        admission: &Admission,
+        mut authorize: impl FnMut() -> Result<()>,
+    ) -> Result<()> {
         let record = self.store.record(admission)?.ok_or_else(invalid)?;
         if !matches!(record.phase.as_str(), "applying" | "finishing") {
             return Err(invalid());
@@ -584,9 +666,25 @@ impl Writer {
             if dir_id(&io(self.control.open_dir_nofollow(STAGING))?)? != dir_id(&staging)? {
                 return Err(invalid());
             }
+            authorize()?;
+            self.revalidate()?;
             files::publish(&self.root, &staging, &index.to_string(), change)?;
         }
         self.verify(&changes)
+    }
+
+    /// Observe an already published exact desired set without republishing it.
+    /// This is a recovery fact, never a grant for another effect.
+    pub(crate) fn changes_applied(&self, admission: &Admission) -> Result<bool> {
+        let record = self.store.record(admission)?.ok_or_else(invalid)?;
+        if record.phase != "finishing" {
+            return Ok(false);
+        }
+        let changes = self.store.changes(&admission.operation_id)?;
+        if changes.is_empty() {
+            return Ok(false);
+        }
+        Ok(self.verify(&changes).is_ok())
     }
 
     fn verify(&self, changes: &[Change]) -> Result<()> {

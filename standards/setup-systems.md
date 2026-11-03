@@ -1,29 +1,18 @@
-# Setup components
+# Harness configuration
 
-The seven public `NDDev-OpenNetwork/*-setup-system` repositories publish ai-stp
-installation components. Their Rust sources are rendered from the private
-`setup-systems` workspace. Users operate them through the
-[native CLI](../apps/cli/README.md), which authenticates releases and invokes
-components; only a component writes the final harness configuration.
+The first-party engine in `apps/cli/src/installation` owns native configuration
+plans, physical custody and qualified file transactions. It ships with the CLI
+and Desktop; no separate setup-component release is needed for this route.
+The executable `capabilities` response declares which user routes are enabled.
 
-Current owners:
+Historical external-provider plans, authenticated artifacts and receipts retain
+their original compatibility path under `apps/cli/src/provider`. The seven
+archived setup repositories and immutable `provider-kit/v3` identities remain
+provenance for those operations. Do not reinterpret an old journal or replace its
+exact component release with native-engine identity. Existing external custody
+requires explicit adoption; an unfinished operation requires its original recovery.
 
-- `apps/cli/src/provider/managed.rs`: default exact component release;
-- `apps/cli/src/provider/artifact/`: artifact identity and publisher policy;
-- `apps/cli/src/provider/trust/`: signed metadata and rollback protection;
-- `apps/cli/src/provider/runtime/`: confined execution and durable recovery;
-- `release_scripts/provider_kit.py`: generated `provider-kit/v3`;
-- `tests/golden/provider-kit/identity-ledger.json`: immutable released kit digests.
-
-Never edit rendered public trees or generated kits by hand. Release compatible
-readers before components that require new fields. Retained operations keep their
-original exact version; a downloaded manifest cannot widen local publisher policy.
-Harness executables themselves remain entirely user/vendor managed.
-
-Native provider execution and handoff are currently Linux-only. Other operating
-systems explicitly refuse unsupported isolation. Use `capabilities` and the native
-README for platform boundaries. Test fixtures use disposable homes and targets.
-
-`just back-static` checks kit drift. `just cli-check` proves the native boundary.
-Per-release component journeys and measured platform evidence live in GitHub,
-attached to their exact source/tag, rather than in a copied status journal.
+Harness executables remain user/vendor managed. Configuration never installs,
+updates, pins or removes them. Active consumers require preparation, handoff and
+restart before activation. Platform qualification and release evidence live in
+GitHub; current command usage belongs in the [CLI README](../apps/cli/README.md).

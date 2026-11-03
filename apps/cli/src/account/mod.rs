@@ -10,6 +10,7 @@ pub mod enrollment_recovery;
 pub mod github;
 pub mod grants;
 pub mod heartbeats;
+pub mod inventory;
 mod journal;
 mod model;
 pub mod project_links;

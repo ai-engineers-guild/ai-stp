@@ -489,6 +489,181 @@ async fn cli_plan(
     gated_run(state.inner().clone(), path, values, flags, repeated, "plan").await
 }
 
+/// Structured native setup input is staged privately; the CLI owns validation.
+#[tauri::command]
+async fn native_configuration_plan(
+    state: tauri::State<'_, Arc<AppState>>,
+    context: String,
+    input: serde_json::Value,
+) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let file = match PublicPlanFile::bounded(&input, 128 * 1024) {
+            Ok(file) => file,
+            Err(error) => return CmdResult::failed("DESKTOP_USAGE", error),
+        };
+        run_cli(
+            &st,
+            &[
+                "configuration".into(),
+                "native".into(),
+                "plan".into(),
+                "--context".into(),
+                context,
+                "--input".into(),
+                file.0.to_string_lossy().into_owned(),
+            ],
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())
+}
+/// The approved complete native review crosses IPC as data, not argv authority.
+#[tauri::command]
+async fn native_configuration_prepare(
+    state: tauri::State<'_, Arc<AppState>>,
+    plan: serde_json::Value,
+    digest: String,
+    confirmed: bool,
+) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        if !confirmed {
+            return CmdResult::failed(
+                "DESKTOP_CONFIRMATION_REQUIRED",
+                "Review the exact native setup and its original context",
+            );
+        }
+        let file = match PublicPlanFile::bounded(&plan, 8 * 1024 * 1024) {
+            Ok(file) => file,
+            Err(error) => return CmdResult::failed("DESKTOP_USAGE", error),
+        };
+        run_cli_mutating(
+            &st,
+            &[
+                "configuration".into(),
+                "native".into(),
+                "prepare".into(),
+                "--plan".into(),
+                file.0.to_string_lossy().into_owned(),
+                "--plan-digest".into(),
+                digest,
+            ],
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())
+}
+
+/// Inventory disclosure is approved for the exact context inside its plan.
+#[tauri::command]
+async fn native_inventory_enable(
+    state: tauri::State<'_, Arc<AppState>>,
+    plan: serde_json::Value,
+    digest: String,
+    confirmed: bool,
+) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        if !confirmed {
+            return CmdResult::failed(
+                "DESKTOP_CONFIRMATION_REQUIRED",
+                "Review the original company inventory disclosure",
+            );
+        }
+        let file = match PublicPlanFile::bounded(&plan, 128 * 1024) {
+            Ok(file) => file,
+            Err(error) => return CmdResult::failed("DESKTOP_USAGE", error),
+        };
+        run_cli_mutating(
+            &st,
+            &[
+                "corporate".into(),
+                "inventory".into(),
+                "consent".into(),
+                "apply".into(),
+                "--plan".into(),
+                file.0.to_string_lossy().into_owned(),
+                "--plan-digest".into(),
+                digest,
+            ],
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())
+}
+
+/// Catalog browsing is public; this downloads exact graphs without a private
+/// enrollment, harness execution or configuration mutation.
+#[tauri::command]
+async fn setup_acquisition_plan(
+    state: tauri::State<'_, Arc<AppState>>,
+    stable_id: String,
+    version: String,
+) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        run_cli(
+            &st,
+            &[
+                "registry".into(),
+                "acquire".into(),
+                "plan".into(),
+                "--id".into(),
+                stable_id,
+                "--version".into(),
+                version,
+            ],
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())
+}
+#[tauri::command]
+async fn setup_acquisition_apply(
+    state: tauri::State<'_, Arc<AppState>>,
+    plan: serde_json::Value,
+    digest: String,
+    confirmed: bool,
+) -> Result<CmdResult, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        if !confirmed {
+            return CmdResult::failed(
+                "DESKTOP_CONFIRMATION_REQUIRED",
+                "Review the exact public setup graph before downloading",
+            );
+        }
+        if plan["operation"]["action"] != "catalog.setup.acquire"
+            || plan["operation"]
+                .get("access")
+                .is_some_and(|access| !access.is_null())
+        {
+            return CmdResult::failed(
+                "DESKTOP_USAGE",
+                "Only an exact public catalog acquisition may use this route",
+            );
+        }
+        let file = match PublicPlanFile::bounded(&plan, 16 * 1024 * 1024) {
+            Ok(file) => file,
+            Err(error) => return CmdResult::failed("DESKTOP_USAGE", error),
+        };
+        run_cli_mutating(
+            &st,
+            &[
+                "local".into(),
+                "apply".into(),
+                "--plan".into(),
+                file.0.to_string_lossy().into_owned(),
+                "--plan-digest".into(),
+                digest,
+            ],
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())
+}
+
 /// Only reviewed native profile plans may cross this in-memory public bridge.
 #[tauri::command]
 async fn profile_apply(
@@ -1164,6 +1339,11 @@ pub fn run() {
             cli_plan,
             cli_apply_confirmed,
             profile_apply,
+            native_configuration_plan,
+            native_configuration_prepare,
+            native_inventory_enable,
+            setup_acquisition_plan,
+            setup_acquisition_apply,
             checkout_apply,
             checkout_location_apply,
             checkout_missing_binding_apply,

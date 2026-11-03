@@ -35,6 +35,7 @@ pub(crate) const CHECKOUT_UNLINK_SCHEMA: u32 = 59;
 pub(crate) const BINDING_RETIREMENT_SCHEMA: u32 = 60;
 pub(crate) const CHECKOUT_LOCATION_SCHEMA: u32 = 61;
 pub(crate) const MISSING_CHECKOUT_RETIREMENT_SCHEMA: u32 = 62;
+pub(crate) const NATIVE_CONFIGURATION_SCHEMA: u32 = 63;
 const BOOTSTRAP: &str = include_str!("schema.sql");
 const PROFILES: &str = include_str!("profiles.sql");
 const ENROLLMENT_RECOVERY: &str = include_str!("enrollment_recovery.sql");
@@ -286,6 +287,7 @@ pub(crate) fn profile_schema_after(before: u32) -> Result<u32> {
         BINDING_RETIREMENT_SCHEMA => Ok(BINDING_RETIREMENT_SCHEMA),
         CHECKOUT_LOCATION_SCHEMA => Ok(CHECKOUT_LOCATION_SCHEMA),
         MISSING_CHECKOUT_RETIREMENT_SCHEMA => Ok(MISSING_CHECKOUT_RETIREMENT_SCHEMA),
+        NATIVE_CONFIGURATION_SCHEMA => Ok(NATIVE_CONFIGURATION_SCHEMA),
         _ => Err(Failure::precondition("the profile registry schema changed")),
     }
 }
@@ -299,6 +301,7 @@ pub(crate) fn has_enrollment_recovery(version: u32) -> bool {
         BINDING_RETIREMENT_SCHEMA,
         CHECKOUT_LOCATION_SCHEMA,
         MISSING_CHECKOUT_RETIREMENT_SCHEMA,
+        NATIVE_CONFIGURATION_SCHEMA,
     ]
     .contains(&version)
 }
@@ -311,6 +314,7 @@ pub(crate) fn has_checkout_links(version: u32) -> bool {
         BINDING_RETIREMENT_SCHEMA,
         CHECKOUT_LOCATION_SCHEMA,
         MISSING_CHECKOUT_RETIREMENT_SCHEMA,
+        NATIVE_CONFIGURATION_SCHEMA,
     ]
     .contains(&version)
 }
@@ -322,6 +326,7 @@ pub(crate) fn has_checkout_retirement(version: u32) -> bool {
         BINDING_RETIREMENT_SCHEMA,
         CHECKOUT_LOCATION_SCHEMA,
         MISSING_CHECKOUT_RETIREMENT_SCHEMA,
+        NATIVE_CONFIGURATION_SCHEMA,
     ]
     .contains(&version)
 }
@@ -332,6 +337,7 @@ pub(crate) fn has_checkout_unlinks(version: u32) -> bool {
         BINDING_RETIREMENT_SCHEMA,
         CHECKOUT_LOCATION_SCHEMA,
         MISSING_CHECKOUT_RETIREMENT_SCHEMA,
+        NATIVE_CONFIGURATION_SCHEMA,
     ]
     .contains(&version)
 }
@@ -341,16 +347,26 @@ pub(crate) fn has_binding_retirement(version: u32) -> bool {
         BINDING_RETIREMENT_SCHEMA,
         CHECKOUT_LOCATION_SCHEMA,
         MISSING_CHECKOUT_RETIREMENT_SCHEMA,
+        NATIVE_CONFIGURATION_SCHEMA,
     ]
     .contains(&version)
 }
 
 pub(crate) fn has_checkout_locations(version: u32) -> bool {
-    [CHECKOUT_LOCATION_SCHEMA, MISSING_CHECKOUT_RETIREMENT_SCHEMA].contains(&version)
+    [
+        CHECKOUT_LOCATION_SCHEMA,
+        MISSING_CHECKOUT_RETIREMENT_SCHEMA,
+        NATIVE_CONFIGURATION_SCHEMA,
+    ]
+    .contains(&version)
 }
 
 pub(crate) fn has_missing_checkout_retirement(version: u32) -> bool {
-    version == MISSING_CHECKOUT_RETIREMENT_SCHEMA
+    [
+        MISSING_CHECKOUT_RETIREMENT_SCHEMA,
+        NATIVE_CONFIGURATION_SCHEMA,
+    ]
+    .contains(&version)
 }
 
 pub(crate) fn location_schema_after(before: u32) -> Result<u32> {
@@ -374,6 +390,7 @@ pub(crate) fn unlink_schema_after(before: u32) -> Result<u32> {
         BINDING_RETIREMENT_SCHEMA => Ok(BINDING_RETIREMENT_SCHEMA),
         CHECKOUT_LOCATION_SCHEMA => Ok(CHECKOUT_LOCATION_SCHEMA),
         MISSING_CHECKOUT_RETIREMENT_SCHEMA => Ok(MISSING_CHECKOUT_RETIREMENT_SCHEMA),
+        NATIVE_CONFIGURATION_SCHEMA => Ok(NATIVE_CONFIGURATION_SCHEMA),
         _ => Err(Failure::precondition(
             "the native unlink registry schema changed",
         )),
@@ -390,6 +407,7 @@ pub(crate) fn checkout_schema_after(before: u32) -> Result<u32> {
         BINDING_RETIREMENT_SCHEMA => Ok(BINDING_RETIREMENT_SCHEMA),
         CHECKOUT_LOCATION_SCHEMA => Ok(CHECKOUT_LOCATION_SCHEMA),
         MISSING_CHECKOUT_RETIREMENT_SCHEMA => Ok(MISSING_CHECKOUT_RETIREMENT_SCHEMA),
+        NATIVE_CONFIGURATION_SCHEMA => Ok(NATIVE_CONFIGURATION_SCHEMA),
         _ => Err(Failure::precondition(
             "the corporate checkout registry schema changed",
         )),
@@ -593,6 +611,7 @@ impl Store {
                 && version != BINDING_RETIREMENT_SCHEMA
                 && version != CHECKOUT_LOCATION_SCHEMA
                 && version != MISSING_CHECKOUT_RETIREMENT_SCHEMA
+                && version != NATIVE_CONFIGURATION_SCHEMA
                 && !(transfer && version == SCHEMA_VERSION)
         } else {
             version != SCHEMA_VERSION
@@ -604,6 +623,7 @@ impl Store {
                 && version != BINDING_RETIREMENT_SCHEMA
                 && version != CHECKOUT_LOCATION_SCHEMA
                 && version != MISSING_CHECKOUT_RETIREMENT_SCHEMA
+                && version != NATIVE_CONFIGURATION_SCHEMA
         } {
             return Err(Failure::precondition(
                 "the local registry schema is unsupported",
@@ -726,6 +746,7 @@ impl Store {
                 BINDING_RETIREMENT_SCHEMA,
                 CHECKOUT_LOCATION_SCHEMA,
                 MISSING_CHECKOUT_RETIREMENT_SCHEMA,
+                NATIVE_CONFIGURATION_SCHEMA,
             ]
             .contains(&version)
             {
@@ -751,6 +772,7 @@ impl Store {
             BINDING_RETIREMENT_SCHEMA,
             CHECKOUT_LOCATION_SCHEMA,
             MISSING_CHECKOUT_RETIREMENT_SCHEMA,
+            NATIVE_CONFIGURATION_SCHEMA,
         ]
         .contains(&self.version()?))
     }
@@ -932,6 +954,34 @@ impl Store {
         })
     }
 
+    /// Fence released writers in the same commit as the exact first native
+    /// configuration intent. Opening or planning never upgrades a registry.
+    pub(crate) fn native_configuration_transaction<T>(
+        &mut self,
+        operation: impl FnOnce(&Transaction<'_>) -> Result<T>,
+    ) -> Result<T> {
+        self.profile_transaction(|transaction| {
+            let version: u32 = transaction
+                .pragma_query_value(None, "user_version", |row| row.get(0))
+                .map_err(database)?;
+            for (present, source) in [
+                (has_enrollment_recovery(version), ENROLLMENT_RECOVERY),
+                (has_checkout_links(version), CHECKOUT_LINKS),
+                (has_checkout_retirement(version), CHECKOUT_RETIREMENT),
+                (has_binding_retirement(version), BINDING_RETIREMENT),
+                (has_checkout_locations(version), CHECKOUT_LOCATION),
+            ] {
+                if !present {
+                    transaction.execute_batch(source).map_err(database)?;
+                }
+            }
+            transaction
+                .pragma_update(None, "user_version", NATIVE_CONFIGURATION_SCHEMA)
+                .map_err(database)?;
+            operation(transaction)
+        })
+    }
+
     /// The distinct terminal meaning requires a new writer fence even though
     /// the qualified location layout already has every required table.
     pub(crate) fn missing_checkout_retirement_transaction<T>(
@@ -1026,13 +1076,11 @@ mod checkout_epoch_tests {
             store.connection.pragma_update(
                 None,
                 "user_version",
-                MISSING_CHECKOUT_RETIREMENT_SCHEMA + 1,
+                NATIVE_CONFIGURATION_SCHEMA + 1,
             )?;
             drop(store);
             assert!(Store::open(parent.path(), false).is_err());
-            assert!(!has_checkout_locations(
-                MISSING_CHECKOUT_RETIREMENT_SCHEMA + 1
-            ));
+            assert!(!has_checkout_locations(NATIVE_CONFIGURATION_SCHEMA + 1));
         }
         Ok(())
     }
@@ -1095,16 +1143,14 @@ mod checkout_epoch_tests {
             store.connection.pragma_update(
                 None,
                 "user_version",
-                MISSING_CHECKOUT_RETIREMENT_SCHEMA + 1,
+                NATIVE_CONFIGURATION_SCHEMA + 1,
             )?;
             drop(store);
             assert!(Store::open(parent.path(), false).is_err());
-            assert!(!has_checkout_unlinks(
-                MISSING_CHECKOUT_RETIREMENT_SCHEMA + 1
-            ));
-            assert!(profile_schema_after(MISSING_CHECKOUT_RETIREMENT_SCHEMA + 1).is_err());
-            assert!(checkout_schema_after(MISSING_CHECKOUT_RETIREMENT_SCHEMA + 1).is_err());
-            assert!(unlink_schema_after(MISSING_CHECKOUT_RETIREMENT_SCHEMA + 1).is_err());
+            assert!(!has_checkout_unlinks(NATIVE_CONFIGURATION_SCHEMA + 1));
+            assert!(profile_schema_after(NATIVE_CONFIGURATION_SCHEMA + 1).is_err());
+            assert!(checkout_schema_after(NATIVE_CONFIGURATION_SCHEMA + 1).is_err());
+            assert!(unlink_schema_after(NATIVE_CONFIGURATION_SCHEMA + 1).is_err());
         }
         Ok(())
     }
@@ -1186,17 +1232,103 @@ mod checkout_epoch_tests {
             store.connection.pragma_update(
                 None,
                 "user_version",
-                MISSING_CHECKOUT_RETIREMENT_SCHEMA + 1,
+                NATIVE_CONFIGURATION_SCHEMA + 1,
             )?;
             drop(store);
             assert!(Store::open(parent.path(), false).is_err());
             assert!(!has_missing_checkout_retirement(
-                MISSING_CHECKOUT_RETIREMENT_SCHEMA + 1
+                NATIVE_CONFIGURATION_SCHEMA + 1
             ));
-            assert!(!has_checkout_locations(
-                MISSING_CHECKOUT_RETIREMENT_SCHEMA + 1
-            ));
-            assert!(location_schema_after(MISSING_CHECKOUT_RETIREMENT_SCHEMA + 1).is_err());
+            assert!(!has_checkout_locations(NATIVE_CONFIGURATION_SCHEMA + 1));
+            assert!(location_schema_after(NATIVE_CONFIGURATION_SCHEMA + 1).is_err());
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn native_intent_fence_is_atomic_and_every_older_operation_preserves_it()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
+        for before in [53, 55, 56, 57, 58, 59, 60, 61, 62, 63] {
+            let parent = tempfile::tempdir()?;
+            let mut store = Store::open(parent.path(), true)?;
+            if before >= PROFILE_SCHEMA {
+                store.profile_transaction(|_| Ok(()))?;
+            }
+            if before >= ENROLLMENT_RECOVERY_SCHEMA {
+                store.enrollment_recovery_transaction(|_| Ok(()))?;
+            }
+            if before >= CHECKOUT_LINK_SCHEMA {
+                store.checkout_transaction(|_| Ok(()))?;
+            }
+            if before >= CHECKOUT_RETIREMENT_SCHEMA {
+                store.checkout_retirement_transaction(|_| Ok(()))?;
+            }
+            if before >= CHECKOUT_UNLINK_SCHEMA {
+                store.checkout_unlink_transaction(|_| Ok(()))?;
+            }
+            if before >= BINDING_RETIREMENT_SCHEMA {
+                store.binding_retirement_transaction(|_| Ok(()))?;
+            }
+            if before >= CHECKOUT_LOCATION_SCHEMA {
+                store.checkout_location_transaction(|_| Ok(()))?;
+            }
+            if before >= MISSING_CHECKOUT_RETIREMENT_SCHEMA {
+                store.missing_checkout_retirement_transaction(|_| Ok(()))?;
+            }
+            if before >= NATIVE_CONFIGURATION_SCHEMA {
+                store.native_configuration_transaction(|_| Ok(()))?;
+            }
+            assert_eq!(store.version()?, before);
+            store.connection.execute("INSERT INTO operation VALUES ('original','test.immutable','completed','2026-11-03T00:00:00Z','2026-11-03T00:00:00Z','original receipt')",[])?;
+            let original = store.connection.serialize("main")?.to_vec();
+            let interrupted: Result<()> = store.native_configuration_transaction(|transaction| {
+                transaction.execute("INSERT INTO operation VALUES ('interrupted','installation.native','prepared','2026-11-03T00:00:00Z',NULL,'exact native intent')",[]).map_err(database)?;
+                Err(Failure::precondition("fixture interruption before commit"))
+            });
+            assert!(interrupted.is_err());
+            assert_eq!(store.version()?, before);
+            assert_eq!(store.connection.serialize("main")?.to_vec(), original);
+            store.native_configuration_transaction(|transaction| {
+                transaction.execute("INSERT INTO operation VALUES ('admitted','installation.native','prepared','2026-11-03T00:00:00Z',NULL,'exact native intent')",[]).map_err(database)?;
+                Ok(())
+            })?;
+            assert_eq!(store.version()?, NATIVE_CONFIGURATION_SCHEMA);
+            for after in [
+                profile_schema_after(63)?,
+                checkout_schema_after(63)?,
+                unlink_schema_after(63)?,
+                location_schema_after(63)?,
+            ] {
+                assert_eq!(after, 63);
+            }
+            store.profile_transaction(|_| Ok(()))?;
+            store.enrollment_recovery_transaction(|_| Ok(()))?;
+            store.checkout_transaction(|_| Ok(()))?;
+            store.checkout_retirement_transaction(|_| Ok(()))?;
+            store.checkout_unlink_transaction(|_| Ok(()))?;
+            store.binding_retirement_transaction(|_| Ok(()))?;
+            store.checkout_location_transaction(|_| Ok(()))?;
+            store.missing_checkout_retirement_transaction(|_| Ok(()))?;
+            assert_eq!(store.version()?, 63);
+            drop(store);
+            let store = Store::open(parent.path(), false)?;
+            assert_eq!(store.version()?, 63);
+            assert_eq!(
+                store.connection.query_row(
+                    "SELECT detail FROM operation WHERE operation_id='original'",
+                    [],
+                    |r| r.get::<_, String>(0)
+                )?,
+                "original receipt"
+            );
+            assert_eq!(
+                store.connection.query_row(
+                    "SELECT detail FROM operation WHERE operation_id='admitted'",
+                    [],
+                    |r| r.get::<_, String>(0)
+                )?,
+                "exact native intent"
+            );
         }
         Ok(())
     }

@@ -36,10 +36,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Linux bundles need the glibc of the image that built them, so the leg
-        # pins the image the shipped bundles were built and tested on rather
-        # than `ubuntu-latest`, which moves to Ubuntu 26.04 from 2026-10-19.
-        os: [ubuntu-24.04, macos-15, windows-2025]
+        # Linux bundles use the selected Ubuntu 26.04/glibc baseline. Native
+        # installed acceptance must use these exact packaged bytes.
+        os: [ubuntu-26.04, macos-15, windows-2025]
     steps:
       - name: Confine package-only diagnosis to its explicit manual workflow
         if: inputs.packages_only
@@ -83,7 +82,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
             librsvg2-dev patchelf dbus-daemon gnome-keyring libglib2.0-bin \
-            webkit2gtk-driver xvfb xauth
+            webkitgtk-webdriver xvfb xauth
       - name: Restore and retain only successful main's desktop dependencies
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         continue-on-error: true
@@ -245,9 +244,9 @@ jobs:
           install -m 755 "${RUNNER_TEMP}/ai-stp-webdriver/bin/tauri-driver" \
             "${drivers}/tauri-driver"
           install -m 755 /usr/bin/WebKitWebDriver "${drivers}/WebKitWebDriver"
-          cp /usr/share/doc/webkit2gtk-driver/copyright \
+          cp /usr/share/doc/webkitgtk-webdriver/copyright \
             "${drivers}/WebKitWebDriver.COPYRIGHT"
-          dpkg-query --show webkit2gtk-driver > "${drivers}/webkit-version.txt"
+          dpkg-query --show webkitgtk-webdriver > "${drivers}/webkit-version.txt"
           cd "${drivers}"
           sha256sum -- tauri-driver WebKitWebDriver \
             WebKitWebDriver.COPYRIGHT webkit-version.txt > SHA256SUMS

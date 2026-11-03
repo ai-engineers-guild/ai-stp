@@ -31,7 +31,7 @@ export default function OverviewPage() {
   }[];
   const ready =
     checks.find((check) => check.name === "local_identity")?.state === "ready";
-  const installation = capabilities?.data?.configuration_installation;
+  const installation = (capabilities?.data?.native_configuration as { available?: boolean } | undefined)?.available;
   return (
     <div className="page-stack">
       <PageHeader
@@ -110,14 +110,14 @@ export default function OverviewPage() {
         <div className="stat-card">
           <p className="eyebrow">Setup installation</p>
           <p className="stat-value">
-            {installation === "supported"
+            {installation === true
               ? "Available"
               : installation
                 ? "Unavailable"
                 : "Checking…"}
           </p>
           <p className="stat-note">
-            {installation === "supported"
+            {installation === true
               ? "Isolated execution, durable recovery"
               : "Availability is reported by the CLI"}
           </p>

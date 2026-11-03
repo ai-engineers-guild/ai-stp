@@ -54,10 +54,16 @@ function call(
   const privateTrace =
     command.startsWith("auth_") ||
     command.startsWith("task_") ||
+    command.startsWith("native_configuration_") ||
+    command === "native_inventory_enable" ||
+    command.startsWith("setup_acquisition_") ||
     command === "checkout_apply" ||
     command === "checkout_location_apply" ||
     command === "checkout_missing_binding_apply" ||
     namespace === "context" ||
+    namespace === "configuration" ||
+    namespace === "local" ||
+    (namespace === "registry" && pathTokens[1] === "acquire") ||
     namespace === "corporate" ||
     namespace === "account" ||
     namespace === "task";
@@ -338,10 +344,15 @@ export function cmdCheckoutApply(
 }
 
 export function cmdHeartbeatConsentApply(
-  plan: unknown, digest: string, confirmed: boolean,
+  plan: unknown,
+  digest: string,
+  confirmed: boolean,
 ): Promise<CmdResult> {
   return call("profile_apply", {
-    path: "corporate heartbeat consent apply", plan, digest, confirmed,
+    path: "corporate heartbeat consent apply",
+    plan,
+    digest,
+    confirmed,
   });
 }
 
@@ -351,7 +362,12 @@ export function cmdBindingRetirementApply(
   confirmed: boolean,
 ): Promise<CmdResult> {
   return call("checkout_apply", {
-    plan, digest, confirmed, context: null, gitExecutable: null, retireBinding: true,
+    plan,
+    digest,
+    confirmed,
+    context: null,
+    gitExecutable: null,
+    retireBinding: true,
   });
 }
 
@@ -362,10 +378,47 @@ export function cmdCheckoutLocationApply(
   gitExecutable?: string,
 ): Promise<CmdResult> {
   return call("checkout_location_apply", {
-    plan, digest, confirmed, gitExecutable: gitExecutable ?? null,
+    plan,
+    digest,
+    confirmed,
+    gitExecutable: gitExecutable ?? null,
   });
 }
 
-export function cmdMissingBindingRetirementApply(plan: unknown, digest: string, confirmed: boolean): Promise<CmdResult> {
+export function cmdMissingBindingRetirementApply(
+  plan: unknown,
+  digest: string,
+  confirmed: boolean,
+): Promise<CmdResult> {
   return call("checkout_missing_binding_apply", { plan, digest, confirmed });
+}
+
+/** Native setup data is private and the original reviewed context is retained. */
+export function cmdNativeConfigurationPlan(
+  context: string,
+  input: Record<string, unknown>,
+): Promise<CmdResult> {
+  return call("native_configuration_plan", { context, input });
+}
+export function cmdNativeConfigurationPrepare(
+  plan: Record<string, unknown>,
+  digest: string,
+  confirmed: boolean,
+): Promise<CmdResult> {
+  return call("native_configuration_prepare", { plan, digest, confirmed });
+}
+
+export function cmdNativeInventoryEnable(
+  plan: Record<string, unknown>,
+  digest: string,
+  confirmed: boolean,
+): Promise<CmdResult> {
+  return call("native_inventory_enable", {plan,digest,confirmed});
+}
+
+export function cmdSetupAcquisitionPlan(stableId:string,version:string):Promise<CmdResult> {
+  return call("setup_acquisition_plan",{stableId,version});
+}
+export function cmdSetupAcquisitionApply(plan:Record<string,unknown>,digest:string,confirmed:boolean):Promise<CmdResult> {
+  return call("setup_acquisition_apply",{plan,digest,confirmed});
 }

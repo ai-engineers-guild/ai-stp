@@ -10,8 +10,9 @@ pub(crate) mod surfaces;
 pub mod trust;
 pub mod wheel;
 
+pub(crate) use crate::projection::surfaces::supports_profile;
+use crate::projection::surfaces::{Surface, contains};
 use crate::{
-    artifacts, digest,
     error::{Failure, Result},
     projection::Scope,
     wire::{self, Schema},
@@ -30,12 +31,6 @@ fn invalid() -> Failure {
         "the provider declaration has inconsistent capabilities or profile identities",
     )
 }
-fn contains(value: &Value, item: &str) -> bool {
-    value
-        .as_array()
-        .is_some_and(|items| items.iter().any(|value| value == item))
-}
-
 impl Info {
     pub fn parse(bytes: &[u8]) -> Result<Self> {
         if bytes.len() > 1024 * 1024 {
@@ -124,79 +119,27 @@ impl Info {
     }
 }
 
-pub(crate) fn supports_profile(profile: &Value, adaptation: &Value) -> bool {
-    let required = &adaptation["required_surface"];
-    if required["profile_id"] != profile["profile_id"]
-        || required["profile_digest"] != profile["digest"]
-        || !required["bundle_format"]
-            .as_str()
-            .is_some_and(|name| contains(&profile["bundle_formats"], name))
-        || !adaptation["provider_component_kind"]
-            .as_str()
-            .is_some_and(|name| contains(&profile["component_kinds"], name))
-        || !adaptation["projection_kind"]
-            .as_str()
-            .is_some_and(|name| contains(&profile["projection_kinds"], name))
-    {
-        return false;
-    }
-    let Some(members) = adaptation["members"].as_array() else {
-        return false;
-    };
-    let mut count = 0u64;
-    let mut size = 0u64;
-    for member in members {
-        let Some(path) = member["path"].as_str() else {
-            return false;
-        };
-        if !covers_path(profile, path) {
-            return false;
-        }
-        if member["object_type"] == "file" {
-            count += 1;
-            let Some(next) = member["content_artifact"]["size_bytes"]
-                .as_u64()
-                .and_then(|value| size.checked_add(value))
-            else {
-                return false;
-            };
-            size = next;
-        }
-    }
-    count <= profile["max_files"].as_u64().unwrap_or(0)
-        && size <= profile["max_bytes"].as_u64().unwrap_or(0)
-}
-
-pub(crate) fn covers_path(profile: &Value, path: &str) -> bool {
-    artifacts::safe_path(path)
-        && profile["native_namespaces"]
-            .as_array()
-            .is_some_and(|namespaces| {
-                namespaces
-                    .iter()
-                    .filter_map(Value::as_str)
-                    .any(|namespace| {
-                        path == namespace
-                            || path
-                                .strip_prefix(namespace)
-                                .is_some_and(|tail| tail.starts_with('/'))
-                    })
-            })
-}
-
 pub(crate) fn profile(value: &Value) -> Result<()> {
-    let mut payload = value.clone();
-    payload
-        .as_object_mut()
-        .ok_or_else(invalid)?
-        .remove("digest");
-    if value["digest"] != digest::canonical("ai-stp:provider-projection:v3", &payload)? {
-        return Err(invalid());
+    crate::projection::surfaces::validate_profile(value).map_err(|_| invalid())
+}
+
+impl Surface for Info {
+    fn document(&self) -> &Value {
+        Info::document(self)
     }
-    for namespace in value["native_namespaces"].as_array().ok_or_else(invalid)? {
-        if !namespace.as_str().is_some_and(artifacts::safe_path) {
-            return Err(invalid());
-        }
+    fn profile(&self, scope: Scope) -> Option<&Value> {
+        Info::profile(self, scope)
     }
-    Ok(())
+    fn supports_platform(&self, os: &str, arch: &str) -> bool {
+        Info::supports_platform(self, os, arch)
+    }
+    fn supports_target(&self, scope: Scope) -> bool {
+        Info::supports_target(self, scope)
+    }
+    fn supports_scope(&self, scope: Scope, adaptation: &Value) -> bool {
+        Info::supports_scope(self, scope, adaptation)
+    }
+    fn identity_key(&self) -> &'static str {
+        "provider_digest"
+    }
 }

@@ -1,0 +1,145 @@
+//! Coordinate publication with the unchanged locks used by released writers.
+use super::{CONTROLS, Custody, Target, adoption::Adoption, forward, invalid, marker, native};
+use crate::{error::Result, installation::lock::TargetLock};
+use cap_fs_ext::{DirExt, MetadataExt};
+use cap_std::fs::Dir;
+use std::ffi::OsStr;
+
+fn state_file(control: &str) -> String {
+    format!(
+        "NDDEV-{}-PROVIDER.json",
+        control
+            .trim_start_matches('.')
+            .trim_end_matches("-setup-system")
+            .to_ascii_uppercase()
+    )
+}
+/// An empty coordination lock is not an external ownership receipt. It may
+/// remain after a refused/cancelled native attempt; every other entry refuses.
+pub(super) fn lock_only(target: &Target, directory: &Dir, control: &str) -> Result<bool> {
+    if native(forward::observe(target, &state_file(control)))?
+        .1
+        .is_some()
+    {
+        return Ok(false);
+    }
+    let mut lock = false;
+    for entry in directory.entries().map_err(|_| invalid())? {
+        let entry = entry.map_err(|_| invalid())?;
+        if entry.file_name() != OsStr::new("target.lock") {
+            return Ok(false);
+        }
+        lock = true;
+    }
+    if !lock {
+        return Ok(false);
+    }
+    // A Windows exclusive lock also denies data reads through another
+    // handle. Observe the zero-length plain-file metadata without reading it.
+    let metadata = directory
+        .symlink_metadata("target.lock")
+        .map_err(|_| invalid())?;
+    #[cfg(windows)]
+    {
+        use cap_std::fs::MetadataExt as _;
+        if metadata.file_attributes() & 0x400 != 0 {
+            return Ok(false);
+        }
+    }
+    Ok(
+        metadata.is_file()
+            && !metadata.is_symlink()
+            && metadata.nlink() == 1
+            && metadata.len() == 0,
+    )
+}
+pub(crate) struct Locks {
+    held: Vec<TargetLock>,
+    names: std::collections::BTreeSet<&'static str>,
+}
+impl Locks {
+    #[cfg(test)]
+    pub(crate) fn acquire(
+        target: &Target,
+        custody: &Custody,
+        adoption: Option<&Adoption>,
+    ) -> Result<Self> {
+        let mut locks = Self::existing(target, custody, adoption)?;
+        locks.fill(target, custody, adoption, true)?;
+        Ok(locks)
+    }
+    pub(crate) fn existing(
+        target: &Target,
+        custody: &Custody,
+        adoption: Option<&Adoption>,
+    ) -> Result<Self> {
+        let mut locks = Self {
+            held: Vec::new(),
+            names: Default::default(),
+        };
+        locks.fill(target, custody, adoption, false)?;
+        Ok(locks)
+    }
+    pub(crate) fn fill(
+        &mut self,
+        target: &Target,
+        custody: &Custody,
+        adoption: Option<&Adoption>,
+        create: bool,
+    ) -> Result<()> {
+        let root = native(target.directory())?;
+        let expected = marker(target, custody)?;
+        for name in CONTROLS {
+            if self.names.contains(name) || adoption.is_some_and(|proof| proof.control() == name) {
+                continue;
+            }
+            if create {
+                let mut builder = cap_std::fs::DirBuilder::new();
+                builder.recursive(false);
+                #[cfg(unix)]
+                {
+                    use cap_std::fs::DirBuilderExt;
+                    builder.mode(0o700);
+                }
+                match root.create_dir_with(name, &builder) {
+                    Ok(()) => (),
+                    Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => (),
+                    Err(_) => return Err(invalid()),
+                }
+            }
+            let control = match root.open_dir_nofollow(name) {
+                Ok(control) => control,
+                Err(error) if !create && error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(_) => return Err(invalid()),
+            };
+            let lock = native(TargetLock::acquire_at(&control, &target.root().join(name)))?;
+            if let Some(journal) =
+                native(forward::observe(target, &format!("{name}/journal.json")))?.1
+            {
+                if journal.bytes != expected || journal.mode != 0o600 {
+                    return Err(invalid());
+                }
+            } else if !lock_only(target, &control, name)? {
+                return Err(invalid());
+            }
+            #[cfg(unix)]
+            control
+                .open(".")
+                .and_then(|file| file.sync_all())
+                .map_err(|_| invalid())?;
+            self.held.push(lock);
+            self.names.insert(name);
+        }
+        #[cfg(unix)]
+        root.open(".")
+            .and_then(|file| file.sync_all())
+            .map_err(|_| invalid())?;
+        self.revalidate()
+    }
+    pub(crate) fn revalidate(&self) -> Result<()> {
+        for lock in &self.held {
+            native(lock.revalidate())?;
+        }
+        Ok(())
+    }
+}
