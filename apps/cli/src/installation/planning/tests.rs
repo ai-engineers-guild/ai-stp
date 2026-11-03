@@ -315,6 +315,28 @@ fn original_context_survives_selection_and_restart_while_expired_admission_refus
     assert_eq!(parsed.context.context_id, id);
     assert_eq!(contexts::list(&state)?["selected"]["context_id"], second_id);
     assert!(parsed.revalidate(&state, &parsed.expires_at).is_err());
+    let review = digest::sha256(b"exact shared custody review");
+    let admitted = parsed.admit(&state, &parsed.digest()?, &review, &at)?;
+    assert_eq!(admitted["writer_fence"], 63);
+    assert_eq!(admitted["state"], "prepared");
+    assert_eq!(admitted["authorization_granted"], false);
+    assert_eq!(admitted["original_context"]["context_id"], id);
+    assert_eq!(
+        parsed.admit(&state, &parsed.digest()?, &review, &parsed.expires_at)?,
+        admitted
+    );
+    assert!(
+        parsed
+            .admit(
+                &state,
+                &parsed.digest()?,
+                &digest::sha256(b"other review"),
+                &at
+            )
+            .is_err()
+    );
+    assert_eq!(contexts::list(&state)?["selected"]["context_id"], second_id);
+
     assert!(std::fs::read_dir(&target)?.next().is_none());
     Ok(())
 }
