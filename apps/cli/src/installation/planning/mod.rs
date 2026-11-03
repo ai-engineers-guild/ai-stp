@@ -6,6 +6,7 @@
 mod application;
 mod execution;
 mod model;
+mod removal;
 mod retained;
 #[cfg(test)]
 mod tests;
@@ -13,6 +14,7 @@ mod tests;
 pub use application::{apply_prepared, configuration_status, confirm_session};
 pub use execution::{Reviewed, cancel_preparation};
 pub use model::{Operation, Plan, Planned, Request};
+pub use removal::create_removal;
 
 use super::{forward, profiles::Profiles, target::Target};
 use crate::{
@@ -359,9 +361,9 @@ fn capture(
                 path,
                 File {
                     before,
-                    after_digest: digest::sha256(&file.bytes),
-                    after_bytes: file.bytes.len(),
-                    after_mode,
+                    after_digest: Some(digest::sha256(&file.bytes)),
+                    after_bytes: Some(file.bytes.len()),
+                    after_mode: Some(after_mode),
                     owner: file.owner,
                     contribution: file
                         .contribution
@@ -390,6 +392,7 @@ fn capture(
         format: "ai-stp-native-installation/1".into(),
         operation_id: format!("operation_{}", ulid::Ulid::generate()),
         operation: request.operation,
+        source_operation: None,
         created_at: at.into(),
         expires_at: crate::authoring::expiry(at)?,
         state: binding(&state)?,
@@ -458,6 +461,13 @@ impl Plan {
             return Err(invalid());
         }
         let owner = runtime::owner(root)?;
+        if self.operation == Operation::Remove {
+            self.context.require_current_native_identity(&owner)?;
+            if DirectoryIdentity::capture(owner.root_directory())? != self.state.physical {
+                return Err(invalid());
+            }
+            return Ok(());
+        }
         let context = contexts::resolve(root, Some(&self.context.context_id))?;
         context.require_current_native_identity(&owner)?;
         if value(&context)? != value(&self.context)?

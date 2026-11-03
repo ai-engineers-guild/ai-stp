@@ -24,6 +24,9 @@ impl Plan {
     /// Reassemble from original immutable local sources, never from caller
     /// payloads or an ambient context. Every observed field must remain exact.
     pub fn recompile(&self, root: &Path, at: &str) -> Result<Planned> {
+        if self.operation == super::Operation::Remove {
+            return Err(invalid());
+        }
         self.revalidate(root, at)?;
         let owner = runtime::owner(root)?;
         let request = Request {
@@ -56,7 +59,7 @@ impl Plan {
         }
         Ok(rebuilt)
     }
-    fn subject(&self, scope: Scope, target: &Target) -> Result<custody::Subject> {
+    pub(super) fn subject(&self, scope: Scope, target: &Target) -> Result<custody::Subject> {
         let remote = match &self.context.authority {
             Authority::Local => Value::Null,
             Authority::Remote {
@@ -94,7 +97,12 @@ pub struct Reviewed {
 }
 impl Reviewed {
     pub fn create(root: &Path, plan: &Plan, custody: &Custody, at: &str) -> Result<Self> {
-        let rebuilt = plan.recompile(root, at)?;
+        let rebuilt = if plan.operation == super::Operation::Remove {
+            plan.revalidate(root, at)?;
+            super::removal::rebuild(root, plan, custody)?
+        } else {
+            plan.recompile(root, at)?
+        };
         let plan = rebuilt.plan;
         let mut targets = BTreeMap::new();
         let mut desired = BTreeMap::new();
@@ -103,6 +111,20 @@ impl Reviewed {
             let target = native(Target::resolve(&root.directory.path, super::CONTROL))?;
             if binding(&target)? != root.directory {
                 return Err(invalid());
+            }
+            if plan.operation == super::Operation::Remove {
+                let subject = plan.subject(*scope, &target)?;
+                custody.require_origin(
+                    std::slice::from_ref(&subject),
+                    plan.source_operation.as_deref().ok_or_else(invalid)?,
+                )?;
+                ownership.push(custody::Change {
+                    subject,
+                    desired: vec![],
+                });
+                targets.insert(*scope, target);
+                desired.insert(*scope, BTreeMap::new());
+                continue;
             }
             let package = Package::read(rebuilt.packages.get(scope).ok_or_else(invalid)?)?;
             if value(&package.binding)? != value(&root.package)?
@@ -115,8 +137,8 @@ impl Reviewed {
             for (path, file) in package.files {
                 let expected = root.files.get(&path).ok_or_else(invalid)?;
                 if file.owner != expected.owner
-                    || digest::sha256(&file.bytes) != expected.after_digest
-                    || file.bytes.len() != expected.after_bytes
+                    || Some(digest::sha256(&file.bytes)) != expected.after_digest
+                    || Some(file.bytes.len()) != expected.after_bytes
                 {
                     return Err(invalid());
                 }
@@ -137,7 +159,7 @@ impl Reviewed {
                     &path,
                     kind,
                     &file.bytes,
-                    expected.after_mode,
+                    expected.after_mode.ok_or_else(invalid)?,
                     custody::Source {
                         stable_id: owner.stable_id.clone(),
                         version: owner.version.clone(),
@@ -146,7 +168,10 @@ impl Reviewed {
                 )?);
                 files.insert(
                     path,
-                    native(forward::Content::new(file.bytes, expected.after_mode))?,
+                    native(forward::Content::new(
+                        file.bytes,
+                        expected.after_mode.ok_or_else(invalid)?,
+                    ))?,
                 );
             }
             ownership.push(custody::Change {
@@ -248,6 +273,7 @@ pub(super) fn admission(plan: &Plan, digest: &str, scope: Scope) -> Result<forwa
         operation: match plan.operation {
             super::Operation::Install => "install",
             super::Operation::Replace => "replace",
+            super::Operation::Remove => "remove",
         }
         .into(),
         target_precondition_digest: digest::canonical(

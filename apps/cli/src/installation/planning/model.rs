@@ -27,6 +27,7 @@ const LIMIT: usize = 8 * 1024 * 1024;
 pub enum Operation {
     Install,
     Replace,
+    Remove,
 }
 
 /// Caller-established source/eligibility observations, never remote authority.
@@ -90,9 +91,9 @@ pub(super) struct Contribution {
 #[serde(deny_unknown_fields)]
 pub(super) struct File {
     pub before: crate::installation::forward::Observation,
-    pub after_digest: String,
-    pub after_bytes: usize,
-    pub after_mode: u32,
+    pub after_digest: Option<String>,
+    pub after_bytes: Option<usize>,
+    pub after_mode: Option<u32>,
     pub owner: String,
     pub contribution: Option<Contribution>,
 }
@@ -140,6 +141,8 @@ pub struct Plan {
     pub(super) format: String,
     pub(super) operation_id: String,
     pub(super) operation: Operation,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) source_operation: Option<String>,
     pub(super) created_at: String,
     pub(super) expires_at: String,
     pub(super) state: Directory,
@@ -190,6 +193,14 @@ impl Plan {
     pub(super) fn validate(&self) -> Result<()> {
         self.context.digest()?;
         self.target.validate()?;
+        if (self.operation == Operation::Remove) != self.source_operation.is_some()
+            || self
+                .source_operation
+                .as_ref()
+                .is_some_and(|id| !passport::stable_id(id, "operation") || id == &self.operation_id)
+        {
+            return Err(invalid());
+        }
         self.state.physical.validate()?;
         let kind_matches = |id: &DirectoryIdentity| {
             matches!(
@@ -284,11 +295,27 @@ impl Plan {
                     .checked_add(file.before.byte_length())
                     .ok_or_else(invalid)?;
                 if !crate::archive::safe_path(path)
-                    || !hash(&file.after_digest)
-                    || file.after_bytes > 4 * 1024 * 1024
-                    || file.after_mode & !0o777 != 0
-                    || file.after_mode & 0o400 == 0
-                    || (self.target.os == "windows" && file.after_mode != 0o600)
+                    || match (
+                        self.operation,
+                        file.after_digest.as_deref(),
+                        file.after_bytes,
+                        file.after_mode,
+                    ) {
+                        (Operation::Remove, None, None, None) => false,
+                        (
+                            Operation::Install | Operation::Replace,
+                            Some(digest),
+                            Some(bytes),
+                            Some(mode),
+                        ) => {
+                            !hash(digest)
+                                || bytes > 4 * 1024 * 1024
+                                || mode & !0o777 != 0
+                                || mode & 0o400 == 0
+                                || (self.target.os == "windows" && mode != 0o600)
+                        }
+                        _ => true,
+                    }
                     || self.scope_bindings.get(&file.owner) != Some(scope)
                 {
                     return Err(invalid());
@@ -300,7 +327,9 @@ impl Plan {
                 {
                     return Err(invalid());
                 }
-                bytes = bytes.checked_add(file.after_bytes).ok_or_else(invalid)?;
+                bytes = bytes
+                    .checked_add(file.after_bytes.unwrap_or(0))
+                    .ok_or_else(invalid)?;
             }
         }
         if count > 2000

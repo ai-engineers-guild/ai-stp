@@ -843,7 +843,7 @@ fn contribution_planning_preserves_unowned_host_permissions_and_contents()
     let planned = capture(&mut store, context(&state, identity), None, &request, AT)?;
     assert_eq!(
         planned.plan.roots[&Scope::Global].files["config.toml"].after_mode,
-        0o600
+        Some(0o600)
     );
     assert_eq!(std::fs::read(&path)?, original);
     assert_eq!(
