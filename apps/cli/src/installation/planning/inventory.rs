@@ -39,6 +39,7 @@ pub fn inventory_observation(
     }
     let mut groups = BTreeMap::<String, Vec<Value>>::new();
     let mut operations = BTreeSet::new();
+    let mut links = BTreeMap::new();
     for operation in custody.current_operations()? {
         let Some(review) = custody.retained(&operation)? else {
             continue;
@@ -61,6 +62,10 @@ pub fn inventory_observation(
         if status["state"] != "completed" {
             continue;
         }
+        links.insert(
+            corporate.link_id.clone(),
+            corporate.remote_project_id.clone(),
+        );
         let observations = custody.inventory(&operation)?;
         let mut components = BTreeMap::<(String, String, String), Vec<Value>>::new();
         for observation in observations {
@@ -122,6 +127,6 @@ pub fn inventory_observation(
     }
     Ok(
         json!({"context":value(&context)?,"account":value(account)?,"coverage":"owned_native_only",
-        "operations":operations,"snapshots":snapshots,"runtime_loading_observed":false,"network_delivery":false}),
+        "operations":operations,"links":links.into_iter().map(|(link_id,project_id)|json!({"link_id":link_id,"project_id":project_id})).collect::<Vec<_>>(),"snapshots":snapshots,"runtime_loading_observed":false,"network_delivery":false}),
     )
 }

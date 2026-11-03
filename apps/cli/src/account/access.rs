@@ -395,6 +395,28 @@ impl Access {
         Ok(signature)
     }
 
+    pub(super) fn installation_inventory(
+        &self,
+        organization: &str,
+        body: &[u8],
+    ) -> Result<serde_json::Value> {
+        self.revalidate()?;
+        if !self.verified || self.offline {
+            return Err(refused("inventory_authorization_changed"));
+        }
+        let Session::Authorized { access_token, .. } = &self.state.session else {
+            return Err(refused("account_required"));
+        };
+        let reply = self
+            .api
+            .installation_inventory(organization, body, access_token)?;
+        self.revalidate()?;
+        match reply {
+            Reply::Resource(value) => Ok(value),
+            Reply::Refused(code) => Err(super::grants::refusal(code)),
+        }
+    }
+
     pub(super) fn heartbeat(&self, organization: &str, body: &[u8]) -> Result<serde_json::Value> {
         self.revalidate()?;
         if !self.verified || self.offline {
