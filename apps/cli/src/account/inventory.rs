@@ -201,7 +201,13 @@ fn view(context: &Context, record: Option<&Record>) -> Result<Value> {
     )
 }
 fn owned_components(body: &Value) -> Result<()> {
+    let mut scans = BTreeSet::new();
     for snapshot in body["snapshots"].as_array().ok_or_else(invalid)? {
+        if !scans.insert(snapshot["scan_id"].as_str().ok_or_else(invalid)?)
+            || (snapshot["scope"] == "project") != !snapshot["project_id"].is_null()
+        {
+            return Err(invalid());
+        }
         for component in snapshot["components"].as_array().ok_or_else(invalid)? {
             if component["source"] != "managed"
                 || component["stable_id"].as_str().is_none()
