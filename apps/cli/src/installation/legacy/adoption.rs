@@ -164,7 +164,12 @@ impl Adoption {
             || body["provider_id"] != name.trim_start_matches('.')
             || body["setup_stable_id"] != setup["stable_id"]
             || body["setup_version"] != setup["version"]
-            || body["setup_version_passport_digest"] != setup["passport_digest"]
+            // Published 0.0.95 records exact setup ID/version but leaves this
+            // field explicitly null. Adoption still requires every actual
+            // owned value to equal the freshly compiled, trusted native graph.
+            || body.get("setup_version_passport_digest").is_none()
+            || (!body["setup_version_passport_digest"].is_null()
+                && body["setup_version_passport_digest"] != setup["passport_digest"])
             || body["drift_state"] != "clean"
         {
             return Err(crate::error::Failure::precondition(

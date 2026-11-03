@@ -1116,10 +1116,6 @@ fn published_external_installation_is_adopted_without_rewriting_its_state_or_asf
     let state_path = target.join("NDDEV-CODEX-PROVIDER.json");
     let db_path = target.join(".codex-setup-system/forward/records.sqlite3");
     let state_bytes = std::fs::read(&state_path)?;
-    eprintln!(
-        "published legacy state: {}",
-        String::from_utf8_lossy(&state_bytes)
-    );
     let database_bytes = std::fs::read(&db_path)?;
     let guidance = std::fs::read(target.join("AGENTS.md"))?;
     request.operation = Operation::Adopt;
