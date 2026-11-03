@@ -6,7 +6,7 @@ use std::path::PathBuf;
 const LEAF: &str = "ai-stp-custody";
 const OWNER: &[u8] = b"ai-stp native OS-user custody directory v1\n";
 
-#[cfg(unix)]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn home() -> Result<PathBuf> {
     use std::{ffi::OsString, path::Path, time::Duration};
     let uid = rustix::process::geteuid().as_raw().to_string();
@@ -74,6 +74,10 @@ fn home() -> Result<PathBuf> {
 }
 
 fn parent() -> Result<(PathBuf, Vec<&'static str>)> {
+    #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
+    {
+        Err(invalid())
+    }
     #[cfg(target_os = "linux")]
     {
         Ok((home()?, vec![".local", "share"]))
