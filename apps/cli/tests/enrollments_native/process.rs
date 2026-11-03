@@ -280,7 +280,8 @@ fn executable_restarts_preserve_native_connections_and_refuse_stale_context_sele
 fn public_native_configuration_keeps_original_context_across_cli_restarts()
 -> Result<(), Box<dyn Error>> {
     assert_eq!(std::env::var("GITHUB_ACTIONS").as_deref(), Ok("true"));
-    assert!(cfg!(any(target_os = "macos", windows)));
+    let runner = std::env::var("RUNNER_OS")?;
+    assert!(["macOS", "Windows"].contains(&runner.as_str()));
     use ai_stp_cli::{digest, installation::custody::Custody};
     use serde_json::json;
     assert!(
