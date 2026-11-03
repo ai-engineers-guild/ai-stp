@@ -11,7 +11,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from ai_stp_foundation.digests import digest_canonical
 
@@ -92,7 +92,7 @@ def qualify(binary: Path, root: Path) -> None:
         return run(*args, "--plan", f"/tmp/{name}", "--plan-digest", data["plan_digest"])
 
     run("init", "--credential-store", "file")
-    contexts = []
+    contexts: list[str] = []
     for label in ("Original personal", "Second view"):
         plan = run("context", "create", "plan", "--label", label)
         contexts.append(plan["plan"]["change"]["context"]["context_id"])
@@ -117,13 +117,14 @@ def qualify(binary: Path, root: Path) -> None:
         "/tmp/author.json",
     )
     assert author["state"] == "completed", author
-    setup_id = author["outcome"]["setup_id"]
+    setup_id = str(author["outcome"]["setup_id"])
     version = run(
         "local", "version", "show", "--kind", "setup", "--id", setup_id, "--version", "1.0"
     )
 
     def passport(value: Any) -> dict[str, Any] | None:
         if isinstance(value, dict):
+            value = cast(dict[str, Any], value)
             if value.get("kind") == "setup" and value.get("stable_id") == setup_id:
                 return value
             for nested in value.values():
