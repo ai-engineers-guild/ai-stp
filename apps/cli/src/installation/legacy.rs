@@ -243,13 +243,14 @@ mod tests {
                 output_limit: 65536,
             })
         };
-        let changes = review(&target, &custody)?;
         let held = Locks::acquire(&target, &custody, None)?;
         let busy = run()?;
         assert!(!busy.status.success());
         assert!(std::str::from_utf8(&busy.stderr)?.contains("lock"));
         assert!(!target.root().join("AGENTS.md").exists());
-        publish(&target, &changes)?;
+        // This small writer fixture prepares after coordination directories
+        // exist. Production stages first and takes these locks before apply.
+        publish(&target, &review(&target, &custody)?)?;
         held.revalidate()?;
         drop(held);
         let output = run()?;
