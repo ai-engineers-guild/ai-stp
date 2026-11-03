@@ -215,6 +215,11 @@ export default function TargetsPage() {
   const confirmCommand = operation
     ? confirmationCommand(operation, String(capabilities?.data?.os ?? "linux"))
     : null;
+  const publications = records(operation?.plan?.publications);
+  const isGuard = (item: Record<string, unknown>) => /^\.(claude|codex|cursor|grok|pi|opencode|antigravity)-setup-system\/journal\.json$/.test(String(item.path));
+  const files = publications.filter(item => !isGuard(item));
+  const guards = publications.filter(isGuard).length;
+  const sessions = records(record(operation?.plan?.activation).sessions);
   return (
     <div className="page-stack">
       <PageHeader
@@ -444,9 +449,26 @@ export default function TargetsPage() {
                 <br />
                 {operation.digest}
               </p>
+              {operation.plan && <div className="mt-4">
+                <h3 className="font-semibold">Changes to review</h3>
+                {files.length === 0 ? <p className="mt-2 text-sm">No configuration file changes are required.</p> :
+                  <div className="mt-3 overflow-x-auto"><table className="w-full text-left text-sm">
+                    <thead><tr className="border-b border-border"><th className="py-2 pr-3">Folder</th><th className="py-2 pr-3">File</th><th className="py-2">Change</th></tr></thead>
+                    <tbody>{files.map((item,index) => {
+                      const root = record(item.root), path = root.path;
+                      const folder = typeof path === "string" ? path : String(record(path).display ?? "Original folder");
+                      return <tr className="border-b border-border" key={index}>
+                        <td className="py-2 pr-3 break-all">{folder}</td><td className="py-2 pr-3 break-all">{String(item.path)}</td>
+                        <td className="py-2">{item.after == null ? "Remove" : record(item.before).file == null ? "Create" : "Update"}</td>
+                      </tr>;
+                    })}</tbody>
+                  </table></div>}
+                {guards > 0 && <p className="mt-3 text-sm">Historical external setup writers will be blocked in these folders. Their original records are preserved.</p>}
+                {sessions.length > 0 && <p className="mt-3 text-sm">Stop the original harness sessions before applying: {sessions.map(session => String(session.pid)).join(", ")}.</p>}
+              </div>}
               {operation.plan && (
                 <Details
-                  label="Reviewed file effects"
+                  label="Exact file fingerprints and handoff"
                   value={{
                     publications: operation.plan.publications,
                     handoff: operation.plan.activation,
