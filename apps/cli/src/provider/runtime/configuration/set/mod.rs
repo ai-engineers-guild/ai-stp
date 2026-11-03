@@ -1,7 +1,7 @@
 //! Complete setup execution: reserve all roots, prepare all, then publish in order.
 
 mod activation;
-pub(super) use activation::{native_parent, native_published, native_sessions};
+pub(crate) use activation::{native_parent, native_published, native_sessions};
 pub(super) mod journal;
 mod project;
 #[cfg(test)]

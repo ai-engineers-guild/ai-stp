@@ -11,7 +11,7 @@ mod project;
 mod project_tests;
 mod reservations;
 pub(super) mod set;
-pub(super) use set::{native_parent, native_published, native_sessions};
+pub(crate) use set::{native_parent, native_published, native_sessions};
 #[cfg(test)]
 mod tests;
 
