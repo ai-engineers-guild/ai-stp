@@ -35,7 +35,7 @@ pub(crate) struct Observation {
 
 fn current_parent(path: &Path) -> Result<Dir> {
     // Walk the original OS spelling without following links. This supports
-    // non-Unicode parents and both Windows drive spellings without converting
+    // both Windows drive spellings without converting
     // the proof into a normalized display path.
     crate::installation::target::open(path).map_err(|_| invalid())
 }
@@ -241,7 +241,7 @@ mod tests {
     }
 }
 
-#[cfg(all(test, unix))]
+#[cfg(all(test, target_os = "linux"))]
 mod raw_parent_tests {
     use super::*;
     use std::{
@@ -250,7 +250,7 @@ mod raw_parent_tests {
         os::unix::{ffi::OsStringExt, fs::symlink},
     };
     #[test]
-    fn raw_non_unicode_parent_is_inspectable_but_a_link_never_proves_absence()
+    fn unsupported_non_unicode_parent_never_becomes_a_lossy_retained_path()
     -> std::result::Result<(), Box<dyn Error>> {
         let temporary = tempfile::tempdir()?;
         let root = temporary.path().canonicalize()?;
@@ -258,8 +258,9 @@ mod raw_parent_tests {
         std::fs::create_dir(&parent)?;
         let missing = parent.join("missing");
         let observed = Parent::observe(&missing)?;
-        let retained: Parent = serde_json::from_value(serde_json::to_value(&observed.parent)?)?;
-        retained.open(&missing)?;
+        // The existing retained-path contract accepts exact UTF-8, not lossy
+        // conversion of arbitrary Linux bytes. Refuse before admitting a plan.
+        assert!(serde_json::to_value(&observed.parent).is_err());
         let alias = root.join("alias");
         symlink(&parent, &alias)?;
         assert!(Parent::observe(&alias.join("missing")).is_err());
