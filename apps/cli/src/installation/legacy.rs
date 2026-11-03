@@ -3,6 +3,8 @@
 //! Released setup components refuse an unknown journal schema before mutation
 //! or recovery. These markers are operational metadata, never backup payloads.
 
+pub(crate) mod adoption;
+
 use super::{custody::Custody, forward, target::Target};
 use crate::{
     error::{Failure, Result},
@@ -37,15 +39,15 @@ fn native<T>(value: super::Result<T>) -> Result<T> {
 /// directories and creates no files. The qualified writer later publishes these
 /// exact changes together with the native operation, before configuration files.
 pub fn review(target: &Target, custody: &Custody) -> Result<Vec<forward::Change>> {
+    review_with(target, custody, None)
+}
+pub(crate) fn review_with(
+    target: &Target,
+    custody: &Custody,
+    adoption: Option<&adoption::Adoption>,
+) -> Result<Vec<forward::Change>> {
     let directory = native(target.directory())?;
-    let identity = DirectoryIdentity::capture(&directory)?;
-    let marker = crate::canonical::bytes(&json!({"schema_version":2,
-        "format":"ai-stp-native-custody-fence/1","target":identity,
-        "coordinator":custody.physical_identity()?,"phase":"committed",
-        "operation_id":"native-custody","operation":"native-custody",
-        "plan_digest":crate::digest::sha256(b"ai-stp-native-custody-fence/1"),
-        "target_precondition_digest":crate::digest::canonical("ai-stp:installation-operation:v1",&serde_json::to_value(&identity).map_err(|_|invalid())?)?,
-        "backup_ref":null}))?;
+    let marker = marker(target, custody)?;
     let mut changes = Vec::new();
     for control in CONTROLS {
         let path = format!("{control}/journal.json");
@@ -57,6 +59,7 @@ pub fn review(target: &Target, custody: &Custody) -> Result<Vec<forward::Change>
             continue;
         }
         match super::target::child(&directory, std::ffi::OsStr::new(control)) {
+            Ok(_) if adoption.is_some_and(|proof| proof.control() == control) => (),
             Ok(_) => return Err(invalid()),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
             Err(_) => return Err(invalid()),
@@ -69,6 +72,19 @@ pub fn review(target: &Target, custody: &Custody) -> Result<Vec<forward::Change>
     }
     native(forward::validate_changes(&changes))?;
     Ok(changes)
+}
+
+pub(crate) fn marker(target: &Target, custody: &Custody) -> Result<Vec<u8>> {
+    let directory = native(target.directory())?;
+    let identity = DirectoryIdentity::capture(&directory)?;
+    let marker = crate::canonical::bytes(&json!({"schema_version":2,
+        "format":"ai-stp-native-custody-fence/1","target":identity,
+        "coordinator":custody.physical_identity()?,"phase":"committed",
+        "operation_id":"native-custody","operation":"native-custody",
+        "plan_digest":crate::digest::sha256(b"ai-stp-native-custody-fence/1"),
+        "target_precondition_digest":crate::digest::canonical("ai-stp:installation-operation:v1",&serde_json::to_value(&identity).map_err(|_|invalid())?)?,
+        "backup_ref":null}))?;
+    Ok(marker)
 }
 
 #[cfg(test)]

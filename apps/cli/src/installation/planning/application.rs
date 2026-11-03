@@ -120,6 +120,22 @@ pub fn apply_prepared(
         targets.insert(*scope, target);
         writers.insert(*scope, writer);
     }
+    let mut adoptions = BTreeMap::new();
+    if let Some(proofs) = review.legacy() {
+        for (scope, evidence) in proofs {
+            let target = targets.get(scope).ok_or_else(invalid)?;
+            adoptions.insert(
+                *scope,
+                crate::installation::legacy::adoption::Adoption::reopen(
+                    target,
+                    &plan.target.harness_id,
+                    &plan.setup,
+                    custody,
+                    evidence,
+                )?,
+            );
+        }
+    }
     if candidate.is_none() {
         plan.authorize(root)?;
         let idle = if writes_configuration {
@@ -142,6 +158,25 @@ pub fn apply_prepared(
                 return Err(invalid());
             }
             native(writer.apply_checked(&admission, || {
+                for (scope, proof) in &adoptions {
+                    proof
+                        .revalidate(
+                            targets.get(scope).ok_or_else(|| {
+                                crate::installation::Error::new(
+                                    crate::installation::ReasonCode::StateUnavailable,
+                                    "legacy root changed",
+                                )
+                            })?,
+                            custody,
+                        )
+                        .map_err(|error| {
+                            crate::installation::Error::new(
+                                crate::installation::ReasonCode::StateUnavailable,
+                                "legacy custody changed during adoption",
+                            )
+                            .with_source(error)
+                        })?;
+                }
                 plan.authorize(root).map_err(|error| {
                     crate::installation::Error::new(
                         crate::installation::ReasonCode::StateUnavailable,

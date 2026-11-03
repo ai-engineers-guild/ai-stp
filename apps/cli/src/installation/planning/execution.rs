@@ -95,6 +95,7 @@ pub struct Reviewed {
     review: custody::Review,
     targets: BTreeMap<Scope, Target>,
     changes: BTreeMap<Scope, Vec<forward::Change>>,
+    _adoptions: Vec<crate::installation::legacy::adoption::Adoption>,
 }
 impl Reviewed {
     pub fn create(root: &Path, plan: &Plan, custody: &Custody, at: &str) -> Result<Self> {
@@ -182,6 +183,37 @@ impl Reviewed {
             targets.insert(*scope, target);
             desired.insert(*scope, files);
         }
+        let mut adoptions = Vec::new();
+        let mut legacy_evidence = BTreeMap::new();
+        if plan.operation == super::Operation::Adopt {
+            for (scope, target) in &targets {
+                let root = plan.roots.get(scope).ok_or_else(invalid)?;
+                let rights = root
+                    .files
+                    .iter()
+                    .map(|(path, file)| {
+                        (
+                            path.clone(),
+                            match &file.contribution {
+                                Some(claim) => custody::Ownership::Contribution {
+                                    parser_id: claim.parser_id.clone(),
+                                    key: claim.ownership_key.clone(),
+                                },
+                                None => custody::Ownership::Whole,
+                            },
+                        )
+                    })
+                    .collect();
+                let proof = crate::installation::legacy::adoption::Adoption::capture(
+                    target,
+                    &plan.target.harness_id,
+                    &plan.setup,
+                    rights,
+                )?;
+                legacy_evidence.insert(*scope, proof.evidence()?);
+                adoptions.push(proof);
+            }
+        }
         let subjects = ownership
             .iter()
             .map(|change| change.subject.clone())
@@ -220,13 +252,20 @@ impl Reviewed {
             }
             _ => (),
         }
-        let review = custody
-            .review(plan.operation_id.clone(), &ownership)?
-            .bind_native(&plan)?;
+        let mut review = if adoptions.is_empty() {
+            custody.review(plan.operation_id.clone(), &ownership)?
+        } else {
+            custody.review_adopting(plan.operation_id.clone(), &ownership, &adoptions)?
+        }
+        .bind_native(&plan)?;
+        if !legacy_evidence.is_empty() {
+            review = review.bind_legacy(legacy_evidence)?;
+        }
         let mut changes = BTreeMap::new();
         for (scope, target) in &targets {
             // A physical legacy barrier precedes every configuration effect.
-            let mut effects = legacy::review(target, custody)?;
+            let proof = adoptions.iter().find(|proof| proof.permits_root(target));
+            let mut effects = legacy::review_with(target, custody, proof)?;
             effects.extend(
                 review.configuration_changes(target, desired.get(scope).ok_or_else(invalid)?)?,
             );
@@ -247,6 +286,7 @@ impl Reviewed {
             review,
             targets,
             changes,
+            _adoptions: adoptions,
         })
     }
     pub fn value(&self) -> Result<Value> {
@@ -310,7 +350,7 @@ pub(super) fn admission(plan: &Plan, digest: &str, scope: Scope) -> Result<forwa
         operation_id: plan.operation_id.clone(),
         plan_digest: digest.into(),
         operation: match plan.operation {
-            super::Operation::Install => "install",
+            super::Operation::Install | super::Operation::Adopt => "install",
             super::Operation::Replace => "replace",
             super::Operation::Remove => "remove",
         }

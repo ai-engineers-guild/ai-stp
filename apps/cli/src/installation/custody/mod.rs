@@ -239,6 +239,22 @@ impl Custody {
     }
 
     pub fn review(&self, operation_id: String, changes: &[Change]) -> Result<Review> {
+        self.review_inner(operation_id, changes, &[])
+    }
+    pub(crate) fn review_adopting(
+        &self,
+        operation_id: String,
+        changes: &[Change],
+        proofs: &[crate::installation::legacy::adoption::Adoption],
+    ) -> Result<Review> {
+        self.review_inner(operation_id, changes, proofs)
+    }
+    fn review_inner(
+        &self,
+        operation_id: String,
+        changes: &[Change],
+        proofs: &[crate::installation::legacy::adoption::Adoption],
+    ) -> Result<Review> {
         if !(1..=3).contains(&changes.len())
             || !crate::passport::stable_id(&operation_id, "operation")
         {
@@ -340,7 +356,16 @@ impl Custody {
                     }
                     index
                 } else {
-                    if desired.observed.value.is_some() {
+                    if desired.observed.value.is_some()
+                        && (desired.observed.value.as_ref() != Some(&desired.value)
+                            || !proofs.iter().any(|proof| {
+                                proof.permits(
+                                    desired.observed.locator.root.identity,
+                                    &desired.observed.locator.path,
+                                    &desired.observed.locator.ownership,
+                                )
+                            }))
+                    {
                         return Err(invalid());
                     }
                     after.entries.push(Entry {
@@ -396,6 +421,7 @@ impl Custody {
             native_plan: None,
             publications: None,
             activation: None,
+            legacy_adoptions: None,
         };
         review.digest()?;
         Ok(review)

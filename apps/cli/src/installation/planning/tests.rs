@@ -1003,3 +1003,149 @@ fn serialized_native_trust_and_access_flags_never_grant_a_private_effect()
     assert!(custody.pending()?.is_none());
     Ok(())
 }
+
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore = "requires independently verified published codex-setup-system 0.0.95"]
+fn published_external_installation_is_adopted_without_rewriting_its_state_or_asfw_history()
+-> std::result::Result<(), Box<dyn Error>> {
+    let _consumers = crate::installation::activation::CONSUMERS
+        .lock()
+        .map_err(|_| "consumer fixture lock")?;
+    let binary = PathBuf::from(
+        std::env::var_os("AI_STP_TEST_PREVIOUS_SETUP_BINARY").ok_or("published setup binary")?,
+    );
+    let binary_digest = digest::sha256(&std::fs::read(&binary)?);
+    assert_eq!(
+        binary_digest,
+        "sha256:97cf3c8ed85945d12eef6ab1065d8a64ef406aac5f51383fbd68550753989384"
+    );
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().canonicalize()?;
+    let state = root.join("state");
+    let target = root.join("target");
+    std::fs::create_dir(&state)?;
+    std::fs::create_dir(&target)?;
+    let at = format!("{:.3}", jiff::Timestamp::now());
+    let init = crate::identity::plan(&state, crate::identity::Storage::File, &at)?;
+    crate::identity::apply(&init, &init.digest()?, &at)?;
+    let saved = contexts::create_plan(&state, "Adoption original", None, None, &at)?;
+    let saved_value = serde_json::to_value(&saved)?;
+    let id = saved_value["change"]["context"]["context_id"]
+        .as_str()
+        .ok_or("context")?;
+    contexts::apply(&saved, &saved.digest()?, &at)?;
+    let owner = runtime::owner(&state)?;
+    let actor = Identity {
+        account_id: owner.account_id.clone(),
+        device_id: owner.device_id.clone(),
+    };
+    let mut store = owner.open(false)?;
+    let mut request = request(&mut store, &root.join("source"), target.clone(), actor, &at)?;
+    drop(store);
+    let planned = create(&state, id, &request, &at)?;
+    let bytes = planned.packages.get(&Scope::Global).ok_or("package")?;
+    let package = crate::bundle::reader::Package::read(bytes)?;
+    let bundle_path = root.join("old-input.zip");
+    std::fs::write(&bundle_path, bytes)?;
+    let flags: Vec<std::ffi::OsString> = vec![
+        "--bundle".into(),
+        bundle_path.as_os_str().into(),
+        "--bundle-format".into(),
+        package.binding.bundle_format.into(),
+        "--bundle-digest".into(),
+        package.binding.bundle_digest.into(),
+        "--artifact-digest".into(),
+        package.binding.artifact_digest.into(),
+        "--bundle-size".into(),
+        package.binding.bundle_size.to_string().into(),
+    ];
+    let run = |command: &str,
+               arguments: Vec<std::ffi::OsString>|
+     -> std::result::Result<Value, Box<dyn Error>> {
+        let mut args = vec![
+            command.into(),
+            "--target".into(),
+            target.as_os_str().into(),
+            "--json".into(),
+        ];
+        args.extend(arguments);
+        let output = crate::process::run(crate::process::Request {
+            executable: &binary,
+            arguments: &args,
+            directory: &root,
+            environment: &[("PATH".into(), "".into())],
+            timeout: std::time::Duration::from_secs(10),
+            output_limit: 4 * 1024 * 1024,
+        })?;
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        Ok(serde_json::from_slice(&output.stdout)?)
+    };
+    let mut arguments: Vec<std::ffi::OsString> = vec![
+        "--operation".into(),
+        "install".into(),
+        "--recovery-mode".into(),
+        "forward".into(),
+        "--provider-release-digest".into(),
+        binary_digest.clone().into(),
+        "--operation-id".into(),
+        format!("operation_{}", ulid::Ulid::generate()).into(),
+        "--expires-at".into(),
+        planned.plan.expires_at.clone().into(),
+    ];
+    arguments.extend(flags.clone());
+    let old = run("plan-operation", arguments)?;
+    assert_eq!(old["state"], "planned", "{old}");
+    let plan_path = root.join("old-plan.json");
+    std::fs::write(&plan_path, crate::canonical::bytes(&old["plan"])?)?;
+    let mut arguments: Vec<std::ffi::OsString> = vec![
+        "--plan".into(),
+        plan_path.as_os_str().into(),
+        "--plan-digest".into(),
+        old["plan_digest"].as_str().ok_or("digest")?.into(),
+        "--provider-release-digest".into(),
+        binary_digest.into(),
+    ];
+    arguments.extend(flags);
+    let installed = run("apply-operation", arguments.clone())?;
+    assert_eq!(installed["state"], "verified", "{installed}");
+    let state_path = target.join("NDDEV-CODEX-PROVIDER.json");
+    let db_path = target.join(".codex-setup-system/forward/records.sqlite3");
+    let state_bytes = std::fs::read(&state_path)?;
+    let database_bytes = std::fs::read(&db_path)?;
+    let guidance = std::fs::read(target.join("AGENTS.md"))?;
+    request.operation = Operation::Adopt;
+    let adoption = create(&state, id, &request, &at)?;
+    let metadata = root.join("custody");
+    std::fs::create_dir(&metadata)?;
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&metadata, std::fs::Permissions::from_mode(0o700))?;
+    let mut custody = crate::installation::custody::Custody::open(&metadata)?;
+    let reviewed = Reviewed::create(&state, &adoption.plan, &custody, &at)?;
+    let expected = reviewed.digest()?;
+    reviewed.prepare(&state, &mut custody, &expected, &at)?;
+    drop(reviewed);
+    let receipt = apply_prepared(
+        &state,
+        &mut custody,
+        &adoption.plan.operation_id,
+        &expected,
+        &at,
+    )?;
+    assert_eq!(receipt["configuration_changed"], false);
+    assert_eq!(receipt["restart_required"], false);
+    assert_eq!(std::fs::read(state_path)?, state_bytes);
+    assert_eq!(std::fs::read(db_path)?, database_bytes);
+    assert_eq!(std::fs::read(target.join("AGENTS.md"))?, guidance);
+    let refused = run("apply-operation", arguments)?;
+    assert_eq!(refused["state"], "refused", "{refused}");
+    assert_eq!(std::fs::read(target.join("AGENTS.md"))?, guidance);
+    println!(
+        "published 0.0.95 creates the setup; native adoption preserves original state and ASFW bytes; historical external replay refuses"
+    );
+    Ok(())
+}
