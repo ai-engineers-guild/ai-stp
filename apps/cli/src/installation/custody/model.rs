@@ -397,6 +397,21 @@ impl Review {
             &serde_json::to_value(self).map_err(|_| invalid())?,
         )
     }
+    /// Original data only: reading it neither opens a root nor grants authority.
+    pub fn original_plan(&self) -> Result<Option<crate::installation::planning::Plan>> {
+        self.digest()?;
+        self.native_plan
+            .as_ref()
+            .map(|plan| {
+                let digest = digest::canonical("ai-stp:installation-operation:v1", plan)?;
+                crate::installation::planning::Plan::parse(
+                    &serde_json::to_vec(plan).map_err(|_| invalid())?,
+                    &digest,
+                )
+            })
+            .transpose()
+    }
+
     pub fn bind_native(mut self, plan: &crate::installation::planning::Plan) -> Result<Self> {
         self.native_plan = Some(plan.value()?);
         self.digest()?;

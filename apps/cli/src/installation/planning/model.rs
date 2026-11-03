@@ -110,9 +110,9 @@ pub(super) struct Root {
 #[derive(Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Coordinates {
-    stable_id: String,
-    version: String,
-    passport_digest: String,
+    pub(super) stable_id: String,
+    pub(super) version: String,
+    pub(super) passport_digest: String,
 }
 
 pub(super) fn coordinates(graph: &Value) -> Result<Vec<Coordinates>> {

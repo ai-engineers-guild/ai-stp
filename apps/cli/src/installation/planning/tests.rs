@@ -444,6 +444,77 @@ fn retained_admission(previous: Option<&Path>) -> std::result::Result<(), Box<dy
         );
     }
     assert!(std::fs::read_dir(&target)?.next().is_none());
+    let fresh = create(&state, id, &request, &at)?;
+    let metadata = root.join("custody");
+    std::fs::create_dir(&metadata)?;
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&metadata, std::fs::Permissions::from_mode(0o700))?;
+    let mut custody = crate::installation::custody::Custody::open(&metadata)?;
+    let reviewed = Reviewed::create(&state, &fresh.plan, &custody, &at)?;
+    let same = Reviewed::create(&state, &fresh.plan, &custody, &at)?;
+    assert_eq!(reviewed.digest()?, same.digest()?);
+    assert_eq!(
+        fresh.plan.recompile(&state, &at)?.plan.value()?,
+        fresh.plan.value()?
+    );
+    let prepared = reviewed.prepare(&state, &mut custody, &reviewed.digest()?, &at)?;
+    assert_eq!(prepared["configuration_changed"], false);
+    assert_eq!(prepared["execution_authorized"], false);
+    assert_eq!(prepared["intent"]["original_context"]["context_id"], id);
+    assert_eq!(
+        reviewed.prepare(&state, &mut custody, &reviewed.digest()?, &at)?,
+        prepared
+    );
+    assert!(target.join(CONTROL).is_dir());
+    assert!(!target.join("AGENTS.md").exists());
+    assert!(!target.join(".codex-setup-system").exists());
+    assert_eq!(
+        custody.inspect()?["claims"]
+            .as_array()
+            .ok_or("custody claims")?
+            .len(),
+        0
+    );
+    assert_eq!(
+        custody.pending()?.ok_or("pending native review")?.value()?,
+        reviewed.value()?
+    );
+    let operation = fresh.plan.operation_id.clone();
+    let digest = reviewed.digest()?;
+    let original = reviewed.value()?;
+    let expired = fresh.plan.expires_at.clone();
+    drop(reviewed);
+    drop(same);
+    drop(fresh);
+    drop(custody);
+    std::fs::remove_dir_all(root.join("source"))?;
+    let mut custody = crate::installation::custody::Custody::open(&metadata)?;
+    let recovered = custody
+        .retained(&operation)?
+        .ok_or("retained preparation")?;
+    assert_eq!(recovered.value()?, original);
+    assert_eq!(
+        recovered
+            .original_plan()?
+            .ok_or("original plan")?
+            .context
+            .context_id,
+        id
+    );
+    let cancelled = cancel_preparation(&state, &mut custody, &operation, &digest, &expired)?;
+    assert_eq!(cancelled["state"], "cancelled");
+    assert!(custody.pending()?.is_none());
+    assert!(!target.join("AGENTS.md").exists());
+    assert!(!target.join(".codex-setup-system").exists());
+    std::fs::rename(&target, root.join("retired-target"))?;
+    std::fs::create_dir(&target)?;
+    assert_eq!(
+        cancel_preparation(&state, &mut custody, &operation, &digest, &expired)?,
+        cancelled
+    );
+    assert!(std::fs::read_dir(&target)?.next().is_none());
+
+    assert_eq!(contexts::list(&state)?["selected"]["context_id"], second_id);
     Ok(())
 }
 

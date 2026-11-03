@@ -611,6 +611,13 @@ fn real_writer_recovers_reviewed_files_and_preserves_unowned_host_bytes()
     native(writer.apply(&admission))?;
     native(writer.complete(&admission))?;
     let receipt = custody.complete(&recovered)?;
+    let retained = custody
+        .retained(&recovered.operation_id)?
+        .ok_or("original terminal review")?;
+    assert_eq!(retained.value()?, recovered.value()?);
+    let metadata = serde_json::to_string(&retained.value()?)?;
+    assert!(!metadata.contains("private-canary"));
+    assert!(!metadata.contains("must-not-replace"));
     let host = std::fs::read(path.join("config.jsonc"))?;
     let text = std::str::from_utf8(&host)?;
     assert!(text.contains("Keep this owner comment."));

@@ -71,4 +71,42 @@ impl Plan {
             self.admission_result(custody_review_digest, "prepared")
         })
     }
+    pub(super) fn cancel_intent(
+        &self,
+        root: &Path,
+        review: &str,
+        at: &str,
+    ) -> Result<Option<Value>> {
+        let detail = self.admission_detail(&self.digest()?, review)?;
+        let at_value = at.parse::<jiff::Timestamp>().map_err(|_| invalid())?;
+        if root != self.state.path
+            || at_value
+                < self
+                    .created_at
+                    .parse::<jiff::Timestamp>()
+                    .map_err(|_| invalid())?
+        {
+            return Err(invalid());
+        }
+        let owner = runtime::owner(root)?;
+        self.context.require_current_native_identity(&owner)?;
+        if crate::files::physical::DirectoryIdentity::capture(owner.root_directory())?
+            != self.state.physical
+        {
+            return Err(invalid());
+        }
+        let mut store = owner.open(false)?;
+        store.transaction(|transaction| {
+            match journal::state(transaction,&self.operation_id,KIND,&detail)?.as_deref() {
+                None=>return Ok(None),
+                Some("cancelled")=>(),
+                Some("prepared")=>{
+                    let rows=transaction.execute("UPDATE operation SET state='cancelled',finished_at=? WHERE operation_id=? AND kind=? AND state='prepared' AND detail=?",rusqlite::params![at,self.operation_id,KIND,detail]).map_err(store::database)?;
+                    if rows!=1 {return Err(invalid());}
+                },
+                _=>return Err(invalid()),
+            }
+            Ok(Some(self.admission_result(review,"cancelled")?))
+        })
+    }
 }

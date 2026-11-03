@@ -345,7 +345,10 @@ impl Custody {
                 return Err(invalid());
             }
         }
-        native(self.writer.prepare(&admission, &review.value()?, &[]))
+        native(
+            self.writer
+                .prepare_retained_metadata(&admission, &review.value()?, &[]),
+        )
     }
     pub fn start(&self, review: &Review) -> Result<()> {
         self.private_root()?;
@@ -362,6 +365,19 @@ impl Custody {
     pub fn pending(&self) -> Result<Option<Review>> {
         self.private_root()?;
         let Some((admission, context)) = native(self.writer.pending())? else {
+            return Ok(None);
+        };
+        let review = Review::parse(&encode(&context)?, &admission.plan_digest)?;
+        if Self::admission(&review)? != admission {
+            return Err(invalid());
+        }
+        Ok(Some(review))
+    }
+
+    /// Read the original closed review by operation, including terminal history.
+    pub fn retained(&self, id: &str) -> Result<Option<Review>> {
+        self.private_root()?;
+        let Some((admission, context)) = native(self.writer.retained(id))? else {
             return Ok(None);
         };
         let review = Review::parse(&encode(&context)?, &admission.plan_digest)?;
