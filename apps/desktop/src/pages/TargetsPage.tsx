@@ -54,9 +54,9 @@ export default function TargetsPage() {
       context = selected?.id;
     const [owned, pending] = await Promise.all([
       context
-        ? cmdRunRead("configuration effective", { context })
+        ? cmdRunRead("configuration native effective", { context })
         : Promise.resolve(null),
-      cmdRunRead("configuration pending"),
+      cmdRunRead("configuration native pending"),
     ]);
     if (!alive.current || current !== epoch.current) return;
     setEffective(owned);
@@ -137,9 +137,12 @@ export default function TargetsPage() {
     try {
       const response =
         action === "status"
-          ? await cmdRunRead("configuration status", nativeArguments(held))
+          ? await cmdRunRead(
+              "configuration native status",
+              nativeArguments(held),
+            )
           : await cliApplyConfirmed(
-              `configuration ${action}`,
+              `configuration native ${action}`,
               nativeArguments(held),
               [],
               true,
@@ -170,7 +173,10 @@ export default function TargetsPage() {
     setBusy(true);
     setConfirmed(false);
     try {
-      const response = await cliPlan("configuration remove plan", values);
+      const response = await cliPlan(
+        "configuration native remove plan",
+        values,
+      );
       if (alive.current) {
         setResult(response);
         setOperation(nativeReview(response));

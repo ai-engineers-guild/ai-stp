@@ -94,6 +94,7 @@ export function confirmationCommand(
   const args = [
     "ai-stp",
     "configuration",
+    "native",
     "confirm",
     "--operation",
     operation.operation,

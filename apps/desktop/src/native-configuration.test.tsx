@@ -75,7 +75,7 @@ beforeEach(() => {
   });
   vi.mocked(transport.cmdRunRead).mockImplementation(async (path) =>
     ok(
-      path === "configuration pending"
+      path === "configuration native pending"
         ? { pending: null, other_state_pending: false }
         : { setups: [] },
     ),
@@ -151,7 +151,7 @@ it("retains the reviewed original context when the current view changes before p
   );
   await waitFor(() =>
     expect(transport.cliApplyConfirmed).toHaveBeenCalledWith(
-      "configuration apply",
+      "configuration native apply",
       { operation: OP, "plan-digest": DIGEST },
       [],
       true,
@@ -171,7 +171,7 @@ it("recovers a pending operation without a plan file or selected-context retarge
   });
   vi.mocked(transport.cmdRunRead).mockImplementation(async (path) =>
     ok(
-      path === "configuration pending"
+      path === "configuration native pending"
         ? {
             pending: {
               operation_id: OP,
@@ -194,7 +194,7 @@ it("recovers a pending operation without a plan file or selected-context retarge
   );
   await waitFor(() =>
     expect(transport.cliApplyConfirmed).toHaveBeenCalledWith(
-      "configuration apply",
+      "configuration native apply",
       { operation: OP, "plan-digest": DIGEST },
       [],
       true,

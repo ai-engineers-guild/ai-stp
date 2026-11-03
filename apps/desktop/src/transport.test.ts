@@ -422,9 +422,9 @@ it("keeps native setup reviews and original contexts out of shared diagnostics",
     "canary-digest",
     true,
   );
-  await cmdRunRead("configuration pending");
+  await cmdRunRead("configuration native pending");
   await cliApplyConfirmed(
-    "configuration apply",
+    "configuration native apply",
     { operation: "canary-operation", "plan-digest": "canary-digest" },
     [],
     true,

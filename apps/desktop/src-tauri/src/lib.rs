@@ -506,6 +506,7 @@ async fn native_configuration_plan(
             &st,
             &[
                 "configuration".into(),
+                "native".into(),
                 "plan".into(),
                 "--context".into(),
                 context,
@@ -541,6 +542,7 @@ async fn native_configuration_prepare(
             &st,
             &[
                 "configuration".into(),
+                "native".into(),
                 "prepare".into(),
                 "--plan".into(),
                 file.0.to_string_lossy().into_owned(),
