@@ -65,7 +65,7 @@ pub fn review(target: &Target, custody: &Custody) -> Result<Vec<forward::Change>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{error::Error, path::Path};
+    use std::error::Error;
     fn fixture() -> std::result::Result<(tempfile::TempDir, Target, Custody), Box<dyn Error>> {
         let temporary = tempfile::tempdir()?;
         let root = temporary.path().canonicalize()?;
@@ -174,7 +174,7 @@ mod tests {
         let (_temporary, target, custody) = fixture()?;
         let run = || {
             crate::process::run(crate::process::Request {
-                executable: Path::new(&binary),
+                executable: std::path::Path::new(&binary),
                 arguments: &[
                     "install".into(),
                     "minimal".into(),
