@@ -310,6 +310,7 @@ impl Custody {
             effects,
             native_plan: None,
             publications: None,
+            activation: None,
         };
         review.digest()?;
         Ok(review)

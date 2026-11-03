@@ -173,7 +173,11 @@ impl Reviewed {
             .iter()
             .map(|(scope, target)| Ok((target, changes.get(scope).ok_or_else(invalid)?.as_slice())))
             .collect::<Result<Vec<_>>>()?;
-        let review = review.bind_publications(&roots)?;
+        let handoff = crate::installation::activation::Handoff::prepare(
+            &plan.target.harness_id,
+            &targets.values().collect::<Vec<_>>(),
+        )?;
+        let review = review.bind_publications(&roots)?.bind_handoff(handoff)?;
         Ok(Self {
             plan,
             review,

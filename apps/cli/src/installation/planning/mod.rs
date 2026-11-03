@@ -259,6 +259,14 @@ fn capture(
     let mut targets = BTreeMap::new();
     for (scope, path) in &request.roots {
         let target = native(Target::resolve(path, CONTROL))?;
+        if *scope == Scope::Project
+            && let Some(corporate) = &corporate
+        {
+            let checkout = native(Target::resolve(&corporate.checkout_root, CONTROL))?;
+            if binding(&checkout)?.physical != binding(&target)?.physical {
+                return Err(invalid());
+            }
+        }
         crate::files::physical::require_disjoint(
             &native(state.directory())?,
             &native(target.directory())?,
@@ -438,6 +446,15 @@ impl Plan {
         if at < created || at >= expires || root != self.state.path {
             return Err(invalid());
         }
+        self.authorize(root)?;
+        self.revalidate_targets()
+    }
+
+    pub(super) fn authorize(&self, root: &Path) -> Result<()> {
+        self.validate()?;
+        if root != self.state.path {
+            return Err(invalid());
+        }
         let owner = runtime::owner(root)?;
         let context = contexts::resolve(root, Some(&self.context.context_id))?;
         context.require_current_native_identity(&owner)?;
@@ -472,7 +489,19 @@ impl Plan {
         {
             return Err(invalid());
         }
-        self.revalidate_targets()
+        crate::selection::runtime::native::authorize(
+            root,
+            &self.context,
+            &self.setup,
+            &self.target,
+            &self.scope_bindings,
+            &self
+                .evidence
+                .values()
+                .filter(|e| e.consented)
+                .map(|e| e.passport_digest.clone())
+                .collect(),
+        )
     }
 
     fn revalidate_targets(&self) -> Result<()> {

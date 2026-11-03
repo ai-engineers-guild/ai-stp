@@ -396,6 +396,18 @@ impl Writer {
         })
     }
 
+    /// Read retained desired effects for exact comparison with their owning
+    /// native review before resuming. Never log or export these file payloads.
+    ///
+    /// # Errors
+    /// Refuses another operation, changed root or corrupt retained payloads.
+    pub fn desired(&self, admission: &Admission) -> Result<Vec<Change>> {
+        self.revalidate()?;
+        admission.validate()?;
+        self.store.record(admission)?.ok_or_else(invalid)?;
+        self.store.changes(&admission.operation_id)
+    }
+
     /// Read an original current or historical request without applying files.
     ///
     /// # Errors
