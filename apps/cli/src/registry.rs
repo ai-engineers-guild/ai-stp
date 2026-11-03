@@ -967,6 +967,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
             "task_intents": crate::tasks::INTENTS, "supported_harnesses": if cfg!(target_os = "linux") { &config::HARNESSES[..] } else { &[] },
             "configuration_installation": if cfg!(target_os = "linux") { "supported" } else { "unavailable" },
             "native_authoring_harnesses": config::HARNESSES,
+            "native_inventory":{"available":crate::platform::current().is_some(),"coverage":"owned_native_only","foreground_only":true},
             "native_configuration":{"available":crate::platform::current().is_some(),"harnesses":config::HARNESSES,
                 "operations":["plan","prepare","apply","status","cancel","confirm","remove","effective","pending"],
                 "process_handoff":true,"vendor_programs_managed":false,"runtime_loading_observed":false},
