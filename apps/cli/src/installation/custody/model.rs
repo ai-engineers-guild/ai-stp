@@ -375,9 +375,19 @@ pub struct Review {
     pub(super) publications: Option<Vec<super::publications::Publication>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) activation: Option<crate::installation::activation::Handoff>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) legacy_adoptions: Option<BTreeMap<Scope, serde_json::Value>>,
 }
 impl Review {
     pub fn digest(&self) -> Result<String> {
+        if let Some(proofs) = &self.legacy_adoptions {
+            if proofs.is_empty() || proofs.len() > 3 {
+                return Err(invalid());
+            }
+            for proof in proofs.values() {
+                crate::installation::legacy::adoption::validate(proof)?;
+            }
+        }
         if let Some(activation) = &self.activation {
             let activation = activation.value()?;
             let plan = self.native_plan.as_ref().ok_or_else(invalid)?;
@@ -453,6 +463,23 @@ impl Review {
             }
         }
         Ok(())
+    }
+    pub(crate) fn bind_legacy(
+        mut self,
+        proofs: BTreeMap<Scope, serde_json::Value>,
+    ) -> Result<Self> {
+        if self.legacy_adoptions.is_some() || proofs.is_empty() || proofs.len() > 3 {
+            return Err(invalid());
+        }
+        for proof in proofs.values() {
+            crate::installation::legacy::adoption::validate(proof)?;
+        }
+        self.legacy_adoptions = Some(proofs);
+        self.digest()?;
+        Ok(self)
+    }
+    pub(crate) fn legacy(&self) -> Option<&BTreeMap<Scope, serde_json::Value>> {
+        self.legacy_adoptions.as_ref()
     }
     pub fn bind_handoff(
         mut self,

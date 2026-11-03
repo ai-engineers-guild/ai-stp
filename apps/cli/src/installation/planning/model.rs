@@ -28,6 +28,7 @@ pub enum Operation {
     Install,
     Replace,
     Remove,
+    Adopt,
 }
 
 /// Caller-established source/eligibility observations, never remote authority.
@@ -303,7 +304,7 @@ impl Plan {
                     ) {
                         (Operation::Remove, None, None, None) => false,
                         (
-                            Operation::Install | Operation::Replace,
+                            Operation::Install | Operation::Replace | Operation::Adopt,
                             Some(digest),
                             Some(bytes),
                             Some(mode),
