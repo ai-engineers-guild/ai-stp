@@ -317,11 +317,18 @@ fn capture(
         .collect::<Result<BTreeMap<_, _>>>()?;
     let packages = Package::read_native_set(store, &request.target.harness_id, &inputs)?;
     let mut roots = BTreeMap::new();
+    let mut before_bytes = 0usize;
     for (scope, package) in packages {
         let target = targets.get(&scope).ok_or_else(invalid)?;
         let mut files = BTreeMap::new();
         for (path, file) in package.files {
             let (before, current) = native(forward::observe(target, &path))?;
+            before_bytes = before_bytes
+                .checked_add(before.byte_length())
+                .ok_or_else(invalid)?;
+            if before_bytes > 64 * 1024 * 1024 {
+                return Err(invalid());
+            }
             if file.contribution.is_some()
                 && hosts.get(&scope).and_then(|hosts| hosts.get(&path))
                     != Some(&current.map(|content| content.bytes))
@@ -375,6 +382,18 @@ fn capture(
         setup: request.setup.clone(),
         graph_digest: digest::canonical("ai-stp:plan:v1", graph)?,
         graph_nodes: model::coordinates(graph)?,
+        evidence: graph["nodes"]
+            .as_array()
+            .ok_or_else(invalid)?
+            .iter()
+            .map(|node| {
+                let id = node["stable_id"].as_str().ok_or_else(invalid)?;
+                Ok((
+                    id.to_owned(),
+                    request.evidence.get(id).ok_or_else(invalid)?.clone(),
+                ))
+            })
+            .collect::<Result<BTreeMap<_, _>>>()?,
         scope_bindings: serde_json::from_value(compiled.assessment["scope_bindings"].clone())
             .map_err(|_| invalid())?,
         roots,

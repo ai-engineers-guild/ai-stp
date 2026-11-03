@@ -150,6 +150,7 @@ pub struct Plan {
     pub(super) setup: Value,
     pub(super) graph_digest: String,
     pub(super) graph_nodes: Vec<Coordinates>,
+    pub(super) evidence: BTreeMap<String, Evidence>,
     pub(super) scope_bindings: BTreeMap<String, Scope>,
     pub(super) roots: BTreeMap<Scope, Root>,
 }
@@ -234,6 +235,15 @@ impl Plan {
                 return Err(invalid());
             }
         }
+        if self.evidence.len() != self.graph_nodes.len()
+            || self.graph_nodes.iter().any(|node| {
+                self.evidence
+                    .get(&node.stable_id)
+                    .is_none_or(|e| e.passport_digest != node.passport_digest)
+            })
+        {
+            return Err(invalid());
+        }
         if !self.graph_nodes.contains(&setup)
             || self.scope_bindings.iter().any(|(id, scope)| {
                 !passport::stable_id(id, "component")
@@ -247,7 +257,8 @@ impl Plan {
         {
             return Err(invalid());
         }
-        let (mut count, mut bytes, mut archives) = (0usize, 0usize, 0usize);
+        let (mut count, mut bytes, mut archives, mut before_bytes) =
+            (0usize, 0usize, 0usize, 0usize);
         let mut physical = BTreeSet::new();
         for (scope, root) in &self.roots {
             root.directory.physical.validate()?;
@@ -269,6 +280,9 @@ impl Plan {
                 .ok_or_else(invalid)?;
             count = count.checked_add(root.files.len()).ok_or_else(invalid)?;
             for (path, file) in &root.files {
+                before_bytes = before_bytes
+                    .checked_add(file.before.byte_length())
+                    .ok_or_else(invalid)?;
                 if !crate::archive::safe_path(path)
                     || !hash(&file.after_digest)
                     || file.after_bytes > 4 * 1024 * 1024
@@ -289,7 +303,11 @@ impl Plan {
                 bytes = bytes.checked_add(file.after_bytes).ok_or_else(invalid)?;
             }
         }
-        if count > 2000 || bytes > 64 * 1024 * 1024 || archives > 64 * 1024 * 1024 {
+        if count > 2000
+            || bytes > 64 * 1024 * 1024
+            || archives > 64 * 1024 * 1024
+            || before_bytes > 64 * 1024 * 1024
+        {
             return Err(invalid());
         }
         match (&self.context.authority, &self.corporate) {

@@ -138,6 +138,10 @@ fn native_plan_retains_actual_roots_and_source_without_writes_or_before_images()
     let document = native.plan.value()?;
     let encoded = serde_json::to_vec(&document)?;
     assert!(!String::from_utf8(encoded.clone())?.contains("PRIVATE-UNOWNED-BEFORE-IMAGE-CANARY"));
+    let mut excessive = document.clone();
+    excessive["roots"]["global"]["files"]["AGENTS.md"]["before"]["file"]["length"] =
+        (64 * 1024 * 1024 + 1).into();
+    assert!(parse(&excessive).is_err());
     let retained = Plan::parse(&encoded, &native.plan.digest()?)?;
     assert_eq!(
         retained.roots[&Scope::Global].directory.path.as_os_str(),

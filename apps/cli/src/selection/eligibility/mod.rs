@@ -54,7 +54,8 @@ pub struct Target {
 
 /// Established by the owning runtime, never accepted as an authentication proof.
 /// The exact digest prevents applying one version's evidence to another version.
-#[derive(Clone, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Evidence {
     pub passport_digest: String,
     pub registrable: bool,
