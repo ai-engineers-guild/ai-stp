@@ -144,11 +144,10 @@ pub fn apply_prepared(
         } else {
             None
         };
-        // All unchanged legacy locks are held before the first journal or
-        // configuration publication. A busy old writer leaves preparation
-        // cancellable; no historical SDK can pass its journal check mid-apply.
+        // Take existing legacy locks before closing cancellation. Create no
+        // missing parent until every child's original preparation is verified.
         for (scope, target) in &targets {
-            legacy_locks.push(crate::installation::legacy::Locks::acquire(
+            legacy_locks.push(crate::installation::legacy::Locks::existing(
                 target,
                 custody,
                 adoptions.get(scope),
@@ -160,7 +159,7 @@ pub fn apply_prepared(
         if state == "prepared" {
             plan.transition(root,expected,"applying",&json!({"kind":"native.configuration.applying","operation_id":operation,"review_digest":expected}),at)?;
         }
-        for (scope, writer) in &mut writers {
+        for (scope, writer) in &writers {
             let admission = admission(&plan, expected, *scope)?;
             if matches!(native(writer.progress(&admission))?, Progress::Prepared(_)) {
                 native(writer.start(&admission))?;
@@ -168,6 +167,15 @@ pub fn apply_prepared(
             if !matches!(native(writer.progress(&admission))?, Progress::Applying(_)) {
                 return Err(invalid());
             }
+        }
+        // All seven released-writer locks now cover every root before the
+        // first guard/configuration publication. Existing parent bindings and
+        // desired file fingerprints are never rewritten to admit new parents.
+        for ((scope, target), locks) in targets.iter().zip(legacy_locks.iter_mut()) {
+            locks.fill(target, custody, adoptions.get(scope), true)?;
+        }
+        for (scope, writer) in &mut writers {
+            let admission = admission(&plan, expected, *scope)?;
             native(writer.apply_checked(&admission, || {
                 for locks in &legacy_locks {
                     locks.revalidate().map_err(|error| {

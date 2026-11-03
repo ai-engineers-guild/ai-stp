@@ -41,33 +41,63 @@ pub(super) fn lock_only(target: &Target, directory: &Dir, control: &str) -> Resu
 }
 pub(crate) struct Locks {
     held: Vec<TargetLock>,
+    names: std::collections::BTreeSet<&'static str>,
 }
 impl Locks {
+    #[cfg(test)]
     pub(crate) fn acquire(
         target: &Target,
         custody: &Custody,
         adoption: Option<&Adoption>,
     ) -> Result<Self> {
+        let mut locks = Self::existing(target, custody, adoption)?;
+        locks.fill(target, custody, adoption, true)?;
+        Ok(locks)
+    }
+    pub(crate) fn existing(
+        target: &Target,
+        custody: &Custody,
+        adoption: Option<&Adoption>,
+    ) -> Result<Self> {
+        let mut locks = Self {
+            held: Vec::new(),
+            names: Default::default(),
+        };
+        locks.fill(target, custody, adoption, false)?;
+        Ok(locks)
+    }
+    pub(crate) fn fill(
+        &mut self,
+        target: &Target,
+        custody: &Custody,
+        adoption: Option<&Adoption>,
+        create: bool,
+    ) -> Result<()> {
         let root = native(target.directory())?;
         let expected = marker(target, custody)?;
-        let mut held = Vec::new();
         for name in CONTROLS {
-            if adoption.is_some_and(|proof| proof.control() == name) {
+            if self.names.contains(name) || adoption.is_some_and(|proof| proof.control() == name) {
                 continue;
             }
-            let mut builder = cap_std::fs::DirBuilder::new();
-            builder.recursive(false);
-            #[cfg(unix)]
-            {
-                use cap_std::fs::DirBuilderExt;
-                builder.mode(0o700);
+            if create {
+                let mut builder = cap_std::fs::DirBuilder::new();
+                builder.recursive(false);
+                #[cfg(unix)]
+                {
+                    use cap_std::fs::DirBuilderExt;
+                    builder.mode(0o700);
+                }
+                match root.create_dir_with(name, &builder) {
+                    Ok(()) => (),
+                    Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => (),
+                    Err(_) => return Err(invalid()),
+                }
             }
-            match root.create_dir_with(name, &builder) {
-                Ok(()) => (),
-                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => (),
+            let control = match root.open_dir_nofollow(name) {
+                Ok(control) => control,
+                Err(error) if !create && error.kind() == std::io::ErrorKind::NotFound => continue,
                 Err(_) => return Err(invalid()),
-            }
-            let control = root.open_dir_nofollow(name).map_err(|_| invalid())?;
+            };
             let lock = native(TargetLock::acquire_at(&control, &target.root().join(name)))?;
             if let Some(journal) =
                 native(forward::observe(target, &format!("{name}/journal.json")))?.1
@@ -83,15 +113,14 @@ impl Locks {
                 .open(".")
                 .and_then(|file| file.sync_all())
                 .map_err(|_| invalid())?;
-            held.push(lock);
+            self.held.push(lock);
+            self.names.insert(name);
         }
         #[cfg(unix)]
         root.open(".")
             .and_then(|file| file.sync_all())
             .map_err(|_| invalid())?;
-        let locks = Self { held };
-        locks.revalidate()?;
-        Ok(locks)
+        self.revalidate()
     }
     pub(crate) fn revalidate(&self) -> Result<()> {
         for lock in &self.held {
