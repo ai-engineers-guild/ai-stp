@@ -371,6 +371,19 @@ impl Custody {
         Ok(Some(review))
     }
 
+    /// Read the original closed review by operation, including terminal history.
+    pub fn retained(&self, id: &str) -> Result<Option<Review>> {
+        self.private_root()?;
+        let Some((admission, context)) = native(self.writer.retained(id))? else {
+            return Ok(None);
+        };
+        let review = Review::parse(&encode(&context)?, &admission.plan_digest)?;
+        if Self::admission(&review)? != admission {
+            return Err(invalid());
+        }
+        Ok(Some(review))
+    }
+
     pub fn status(&self, review: &Review) -> Result<Value> {
         self.private_root()?;
         let admission = Self::admission(review)?;

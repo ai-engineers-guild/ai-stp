@@ -188,24 +188,7 @@ impl Reviewed {
         self.review.digest()
     }
     fn admission(&self, scope: Scope) -> Result<forward::Admission> {
-        Ok(forward::Admission {
-            operation_id: self.plan.operation_id.clone(),
-            plan_digest: self.digest()?,
-            operation: match self.plan.operation {
-                super::Operation::Install => "install",
-                super::Operation::Replace => "replace",
-            }
-            .into(),
-            target_precondition_digest: digest::canonical(
-                "ai-stp:installation-operation:v1",
-                &value(self.plan.roots.get(&scope).ok_or_else(invalid)?)?,
-            )?,
-            target_scope: if scope == Scope::Global {
-                None
-            } else {
-                Some(scope.as_str().into())
-            },
-        })
+        admission(&self.plan, &self.digest()?, scope)
     }
     /// Prepare the exact reviewed operation. Configuration files and legacy
     /// guards remain unpublished; the original pending review is recoverable.
@@ -219,6 +202,13 @@ impl Reviewed {
         if self.digest()? != expected {
             return Err(invalid());
         }
+        match custody.status(&self.review)?["state"].as_str() {
+            Some("cancelled" | "completed") => {
+                return Ok(custody.status(&self.review)?["result"].clone());
+            }
+            Some("absent" | "prepared") => (),
+            _ => return Err(invalid()),
+        }
         self.plan.revalidate(root, at)?;
         for (scope, target) in &self.targets {
             self.review
@@ -226,6 +216,9 @@ impl Reviewed {
         }
         custody.prepare(&self.review, expected)?;
         let intent = self.plan.admit(root, &self.plan.digest()?, expected, at)?;
+        if intent["state"] != "prepared" {
+            return Err(invalid());
+        }
         let mut children = BTreeMap::new();
         for (scope, target) in &self.targets {
             let mut writer = native(forward::Writer::acquire(target, super::CONTROL))?;
@@ -242,4 +235,70 @@ impl Reviewed {
             "configuration_changed":false,"execution_authorized":false}),
         )
     }
+}
+
+fn admission(plan: &Plan, digest: &str, scope: Scope) -> Result<forward::Admission> {
+    Ok(forward::Admission {
+        operation_id: plan.operation_id.clone(),
+        plan_digest: digest.into(),
+        operation: match plan.operation {
+            super::Operation::Install => "install",
+            super::Operation::Replace => "replace",
+        }
+        .into(),
+        target_precondition_digest: digest::canonical(
+            "ai-stp:installation-operation:v1",
+            &value(plan.roots.get(&scope).ok_or_else(invalid)?)?,
+        )?,
+        target_scope: if scope == Scope::Global {
+            None
+        } else {
+            Some(scope.as_str().into())
+        },
+    })
+}
+
+/// Cancel the original prepared operation after restart without a bundle or
+/// caller plan file. A selected context never redirects this metadata action.
+pub fn cancel_preparation(
+    root: &Path,
+    custody: &mut Custody,
+    operation: &str,
+    expected: &str,
+    at: &str,
+) -> Result<Value> {
+    let review = custody.retained(operation)?.ok_or_else(invalid)?;
+    if review.digest()? != expected {
+        return Err(invalid());
+    }
+    let plan = review.original_plan()?.ok_or_else(invalid)?;
+    if root != plan.state.path {
+        return Err(invalid());
+    }
+    let status = custody.status(&review)?;
+    if status["state"] == "cancelled" {
+        return Ok(status["result"].clone());
+    }
+    if status["state"] != "prepared" {
+        return Err(invalid());
+    }
+    // Verify the original local actor before touching child journals. No online
+    // account observation is required to withdraw an unpublished preparation.
+    let owner = runtime::owner(root)?;
+    plan.context.require_current_native_identity(&owner)?;
+    if crate::files::physical::DirectoryIdentity::capture(owner.root_directory())?
+        != plan.state.physical
+    {
+        return Err(invalid());
+    }
+    for (scope, held) in &plan.roots {
+        let target = native(Target::resolve(&held.directory.path, super::CONTROL))?;
+        if binding(&target)? != held.directory {
+            return Err(invalid());
+        }
+        let mut writer = native(forward::Writer::acquire(&target, super::CONTROL))?;
+        native(writer.cancel(&admission(&plan, expected, *scope)?))?;
+    }
+    plan.cancel_intent(root, expected, at)?;
+    custody.cancel(&review)
 }

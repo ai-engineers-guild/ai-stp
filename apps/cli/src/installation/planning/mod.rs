@@ -9,7 +9,7 @@ mod retained;
 #[cfg(test)]
 mod tests;
 
-pub use execution::Reviewed;
+pub use execution::{Reviewed, cancel_preparation};
 pub use model::{Operation, Plan, Planned, Request};
 
 use super::{forward, profiles::Profiles, target::Target};

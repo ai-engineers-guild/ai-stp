@@ -333,6 +333,17 @@ impl Store {
         Ok(())
     }
 
+    pub(super) fn admission(&self, id: &str) -> Result<Option<Admission>> {
+        self.scope.validate()?;
+        let row = sql(self
+            .db
+            .query_row("SELECT admission FROM operations WHERE id=?", [id], |row| {
+                row.get::<_, Vec<u8>>(0)
+            })
+            .optional())?;
+        row.map(|bytes| decode(&bytes)).transpose()
+    }
+
     pub(super) fn active_admission(&self) -> Result<Option<Admission>> {
         self.scope.validate()?;
         let row = sql(self

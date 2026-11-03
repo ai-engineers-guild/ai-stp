@@ -396,6 +396,31 @@ impl Writer {
         })
     }
 
+    /// Read an original current or historical request without applying files.
+    ///
+    /// # Errors
+    /// Refuses malformed operation records or replaced physical metadata.
+    pub fn retained(&self, id: &str) -> Result<Option<(Admission, serde_json::Value)>> {
+        if id.is_empty()
+            || id.len() > 128
+            || !id
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-'))
+        {
+            return Err(invalid());
+        }
+        self.revalidate()?;
+        let Some(admission) = self.store.admission(id)? else {
+            return Ok(None);
+        };
+        admission.validate()?;
+        if admission.operation_id != id {
+            return Err(invalid());
+        }
+        let record = self.store.record(&admission)?.ok_or_else(invalid)?;
+        Ok(Some((admission, record.context)))
+    }
+
     /// Read the sole retained unfinished intent without publishing its effects.
     ///
     /// # Errors
