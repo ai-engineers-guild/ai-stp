@@ -81,6 +81,17 @@ pub(super) fn validate(publications: &[Publication]) -> Result<()> {
     Ok(())
 }
 impl Review {
+    /// Number of actual configuration changes, excluding fixed legacy guards.
+    pub fn configuration_effect_count(&self) -> Result<usize> {
+        self.digest()?;
+        Ok(self
+            .publications
+            .as_ref()
+            .ok_or_else(invalid)?
+            .iter()
+            .filter(|p| !crate::installation::legacy::is_guard(&p.path))
+            .count())
+    }
     /// Freeze every complete file effect, including compatibility metadata.
     /// The retained document contains fingerprints rather than host payloads.
     pub fn bind_publications(mut self, roots: &[(&Target, &[forward::Change])]) -> Result<Self> {

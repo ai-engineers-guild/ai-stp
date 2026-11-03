@@ -408,6 +408,14 @@ impl Custody {
         native(self.writer.cancel(&Self::admission(review)?))
     }
     pub fn complete(&mut self, review: &Review) -> Result<Value> {
+        self.complete_inner(review, None)
+    }
+    /// Preserve the owning native operation's factual outcome with the verified
+    /// custody commit. The result is metadata and must contain no file payloads.
+    pub fn complete_with_result(&mut self, review: &Review, result: &Value) -> Result<Value> {
+        self.complete_inner(review, Some(result))
+    }
+    fn complete_inner(&mut self, review: &Review, result: Option<&Value>) -> Result<Value> {
         self.private_root()?;
         let admission = Self::admission(review)?;
         match native(self.writer.progress(&admission))? {
@@ -459,8 +467,11 @@ impl Custody {
                     STATE,
                     Some(native(forward::Content::new(encode(&after)?, 0o600))?),
                 ))?;
-                let result = json!({"schema_version":1,"kind":"native.custody.commit","operation_id":review.operation_id,"review_digest":admission.plan_digest,"revision":after.revision,"claim_count":after.entries.len(),"authorization_granted":false});
-                native(self.writer.finish(&admission, &[change], &result))?;
+                let mut outcome = json!({"schema_version":1,"kind":"native.custody.commit","operation_id":review.operation_id,"review_digest":admission.plan_digest,"revision":after.revision,"claim_count":after.entries.len(),"authorization_granted":false});
+                if let Some(result) = result {
+                    outcome["native_result"] = result.clone();
+                }
+                native(self.writer.finish(&admission, &[change], &outcome))?;
             }
             Progress::Finishing => (),
             _ => return Err(invalid()),

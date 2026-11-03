@@ -368,7 +368,7 @@ pub struct Review {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) publications: Option<Vec<super::publications::Publication>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    activation: Option<crate::installation::activation::Handoff>,
+    pub(super) activation: Option<crate::installation::activation::Handoff>,
 }
 impl Review {
     pub fn digest(&self) -> Result<String> {
@@ -437,6 +437,17 @@ impl Review {
             .transpose()
     }
 
+    /// Verify owned final values before a new-session receipt. Unowned host
+    /// fields are outside this custody claim and remain untouched.
+    pub fn verify_configuration(&self) -> Result<()> {
+        self.digest()?;
+        for effect in &self.effects {
+            if effect.locator.observe()?.value != effect.after {
+                return Err(invalid());
+            }
+        }
+        Ok(())
+    }
     pub fn bind_handoff(
         mut self,
         handoff: crate::installation::activation::Handoff,

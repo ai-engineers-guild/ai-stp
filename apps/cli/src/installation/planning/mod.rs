@@ -3,12 +3,14 @@
 //! Planning creates no configuration transaction, target metadata or harness writes.
 //! A retained document is data, never a grant for later protected effects.
 
+mod application;
 mod execution;
 mod model;
 mod retained;
 #[cfg(test)]
 mod tests;
 
+pub use application::{apply_prepared, configuration_status, confirm_session};
 pub use execution::{Reviewed, cancel_preparation};
 pub use model::{Operation, Plan, Planned, Request};
 

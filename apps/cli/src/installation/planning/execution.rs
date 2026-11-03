@@ -241,7 +241,7 @@ impl Reviewed {
     }
 }
 
-fn admission(plan: &Plan, digest: &str, scope: Scope) -> Result<forward::Admission> {
+pub(super) fn admission(plan: &Plan, digest: &str, scope: Scope) -> Result<forward::Admission> {
     Ok(forward::Admission {
         operation_id: plan.operation_id.clone(),
         plan_digest: digest.into(),
