@@ -154,8 +154,9 @@ def prove(binary: Path, root: Path) -> None:
         60,
         61,
         62,
+        63,
     ]
-    assert capabilities["snapshot_schema_versions"] == [53, 54, 55, 56, 57, 58, 59, 60, 61, 62]
+    assert capabilities["snapshot_schema_versions"] == [53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]
     assert run(binary, home, ["version"])["data"]["runtime"] == "rust"
     assert (
         "https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v"
@@ -252,6 +253,7 @@ def prove(binary: Path, root: Path) -> None:
         (60, "binding_retirement.sql"),
         (61, "checkout_location.sql"),
         (62, None),  # Same SQL layout; explicit absent-checkout terminal meaning.
+        (63, None),  # Same SQL layout; original native configuration intent fence.
     ]:
         with closing(sqlite3.connect(backup)) as fixture:
             if migration is not None:
@@ -283,7 +285,7 @@ def prove(binary: Path, root: Path) -> None:
         }
         assert before == after, "snapshot reads changed fixture bytes or created sidecars"
     with closing(sqlite3.connect(backup)) as newer:
-        newer.execute("PRAGMA user_version=63")
+        newer.execute("PRAGMA user_version=64")
         newer.commit()
     newer_digest = "sha256:" + hashlib.sha256(backup.read_bytes()).hexdigest()
     run(
