@@ -11,6 +11,7 @@ import {
   type CmdResult,
 } from "../transport";
 import {
+  confirmationCommand,
   nativeArguments,
   nativePending,
   nativeReview,
@@ -179,6 +180,9 @@ export default function TargetsPage() {
     }
   }
   const contextChanged = operation && selected?.id !== operation.context;
+  const confirmCommand = operation
+    ? confirmationCommand(operation, String(capabilities?.data?.os ?? "linux"))
+    : null;
   return (
     <div className="page-stack">
       <PageHeader
@@ -461,8 +465,8 @@ export default function TargetsPage() {
                 <p className="mt-4 text-sm">
                   Confirm from a new harness session using{" "}
                   <code>
-                    ai-stp configuration confirm --operation{" "}
-                    {operation.operation} --plan-digest {operation.digest}
+                    {confirmCommand ??
+                      "Use the original operation and state directory in the CLI."}
                   </code>
                   . Keep the original CLI state directory.
                 </p>

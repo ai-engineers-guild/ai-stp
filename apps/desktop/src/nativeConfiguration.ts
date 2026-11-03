@@ -8,6 +8,19 @@ export interface NativeOperation {
   harness: string;
   plan: Record<string, unknown> | null;
   phase: string;
+  stateParent: string | null;
+}
+function originalState(context: Record<string, unknown>): string | null {
+  if (typeof context.root === "string") return context.root;
+  const path = record(context.root);
+  if (typeof path.utf8_base64 !== "string") return null;
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(
+      Uint8Array.from(atob(path.utf8_base64), (c) => c.charCodeAt(0)),
+    );
+  } catch {
+    return null;
+  }
 }
 const id = /^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
 const hash = /^sha256:[0-9a-f]{64}$/;
@@ -38,6 +51,7 @@ export function nativeReview(result: CmdResult): NativeOperation | null {
     harness: target.harness_id,
     plan,
     phase: "review",
+    stateParent: originalState(context),
   };
 }
 export function nativePending(result: CmdResult): NativeOperation | null {
@@ -62,10 +76,35 @@ export function nativePending(result: CmdResult): NativeOperation | null {
     harness: pending.harness_id,
     plan: null,
     phase: String(record(pending.custody).state ?? "unknown"),
+    stateParent: originalState(context),
   };
 }
 export function nativeArguments(
   operation: NativeOperation,
 ): Record<string, string> {
   return { operation: operation.operation, "plan-digest": operation.digest };
+}
+
+/** Display/copy only. The app never evaluates the resulting shell text. */
+export function confirmationCommand(
+  operation: NativeOperation,
+  os: string,
+): string | null {
+  if (!operation.stateParent) return null;
+  const args = [
+    "ai-stp",
+    "configuration",
+    "confirm",
+    "--operation",
+    operation.operation,
+    "--plan-digest",
+    operation.digest,
+    "--state-dir",
+    operation.stateParent,
+  ];
+  const quote = (value: string) =>
+    os === "windows"
+      ? `'${value.replaceAll("'", "''")}'`
+      : `'${value.replaceAll("'", `'\\''`)}'`;
+  return `${os === "windows" ? "& " : ""}${args.map(quote).join(" ")}`;
 }
