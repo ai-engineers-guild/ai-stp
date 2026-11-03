@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { useContexts, record, records } from "../contexts";
 import { useApp } from "../store";
 import {
@@ -15,12 +15,14 @@ import {
   nativeArguments,
   nativePending,
   nativeReview,
+  nativeStatus,
   type NativeOperation,
 } from "../nativeConfiguration";
 import { Details, ResultMeta, Spinner } from "../components/Result";
 import { EmptyState, PageHeader, StatusBadge } from "../components/Layout";
 
 export default function TargetsPage() {
+  const [params] = useSearchParams();
   const { selected, refresh: refreshContexts } = useContexts();
   const capabilities = useApp((state) => state.capabilities);
   const native = record(capabilities?.data?.native_configuration);
@@ -29,15 +31,15 @@ export default function TargetsPage() {
         (value): value is string => typeof value === "string",
       )
     : [];
-  const [harness, setHarness] = useState("codex"),
-    [setup, setSetup] = useState("");
-  const [version, setVersion] = useState(""),
-    [passport, setPassport] = useState("");
+  const [harness, setHarness] = useState(params.get("harness") || "codex"),
+    [setup, setSetup] = useState(params.get("setup") ?? "");
+  const [version, setVersion] = useState(params.get("version") ?? ""),
+    [passport, setPassport] = useState(params.get("digest") ?? "");
   const [globalRoot, setGlobalRoot] = useState(""),
     [userRoot, setUserRoot] = useState(""),
     [projectRoot, setProjectRoot] = useState("");
   const [binding, setBinding] = useState(""),
-    [replace, setReplace] = useState(false),
+    [changeKind, setChangeKind] = useState("install"),
     [trust, setTrust] = useState(false);
   const [result, setResult] = useState<CmdResult | null>(null),
     [effective, setEffective] = useState<CmdResult | null>(null);
@@ -99,7 +101,7 @@ export default function TargetsPage() {
         schema_version: 1,
         setup: { stable_id: setup, version, passport_digest: passport },
         harness_id: harness,
-        operation: replace ? "replace" : "install",
+        operation: changeKind,
         roots,
         trust: trust ? "exact_setup" : "pinned",
         ...(binding ? { corporate_binding: binding } : {}),
@@ -159,6 +161,11 @@ export default function TargetsPage() {
       if (response.ok)
         setOperation({
           ...held,
+          restartRequired: typeof response.data?.restart_required === "boolean"
+            ? response.data.restart_required
+            : typeof record(response.data?.receipt).restart_required === "boolean"
+              ? record(response.data?.receipt).restart_required as boolean
+              : held.restartRequired,
           phase:
             action === "apply"
               ? "configured"
@@ -170,6 +177,17 @@ export default function TargetsPage() {
     } finally {
       if (alive.current) setBusy(false);
     }
+  }
+  async function inspect(item: Record<string, unknown>) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const response = await cmdRunRead("configuration native status", {
+        operation: String(item.operation_id ?? ""),
+        "plan-digest": String(item.plan_digest ?? ""),
+      });
+      if (alive.current) { setResult(response); setOperation(nativeStatus(response)); }
+    } finally { if (alive.current) setBusy(false); }
   }
   async function remove(item: Record<string, unknown>) {
     if (!editable) return;
@@ -200,8 +218,8 @@ export default function TargetsPage() {
     <div className="page-stack">
       <PageHeader
         eyebrow="Workspace"
-        title="Configuration targets"
-        description="Review and apply exact setups. Harness executables stay under your control."
+        title="Setups"
+        description="Apply a reviewed setup, recover changes, and check the configuration you own."
       />
       {native.available !== true ? (
         <EmptyState title="Native configuration unavailable">
@@ -224,6 +242,7 @@ export default function TargetsPage() {
               {selected?.label ??
                 "Choose or create a saved context in Profiles."}
             </p>
+            <div className="mt-3 flex gap-4 text-sm text-primary"><Link to="/catalog">Browse setups</Link><Link to="/install?intent=author">Create from local files</Link></div>
             {!selected && (
               <Link to="/profiles" className="text-primary">
                 Open profiles
@@ -249,6 +268,7 @@ export default function TargetsPage() {
                     </p>
                   </div>
                   <StatusBadge state={String(item.ownership_state)} />
+                  <button className="btn-secondary" disabled={busy} onClick={() => void inspect(item)}>Inspect original operation</button>
                   <button
                     className="btn-secondary"
                     disabled={!editable}
@@ -276,6 +296,7 @@ export default function TargetsPage() {
           )}
           <section className="card p-5" aria-label="Review setup">
             <h2 className="mb-4 text-lg font-semibold">Review a setup</h2>
+            <p className="mb-4 text-sm text-muted-foreground">Choose an exact setup already available in your local library. Browse the catalog or create one from your files to obtain its version.</p>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="field-label">
                 Harness
@@ -364,15 +385,16 @@ export default function TargetsPage() {
               )}
             </div>
             <div className="mt-4 space-y-3 text-sm">
-              <label className="flex gap-2">
-                <input
-                  type="checkbox"
-                  checked={replace}
-                  disabled={!editable}
-                  onChange={(event) => setReplace(event.target.checked)}
-                />
-                Replace the effective setup in these same folders
+              <label className="field-label">
+                Change
+                <select className="input" value={changeKind} disabled={!editable}
+                  onChange={(event) => setChangeKind(event.target.value)}>
+                  <option value="install">Install in unowned folders</option>
+                  <option value="replace">Replace the effective setup in the same folders</option>
+                  <option value="adopt">Adopt an existing external installation</option>
+                </select>
               </label>
+              {changeKind === "adopt" && <p className="text-muted-foreground">The existing installation must be complete and match this exact setup. Its original receipts and files are preserved.</p>}
               <label className="flex gap-2">
                 <input
                   type="checkbox"
@@ -474,7 +496,7 @@ export default function TargetsPage() {
                   )}
                 </div>
               )}
-              {operation.phase === "configured" && (
+              {operation.phase === "configured" && operation.restartRequired !== false && (
                 <p className="mt-4 text-sm">
                   Confirm from a new harness session using{" "}
                   <code>
@@ -484,6 +506,10 @@ export default function TargetsPage() {
                   . Keep the original CLI state directory.
                 </p>
               )}
+              {operation.phase === "configured" && operation.restartRequired === false && (
+                <p className="mt-4 text-sm">Configuration is current. This operation did not require a restart.</p>
+              )}
+              {operation.phase === "confirmed" && <p className="mt-4 text-sm">A new harness session was confirmed. Runtime loading remains unobserved.</p>}
               {operation.phase !== "review" && (
                 <button
                   className="btn-secondary mt-4"

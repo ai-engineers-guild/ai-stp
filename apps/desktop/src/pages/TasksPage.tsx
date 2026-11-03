@@ -81,7 +81,7 @@ export default function TasksPage() {
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="section-title">Open tasks</h2>
-          <Link className="text-sm text-primary" to="/install">
+          <Link className="text-sm text-primary" to="/targets">
             Start a flow
           </Link>
         </div>
@@ -91,7 +91,7 @@ export default function TasksPage() {
           <EmptyState title="All clear">
             There are no unfinished tasks. Completed tasks remain available by
             their ID.
-            <Link className="btn-outline mt-5" to="/install">
+            <Link className="btn-outline mt-5" to="/targets">
               Create or install a setup
               <ArrowRight size={14} />
             </Link>
