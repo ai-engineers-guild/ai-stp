@@ -186,6 +186,7 @@ fn foreign_asfw_database_is_checked_read_only_and_active_records_refuse()
     let fixture = Fixture::new()?;
     let directory = fixture.target.root().join(".codex-setup-system/forward");
     std::fs::create_dir(&directory)?;
+    std::fs::write(directory.join(sqlite::LOCK), [])?;
     let path = directory.join(sqlite::DATABASE);
     let db = rusqlite::Connection::open(&path)?;
     db.execute_batch("PRAGMA application_id=1095976535; PRAGMA user_version=2; CREATE TABLE operations(active INTEGER,phase TEXT); CREATE TABLE changes(payload BLOB); INSERT INTO operations VALUES(NULL,\"completed\");")?;
