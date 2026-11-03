@@ -50,6 +50,18 @@ fn state_digest(value: &Snapshot) -> Result<String> {
     )
 }
 
+fn claim_id(operation: &str, address: &model::Address, ownership: &Ownership) -> Result<String> {
+    let fingerprint = digest::canonical(
+        "ai-stp:installation-operation:v1",
+        &json!({
+            "kind":"native.physical_claim","operation_id":operation,"address":address,"ownership":ownership,
+        }),
+    )?;
+    let id = u128::from_str_radix(fingerprint.get(7..39).ok_or_else(invalid)?, 16)
+        .map_err(|_| invalid())?;
+    Ok(format!("claim_{}", ulid::Ulid::from(id)))
+}
+
 pub struct Custody {
     target: Target,
     writer: Writer,
@@ -247,7 +259,11 @@ impl Custody {
                         return Err(invalid());
                     }
                     after.entries.push(Entry {
-                        id: format!("claim_{}", ulid::Ulid::generate()),
+                        id: claim_id(
+                            &operation_id,
+                            &desired.observed.address,
+                            &desired.observed.locator.ownership,
+                        )?,
                         address: desired.observed.address.clone(),
                         ownership: desired.observed.locator.ownership.clone(),
                         value: desired.value.clone(),

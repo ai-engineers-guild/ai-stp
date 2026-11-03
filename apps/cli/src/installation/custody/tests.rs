@@ -711,3 +711,25 @@ fn structured_key_replacement_and_last_withdrawal_use_the_real_native_writer()
     }
     Ok(())
 }
+
+#[test]
+fn repeating_an_unchanged_native_review_preserves_the_exact_digest()
+-> std::result::Result<(), Box<dyn Error>> {
+    let (_temporary, metadata, path) = fixture()?;
+    let target = target(&path)?;
+    let custody = Custody::open(&metadata)?;
+    let operation = operation();
+    let build = || {
+        custody.review(
+            operation.clone(),
+            &[Change {
+                subject: subject("original-context", &target)?,
+                desired: vec![desired(&target, b"exact native guidance")?],
+            }],
+        )
+    };
+    assert_eq!(build()?.value()?, build()?.value()?);
+    assert_eq!(build()?.digest()?, build()?.digest()?);
+    assert!(std::fs::read_dir(&path)?.next().is_none());
+    Ok(())
+}
