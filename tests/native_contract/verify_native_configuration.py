@@ -35,7 +35,7 @@ def qualify(binary: Path, root: Path) -> None:
 
     def run(*args: str, expected: int = 0) -> dict[str, Any]:
         result = subprocess.run(
-            [*prefix, *args, "--state-dir", "/fixture/state", "--json"],
+            [*prefix, *args, *([] if args[:2] == ("context", "apply") else ["--state-dir", "/fixture/state"]), "--json"],
             capture_output=True, timeout=60, check=False,
         )
         assert result.returncode == expected, (args, result.stdout.decode(), result.stderr.decode())
