@@ -21,6 +21,8 @@ import {
   cmdAuthComplete,
   cmdAuthLogout,
   cmdVersion,
+  cmdNativeConfigurationPlan,
+  cmdNativeConfigurationPrepare,
 } from "./transport";
 import { useDebug } from "./store";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -126,12 +128,28 @@ afterEach(() => {
 });
 it("omits the reviewed corporate heartbeat plan and reply from shared diagnostics", async () => {
   useDebug.setState({ debugMode: true });
-  vi.mocked(invoke).mockResolvedValue({ ok: true, data: { private: "reply-canary" }, warnings: [], continuations: [], error: null, error_code: null });
-  await cmdHeartbeatConsentApply({ private: "plan-canary" }, "sha256:reviewed", true);
-  expect(invoke).toHaveBeenCalledWith("profile_apply", {
-    path: "corporate heartbeat consent apply", plan: { private: "plan-canary" }, digest: "sha256:reviewed", confirmed: true,
+  vi.mocked(invoke).mockResolvedValue({
+    ok: true,
+    data: { private: "reply-canary" },
+    warnings: [],
+    continuations: [],
+    error: null,
+    error_code: null,
   });
-  expect(JSON.stringify(useDebug.getState().log)).not.toMatch(/plan-canary|reply-canary/);
+  await cmdHeartbeatConsentApply(
+    { private: "plan-canary" },
+    "sha256:reviewed",
+    true,
+  );
+  expect(invoke).toHaveBeenCalledWith("profile_apply", {
+    path: "corporate heartbeat consent apply",
+    plan: { private: "plan-canary" },
+    digest: "sha256:reviewed",
+    confirmed: true,
+  });
+  expect(JSON.stringify(useDebug.getState().log)).not.toMatch(
+    /plan-canary|reply-canary/,
+  );
 });
 it("returns a structured failure when IPC throws synchronously", async () => {
   vi.mocked(invoke).mockImplementation(() => {
@@ -255,16 +273,35 @@ it("omits enrollment recovery plans and account evidence from the shared trace",
 
 it("keeps reviewed checkout plans and original outcome replies out of shared diagnostics", async () => {
   useDebug.setState({ debugMode: true });
-  const reply = { ok: true, data: { original_actor: "canary-checkout-actor" }, error: null,
-    error_code: null, warnings: ["canary-private-warning"], continuations: [] };
+  const reply = {
+    ok: true,
+    data: { original_actor: "canary-checkout-actor" },
+    error: null,
+    error_code: null,
+    warnings: ["canary-private-warning"],
+    continuations: [],
+  };
   vi.mocked(invoke).mockResolvedValue(reply);
-  expect(await cmdCheckoutApply({ snapshot: "canary-private-project" }, "sha256:exact", true, "canary-context", "/canary/git")).toBe(reply);
+  expect(
+    await cmdCheckoutApply(
+      { snapshot: "canary-private-project" },
+      "sha256:exact",
+      true,
+      "canary-context",
+      "/canary/git",
+    ),
+  ).toBe(reply);
   expect(invoke).toHaveBeenLastCalledWith("checkout_apply", {
-    plan: { snapshot: "canary-private-project" }, digest: "sha256:exact", confirmed: true,
-    context: "canary-context", gitExecutable: "/canary/git",
+    plan: { snapshot: "canary-private-project" },
+    digest: "sha256:exact",
+    confirmed: true,
+    context: "canary-context",
+    gitExecutable: "/canary/git",
   });
   vi.mocked(invoke).mockRejectedValue(new Error("canary-checkout-transport"));
-  expect((await cmdCheckoutApply({}, "sha256:exact", true)).error_code).toBe("IPC_THROW");
+  expect((await cmdCheckoutApply({}, "sha256:exact", true)).error_code).toBe(
+    "IPC_THROW",
+  );
   const entries = useDebug.getState().log;
   expect(entries).toHaveLength(2);
   expect(JSON.stringify(entries)).not.toContain("canary");
@@ -273,13 +310,26 @@ it("keeps reviewed checkout plans and original outcome replies out of shared dia
 
 it("routes exact binding retirement through the bounded checkout bridge without shared trace content", async () => {
   useDebug.setState({ debugMode: true });
-  const reply = { ok: true, data: { original_actor: "canary-retired-actor" }, error: null,
-    error_code: null, warnings: [], continuations: [] };
+  const reply = {
+    ok: true,
+    data: { original_actor: "canary-retired-actor" },
+    error: null,
+    error_code: null,
+    warnings: [],
+    continuations: [],
+  };
   vi.mocked(invoke).mockResolvedValue(reply);
   const plan = { snapshot: "canary-retired-project" };
-  expect(await cmdBindingRetirementApply(plan, "sha256:exact", true)).toBe(reply);
+  expect(await cmdBindingRetirementApply(plan, "sha256:exact", true)).toBe(
+    reply,
+  );
   expect(invoke).toHaveBeenLastCalledWith("checkout_apply", {
-    plan, digest: "sha256:exact", confirmed: true, context: null, gitExecutable: null, retireBinding: true,
+    plan,
+    digest: "sha256:exact",
+    confirmed: true,
+    context: null,
+    gitExecutable: null,
+    retireBinding: true,
   });
   expect(JSON.stringify(useDebug.getState().log)).not.toContain("canary");
   expect(useDebug.getState().log[0].result).toBe(undefined);
@@ -287,37 +337,100 @@ it("routes exact binding retirement through the bounded checkout bridge without 
 
 it("routes an exact location plan without a replacement context and omits private shared traces", async () => {
   useDebug.setState({ debugMode: true });
-  const reply = { ok: true, data: { root: "canary-private-location" }, error: null,
-    error_code: null, warnings: [], continuations: [] };
+  const reply = {
+    ok: true,
+    data: { root: "canary-private-location" },
+    error: null,
+    error_code: null,
+    warnings: [],
+    continuations: [],
+  };
   vi.mocked(invoke).mockResolvedValue(reply);
   const plan = { reader: "canary-private-reader" };
-  expect(await cmdCheckoutLocationApply(plan, "sha256:exact", true, "/canary/git")).toBe(reply);
+  expect(
+    await cmdCheckoutLocationApply(plan, "sha256:exact", true, "/canary/git"),
+  ).toBe(reply);
   expect(invoke).toHaveBeenLastCalledWith("checkout_location_apply", {
-    plan, digest: "sha256:exact", confirmed: true, gitExecutable: "/canary/git",
+    plan,
+    digest: "sha256:exact",
+    confirmed: true,
+    gitExecutable: "/canary/git",
   });
   vi.mocked(invoke).mockRejectedValue(new Error("canary-location-transport"));
-  expect((await cmdCheckoutLocationApply(plan, "sha256:exact", true)).error_code).toBe("IPC_THROW");
+  expect(
+    (await cmdCheckoutLocationApply(plan, "sha256:exact", true)).error_code,
+  ).toBe("IPC_THROW");
   const entries = useDebug.getState().log;
   expect(entries).toHaveLength(2);
   expect(JSON.stringify(entries)).not.toContain("canary");
   expect(entries.every((entry) => entry.result === undefined)).toBe(true);
 });
 
-
 it("keeps the missing-checkout route fixed and omits private plans and results from traces", async () => {
   useDebug.setState({ debugMode: true });
-  const reply = { ok: true, data: { private: "canary-missing-receipt" }, error: null,
-    error_code: null, warnings: [], continuations: [] };
+  const reply = {
+    ok: true,
+    data: { private: "canary-missing-receipt" },
+    error: null,
+    error_code: null,
+    warnings: [],
+    continuations: [],
+  };
   vi.mocked(invoke).mockResolvedValue(reply);
-  const plan = { kind: "corporate.project_binding.retire_missing", parent: "canary-private-parent" };
-  expect(await cmdMissingBindingRetirementApply(plan, "sha256:exact", true)).toBe(reply);
+  const plan = {
+    kind: "corporate.project_binding.retire_missing",
+    parent: "canary-private-parent",
+  };
+  expect(
+    await cmdMissingBindingRetirementApply(plan, "sha256:exact", true),
+  ).toBe(reply);
   expect(invoke).toHaveBeenLastCalledWith("checkout_missing_binding_apply", {
-    plan, digest: "sha256:exact", confirmed: true,
+    plan,
+    digest: "sha256:exact",
+    confirmed: true,
   });
   vi.mocked(invoke).mockRejectedValue(new Error("canary-missing-transport"));
-  expect((await cmdMissingBindingRetirementApply(plan, "sha256:exact", true)).error_code).toBe("IPC_THROW");
+  expect(
+    (await cmdMissingBindingRetirementApply(plan, "sha256:exact", true))
+      .error_code,
+  ).toBe("IPC_THROW");
   const entries = useDebug.getState().log;
   expect(entries).toHaveLength(2);
   expect(JSON.stringify(entries)).not.toContain("canary");
   expect(entries.every((entry) => entry.result === undefined)).toBe(true);
+});
+
+it("keeps native setup reviews and original contexts out of shared diagnostics", async () => {
+  useDebug.setState({ debugMode: true });
+  const reply = {
+    ok: true,
+    data: {
+      plan: {
+        native_plan: { context: { label: "canary-private-context" } },
+        publications: [{ path: "canary-private-path" }],
+      },
+    },
+    warnings: ["canary-private-warning"],
+    continuations: [],
+    error: null,
+    error_code: null,
+  };
+  vi.mocked(invoke).mockResolvedValue(reply);
+  await cmdNativeConfigurationPlan("canary-context", { setup: "canary-setup" });
+  await cmdNativeConfigurationPrepare(
+    { value: "canary-plan" },
+    "canary-digest",
+    true,
+  );
+  await cmdRunRead("configuration native pending");
+  await cliApplyConfirmed(
+    "configuration native apply",
+    { operation: "canary-operation", "plan-digest": "canary-digest" },
+    [],
+    true,
+  );
+  expect(JSON.stringify(useDebug.getState().log)).not.toContain("canary");
+  expect(
+    useDebug.getState().log.every((entry) => entry.result === undefined),
+  ).toBe(true);
 });
