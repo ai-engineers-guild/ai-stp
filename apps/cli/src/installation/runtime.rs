@@ -264,7 +264,8 @@ pub fn custody() -> Result<Value> {
             if !current.contains(&scope_value) {
                 continue;
             }
-            let path = files::deserialize_path(held["directory"]["path"].clone())?;
+            let path = files::deserialize_path(held["directory"]["path"].clone())
+                .map_err(|_| invalid())?;
             let state = if crate::files::absence::Parent::observe(&path).is_ok() {
                 "missing"
             } else {
