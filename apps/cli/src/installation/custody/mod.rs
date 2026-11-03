@@ -198,6 +198,27 @@ impl Custody {
         Ok(rows)
     }
 
+    pub(crate) fn current_scopes(
+        &self,
+        operation: &str,
+    ) -> Result<BTreeSet<crate::projection::Scope>> {
+        if !crate::passport::stable_id(operation, "operation") {
+            return Err(invalid());
+        }
+        Ok(self
+            .snapshot()?
+            .entries
+            .iter()
+            .flat_map(|entry| {
+                entry
+                    .references
+                    .values()
+                    .filter(|reference| reference.operation_id.as_deref() == Some(operation))
+                    .map(|reference| reference.subject.scope)
+            })
+            .collect())
+    }
+
     pub fn current_operations(&self) -> Result<BTreeSet<String>> {
         Ok(self
             .snapshot()?
@@ -446,11 +467,56 @@ impl Custody {
         after.revision = operation_id.clone();
         after.validate(self.identity)?;
         let review = Review {
+            missing_retirement: None,
             format: "ai-stp-native-custody-review/1".into(),
             operation_id,
             before_digest: state_digest(&before)?,
             after,
             effects,
+            native_plan: None,
+            publications: None,
+            activation: None,
+            legacy_adoptions: None,
+        };
+        review.digest()?;
+        Ok(review)
+    }
+    pub(crate) fn review_missing(
+        &self,
+        operation_id: String,
+        source: &str,
+        scopes: &BTreeSet<crate::projection::Scope>,
+        data: Value,
+    ) -> Result<Review> {
+        if scopes.is_empty() || !crate::passport::stable_id(&operation_id, "operation") {
+            return Err(invalid());
+        }
+        crate::installation::planning::retirement::validate(&data)?;
+        let before = self.snapshot()?;
+        let mut after = before.clone();
+        let mut removed = 0;
+        for entry in &mut after.entries {
+            entry.references.retain(|_, reference| {
+                let retire = reference.operation_id.as_deref() == Some(source)
+                    && scopes.contains(&reference.subject.scope);
+                if retire {
+                    removed += 1;
+                }
+                !retire
+            });
+        }
+        if removed == 0 {
+            return Err(invalid());
+        }
+        after.entries.retain(|entry| !entry.references.is_empty());
+        after.revision = operation_id.clone();
+        let review = Review {
+            missing_retirement: Some(data),
+            format: "ai-stp-native-custody-review/1".into(),
+            operation_id,
+            before_digest: state_digest(&before)?,
+            after,
+            effects: vec![],
             native_plan: None,
             publications: None,
             activation: None,
@@ -497,6 +563,9 @@ impl Custody {
     }
     pub fn start(&self, review: &Review) -> Result<()> {
         self.private_root()?;
+        if state_digest(&self.snapshot()?)? != review.before_digest {
+            return Err(invalid());
+        }
         for effect in &review.effects {
             let current = effect.locator.observe()?;
             if current.before != effect.observation || current.value != effect.before {
@@ -574,6 +643,9 @@ impl Custody {
         }
         match native(self.writer.progress(&admission))? {
             Progress::Applying(_) => {
+                if state_digest(&self.snapshot()?)? != review.before_digest {
+                    return Err(invalid());
+                }
                 let mut after = review.after.clone();
                 let mut touched = Vec::new();
                 for effect in &review.effects {
@@ -620,7 +692,22 @@ impl Custody {
             Progress::Finishing => (),
             _ => return Err(invalid()),
         }
-        native(self.writer.apply(&admission))?;
+        if review.retirement().is_none() || !native(self.writer.changes_applied(&admission))? {
+            native(self.writer.apply_checked(&admission, || {
+                if let Some(data) = review.retirement() {
+                    crate::installation::planning::retirement::revalidate(data).map_err(
+                        |error| {
+                            crate::installation::Error::new(
+                                crate::installation::ReasonCode::RecoveryRequired,
+                                "missing-target retirement observations changed",
+                            )
+                            .with_source(error)
+                        },
+                    )?;
+                }
+                Ok(())
+            }))?;
+        }
         native(self.writer.complete(&admission))
     }
 }

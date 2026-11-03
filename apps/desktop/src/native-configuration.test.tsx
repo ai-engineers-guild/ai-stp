@@ -236,3 +236,16 @@ it("takes an exact catalog selection into native adoption review", async () => {
     setup:{stable_id:"setup_selected",version:"2.0",passport_digest:DIGEST},operation:"adopt",
   })));
 });
+
+it("retains the original source context and controller state for missing-folder retirement", () => {
+  const source="operation_01ARZ3NDEKTSV4RRFFQ69G5FAW";
+  const metadata = {...plan,native_plan:null,missing_retirement:{
+    format:"ai-stp-native-missing-target-retirement/1",source_operation:source,
+    original_plan:{...plan.native_plan,operation_id:source},controller:{path:{display:"normalized controller",utf8_base64:btoa("/original controller")}},
+  }};
+  const operation=nativeReview(ok({plan:metadata,plan_digest:DIGEST}));
+  expect(operation?.metadataOnly).toBe(true);
+  expect(operation?.context).toBe(A);
+  expect(operation?.stateParent).toBe("/original controller");
+  expect(operation?.operation).toBe(OP);
+});

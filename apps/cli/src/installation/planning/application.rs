@@ -297,9 +297,10 @@ pub fn effective(
             continue;
         }
         let (state, receipt) = plan.native_state(root, &review.digest()?)?;
+        let current_scopes = custody.current_scopes(&operation)?;
         setups.push(json!({"operation_id":operation,"plan_digest":review.digest()?,"setup":plan.setup,
             "harness_id":plan.target.harness_id,"context_id":plan.context.context_id,
-            "roots":plan.roots.iter().map(|(scope,root)|Ok((scope.as_str(),value(&root.directory)?))).collect::<Result<BTreeMap<_,_>>>()?,
+            "roots":plan.roots.iter().filter(|(scope,_)|current_scopes.contains(scope)).map(|(scope,root)|Ok((scope.as_str(),value(&root.directory)?))).collect::<Result<BTreeMap<_,_>>>()?,
             "state":state,"receipt":receipt,
             "ownership_state":if custody.verify_operation(&plan.operation_id).is_ok(){"matching"}else{"drifted_or_unavailable"},
             "load_state":"not_observed"}));
@@ -311,6 +312,9 @@ pub fn pending(root: &Path, custody: &Custody) -> Result<Value> {
     let Some(review) = custody.pending()? else {
         return Ok(json!({"pending":null,"other_state_pending":false}));
     };
+    if review.retirement().is_some() {
+        return super::retirement::pending(root, custody, &review);
+    }
     let plan = review.original_plan()?.ok_or_else(invalid)?;
     if plan.state.path != root {
         return Ok(json!({"pending":null,"other_state_pending":true}));

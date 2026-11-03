@@ -10,6 +10,7 @@ export interface NativeOperation {
   phase: string;
   stateParent: string | null;
   restartRequired?: boolean;
+  metadataOnly?: boolean;
 }
 function originalState(context: Record<string, unknown>): string | null {
   if (typeof context.root === "string") return context.root;
@@ -27,8 +28,9 @@ const id = /^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
 const hash = /^sha256:[0-9a-f]{64}$/;
 export function nativeReview(result: CmdResult): NativeOperation | null {
   if (!result.ok) return null;
-  const plan = record(result.data?.plan),
-    native = record(plan.native_plan);
+  const plan = record(result.data?.plan), retirement = record(plan.missing_retirement);
+  const metadataOnly = retirement.format === "ai-stp-native-missing-target-retirement/1";
+  const native = record(metadataOnly ? retirement.original_plan : plan.native_plan);
   const context = record(native.context),
     target = record(native.target);
   const operation = String(plan.operation_id ?? ""),
@@ -36,7 +38,7 @@ export function nativeReview(result: CmdResult): NativeOperation | null {
   if (
     plan.format !== "ai-stp-native-custody-review/1" ||
     native.format !== "ai-stp-native-installation/1" ||
-    native.operation_id !== operation ||
+    native.operation_id !== (metadataOnly ? retirement.source_operation : operation) ||
     !id.test(operation) ||
     !hash.test(digest) ||
     typeof context.context_id !== "string" ||
@@ -52,7 +54,8 @@ export function nativeReview(result: CmdResult): NativeOperation | null {
     harness: target.harness_id,
     plan,
     phase: "review",
-    stateParent: originalState(context),
+    metadataOnly,
+    stateParent: metadataOnly ? originalState({root:record(retirement.controller).path}) : originalState(context),
   };
 }
 export function nativePending(result: CmdResult): NativeOperation | null {
@@ -77,7 +80,8 @@ export function nativePending(result: CmdResult): NativeOperation | null {
     harness: pending.harness_id,
     plan: null,
     phase: String(record(pending.custody).state ?? "unknown"),
-    stateParent: originalState(context),
+    metadataOnly: pending.kind === "retire_missing",
+    stateParent: pending.kind === "retire_missing" ? originalState({root:record(pending.controller).path}) : originalState(context),
   };
 }
 /** A completed original operation remains inspectable after an app restart. */

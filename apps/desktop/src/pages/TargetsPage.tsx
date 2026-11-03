@@ -44,6 +44,7 @@ export default function TargetsPage() {
     [trust, setTrust] = useState(false);
   const [result, setResult] = useState<CmdResult | null>(null),
     [effective, setEffective] = useState<CmdResult | null>(null);
+  const [custodyView,setCustodyView] = useState<CmdResult | null>(null);
   const [operation, setOperation] = useState<NativeOperation | null>(null),
     [confirmed, setConfirmed] = useState(false),
     [busy, setBusy] = useState(false);
@@ -169,11 +170,12 @@ export default function TargetsPage() {
               : held.restartRequired,
           phase:
             action === "apply"
-              ? "configured"
+              ? String(response.data?.state ?? "configured")
               : action === "cancel"
                 ? "cancelled"
                 : String(response.data?.state ?? held.phase),
         });
+      if (response.ok && action === "apply") setCustodyView(null);
       await refresh();
     } finally {
       if (alive.current) setBusy(false);
@@ -190,7 +192,7 @@ export default function TargetsPage() {
       if (alive.current) { setResult(response); setOperation(nativeStatus(response)); }
     } finally { if (alive.current) setBusy(false); }
   }
-  async function remove(item: Record<string, unknown>) {
+  async function reviewExisting(item: Record<string, unknown>, action: "remove" | "retire") {
     if (!editable) return;
     const values = {
       operation: String(item.operation_id ?? ""),
@@ -200,7 +202,7 @@ export default function TargetsPage() {
     setConfirmed(false);
     try {
       const response = await cliPlan(
-        "configuration native remove plan",
+        "configuration native "+action+" plan",
         values,
       );
       if (alive.current) {
@@ -210,6 +212,14 @@ export default function TargetsPage() {
     } finally {
       if (alive.current) setBusy(false);
     }
+  }
+  async function inspectCustody() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const response=await cmdRunRead("configuration native custody");
+      if (alive.current) setCustodyView(response);
+    } finally { if (alive.current) setBusy(false); }
   }
   const contextChanged = operation && selected?.id !== operation.context;
   const confirmCommand = operation
@@ -278,7 +288,7 @@ export default function TargetsPage() {
                   <button
                     className="btn-secondary"
                     disabled={!editable}
-                    onClick={() => void remove(item)}
+                    onClick={() => void reviewExisting(item,"remove")}
                   >
                     Review removal
                   </button>
@@ -288,6 +298,19 @@ export default function TargetsPage() {
                 </p>
               </div>
             ))}
+          </section>
+          <section className="card p-5" aria-label="Missing folders">
+            <h2 className="font-semibold">Missing configuration folders</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Inspect local ownership across contexts when an original folder or state directory was removed. Retirement releases only references to folders proved absent.</p>
+            <button className="btn-secondary mt-3" disabled={busy} onClick={() => void inspectCustody()}>Find missing folders</button>
+            {records(custodyView?.data?.operations).filter(item => records(item.roots).some(root => root.state === "missing")).map(item =>
+              <div className="mt-3 rounded-lg border border-border p-4" key={String(item.operation_id)}>
+                <p>{String(record(item.original_context).label)} · {String(item.harness_id)}</p>
+                <button className="btn-secondary mt-3" disabled={!editable} onClick={() => void reviewExisting(item,"retire")}>Review missing-folder retirement</button>
+              </div>)}
+            {custodyView?.ok && records(custodyView.data?.operations).every(item => records(item.roots).every(root => root.state !== "missing")) && <p className="mt-3 text-sm">No owned folder was positively observed as missing.</p>}
+            {record(custodyView?.data?.pending).operation_id != null && <Details label="Retained original recovery coordinates" value={custodyView?.data?.pending}/>}
+            {custodyView && !custodyView.ok && <ResultMeta r={custodyView}/>}
           </section>
           {otherPending && (
             <section className="card p-5">
@@ -449,6 +472,7 @@ export default function TargetsPage() {
                 <br />
                 {operation.digest}
               </p>
+              {operation.metadataOnly && <p className="mt-3 text-sm">This retires references to positively missing folders. It changes no configuration files and grants no installation or account access.</p>}
               {operation.plan && <div className="mt-4">
                 <h3 className="font-semibold">Changes to review</h3>
                 {files.length === 0 ? <p className="mt-2 text-sm">No configuration file changes are required.</p> :

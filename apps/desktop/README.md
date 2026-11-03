@@ -10,7 +10,7 @@ receives public JSON envelopes. Harness programs remain user/vendor managed.
 | --- | --- |
 | Overview / Settings | Read health, identity and capabilities; explicitly initialize the chosen credential store. Existing Python state needs the CLI's reviewed in-place migration. |
 | Connections | Create/recover independent enrollments and offline/personal/corporate contexts through exact plans. Review registry upgrades before application. |
-| Catalog / Setups | Choose an exact local setup, review file changes, prepare/apply/recover its original native operation, and inspect ownership or removal. Create components from local files. |
+| Catalog / Setups | Choose an exact local setup, review file changes, prepare/apply/recover its original native operation, and inspect ownership, removal or missing-folder recovery. Create components from local files. |
 | Activity | Inspect original tasks and corporate checkout operations, retained plans, outcomes and recovery after restart. |
 | Account | Discover server-supported sign-in, authorize in the browser and inspect/refresh the original enrolled session. |
 | Company | Read projects, mappings, catalog and assignment previews; review separate checkout linking/adoption/retirement/location operations. |

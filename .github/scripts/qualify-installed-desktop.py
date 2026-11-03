@@ -945,7 +945,8 @@ def main() -> None:
             "native_account_id": local["account_id"],
             "native_device_id": local["device_id"],
         }
-        driver.navigate("install", keyboard=True)
+        driver.navigate("targets", keyboard=True)
+        driver.click(driver.find('main a[href="#/install?intent=author"]'))
         driver.click(driver.button("Create from files"))
         driver.click(driver.find('main fieldset input[type="checkbox"]'))
         driver.click(driver.button("Start authoring"))

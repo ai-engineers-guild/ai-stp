@@ -2,7 +2,7 @@
 
 use super::{
     custody::Custody,
-    planning::{self, Operation, Plan, Reviewed},
+    planning::{self, Operation, Reviewed},
 };
 use crate::{
     account::contexts,
@@ -136,13 +136,13 @@ pub fn plan(root: &Path, context: Option<&str>, input: &Path, at: &str) -> Resul
         json!({"plan":reviewed.value()?,"plan_digest":reviewed.digest()?,"configuration_changed":false,"execution_authorized":false}),
     )
 }
-fn read_review(path: &Path, expected: &str) -> Result<Plan> {
-    let review = super::custody::Review::parse(&files::read(path, 8 * 1024 * 1024)?, expected)?;
-    review.original_plan()?.ok_or_else(invalid)
-}
 pub fn prepare(root: &Path, input: &Path, expected: &str, at: &str) -> Result<Value> {
-    let plan = read_review(input, expected)?;
+    let review = planning::retirement::read(input, expected)?;
     let mut custody = Custody::open_user()?;
+    if review.retirement().is_some() {
+        return planning::retirement::prepare(root, &mut custody, &review, expected, at);
+    }
+    let plan = review.original_plan()?.ok_or_else(invalid)?;
     let operation = plan.value()?["operation_id"]
         .as_str()
         .ok_or_else(invalid)?
@@ -178,13 +178,25 @@ pub fn remove_plan(root: &Path, operation: &str, expected: &str, at: &str) -> Re
     )
 }
 pub fn apply(root: &Path, operation: &str, digest: &str, at: &str) -> Result<Value> {
-    planning::apply_prepared(root, &mut Custody::open_user()?, operation, digest, at)
+    let mut custody = Custody::open_user()?;
+    if let Some(review) = retained_retirement(&custody, operation, digest)? {
+        return planning::retirement::apply(root, &mut custody, &review);
+    }
+    planning::apply_prepared(root, &mut custody, operation, digest, at)
 }
 pub fn status(root: &Path, operation: &str, digest: &str) -> Result<Value> {
-    planning::configuration_status(root, &existing()?, operation, digest)
+    let custody = existing()?;
+    if let Some(review) = retained_retirement(&custody, operation, digest)? {
+        return planning::retirement::status(root, &custody, &review);
+    }
+    planning::configuration_status(root, &custody, operation, digest)
 }
 pub fn cancel(root: &Path, operation: &str, digest: &str, at: &str) -> Result<Value> {
-    planning::cancel_preparation(root, &mut Custody::open_user()?, operation, digest, at)
+    let mut custody = Custody::open_user()?;
+    if let Some(review) = retained_retirement(&custody, operation, digest)? {
+        return planning::retirement::cancel(root, &mut custody, &review);
+    }
+    planning::cancel_preparation(root, &mut custody, operation, digest, at)
 }
 pub fn confirm(root: &Path, operation: &str, digest: &str, at: &str) -> Result<Value> {
     planning::confirm_session(root, &existing()?, operation, digest, at)
@@ -213,4 +225,78 @@ fn existing() -> Result<Custody> {
             "this OS user has no native configuration operations",
         )
     })
+}
+
+fn retained_retirement(
+    custody: &Custody,
+    operation: &str,
+    expected: &str,
+) -> Result<Option<super::custody::Review>> {
+    let Some(review) = custody.retained(operation)? else {
+        return Ok(None);
+    };
+    if review.digest()? != expected {
+        return Err(invalid());
+    }
+    Ok(review.retirement().is_some().then_some(review))
+}
+pub fn retire_plan(root: &Path, operation: &str, expected: &str, at: &str) -> Result<Value> {
+    planning::retirement::plan(root, &existing()?, operation, expected, at)
+}
+
+/// Explicit local OS-user metadata read, including original state directories
+/// that are gone. No account session or source authorization is inferred.
+pub fn custody() -> Result<Value> {
+    let Some(custody) = Custody::existing_user()? else {
+        return Ok(json!({"operations":[],"pending":null,"authorization_granted":false}));
+    };
+    let mut operations = Vec::new();
+    for operation in custody.current_operations()? {
+        let review = custody.retained(&operation)?.ok_or_else(invalid)?;
+        let Some(plan) = review.original_plan()? else {
+            continue;
+        };
+        let document = plan.value()?;
+        let current = custody.current_scopes(&operation)?;
+        let mut roots = Vec::new();
+        for (scope, held) in document["roots"].as_object().ok_or_else(invalid)? {
+            let scope_value: Scope = serde_json::from_value(json!(scope)).map_err(|_| invalid())?;
+            if !current.contains(&scope_value) {
+                continue;
+            }
+            let path = files::deserialize_path(held["directory"]["path"].clone())
+                .map_err(|_| invalid())?;
+            let state = if crate::files::absence::Parent::observe(&path).is_ok() {
+                "missing"
+            } else {
+                "present_or_unavailable"
+            };
+            roots.push(json!({"scope":scope,"directory":held["directory"],"state":state}));
+        }
+        operations.push(
+            json!({"operation_id":operation,"plan_digest":review.digest()?,
+            "original_context":document["context"],"setup":document["setup"],
+            "harness_id":document["target"]["harness_id"],"roots":roots}),
+        );
+    }
+    let pending = if let Some(review) = custody.pending()? {
+        let document = review.value()?;
+        let metadata = document["missing_retirement"].is_object();
+        let original = if metadata {
+            &document["missing_retirement"]["original_plan"]
+        } else {
+            &document["native_plan"]
+        };
+        let controller = if metadata {
+            &document["missing_retirement"]["controller"]
+        } else {
+            &original["state"]
+        };
+        json!({"operation_id":review.operation_id(),"plan_digest":review.digest()?,
+            "metadata_only":metadata,"controller_state":controller["path"],"original_context":original["context"],
+            "state":custody.status(&review)?["state"]})
+    } else {
+        Value::Null
+    };
+    Ok(json!({"operations":operations,"pending":pending,"authorization_granted":false}))
 }

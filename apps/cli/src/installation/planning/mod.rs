@@ -9,6 +9,7 @@ mod inventory;
 mod model;
 mod removal;
 mod retained;
+pub(crate) mod retirement;
 #[cfg(test)]
 mod tests;
 
@@ -395,6 +396,7 @@ fn capture(
         operation_id: format!("operation_{}", ulid::Ulid::generate()),
         operation: request.operation,
         source_operation: None,
+        subject_anchor: None,
         created_at: at.into(),
         expires_at: crate::authoring::expiry(at)?,
         state: binding(&state)?,
