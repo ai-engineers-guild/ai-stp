@@ -131,31 +131,31 @@ jobs:
           needed; a configured path or PATH `ai-stp` still works in
           development.
 
-          Includes offline personal contexts, independent account connections,
-          explicit personal/corporate view switching, credential recovery,
-          corporate checkout request/confirmation/reconciliation, local binding
-          adoption and separately reviewed terminal binding retirement. Original
-          receipts and tasks retain their original authority across view changes.
-          Reviewed location anchors and explicit same-object checkout relocation
-          preserve original adoption receipts and offline location history. The
-          app never moves checkout files. If the retained checkout name is absent,
-          a separate reviewed retirement verifies its physical parent, current
-          rights and the exact terminal server link before releasing only that
-          local reservation. Moved checkout files and original receipts remain
-          preserved. After native identity recovery, review
-          a fresh context through the existing sign-in before a new checkout change.
-          Linux installed personal and corporate restart journeys run against
-          these exact release bundles before publication; macOS and Windows run
-          their native checks, resource probes and package builds.
-          Harness executables remain user/vendor managed. Isolated setup
-          installation is currently Linux-only; other platforms expose that
-          limitation before starting. Existing Python state requires the
-          explicit migration plan in Settings.
+          First-party native setup configuration now covers Linux, macOS and
+          Windows, all seven harness profiles and declared global/user/project
+          scopes. Review exact file changes, prepare, stop the original sessions,
+          apply/recover, restart and confirm through the original operation.
+          Context selection never retargets an admitted operation. Confirmation
+          observes a new process; vendor loading and runtime health remain unknown.
+          Harness executables remain user/vendor managed.
 
-          Explicit missing-checkout retirement writes registry schema62. Location
-          operations retain this version. Older clients that cannot read schema62
-          refuse it; do not downgrade the registry
-          or replace retained operations and receipts to roll back the app.
+          Native custody coordinates shared files and owned contributions across
+          contexts/state directories. Exact replacement, removal, supported legacy
+          adoption and positively missing-folder retirement preserve unowned data
+          and original receipts. Catalog downloads are separately reviewed before
+          native configuration. Corporate effects recheck original account,
+          company/project/assignment and private source authority. Inventory has
+          separate policy/consent and explicit content-free foreground delivery.
+
+          Preparation records registry schema63 and fences older writers.
+          Do not downgrade registry data or rewrite retained operations to roll
+          back an application. Historical external-provider operations retain
+          their exact Linux compatibility route; existing Python state still
+          requires explicit reviewed in-place migration.
+
+          Linux installed personal/corporate restart journeys qualify these
+          exact bundles before publication. Native CLI/vault checks, resource
+          probes and package builds also run on macOS and Windows.
 
           Bundles are unsigned: macOS will ask to allow the app in
           Privacy & Security, Windows SmartScreen will warn, and Linux
