@@ -205,7 +205,13 @@ impl Handoff {
         }
         for root in &self.roots {
             root.physical.validate()?;
-            if !root.path.is_absolute() {
+            if !root.path.is_absolute()
+                || !matches!(
+                    (self.native_os.as_str(), &root.physical),
+                    ("linux" | "macos", DirectoryIdentity::Unix { .. })
+                        | ("windows", DirectoryIdentity::Windows { .. })
+                )
+            {
                 return Err(unavailable());
             }
         }

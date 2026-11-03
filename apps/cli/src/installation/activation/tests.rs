@@ -204,12 +204,28 @@ fn retained_handoff_preserves_full_native_stamps_and_refuses_open_frames()
     let temporary = tempfile::tempdir()?;
     let root = temporary.path().canonicalize()?;
     let target = Target::resolve(&root, ".ai-stp-native")?;
-    let mut handoff = Handoff::prepare("codex", &[&target])?;
+    let mut handoff = Handoff {
+        format: "ai-stp-native-handoff/1".into(),
+        harness_id: "codex".into(),
+        native_os: crate::platform::current()
+            .and_then(|p| p.split_once('/'))
+            .ok_or("native platform")?
+            .0
+            .into(),
+        roots: vec![Root::capture(&target)?],
+        sessions: vec![],
+        published: None,
+        confirmed: None,
+    };
     let original = handoff.value()?;
     let mut changed = original.clone();
     changed["permission_granted"] = true.into();
     assert!(Handoff::parse(changed).is_err());
     handoff.native_os = "windows".into();
+    handoff.roots[0].physical = DirectoryIdentity::Windows {
+        volume: u64::MAX.to_string(),
+        file_id: u128::MAX.to_string(),
+    };
     handoff.sessions = vec![Session {
         pid: u32::MAX,
         harness_id: "codex".into(),
