@@ -10,6 +10,11 @@ are `cli-v<version>` and must match Cargo metadata. The release owns archives,
 checksums, manifests, SBOM and attestations; its exact source PR and workflow runs
 own qualification evidence. Do not duplicate release receipts in documentation.
 
+Both client release owners recheck the exact currently qualified main through
+`require-client-release-source.sh`. A successful source build, historical run
+or separately named preflight artifact cannot replace the owning main
+qualification or the installed release-package evidence.
+
 `just cli-check` exercises native formatting, Clippy, tests, optimized build and
 real JSON/SQLite regression. CI runs on Linux, macOS and Windows. Archive proof
 uses the extracted executable outside the checkout with an isolated home and PATH.
