@@ -4,6 +4,7 @@
 
 use std::collections::BTreeMap;
 
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::{
@@ -11,7 +12,6 @@ use crate::{
     error::{Failure, Result},
     passport,
     projection::Scope,
-    provider::plan::Binding,
     store::Store,
     wire,
 };
@@ -21,6 +21,16 @@ fn invalid() -> Failure {
 }
 
 use crate::bundle::coverage::File;
+
+/// Exact data identity, shared with historical provider plan serialization.
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Binding {
+    pub bundle_format: String,
+    pub bundle_digest: String,
+    pub artifact_digest: String,
+    pub bundle_size: usize,
+}
 
 pub struct Package {
     manifest: Value,
