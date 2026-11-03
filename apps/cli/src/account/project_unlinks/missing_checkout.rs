@@ -197,6 +197,14 @@ pub struct Plan {
     parent: Parent,
 }
 
+fn missing_schema_after(before: u32) -> u32 {
+    if crate::store::has_missing_checkout_retirement(before) {
+        before
+    } else {
+        MISSING_CHECKOUT_RETIREMENT_SCHEMA
+    }
+}
+
 impl Plan {
     pub fn state_parent(&self) -> &Path {
         &self.state_parent
@@ -212,7 +220,7 @@ impl Plan {
             || self.operation_id == self.snapshot.binding.request.operation_id
             || self.state_parent != self.snapshot.reader.context.root
             || !has_checkout_links(self.registry_schema_before)
-            || self.registry_schema_after != MISSING_CHECKOUT_RETIREMENT_SCHEMA
+            || self.registry_schema_after != missing_schema_after(self.registry_schema_before)
             || self.expires_at != authoring::expiry(&self.created_at)?
         {
             return Err(invalid());
@@ -245,7 +253,7 @@ pub fn plan(root: &Path, context: Option<&str>, binding: &str, at: &str) -> Resu
                 created_at: at.into(),
                 expires_at: authoring::expiry(at)?,
                 registry_schema_before: before,
-                registry_schema_after: MISSING_CHECKOUT_RETIREMENT_SCHEMA,
+                registry_schema_after: missing_schema_after(before),
                 snapshot,
                 parent: observed.parent.clone(),
             };

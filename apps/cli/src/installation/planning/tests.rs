@@ -275,6 +275,47 @@ fn replaced_root_and_duplicate_physical_roles_refuse_without_target_state()
 #[test]
 fn original_context_survives_selection_and_restart_while_expired_admission_refuses()
 -> std::result::Result<(), Box<dyn Error>> {
+    retained_admission(None)
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore = "requires the independently verified published CLI 0.2.5 binary"]
+fn published_cli025_refuses_an_old_prepared_writer_after_native_admission()
+-> std::result::Result<(), Box<dyn Error>> {
+    let binary =
+        std::env::var_os("AI_STP_TEST_PREVIOUS_CLI_BINARY").ok_or("previous CLI binary")?;
+    let binary = PathBuf::from(binary);
+    assert_eq!(
+        digest::sha256(&std::fs::read(&binary)?),
+        "sha256:34cdfc0e9a18ba0f9edb0c028b6223b648a53f4e488d310f6fc26e859dbe9508"
+    );
+    retained_admission(Some(&binary))
+}
+
+#[cfg(unix)]
+fn retained_admission(previous: Option<&Path>) -> std::result::Result<(), Box<dyn Error>> {
+    fn run(
+        binary: &Path,
+        home: &Path,
+        args: &[std::ffi::OsString],
+        expected: i32,
+    ) -> std::result::Result<Value, Box<dyn Error>> {
+        let output = crate::process::run(crate::process::Request {
+            executable: binary,
+            arguments: args,
+            directory: home,
+            environment: &[
+                ("HOME".into(), home.as_os_str().into()),
+                ("PATH".into(), "".into()),
+            ],
+            timeout: std::time::Duration::from_secs(10),
+            output_limit: 1024 * 1024,
+        })?;
+        assert_eq!(output.status.code(), Some(expected));
+        assert!(output.stderr.is_empty());
+        Ok(serde_json::from_slice(&output.stdout)?)
+    }
     let temporary = tempfile::tempdir()?;
     let root = temporary.path().canonicalize()?;
     let state = root.join("state");
@@ -315,6 +356,93 @@ fn original_context_survives_selection_and_restart_while_expired_admission_refus
     assert_eq!(parsed.context.context_id, id);
     assert_eq!(contexts::list(&state)?["selected"]["context_id"], second_id);
     assert!(parsed.revalidate(&state, &parsed.expires_at).is_err());
+    let old_plan = if let Some(binary) = previous {
+        let before = run(
+            binary,
+            &root,
+            &[
+                "context".into(),
+                "create".into(),
+                "plan".into(),
+                "--label".into(),
+                "Old retained writer".into(),
+                "--state-dir".into(),
+                state.as_os_str().into(),
+                "--json".into(),
+            ],
+            0,
+        )?;
+        assert_eq!(before["ok"], true);
+        let path = root.join("old-context-plan.json");
+        std::fs::write(&path, serde_json::to_vec(&before["data"]["plan"])?)?;
+        Some((
+            path,
+            before["data"]["plan_digest"]
+                .as_str()
+                .ok_or("old plan digest")?
+                .to_owned(),
+        ))
+    } else {
+        None
+    };
+    let review = digest::sha256(b"exact shared custody review");
+    let admitted = parsed.admit(&state, &parsed.digest()?, &review, &at)?;
+    assert_eq!(admitted["writer_fence"], 63);
+    assert_eq!(admitted["state"], "prepared");
+    assert_eq!(admitted["authorization_granted"], false);
+    assert_eq!(admitted["original_context"]["context_id"], id);
+    assert_eq!(
+        parsed.admit(&state, &parsed.digest()?, &review, &parsed.expires_at)?,
+        admitted
+    );
+    assert!(
+        parsed
+            .admit(
+                &state,
+                &parsed.digest()?,
+                &digest::sha256(b"other review"),
+                &at
+            )
+            .is_err()
+    );
+    assert_eq!(contexts::list(&state)?["selected"]["context_id"], second_id);
+    if let (Some(binary), Some((path, digest))) = (previous, old_plan) {
+        let before = runtime::owner(&state)?
+            .planning()?
+            .connection
+            .serialize("main")?
+            .to_vec();
+        let refusal = run(
+            binary,
+            &root,
+            &[
+                "context".into(),
+                "apply".into(),
+                "--plan".into(),
+                path.as_os_str().into(),
+                "--plan-digest".into(),
+                digest.into(),
+                "--json".into(),
+            ],
+            4,
+        )?;
+        assert_eq!(refusal["error"]["code"], "AI_STP_PRECONDITION_FAILED");
+        assert!(
+            refusal["error"]["message"]
+                .as_str()
+                .ok_or("refusal message")?
+                .contains("registry schema is unsupported")
+        );
+        let after = runtime::owner(&state)?
+            .planning()?
+            .connection
+            .serialize("main")?
+            .to_vec();
+        assert_eq!(before, after);
+        println!(
+            "published CLI 0.2.5: old prepared write refused; exact admitted registry unchanged"
+        );
+    }
     assert!(std::fs::read_dir(&target)?.next().is_none());
     Ok(())
 }

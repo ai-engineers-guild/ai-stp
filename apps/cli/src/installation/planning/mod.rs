@@ -4,6 +4,7 @@
 //! A retained document is data, never a grant for later protected effects.
 
 mod model;
+mod retained;
 #[cfg(test)]
 mod tests;
 

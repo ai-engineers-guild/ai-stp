@@ -13,7 +13,8 @@ use crate::{
     store::{
         BINDING_RETIREMENT_SCHEMA, CHECKOUT_LINK_SCHEMA, CHECKOUT_LOCATION_SCHEMA,
         CHECKOUT_RETIREMENT_SCHEMA, CHECKOUT_UNLINK_SCHEMA, ENROLLMENT_RECOVERY_SCHEMA,
-        MISSING_CHECKOUT_RETIREMENT_SCHEMA, PROFILE_SCHEMA, Store, database, profile_schema_after,
+        MISSING_CHECKOUT_RETIREMENT_SCHEMA, NATIVE_CONFIGURATION_SCHEMA, PROFILE_SCHEMA, Store,
+        database, profile_schema_after,
     },
     wire,
 };
@@ -311,6 +312,7 @@ impl Plan {
                 BINDING_RETIREMENT_SCHEMA,
                 CHECKOUT_LOCATION_SCHEMA,
                 MISSING_CHECKOUT_RETIREMENT_SCHEMA,
+                NATIVE_CONFIGURATION_SCHEMA,
             ]
             .contains(&self.registry_schema_after)
             || !passport::stable_id(&self.operation_id, "operation")
