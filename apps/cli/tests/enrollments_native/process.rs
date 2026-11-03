@@ -344,11 +344,10 @@ fn public_native_configuration_keeps_original_context_across_cli_restarts()
             .iter()
             .map(std::ffi::OsString::from)
             .collect::<Vec<_>>();
-        args.extend([
-            "--state-dir".into(),
-            state.as_os_str().into(),
-            "--json".into(),
-        ]);
+        if arguments.get(..2) != Some(&["context", "apply"][..]) {
+            args.extend(["--state-dir".into(), state.as_os_str().into()]);
+        }
+        args.push("--json".into());
         let output = ai_stp_cli::process::run(ai_stp_cli::process::Request {
             executable: Path::new(env!("CARGO_BIN_EXE_ai-stp")),
             arguments: &args,
