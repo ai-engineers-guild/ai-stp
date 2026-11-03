@@ -295,6 +295,9 @@ fn published_cli025_refuses_an_old_prepared_writer_after_native_admission()
 
 #[cfg(unix)]
 fn retained_admission(previous: Option<&Path>) -> std::result::Result<(), Box<dyn Error>> {
+    let _consumers = crate::installation::activation::CONSUMERS
+        .lock()
+        .map_err(|_| "consumer fixture lock")?;
     fn run(
         binary: &Path,
         home: &Path,
@@ -513,7 +516,36 @@ fn retained_admission(previous: Option<&Path>) -> std::result::Result<(), Box<dy
         cancelled
     );
     assert!(std::fs::read_dir(&target)?.next().is_none());
-
+    let apply = create(&state, id, &request, &at)?;
+    let reviewed = Reviewed::create(&state, &apply.plan, &custody, &at)?;
+    let operation = apply.plan.operation_id.clone();
+    let digest = reviewed.digest()?;
+    reviewed.prepare(&state, &mut custody, &digest, &at)?;
+    drop(reviewed);
+    drop(apply);
+    let configured = apply_prepared(&state, &mut custody, &operation, &digest, &at)?;
+    assert_eq!(configured["kind"], "native.configuration.configured");
+    assert_eq!(configured["restart_required"], true);
+    assert_eq!(configured["load_state"], "not_observed");
+    assert_eq!(configured["original_context"]["context_id"], id);
+    assert!(target.join("AGENTS.md").is_file());
+    assert!(target.join(".codex-setup-system/journal.json").is_file());
+    assert_eq!(
+        custody.inspect()?["claims"]
+            .as_array()
+            .ok_or("claims")?
+            .len(),
+        1
+    );
+    assert_eq!(
+        apply_prepared(&state, &mut custody, &operation, &digest, &at)?,
+        configured
+    );
+    assert!(confirm_session(&state, &custody, &operation, &digest, &at).is_err());
+    assert_eq!(
+        configuration_status(&state, &custody, &operation, &digest)?["state"],
+        "configured"
+    );
     assert_eq!(contexts::list(&state)?["selected"]["context_id"], second_id);
     Ok(())
 }

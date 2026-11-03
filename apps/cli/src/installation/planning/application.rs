@@ -9,7 +9,6 @@ use crate::{
         forward::{self, Progress},
         target::Target,
     },
-    projection::Scope,
 };
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, path::Path};
@@ -129,8 +128,10 @@ pub fn apply_prepared(
             None
         };
         if status["state"] == "prepared" {
-            plan.transition(root,expected,"applying",&json!({"kind":"native.configuration.applying","operation_id":operation,"review_digest":expected}),at)?;
             custody.start(&review)?;
+        }
+        if state == "prepared" {
+            plan.transition(root,expected,"applying",&json!({"kind":"native.configuration.applying","operation_id":operation,"review_digest":expected}),at)?;
         }
         for (scope, writer) in &mut writers {
             let admission = admission(&plan, expected, *scope)?;
