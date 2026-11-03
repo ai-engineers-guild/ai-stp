@@ -528,7 +528,7 @@ fn acknowledge(body: &Value, reply: &Value) -> Result<bool> {
     Ok(rejected)
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 pub(crate) fn fixture_pending(root: &Path, context: &str, body: Value, at: &str) -> Result<()> {
     let context = contexts::resolve(root, Some(context))?;
     let dir = directory(&context, false)?.ok_or_else(invalid)?;
