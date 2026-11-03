@@ -103,6 +103,15 @@ impl Custody {
     }
     /// Join the one OS-user coordinator, independently of state, HOME and XDG
     /// selectors. This explicitly initializes only private operational metadata.
+    /// Inspect existing OS-user state without creating its namespace.
+    pub fn existing_user() -> Result<Option<Self>> {
+        let Some((path, namespace)) = placement::existing()? else {
+            return Ok(None);
+        };
+        let mut custody = Self::open(&path)?;
+        custody._namespace = Some(namespace);
+        Ok(Some(custody))
+    }
     pub fn open_user() -> Result<Self> {
         let (path, namespace) = placement::initialize()?;
         let mut custody = Self::open(&path)?;
@@ -156,6 +165,44 @@ impl Custody {
             json!({"revision":snapshot.revision,"claims":snapshot.entries,"authorization_granted":false}),
         )
     }
+    pub fn current_operations(&self) -> Result<BTreeSet<String>> {
+        Ok(self
+            .snapshot()?
+            .entries
+            .iter()
+            .flat_map(|entry| {
+                entry
+                    .references
+                    .values()
+                    .filter_map(|reference| reference.operation_id.clone())
+            })
+            .collect())
+    }
+    pub fn verify_operation(&self, operation: &str) -> Result<()> {
+        let snapshot = self.snapshot()?;
+        let mut found = false;
+        for entry in &snapshot.entries {
+            for reference in entry
+                .references
+                .values()
+                .filter(|r| r.operation_id.as_deref() == Some(operation))
+            {
+                found = true;
+                let observed = reference.locator.observe()?;
+                if observed.value.as_ref() != Some(&entry.value)
+                    || (matches!(entry.ownership, Ownership::Whole)
+                        && entry.address.file != observed.address.file)
+                {
+                    return Err(invalid());
+                }
+            }
+        }
+        if !found {
+            return Err(invalid());
+        }
+        Ok(())
+    }
+
     pub fn origin_operations(&self, subjects: &[Subject]) -> Result<BTreeSet<String>> {
         let snapshot = self.snapshot()?;
         let mut operations = BTreeSet::new();

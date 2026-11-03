@@ -78,6 +78,8 @@ def prove(binary: Path, root: Path) -> None:
     home.mkdir()
     help_data = run(binary, home, ["help", "--agent"])["data"]
     MachineHelp.model_validate(help_data)
+    paths = [tuple(command["path"]) for command in help_data["commands"]]
+    assert len(paths) == len(set(paths)), "the command registry contains ambiguous duplicate paths"
     contracts = Path(__file__).resolve().parents[2] / "docs/contracts"
     exit_document = (contracts / "cli-json.md").read_text(encoding="utf-8")
     section = exit_document.split("## Exit codes", 1)[1].split("\n## ", 1)[0]

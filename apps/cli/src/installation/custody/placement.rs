@@ -115,6 +115,23 @@ pub fn user_directory() -> Result<PathBuf> {
     Ok(path.join(LEAF))
 }
 
+pub(super) fn existing() -> Result<Option<(PathBuf, OwnedDirectory)>> {
+    let (mut path, parts) = parent()?;
+    let mut directory = crate::installation::target::open(&path).map_err(|_| invalid())?;
+    for part in parts {
+        match crate::installation::target::child(&directory, std::ffi::OsStr::new(part)) {
+            Ok(child) => directory = child,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(_) => return Err(invalid()),
+        }
+        path.push(part);
+    }
+    let Some(namespace) = OwnedDirectory::open_at(&directory, LEAF, OWNER, false)? else {
+        return Ok(None);
+    };
+    Ok(Some((path.join(LEAF), namespace)))
+}
+
 pub(super) fn initialize() -> Result<(PathBuf, OwnedDirectory)> {
     let (mut path, parts) = parent()?;
     let mut directory = crate::installation::target::open(&path).map_err(|_| invalid())?;

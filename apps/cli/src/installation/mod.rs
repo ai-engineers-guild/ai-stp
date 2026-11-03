@@ -15,6 +15,7 @@ pub mod legacy;
 pub mod lock;
 pub mod planning;
 pub mod profiles;
+pub mod runtime;
 pub(crate) mod sqlite;
 pub mod target;
 
