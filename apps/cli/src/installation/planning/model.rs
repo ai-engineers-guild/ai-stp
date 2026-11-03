@@ -271,17 +271,17 @@ impl Plan {
                     || file.after_bytes > 4 * 1024 * 1024
                     || file.after_mode & !0o777 != 0
                     || file.after_mode & 0o400 == 0
+                    || (self.target.os == "windows" && file.after_mode != 0o600)
                     || self.scope_bindings.get(&file.owner) != Some(scope)
                 {
                     return Err(invalid());
                 }
-                if let Some(claim) = &file.contribution {
-                    if !matches!(claim.parser_id.as_str(), "toml/1" | "json/1")
+                if let Some(claim) = &file.contribution
+                    && (!matches!(claim.parser_id.as_str(), "toml/1" | "json/1")
                         || !text(&claim.ownership_key)
-                        || claim.host_digest.as_deref().is_some_and(|v| !hash(v))
-                    {
-                        return Err(invalid());
-                    }
+                        || claim.host_digest.as_deref().is_some_and(|v| !hash(v)))
+                {
+                    return Err(invalid());
                 }
                 bytes = bytes.checked_add(file.after_bytes).ok_or_else(invalid)?;
             }
@@ -319,10 +319,7 @@ impl Plan {
             }
             (Authority::Local, None) => (),
             (Authority::Remote { organization, .. }, None)
-                if organization["kind"] == "personal" =>
-            {
-                ()
-            }
+                if organization["kind"] == "personal" => {}
             _ => return Err(invalid()),
         }
         if crate::canonical::bytes(&value(self)?)?.len() > LIMIT {

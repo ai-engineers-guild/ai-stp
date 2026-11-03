@@ -220,6 +220,13 @@ fn closed_native_format_preserves_full_windows_ids_and_refuses_foreign_or_change
         json!({"kind":"windows","volume":u64::MAX.to_string(),"file_id":u128::MAX.to_string()});
     windows["roots"]["global"]["directory"]["physical"] =
         json!({"kind":"windows","volume":u64::MAX.to_string(),"file_id":u128::MAX.to_string()});
+    for file in windows["roots"]["global"]["files"]
+        .as_object_mut()
+        .ok_or("files")?
+        .values_mut()
+    {
+        file["after_mode"] = 0o600.into();
+    }
     let retained = parse(&windows)?;
     assert_eq!(retained.value()?, windows);
     let changed =

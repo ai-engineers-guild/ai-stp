@@ -135,10 +135,10 @@ fn capture(
         }
         targets.insert(*scope, target);
     }
-    if let Some(company) = &corporate {
-        if request.roots.get(&Scope::Project) != Some(&company.checkout_root) {
-            return Err(invalid());
-        }
+    if let Some(company) = &corporate
+        && request.roots.get(&Scope::Project) != Some(&company.checkout_root)
+    {
+        return Err(invalid());
     }
     let paths = bundle::scopes::contribution_paths(
         store,
