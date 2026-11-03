@@ -396,6 +396,25 @@ impl Writer {
         })
     }
 
+    /// Read the sole retained unfinished intent without publishing its effects.
+    ///
+    /// # Errors
+    /// Refuses foreign metadata, malformed admission or replaced directories.
+    pub fn pending(&self) -> Result<Option<(Admission, serde_json::Value)>> {
+        self.revalidate()?;
+        let Some(admission) = self.store.active_admission()? else {
+            return Ok(None);
+        };
+        admission.validate()?;
+        let record = self.store.record(&admission)?.ok_or_else(invalid)?;
+        if !matches!(record.phase.as_str(), "prepared" | "applying" | "finishing")
+            || record.outcome.is_some()
+        {
+            return Err(invalid());
+        }
+        Ok(Some((admission, record.context)))
+    }
+
     /// Inspect exactly this original request, never another pending operation.
     ///
     /// # Errors

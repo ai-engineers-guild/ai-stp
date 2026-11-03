@@ -334,6 +334,20 @@ impl Custody {
         }
         native(self.writer.start(&Self::admission(review)?))
     }
+    /// Recover the original pending review even when the caller's plan file or
+    /// last reply was lost. This returns data, without applying configuration.
+    pub fn pending(&self) -> Result<Option<Review>> {
+        self.private_root()?;
+        let Some((admission, context)) = native(self.writer.pending())? else {
+            return Ok(None);
+        };
+        let review = Review::parse(&encode(&context)?, &admission.plan_digest)?;
+        if Self::admission(&review)? != admission {
+            return Err(invalid());
+        }
+        Ok(Some(review))
+    }
+
     pub fn status(&self, review: &Review) -> Result<Value> {
         self.private_root()?;
         let admission = Self::admission(review)?;

@@ -260,6 +260,9 @@ fn prepared_cancellation_and_lost_reply_recovery_keep_the_exact_operation()
     put(&path.join("AGENTS.md"), b"resume")?;
     let parsed = Review::parse(&bytes, &hash)?;
     let mut custody = Custody::open(&metadata)?;
+    let recovered = custody.pending()?.ok_or("pending custody review")?;
+    assert_eq!(recovered.digest()?, hash);
+    assert_eq!(custody.status(&recovered)?["state"], "applying");
     let result = custody.complete(&parsed)?;
     assert_eq!(custody.complete(&parsed)?, result);
     assert_eq!(refs(&custody)?, 1);
