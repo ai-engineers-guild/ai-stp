@@ -491,6 +491,24 @@ fn acknowledge(body: &Value, reply: &Value) -> Result<bool> {
 }
 
 #[cfg(test)]
+pub(crate) fn fixture_pending(root: &Path, context: &str, body: Value, at: &str) -> Result<()> {
+    let context = contexts::resolve(root, Some(context))?;
+    let dir = directory(&context, false)?.ok_or_else(invalid)?;
+    let mut record = load(&dir, &context)?.ok_or_else(invalid)?;
+    validate_body(&context, &record.account, &body)?;
+    if !record.enabled || record.pending.is_some() {
+        return Err(invalid());
+    }
+    record.pending = Some(Pending {
+        digest: hash(&body)?,
+        body,
+        links: vec![],
+        expires_at: super::model::after(at, 86400)?,
+    });
+    record.save(&dir)
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     fn body() -> Value {
@@ -522,7 +540,7 @@ mod tests {
     fn wire_inventory_has_no_fields_for_paths_payloads_prompts_or_unmanaged_coordinates()
     -> Result<()> {
         let mut item = json!({"location_digest":format!("sha256:{}","a".repeat(64)),"kind":"instruction","harness":"codex","source":"managed","state":"present","stable_id":"component_fixture","version":"1.0","setup_stable_id":null,"setup_version":null});
-        let snapshot = |item: Value| json!({"schema_version":1,"snapshots":[{"schema_version":1,"scan_id":"native_inventory_fixture","organization_id":"organization_01ARZ3NDEKTSV4RRFFQ69G5FAV","employee_id":"account_01ARZ3NDEKTSV4RRFFQ69G5FAV","device_id":"fixture-device","project_id":null,"scope":"global","scanned_at":"2026-11-03T00:00:00Z","complete":false,"components":[item]}]});
+        let snapshot = |item: Value| json!({"schema_version":1,"snapshots":[{"schema_version":1,"scan_id":"native_inventory_fixture","organization_id":"organization_01ARZ3NDEKTSV4RRFFQ69G5FAV","employee_id":"account_01ARZ3NDEKTSV4RRFFQ69G5FAV","device_id":"fixture-device","project_id":null,"scope":"global","scanned_at":"2026-11-03T00:00:00.000Z","complete":false,"components":[item]}]});
         BATCH.validate(&snapshot(item.clone()))?;
         for key in ["path", "prompt", "content", "arguments", "api_key"] {
             let mut bad = item.clone();
@@ -533,22 +551,4 @@ mod tests {
         assert!(owned_components(&snapshot(item)).is_err());
         Ok(())
     }
-}
-
-#[cfg(test)]
-pub(crate) fn fixture_pending(root: &Path, context: &str, body: Value, at: &str) -> Result<()> {
-    let context = contexts::resolve(root, Some(context))?;
-    let dir = directory(&context, false)?.ok_or_else(invalid)?;
-    let mut record = load(&dir, &context)?.ok_or_else(invalid)?;
-    validate_body(&context, &record.account, &body)?;
-    if !record.enabled || record.pending.is_some() {
-        return Err(invalid());
-    }
-    record.pending = Some(Pending {
-        digest: hash(&body)?,
-        body,
-        links: vec![],
-        expires_at: super::model::after(at, 86400)?,
-    });
-    record.save(&dir)
 }
