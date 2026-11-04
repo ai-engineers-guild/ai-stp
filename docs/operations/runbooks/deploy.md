@@ -5,13 +5,13 @@ last_verified: "2026-11-04"
 
 # Deployment
 
-The source owners are `.github/workflows/deploy.yml`, `deploy/deploy.sh`,
-`deploy/lib.sh` and the compose files under `deploy/`. Use their current commands;
-do not reconstruct a deployment from historical session notes.
+GitHub Actions promotes qualified source through `.github/workflows/deploy.yml`.
+The production timer runs `deploy/pull-deploy.sh`. Use the current scripts and
+Compose configuration under `deploy/` for activation and recovery.
 
 ## Prerequisites
 
-The authorized host needs Docker Engine/Compose, Git, curl and flock. Actual
+The production host uses Docker Engine/Compose, Git, rsync, curl and flock. Actual
 `.env.prod` and deployment environment files stay on the host, outside source
 synchronization. `.env.prod.example` lists the required names. Validate through
 `just infra-env-check` before effects, including `AI_STP_SESSION_SECRET`,
@@ -52,8 +52,9 @@ deploy script. A public health response may precede settlement of the host marke
 
 Verify all three: the successful exact-SHA workflow, `/v1/system/version` matching
 the promoted commit, and the settled host marker without an in-progress operation.
-Check the application and docs origins and read back serving source against that SHA.
-A ref move or successful image build alone is insufficient.
+Check the application and both documentation locales (`/` and `/en/`).
+For docs image changes, inspect the running nginx process and confirm it runs
+as the configured unprivileged user. Match serving source to the promoted SHA.
 
 On failure, identify the failed stage and preserve the current data. Apply a fix
 through `dev` and `main`, or use `deploy/rollback.sh` only after reviewing the

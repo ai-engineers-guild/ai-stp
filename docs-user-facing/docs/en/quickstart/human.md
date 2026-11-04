@@ -1,30 +1,22 @@
 ---
 title: "Quickstart for people"
-description: "Install the ai_stp CLI, check the environment, and reach the first catalog read."
+description: "Install a verified native client and prepare local state."
 ---
 
 # Quickstart for people
 
-Download the native archive for your OS from the [latest release](https://github.com/ai-engineers-guild/ai-stp/releases/latest).
-Verify its checksum and GitHub attestation, then follow the release installation steps.
-No Python runtime is required. Linux supports provider execution; macOS and Windows
-support the other native operations advertised by their capabilities.
+Choose the archive for your OS, verify its checksum and attestation, and install
+it using the [CLI installation guide](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli/README.md#install-and-update).
+The [Desktop installer](https://github.com/ai-engineers-guild/ai-stp/releases/tag/desktop-v0.4.0)
+bundles the CLI.
 
-Retire an existing Python launcher through its owning package manager before
-adding the native executable to PATH. Existing state requires explicit migration;
-never initialize another owner over it.
+For new local state:
 
-```bash
+```sh
 ai-stp version --json
-ai-stp capabilities --json
-ai-stp doctor --json
-```
-
-For a new state directory:
-
-```bash
 ai-stp init --credential-store os_keyring --json
-ai-stp task intents --json
+ai-stp capabilities --json
 ```
 
-[Agent workflow](agent.md). [Migration and installation reference](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli/README.md).
+Use [state migration](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli/README.md#state-and-first-run) for a Python registry.
+Continue with the [agent workflow](agent.md) to review or install a setup.

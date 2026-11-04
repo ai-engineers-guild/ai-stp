@@ -14,5 +14,5 @@ provenance, license, compatibility and current verification evidence before appl
 it. Author verification concerns identity; it is separate from byte verification.
 A successful catalogue read is not an installation result.
 
-Use the [CLI registry](../cli/index.md) to discover catalog and publication commands.
-The agent gathers exact setup coordinates and target roots before starting install.
+Use the [native setup procedure](../quickstart/agent.md) with exact setup coordinates
+and target roots.

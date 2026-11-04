@@ -35,6 +35,9 @@ own recipe and review the diff. Behavioral tests and machine schemas own contrac
 prose should explain usage rather than duplicate command/field inventories.
 
 Follow the [Git workflow](docs/engineering/git-workflow.md). Include the problem,
-resulting behavior, exact head, checks/results and rollback in the PR. Revert
-commits provide rollback; never rewrite permanent branch history. Setup-component
-changes start in their maintained authoring repository; public trees are generated.
+resulting behavior, tested commit and recovery path in the PR. Native configuration
+changes belong in this repository. Preserve published external-provider artifacts
+and regenerate projections through their source recipe.
+
+For documentation changes, run `just docs-gen` after updating index metadata and
+`just docs-check` to validate the engineering site and both user locales.

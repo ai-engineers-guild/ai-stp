@@ -10,8 +10,9 @@
 public/build/
 deploy/geoip/*.mmdb
 
-# Agent-local state and repository-local tooling
+# Local tool state
 .serena/
+.serena.local-backup-before-ff/
 .repo-safety/
 
 # Local experiment scratch space. Not product source.
@@ -73,9 +74,6 @@ target/
 .mypy_cache/
 .ruff_cache/
 .hypothesis/
-.serena/cache/
-.serena/memories/current-work.md
-.serena.local-backup-before-ff/
 
 # Editors and operating systems
 .DS_Store

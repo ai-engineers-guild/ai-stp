@@ -1,6 +1,6 @@
 ---
 description: "Branch integration, exact-head qualification and release promotion."
-last_verified: "2026-10-15"
+last_verified: "2026-11-04"
 ---
 
 # Git workflow
@@ -13,8 +13,8 @@ non-database unit tests, web/Desktop types and units, and native library analysi
 and units. CodeQL analyzes each public candidate and waits for processed findings.
 A PR proves integration eligibility; it does not claim packaged runtime acceptance.
 
-Integrated `main` pushes run the complete repository matrix plus the existing
-Desktop, CodeQL and native archive workflows. Full native builds, database
+Integrated `main` pushes run the complete repository matrix, including Desktop,
+CodeQL, native archives and the production docs image. Full native builds, database
 scenarios, browser/SDK matrices, package consumption and installed target acceptance
 remain here. `dev` pushes do not repeat source builds. Impact is currently
 conservative: every main candidate selects the full contract. Manual diagnosis
@@ -60,9 +60,9 @@ the current successful main run/attempt and its completed qualification before
 advancing the deployment ref. Dependabot updates target `dev`; default-branch
 security PRs must be retargeted or transferred before normal promotion.
 
-If GitHub CI is unavailable, a complete `just check` on the exact head may supply
-the evidence; record the commands and results in the merge. Correct mistakes with
-a follow-up PR or revert commit. Publishing a release remains an explicit task.
+Record affected local checks in the PR. Production promotion requires a
+successful push-triggered main qualification. Correct mistakes through a follow-up
+PR or revert commit. Publish client releases through their own workflows.
 
 First-party setup configuration changes follow this repository workflow and
 release with the native CLI/Desktop. Historical external-provider artifacts and

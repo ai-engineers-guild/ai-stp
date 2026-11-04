@@ -15,9 +15,8 @@ Native surface for this harness: Package, resources, Skill, and local target set
 
 # ai-stp
 
-Используйте установленный Rust CLI как единственный бизнес-движок. Сетап-системы
-являются его установочными компонентами; бинарниками харнессов управляют
-пользователь и поставщик.
+Используйте установленный Rust CLI для нативной настройки. Исполняемыми
+файлами харнессов управляет пользователь или поставщик.
 
 ## Start here
 
@@ -47,7 +46,7 @@ status и продолжайте исходную операцию. Повтор
 - [Recover original intent](references/recover.md)
 - [Update the native CLI](references/self-update.md)
 - [Author and publish](references/author.md)
-- [Managed installation components](references/provider.md)
+- [Configuration engines](references/provider.md)
 - [Account, grants and sync](references/account.md)
 - [Control procedure](references/self.md)
 - [Machine results](references/envelope.md)

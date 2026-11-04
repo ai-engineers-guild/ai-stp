@@ -1,17 +1,15 @@
 ---
 title: "Trust and safety"
-description: "Provenance, verification and installation boundaries."
+description: "Review the exact configuration and its evidence before applying."
 ---
 
 # Trust and safety
 
-Published setup/component versions are immutable and exact. Mechanical compatibility,
-access and trust checks decide whether a candidate can be used. User authorization
-does not turn unverified bytes into verified bytes or override a mechanical refusal.
+Review the exact setup version, artifact digest, target and required evidence
+before applying a plan. Author verification describes identity. Artifact checks
+describe the bytes and checks recorded in the result.
 
-Only the authenticated public installation component writes final harness configuration.
-Active-agent changes require staged replacement and restart. The CLI does not install,
-pin, update or remove the harness executable. It sends no install telemetry.
-
-Read [security evidence](../security-checks.md) and use the retained operation for
-[recovery](../troubleshooting/index.md). Keep credentials out of prompts and logs.
+The native CLI writes the reviewed configuration. A handoff receipt records a
+new harness process when a restart is required. Read
+[security checks](../security-checks.md) and use the original operation for
+[recovery](../troubleshooting/index.md). Keep credentials in the credential store.

@@ -1,20 +1,7 @@
 # Schemas
 
-This directory contains generated JSON Schemas, the machine owners of the
-contracts defined by `SPEC-015`.
-
-Files in `v1/` are created only by the generator from the `ai-stp-foundation`
-Pydantic models and must not be edited by hand:
-
-```bash
-just back-gen       # regenerate schemas/v1 and Skill projections
-just back-static    # compare byte-for-byte with the models; part of just check
-```
-
-Drift between the models and committed files fails `back-static` in CI under
-`SPEC-015` REQ-1509. A schema without a generator in `v1/` is also an error.
-The source models in `packages/contracts` define the fields; this directory
-contains machine artifacts only.
+The generator in `packages/contracts` exports the public models as JSON Schemas in `v1/`.
+Use `just back-gen` to regenerate them and `just back-static` to check for drift.
 
 Each schema uses the 2020-12 dialect and a stable `$id` of the form
 `urn:ai-stp:schema:v1:<name>`. Value constraints are expressed as patterns and

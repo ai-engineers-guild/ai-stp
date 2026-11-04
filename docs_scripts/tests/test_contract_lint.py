@@ -27,15 +27,6 @@ on:
   pull_request:
 """
 
-SERENA_IGNORE = """/cache
-/project.local.yml
-/.auto_sync_head
-/.flow_blocker_ack.json
-/.flow_post_task_state.json
-/.flow_sync_marker
-/.serena_sync_state.json
-"""
-
 
 class ContractLintTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -43,7 +34,6 @@ class ContractLintTests(unittest.TestCase):
         self.root = Path(self._tmp.name)
         self.write("docs/engineering/git-workflow.md", GIT_WORKFLOW_DOC)
         self.write(".github/workflows/check.yml", WORKFLOW)
-        self.write(".serena/.gitignore", SERENA_IGNORE)
 
     def tearDown(self) -> None:
         self._tmp.cleanup()
@@ -125,6 +115,7 @@ class ContractLintTests(unittest.TestCase):
         )
         self.assertIn("CT012", self.codes())
 
-    def test_missing_runtime_ignore_entry_fails(self) -> None:
-        self.write(".serena/.gitignore", "/cache\n/project.local.yml\n")
-        self.assertIn("CT032", self.codes())
+    def test_tracked_local_tool_state_fails(self) -> None:
+        with patch("docs_scripts.contract_lint.subprocess.run") as git:
+            git.return_value.stdout = ".serena/project.yml\0"
+            self.assertIn("CT030", self.codes())

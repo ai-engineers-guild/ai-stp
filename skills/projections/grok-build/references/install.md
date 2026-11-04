@@ -1,3 +1,10 @@
 # Install a complete setup
 
-Read the live install input schema. Supply exact setup coordinates, harness and explicit scope-to-root mapping. Starting the task authorizes that operation and can execute it immediately. The install intent supports installation, replacement and removal; it never picks an unspecified setup. Follow its retained continuation/revision. For an active agent request staged handoff and wait for old consumers to exit; confirm from the restarted consumer. Do not type the install group with no leaf. Do not create backups or hand-edit harness targets.
+Use `ai-stp help --path "configuration native" --json` for a new setup. Supply
+the exact local setup version and passport digest, harness and explicit
+roots. Review the plan, prepare it and apply the original operation and digest.
+Follow its handoff instructions for an active harness. Keep the same state
+directory and recover an interrupted operation through `pending` and `status`.
+
+Use the original compatibility route to recover a retained external-provider
+operation. Read its exact task schema and continue its recorded revision.
