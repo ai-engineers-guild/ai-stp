@@ -258,9 +258,14 @@ export default function TargetsPage() {
               {selected?.label ??
                 "Choose or create a saved context in Profiles."}
             </p>
-            <div className="mt-3 flex gap-4 text-sm text-primary"><Link to="/catalog">Browse setups</Link><Link to="/install?intent=author">Create from local files</Link></div>
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-primary">
+              <Link to="/catalog" className="inline-flex min-h-6 items-center">
+                Browse setups
+              </Link>
+              <Link to="/install?intent=author">Create from local files</Link>
+            </div>
             {!selected && (
-              <Link to="/profiles" className="text-primary">
+              <Link to="/profiles" className="inline-flex min-h-6 items-center text-primary">
                 Open profiles
               </Link>
             )}
