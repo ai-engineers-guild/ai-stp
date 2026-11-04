@@ -488,6 +488,18 @@ class Driver:
         )
         self.accessibility.append({"surface": surface, **report})
 
+    def audit_setup_link_targets(self, surface: str) -> None:
+        self.navigate("targets", keyboard=True)
+        for route in ("catalog", "profiles"):
+            link = self.find(f'main section[aria-label="Effective setup"] a[href="#/{route}"]')
+            rect = self.command("GET", f"/element/{link[ELEMENT]}/rect")
+            require(
+                rect["width"] >= 24 and rect["height"] >= 24,
+                f"{route} link must have a pointer target of at least 24 by 24 CSS pixels",
+            )
+        self.audit_accessibility(surface)
+        self.navigate("", keyboard=True)
+
     def observe_reduced_motion(self) -> None:
         require(
             self.read("return matchMedia('(prefers-reduced-motion: reduce)').matches;"),
@@ -1146,8 +1158,10 @@ def main() -> None:
         first_start_ms = driver.startup_ms
         driver.theme(False)
         driver.audit_accessibility("offline-overview-light")
+        driver.audit_setup_link_targets("offline-setups-light")
         driver.check_sidebar_theme_switch(True)
         driver.audit_accessibility("offline-overview-dark")
+        driver.audit_setup_link_targets("offline-setups-dark")
         driver.check_sidebar_theme_switch(False)
         skip = driver.find("a.skip-link")
         original_route = driver.read("return location.hash;")
