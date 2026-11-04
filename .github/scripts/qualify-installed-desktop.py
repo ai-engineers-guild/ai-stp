@@ -373,6 +373,69 @@ class Driver:
             "completed finite theme transitions",
         )
 
+    def check_sidebar_theme_switch(self, dark: bool) -> None:
+        self.theme(not dark)
+        label = "Use dark theme" if dark else "Use light theme"
+        selector = f'button[aria-label="{label}"]'
+        self.read(
+            """
+            const control = document.querySelector(arguments[0]);
+            const labels = [...document.querySelectorAll('nav[aria-label="Main navigation"] a > span')];
+            if (!control || !labels.length) throw new Error("Missing theme control or navigation labels");
+            const canvas = document.createElement("canvas");
+            canvas.width = canvas.height = 1;
+            const context = canvas.getContext("2d", { willReadFrequently: true });
+            function rgba(color) {
+                context.clearRect(0, 0, 1, 1);
+                context.fillStyle = color;
+                context.fillRect(0, 0, 1, 1);
+                return [...context.getImageData(0, 0, 1, 1).data].map(value => value / 255);
+            }
+            function over([r, g, b, alpha], background) {
+                return [r, g, b].map((value, index) => value * alpha + background[index] * (1 - alpha));
+            }
+            function contrast(label) {
+                const layers = [];
+                for (let element = label; element; element = element.parentElement)
+                    layers.unshift(rgba(getComputedStyle(element).backgroundColor));
+                const background = layers.reduce((base, layer) => over(layer, base), [1, 1, 1]);
+                const foreground = over(rgba(getComputedStyle(label).color), background);
+                const linear = value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4;
+                const luminance = ([r, g, b]) => .2126 * linear(r) + .7152 * linear(g) + .0722 * linear(b);
+                const values = [luminance(foreground), luminance(background)];
+                return (Math.max(...values) + .05) / (Math.min(...values) + .05);
+            }
+            window.__sidebarThemeContrast = null;
+            control.addEventListener("click", () => {
+                const started = performance.now();
+                let minimum = Infinity;
+                let frames = 0;
+                function measure(time) {
+                    for (const label of labels) minimum = Math.min(minimum, contrast(label));
+                    frames += 1;
+                    if (time - started < 250)
+                        requestAnimationFrame(measure);
+                    else
+                        window.__sidebarThemeContrast = { minimum, frames, labels: labels.length };
+                }
+                requestAnimationFrame(measure);
+            }, { once: true });
+            """,
+            selector,
+        )
+        self.click(self.find(selector))
+        result = self.wait(
+            lambda: self.read("return window.__sidebarThemeContrast;"),
+            f"sidebar contrast during {label.lower()}",
+        )
+        require(
+            self.read("return document.documentElement.classList.contains('dark');") == dark
+            and result["frames"] >= 2
+            and result["labels"] > 0
+            and result["minimum"] >= 4.5,
+            f"Sidebar contrast during {label.lower()}: {result}",
+        )
+
     def audit_accessibility(self, surface: str) -> None:
         require(not self.read("return document.querySelector('iframe');"), "uninspected frame")
         source, version = axe_source()
@@ -1076,9 +1139,9 @@ def main() -> None:
         first_start_ms = driver.startup_ms
         driver.theme(False)
         driver.audit_accessibility("offline-overview-light")
-        driver.theme(True)
+        driver.check_sidebar_theme_switch(True)
         driver.audit_accessibility("offline-overview-dark")
-        driver.theme(False)
+        driver.check_sidebar_theme_switch(False)
         skip = driver.find("a.skip-link")
         original_route = driver.read("return location.hash;")
         driver.command("POST", f"/element/{skip[ELEMENT]}/value", {"text": "\ue007"})
