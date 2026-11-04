@@ -57,6 +57,11 @@ RUN python -m mkdocs build --strict -f docs_scripts/user-mkdocs.yml \
     && python -m mkdocs build --strict -f docs_scripts/user-mkdocs.en.yml
 
 FROM nginx:1.30-alpine@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94 AS prod
+COPY deploy/nginx/user-docs-main.conf /etc/nginx/nginx.conf
 COPY deploy/nginx/user-docs.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/.site-user-docs /srv
 EXPOSE 8080
+# The pinned nginx image already supplies UID/GID 101. All runtime writes use /tmp.
+USER 101:101
+ENTRYPOINT ["nginx"]
+CMD ["-g", "daemon off;"]

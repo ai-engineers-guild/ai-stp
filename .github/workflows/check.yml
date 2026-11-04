@@ -632,6 +632,25 @@ jobs:
           uv run --locked --group docs python -m mkdocs build --strict \
             -f docs_scripts/user-mkdocs.yml
           uv run --locked --group docs python docs_scripts/mermaid_check.py
+      - name: Build the pinned production docs image
+        timeout-minutes: 15
+        run: >-
+          docker build --file deploy/docker/Dockerfile.docs --target prod
+          --tag ai-stp-docs-qualified:${{ github.sha }} .
+      - name: Qualify the actual unprivileged docs process and both languages
+        timeout-minutes: 3
+        run: >-
+          timeout --signal=TERM --kill-after=35s 120s
+          python .github/scripts/qualify-docs-runtime.py
+          --image ai-stp-docs-qualified:${{ github.sha }} --source ${{ github.sha }}
+          --proof "${RUNNER_TEMP}/docs-runtime-proof.json"
+      - name: Retain the public docs runtime result
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: docs-runtime-${{ github.sha }}
+          path: ${{ runner.temp }}/docs-runtime-proof.json
+          if-no-files-found: error
+          retention-days: 7
 
   package:
     if: github.event_name != 'pull_request'
