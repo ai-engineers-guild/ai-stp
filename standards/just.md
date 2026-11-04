@@ -17,5 +17,5 @@ platform-specific infrastructure remain outside the aggregate gate. Read the
 justfile for its current composition rather than duplicating it in prose.
 
 Run `just --fmt --check` for recipe formatting and the affected recipe for behavior.
-`test_quality_gate_policy.py` and `test_gate_split_covers_the_gate.py` enforce
-shell conventions and local/CI parity.
+[Gate coverage tests](../tests/contract/test_gate_split_covers_the_gate.py) enforce
+local/CI recipe coverage. The owning formatters and linters check source syntax.

@@ -11,6 +11,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -157,28 +158,6 @@ def test_target_side_deployer_preserves_the_host_state_and_monotonicity() -> Non
         "./deploy/verify.sh"
     )
 
-    # Docker build residue needs the same bound. Three days of failing web
-    # builds grew it past thirty gigabytes on 2026-10-03 until the disk filled
-    # and git could not write `config.lock` — every tick then failed before
-    # the build it was protecting. The prune must run after the attempt
-    # whether it succeeded or not: placed on the success path only, it never
-    # executes when the residue is worst.
-    attempt = script.find("./deploy/run.sh")
-    complete = script.find("pull_deploy_complete")
-    call = script.find("\nprune_docker_residues\n", attempt)
-    assert 0 < attempt < call < complete
-    assert ") || deploy_status=$?" in script
-    assert 'exit "${deploy_status}"' in script
-    assert call < script.find('exit "${deploy_status}"')
-    # Hygiene must not fail the deploy it cleans up after.
-    prune_body = script[
-        script.find("prune_docker_residues()") : script.find(
-            "}", script.find("prune_docker_residues()")
-        )
-    ]
-    assert "docker system prune -f" in prune_body
-    assert "|| true" in prune_body
-
     # The source is this repository, fetched anonymously (`ADR-0109`). A private
     # default here would be invisible until a host rebuilt its mirror and then
     # quietly deployed from somewhere nobody can read.
@@ -220,6 +199,72 @@ def test_target_side_deployer_preserves_the_host_state_and_monotonicity() -> Non
     # Hardening that a later edit must not quietly drop.
     for directive in ("NoNewPrivileges=true", "PrivateTmp=true", "ProtectSystem=strict"):
         assert directive in service, directive
+
+
+@pytest.mark.parametrize("deploy_exit", [0, 23])
+def test_pull_deploy_never_collects_daemon_objects(tmp_path: Path, deploy_exit: int) -> None:
+    """Exercise both attempt outcomes without a Docker daemon or a live deployment."""
+    candidate = "a" * 40
+    previous = "b" * 40
+    application = tmp_path / "application"
+    state = tmp_path / "pull-state"
+    tools = tmp_path / "tools"
+    tools.mkdir()
+    (state / "repository.git").mkdir(parents=True)
+    release = state / "releases" / candidate / "deploy"
+    release.mkdir(parents=True)
+    (application / ".deploy-state").mkdir(parents=True)
+    (application / ".deploy-state/current").write_text(f"git_commit={previous}\n")
+    (application / ".env.prod").write_text("owned host sentinel\n")
+    calls = tmp_path / "docker-calls.jsonl"
+
+    def executable(path: Path, body: str) -> None:
+        path.write_text(body)
+        path.chmod(0o755)
+
+    executable(
+        tools / "git",
+        f"#!{sys.executable}\nimport sys\nif 'rev-parse' in sys.argv: print('{candidate}')\n",
+    )
+    executable(
+        tools / "rsync",
+        f"#!{sys.executable}\nimport shutil, sys\n"
+        "shutil.copytree(sys.argv[-2], sys.argv[-1], dirs_exist_ok=True)\n",
+    )
+    executable(
+        tools / "docker",
+        f"#!{sys.executable}\nimport json, os, sys\n"
+        "with open(os.environ['AI_STP_TEST_DOCKER_CALLS'], 'a') as stream:\n"
+        "    stream.write(json.dumps(sys.argv[1:]) + '\\n')\n",
+    )
+    for name in ["pull-deploy.sh", "deploy.sh", "lib.sh", "load-apparmor.sh", "mark-transfer.sh"]:
+        executable(release / name, "#!/bin/sh\nexit 0\n")
+    executable(release / "run.sh", f"#!/bin/sh\nprintf run > run.called\nexit {deploy_exit}\n")
+    executable(release / "verify.sh", "#!/bin/sh\nprintf verify > verify.called\n")
+    result = subprocess.run(
+        ["bash", str(Path("deploy/pull-deploy.sh").resolve())],
+        cwd=tmp_path,
+        env={
+            **os.environ,
+            "PATH": str(tools) + os.pathsep + os.environ["PATH"],
+            "AI_STP_ROOT": str(application),
+            "AI_STP_PULL_STATE_ROOT": str(state),
+            "AI_STP_PULL_REPOSITORY": "https://example.invalid/ai-stp.git",
+            "AI_STP_TEST_DOCKER_CALLS": str(calls),
+        },
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode == deploy_exit, result.stdout + result.stderr
+    assert (application / "run.called").is_file()
+    assert (application / "verify.called").exists() is (deploy_exit == 0)
+    assert not calls.exists(), calls.read_text() if calls.exists() else ""
+    assert (application / ".env.prod").read_text() == "owned host sentinel\n"
+    if deploy_exit == 0:
+        assert f"pull_deploy_complete commit={candidate}" in result.stdout
+    else:
+        assert "pull_deploy_complete" not in result.stdout
 
 
 def test_required_secrets_are_checked_before_any_deploy_effect() -> None:

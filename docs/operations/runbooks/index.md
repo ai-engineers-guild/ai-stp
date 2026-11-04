@@ -11,7 +11,7 @@ last_verified: "2026-10-15"
 | -------- | ----- | ------- |
 | [author-verification.md](author-verification.md) | Staff authorization and the meaning of author verification. | 2026-10-15 |
 | [database-migration.md](database-migration.md) | Server schema upgrades and local CLI migration boundaries. | 2026-10-15 |
-| [deploy.md](deploy.md) | Exact-source deployment, settlement and verification. | 2026-10-15 |
+| [deploy.md](deploy.md) | Exact-source deployment, settlement and verification. | 2026-11-04 |
 | [safety-scan.md](safety-scan.md) | Worker scanner ownership and handling of unavailable evidence. | 2026-10-15 |
 | [security-incident.md](security-incident.md) | Contain an affected published version and preserve recovery evidence. | 2026-11-03 |
 

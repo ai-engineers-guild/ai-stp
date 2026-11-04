@@ -1,6 +1,6 @@
 ---
 description: "Exact-source deployment, settlement and verification."
-last_verified: "2026-10-15"
+last_verified: "2026-11-04"
 ---
 
 # Deployment
@@ -39,6 +39,9 @@ The host locks deployment, validates its environment, transfers the exact source
 builds images, migrates/initializes dependencies and starts services before health
 checks. Source transfer preserves host-owned environment, state, volumes and runtime
 files. Never use a broad deletion or Docker prune against a shared host.
+The pull deployer retires only its own extracted source trees, retaining current
+and previous releases. Docker containers, images, networks and build cache belong
+to the native host provider or NDS Cleaner; this project does not collect them.
 
 `.deploy-state/in-progress` identifies an unfinished operation and stage.
 `.deploy-state/current` records the last settled release. Inspect these markers and
