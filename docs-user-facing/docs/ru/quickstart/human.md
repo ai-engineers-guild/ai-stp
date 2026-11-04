@@ -1,30 +1,21 @@
 ---
 title: "Быстрый старт для человека"
-description: "Установить ai_stp CLI, проверить окружение и дойти до первого чтения каталога."
+description: "Установка проверенного нативного клиента и подготовка состояния."
 ---
 
 # Быстрый старт для человека
 
-Скачайте нативный архив вашей ОС из [последнего релиза](https://github.com/ai-engineers-guild/ai-stp/releases/latest).
-Проверьте контрольную сумму и аттестацию GitHub, затем выполните шаги установки из релиза.
-Python не нужен. Провайдеры выполняются на Linux; macOS и Windows поддерживают
-остальные нативные операции, указанные в capabilities.
+Выберите архив для своей ОС, проверьте контрольную сумму и аттестацию и
+установите его по [руководству CLI](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli/README.md#install-and-update).
+CLI уже входит в [установщик Desktop](https://github.com/ai-engineers-guild/ai-stp/releases/tag/desktop-v0.4.0).
 
-Удалите прежний Python launcher через его пакетный менеджер перед добавлением
-нового исполняемого файла в PATH. Существующее состояние переносится явно;
-не создавайте поверх него другого владельца.
+Для нового локального состояния:
 
-```bash
+```sh
 ai-stp version --json
-ai-stp capabilities --json
-ai-stp doctor --json
-```
-
-Для нового каталога состояния:
-
-```bash
 ai-stp init --credential-store os_keyring --json
-ai-stp task intents --json
+ai-stp capabilities --json
 ```
 
-[Работа агента](agent.md). [Перенос состояния и установка](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli/README.md).
+Состояние Python CLI перенесите по [процедуре миграции](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli/README.md#state-and-first-run).
+Для проверки или установки сетапа откройте [инструкцию для агента](agent.md).

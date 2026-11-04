@@ -18,7 +18,7 @@ machine help; a server deployment does not update an installed client.
 
 ## Release and supported platforms
 
-Stable archives use `cli-v<version>` tags and the exact `Cargo.toml` version.
+Stable archives use `cli-v<version>` tags and match Cargo metadata.
 Builds target Linux x86-64 (Ubuntu 26.04), Apple Silicon (macOS 15) and Windows
 x86-64 (Windows Server 2025). These CI environments define the tested baseline;
 older operating systems are not implicitly qualified. Linux uses the system GNU
@@ -33,7 +33,9 @@ not carry an OS application certificate or notarization.
 | Historical external-provider execution | Isolated compatibility route | Explicit refusal |
 | Legacy state transfer | SQLite/WAL and file-credential proof | macOS file credentials; Windows requires its native vault |
 
-Read the running engine's capabilities before selecting an operation.
+Read `data.native_configuration` in `capabilities --json` for native setup support.
+The top-level `configuration_installation` and `supported_harnesses` describe
+the historical provider route.
 Harness executables are user/vendor managed: ai-stp observes the installed
 version and exact program identity, but never installs, pins, updates or removes
 the harness. Exact setup and installation-component versions remain immutable.
@@ -46,11 +48,11 @@ OS libraries, compiler internals or all bundled C sources. Packaging is compared
 byte for byte from the same executable; cross-machine reproducible compilation
 is not claimed. Checksums and GitHub artifact attestations cover published files.
 
-Verify the checksum and attestation for `ai-engineers-guild/ai-stp` with signer
-`.github/workflows/cli-release.yml` before extracting or executing a download:
+Verify the published checksum. Set `ARCHIVE` to the downloaded file and check
+its attestation before extracting or executing it:
 
 ```sh
-gh attestation verify <archive> --repo ai-engineers-guild/ai-stp \
+gh attestation verify "$ARCHIVE" --repo ai-engineers-guild/ai-stp \
   --signer-workflow ai-engineers-guild/ai-stp/.github/workflows/cli-release.yml
 ```
 
@@ -60,16 +62,20 @@ exact workflow identities belong to the GitHub release and its source PR.
 
 ## Install and update
 
-Run the verified archive executable outside its intended installation directory:
+Choose the archive for your platform from
+[CLI 0.3.0](https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.3.0).
+Verify it as described above, then run the extracted executable outside its
+intended installation directory:
 
 ```sh
 ./ai-stp cli install plan --prefix /absolute/private/ai-stp-cli --json
 ```
 
-Save `data.plan` to a JSON file, review it and apply its exact digest:
+Save `data.plan` to `install.json` and set `PLAN_DIGEST` to `data.plan_digest`.
+Review the plan before applying it:
 
 ```sh
-./ai-stp cli install apply --plan install.json --plan-digest sha256:<digest> --json
+./ai-stp cli install apply --plan install.json --plan-digest "$PLAN_DIGEST" --json
 ./ai-stp cli install status --prefix /absolute/private/ai-stp-cli --json
 ```
 
@@ -127,15 +133,11 @@ did not retain it. Planning binds the physical database, complete row generation
 owner, device/public key and credential metadata. Unfinished legacy tasks,
 operations, installation or self-update journals and pending browser login refuse.
 
-Transfer keeps the original SQLite file and all 51 tables in place. Admission
-atomically stamps schema 54 with its operation, fencing old schema-53 writers.
-Credentials move only after exact readback; the old key/session slots are then
-retired. Native operations refuse partial ownership. The retained plan resumes
-after interruption, including after admission expiry. A completed replay does not
-replace later native records. Settled legacy tasks are read-only history. No
-snapshot, cloned database or target restoration is made. Fresh native registries
-retain the schema-53 data model; existing internal namespace markers remain
-stable storage identifiers, not a second product.
+Transfer keeps the original SQLite file. Admission stamps schema 54 and fences
+legacy writers. Exact credential readback precedes retirement of the old slots.
+Resume the retained plan after interruption, including after admission expiry.
+Settled legacy tasks are read-only. Native services can upgrade the registry as
+needed. Inspect readable versions with `ai-stp capabilities --json`.
 
 ## Contexts and recovery
 
@@ -190,7 +192,9 @@ platforms. It compiles an exact local setup graph for one to three existing
 global, user-root or project folders. Compilation and review grant no later
 execution rights. Harness programs stay user/vendor managed.
 
-Save a request using the exact local setup coordinates:
+For a catalog setup, capture the exact version with `registry acquire plan` and
+admit it to local state with `local apply`. Then save a configuration request
+with the exact local setup coordinates:
 
 ```json
 {
@@ -220,11 +224,9 @@ ai-stp configuration native apply --operation OPERATION --plan-digest DIGEST --j
 ai-stp configuration native status --operation OPERATION --plan-digest DIGEST --json
 ```
 
-Use the original `--state-dir` throughout. Selection changes only the view.
-`pending` recovers an admitted operation without its plan file; `cancel` cancels
-unpublished preparation. Exact retries retain original context and bytes.
-Preparation fences older CLI writers; forward recovery handles partial writes.
-Configuration is not atomic across physical roots.
+Use the original `--state-dir` throughout. `pending` recovers an admitted
+operation without its plan file. `cancel` cancels unpublished preparation.
+Recovery continues the original operation after partial writes across roots.
 
 When `restart_required` is true, stop the observed harness sessions before apply,
 start a new session afterwards and run `configuration native confirm` with the

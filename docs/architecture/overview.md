@@ -1,6 +1,6 @@
 ---
 description: "Runtime responsibilities and data ownership."
-last_verified: "2026-10-15"
+last_verified: "2026-11-04"
 ---
 
 # System boundaries
@@ -19,11 +19,11 @@ Shared server models generate `schemas/v1` and the HTTP client. The retired
 Python CLI is preserved on the `legacy/python-cli` branch.
 It is not a runtime dependency of the native executable.
 
-A provider is an ai-stp installation component released from its public setup-system
-repository. The CLI authenticates its exact release and prepares the bundle;
-only that component writes the harness's final configuration. Linux isolation
-and staged activation enforce this boundary. The user/vendor owns the harness
-executable and its updates.
+The native installation engine compiles exact setup graphs, reviews changes and
+writes harness configuration through its transaction and custody services.
+Historical external-provider operations keep their exact artifacts and recovery
+route. The harness executable is managed by its user or vendor. See the
+[configuration standard](../../standards/setup-systems.md).
 
 Published component/setup versions pin exact immutable bytes. Mechanical
 compatibility, provenance, trust and access checks run before effects. Mutations

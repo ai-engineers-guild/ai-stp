@@ -1,6 +1,6 @@
 ---
 description: "Server configuration owners and separation from CLI settings."
-last_verified: "2026-10-15"
+last_verified: "2026-11-04"
 ---
 
 # Server configuration
@@ -11,9 +11,9 @@ infra-env-check` runs that check without starting containers. Real environment f
 belong to the host, are ignored by Git and must be excluded from source cleanup.
 
 The deployment supplies database, queue, object storage, session and catalog-cursor
-signing secrets, OAuth and content-import credentials. Empty optional provider
-configuration disables that provider. Change access or authentication settings only
-within the task's authorization. Never copy real values into documentation or logs.
+signing secrets, OAuth and content-import credentials. Enabled sign-in methods
+depend on the server's configuration. Inspect them with
+`ai-stp account providers --api-url URL --json`. Keep real values on the host.
 
 `deploy/compose.prod.yml` and the selected deployment overlay own service topology and
 ports. The [deployment runbook](runbooks/deploy.md) describes applying and verifying

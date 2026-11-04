@@ -1,25 +1,21 @@
 ---
 title: "Troubleshooting"
-description: "Basic ai_stp diagnostics and safe recovery after an error."
+description: "Inspect native state and recover the original operation."
 ---
 
 # Troubleshooting
 
-Read the current runtime and command scope first:
-
-```bash
+```sh
 ai-stp version --json
 ai-stp doctor --json
-ai-stp task list --json
+ai-stp configuration native pending --json
 ```
 
-If the executable is missing, follow the [native installation guide](../quickstart/human.md).
-A Python registry must be explicitly transferred, not initialized again.
-For a pending task, use its stored id and current revision. For a pending plan,
-reuse its exact plan and digest; do not fabricate another operation over it.
-Expired, unadmitted plans must be recreated. Admission preserves forward recovery.
+Use the original state directory. For a task, read its current revision with
+`task status`. For native configuration, retain the operation ID and plan digest
+reported by `pending` and read scoped help for recovery. A preparation can require
+the original consumer to exit before application.
 
-Account errors require account status and a new account plan when appropriate;
-reusing an expired browser code cannot renew it. Credentials stay outside logs.
-A platform capability refusal is a real boundary: provider execution currently
-requires Linux. There is no backup/restore shortcut around failed preconditions.
+For a missing executable or a Python registry, follow the
+[installation and migration guide](../quickstart/human.md). For sign-in errors,
+read account status and start a new authorization if its code expired.

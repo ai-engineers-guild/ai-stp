@@ -53,15 +53,7 @@ WORKFLOW = Path(".github/workflows/check.yml")
 
 GIT_WORKFLOW_DOC = Path("docs/engineering/git-workflow.md")
 
-SERENA_IGNORE = Path(".serena/.gitignore")
-
-SERENA_TRANSIENT = (
-    ".serena/.auto_sync_head",
-    ".serena/.flow_blocker_ack.json",
-    ".serena/.flow_post_task_state.json",
-    ".serena/.flow_sync_marker",
-    ".serena/.serena_sync_state.json",
-)
+LOCAL_TOOL_PATHS = (".serena", ".serena.local-backup-before-ff")
 
 
 @dataclass
@@ -136,42 +128,20 @@ class ContractLinter:
         )
 
     def check_tracked_runtime_state(self) -> None:
-        """Specific checkout state is untracked and declared in ignore.
-
-        Both halves are independent: the ignore declaration is checked even
-        without Git, or the check would silently disappear with the working tree.
-        """
+        """Local tool configuration and session state stay outside the Git index."""
         try:
             tracked = subprocess.run(
-                ["git", "ls-files", "-z", "--", ".serena"],
+                ["git", "ls-files", "-z", "--", *LOCAL_TOOL_PATHS],
                 cwd=self.root,
                 capture_output=True,
                 text=True,
                 check=True,
-            ).stdout.split("\0")
+            ).stdout
         except (OSError, subprocess.CalledProcessError):
-            tracked = []  # Outside a Git checkout there is no tracking to inspect.
+            return  # Source exports have no Git index.
 
-        tracked_set = {item for item in tracked if item}
-        for name in SERENA_TRANSIENT:
-            if name in tracked_set:
-                self.error(
-                    name,
-                    "CT030",
-                    "specific checkout state is tracked again: SHA, branch, and machine path",
-                )
-
-        ignore = self.root / SERENA_IGNORE
-        if not ignore.exists():
-            self.error(SERENA_IGNORE, "CT031", "session-state ignore file is missing")
-            return
-        declared = {
-            line.strip().lstrip("/") for line in ignore.read_text(encoding="utf-8").splitlines()
-        }
-        for name in SERENA_TRANSIENT:
-            basename = Path(name).name
-            if basename not in declared:
-                self.error(SERENA_IGNORE, "CT032", f"{basename} is not declared in ignore")
+        for path in filter(None, tracked.split("\0")):
+            self.error(path, "CT030", "checkout-specific tool data must not be tracked")
 
     def report(self, fmt: str) -> int:
         if fmt == "github":

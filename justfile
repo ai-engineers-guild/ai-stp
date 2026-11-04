@@ -273,9 +273,9 @@ docs-test:
 [doc('Strict builds of all three MkDocs sites')]
 [group('docs')]
 docs-build:
-    {{ py }} -m mkdocs build --strict -f {{ scripts }}/mkdocs.yml
-    {{ py }} -m mkdocs build --strict -f {{ scripts }}/user-mkdocs.yml
-    {{ py }} -m mkdocs build --strict -f {{ scripts }}/user-mkdocs.en.yml
+    NO_MKDOCS_2_WARNING=1 {{ py }} -m mkdocs build --strict -f {{ scripts }}/mkdocs.yml
+    NO_MKDOCS_2_WARNING=1 {{ py }} -m mkdocs build --strict -f {{ scripts }}/user-mkdocs.yml
+    NO_MKDOCS_2_WARNING=1 {{ py }} -m mkdocs build --strict -f {{ scripts }}/user-mkdocs.en.yml
 
 # Real render of diagrams in the Mermaid engine, not parsing of their text.
 [group('docs')]
@@ -285,25 +285,25 @@ docs-regress:
 [doc('Serve the engineering docs locally')]
 [group('docs')]
 docs-serve:
-    {{ py }} -m mkdocs serve -f {{ scripts }}/mkdocs.yml
+    NO_MKDOCS_2_WARNING=1 {{ py }} -m mkdocs serve -f {{ scripts }}/mkdocs.yml
 
 # Both language lines. English builds into `/en/` inside the same site_dir,
 # so order matters: Russian cleans the directory, English lands inside it.
 [doc('Build both user-docs language lines')]
 [group('docs')]
 user-docs-build:
-    {{ py }} -m mkdocs build --strict -f {{ scripts }}/user-mkdocs.yml
-    {{ py }} -m mkdocs build --strict -f {{ scripts }}/user-mkdocs.en.yml
+    NO_MKDOCS_2_WARNING=1 {{ py }} -m mkdocs build --strict -f {{ scripts }}/user-mkdocs.yml
+    NO_MKDOCS_2_WARNING=1 {{ py }} -m mkdocs build --strict -f {{ scripts }}/user-mkdocs.en.yml
 
 [doc('Serve the user docs locally')]
 [group('docs')]
 user-docs-serve:
-    {{ py }} {{ scripts }}/user_docs_dev.py --host 127.0.0.1 --port 8011
+    NO_MKDOCS_2_WARNING=1 {{ py }} {{ scripts }}/user_docs_dev.py --host 127.0.0.1 --port 8011
 
 [doc('Serve the English user docs locally')]
 [group('docs')]
 user-docs-serve-en:
-    {{ py }} -m mkdocs serve -f {{ scripts }}/user-mkdocs.en.yml
+    NO_MKDOCS_2_WARNING=1 {{ py }} -m mkdocs serve -f {{ scripts }}/user-mkdocs.en.yml
 
 [doc('The documentation aggregate')]
 [group('docs')]

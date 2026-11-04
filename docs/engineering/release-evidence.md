@@ -1,14 +1,15 @@
 ---
 description: "Where native release and deployment evidence is produced and verified."
-last_verified: "2026-11-03"
+last_verified: "2026-11-04"
 ---
 
 # Release evidence
 
 The native release workflow is `.github/workflows/cli-release.yml`. Stable tags
-are `cli-v<version>` and must match Cargo metadata. The release owns archives,
-checksums, manifests, SBOM and attestations; its exact source PR and workflow runs
-own qualification evidence. Do not duplicate release receipts in documentation.
+are `cli-v<version>` and match Cargo metadata. The workflow builds and attests
+the archives, wheels, crate and checksum files. Verify and publish those exact
+files in the GitHub release, then publish the same wheels and crate through the
+registry workflows. GitHub retains the source and qualification evidence.
 
 Both client release owners recheck the exact currently qualified main through
 `require-client-release-source.sh`. A successful source build, historical run

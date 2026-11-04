@@ -1,3 +1,8 @@
-# Managed installation components
+# Configuration engines
 
-Setup systems are components of ai-stp with separate release repositories. The CLI acquires and verifies them; no second setup-manager product is required. `ai-stp provider inspect` reports the exact native surface; `ai-stp program status` observes the user-installed harness. A provider version pin is not permission to update the harness. Unsupported signatures, profiles or isolation must remain refusals.
+`ai-stp capabilities --json` reports first-party support under
+`native_configuration`. New setups use the bundled native engine.
+`ai-stp program status` observes the user-installed harness.
+
+Historical external-provider operations keep their original authenticated
+release, plan and receipt. Use their original recovery route.
