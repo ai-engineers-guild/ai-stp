@@ -144,7 +144,7 @@ export default function RegistryPage({
               <li key={command.path.join(" ")}>
                 <button
                   aria-pressed={selected === command}
-                  className={`w-full p-4 text-left transition-colors hover:bg-accent ${selected === command ? "bg-primary/5" : ""}`}
+                  className={`w-full p-4 text-left hover:bg-accent ${selected === command ? "bg-primary/5" : ""}`}
                   disabled={busy}
                   onClick={() => select(command)}
                 >
