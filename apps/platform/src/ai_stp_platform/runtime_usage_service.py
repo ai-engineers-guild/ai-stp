@@ -120,8 +120,16 @@ _DEDUP_COMPARE_FIELDS: Final[tuple[str, ...]] = (
     "component_version",
     "component_passport_digest",
     "activity_kind",
+    "source",
+    "outcome",
     "schema_version",
 )
+
+
+def _same_event(left: EventRow, right: EventRow) -> bool:
+    return all(
+        getattr(left, field) == getattr(right, field) for field in _DEDUP_COMPARE_FIELDS
+    ) and _stamp(left.invoked_at) == _stamp(right.invoked_at)
 
 
 @dataclass(frozen=True)
@@ -803,6 +811,7 @@ async def ingest_events(
             event.organization_id != organization_id
             or event.employee_id != caller_account_id
             or event.device_id not in caller_devices
+            or (event.source == "native_hook" and caller_device_id is None)
             or event.project_id not in projects
             or ("account", event.employee_id) in revoked
             or ("device", event.device_id) in revoked
@@ -823,17 +832,10 @@ async def ingest_events(
                 )
             )
         if existing is not None:
-            if any(
-                getattr(existing, field) != getattr(candidate, field)
-                for field in _DEDUP_COMPARE_FIELDS
-            ):
+            if not _same_event(existing, candidate):
                 rejected += 1
                 rejected_ids.append(event.event_id)
                 continue
-            if existing.source == "agent_reported" and event.source == "native_hook":
-                existing.source = event.source
-                existing.outcome = event.outcome
-                existing.invoked_at = candidate.invoked_at
             duplicates += 1
             duplicate_ids.append(event.event_id)
             continue
@@ -863,23 +865,15 @@ async def ingest_events(
             )
             if stored is None:
                 raise
-            if any(
-                getattr(stored, field) != getattr(candidate, field)
-                for field in _DEDUP_COMPARE_FIELDS
-            ):
+            if not _same_event(stored, candidate):
                 rejected += 1
                 rejected_ids.append(event.event_id)
             else:
-                if stored.source == "agent_reported" and event.source == "native_hook":
-                    stored.source = event.source
-                    stored.outcome = event.outcome
-                    stored.invoked_at = candidate.invoked_at
                 duplicates += 1
                 duplicate_ids.append(event.event_id)
             continue
         # ``candidate`` is still transient after the Core insert; ``seen`` must
-        # hold a persistent row so a same-batch native confirmation promotes
-        # the stored event instead of mutating an object the flush never sees.
+        # hold a persistent row so same-batch retries compare with the stored event.
         # Marking it detached lets ``merge(load=False)`` attach it without a
         # re-read: the row was just inserted, so its state matches the
         # database, and unset columns stay expired for lazy load.

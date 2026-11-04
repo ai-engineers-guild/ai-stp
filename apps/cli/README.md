@@ -258,6 +258,17 @@ file states under current company policy. Collection/delivery are explicit
 foreground actions; retries keep the original batch. Local disable works offline.
 It neither performs complete external discovery nor measures runtime loading.
 
+Corporate runtime usage has its own reviewed consent:
+`corporate usage consent plan/apply`, `status`, `record`, `flush` and `disable`.
+`record` requires the original context, a current completed native installation
+operation, an unchanged owned component, and a stable opaque signal ID.
+The private outbox retains exact version coordinates and sends only content-free
+events to the authenticated corporate usage endpoint. Exact retries are
+idempotent; conflicting reuse of a signal ID is refused. Delivery is foreground
+only. These manual reports are labeled `agent_reported`; no harness-native hook
+collection or background service is available yet. Corporate native-hook
+aggregates exclude these reports.
+
 ## Build and verification
 
 Use the pinned Rust/Bun/uv and existing managed compiler/cache frontends. The

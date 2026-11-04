@@ -493,22 +493,22 @@ class TestIngest:
         assert replay.duplicate_ids == [event.event_id]
 
     @pytest.mark.parametrize("same_batch", [False, True])
-    async def test_native_confirmation_promotes_one_fallback_event(
+    async def test_same_id_cannot_promote_a_reported_event_to_native_hook(
         self, session: AsyncSession, same_batch: bool
     ) -> None:
         tenant = await _seed(session)
         fallback = _event(tenant, "usage_event_promoted", source="agent_reported")
         native = fallback.model_copy(update={"source": "native_hook", "outcome": "failed"})
         if same_batch:
-            await _ingest(session, tenant, [fallback, native])
+            result = await _ingest(session, tenant, [fallback, native])
         else:
             await _ingest(session, tenant, [fallback])
             result = await _ingest(session, tenant, [native])
-            assert result.duplicate_ids == [native.event_id]
+        assert result.rejected_ids == [native.event_id]
         await _ingest(session, tenant, [fallback])
         rows = list(await session.scalars(select(EventRow)))
         assert len(rows) == 1
-        assert (rows[0].source, rows[0].outcome) == ("native_hook", "failed")
+        assert (rows[0].source, rows[0].outcome) == ("agent_reported", "succeeded")
         report = await runtime_usage_service.aggregate_report(
             session,
             organization_id=tenant.organization_id,
@@ -516,7 +516,16 @@ class TestIngest:
             scope=runtime_usage_service.UsageScope(employees=None),
             now=NOW,
         )
-        assert report.total_events == 1
+        assert report.total_events == 0
+
+    async def test_browser_session_cannot_claim_a_native_hook(self, session: AsyncSession) -> None:
+        tenant = await _seed(session)
+        native = _event(tenant, "usage_event_unbound_device")
+        result = await _ingest(session, tenant, [native], caller_device=None)
+        assert result.rejected_ids == [native.event_id]
+        reported = native.model_copy(update={"source": "agent_reported"})
+        result = await _ingest(session, tenant, [reported], caller_device=None)
+        assert result.accepted_ids == [reported.event_id]
 
     async def test_duplicate_id_with_changed_component_is_rejected(
         self, session: AsyncSession
@@ -530,6 +539,16 @@ class TestIngest:
         result = await _ingest(session, tenant, [changed])
         assert result.rejected_ids == [event.event_id]
         assert result.duplicates == 0
+
+    async def test_duplicate_id_with_changed_time_is_rejected(self, session: AsyncSession) -> None:
+        tenant = await _seed(session)
+        event = _event(tenant, "usage_event_time_collision")
+        await _ingest(session, tenant, [event])
+        changed = event.model_copy(
+            update={"invoked_at": format_timestamp(RECENT + timedelta(seconds=1))}
+        )
+        result = await _ingest(session, tenant, [changed])
+        assert result.rejected_ids == [event.event_id]
 
     async def test_committed_duplicate_race_classifies_against_stored_row(
         self, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
@@ -799,7 +818,7 @@ class TestIngest:
         ok = await _ingest(
             session,
             tenant,
-            [_event(tenant, "usage_event_0000000000004")],
+            [_event(tenant, "usage_event_0000000000004", source="agent_reported")],
             caller_device=None,
         )
         assert ok.accepted == 1
