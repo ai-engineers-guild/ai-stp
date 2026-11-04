@@ -31,7 +31,7 @@ function ItemList({
           <li key={id}>
             <button
               onClick={() => onShow(id)}
-              className="flex h-full w-full flex-col rounded-lg border border-border p-5 text-left transition-colors hover:border-primary/50 hover:bg-card"
+              className="flex h-full w-full flex-col rounded-lg border border-border p-5 text-left hover:border-primary/50 hover:bg-card"
             >
               <div className="mb-4 flex w-full items-center justify-between gap-3">
                 <Package size={20} className="text-muted-foreground" />

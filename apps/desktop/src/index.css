@@ -177,10 +177,10 @@ body {
     @apply rounded-lg border border-border bg-card;
   }
   .btn-primary {
-    @apply inline-flex items-center gap-2 rounded-sm bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50;
+    @apply inline-flex items-center gap-2 rounded-sm bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50;
   }
   .btn-outline {
-    @apply inline-flex items-center gap-2 rounded-sm border border-input px-3 py-1.5 text-sm transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40;
+    @apply inline-flex items-center gap-2 rounded-sm border border-input px-3 py-1.5 text-sm hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40;
   }
   .btn-danger {
     @apply inline-flex items-center gap-2 rounded-sm bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50;
@@ -277,7 +277,7 @@ body {
     @apply mb-2 px-3;
   }
   .nav-item {
-    @apply my-0.5 flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground;
+    @apply my-0.5 flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground;
   }
   .nav-active {
     @apply bg-primary/10 font-medium text-primary hover:bg-primary/10 hover:text-primary;
@@ -337,7 +337,7 @@ body {
     @apply mt-2 text-xs leading-5 text-muted-foreground;
   }
   .action-card {
-    @apply flex items-start justify-between gap-4 rounded-lg border border-border p-5 transition-colors hover:border-primary/50 hover:bg-card;
+    @apply flex items-start justify-between gap-4 rounded-lg border border-border p-5 hover:border-primary/50 hover:bg-card;
   }
   .panel-heading {
     @apply flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-4;
