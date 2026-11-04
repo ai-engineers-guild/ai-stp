@@ -14,8 +14,8 @@ Native surface for this harness: Plugin/Skill and explicit import through `CLAUD
 
 # ai-stp
 
-Use the installed Rust CLI as the only business engine. Setup systems are its
-installation components; harness executables remain user/vendor managed.
+Use the installed Rust CLI for native configuration. The user or vendor manages
+the harness executable.
 
 ## Start here
 
@@ -56,7 +56,7 @@ Read only the reference relevant to the current operation.
 - [Recover original intent](references/recover.md)
 - [Update the native CLI](references/self-update.md)
 - [Author and publish](references/author.md)
-- [Managed installation components](references/provider.md)
+- [Configuration engines](references/provider.md)
 - [Account, grants and sync](references/account.md)
 - [Control procedure](references/self.md)
 - [Machine results](references/envelope.md)
@@ -66,7 +66,7 @@ Read only the reference relevant to the current operation.
 ## Hard rules
 
 - Machine help is the current capability contract. No Python command fallback.
-- Only the authenticated installation component writes a harness target.
+- Apply the retained native plan through the CLI transaction writer.
 - Preserve exact versions, source digests, access checks and trust labels.
 - Never install, pin, remove or update a harness executable through ai-stp.
 - Do not create backups or snapshots without an explicit user request.

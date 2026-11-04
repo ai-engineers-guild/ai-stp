@@ -1,9 +1,7 @@
 """Generate native and locale projections of the canonical Agent Skill.
 
-`docs/agent/harness-projections.md` and `ADR-0149`: one canonical procedure is
-not copied by hand. A harness projection is that procedure plus harness
-metadata and a short native-surface note. It is never a pointer at a
-repository path. `just back-gen` writes; `just back-static` checks.
+A harness projection contains the canonical procedure, locale references and
+harness metadata. `just back-gen` writes it and `just back-static` checks drift.
 """
 
 from __future__ import annotations

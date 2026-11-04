@@ -10,6 +10,6 @@ last_verified: "2026-10-15"
 | Document | Description | Verified |
 | -------- | ----- | ------- |
 | [runbooks/](runbooks/index.md) | Procedures for the running server. | 2026-10-15 |
-| [configuration.md](configuration.md) | Server configuration owners and separation from CLI settings. | 2026-10-15 |
+| [configuration.md](configuration.md) | Server configuration owners and separation from CLI settings. | 2026-11-04 |
 
 <!-- END CONTENTS -->

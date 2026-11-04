@@ -8,57 +8,18 @@ Reports about published catalog objects are submitted through the product and cr
 
 Include the affected version or commit, minimal reproduction steps, expected and actual behavior, potential impact, and safe evidence without real secrets.
 
-## Assets
+## Installation and evidence
 
-Protected assets include private setup and component artifacts; OAuth, session, and device keys; the user's file system and harness targets; passports and project data; publication authorship; provider releases; administrative access; and the operation journal.
-
-## Untrusted inputs
-
-Untrusted inputs include the contents of external repositories and archives, uploaded artifacts, third-party manifests and passports, remote MCPs and their responses, OAuth callbacks, provider and scanner output, synchronization events, administrative actions, and issues, PRs, commit messages, and documentation.
-
-## Actors considered
-
-These include a regular user, author, unverified author, revoked device, administrator, malicious artifact, repository or MCP, compromised provider release, and a process belonging to the same user that ignores coordinated locks.
-
-## Primary threats
-
-Path traversal and unsafe extraction, replacement through symbolic or hard links, command or model-instruction injection, malicious hooks, scripts, and plugins, secret extraction, SSRF through external endpoints, bypassing user or object authorization, device event replay, forged attestation, dependency or provider substitution, stale plans, partial application, lost concurrent updates, stored XSS in descriptions, and resource exhaustion.
-
-## Three independent axes
-
-The agent execution profile within the harness, isolation of validation-tool execution, and integrity of the mutating operation are three independent axes. The `full-auto` profile applies only to the first axis and does not waive authorization, artifact validation, planning, atomicity, or recovery.
-
-## Mandatory protections
-
-- a published version is bound to an exact source revision and digest;
-- traversal, unsafe symlinks and hardlinks, and special devices are rejected;
-- arbitrary post-install scripts are denied by default;
-- an external tool is launched with an argument array, without a shell, by exact path, with a timeout and output limit;
-- validations run without network access by default;
-- an error, `degraded`, or `not_run` result is not converted into `passed`;
-- policy defines the mandatory validation set by object kind and transport class, and an unknown value fails closed;
-- a remote connection endpoint is validated separately from the local package, including server-side request forgery protection;
-- a verified author is not an automatic security verdict and does not make a version verified;
-- environment-variable values are not read; only the presence of a name is checked;
-- knowledge of an account identifier or email address does not grant authority;
-- an agent does not confirm its own external write;
-- a `sudo` password is never passed to the agent, CLI, as an argument, through stdin, or through the environment;
-- authorization is checked for every object and action, and administrative access is logged;
-- device revocation, nonces, and idempotency keys protect against replay;
-- the plan/revalidate/journal cycle and an isolated target precede every write;
-- web output is safely encoded, with CSP, rate limits, and resource limits applied;
-- device tokens and keys are not stored in passports;
-- unknown states are typed and are not reduced to success.
-
-## Explicit limitation
-
-Intentional file modification by another process of the same user outside the coordinated protocol is not considered proven to be prevented.
+Review the exact source, digest, target and required evidence before applying
+a plan. Author verification establishes identity. Scan results describe the
+checks that ran. Keep credentials in the selected store and outside reports,
+passports and logs. Use the retained operation to inspect or recover an
+interrupted change. Concurrent edits outside the CLI can require drift recovery.
+See [trust and safety](https://docs.nddev.asia/en/trust-and-safety/).
 
 ## Supported versions
 
-Use the latest qualified CLI 0.2 and Desktop 0.1 patch releases published in
-[GitHub Releases](https://github.com/ai-engineers-guild/ai-stp/releases). Report
-issues against their exact version/source; unpublished development is not a
-released security update. Earlier binaries remain immutable and do not receive
-in-place fixes. The retired Python CLI is historical source; existing state
-requires the native engine's explicit migration workflow.
+Report issues against a specific published version and source commit. The
+current releases are [CLI 0.3.0](https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.3.0)
+and [Desktop 0.4.0](https://github.com/ai-engineers-guild/ai-stp/releases/tag/desktop-v0.4.0).
+Fixes ship as new immutable releases.

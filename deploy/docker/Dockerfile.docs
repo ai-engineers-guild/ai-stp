@@ -5,14 +5,9 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
+    NO_MKDOCS_2_WARNING=1 \
     PATH="/app/.venv/bin:${PATH}"
-# Pinned by digest and named by version. The tag alone used to be `:0.9`,
-# which moves: two builds of the same commit could resolve different `uv`
-# releases, so the image was not reproducible from the commit — which
-# `SPEC-024` requires and `dependency-policy.md` states as exact versions
-# rather than moving references. The version also now matches the one every
-# gate installs, so what production resolves the lockfile with is what CI
-# proved it with; a contract test holds the two together.
+# Match the exact uv version used by CI.
 COPY --from=ghcr.io/astral-sh/uv:0.13.5@sha256:32a7bb39b496babbd997b0a39a4d66c126bdaf5661b302bf6f06abda8deca6ff /uv /bin/uv
 WORKDIR /app
 # Same apt discipline as the api stage in `deploy/docker/Dockerfile.app`: a dated snapshot plus an

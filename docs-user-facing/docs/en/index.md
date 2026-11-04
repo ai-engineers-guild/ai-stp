@@ -1,20 +1,18 @@
 ---
 title: "Overview"
-description: "Current Rust CLI, account and catalog guidance."
+description: "Native setup configuration, accounts and the public catalog."
 ---
 
 # ai-stp
 
-ai-stp creates, validates, selects and installs complete configurations for AI
-harnesses. The Rust CLI is the engine; the web provides accounts and the public
-catalog. A setup belongs to one harness and pins exact immutable component versions.
+ai-stp creates and installs exact configurations for AI harnesses. A setup pins
+immutable component versions for one harness. The CLI and Desktop share the
+native engine. The web provides accounts and the public catalog.
 
-[Install](quickstart/human.md), then let your agent use the
-[task interface](quickstart/agent.md). The [CLI reference](cli/index.md) explains
-command discovery and state. [Catalog](catalog/index.md) and
-[trust](trust-and-safety/index.md) explain what public results mean.
+Start with [installation](quickstart/human.md) or the [agent workflow](quickstart/agent.md).
+Use the [CLI reference](cli/index.md) for commands and state, and
+[trust and safety](trust-and-safety/index.md) for evidence and recovery.
 
-Linux x86-64, Apple Silicon macOS and Windows x86-64 run in CI. Isolated setup
-installation and active-session handoff are currently available on Linux.
-Harness executables remain managed by users/vendors. No model key is needed,
-and the CLI has no telemetry sender or automatic updater.
+Linux x86-64, Apple Silicon macOS and Windows x86-64 are tested in CI.
+Read `data.native_configuration` from `ai-stp capabilities --json` for
+configuration and process handoff support on your installed executable.

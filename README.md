@@ -1,52 +1,32 @@
 # ai-stp
 
 [Русский](README.ru.md) · [Catalog](https://ai-stp.aiguild.space) ·
-[CLI releases](https://github.com/ai-engineers-guild/ai-stp/releases?q=cli-v)
+[User docs](https://docs.nddev.asia/en/)
 
-ai-stp is a Rust CLI for creating, validating, selecting and installing complete
-AI harness configurations. The primary consumer is your coding agent. Local work
-needs no account, Python runtime or model key. The web provides accounts and the
-public catalog; the CLI remains the engine.
+ai-stp is a Rust CLI that creates and installs exact configurations for AI
+harnesses. Each setup pins immutable component versions for one harness. The web
+provides accounts and the public catalog. The CLI and Desktop use the same engine.
 
 ## Start
 
-Download a native archive, verify its checksum and GitHub attestation, and follow
-[installation and state setup](apps/cli/README.md#install-and-update).
+Follow the [CLI installation guide](apps/cli/README.md#install-and-update) to
+verify and install an archive or use a package manager. For a new local state:
 
 ```sh
 ai-stp init --credential-store os_keyring --json
-ai-stp task intents --json
 ai-stp help --agent --json
 ```
 
-Existing Python state requires the explicit in-place transfer described in the
-[CLI guide](apps/cli/README.md#state-and-first-run). Install from source with
-`cargo install ai-stp-cli --locked`, or use `uv tool install ai-stp` /
-`pip install ai-stp` for the same executable in a native wheel. The older
-`ai-stp-cli` PyPI project is separate; remove its launcher through its package
-manager before changing installation routes. Retired Python source is preserved on
-[`legacy/python-cli`](https://github.com/ai-engineers-guild/ai-stp/tree/legacy/python-cli).
+Use the [state migration procedure](apps/cli/README.md#state-and-first-run) for
+an existing Python registry. Local configuration needs no account or model key.
 
-## Boundaries
+Native configuration and process handoff are tested on Linux x86-64, Apple
+Silicon macOS and Windows x86-64. Use `ai-stp capabilities --json` to check
+`native_configuration` on your executable. The user or vendor manages the
+harness program.
 
-A setup belongs to one harness and pins immutable component versions. The CLI
-validates the graph and assembles a bundle; the harness installation component
-writes native configuration. Setup systems are integrated components with separate
-repositories, acquired by the CLI. Harness executables are managed by their users
-and vendors; ai-stp only observes the installed program.
+[Desktop](apps/desktop/README.md) · [Engineering and operations](docs/index.md) ·
+[Development](CONTRIBUTING.md) · [Security](SECURITY.md) ·
+[Code of conduct](CODE_OF_CONDUCT.md)
 
-Linux x86-64, Apple Silicon macOS and Windows x86-64 are exercised in CI. Isolated
-setup installation and active-agent handoff currently work on Linux; the other
-platforms explicitly refuse that boundary. `ai-stp capabilities --json` reports
-what the running platform supports.
-
-## Reference
-
-- [Rust CLI](apps/cli/README.md): install, state, services and recovery.
-- [Documentation](docs/index.md): machine contracts and server operations.
-- [Development](CONTRIBUTING.md) and [working rules](AGENTS.md).
-- [Desktop shell](apps/desktop/README.md): another client of the CLI contract.
-- [Security reporting](SECURITY.md) and [code of conduct](CODE_OF_CONDUCT.md).
-
-AGPL-3.0-or-later; see [LICENSE](LICENSE). User-published configurations and public
-installation components retain their own licenses.
+[AGPL-3.0-or-later](LICENSE). Published configurations retain their own licenses.
