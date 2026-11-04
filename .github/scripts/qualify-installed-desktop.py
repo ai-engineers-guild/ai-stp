@@ -380,8 +380,11 @@ class Driver:
         self.read(
             """
             const control = document.querySelector(arguments[0]);
-            const labels = [...document.querySelectorAll('nav[aria-label="Main navigation"] a > span')];
-            if (!control || !labels.length) throw new Error("Missing theme control or navigation labels");
+            const labels = [...document.querySelectorAll(
+                'nav[aria-label="Main navigation"] a > span'
+            )];
+            if (!control || !labels.length)
+                throw new Error("Missing theme control or navigation labels");
             const canvas = document.createElement("canvas");
             canvas.width = canvas.height = 1;
             const context = canvas.getContext("2d", { willReadFrequently: true });
@@ -392,7 +395,9 @@ class Driver:
                 return [...context.getImageData(0, 0, 1, 1).data].map(value => value / 255);
             }
             function over([r, g, b, alpha], background) {
-                return [r, g, b].map((value, index) => value * alpha + background[index] * (1 - alpha));
+                return [r, g, b].map(
+                    (value, index) => value * alpha + background[index] * (1 - alpha)
+                );
             }
             function contrast(label) {
                 const layers = [];
@@ -400,8 +405,10 @@ class Driver:
                     layers.unshift(rgba(getComputedStyle(element).backgroundColor));
                 const background = layers.reduce((base, layer) => over(layer, base), [1, 1, 1]);
                 const foreground = over(rgba(getComputedStyle(label).color), background);
-                const linear = value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4;
-                const luminance = ([r, g, b]) => .2126 * linear(r) + .7152 * linear(g) + .0722 * linear(b);
+                const linear = value =>
+                    value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4;
+                const luminance = ([r, g, b]) =>
+                    .2126 * linear(r) + .7152 * linear(g) + .0722 * linear(b);
                 const values = [luminance(foreground), luminance(background)];
                 return (Math.max(...values) + .05) / (Math.min(...values) + .05);
             }
