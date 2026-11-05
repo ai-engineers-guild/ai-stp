@@ -7,7 +7,7 @@ dependencies = [
     "ai-stp-foundation",
     "ai-stp-platform",
     "ai-stp-contracts",
-    "fastapi>=0.161.1",
+    "fastapi>=0.162.0",
     "uvicorn[standard]>=0.54.0",
     "pydantic-settings>=2.5",
     "structlog>=24.4",
