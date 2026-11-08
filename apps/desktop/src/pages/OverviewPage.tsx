@@ -124,7 +124,7 @@ export default function OverviewPage() {
       </section>
       <section
         aria-label={t("home.device")}
-        className="grid gap-4 lg:grid-cols-3"
+        className="grid gap-4 sm:grid-cols-3"
       >
         <div className="stat-card">
           <p className="eyebrow">{t("home.identity")}</p>

@@ -1,5 +1,6 @@
 import type { CmdResult } from "../transport";
 import { Link } from "react-router";
+import { useText } from "../i18n";
 
 export function Json({ v }: { v: unknown }) {
   return (
@@ -12,6 +13,7 @@ export function Json({ v }: { v: unknown }) {
 /** Renders the parts of a CmdResult the caller didn't consume: warnings,
  *  continuations, engine-named next actions, and the structured error. */
 export function ResultMeta({ r }: { r: CmdResult }) {
+  const t = useText();
   const options = Array.isArray(r.error_details?.options)
     ? (r.error_details?.options as unknown[]).filter(
         (o) => typeof o === "string",
@@ -55,10 +57,27 @@ export function ResultMeta({ r }: { r: CmdResult }) {
           role="alert"
           className="card border-destructive/50 bg-destructive/10 p-4 text-sm"
         >
-          {r.error_code && !r.error.startsWith(`${r.error_code}:`) && (
-            <span className="mr-2 font-mono font-semibold">{r.error_code}</span>
+          {r.error_code === "IPC_THROW" ? (
+            <>
+              <p className="font-medium">{t("error.engineConnection")}</p>
+              <p className="mt-2">{t("error.uncertainChange")}</p>
+              <details className="technical-details mt-3">
+                <summary>{t("common.technical")}</summary>
+                <p className="break-words">
+                  {r.error_code}: {r.error}
+                </p>
+              </details>
+            </>
+          ) : (
+            <>
+              {r.error_code && !r.error.startsWith(`${r.error_code}:`) && (
+                <span className="mr-2 font-mono font-semibold">
+                  {r.error_code}
+                </span>
+              )}
+              {r.error}
+            </>
           )}
-          {r.error}
           {r.error_code === "AI_STP_PRECONDITION_FAILED" &&
             r.error_details?.reason === "historical_native_identity" && (
               <p className="mt-3">

@@ -256,10 +256,10 @@ body {
     @apply flex h-dvh overflow-hidden bg-background text-foreground;
   }
   .app-sidebar {
-    @apply flex w-56 shrink-0 flex-col overflow-y-auto border-e border-border bg-card/60;
+    @apply flex w-56 shrink-0 flex-col overflow-hidden border-e border-border bg-card/60;
   }
   .brand {
-    @apply flex items-center gap-3 px-5 py-5;
+    @apply flex shrink-0 items-center gap-3 px-5 py-5;
   }
   .brand-mark {
     @apply grid h-10 w-10 place-items-center rounded-lg bg-foreground text-background;
@@ -271,7 +271,7 @@ body {
     @apply mt-0.5 block text-[10px] text-muted-foreground;
   }
   .sidebar-nav {
-    @apply flex-1 space-y-3 px-3 pb-5;
+    @apply min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-5;
   }
   .nav-group > .eyebrow {
     @apply mb-2 px-3;
@@ -283,7 +283,7 @@ body {
     @apply bg-primary/10 font-medium text-primary hover:bg-primary/10 hover:text-primary;
   }
   .sidebar-footer {
-    @apply space-y-3 border-t border-border px-5 py-4;
+    @apply shrink-0 space-y-3 border-t border-border px-5 py-4;
   }
   .engine-status {
     @apply flex items-center gap-2 font-mono text-[11px] text-muted-foreground;
