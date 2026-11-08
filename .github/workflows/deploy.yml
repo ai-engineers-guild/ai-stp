@@ -1,85 +1,106 @@
-# Promote the exact commit a green `check` proved, for the target to deploy.
-#
-# The target is not a GitHub runner and this workflow never reaches it. It
-# advances one monotonic ref; the host fetches it anonymously over HTTPS on
-# its own timer and performs the locked, idempotent deployment locally.
-#
-# That shape is deliberate, and it is why this workflow holds no deployment
-# credential at all: a public repository's CI cannot leak an SSH key it was
-# never given. Application secrets live on the target, in an environment file
-# that no workflow reads or writes.
+# Reuse the exact qualified Dev source, accepted analysis and native installers.
+# The target fetches the monotonic deployment ref; this workflow has no host credential.
 name: deploy
 
 on:
   workflow_run:
     workflows: [check]
     types: [completed]
-    branches: [main]
+    branches: [dev]
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Existing successful push-to-Dev qualification to reconcile
+        type: string
+        required: true
 
-# Read at the top and widened on the one job that writes. Nothing else here
-# needs to move a ref, and a workflow-wide write is a permission the proof job
-# would carry for no reason.
 permissions:
   contents: read
 
 jobs:
   promote:
     name: promote
-    # The event and branch are asserted here and again in the step below, and
-    # the duplication is the point. A static analyser cannot see `test` inside
-    # `run`, so a later edit that drops the script checks would silently start
-    # promoting a pull-request run; stated as a job condition, the same mistake
-    # simply skips the job.
     if: >-
-      github.event.workflow_run.conclusion == 'success'
-      && github.event.workflow_run.event == 'push'
-      && github.event.workflow_run.head_branch == 'main'
+      (github.event_name == 'workflow_run'
+        && github.event.workflow_run.conclusion == 'success'
+        && github.event.workflow_run.event == 'push'
+        && github.event.workflow_run.head_branch == 'dev'
+        && github.event.workflow_run.head_repository.full_name == github.repository)
+      || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev')
     permissions:
       contents: write
       actions: read
+      security-events: write
     runs-on: ubuntu-26.04
-    timeout-minutes: 10
-    # Serialising promotion is the point: two runs advancing one ref would
-    # race, and a deployment interrupted between transfer and health check
-    # leaves a state no verdict describes, so a queued promotion waits rather
-    # than cancelling the one ahead of it. Declared on this job rather than the
-    # workflow, because the proof below promotes nothing and only reads.
+    timeout-minutes: 15
     concurrency:
       group: deploy-promotion
       cancel-in-progress: false
+    outputs:
+      head_sha: ${{ steps.source.outputs.head_sha }}
+      source_run_id: ${{ steps.source.outputs.source_run_id }}
+      source_attempt: ${{ steps.source.outputs.source_attempt }}
+      publish_desktop: ${{ steps.promote.outputs.publish_desktop }}
+      desktop_version: ${{ steps.promote.outputs.desktop_version }}
     steps:
-      - name: Admit only the current successful main qualification attempt
+      - name: Admit the exact successful Dev source before executing its code
+        id: source
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-          SOURCE_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.source_run_id }}
+          OBSERVED_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
         run: |
           set -euo pipefail
+          [[ "${SOURCE_RUN_ID}" =~ ^[1-9][0-9]*$ ]]
           run_path="repos/${REPOSITORY}/actions/runs/${SOURCE_RUN_ID}"
           source_run="$(gh api "${run_path}")"
-          jq -e --arg repo "${REPOSITORY}" --arg sha "${HEAD_SHA}" \
-            --argjson run "${SOURCE_RUN_ID}" --argjson attempt "${SOURCE_ATTEMPT}" '
+          head="$(jq -r .head_sha <<< "${source_run}")"
+          attempt="$(jq -r .run_attempt <<< "${source_run}")"
+          [[ "${head}" =~ ^[0-9a-f]{40}$ && "${attempt}" =~ ^[1-9][0-9]*$ ]]
+          if [[ -n "${OBSERVED_ATTEMPT}" ]]; then
+            test "${OBSERVED_ATTEMPT}" = "${attempt}"
+          fi
+          jq -e --arg repo "${REPOSITORY}" --arg sha "${head}" \
+            --argjson run "${SOURCE_RUN_ID}" --argjson attempt "${attempt}" '
             .id == $run and .repository.full_name == $repo and
             .head_repository.full_name == $repo and .head_sha == $sha and
-            .event == "push" and .head_branch == "main" and
+            .event == "push" and .head_branch == "dev" and
             .path == ".github/workflows/check.yml" and
-            .status == "completed" and .conclusion == "success" and
-            .run_attempt == $attempt
+            .status == "completed" and .conclusion == "success" and .run_attempt == $attempt
           ' <<< "${source_run}" >/dev/null
-          jobs="$(gh api "${run_path}/attempts/${SOURCE_ATTEMPT}/jobs?per_page=100")"
+          jobs="$(gh api "${run_path}/attempts/${attempt}/jobs?per_page=100")"
           jq -e '
             .total_count == (.jobs | length) and
-            ([.jobs[] | select(.name == "qualification")] |
+            ([.jobs[] | select(.name == "full-qualification")] |
               length == 1 and all(.[]; .status == "completed" and .conclusion == "success"))
           ' <<< "${jobs}" >/dev/null
-          test "$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq .object.sha)" = "${HEAD_SHA}"
+          test "$(gh api "repos/${REPOSITORY}/git/ref/heads/dev" --jq .object.sha)" = "${head}"
+          printf 'head_sha=%s\nsource_run_id=%s\nsource_attempt=%s\n' \
+            "${head}" "${SOURCE_RUN_ID}" "${attempt}" >> "${GITHUB_OUTPUT}"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ steps.source.outputs.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.14.9"
+      - name: Check the qualified source and reviewed live delivery rules
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          HEAD_SHA: ${{ steps.source.outputs.head_sha }}
+          SOURCE_RUN_ID: ${{ steps.source.outputs.source_run_id }}
+          SOURCE_ATTEMPT: ${{ steps.source.outputs.source_attempt }}
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-delivery-admit
       - name: Require the published CLI download before promotion
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_SHA: ${{ steps.source.outputs.head_sha }}
         run: |
           python3 - <<'PY'
           import ast
@@ -152,50 +173,37 @@ jobs:
           assert comparison["status"] in ("ahead", "identical"), "release outside source history"
           print(f"Published native CLI {tag}: all14 assets; source ancestry accepted")
           PY
-      - name: Verify the source of this promotion and advance the ref
+      - name: Download actual source analysis without executing its contents
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.source.outputs.source_run_id }}
+          pattern: codeql-source-*
+          path: source-analysis
+          digest-mismatch: error
+      - name: Register unchanged qualified analysis for the release reference
         env:
-          EVENT: ${{ github.event.workflow_run.event }}
-          BRANCH: ${{ github.event.workflow_run.head_branch }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          REPOSITORY: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          # A manually requested check answers the question without deploying.
-          test "${EVENT}" = "push"
-          # The trigger already filters by branch. Stating it again costs one
-          # line and removes the class of mistake where widening the filter
-          # silently widens what deploys.
-          test "${BRANCH}" = "main"
-          test "$(gh api "repos/${REPOSITORY}/commits/${HEAD_SHA}" --jq .sha)" = "${HEAD_SHA}"
-          test "$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq .object.sha)" = "${HEAD_SHA}"
-          if gh api "repos/${REPOSITORY}/git/ref/heads/deploy/prod" >/dev/null 2>&1; then
-            gh api --method PATCH "repos/${REPOSITORY}/git/refs/heads/deploy/prod" \
-              -f sha="${HEAD_SHA}" -F force=false >/dev/null
-          else
-            gh api --method POST "repos/${REPOSITORY}/git/refs" \
-              -f ref=refs/heads/deploy/prod -f sha="${HEAD_SHA}" >/dev/null
-          fi
-          # Read back with a bounded retry rather than once. The write above
-          # succeeded and this read disagreed with it on 2026-09-01: the job
-          # exited 1 while `deploy/prod` was in fact already at `HEAD_SHA`, so
-          # the ref advanced, `verify-public` was skipped as a dependent of a
-          # failed job, and nothing watched production roll forward. That is the
-          # red-run-for-a-healthy-deployment this workflow elsewhere says is
-          # worse than no check, arriving through the one call that cannot fail
-          # slowly — a read of a ref moments after writing it.
-          #
-          # Five attempts over roughly ten seconds. A ref that is still wrong
-          # after that is a real disagreement and still fails.
-          promoted=""
-          for _ in 1 2 3 4 5; do
-            promoted="$(gh api "repos/${REPOSITORY}/git/ref/heads/deploy/prod" --jq .object.sha)"
-            if [ "${promoted}" = "${HEAD_SHA}" ]; then
-              break
-            fi
-            sleep 2
-          done
-          test "${promoted}" = "${HEAD_SHA}"
+          REPOSITORY: ${{ github.repository }}
+          HEAD_SHA: ${{ steps.source.outputs.head_sha }}
+          SOURCE_RUN_ID: ${{ steps.source.outputs.source_run_id }}
+          SOURCE_ATTEMPT: ${{ steps.source.outputs.source_attempt }}
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-delivery-register-findings
+      - name: Fast-forward the qualified source and read back deployment
+        id: promote
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          HEAD_SHA: ${{ steps.source.outputs.head_sha }}
+          SOURCE_RUN_ID: ${{ steps.source.outputs.source_run_id }}
+          SOURCE_ATTEMPT: ${{ steps.source.outputs.source_attempt }}
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-delivery-promote
 
   verify-public:
     name: verify-public
@@ -204,16 +212,19 @@ jobs:
     # it twice: a static analyser cannot see that `needs` already settles this.
     # CodeQL reports the checkout below as untrusted because a `workflow_run`
     # can in general be raised by a fork's pull request — which this one cannot,
-    # since `promote` refuses anything that is not a push to `main` and a
+    # since `promote` admits only an exact qualified Dev source and a
     # skipped dependency skips its dependents. Saying so here makes the
     # guarantee legible to the reader and to the scanner.
     #
     # The checkout is credential-free regardless: `persist-credentials: false`,
     # and this job may only read.
     if: >-
-      github.event.workflow_run.conclusion == 'success'
-      && github.event.workflow_run.event == 'push'
-      && github.event.workflow_run.head_branch == 'main'
+      (github.event_name == 'workflow_run'
+        && github.event.workflow_run.conclusion == 'success'
+        && github.event.workflow_run.event == 'push'
+        && github.event.workflow_run.head_branch == 'dev'
+        && github.event.workflow_run.head_repository.full_name == github.repository)
+      || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev')
     permissions:
       contents: read
     runs-on: ubuntu-26.04
@@ -233,7 +244,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ needs.promote.outputs.head_sha }}
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
@@ -302,7 +313,7 @@ jobs:
         env:
           ORIGIN: ${{ vars.AI_STP_PUBLIC_ORIGIN }}
           DOCS_ORIGIN: ${{ vars.AI_STP_DOCS_ORIGIN }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_SHA: ${{ needs.promote.outputs.head_sha }}
           # Which commit contains which is asked of GitHub, because this
           # checkout is shallow and pinned to `HEAD_SHA`: the commit that
           # overtook it does not exist in the clone.
@@ -319,3 +330,16 @@ jobs:
             --migrations-dir migrations/versions \
             --expected-environment prod \
             --wait-seconds 3900
+
+  desktop-release:
+    name: desktop-release
+    needs: promote
+    if: needs.promote.outputs.publish_desktop == 'true'
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/desktop-release.yml
+    with:
+      version: ${{ needs.promote.outputs.desktop_version }}
+      source_sha: ${{ needs.promote.outputs.head_sha }}
+      source_run_id: ${{ needs.promote.outputs.source_run_id }}

@@ -1,7 +1,7 @@
 # Desktop release: the three-OS source owner builds and qualifies packages,
 # including installed Linux journeys. Publication reuses
-# those exact installers from the successful main run. The release run
-# must sit on the tag it claims, the version inside tauri.conf.json must
+# those exact installers from the successful Dev run. The release
+# tag must name current Main, the version inside tauri.conf.json must
 # equal the tag, and every artifact is checksummed before upload.
 #
 # Tags use the `desktop-v*` namespace so desktop releases do not collide
@@ -10,6 +10,17 @@
 name: desktop-release
 
 on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      source_sha:
+        required: true
+        type: string
+      source_run_id:
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       version:
@@ -35,19 +46,26 @@ jobs:
     outputs:
       qualified_run_id: ${{ steps.source.outputs.qualified_run_id }}
     steps:
-      - name: The dispatch must run on the tag it claims to release
+      - name: Admit an automatic Main publication or an exact tagged dispatch
         env:
           EXPECTED_VERSION: ${{ inputs.version }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
         run: |
           set -euo pipefail
-          expected_ref="refs/tags/desktop-v${EXPECTED_VERSION}"
-          if [[ "${GITHUB_REF}" != "${expected_ref}" ]]; then
-            echo "desktop release requires ${expected_ref}, got ${GITHUB_REF}" >&2
-            exit 1
+          [[ "${EXPECTED_VERSION}" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          if [[ -z "${SOURCE_SHA}" ]]; then
+            test "${GITHUB_EVENT_NAME}" = workflow_dispatch
+            test "${GITHUB_REF}" = "refs/tags/desktop-v${EXPECTED_VERSION}"
+          else
+            [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
           fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ inputs.source_sha || github.sha }}
           persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.14.9"
       - name: every desktop manifest must equal the tag
         env:
           EXPECTED_VERSION: ${{ inputs.version }}
@@ -55,13 +73,17 @@ jobs:
           set -euo pipefail
           python release_scripts/desktop_version.py --check --expected "${EXPECTED_VERSION}"
 
-      - name: Require the exact currently qualified main source
+      - name: Require the exact currently qualified Main source
         id: source
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
-          HEAD_SHA: ${{ github.sha }}
-        run: bash .github/scripts/require-client-release-source.sh
+          HEAD_SHA: ${{ inputs.source_sha || github.sha }}
+          EXPECTED_RUN_ID: ${{ inputs.source_run_id }}
+          EXPECTED_VERSION: ${{ inputs.version }}
+        run: |
+          bash .github/scripts/require-client-release-source.sh
+          python -m release_scripts.desktop_publication
 
       - name: Download the qualified source installers
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
@@ -74,7 +96,7 @@ jobs:
           digest-mismatch: error
       - name: Verify all qualified installer bytes and stage the publication payload
         env:
-          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
         run: >-
           python -m release_scripts.desktop_artifacts verify
           --directory bundles --source "${SOURCE_SHA}"
@@ -114,11 +136,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ inputs.version }}
           SOURCE_RUN_ID: ${{ needs.guard.outputs.qualified_run_id }}
+          SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+          REPOSITORY: ${{ github.repository }}
         working-directory: release
         run: |
           set -euo pipefail
           cat > "${RUNNER_TEMP}/NOTES.md" <<'NOTES'
-          This release makes the setup journey easier to follow:
+          Desktop supports English, Russian, Kazakh, Arabic and Simplified Chinese.
+          Language and theme preferences survive app restarts. Language changes
+          preserve active forms, and Arabic uses a right-to-left layout while
+          paths, identifiers and engine replies retain their original bytes.
+
+          The setup journey is easier to follow:
 
           - Overview explains the next step for this device and workspace.
           - Find an exact setup, choose folders with the system picker or paste
@@ -171,10 +200,61 @@ jobs:
           sed -i 's/^          //' "${RUNNER_TEMP}/NOTES.md"
           printf '\nQualified source: https://github.com/%s/actions/runs/%s\n' \
             "${{ github.repository }}" "${SOURCE_RUN_ID}" >> "${RUNNER_TEMP}/NOTES.md"
-          # No checkout in this job: name the repository explicitly, gh
-          # cannot resolve it from a missing .git directory.
-          gh release create "desktop-v${VERSION}" \
-            --repo "${{ github.repository }}" --verify-tag \
-            --title "ai-stp-desktop ${VERSION}" --latest=false \
-            --notes-file "${RUNNER_TEMP}/NOTES.md" \
-            -- *
+          # No checkout or repository program executes with publication authority.
+          main="$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          test "${main}" = "${SOURCE_SHA}"
+          tag="desktop-v${VERSION}"
+          release_path="repos/${REPOSITORY}/releases/tags/${tag}"
+          response="$(gh api --include "${release_path}" 2>/dev/null)" || true
+          response="${response//$'\r'/}"
+          status="$(head -n 1 <<< "${response}" | awk '{print $2}')"
+          if [[ "${status}" = 404 ]]; then
+            gh release create "${tag}" --repo "${REPOSITORY}" --verify-tag --draft \
+              --title "ai-stp-desktop ${VERSION}" --latest=false \
+              --notes-file "${RUNNER_TEMP}/NOTES.md"
+          else
+            test "${status}" = 200
+          fi
+          remote="$(gh api "repos/${REPOSITORY}/releases/tags/${tag}")"
+          jq -e --arg tag "${tag}" \
+            '.tag_name == $tag and .prerelease == false' <<< "${remote}" >/dev/null
+          test "$(jq '.assets | length' <<< "${remote}")" -le 7
+          # Existing assets are immutable. Upload only absent names, and refuse
+          # extra names, duplicate names or bytes from another qualification.
+          while IFS= read -r name; do
+            [[ "${name}" =~ ^[A-Za-z0-9][A-Za-z0-9._+-]*$ ]]
+            test -f "${name}"
+          done < <(jq -r '.assets[].name' <<< "${remote}")
+          missing=()
+          for file in *; do
+            test -f "${file}"
+            expected="sha256:$(sha256sum -- "${file}" | cut -d' ' -f1)"
+            count="$(jq --arg name "${file}" \
+              '[.assets[] | select(.name == $name)] | length' <<< "${remote}")"
+            if [[ "${count}" = 0 ]]; then
+              missing+=("${file}")
+            else
+              test "${count}" = 1
+              jq -e --arg name "${file}" --arg digest "${expected}" \
+                '.assets[] | select(.name == $name) | .state == "uploaded" and .digest == $digest' \
+                <<< "${remote}" >/dev/null
+            fi
+          done
+          if (( ${#missing[@]} )); then
+            gh release upload "${tag}" --repo "${REPOSITORY}" -- "${missing[@]}"
+          fi
+          remote="$(gh api "repos/${REPOSITORY}/releases/tags/${tag}")"
+          test "$(jq '.assets | length' <<< "${remote}")" = 7
+          for file in *; do
+            expected="sha256:$(sha256sum -- "${file}" | cut -d' ' -f1)"
+            jq -e --arg name "${file}" --arg digest "${expected}" \
+              '[.assets[] | select(.name == $name and .state == "uploaded"
+                and .digest == $digest)] | length == 1' \
+              <<< "${remote}" >/dev/null
+          done
+          if [[ "$(jq -r .draft <<< "${remote}")" = true ]]; then
+            gh release edit "${tag}" --repo "${REPOSITORY}" --draft=false --latest=false
+          fi
+          published="$(gh api "${release_path}" \
+            --jq '.draft == false and .prerelease == false and .published_at != null')"
+          test "${published}" = true

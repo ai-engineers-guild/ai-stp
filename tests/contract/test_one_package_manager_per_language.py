@@ -186,7 +186,7 @@ def test_every_bun_lockfile_is_readable_by_the_pinned_bun() -> None:
     with the bun being pinned, and this is what refuses to let one happen
     without the other.
     """
-    workflow = ROOT / ".github" / "workflows" / "check.yml"
+    workflow = ROOT / ".github" / "workflows" / "source.yml"
     pinned = re.search(r'BUN_VERSION:\s*"([0-9][^"]*)"', workflow.read_text(encoding="utf-8"))
     assert pinned, "the gate no longer pins a bun version"
 
@@ -220,7 +220,7 @@ def test_the_local_and_gate_bun_pins_are_the_same_version() -> None:
     """
     declared = (ROOT / ".bun-version").read_text(encoding="utf-8").strip()
     assert declared, ".bun-version is empty"
-    workflow = ROOT / ".github" / "workflows" / "check.yml"
+    workflow = ROOT / ".github" / "workflows" / "source.yml"
     pinned = re.search(r'BUN_VERSION:\s*"([0-9][^"]*)"', workflow.read_text(encoding="utf-8"))
     assert pinned, "the gate no longer pins a bun version"
     assert declared == pinned.group(1), (
@@ -246,7 +246,7 @@ def test_the_local_and_gate_uv_pins_are_the_same_version() -> None:
     """
     declared = (ROOT / ".uv-version").read_text(encoding="utf-8").strip()
     assert declared, ".uv-version is empty"
-    workflow = ROOT / ".github" / "workflows" / "check.yml"
+    workflow = ROOT / ".github" / "workflows" / "source.yml"
     pinned = re.search(r'UV_VERSION:\s*"([0-9][^"]*)"', workflow.read_text(encoding="utf-8"))
     assert pinned, "the gate no longer pins a uv version"
     assert declared == pinned.group(1), (

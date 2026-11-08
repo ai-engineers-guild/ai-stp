@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Any, cast
 
 import yaml
+from release_scripts._github_delivery import PromotionRefused
+from release_scripts.source_admission import admit_source
 from tests.contract.test_gate_split_covers_the_gate import command_text
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -48,12 +50,12 @@ class QualificationTests(unittest.TestCase):
                 or name.startswith("integration-") == (phase == "integration")
                 else "skipped"
             }
-            for name in workflow("check.yml")["jobs"]["qualification"]["needs"]
+            for name in workflow("source.yml")["jobs"]["qualification"]["needs"]
         }
 
     def decision(self, results: object, *, private: bool = False, phase: str = "full") -> bool:
         outcome = execute(
-            script("check.yml", "qualification"),
+            script("source.yml", "qualification"),
             {
                 "RESULTS": json.dumps(results),
                 "PRIVATE_REPOSITORY": json.dumps(private),
@@ -64,7 +66,7 @@ class QualificationTests(unittest.TestCase):
         return outcome.returncode == 0
 
     def test_completion_directly_depends_on_every_owning_job(self) -> None:
-        jobs = workflow("check.yml")["jobs"]
+        jobs = workflow("source.yml")["jobs"]
         gate = jobs["qualification"]
         self.assertEqual(set(gate["needs"]), set(jobs) - {"qualification"})
         self.assertEqual(len(gate["needs"]), len(set(gate["needs"])))
@@ -84,11 +86,24 @@ class QualificationTests(unittest.TestCase):
             self.assertNotIn("pull_request", events)
         self.assertIn("schedule", workflow("codeql.yml")["on"])
 
-    def test_pr_eligibility_and_full_main_have_distinct_complete_owners(self) -> None:
-        source = workflow("check.yml")
-        self.assertEqual(source["on"]["push"]["branches"], ["main"])
-        self.assertIn("pull_request", source["on"])
-        self.assertIn("workflow_dispatch", source["on"])
+    def test_pr_eligibility_and_full_dev_have_distinct_complete_owners(self) -> None:
+        source = workflow("source.yml")
+        self.assertEqual(set(source["on"]), {"workflow_call"})
+        full = workflow("check.yml")
+        self.assertEqual(full["on"]["push"]["branches"], ["dev"])
+        self.assertEqual(set(full["on"]), {"push", "workflow_dispatch"})
+        integration = workflow("integration.yml")
+        self.assertEqual(set(integration["on"]), {"pull_request"})
+        for owner, context in [(full, "full-qualification"), (integration, "qualification")]:
+            self.assertEqual(set(owner["jobs"]), {"verify", "qualification"})
+            self.assertEqual(owner["jobs"]["verify"]["uses"], "./.github/workflows/source.yml")
+            gate = owner["jobs"]["qualification"]
+            self.assertEqual(gate["name"], context)
+            self.assertEqual(gate["if"], "always()")
+            self.assertEqual(gate["needs"], "verify")
+            for result in ["success", "skipped", "failure", "cancelled", "neutral", ""]:
+                outcome = execute(gate["steps"][0]["run"], {"RESULT": result})
+                self.assertEqual(outcome.returncode == 0, result == "success")
         for name, job in source["jobs"].items():
             if name in {"analysis", "qualification", "secrets"}:
                 continue
@@ -177,14 +192,14 @@ gh() {
 """
         values = {
             "REPOSITORY": "example/project",
-            "SOURCE_REF": "refs/heads/main",
+            "SOURCE_REF": "refs/heads/dev",
             "SOURCE_SHA": "a" * 40,
             "EVENT": "push",
             "PRIVATE_REPOSITORY": "false",
             "CURRENT": "a" * 40,
             "FINDINGS": "0",
         }
-        body = fixture + script("check.yml", "qualification", 1)
+        body = fixture + script("source.yml", "qualification", 1)
         self.assertEqual(execute(body, values).returncode, 0)
         for change in [{"FINDINGS": "1"}, {"FINDINGS": ""}, {"CURRENT": "b" * 40}]:
             self.assertNotEqual(execute(body, values | change).returncode, 0)
@@ -199,13 +214,23 @@ gh() {
         self.assertNotIn("workflow_call", release["on"])
         self.assertNotIn("attest", archive["jobs"])
         self.assertEqual(archive["permissions"], {"contents": "read"})
-        self.assertEqual(release["jobs"]["build"]["uses"], "./.github/workflows/cli-archives.yml")
-        self.assertEqual(release["jobs"]["build"]["with"]["version"], "${{ inputs.version }}")
-        guard = archive["jobs"]["build"]["steps"][0]
-        self.assertIn("github.event_name == 'workflow_dispatch'", guard["if"])
-        self.assertIn("inputs.version != ''", guard["if"])
+        self.assertNotIn("build", release["jobs"])
+        self.assertEqual(release["jobs"]["attest"]["needs"], "guard")
+        self.assertEqual(
+            release["jobs"]["attest"]["if"],
+            "github.event_name == 'workflow_dispatch' && inputs.version != ''",
+        )
+        self.assertTrue(
+            all(
+                "actions/checkout@" not in step.get("uses", "")
+                for step in release["jobs"]["attest"]["steps"]
+            )
+        )
+        guard = release["jobs"]["guard"]["steps"][0]
         self.assertIn("refs/tags/cli-v${EXPECTED_VERSION}", guard["run"])
-        self.assertEqual(release["jobs"]["attest"]["if"], guard["if"])
+        staged = release["jobs"]["attest"]["steps"][0]["with"]
+        self.assertEqual(staged["name"], "qualified-cli-release")
+        self.assertEqual(staged["digest-mismatch"], "error")
 
 
 class PromotionAdmissionTests(unittest.TestCase):
@@ -216,7 +241,7 @@ class PromotionAdmissionTests(unittest.TestCase):
             "head_repository": {"full_name": "example/project"},
             "head_sha": "a" * 40,
             "event": "push",
-            "head_branch": "main",
+            "head_branch": "dev",
             "path": ".github/workflows/check.yml",
             "status": "completed",
             "conclusion": "success",
@@ -226,35 +251,28 @@ class PromotionAdmissionTests(unittest.TestCase):
     def jobs(self) -> dict[str, Any]:
         return {
             "total_count": 1,
-            "jobs": [{"name": "qualification", "status": "completed", "conclusion": "success"}],
+            "jobs": [
+                {"name": "full-qualification", "status": "completed", "conclusion": "success"}
+            ],
         }
 
     def decision(
         self, candidate: dict[str, Any], jobs: dict[str, Any], *, current: str | None = None
     ) -> bool:
-        fixture = """
-gh() {
-  case "$*" in
-    */attempts/*/jobs*) printf '%s' "$JOBS" ;;
-    */actions/runs/*) printf '%s' "$CANDIDATE" ;;
-    */git/ref/heads/main*) printf '%s' "$CURRENT" ;;
-    *) return 92 ;;
-  esac
-}
-"""
-        outcome = execute(
-            fixture + script("deploy.yml", "promote"),
-            {
-                "REPOSITORY": "example/project",
-                "HEAD_SHA": "a" * 40,
-                "SOURCE_RUN_ID": "41",
-                "SOURCE_ATTEMPT": "1",
-                "CANDIDATE": json.dumps(candidate),
-                "JOBS": json.dumps(jobs),
-                "CURRENT": current if current is not None else "a" * 40,
-            },
-        )
-        return outcome.returncode == 0
+        try:
+            admit_source(
+                "example/project",
+                "a" * 40,
+                41,
+                1,
+                candidate,
+                {"total_count": 1, "workflow_runs": [candidate]},
+                jobs,
+                current if current is not None else "a" * 40,
+            )
+            return True
+        except (PromotionRefused, TypeError, KeyError):
+            return False
 
     def test_only_the_current_successful_source_attempt_is_admitted(self) -> None:
         self.assertTrue(self.decision(self.candidate(), self.jobs()))
@@ -264,7 +282,7 @@ gh() {
             "head_repository": {"full_name": "fork/project"},
             "head_sha": "b" * 40,
             "event": "pull_request",
-            "head_branch": "dev",
+            "head_branch": "main",
             "path": ".github/workflows/desktop.yml",
             "status": "in_progress",
             "conclusion": "failure",
@@ -304,7 +322,7 @@ class DesktopReleaseAdmissionTests(unittest.TestCase):
         fixture = """
 gh() {
   case "$*" in
-    */git/ref/heads/main*) printf '%s' "$CURRENT" ;;
+    */git/ref/heads/main*|*/git/ref/heads/dev*) printf '%s' "$CURRENT" ;;
     */attempts/*/jobs*) printf '%s' "$JOBS" ;;
     */actions/runs\\?*) printf '%s' "$RUNS" ;;
     *) return 92 ;;
@@ -338,7 +356,7 @@ gh() {
             "head_repository": {"full_name": "fork/project"},
             "head_sha": "b" * 40,
             "event": "pull_request",
-            "head_branch": "dev",
+            "head_branch": "main",
             "path": ".github/workflows/desktop.yml",
             "status": "in_progress",
             "conclusion": "failure",
@@ -371,7 +389,7 @@ gh() {
         self.assertNotIn("bundle", release["jobs"])
         self.assertEqual(release["jobs"]["release"]["needs"], "guard")
         self.assertEqual(
-            workflow("check.yml")["jobs"]["desktop"]["uses"], "./.github/workflows/desktop.yml"
+            workflow("source.yml")["jobs"]["desktop"]["uses"], "./.github/workflows/desktop.yml"
         )
         publisher = release["jobs"]["release"]["steps"]
         self.assertEqual(publisher[0]["with"]["name"], "qualified-desktop-release")
@@ -389,9 +407,14 @@ gh() {
         self.assertEqual(source_download["with"]["digest-mismatch"], "error")
         self.assertEqual(release["jobs"]["guard"]["permissions"]["contents"], "read")
         admission = "bash .github/scripts/require-client-release-source.sh"
-        self.assertEqual(script("desktop-release.yml", "guard", 3), admission)
-        self.assertEqual(script("cli-release.yml", "guard", 1), admission)
-        self.assertEqual(workflow("cli-release.yml")["jobs"]["build"]["needs"], "guard")
+        for name in ("desktop-release.yml", "cli-release.yml"):
+            steps = workflow(name)["jobs"]["guard"]["steps"]
+            source = next(step for step in steps if step.get("id") == "source")
+            self.assertIn(admission, source["run"])
+        self.assertIn("workflow_call", release["on"])
+        auto = workflow("deploy.yml")["jobs"]["desktop-release"]
+        self.assertEqual(auto["needs"], "promote")
+        self.assertEqual(auto["uses"], "./.github/workflows/desktop-release.yml")
 
     def test_exports_only_the_verified_source_run_and_attempt(self) -> None:
         fixtures = PromotionAdmissionTests()
