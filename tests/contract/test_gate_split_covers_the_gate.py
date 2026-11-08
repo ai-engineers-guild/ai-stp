@@ -1,22 +1,17 @@
-"""The gate split across jobs covers full verification.
+"""The complete verification tree is covered by pinned workflow command owners.
 
-Splitting by required capability (`ADR-0105`, unpublished; `ADR-0116`) is worth
-having right up to the moment one check silently falls out of the union. Nothing
-fails when it does:
-the run stays green and the check simply stops running, and the only trace is a
-line missing from a log nobody reads.
-
-So the union is checked mechanically. The `just verify` dependency tree is
-expanded to its leaves, every leaf is mapped to the distinctive commands of its
-recipe body, and those commands have to appear in the workflow. The workflow,
-in turn, must not invoke `just` at all: the local task runner is a convenience
-for the maintainer's machine, not a dependency of the published gate.
+Use Just's real parser, including imports and parameterized recipes. CI keeps
+platforms, services and acceptance evidence; project recipes own execution.
 """
 
 from __future__ import annotations
 
+import json
 import re
+import subprocess
+from functools import cache
 from pathlib import Path
+from typing import Any, TypedDict, cast
 
 import yaml
 
@@ -26,19 +21,15 @@ JUSTFILE = ROOT / "justfile"
 WORKFLOW = ROOT / ".github/workflows/check.yml"
 WORKFLOW_DIR = WORKFLOW.parent
 
-#: `name: dep dep` at the start of a line. No recipe in the verification tree takes
-#: parameters, so everything to the right of the colon is a dependency list.
-_RECIPE = re.compile(r"^([a-z][a-z0-9-]*):(?:\s+([a-z0-9\- ]*))?$", re.MULTILINE)
-
 #: One or more distinctive substrings per leaf recipe of `just verify`. A leaf
 #: is covered by the gate exactly when every token appears in the workflow.
 #: The mapping is deliberately explicit: when a recipe body changes its
 #: command, updating this table is the review moment where drift is named.
 _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
-    "docs-static": (
+    "docs-static": ("docs_scripts/run_markdownlint.py",),
+    "docs-source": (
         "docs_scripts/docs_lint.py",
         "docs_scripts/contract_lint.py",
-        "docs_scripts/run_markdownlint.py",
         "-m yamllint -c docs_scripts/.yamllint.yml .",
     ),
     "docs-test": ("unittest discover -s docs_scripts/tests",),
@@ -99,7 +90,7 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
     "desktop-test": ("cargo test --locked",),
     "desktop-core-test": ("cargo test --locked",),
     "desktop-regress": ("desktop-build", "desktop-probe"),
-    "just-fmt": (),
+    "just-fmt": ("just --fmt --check",),
     "cli-test": ("cargo test --locked",),
     "cli-build": ("cargo build --locked --release --bins --examples",),
     "cli-regress": ("cli-binary", 'tests/native_contract/verify.py "$binary"'),
@@ -118,58 +109,80 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
 }
 
 
+type Expression = str | list[Expression]
+
+
+class JustDependency(TypedDict):
+    recipe: str
+
+
+class JustRecipe(TypedDict):
+    body: list[list[Expression]]
+    dependencies: list[JustDependency]
+
+
+class JustAssignment(TypedDict):
+    value: Expression
+
+
+class JustDocument(TypedDict):
+    recipes: dict[str, JustRecipe]
+    assignments: dict[str, JustAssignment]
+
+
+@cache
+def _parsed() -> JustDocument:
+    result = subprocess.run(
+        ["just", "--dump", "--dump-format=json"],
+        cwd=ROOT,
+        text=True,
+        check=True,
+        capture_output=True,
+        timeout=15,
+    )
+    document = cast(JustDocument, json.loads(result.stdout))
+    assert document["recipes"], "the real Just parser returned no command owners"
+    return document
+
+
 def _dependencies() -> dict[str, tuple[str, ...]]:
-    text = JUSTFILE.read_text(encoding="utf-8")
-    found: dict[str, tuple[str, ...]] = {}
-    for match in _RECIPE.finditer(text):
-        name = match.group(1)
-        deps = tuple((match.group(2) or "").split())
-        found[name] = deps
-    return found
+    return {
+        name: tuple(item["recipe"] for item in recipe["dependencies"])
+        for name, recipe in _parsed()["recipes"].items()
+    }
+
+
+def _render(value: Expression) -> str:
+    if isinstance(value, str):
+        return value
+    if len(value) == 2 and value[0] == "variable" and isinstance(value[1], str):
+        assignment = _parsed()["assignments"].get(value[1])
+        return _render(assignment["value"]) if assignment else "{{" + value[1] + "}}"
+    return "".join(_render(part) for part in value)
 
 
 def _bodies() -> dict[str, str]:
-    """Map each recipe to its own commands, excluding its dependencies'."""
-    text = JUSTFILE.read_text(encoding="utf-8")
-    found: dict[str, str] = {}
-    name: str | None = None
-    lines: list[str] = []
-    for line in text.split("\n"):
-        match = _RECIPE.match(line)
-        if match:
-            if name is not None:
-                found[name] = "\n".join(lines).strip()
-            name = match.group(1)
-            lines = []
-        elif name is not None:
-            if line and not line[0].isspace():
-                found[name] = "\n".join(lines).strip()
-                name = None
-                lines = []
-            elif line.strip() and not line.strip().startswith("#"):
-                lines.append(line)
-    if name is not None:
-        found[name] = "\n".join(lines).strip()
-    return found
+    return {
+        name: "\n".join(_render(line) for line in recipe["body"])
+        for name, recipe in _parsed()["recipes"].items()
+    }
 
 
 def _leaves(recipe: str, graph: dict[str, tuple[str, ...]], seen: set[str]) -> set[str]:
-    """Every recipe under `recipe` that runs commands of its own.
-
-    Having dependencies does not make a recipe pure delegation. `web-regress`
-    depends on `web-build` and then runs the browser suite itself, and treating
-    it as a delegator dropped its own commands out of the checked set — the
-    mapping for it sat there unread, and a token that had stopped matching the
-    workflow entirely still passed.
-    """
     if recipe in seen:
         return set()
+    assert recipe in graph, f"undeclared recipe owner: {recipe}"
     seen.add(recipe)
-    covered: set[str] = set()
-    if _bodies().get(recipe):
-        covered.add(recipe)
-    for dep in graph.get(recipe, ()):
-        covered |= _leaves(dep, graph, seen)
+    covered: set[str] = {recipe} if _bodies().get(recipe) else set()
+    for dependency in graph[recipe]:
+        covered |= _leaves(dependency, graph, seen)
+    # Literal nested calls retain a single owner while an enclosing script
+    # sets the provider environment before delegating.
+    for match in re.finditer(
+        r"(?m)^\s*@?just ([a-z][a-z0-9-]*(?: +[a-z][a-z0-9-]*)*)\s*$", _bodies().get(recipe, "")
+    ):
+        for dependency in match.group(1).split():
+            covered |= _leaves(dependency, graph, seen)
     return covered
 
 
@@ -181,10 +194,38 @@ def _expand(recipes: list[str]) -> set[str]:
     return covered
 
 
-def _workflow_text() -> str:
+RECIPE_ACTION = "NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@"
+RECIPE_WORKFLOW = "NDDev-Technocracy-OpenNetwork/nddev-ci/.github/workflows/recipe.yml@"
+
+
+def _command_owners(entry: dict[str, Any]) -> list[str]:
+    target = str(entry.get("uses", ""))
+    if not target.startswith((RECIPE_ACTION, RECIPE_WORKFLOW)):
+        return []
+    assert re.fullmatch(r".+@[0-9a-f]{40}", target), "shared execution must pin a full commit"
+    values = cast(dict[str, Any], entry.get("with") or {})
+    recipes = [values[key] for key in ("prepare", "recipe") if values.get(key)]
+    assert recipes, "a shared recipe call has no project owner"
+    assert all(recipe in _dependencies() for recipe in recipes), "a recipe call has no declaration"
+    return recipes
+
+
+def command_text(job: dict[str, Any]) -> str:
+    entries = [job, *job.get("steps", [])]
+    owners = [owner for entry in entries for owner in _command_owners(entry)]
     return "\n".join(
-        path.read_text(encoding="utf-8") for path in sorted(WORKFLOW_DIR.glob("*.yml"))
+        [entry.get("run", "") for entry in entries]
+        + [_bodies()[owner] for owner in _expand(owners)]
     )
+
+
+def workflow_text() -> str:
+    parts: list[str] = []
+    for path in sorted(WORKFLOW_DIR.glob("*.yml")):
+        source = path.read_text(encoding="utf-8")
+        document = yaml.safe_load(source)
+        parts.extend([source, *(command_text(job) for job in document["jobs"].values())])
+    return "\n".join(parts)
 
 
 def test_every_recipe_leaf_of_full_verification_appears_in_the_gate() -> None:
@@ -200,7 +241,7 @@ def test_every_recipe_leaf_of_full_verification_appears_in_the_gate() -> None:
     assert required, "the `verify` recipe resolved to nothing; the parser is wrong"
     unmapped = required - set(_LEAF_TOKENS)
     assert not unmapped, f"a leaf of `just verify` has no command tokens mapped: {sorted(unmapped)}"
-    gate = _workflow_text()
+    gate = workflow_text()
     missing = [
         (leaf, token)
         for leaf in sorted(required & set(_LEAF_TOKENS))
@@ -246,17 +287,16 @@ def test_source_checks_cannot_build_install_or_execute_test_suites() -> None:
     assert {"docs-test", "cli-static", "cli-test", "web-test", "desktop-test"} <= _expand(["test"])
 
 
-def test_the_published_gate_never_invokes_the_local_task_runner() -> None:
-    """`just` stays on the maintainer's machine; CI runs the commands directly.
-
-    A runner installed into the gate is one more downloaded binary per job, and
-    it hides the real commands behind an indirection the reader cannot see.
-    Every published workflow runs its steps directly.
-    """
+def test_published_execution_uses_pinned_declared_command_owners() -> None:
+    calls: list[str] = []
     for path in sorted(WORKFLOW_DIR.glob("*.yml")):
-        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-            stripped = line.strip()
-            assert not stripped.startswith("just "), f"{path.name}:{number} invokes just"
+        document = yaml.safe_load(path.read_text())
+        for job in document["jobs"].values():
+            for entry in [job, *job.get("steps", [])]:
+                calls.extend(_command_owners(entry))
+    assert calls, "the workflows bypass every shared command owner"
+    assert any(name.startswith("ci-tests-") for name in calls)
+    assert any(name.startswith("ci-desktop-") for name in calls)
 
 
 def test_setup_is_split_and_each_job_prepares_only_its_own_part() -> None:
@@ -268,9 +308,7 @@ def test_setup_is_split_and_each_job_prepares_only_its_own_part() -> None:
     # minutes exactly where only Python is needed.
     python_only = {"package", "tests", "coverage"}
     for name, job in workflow["jobs"].items():
-        scripts = "\n".join(
-            step["run"] for step in job.get("steps", []) if isinstance(step.get("run"), str)
-        )
+        scripts = command_text(job)
         if name in python_only:
             assert "docs_scripts && bun install" not in scripts, (
                 f"{name} installs documentation Node tools"
@@ -286,12 +324,10 @@ def test_cli_and_web_tests_run_on_three_os_and_backend_stays_on_linux() -> None:
     for name in ("cli", "web-unit", "web-e2e", "web-profiles"):
         assert set(jobs[name]["strategy"]["matrix"]["os"]) == three, name
     assert jobs["tests"]["runs-on"] == "ubuntu-26.04"
-    native = "\n".join(step.get("run", "") for step in jobs["cli"]["steps"])
+    native = command_text(jobs["cli"])
     assert "cargo test --locked" in native
     assert "--package ai-stp-cli " not in native
-    assert "-n 8" in "\n".join(
-        step["run"] for step in jobs["tests"]["steps"] if isinstance(step.get("run"), str)
-    )
+    assert "-n 8" in command_text(jobs["tests"])
 
 
 def test_pr_native_checks_cover_platform_specific_code_and_real_vault_processes() -> None:
@@ -305,7 +341,7 @@ def test_pr_native_checks_cover_platform_specific_code_and_real_vault_processes(
         "macos-latest",
         "windows-latest",
     }
-    scripts = "\n".join(step.get("run", "") for step in native["steps"])
+    scripts = command_text(native)
     assert "cargo clippy --locked --all-targets -- -D warnings" in scripts
     vault = next(
         step
@@ -313,8 +349,8 @@ def test_pr_native_checks_cover_platform_specific_code_and_real_vault_processes(
         if step.get("name") == "Existing native vault and independent CLI processes"
     )
     assert vault["if"] == "runner.os != 'Linux'"
-    assert "cargo test --locked --test enrollments_native" in vault["run"]
-    assert "--ignored" not in vault["run"]
+    assert "cargo test --locked --test enrollments_native" in command_text(vault)
+    assert "--ignored" not in command_text(vault)
     pr_linux = next(
         step
         for step in native["steps"]
@@ -322,24 +358,24 @@ def test_pr_native_checks_cover_platform_specific_code_and_real_vault_processes(
     )
     assert pr_linux["if"] == "runner.os == 'Linux'"
     assert pr_linux["env"]["AI_STP_NATIVE_VAULT_ROUNDS"] == "10"
-    assert pr_linux["run"] == "bash .github/scripts/check-native-secret-service.sh"
+    assert "bash .github/scripts/check-native-secret-service.sh" in command_text(pr_linux)
     linux = next(
         step
         for step in jobs["cli"]["steps"]
         if step.get("name") == "Actual Linux Secret Service enrollment and recovery"
     )
     assert linux["if"] == "runner.os == 'Linux'"
-    assert linux["run"] == "bash .github/scripts/check-native-secret-service.sh"
+    assert "bash .github/scripts/check-native-secret-service.sh" in command_text(linux)
     assert linux["env"]["AI_STP_NATIVE_VAULT_ROUNDS"] == (
         "${{ inputs.native_vault_rounds || '100' }}"
     )
 
 
-def _shard_selection(extra: str) -> tuple[set[Path], set[Path]]:
+def _shard_selection(arguments: list[str]) -> tuple[set[Path], set[Path]]:
     """Split one shard's pytest arguments into selected and ignored trees."""
     selected: set[Path] = set()
     ignored: set[Path] = set()
-    for token in extra.split():
+    for token in arguments:
         if token.startswith("--ignore="):
             ignored.add(ROOT / token.removeprefix("--ignore="))
         elif token.startswith("-"):
@@ -373,7 +409,7 @@ def test_the_test_shards_cover_the_whole_tree_exactly_once() -> None:
     rows = workflow["jobs"]["tests"]["strategy"]["matrix"]["include"]
     covered: dict[Path, list[str]] = {}
     for row in rows:
-        selected, ignored = _shard_selection(row["extra"])
+        selected, ignored = _shard_selection(row["arguments"])
         for path in _files_under(selected) - _files_under(ignored):
             covered.setdefault(path, []).append(row["shard"])
 
@@ -396,11 +432,7 @@ def test_the_combined_coverage_names_every_shard_and_only_those() -> None:
     """
     workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
     shards = {row["shard"] for row in workflow["jobs"]["tests"]["strategy"]["matrix"]["include"]}
-    combine = "\n".join(
-        step["run"]
-        for step in workflow["jobs"]["coverage"]["steps"]
-        if isinstance(step.get("run"), str) and "coverage combine" in step["run"]
-    )
-    assert combine, "the coverage job no longer combines anything"
+    combine = command_text(workflow["jobs"]["coverage"])
+    assert "coverage combine" in combine, "the coverage job no longer combines anything"
     named = set(re.findall(r"\.coverage\.([a-z0-9-]+)", combine))
     assert named == shards, f"combined {sorted(named)} but the matrix runs {sorted(shards)}"

@@ -33,6 +33,8 @@
 # older binary.
 set minimum-version := "1.59.0"
 
+import '.github/ci.just'
+
 scripts := "docs_scripts"
 py := "uv run --offline --no-sync --group docs python"
 run := "uv run --offline --no-sync"
@@ -148,7 +150,8 @@ verify: check docs-check back-check cli-check web-check desktop-check security
 [doc('Apply the owning source formatters')]
 [group('gate')]
 fix:
-    just --fmt --unstable
+    just --fmt
+    just --justfile .github/ci.just --fmt
     {{ run }} ruff format .
     cd apps/cli && cargo fmt
     cd apps/cli && cargo fmt --manifest-path xtask/Cargo.toml
@@ -165,11 +168,11 @@ fix:
 [group('gate')]
 pre-commit: check
 
-# Local-only leaf: CI runs no `just`, so this file's own format check can only
-# live outside the `check` tree.
+# Check the root commands and their imported execution owners.
 [private]
 just-fmt:
     just --fmt --check
+    just --justfile .github/ci.just --fmt --check
 
 # Repository-wide rather than group-owned: there is one scanner so far. A
 # Python scanner joins here when one is chosen, not as an empty recipe early.
@@ -286,10 +289,13 @@ docs-gen:
 
 # Static documentation checks in one pass.
 [group('docs')]
-docs-static:
+docs-static: docs-source
+    {{ py }} {{ scripts }}/run_markdownlint.py
+
+[group('docs')]
+docs-source:
     {{ py }} {{ scripts }}/docs_lint.py
     {{ py }} {{ scripts }}/contract_lint.py
-    {{ py }} {{ scripts }}/run_markdownlint.py
     {{ py }} -m yamllint -c {{ scripts }}/.yamllint.yml .
 
 # Unit tests of the documentation validators themselves.
@@ -410,8 +416,7 @@ back-build:
 # Check server wheel dependency closure outside the source checkout.
 [doc('Install server wheels in a clean environment')]
 [group('back')]
-back-regress:
-    @just back-build
+back-regress: back-build
     {{ run }} python release_scripts/run_bash.py release_scripts/clean_install_regress.sh
 
 [doc('The backend aggregate')]
