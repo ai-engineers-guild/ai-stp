@@ -217,6 +217,7 @@ class Driver:
         self.app_started = 0.0
         self.startup_ms = 0.0
         self.accessibility: list[dict[str, Any]] = []
+        self.click_observation: Any = None
         self.readiness_observations = {
             "connection_refused": 0,
             "connection_reset": 0,
@@ -622,6 +623,18 @@ class Driver:
         )
 
     def click(self, element: dict[str, str]) -> None:
+        self.click_observation = self.read(
+            "const target=arguments[0],nav=target.closest('nav');"
+            "const box=element=>{if(!element)return null;const r=element.getBoundingClientRect();"
+            "return [r.x,r.y,r.width,r.height].map(Math.round);};"
+            "return {target:box(target),navigation:box(nav),"
+            "sidebar:box(document.querySelector('aside')),"
+            "context:box(document.querySelector('aside section')),"
+            "footer:box(document.querySelector('.sidebar-footer')),"
+            "scroll_top:nav?.scrollTop??null,scroll_height:nav?.scrollHeight??null,"
+            "client_height:nav?.clientHeight??null,viewport:[innerWidth,innerHeight]};",
+            element,
+        )
         self.command("POST", f"/element/{element[ELEMENT]}/click", {})
 
     def button(self, text: str, selector: str = "main") -> dict[str, str]:
@@ -900,8 +913,8 @@ class Driver:
                 public_failure_observation = "unavailable"
             finally:
                 self.stage = stage
-        # Only fixed categories, marker booleans and the owned process's exit
-        # code leave the fixture. No raw DOM, detail values or error prose.
+        # Only fixed categories, marker booleans, numeric geometry and the owned
+        # process's exit code leave the fixture. No raw DOM or private prose.
         print(
             json.dumps(
                 {
@@ -911,6 +924,7 @@ class Driver:
                     "public_credential_failures": public_failures,
                     "driver_exit_code": driver_exit_code,
                     "readiness_observations": self.readiness_observations,
+                    "last_click_geometry": getattr(self, "click_observation", None),
                     "driver_children": children,
                     "markers": {
                         "proxy_connection_error": "Error serving connection:" in tail,

@@ -73,13 +73,23 @@ export default function ContextSwitcher() {
           {selected.organization} {msg("contextSwitcher.savedView")}
         </p>
       )}
-      <p className="text-xs leading-5 text-muted-foreground">
-        {msg("contextSwitcher.newCompanyReadsUseThisViewExistingTasksKeep")}
-      </p>
+      <details className="text-xs text-muted-foreground">
+        <summary className="py-1 hover:text-foreground">
+          {msg("contextSwitcher.aboutView")}
+        </summary>
+        <div className="space-y-2 pt-2">
+          <p className="leading-5">
+            {msg("contextSwitcher.newCompanyReadsUseThisViewExistingTasksKeep")}
+          </p>
+          <Link
+            className="inline-block py-1 text-primary hover:underline"
+            to="/profiles"
+          >
+            {msg("contextSwitcher.manageContexts")}
+          </Link>
+        </div>
+      </details>
       {error && <ResultMeta r={error} />}
-      <Link className="text-xs text-primary hover:underline" to="/profiles">
-        {msg("contextSwitcher.manageContexts")}
-      </Link>
     </section>
   );
 }

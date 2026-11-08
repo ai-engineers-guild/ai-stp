@@ -747,5 +747,6 @@
   "profiles.registryFormat": "此计划使用权限注册表格式 {version}。不支持该格式的客户端将拒绝访问。请保留兼容的客户端。",
   "profiles.registryFormatUnknown": "请在确切计划中检查注册表格式。旧客户端可能拒绝较新的格式，请保留兼容客户端。",
   "heartbeatDelivery.intervalUnavailable": "引擎未报告有效的观察和重试间隔。",
-  "install.taskTitle": "{intent}任务"
+  "install.taskTitle": "{intent}任务",
+  "contextSwitcher.aboutView": "关于此视图"
 }

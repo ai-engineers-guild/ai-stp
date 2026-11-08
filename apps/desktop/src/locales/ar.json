@@ -747,5 +747,6 @@
   "profiles.registryFormat": "تستخدم هذه الخطة تنسيق سجل الصلاحيات {version}. سترفض البرامج التي لا تدعمه الوصول. احتفظ ببرنامج عميل متوافق.",
   "profiles.registryFormatUnknown": "راجع تنسيق السجل في الخطة الدقيقة. قد ترفض البرامج القديمة التنسيقات الأحدث. احتفظ ببرنامج عميل متوافق.",
   "heartbeatDelivery.intervalUnavailable": "لم يبلّغ المحرّك عن فواصل رصد وإعادة محاولة صالحة.",
-  "install.taskTitle": "مهمة «{intent}»"
+  "install.taskTitle": "مهمة «{intent}»",
+  "contextSwitcher.aboutView": "عن هذا العرض"
 }

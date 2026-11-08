@@ -747,5 +747,6 @@
   "profiles.registryFormat": "Этот план использует формат реестра прав {version}. Клиенты без его поддержки откажут в доступе. Сохраните совместимый клиент.",
   "profiles.registryFormatUnknown": "Проверьте формат реестра в точном плане. Старые клиенты могут не поддерживать новые форматы. Сохраните совместимый клиент.",
   "heartbeatDelivery.intervalUnavailable": "Движок не сообщил допустимые интервалы наблюдения и повторов.",
-  "install.taskTitle": "Задача «{intent}»"
+  "install.taskTitle": "Задача «{intent}»",
+  "contextSwitcher.aboutView": "О режиме просмотра"
 }

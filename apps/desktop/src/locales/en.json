@@ -747,5 +747,6 @@
   "profiles.registryFormat": "This plan uses authority registry format {version}. Clients that do not support it will refuse access. Keep a compatible client.",
   "profiles.registryFormatUnknown": "Review the registry format in the exact plan. Older clients may refuse newer formats. Keep a compatible client.",
   "heartbeatDelivery.intervalUnavailable": "The engine has not reported valid observation and retry intervals.",
-  "install.taskTitle": "{intent} task"
+  "install.taskTitle": "{intent} task",
+  "contextSwitcher.aboutView": "About this view"
 }

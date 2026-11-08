@@ -160,5 +160,6 @@
   "status.applied": "Applied",
   "status.removed": "Removed",
   "status.restartObserved": "Restart observed",
-  "status.done": "Done"
+  "status.done": "Done",
+  "contextSwitcher.aboutView": "About this view"
 }
