@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
 import {
   HashRouter,
   Navigate,
@@ -29,21 +29,37 @@ import { useContexts } from "./contexts";
 import ContextSwitcher from "./components/ContextSwitcher";
 import ForegroundHeartbeat from "./components/ForegroundHeartbeat";
 import OverviewPage from "./pages/OverviewPage";
-import { useText, type MessageKey } from "./i18n";
+import {
+  i18n,
+  loadCatalog,
+  useText,
+  type MessageKey,
+  type Locale,
+} from "./i18n";
+import LanguageSelect from "./components/LanguageSelect";
 import { Spinner } from "./components/Result";
 import PageBoundary from "./components/PageBoundary";
 
-const AuthPage = lazy(() => import("./pages/AuthPage"));
-const ProfilesPage = lazy(() => import("./pages/ProfilesPage"));
-const CorporatePage = lazy(() => import("./pages/CorporatePage"));
-const CatalogPage = lazy(() => import("./pages/CatalogPage"));
-const TasksPage = lazy(() => import("./pages/TasksPage"));
-const InstallPage = lazy(() => import("./pages/InstallPage"));
-const TargetsPage = lazy(() => import("./pages/TargetsPage"));
-const DiscoveryPage = lazy(() => import("./pages/DiscoveryPage"));
-const RegistryPage = lazy(() => import("./pages/RegistryPage"));
-const DebugPage = lazy(() => import("./pages/DebugPage"));
-const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+function page(load: () => Promise<{ default: ComponentType }>) {
+  return lazy(async () => {
+    const [module] = await Promise.all([
+      load(),
+      loadCatalog(i18n.resolvedLanguage as Locale),
+    ]);
+    return module;
+  });
+}
+const AuthPage = page(() => import("./pages/AuthPage"));
+const ProfilesPage = page(() => import("./pages/ProfilesPage"));
+const CorporatePage = page(() => import("./pages/CorporatePage"));
+const CatalogPage = page(() => import("./pages/CatalogPage"));
+const TasksPage = page(() => import("./pages/TasksPage"));
+const InstallPage = page(() => import("./pages/InstallPage"));
+const TargetsPage = page(() => import("./pages/TargetsPage"));
+const DiscoveryPage = page(() => import("./pages/DiscoveryPage"));
+const RegistryPage = page(() => import("./pages/RegistryPage"));
+const DebugPage = page(() => import("./pages/DebugPage"));
+const SettingsPage = page(() => import("./pages/SettingsPage"));
 
 const PRIMARY = [
   { to: "/", icon: Home, label: "shell.home" },
@@ -159,6 +175,7 @@ function Shell() {
           </details>
         </nav>
         <div className="sidebar-footer">
+          <LanguageSelect compact />
           <div className="engine-status">
             <Activity
               size={15}

@@ -1,3 +1,4 @@
+import { formatDateTime, useText } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { ArrowRight, RefreshCw } from "lucide-react";
@@ -5,9 +6,11 @@ import { cmdTaskList, type CmdResult } from "../transport";
 import { ResultMeta, Spinner } from "../components/Result";
 import { EmptyState, PageHeader, StatusBadge } from "../components/Layout";
 import CheckoutOperations from "../components/CheckoutOperations";
+import { intentLabel } from "../labels";
 import TaskOwnership from "../components/TaskOwnership";
 
 export default function TasksPage() {
+  const msg = useText();
   const [list, setList] = useState<CmdResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [inspectId, setInspectId] = useState("");
@@ -42,8 +45,8 @@ export default function TasksPage() {
   return (
     <div className="page-stack">
       <PageHeader
-        title="Activity"
-        description="Resume open tasks or inspect any retained task by its ID."
+        title={msg("shell.activity")}
+        description={msg("tasks.resumeOpenTasksOrInspectAnyRetainedTaskBy")}
         action={
           <button
             className="btn-outline"
@@ -51,19 +54,19 @@ export default function TasksPage() {
             disabled={busy}
           >
             <RefreshCw size={14} />
-            Refresh
+            {msg("common.refresh")}
           </button>
         }
       />
       <section className="card space-y-3 p-5">
-        <h2 className="section-title">Open a retained task</h2>
+        <h2 className="section-title">{msg("tasks.openARetainedTask")}</h2>
         <div className="flex gap-3">
           <input
-            aria-label="Task ID"
+            aria-label={msg("tasks.taskId")}
             className="input min-w-0 font-mono"
             value={inspectId}
             onChange={(event) => setInspectId(event.target.value)}
-            placeholder="task_…"
+            placeholder={msg("tasks.task")}
           />
           <Link
             aria-disabled={!inspectId.trim()}
@@ -73,26 +76,27 @@ export default function TasksPage() {
             className="btn-outline shrink-0"
             to={`/install?task=${encodeURIComponent(inspectId.trim())}`}
           >
-            Open task
+            {msg("tasks.openTask")}
             <ArrowRight size={14} />
           </Link>
         </div>
       </section>
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="section-title">Open tasks</h2>
+          <h2 className="section-title">{msg("tasks.openTasks")}</h2>
           <Link className="text-sm text-primary" to="/targets">
-            Start a flow
+            {msg("tasks.startAFlow")}
           </Link>
         </div>
-        {(!list || busy) && <Spinner label="Reading task history" />}
+        {(!list || busy) && <Spinner label={msg("tasks.readingTaskHistory")} />}
         {list && <ResultMeta r={list} />}
         {list?.ok && tasks.length === 0 && (
-          <EmptyState title="All clear">
-            There are no unfinished tasks. Completed tasks remain available by
-            their ID.
+          <EmptyState title={msg("tasks.allClear")}>
+            {msg(
+              "tasks.thereAreNoUnfinishedTasksCompletedTasksRemainAvailable",
+            )}
             <Link className="btn-outline mt-5" to="/targets">
-              Create or install a setup
+              {msg("tasks.createOrInstallASetup")}
               <ArrowRight size={14} />
             </Link>
           </EmptyState>
@@ -107,7 +111,7 @@ export default function TasksPage() {
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-medium capitalize">
-                      {task.intent}
+                      {intentLabel(msg, task.intent)}
                       {task.harness_id ? ` · ${task.harness_id}` : ""}
                     </p>
                     <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
@@ -116,7 +120,7 @@ export default function TasksPage() {
                     <TaskOwnership value={task.ownership} compact />
                     {task.updated_at && (
                       <p className="mt-2 text-xs text-muted-foreground">
-                        Updated {new Date(task.updated_at).toLocaleString()}
+                        {msg("tasks.updated")} {formatDateTime(task.updated_at)}
                       </p>
                     )}
                   </div>

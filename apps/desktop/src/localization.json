@@ -1,0 +1,42 @@
+{
+  "defaultLocale": "en",
+  "languages": {
+    "en": {
+      "name": "English",
+      "direction": "ltr",
+      "shortName": "EN"
+    },
+    "ru": {
+      "name": "Русский",
+      "direction": "ltr",
+      "shortName": "RU"
+    },
+    "kk": {
+      "name": "Қазақша",
+      "direction": "ltr",
+      "shortName": "KZ"
+    },
+    "ar": {
+      "name": "العربية",
+      "direction": "rtl",
+      "shortName": "AR"
+    },
+    "zh-Hans": {
+      "name": "简体中文",
+      "direction": "ltr",
+      "shortName": "ZH"
+    }
+  },
+  "bootstrapPrefixes": [
+    "common.",
+    "shell.",
+    "home.",
+    "setup.folder",
+    "contextSwitcher.",
+    "language.",
+    "status.",
+    "error.",
+    "result.",
+    "choice."
+  ]
+}

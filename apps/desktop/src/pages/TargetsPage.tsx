@@ -271,8 +271,8 @@ export default function TargetsPage() {
         description={t("setup.description")}
       />
       {native.available !== true ? (
-        <EmptyState title="Native configuration unavailable">
-          Use a CLI/Desktop pair with the qualified native configuration engine.
+        <EmptyState title={t("targets.nativeConfigurationUnavailable")}>
+          {t("targets.useACliDesktopPairWithTheQualifiedNative")}
         </EmptyState>
       ) : (
         <>
@@ -293,7 +293,10 @@ export default function TargetsPage() {
               </li>
             ))}
           </ol>
-          <section className="card p-5 space-y-5" aria-label="Review setup">
+          <section
+            className="card p-5 space-y-5"
+            aria-label={t("targets.reviewSetup")}
+          >
             <div>
               <h2 className="text-lg font-semibold">
                 {t("setup.chooseTitle")}
@@ -345,7 +348,7 @@ export default function TargetsPage() {
                     value={setup}
                     disabled={!editable}
                     onChange={(event) => setSetup(event.target.value)}
-                    placeholder="setup_…"
+                    placeholder={t("targets.setup")}
                   />
                 </label>
                 <label className="field-label">
@@ -365,7 +368,7 @@ export default function TargetsPage() {
                     value={passport}
                     disabled={!editable}
                     onChange={(event) => setPassport(event.target.value)}
-                    placeholder="sha256:…"
+                    placeholder={t("targets.sha256")}
                   />
                 </label>
               </div>
@@ -402,13 +405,13 @@ export default function TargetsPage() {
               />
               {selected?.mode === "corporate" && (
                 <label className="field-label">
-                  Company project binding
+                  {t("targets.companyProjectBinding")}
                   <input
                     className="input"
                     value={binding}
                     disabled={!editable}
                     onChange={(event) => setBinding(event.target.value)}
-                    placeholder="Original linked operation ID"
+                    placeholder={t("targets.originalLinkedOperationId")}
                   />
                 </label>
               )}
@@ -417,26 +420,29 @@ export default function TargetsPage() {
               <summary>{t("setup.advanced")}</summary>
               <div className="mt-4 space-y-3 text-sm">
                 <label className="field-label">
-                  Change
+                  {t("targets.change")}
                   <select
                     className="input"
                     value={changeKind}
                     disabled={!editable}
                     onChange={(event) => setChangeKind(event.target.value)}
                   >
-                    <option value="install">Install in unowned folders</option>
+                    <option value="install">
+                      {t("targets.installInUnownedFolders")}
+                    </option>
                     <option value="replace">
-                      Replace the effective setup in the same folders
+                      {t("targets.replaceTheEffectiveSetupInTheSameFolders")}
                     </option>
                     <option value="adopt">
-                      Adopt an existing external installation
+                      {t("targets.adoptAnExistingExternalInstallation")}
                     </option>
                   </select>
                 </label>
                 {changeKind === "adopt" && (
                   <p className="text-muted-foreground">
-                    The existing installation must be complete and match this
-                    exact setup. Its original receipts and files are preserved.
+                    {t(
+                      "targets.theExistingInstallationMustBeCompleteAndMatchThis",
+                    )}
                   </p>
                 )}
                 <label className="flex gap-2">
@@ -446,7 +452,7 @@ export default function TargetsPage() {
                     disabled={!editable}
                     onChange={(event) => setTrust(event.target.checked)}
                   />
-                  Trust this exact setup and its components after review
+                  {t("targets.trustThisExactSetupAndItsComponentsAfterReview")}
                 </label>
               </div>
             </details>
@@ -475,7 +481,7 @@ export default function TargetsPage() {
           {operation && (
             <section
               className="card p-5"
-              aria-label="Original configuration operation"
+              aria-label={t("targets.originalConfigurationOperation")}
               id="native-operation"
               tabIndex={-1}
             >
@@ -493,8 +499,9 @@ export default function TargetsPage() {
               </p>
               {contextChanged && (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  The current view changed. This operation keeps its original
-                  context shown above.
+                  {t(
+                    "targets.theCurrentViewChangedThisOperationKeepsItsOriginal",
+                  )}
                 </p>
               )}
               <details className="technical-details mt-3">
@@ -507,26 +514,28 @@ export default function TargetsPage() {
               </details>
               {operation.metadataOnly && (
                 <p className="mt-3 text-sm">
-                  This retires references to positively missing folders. It
-                  changes no configuration files and grants no installation or
-                  account access.
+                  {t(
+                    "targets.thisRetiresReferencesToPositivelyMissingFoldersItChanges",
+                  )}
                 </p>
               )}
               {operation.plan && (
                 <div className="mt-4">
-                  <h3 className="font-semibold">Changes to review</h3>
+                  <h3 className="font-semibold">
+                    {t("targets.changesToReview")}
+                  </h3>
                   {files.length === 0 ? (
                     <p className="mt-2 text-sm">
-                      No configuration file changes are required.
+                      {t("targets.noConfigurationFileChangesAreRequired")}
                     </p>
                   ) : (
                     <div className="mt-3 overflow-x-auto">
-                      <table className="w-full text-left text-sm">
+                      <table className="w-full text-start text-sm">
                         <thead>
                           <tr className="border-b border-border">
-                            <th className="py-2 pr-3">Folder</th>
-                            <th className="py-2 pr-3">File</th>
-                            <th className="py-2">Change</th>
+                            <th className="py-2 pe-3">{t("targets.folder")}</th>
+                            <th className="py-2 pe-3">{t("targets.file")}</th>
+                            <th className="py-2">{t("targets.change")}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -544,18 +553,18 @@ export default function TargetsPage() {
                                 className="border-b border-border"
                                 key={index}
                               >
-                                <td className="py-2 pr-3 break-all">
+                                <td className="py-2 pe-3 break-all">
                                   {folder}
                                 </td>
-                                <td className="py-2 pr-3 break-all">
+                                <td className="py-2 pe-3 break-all">
                                   {String(item.path)}
                                 </td>
                                 <td className="py-2">
                                   {item.after == null
-                                    ? "Remove"
+                                    ? t("targets.remove")
                                     : record(item.before).file == null
-                                      ? "Create"
-                                      : "Update"}
+                                      ? t("targets.create")
+                                      : t("targets.update")}
                                 </td>
                               </tr>
                             );
@@ -566,13 +575,16 @@ export default function TargetsPage() {
                   )}
                   {guards > 0 && (
                     <p className="mt-3 text-sm">
-                      Historical external setup writers will be blocked in these
-                      folders. Their original records are preserved.
+                      {t(
+                        "targets.historicalExternalSetupWritersWillBeBlockedInThese",
+                      )}
                     </p>
                   )}
                   {sessions.length > 0 && (
                     <p className="mt-3 text-sm">
-                      Stop the original harness sessions before applying:{" "}
+                      {t(
+                        "targets.stopTheOriginalHarnessSessionsBeforeApplying",
+                      )}{" "}
                       {sessions
                         .map((session) => String(session.pid))
                         .join(", ")}
@@ -583,7 +595,7 @@ export default function TargetsPage() {
               )}
               {operation.plan && (
                 <Details
-                  label="Exact file fingerprints and handoff"
+                  label={t("targets.exactFileFingerprintsAndHandoff")}
                   value={{
                     publications: operation.plan.publications,
                     handoff: operation.plan.activation,
@@ -599,14 +611,16 @@ export default function TargetsPage() {
                       onChange={(event) => setConfirmed(event.target.checked)}
                       disabled={busy}
                     />
-                    I reviewed these exact effects and the original context.
+                    {t(
+                      "targets.iReviewedTheseExactEffectsAndTheOriginalContext",
+                    )}
                   </label>
                   <button
                     className="btn-primary mt-3"
                     disabled={!confirmed || busy}
                     onClick={() => void prepare()}
                   >
-                    Prepare reviewed setup
+                    {t("targets.prepareReviewedSetup")}
                   </button>
                 </>
               )}
@@ -620,8 +634,8 @@ export default function TargetsPage() {
                     onClick={() => void run("apply")}
                   >
                     {operation.phase === "prepared"
-                      ? "Apply when sessions are stopped"
-                      : "Resume original operation"}
+                      ? t("targets.applyWhenSessionsAreStopped")
+                      : t("targets.resumeOriginalOperation")}
                   </button>
                   {operation.phase === "prepared" && (
                     <button
@@ -629,7 +643,7 @@ export default function TargetsPage() {
                       disabled={busy}
                       onClick={() => void run("cancel")}
                     >
-                      Cancel preparation
+                      {t("targets.cancelPreparation")}
                     </button>
                   )}
                 </div>
@@ -637,25 +651,27 @@ export default function TargetsPage() {
               {operation.phase === "configured" &&
                 operation.restartRequired !== false && (
                   <p className="mt-4 text-sm">
-                    Confirm from a new harness session using{" "}
+                    {t("targets.confirmFromANewHarnessSessionUsing")}{" "}
                     <code>
                       {confirmCommand ??
                         "Use the original operation and state directory in the CLI."}
                     </code>
-                    . Keep the original CLI state directory.
+                    {t("targets.keepTheOriginalCliStateDirectory")}
                   </p>
                 )}
               {operation.phase === "configured" &&
                 operation.restartRequired === false && (
                   <p className="mt-4 text-sm">
-                    Configuration is current. This operation did not require a
-                    restart.
+                    {t(
+                      "targets.configurationIsCurrentThisOperationDidNotRequireA",
+                    )}
                   </p>
                 )}
               {operation.phase === "confirmed" && (
                 <p className="mt-4 text-sm">
-                  The original operation is confirmed. Runtime loading remains
-                  unobserved.
+                  {t(
+                    "targets.theOriginalOperationIsConfirmedRuntimeLoadingRemainsUnobserved",
+                  )}
                 </p>
               )}
               {operation.phase !== "review" && (
@@ -664,44 +680,51 @@ export default function TargetsPage() {
                   disabled={busy}
                   onClick={() => void run("status")}
                 >
-                  Read original status
+                  {t("targets.readOriginalStatus")}
                 </button>
               )}
             </section>
           )}
-          <section className="card p-5" aria-label="Effective setup">
+          <section
+            className="card p-5"
+            aria-label={t("targets.effectiveSetup")}
+          >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Current context</h2>
+              <h2 className="text-lg font-semibold">
+                {t("targets.currentContext")}
+              </h2>
               <button
                 className="btn-secondary"
                 disabled={busy}
                 onClick={() => void refresh()}
               >
-                Refresh
+                {t("common.refresh")}
               </button>
             </div>
             <p>
               {selected?.label ??
-                "Choose or create a saved context in Profiles."}
+                t("targets.chooseOrCreateASavedContextInProfiles")}
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-primary">
               <Link to="/catalog" className="inline-flex min-h-6 items-center">
-                Browse setups
+                {t("targets.browseSetups")}
               </Link>
-              <Link to="/install?intent=author">Create from local files</Link>
+              <Link to="/install?intent=author">
+                {t("targets.createFromLocalFiles")}
+              </Link>
             </div>
             {!selected && (
               <Link
                 to="/profiles"
                 className="inline-flex min-h-6 items-center text-primary"
               >
-                Open profiles
+                {t("targets.openProfiles")}
               </Link>
             )}
             {effective && !effective.ok && <ResultMeta r={effective} />}
             {effective?.ok && records(effective.data?.setups).length === 0 && (
               <p className="mt-3 text-sm text-muted-foreground">
-                No setup is owned by this context.
+                {t("targets.noSetupIsOwnedByThisContext")}
               </p>
             )}
             {records(effective?.data?.setups).map((item) => (
@@ -723,35 +746,38 @@ export default function TargetsPage() {
                     disabled={busy}
                     onClick={() => void inspect(item)}
                   >
-                    Inspect original operation
+                    {t("targets.inspectOriginalOperation")}
                   </button>
                   <button
                     className="btn-secondary"
                     disabled={!editable}
                     onClick={() => void reviewExisting(item, "remove")}
                   >
-                    Review removal
+                    {t("targets.reviewRemoval")}
                   </button>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Runtime loading: {String(item.load_state)}
+                  {t("targets.runtimeLoading")} {String(item.load_state)}
                 </p>
               </div>
             ))}
           </section>
-          <details className="card p-5" aria-label="Missing folders">
+          <details
+            className="card p-5"
+            aria-label={t("targets.missingFolders")}
+          >
             <summary className="section-title">{t("setup.recovery")}</summary>
             <p className="mt-2 text-sm text-muted-foreground">
-              Inspect local ownership across contexts when an original folder or
-              state directory was removed. Retirement releases only references
-              to folders proved absent.
+              {t(
+                "targets.inspectLocalOwnershipAcrossContextsWhenAnOriginalFolder",
+              )}
             </p>
             <button
               className="btn-secondary mt-3"
               disabled={busy}
               onClick={() => void inspectCustody()}
             >
-              Find missing folders
+              {t("targets.findMissingFolders")}
             </button>
             {records(custodyView?.data?.operations)
               .filter((item) =>
@@ -771,7 +797,7 @@ export default function TargetsPage() {
                     disabled={!editable}
                     onClick={() => void reviewExisting(item, "retire")}
                   >
-                    Review missing-folder retirement
+                    {t("targets.reviewMissingFolderRetirement")}
                   </button>
                 </div>
               ))}
@@ -780,12 +806,12 @@ export default function TargetsPage() {
                 records(item.roots).every((root) => root.state !== "missing"),
               ) && (
                 <p className="mt-3 text-sm">
-                  No owned folder was positively observed as missing.
+                  {t("targets.noOwnedFolderWasPositivelyObservedAsMissing")}
                 </p>
               )}
             {record(custodyView?.data?.pending).operation_id != null && (
               <Details
-                label="Retained original recovery coordinates"
+                label={t("targets.retainedOriginalRecoveryCoordinates")}
                 value={custodyView?.data?.pending}
               />
             )}
@@ -794,11 +820,10 @@ export default function TargetsPage() {
           {otherPending && (
             <section className="card p-5">
               <h2 className="font-semibold">
-                Another state directory has a pending operation
+                {t("targets.anotherStateDirectoryHasAPendingOperation")}
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Recover it through its original CLI state before starting
-                another setup change.
+                {t("targets.recoverItThroughItsOriginalCliStateBeforeStarting")}
               </p>
             </section>
           )}

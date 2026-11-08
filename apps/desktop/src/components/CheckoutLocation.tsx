@@ -1,3 +1,4 @@
+import { useText } from "../i18n";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { record, records, type ContextView } from "../contexts";
 import { checkoutFailure, checkoutPath } from "../checkoutLinks";
@@ -34,6 +35,7 @@ export default function CheckoutLocation({
   disabled,
   onBusyChange,
 }: Props) {
+  const msg = useText();
   const binding = String(original.operation_id);
   const [supported, setSupported] = useState(false);
   const [entries, setEntries] = useState<LocationEntry[]>([]);
@@ -229,44 +231,58 @@ export default function CheckoutLocation({
   return (
     <section
       className="space-y-3 border-t border-border pt-4"
-      aria-label="Checkout location"
+      aria-label={msg("checkoutLocation.checkoutLocation")}
     >
-      <h3 className="font-medium">Checkout location</h3>
-      <p className="text-sm">Original adoption directory:</p>
+      <h3 className="font-medium">
+        {msg("checkoutLocation.checkoutLocation")}
+      </h3>
+      <p className="text-sm">
+        {msg("checkoutLocation.originalAdoptionDirectory")}
+      </p>
       <p className="break-all font-mono text-xs">
         {checkoutPath(record(original.plan).checkout_root)}
       </p>
       <p className="text-sm text-muted-foreground">
-        Location receipts record earlier reviews. Read a fresh native plan to
-        check the present directory and company access.
+        {msg(
+          "checkoutLocation.locationReceiptsRecordEarlierReviewsReadAFreshNative",
+        )}
       </p>
       <button
         className="btn-outline"
         disabled={locked}
         onClick={() => void load()}
       >
-        Read location history
+        {msg("checkoutLocation.readLocationHistory")}
       </button>
-      {busy && <Spinner label="Reading the original checkout location" />}
+      {busy && (
+        <Spinner
+          label={msg("checkoutLocation.readingTheOriginalCheckoutLocation")}
+        />
+      )}
       {!busy && !supported && (
         <p className="text-sm text-muted-foreground">
-          This engine does not expose reviewed checkout locations.
+          {msg(
+            "checkoutLocation.thisEngineDoesNotExposeReviewedCheckoutLocations",
+          )}
         </p>
       )}
       {result && <ResultMeta r={result} />}
       {supported && (
         <>
           {entries.length === 0 && !busy && (
-            <p>No recorded location receipts.</p>
+            <p>{msg("checkoutLocation.noRecordedLocationReceipts")}</p>
           )}
           {entries.length > 0 && (
-            <ul className="space-y-2" aria-label="Recorded checkout locations">
+            <ul
+              className="space-y-2"
+              aria-label={msg("checkoutLocation.recordedCheckoutLocations")}
+            >
               {entries.map((entry) => (
                 <li className="space-y-1" key={entry.operation_id}>
                   <p className="text-sm">
                     {entry.action === "anchor"
-                      ? "Reviewed anchor"
-                      : "Reviewed relocation"}{" "}
+                      ? msg("checkoutLocation.reviewedAnchor")
+                      : msg("checkoutLocation.reviewedRelocation")}{" "}
                     · {entry.completed_at}
                   </p>
                   <p className="break-all font-mono text-xs">
@@ -279,7 +295,8 @@ export default function CheckoutLocation({
                       void inspect(entry.operation_id, entry.plan_digest)
                     }
                   >
-                    Inspect location {entry.operation_id}
+                    {msg("checkoutLocation.inspectLocation")}{" "}
+                    {entry.operation_id}
                   </button>
                 </li>
               ))}
@@ -291,17 +308,22 @@ export default function CheckoutLocation({
               disabled={locked}
               onClick={() => void load(cursor)}
             >
-              Read more location history
+              {msg("checkoutLocation.readMoreLocationHistory")}
             </button>
           )}
           {receipt && (
-            <div className="space-y-2" aria-label="Recorded location receipt">
+            <div
+              className="space-y-2"
+              aria-label={msg("checkoutLocation.recordedLocationReceipt")}
+            >
               <p role="status">
                 {receipt.action === "anchor"
-                  ? "Checkout anchor receipt saved."
-                  : "Checkout relocation receipt saved."}
+                  ? msg("checkoutLocation.checkoutAnchorReceiptSaved")
+                  : msg("checkoutLocation.checkoutRelocationReceiptSaved")}
               </p>
-              <p className="text-sm">Recorded directory:</p>
+              <p className="text-sm">
+                {msg("checkoutLocation.recordedDirectory")}
+              </p>
               <p className="break-all font-mono text-xs">
                 {checkoutPath(receipt.plan.destination)}
               </p>
@@ -309,7 +331,7 @@ export default function CheckoutLocation({
                 {String(receipt.plan.operation_id)} · {receipt.digest}
               </p>
               <Details
-                label="Original location receipt plan"
+                label={msg("checkoutLocation.originalLocationReceiptPlan")}
                 value={receipt.plan}
               />
             </div>
@@ -318,19 +340,20 @@ export default function CheckoutLocation({
             <>
               {!reader && (
                 <p>
-                  Select a current context for the same account and company to
-                  review a location.
+                  {msg(
+                    "checkoutLocation.selectACurrentContextForTheSameAccountAnd",
+                  )}
                 </p>
               )}
               <p className="text-sm text-muted-foreground">
-                Before moving a checkout, review and save an anchor while its
-                registered directory is present. Then close this app and any
-                process holding the checkout, move the same directory yourself,
-                reopen Activity and review its new path. Copies and missing
-                anchors require separate recovery.
+                {msg(
+                  "checkoutLocation.beforeMovingACheckoutReviewAndSaveAnAnchor",
+                )}
               </p>
               <label className="field-label">
-                Trusted Git executable for location review (optional)
+                {msg(
+                  "checkoutLocation.trustedGitExecutableForLocationReviewOptional",
+                )}
                 <input
                   className="input"
                   value={git}
@@ -343,10 +366,10 @@ export default function CheckoutLocation({
                 disabled={locked || !reader || !!review}
                 onClick={() => void prepare("anchor")}
               >
-                Review checkout anchor
+                {msg("checkoutLocation.reviewCheckoutAnchor")}
               </button>
               <label className="field-label">
-                Existing moved checkout directory
+                {msg("checkoutLocation.existingMovedCheckoutDirectory")}
                 <input
                   className="input"
                   value={destination}
@@ -359,25 +382,29 @@ export default function CheckoutLocation({
                 disabled={locked || !reader || !!review || !destination.trim()}
                 onClick={() => void prepare("relocate")}
               >
-                Review moved checkout
+                {msg("checkoutLocation.reviewMovedCheckout")}
               </button>
             </>
           )}
           {review && (
             <section
               className="space-y-3"
-              aria-label="Review checkout location"
+              aria-label={msg("checkoutLocation.reviewCheckoutLocation")}
             >
               <h4 className="font-medium">
                 {review.action === "anchor"
-                  ? "Review present checkout anchor"
-                  : "Review manually moved checkout"}
+                  ? msg("checkoutLocation.reviewPresentCheckoutAnchor")
+                  : msg("checkoutLocation.reviewManuallyMovedCheckout")}
               </h4>
-              <p className="text-sm">Previously registered directory:</p>
+              <p className="text-sm">
+                {msg("checkoutLocation.previouslyRegisteredDirectory")}
+              </p>
               <p className="break-all font-mono text-xs">
                 {checkoutPath(record(review.plan.binding).checkout_root)}
               </p>
-              <p className="text-sm">Reviewed destination:</p>
+              <p className="text-sm">
+                {msg("checkoutLocation.reviewedDestination")}
+              </p>
               <p className="break-all font-mono text-xs">
                 {checkoutPath(review.plan.destination)}
               </p>
@@ -385,7 +412,7 @@ export default function CheckoutLocation({
                 {String(review.plan.operation_id)} · {review.digest}
               </p>
               <Details
-                label="Exact checkout location plan"
+                label={msg("checkoutLocation.exactCheckoutLocationPlan")}
                 value={review.plan}
               />
               <label className="flex items-start gap-3 text-sm">
@@ -395,15 +422,16 @@ export default function CheckoutLocation({
                   disabled={locked || !reader}
                   onChange={(event) => setConfirmed(event.target.checked)}
                 />
-                I reviewed this exact checkout location and authorize saving its
-                metadata.
+                {msg(
+                  "checkoutLocation.iReviewedThisExactCheckoutLocationAndAuthorizeSaving",
+                )}
               </label>
               <button
                 className="btn-primary"
                 disabled={locked || !reader || !confirmed}
                 onClick={() => void apply()}
               >
-                Apply reviewed checkout location
+                {msg("checkoutLocation.applyReviewedCheckoutLocation")}
               </button>
               <button
                 className="btn-outline"
@@ -412,7 +440,7 @@ export default function CheckoutLocation({
                   void inspect(String(review.plan.operation_id), review.digest)
                 }
               >
-                Read this location outcome
+                {msg("checkoutLocation.readThisLocationOutcome")}
               </button>
               <button
                 className="btn-outline"
@@ -422,13 +450,12 @@ export default function CheckoutLocation({
                   setConfirmed(false);
                 }}
               >
-                Close location review
+                {msg("checkoutLocation.closeLocationReview")}
               </button>
               <p className="text-xs text-muted-foreground">
-                An unconfirmed reply keeps this exact plan. Read its original
-                outcome or explicitly authorize the same plan again. After
-                restarting, read location history before creating another
-                review.
+                {msg(
+                  "checkoutLocation.anUnconfirmedReplyKeepsThisExactPlanReadIts",
+                )}
               </p>
             </section>
           )}

@@ -1,3 +1,4 @@
+import { useText, type MessageKey } from "../i18n";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { Building2, RefreshCw } from "lucide-react";
@@ -24,8 +25,18 @@ const TABS = [
   "Heartbeat",
 ] as const;
 type Tab = (typeof TABS)[number];
+const tabMessages: Record<Tab, MessageKey> = {
+  Projects: "corporate.tabProjects",
+  Teams: "corporate.tabTeams",
+  Technologies: "corporate.tabTechnologies",
+  Mappings: "corporate.tabMappings",
+  Catalog: "corporate.tabCatalog",
+  Assignments: "corporate.tabAssignments",
+  Heartbeat: "corporate.tabHeartbeat",
+};
 
 export default function CorporatePage() {
+  const msg = useText();
   const context = useContexts((state) => state.selected);
   const contextLoading = useContexts(
     (state) => state.loading || state.switching,
@@ -247,9 +258,11 @@ export default function CorporatePage() {
   return (
     <div className="page-stack">
       <PageHeader
-        eyebrow="Corporate"
-        title={context?.organization ?? "Company hub"}
-        description="Read your company's projects, people, technology mappings and setup assignments through the selected connection."
+        eyebrow={msg("corporate.corporate")}
+        title={context?.organization ?? msg("corporate.companyHub")}
+        description={msg(
+          "corporate.readYourCompanySProjectsPeopleTechnologyMappingsAnd",
+        )}
         action={
           <Building2
             size={26}
@@ -258,18 +271,19 @@ export default function CorporatePage() {
           />
         }
       />
-      {contextLoading && <Spinner label="Reading the selected context" />}
+      {contextLoading && (
+        <Spinner label={msg("corporate.readingTheSelectedContext")} />
+      )}
       {context?.mode !== "corporate" ? (
         <EmptyState
-          title="Select a corporate context"
+          title={msg("corporate.selectACorporateContext")}
           action={
             <Link className="btn-primary" to="/profiles">
-              Manage connections and contexts
+              {msg("corporate.manageConnectionsAndContexts")}
             </Link>
           }
         >
-          Personal use works without a company account. A company context gives
-          you access to your team's authorized directory and assignments.
+          {msg("corporate.personalUseWorksWithoutACompanyAccountACompany")}
         </EmptyState>
       ) : (
         <>
@@ -279,14 +293,15 @@ export default function CorporatePage() {
               {context.origin}
             </p>
             <p className="text-xs text-muted-foreground">
-              Current permissions are checked on every read. Saved views do not
-              grant installation access.
+              {msg(
+                "corporate.currentPermissionsAreCheckedOnEveryReadSavedViews",
+              )}
             </p>
           </div>
           <div
             className="flex flex-wrap gap-2"
             role="group"
-            aria-label="Company information"
+            aria-label={msg("corporate.companyInformation")}
           >
             {TABS.map((value) => (
               <button
@@ -300,7 +315,7 @@ export default function CorporatePage() {
                   setCheckoutProject(null);
                 }}
               >
-                {value}
+                {msg(tabMessages[value])}
               </button>
             ))}
           </div>
@@ -308,11 +323,11 @@ export default function CorporatePage() {
             <EmptyState
               title={
                 tab === "Heartbeat"
-                  ? "This engine does not advertise this heartbeat read"
-                  : "This engine does not advertise company reads"
+                  ? msg("corporate.thisEngineDoesNotAdvertiseThisHeartbeatRead")
+                  : msg("corporate.thisEngineDoesNotAdvertiseCompanyReads")
               }
             >
-              Use a matching CLI and desktop release to open these views.
+              {msg("corporate.useAMatchingCliAndDesktopReleaseToOpen")}
             </EmptyState>
           )}
           <form
@@ -325,7 +340,7 @@ export default function CorporatePage() {
             <div className="grid gap-4 md:grid-cols-2">
               {tab === "Heartbeat" && (
                 <label className="field-label">
-                  Heartbeat view
+                  {msg("corporate.heartbeatView")}
                   <select
                     className="input"
                     value={heartbeatView}
@@ -336,8 +351,12 @@ export default function CorporatePage() {
                       );
                     }}
                   >
-                    <option value="policy">Reporting policy</option>
-                    <option value="status">Enrolled device status</option>
+                    <option value="policy">
+                      {msg("corporate.reportingPolicy")}
+                    </option>
+                    <option value="status">
+                      {msg("corporate.enrolledDeviceStatus")}
+                    </option>
                   </select>
                 </label>
               )}
@@ -351,12 +370,12 @@ export default function CorporatePage() {
                       setMembershipOnly(event.target.checked);
                     }}
                   />
-                  Only projects I belong to
+                  {msg("corporate.onlyProjectsIBelongTo")}
                 </label>
               )}
               {(tab === "Technologies" || tab === "Catalog") && (
                 <label className="field-label">
-                  Search
+                  {msg("corporate.search")}
                   <input
                     className="input"
                     maxLength={200}
@@ -370,7 +389,7 @@ export default function CorporatePage() {
               )}
               {tab === "Catalog" && (
                 <label className="field-label">
-                  Object kind
+                  {msg("corporate.objectKind")}
                   <select
                     className="input"
                     value={kind}
@@ -379,14 +398,16 @@ export default function CorporatePage() {
                       setKind(event.target.value);
                     }}
                   >
-                    <option value="setup">Setups</option>
-                    <option value="component">Components</option>
+                    <option value="setup">{msg("corporate.setups")}</option>
+                    <option value="component">
+                      {msg("corporate.components")}
+                    </option>
                   </select>
                 </label>
               )}
               {(tab === "Catalog" || tab === "Assignments") && (
                 <label className="field-label">
-                  Harness
+                  {msg("corporate.harness")}
                   <select
                     className="input"
                     value={harness}
@@ -397,7 +418,9 @@ export default function CorporatePage() {
                     }}
                   >
                     {!harnesses.length && (
-                      <option value="">Reading engine support…</option>
+                      <option value="">
+                        {msg("corporate.readingEngineSupport")}
+                      </option>
                     )}
                     {harnesses.map((value) => (
                       <option key={value} value={value}>
@@ -410,7 +433,7 @@ export default function CorporatePage() {
               {tab === "Assignments" && (
                 <>
                   <label className="field-label">
-                    Corporate project
+                    {msg("corporate.corporateProject")}
                     <select
                       className="input"
                       value={project}
@@ -419,7 +442,9 @@ export default function CorporatePage() {
                         setProject(event.target.value);
                       }}
                     >
-                      <option value="">Organization context</option>
+                      <option value="">
+                        {msg("corporate.organizationContext")}
+                      </option>
                       {projects.map((item) => (
                         <option
                           key={String(item.project_id)}
@@ -431,7 +456,7 @@ export default function CorporatePage() {
                     </select>
                   </label>
                   <label className="field-label">
-                    Technology
+                    {msg("corporate.technology")}
                     <select
                       className="input"
                       value={technology}
@@ -440,7 +465,9 @@ export default function CorporatePage() {
                         setTechnology(event.target.value);
                       }}
                     >
-                      <option value="">No technology filter</option>
+                      <option value="">
+                        {msg("corporate.noTechnologyFilter")}
+                      </option>
                       {technologies.map((item) => (
                         <option
                           key={String(item.technology_id)}
@@ -456,23 +483,24 @@ export default function CorporatePage() {
             </div>
             {tab === "Projects" && (
               <p className="text-xs text-muted-foreground">
-                Visible projects and explicit memberships are separate.
-                Assignment planning may require project membership.
+                {msg(
+                  "corporate.visibleProjectsAndExplicitMembershipsAreSeparateAssignmentPlanning",
+                )}
               </p>
             )}
             {tab === "Assignments" && (
               <p className="text-sm text-muted-foreground">
-                Preview starts with an empty company-managed inventory. It does
-                not report personal installations or change harness files. Read
-                Projects or Technologies to choose a scope.
+                {msg(
+                  "corporate.previewStartsWithAnEmptyCompanyManagedInventoryIt",
+                )}
               </p>
             )}
             {tab === "Heartbeat" && (
               <>
                 <p className="text-sm text-muted-foreground">
-                  Reading these views does not enable reporting. Company policy
-                  is separate from your consent. Device health does not
-                  establish harness usage.
+                  {msg(
+                    "corporate.readingTheseViewsDoesNotEnableReportingCompanyPolicy",
+                  )}
                 </p>
                 <HeartbeatDelivery
                   key={context.id}
@@ -495,10 +523,10 @@ export default function CorporatePage() {
             >
               <RefreshCw size={15} aria-hidden="true" />
               {tab === "Assignments"
-                ? "Preview assignments"
+                ? msg("corporate.previewAssignments")
                 : tab === "Heartbeat"
-                  ? `Read heartbeat ${heartbeatView}`
-                  : `Read ${tab.toLowerCase()}`}
+                  ? msg("corporate.readHeartbeat", { view: heartbeatView })
+                  : msg("corporate.readTab", { tab })}
             </button>
           </form>
           {checkoutProject && checkoutSupported && (
@@ -511,19 +539,28 @@ export default function CorporatePage() {
             />
           )}
           {busy && (
-            <Spinner label="Checking current company access and reading this view" />
+            <Spinner
+              label={msg(
+                "corporate.checkingCurrentCompanyAccessAndReadingThisView",
+              )}
+            />
           )}
           {result && <ResultMeta r={result} />}
           {result?.ok && (
-            <section className="space-y-4" aria-label="Company observation">
+            <section
+              className="space-y-4"
+              aria-label={msg("corporate.companyObservation")}
+            >
               <p className="text-xs text-muted-foreground">
-                Checked {String(permissions.generated_at ?? "")} · Valid through{" "}
+                {msg("corporate.checked")}{" "}
+                {String(permissions.generated_at ?? "")}{" "}
+                {msg("corporate.validThrough")}{" "}
                 {String(permissions.expires_at ?? "")}
               </p>
               {mapping && (
                 <div className="card space-y-2">
                   <h2 className="section-title">
-                    Mapping {String(data.version)}
+                    {msg("corporate.mapping")} {String(data.version)}
                   </h2>
                   <p className="break-all font-mono text-xs text-muted-foreground">
                     {String(data.digest)}
@@ -534,46 +571,58 @@ export default function CorporatePage() {
                 <div className="card space-y-3 p-5">
                   {heartbeatView === "policy" ? (
                     <dl className="grid gap-2 text-sm">
-                      <dt>Company reporting policy</dt>
+                      <dt>{msg("corporate.companyReportingPolicy")}</dt>
                       <dd>
                         {data.enabled === true
-                          ? "Enabled by company"
+                          ? msg("corporate.enabledByCompany")
                           : data.enabled === false
-                            ? "Disabled by company"
-                            : "Not reported"}
+                            ? msg("corporate.disabledByCompany")
+                            : msg("corporate.notReported")}
                       </dd>
-                      <dt>Policy version</dt>
-                      <dd>{String(data.policy_version ?? "Not reported")}</dd>
-                      <dt>Reporting interval</dt>
+                      <dt>{msg("corporate.policyVersion")}</dt>
+                      <dd>
+                        {String(
+                          data.policy_version ?? msg("corporate.notReported"),
+                        )}
+                      </dd>
+                      <dt>{msg("corporate.reportingInterval")}</dt>
                       <dd>
                         {typeof data.interval_seconds === "number"
-                          ? `${data.interval_seconds} seconds`
-                          : "Not reported"}
+                          ? msg("corporate.intervalSeconds", {
+                              count: data.interval_seconds,
+                            })
+                          : msg("corporate.notReported")}
                       </dd>
                     </dl>
                   ) : (
                     <>
                       <dl className="grid gap-2 text-sm">
-                        <dt>Enrolled device</dt>
+                        <dt>{msg("corporate.enrolledDevice")}</dt>
                         <dd className="break-all font-mono">
-                          {String(data.device_id ?? "Not reported")}
+                          {String(
+                            data.device_id ?? msg("corporate.notReported"),
+                          )}
                         </dd>
-                        <dt>Reported device health</dt>
-                        <dd>{String(data.health_state ?? "Not reported")}</dd>
+                        <dt>{msg("corporate.reportedDeviceHealth")}</dt>
+                        <dd>
+                          {String(
+                            data.health_state ?? msg("corporate.notReported"),
+                          )}
+                        </dd>
                       </dl>
                       {data.heartbeat === null && (
                         <p className="text-sm text-muted-foreground">
-                          No heartbeat has been reported for this enrolled
-                          device.
+                          {msg(
+                            "corporate.noHeartbeatHasBeenReportedForThisEnrolledDevice",
+                          )}
                         </p>
                       )}
                     </>
                   )}
                 </div>
               ) : !rows.length ? (
-                <EmptyState title="No matching records">
-                  This is the result for the selected company and current
-                  permissions.
+                <EmptyState title={msg("corporate.noMatchingRecords")}>
+                  {msg("corporate.thisIsTheResultForTheSelectedCompanyAnd")}
                 </EmptyState>
               ) : (
                 <ul className="grid gap-3 lg:grid-cols-2">
@@ -638,7 +687,7 @@ export default function CorporatePage() {
                               setTab("Assignments");
                             }}
                           >
-                            Preview this project's assignments
+                            {msg("corporate.previewThisProjectSAssignments")}
                           </button>
                         )}
                         {tab === "Projects" && checkoutSupported && (
@@ -647,7 +696,7 @@ export default function CorporatePage() {
                             disabled={busy || contextLoading}
                             onClick={() => setCheckoutProject({ id, name })}
                           >
-                            Review local checkout
+                            {msg("corporate.reviewLocalCheckout")}
                           </button>
                         )}
                         {tab === "Mappings" && !mapping && (
@@ -656,7 +705,7 @@ export default function CorporatePage() {
                             disabled={busy}
                             onClick={() => void read(String(item.version))}
                           >
-                            Read mapping
+                            {msg("corporate.readMapping")}
                           </button>
                         )}
                         {tab === "Assignments" &&
@@ -683,16 +732,20 @@ export default function CorporatePage() {
                     )
                   }
                 >
-                  Read next page
+                  {msg("corporate.readNextPage")}
                 </button>
               )}
               {tab === "Assignments" && (
                 <p className="text-sm text-muted-foreground">
-                  This observation cannot be applied as an installation plan.
-                  Company setup delivery is a separate operation.
+                  {msg(
+                    "corporate.thisObservationCannotBeAppliedAsAnInstallationPlan",
+                  )}
                 </p>
               )}
-              <Details label="Observation evidence" value={result.data} />
+              <Details
+                label={msg("corporate.observationEvidence")}
+                value={result.data}
+              />
             </section>
           )}
         </>

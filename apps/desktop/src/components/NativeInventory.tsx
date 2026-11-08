@@ -1,3 +1,4 @@
+import { useText } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import { record, type ContextView } from "../contexts";
 import {
@@ -16,6 +17,7 @@ interface Disclosure {
   label: string;
 }
 export default function NativeInventory({ context }: { context: ContextView }) {
+  const msg = useText();
   const [status, setStatus] = useState<CmdResult | null>(null);
   const [result, setResult] = useState<CmdResult | null>(null);
   const [review, setReview] = useState<Disclosure | null>(null);
@@ -106,23 +108,30 @@ export default function NativeInventory({ context }: { context: ContextView }) {
   }
   const enabled = status?.ok && status.data?.enabled === true;
   return (
-    <section className="card p-5" aria-label="Company inventory">
-      <h2 className="text-lg font-semibold">Company inventory</h2>
+    <section
+      className="card p-5"
+      aria-label={msg("nativeInventory.companyInventory")}
+    >
+      <h2 className="text-lg font-semibold">
+        {msg("nativeInventory.companyInventory")}
+      </h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        Reports components owned by ai-stp in this company context and their
-        observed file state. File contents, paths and prompts stay on this
-        computer. Runtime loading is not measured. Reports run only when you
-        request them.
+        {msg("nativeInventory.reportsComponentsOwnedByAiStpInThisCompany")}
       </p>
       <p className="mt-3 text-sm">
-        Local consent:{" "}
-        {status?.ok ? (enabled ? "enabled" : "disabled") : "unavailable"} ·{" "}
-        {context.label}
+        {msg("nativeInventory.localConsent")}{" "}
+        {status?.ok
+          ? enabled
+            ? msg("nativeInventory.enabled")
+            : msg("nativeInventory.disabled")
+          : msg("nativeInventory.unavailable")}{" "}
+        · {context.label}
       </p>
       {Boolean(status?.data?.pending_digest) && (
         <p className="mt-2 text-sm">
-          An exact report is waiting for delivery. Retry delivery before
-          collecting another report.
+          {msg(
+            "nativeInventory.anExactReportIsWaitingForDeliveryRetryDelivery",
+          )}
         </p>
       )}
       <div className="mt-4 flex flex-wrap gap-3">
@@ -131,7 +140,7 @@ export default function NativeInventory({ context }: { context: ContextView }) {
           disabled={busy}
           onClick={() => void refresh(context.id)}
         >
-          Read consent
+          {msg("nativeInventory.readConsent")}
         </button>
         {!enabled && (
           <button
@@ -139,7 +148,7 @@ export default function NativeInventory({ context }: { context: ContextView }) {
             disabled={busy}
             onClick={() => void disclose()}
           >
-            Review inventory consent
+            {msg("nativeInventory.reviewInventoryConsent")}
           </button>
         )}
         {enabled && (
@@ -149,35 +158,41 @@ export default function NativeInventory({ context }: { context: ContextView }) {
               disabled={busy}
               onClick={() => void run("scan")}
             >
-              Collect owned inventory
+              {msg("nativeInventory.collectOwnedInventory")}
             </button>
             <button
               className="btn-secondary"
               disabled={busy || !status?.data?.pending_digest}
               onClick={() => void run("flush")}
             >
-              Deliver pending report
+              {msg("nativeInventory.deliverPendingReport")}
             </button>
             <button
               className="btn-secondary"
               disabled={busy}
               onClick={() => void run("disable")}
             >
-              Disable locally
+              {msg("nativeInventory.disableLocally")}
             </button>
           </>
         )}
       </div>
       {review && (
         <div className="mt-4 rounded-lg border border-border p-4">
-          <p>Consent for {review.label}</p>
+          <p>
+            {msg("nativeInventory.consentFor")} {review.label}
+          </p>
           {review.context !== context.id && (
             <p className="mt-2 text-sm">
-              The view changed. This review retains its original company
-              context.
+              {msg(
+                "nativeInventory.theViewChangedThisReviewRetainsItsOriginalCompany",
+              )}
             </p>
           )}
-          <Details label="Current company policy" value={review.plan.policy} />
+          <Details
+            label={msg("nativeInventory.currentCompanyPolicy")}
+            value={review.plan.policy}
+          />
           <label className="mt-3 flex gap-2 text-sm">
             <input
               type="checkbox"
@@ -185,14 +200,16 @@ export default function NativeInventory({ context }: { context: ContextView }) {
               disabled={busy}
               onChange={(event) => setApproved(event.target.checked)}
             />
-            I approve the disclosed inventory reporting for this context.
+            {msg(
+              "nativeInventory.iApproveTheDisclosedInventoryReportingForThisContext",
+            )}
           </label>
           <button
             className="btn-primary mt-3"
             disabled={busy || !approved}
             onClick={() => void enable()}
           >
-            Enable reviewed consent
+            {msg("nativeInventory.enableReviewedConsent")}
           </button>
         </div>
       )}

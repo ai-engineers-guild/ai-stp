@@ -1,3 +1,4 @@
+import { useText } from "../i18n";
 import { useLayoutEffect, useRef, useState } from "react";
 import { record, records, type ContextView } from "../contexts";
 import { cliPlan, cmdCheckoutApply, type CmdResult } from "../transport";
@@ -35,6 +36,7 @@ export default function CheckoutPreview({
   disabled: boolean;
   linking?: boolean;
 }) {
+  const msg = useText();
   const [root, setRoot] = useState("");
   const [git, setGit] = useState("");
   const [provider, setProvider] = useState("");
@@ -192,12 +194,18 @@ export default function CheckoutPreview({
   const local = record(data.local_project);
   const observedRoot = checkoutPath(record(local.root).path);
   return (
-    <section className="card space-y-4" aria-label="Corporate checkout preview">
+    <section
+      className="card space-y-4"
+      aria-label={msg("checkoutPreview.corporateCheckoutPreview")}
+    >
       <div className="space-y-2">
-        <h2 className="section-title">Review checkout for {project.name}</h2>
+        <h2 className="section-title">
+          {msg("checkoutPreview.reviewCheckoutFor")} {project.name}
+        </h2>
         <p className="text-sm text-muted-foreground">
-          Choose an existing registered project with a committed Git branch. The
-          engine checks its private passport and current company access.
+          {msg(
+            "checkoutPreview.chooseAnExistingRegisteredProjectWithACommittedGit",
+          )}
         </p>
       </div>
       <form
@@ -211,7 +219,7 @@ export default function CheckoutPreview({
           className="space-y-4"
         >
           <label className="field-label">
-            Checkout directory
+            {msg("checkoutPreview.checkoutDirectory")}
             <input
               className="input"
               required
@@ -225,7 +233,7 @@ export default function CheckoutPreview({
             />
           </label>
           <label className="field-label">
-            Git executable (optional)
+            {msg("checkoutPreview.gitExecutableOptional")}
             <input
               className="input"
               value={git}
@@ -238,13 +246,11 @@ export default function CheckoutPreview({
             />
           </label>
           <p className="field-help">
-            Use an absolute path to an existing trusted Git executable if
-            needed. The engine uses your installed Git and does not download
-            one.
+            {msg("checkoutPreview.useAnAbsolutePathToAnExistingTrustedGit")}
           </p>
           {providers.length > 0 && (
             <label className="field-label">
-              Corporate repository (optional)
+              {msg("checkoutPreview.corporateRepositoryOptional")}
               <select
                 className="input"
                 value={provider}
@@ -253,13 +259,15 @@ export default function CheckoutPreview({
                   setResult(null);
                 }}
               >
-                <option value="">No repository assertion</option>
+                <option value="">
+                  {msg("checkoutPreview.noRepositoryAssertion")}
+                </option>
                 {providers.map((item) => (
                   <option
                     key={String(item.provider_project_id)}
                     value={String(item.provider_project_id)}
                   >
-                    {String(item.provider)} · repository{" "}
+                    {String(item.provider)} {msg("checkoutPreview.repository")}{" "}
                     {String(item.immutable_repository_id)}
                   </option>
                 ))}
@@ -267,27 +275,39 @@ export default function CheckoutPreview({
             </label>
           )}
           <button className="btn-primary" type="submit" disabled={!root.trim()}>
-            Preview checkout
+            {msg("checkoutPreview.previewCheckout")}
           </button>
         </fieldset>
       </form>
-      {busy && <Spinner label="Checking checkout and current company access" />}
+      {busy && (
+        <Spinner
+          label={msg("checkoutPreview.checkingCheckoutAndCurrentCompanyAccess")}
+        />
+      )}
       {result && <ResultMeta r={result} />}
       {result?.ok && (
-        <div className="space-y-3" aria-label="Verified checkout observation">
-          <h3 className="font-medium">Checkout verified for review</h3>
+        <div
+          className="space-y-3"
+          aria-label={msg("checkoutPreview.verifiedCheckoutObservation")}
+        >
+          <h3 className="font-medium">
+            {msg("checkoutPreview.checkoutVerifiedForReview")}
+          </h3>
           {typeof observedRoot === "string" && (
             <p className="break-all text-sm">{observedRoot}</p>
           )}
           <p className="break-all font-mono text-xs text-muted-foreground">
-            Commit {String(checkout.commit ?? "")}
+            {msg("checkoutPreview.commit")} {String(checkout.commit ?? "")}
           </p>
           <p className="text-sm text-muted-foreground">
-            Preview only. Saving a project link requires a separate reviewed
-            operation. Repository choices come from the company; Git addresses
-            do not prove repository identity.
+            {msg(
+              "checkoutPreview.previewOnlySavingAProjectLinkRequiresASeparate",
+            )}
           </p>
-          <Details label="Checkout observation evidence" value={result.data} />
+          <Details
+            label={msg("checkoutPreview.checkoutObservationEvidence")}
+            value={result.data}
+          />
           {linking && !review && phase !== "adopt" && (
             <button
               className="btn-primary"
@@ -303,10 +323,10 @@ export default function CheckoutPreview({
               }
             >
               {phase === "request"
-                ? "Review link confirmation"
+                ? msg("checkoutPreview.reviewLinkConfirmation")
                 : phase === "confirm"
-                  ? "Review local binding"
-                  : "Review link request"}
+                  ? msg("checkoutPreview.reviewLocalBinding")
+                  : msg("checkoutPreview.reviewLinkRequest")}
             </button>
           )}
         </div>
@@ -314,22 +334,26 @@ export default function CheckoutPreview({
       {review && (
         <section
           className="space-y-4"
-          aria-label="Review corporate checkout change"
+          aria-label={msg("checkoutPreview.reviewCorporateCheckoutChange")}
         >
           <h3 className="section-title">
-            Review{" "}
+            {msg("checkoutPreview.review")}{" "}
             {review.action === "request"
-              ? "server plan request"
+              ? msg("checkoutPreview.serverPlanRequest")
               : review.action === "confirm"
-                ? "project link confirmation"
-                : "local project binding"}
+                ? msg("checkoutPreview.projectLinkConfirmation")
+                : msg("checkoutPreview.localProjectBinding")}
           </h3>
           <p className="text-sm text-muted-foreground">
-            This operation retains its original company and checkout. It grants
-            no harness installation authority.
+            {msg(
+              "checkoutPreview.thisOperationRetainsItsOriginalCompanyAndCheckoutIt",
+            )}
           </p>
           <p className="break-all font-mono text-xs">{review.digest}</p>
-          <Details label="Exact checkout plan" value={review.plan} />
+          <Details
+            label={msg("checkoutPreview.exactCheckoutPlan")}
+            value={review.plan}
+          />
           <label className="flex items-start gap-3 text-sm">
             <input
               type="checkbox"
@@ -337,14 +361,16 @@ export default function CheckoutPreview({
               disabled={busy || disabled}
               onChange={(event) => setConfirmed(event.target.checked)}
             />
-            I reviewed this exact checkout plan and authorize its change.
+            {msg(
+              "checkoutPreview.iReviewedThisExactCheckoutPlanAndAuthorizeIts",
+            )}
           </label>
           <button
             className="btn-primary"
             disabled={busy || disabled || !confirmed}
             onClick={() => void applyLink()}
           >
-            Apply reviewed checkout change
+            {msg("checkoutPreview.applyReviewedCheckoutChange")}
           </button>
           {!request && (
             <button
@@ -355,27 +381,31 @@ export default function CheckoutPreview({
                 setConfirmed(false);
               }}
             >
-              Dismiss checkout review
+              {msg("checkoutPreview.dismissCheckoutReview")}
             </button>
           )}
         </section>
       )}
       {operationResult && <ResultMeta r={operationResult} />}
       {request && (
-        <div className="space-y-2" aria-label="Retained checkout operation">
+        <div
+          className="space-y-2"
+          aria-label={msg("checkoutPreview.retainedCheckoutOperation")}
+        >
           <p className="break-all font-mono text-xs">
-            Original request {request}
+            {msg("checkoutPreview.originalRequest")} {request}
           </p>
           {phase === "adopt" ? (
-            <p role="status">Corporate project binding saved.</p>
+            <p role="status">
+              {msg("checkoutPreview.corporateProjectBindingSaved")}
+            </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              If a reply is unconfirmed or the app closes, inspect this original
-              operation in Activity before starting again.
+              {msg("checkoutPreview.ifAReplyIsUnconfirmedOrTheAppCloses")}
             </p>
           )}
           <Link className="text-sm text-primary" to="/tasks">
-            Open Activity
+            {msg("checkoutPreview.openActivity")}
           </Link>
         </div>
       )}

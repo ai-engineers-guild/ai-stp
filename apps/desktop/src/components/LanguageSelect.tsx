@@ -1,0 +1,49 @@
+import { changeLocale, isLocale, languages, useLocale, useText } from "../i18n";
+
+export default function LanguageSelect({
+  compact = false,
+}: {
+  compact?: boolean;
+}) {
+  const text = useText();
+  const { locale, pending, failed } = useLocale();
+  return (
+    <div className={compact ? "text-xs" : "space-y-2"}>
+      <label className="field-label">
+        <span className={compact ? "sr-only" : ""}>
+          {text("language.label")}
+        </span>
+        <select
+          className="input w-full"
+          value={locale}
+          disabled={pending}
+          onChange={(event) => {
+            const next = event.target.value;
+            if (isLocale(next)) void changeLocale(next);
+          }}
+        >
+          {Object.entries(languages).map(([value, language]) => (
+            <option
+              key={value}
+              value={value}
+              lang={value}
+              dir={language.direction}
+            >
+              {value === "kk"
+                ? `${language.name} · ${language.shortName}`
+                : language.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      {!compact && (
+        <p className="text-xs text-muted-foreground">{text("language.help")}</p>
+      )}
+      {failed && (
+        <p role="alert" className="text-xs text-destructive">
+          {text("language.loadFailed")}
+        </p>
+      )}
+    </div>
+  );
+}

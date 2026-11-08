@@ -1,3 +1,4 @@
+import { useText } from "../i18n";
 import { useLayoutEffect, useRef, useState } from "react";
 import { record, type ContextView } from "../contexts";
 import {
@@ -24,6 +25,7 @@ export default function HeartbeatDelivery({
   help: CmdResult | null;
   disabled: boolean;
 }) {
+  const msg = useText();
   const [result, setResult] = useState<CmdResult | null>(null);
   const [review, setReview] = useState<HeartbeatReview | null>(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -130,85 +132,103 @@ export default function HeartbeatDelivery({
   const locked = busy || disabled || !supported;
   return (
     <section
-      aria-label="Foreground heartbeat delivery"
+      aria-label={msg("heartbeatDelivery.foregroundHeartbeatDelivery")}
       className="space-y-3 border-t border-border pt-4"
     >
-      <h3 className="font-medium">Foreground device liveness</h3>
+      <h3 className="font-medium">
+        {msg("heartbeatDelivery.foregroundDeviceLiveness")}
+      </h3>
       <p className="text-sm text-muted-foreground">
-        Off until you approve this company context and policy. While this app is
-        focused, it can report this CLI's liveness. Harness activity and managed
-        installation coverage remain unknown. No startup service is installed.
+        {msg("heartbeatDelivery.offUntilYouApproveThisCompanyContextAndPolicy")}
       </p>
       {!supported && (
-        <p>This engine does not advertise foreground heartbeat delivery.</p>
+        <p>
+          {msg(
+            "heartbeatDelivery.thisEngineDoesNotAdvertiseForegroundHeartbeatDelivery",
+          )}
+        </p>
       )}
       <button
         className="btn-outline"
         disabled={locked}
         onClick={() => void run("read")}
       >
-        Read local delivery
+        {msg("heartbeatDelivery.readLocalDelivery")}
       </button>
       <button
         className="btn-outline"
         disabled={locked || !!review}
         onClick={() => void run("review")}
       >
-        Review heartbeat consent
+        {msg("heartbeatDelivery.reviewHeartbeatConsent")}
       </button>
       <button
         className="btn-outline"
         disabled={locked}
         onClick={() => void run("disable")}
       >
-        Disable local reporting
+        {msg("heartbeatDelivery.disableLocalReporting")}
       </button>
-      {busy && <Spinner label="Reading the original heartbeat context" />}
+      {busy && (
+        <Spinner
+          label={msg("heartbeatDelivery.readingTheOriginalHeartbeatContext")}
+        />
+      )}
       {result && <ResultMeta r={result} />}
       {state && (
         <>
           <p role="status">
-            Local reporting: {state.enabled ? "enabled" : "disabled"}.{" "}
+            {msg("heartbeatDelivery.localReporting")}{" "}
+            {state.enabled
+              ? msg("heartbeatDelivery.enabled")
+              : msg("heartbeatDelivery.disabled")}
+            .{" "}
             {state.pending
-              ? "An original observation is awaiting confirmation."
-              : "No queued observation."}
+              ? msg(
+                  "heartbeatDelivery.anOriginalObservationIsAwaitingConfirmation",
+                )
+              : msg("heartbeatDelivery.noQueuedObservation")}
           </p>
           <p className="text-sm">
-            Last outcome: {String(state.last_outcome ?? "none")}. Last confirmed
-            delivery: {String(state.last_success_at ?? "none")}.
+            {msg("heartbeatDelivery.lastOutcome")}{" "}
+            {String(state.last_outcome ?? msg("common.none"))}
+            {msg("heartbeatDelivery.lastConfirmedDelivery")}{" "}
+            {String(state.last_success_at ?? msg("common.none"))}.
           </p>
           <button
             className="btn-outline"
             disabled={locked || !state.enabled || !!review}
             onClick={() => void run("flush")}
           >
-            Check due heartbeat delivery
+            {msg("heartbeatDelivery.checkDueHeartbeatDelivery")}
           </button>
         </>
       )}
       {review && (
-        <div className="space-y-3" aria-label="Review heartbeat consent">
+        <div
+          className="space-y-3"
+          aria-label={msg("heartbeatDelivery.reviewHeartbeatConsent")}
+        >
           <p>
-            Company: {context.organization}. Policy version:{" "}
+            {msg("heartbeatDelivery.company")} {context.organization}
+            {msg("heartbeatDelivery.policyVersion")}{" "}
             {String(review.plan.policy_version)}.
           </p>
           <p className="text-sm">
-            Observation interval:{" "}
-            {String(record(review.plan.policy).interval_seconds)} seconds.
-            Retries start after{" "}
-            {String(record(review.plan.policy).retry_base_seconds)} seconds and
-            expire within four minutes.
+            {msg("heartbeatDelivery.observationInterval")}{" "}
+            {String(record(review.plan.policy).interval_seconds)}{" "}
+            {msg("heartbeatDelivery.secondsRetriesStartAfter")}{" "}
+            {String(record(review.plan.policy).retry_base_seconds)}{" "}
+            {msg("heartbeatDelivery.secondsAndExpireWithinFourMinutes")}
           </p>
           <p className="text-sm">
-            Reports account/device IDs, CLI version, the fixed CLI liveness
-            capability, active state, observation time and policy version,
-            signed with the original enrolled device. No last-sync activity is
-            claimed. This does not register harness usage or send installation
-            inventory.
+            {msg(
+              "heartbeatDelivery.reportsAccountDeviceIdsCliVersionTheFixedCli",
+            )}
           </p>
           <p className="break-all font-mono text-xs">{review.digest}</p>
           <Details
-            label="Original heartbeat consent plan"
+            label={msg("heartbeatDelivery.originalHeartbeatConsentPlan")}
             value={review.plan}
           />
           <label className="flex items-center gap-2">
@@ -218,14 +238,16 @@ export default function HeartbeatDelivery({
               disabled={locked}
               onChange={(event) => setConfirmed(event.target.checked)}
             />
-            I approve reporting for this original context and policy
+            {msg(
+              "heartbeatDelivery.iApproveReportingForThisOriginalContextAndPolicy",
+            )}
           </label>
           <button
             className="btn-primary"
             disabled={locked || !confirmed}
             onClick={() => void run("apply")}
           >
-            Enable reviewed heartbeat reporting
+            {msg("heartbeatDelivery.enableReviewedHeartbeatReporting")}
           </button>
           <button
             className="btn-outline"
@@ -235,7 +257,7 @@ export default function HeartbeatDelivery({
               setConfirmed(false);
             }}
           >
-            Discard consent review
+            {msg("heartbeatDelivery.discardConsentReview")}
           </button>
         </div>
       )}

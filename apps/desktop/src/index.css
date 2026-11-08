@@ -322,7 +322,7 @@ body {
     @apply mt-3 text-balance text-2xl font-medium leading-tight tracking-tight;
   }
   .hero-emblem {
-    @apply mr-5 hidden shrink-0 flex-col items-center gap-4 text-muted-foreground/60 xl:flex;
+    @apply me-5 hidden shrink-0 flex-col items-center gap-4 text-muted-foreground/60 xl:flex;
   }
   .hero-emblem span {
     @apply font-mono text-[10px];
@@ -393,4 +393,22 @@ body {
   .setup-progress li[aria-current="step"] .step-number {
     @apply border-primary bg-primary text-primary-foreground;
   }
+}
+
+/* Logical layout follows the selected language; wire data stays isolated. */
+pre,
+code,
+.font-mono {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: start;
+}
+:root[dir="rtl"]
+  :is(
+    .lucide-arrow-right,
+    .lucide-arrow-up-right,
+    .lucide-chevron-right,
+    .lucide-chevron-left
+  ) {
+  transform: scaleX(-1);
 }

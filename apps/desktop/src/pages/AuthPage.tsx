@@ -1,3 +1,4 @@
+import { useText } from "../i18n";
 import {
   useCallback,
   useEffect,
@@ -46,6 +47,7 @@ function pause(ms: number, signal: AbortSignal) {
 }
 
 export default function AuthPage() {
+  const msg = useText();
   const [params] = useSearchParams();
   const connection = params.get("connection") || undefined;
   const activeConnection = useRef(connection);
@@ -283,9 +285,15 @@ export default function AuthPage() {
   return (
     <div className="page-stack">
       <PageHeader
-        eyebrow="System"
-        title={connection ? "Connected account" : "Local-owner account"}
-        description="Keep account sessions separate. Choose a retained connection to inspect or sign in without replacing another session."
+        eyebrow={msg("auth.system")}
+        title={
+          connection
+            ? msg("auth.connectedAccount")
+            : msg("auth.localOwnerAccount")
+        }
+        description={msg(
+          "auth.keepAccountSessionsSeparateChooseARetainedConnectionTo",
+        )}
         action={
           <button
             className="btn-outline"
@@ -293,16 +301,16 @@ export default function AuthPage() {
             onClick={() => void refreshAuth()}
           >
             <RefreshCw size={14} />
-            Refresh status
+            {msg("auth.refreshStatus")}
           </button>
         }
       />
       <Link className="btn-outline" to="/profiles">
-        Manage connections and contexts
+        {msg("auth.manageConnectionsAndContexts")}
       </Link>
       {connection && (
         <Link className="btn-outline" to="/auth">
-          View local-owner session
+          {msg("auth.viewLocalOwnerSession")}
         </Link>
       )}
       <section className="card space-y-5 p-6">
@@ -311,26 +319,24 @@ export default function AuthPage() {
             <ShieldCheck size={22} className="text-muted-foreground" />
             <h2 className="section-title">
               {signedIn
-                ? "Account connected"
+                ? msg("shell.accountConnected")
                 : authorized
-                  ? "Session needs refresh"
-                  : "Connect an account"}
+                  ? msg("auth.sessionNeedsRefresh")
+                  : msg("auth.connectAnAccount")}
             </h2>
           </div>
           <StatusBadge
             state={signedIn ? "authorized" : pendingCode ? "pending" : "absent"}
           >
             {signedIn
-              ? "Signed in"
+              ? msg("auth.signedIn")
               : pendingCode
-                ? "Awaiting approval"
-                : "Signed out"}
+                ? msg("auth.awaitingApproval")
+                : msg("auth.signedOut")}
           </StatusBadge>
         </div>
         <p className="text-sm leading-6 text-muted-foreground">
-          Sign in through your browser. The CLI keeps credentials in your
-          selected local store; this app only receives public session status.
-          Session status is cached. Account actions check the selected server.
+          {msg("auth.signInThroughYourBrowserTheCliKeepsCredentials")}
         </p>
         {signedIn && (
           <p className="break-all font-mono text-xs text-muted-foreground">
@@ -341,15 +347,15 @@ export default function AuthPage() {
           <>
             <ResultMeta r={authResult} />
             <Link className="btn-outline" to="/settings">
-              Check local workspace
+              {msg("auth.checkLocalWorkspace")}
             </Link>
           </>
         )}
         {pending && (
           <div className="space-y-3 rounded-md border border-warning/40 bg-warning/5 p-4">
             <p className="text-sm">
-              The engine retained an unfinished account operation:{" "}
-              <strong>{pending.plan?.action ?? "unknown"}</strong>.
+              {msg("auth.theEngineRetainedAnUnfinishedAccountOperation")}{" "}
+              <strong>{pending.plan?.action ?? msg("auth.unknown")}</strong>.
             </p>
             {["start", "poll", "refresh", "logout"].includes(
               pending.plan?.action ?? "",
@@ -359,14 +365,14 @@ export default function AuthPage() {
                 disabled={busy || waiting}
                 onClick={() => void action(() => cmdAuthResume(connection))}
               >
-                Resume retained operation
+                {msg("auth.resumeRetainedOperation")}
               </button>
             ) : (
               <Link
                 className="btn-outline"
                 to="/registry?command=account%20status"
               >
-                Inspect operation
+                {msg("auth.inspectOperation")}
               </Link>
             )}
           </div>
@@ -374,21 +380,21 @@ export default function AuthPage() {
         {!authorized && !pendingCode && !pending && (
           <div className="space-y-4">
             {!availability && (
-              <Spinner label="Checking server sign-in methods" />
+              <Spinner label={msg("auth.checkingServerSignInMethods")} />
             )}
             {availability && !providers.length && (
               <div className="space-y-2" role="status">
                 <p className="text-sm text-muted-foreground">
                   {availability.ok
-                    ? "This server has no sign-in methods supported by this engine."
-                    : "Server sign-in methods could not be loaded. Retry before starting sign-in."}
+                    ? msg("auth.thisServerHasNoSignInMethodsSupportedBy")
+                    : msg("auth.serverSignInMethodsCouldNotBeLoadedRetry")}
                 </p>
                 {!availability.ok && <ResultMeta r={availability} />}
                 <button
                   className="btn-outline"
                   onClick={() => setAttempt((value) => value + 1)}
                 >
-                  Retry sign-in methods
+                  {msg("auth.retrySignInMethods")}
                 </button>
               </div>
             )}
@@ -408,7 +414,7 @@ export default function AuthPage() {
             {(session.state === "expired" ||
               (session.state === "pending" && !remaining)) && (
               <p className="text-sm text-muted-foreground">
-                This code has expired. Start sign-in to request a new one.
+                {msg("auth.thisCodeHasExpiredStartSignInToRequest")}
               </p>
             )}
             <button
@@ -427,7 +433,7 @@ export default function AuthPage() {
                 )
               }
             >
-              {busy ? "Starting…" : "Start sign-in"}
+              {busy ? msg("auth.starting") : msg("auth.startSignIn")}
               <ExternalLink size={14} />
             </button>
           </div>
@@ -440,7 +446,7 @@ export default function AuthPage() {
                 disabled={busy}
                 onClick={() => void action(() => cmdAuthRefresh(connection))}
               >
-                Refresh session
+                {msg("auth.refreshSession")}
               </button>
             )}
             <button
@@ -449,7 +455,7 @@ export default function AuthPage() {
               onClick={() => void action(() => cmdAuthLogout(connection))}
             >
               <LogOut size={14} />
-              Sign out
+              {msg("auth.signOut")}
             </button>
           </div>
         )}
@@ -458,12 +464,12 @@ export default function AuthPage() {
       {pendingCode && (
         <section className="card space-y-5 p-6">
           <div>
-            <p className="eyebrow">Device confirmation</p>
+            <p className="eyebrow">{msg("auth.deviceConfirmation")}</p>
             <h2 className="mt-3 section-title">
-              Approve this device in your browser
+              {msg("auth.approveThisDeviceInYourBrowser")}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Use the code below on the verification page.
+              {msg("auth.useTheCodeBelowOnTheVerificationPage")}
             </p>
           </div>
           <p className="select-all rounded-lg bg-muted/60 px-5 py-6 text-center font-mono text-3xl tracking-[0.25em]">
@@ -476,25 +482,26 @@ export default function AuthPage() {
               onClick={() => void waitForLogin()}
             >
               <ExternalLink size={14} />
-              {waiting ? "Waiting for approval…" : "Open browser and confirm"}
+              {waiting
+                ? msg("auth.waitingForApproval")
+                : msg("auth.openBrowserAndConfirm")}
             </button>
             <p className="font-mono text-xs text-muted-foreground">
               {Math.floor(remaining / 60)}:
-              {String(remaining % 60).padStart(2, "0")} remaining
+              {String(remaining % 60).padStart(2, "0")} {msg("auth.remaining")}
             </p>
           </div>
           {waiting && (
             <>
-              <Spinner label="Waiting for the account service" />
+              <Spinner label={msg("auth.waitingForTheAccountService")} />
               <button className="btn-outline" onClick={stop}>
-                Stop waiting
+                {msg("auth.stopWaiting")}
               </button>
             </>
           )}
           {openError && (
             <p role="status" className="text-sm text-muted-foreground">
-              The browser could not be opened. Copy the verification address
-              below; polling continues.
+              {msg("auth.theBrowserCouldNotBeOpenedCopyTheVerification")}
             </p>
           )}
           {url && (
@@ -505,7 +512,9 @@ export default function AuthPage() {
         </section>
       )}
       {result && <ResultMeta r={result} />}
-      {auth && <Details label="Public session details" value={auth} />}
+      {auth && (
+        <Details label={msg("auth.publicSessionDetails")} value={auth} />
+      )}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { useText } from "../i18n";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { Search, Play } from "lucide-react";
@@ -15,14 +16,15 @@ import { useApp } from "../store";
 
 /** Descriptor-driven advanced operations; the native process validates every rule. */
 export default function RegistryPage({
-  title = "Commands",
-  description = "Explore the operations available in your native engine.",
+  title,
+  description,
   prefixes = [],
 }: {
   title?: string;
   description?: string;
   prefixes?: string[];
 }) {
+  const msg = useText();
   const [params] = useSearchParams();
   const [help, setHelp] = useState<CmdResult | null>(null);
   const [filter, setFilter] = useState("");
@@ -113,38 +115,42 @@ export default function RegistryPage({
   }
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="Tools" title={title} description={description} />
-      {!help && <Spinner label="Reading available commands" />}
+      <PageHeader
+        eyebrow={msg("registry.tools")}
+        title={title ?? msg("shell.commands")}
+        description={description ?? msg("registry.description")}
+      />
+      {!help && <Spinner label={msg("registry.readingAvailableCommands")} />}
       {help && !help.ok && <ResultMeta r={help} />}
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(250px,0.8fr)_minmax(0,1.2fr)]">
         <section
           className="card overflow-hidden"
-          aria-label="Available commands"
+          aria-label={msg("registry.availableCommands")}
         >
           <div className="border-b border-border p-3">
             <label className="relative block">
               <Search
                 size={15}
-                className="absolute left-3 top-3 text-muted-foreground"
+                className="absolute start-3 top-3 text-muted-foreground"
               />
               <input
-                aria-label="Filter commands"
+                aria-label={msg("registry.filterCommands")}
                 value={filter}
                 onChange={(event) => setFilter(event.target.value)}
-                placeholder="Find a command…"
-                className="input pl-9"
+                placeholder={msg("registry.findACommand")}
+                className="input ps-9"
               />
             </label>
           </div>
           <div className="px-4 py-2 text-xs text-muted-foreground">
-            {shown.length} operations
+            {shown.length} {msg("registry.operations")}
           </div>
           <ul className="max-h-[55vh] divide-y divide-border overflow-y-auto text-sm">
             {shown.map((command) => (
               <li key={command.path.join(" ")}>
                 <button
                   aria-pressed={selected === command}
-                  className={`w-full p-4 text-left hover:bg-accent ${selected === command ? "bg-primary/5" : ""}`}
+                  className={`w-full p-4 text-start hover:bg-accent ${selected === command ? "bg-primary/5" : ""}`}
                   disabled={busy}
                   onClick={() => select(command)}
                 >
@@ -165,15 +171,14 @@ export default function RegistryPage({
           </ul>
           {help?.ok && !shown.length && (
             <p className="p-5 text-sm text-muted-foreground">
-              No matching operations.
+              {msg("registry.noMatchingOperations")}
             </p>
           )}
         </section>
         <div className="min-w-0 space-y-5">
           {!selected ? (
-            <EmptyState title="Choose an operation">
-              Read its description, review the accepted inputs, then run it
-              here.
+            <EmptyState title={msg("registry.chooseAnOperation")}>
+              {msg("registry.readItsDescriptionReviewTheAcceptedInputsThenRun")}
             </EmptyState>
           ) : (
             <form
@@ -200,16 +205,16 @@ export default function RegistryPage({
                     <span>
                       {parameter.name}
                       {parameter.required ? (
-                        <span className="ml-1 text-destructive">*</span>
+                        <span className="ms-1 text-destructive">*</span>
                       ) : (
-                        <span className="ml-2 text-xs font-normal text-muted-foreground">
-                          optional
+                        <span className="ms-2 text-xs font-normal text-muted-foreground">
+                          {msg("registry.optional")}
                         </span>
                       )}
                     </span>
                     {parameter.value_type === "boolean" ? (
                       <input
-                        className="ml-2"
+                        className="ms-2"
                         type="checkbox"
                         checked={flags.includes(parameter.name)}
                         onChange={(event) => {
@@ -238,8 +243,8 @@ export default function RegistryPage({
                       >
                         <option value="">
                           {parameter.required
-                            ? "Choose…"
-                            : "Use engine default"}
+                            ? msg("registry.choose")
+                            : msg("registry.useEngineDefault")}
                         </option>
                         {parameter.choices.map((choice) => (
                           <option key={choice}>{choice}</option>
@@ -263,7 +268,10 @@ export default function RegistryPage({
                     <p className="field-help">
                       {parameter.summary}
                       {parameter.repeatable
-                        ? ` One value per line.${parameter.choices?.length ? ` Choices: ${parameter.choices.join(", ")}.` : ""}`
+                        ? msg("registry.repeatableHelp", {
+                            choices: parameter.choices?.join(", ") ?? "",
+                            count: parameter.choices?.length ?? 0,
+                          })
                         : ""}
                     </p>
                   </label>
@@ -271,8 +279,9 @@ export default function RegistryPage({
               </fieldset>
               {!!selected.parameter_rules?.length && (
                 <p className="text-xs leading-5 text-muted-foreground">
-                  The engine also checks conditional requirements between these
-                  inputs.
+                  {msg(
+                    "registry.theEngineAlsoChecksConditionalRequirementsBetweenTheseInputs",
+                  )}
                 </p>
               )}
               {selected.mutability === "apply" && (
@@ -284,13 +293,16 @@ export default function RegistryPage({
                     checked={confirmed}
                     onChange={(event) => setConfirmed(event.target.checked)}
                   />
-                  I authorize this operation with the exact inputs shown above.
+                  {msg(
+                    "registry.iAuthorizeThisOperationWithTheExactInputsShown",
+                  )}
                 </label>
               )}
               {!runnable && (
                 <p className="text-sm text-muted-foreground">
-                  This operation requires a different execution boundary. Use
-                  the CLI.
+                  {msg(
+                    "registry.thisOperationRequiresADifferentExecutionBoundaryUseThe",
+                  )}
                 </p>
               )}
               <button
@@ -305,20 +317,25 @@ export default function RegistryPage({
               >
                 <Play size={14} />
                 {busy
-                  ? "Running…"
+                  ? msg("registry.running")
                   : selected.mutability === "read"
-                    ? "Read result"
+                    ? msg("registry.readResult")
                     : selected.mutability === "plan"
-                      ? "Create plan"
-                      : "Apply operation"}
+                      ? msg("registry.createPlan")
+                      : msg("registry.applyOperation")}
               </button>
             </form>
           )}
           {result && (
-            <section className="space-y-3" aria-label="Operation result">
+            <section
+              className="space-y-3"
+              aria-label={msg("registry.operationResult")}
+            >
               <ResultMeta r={result} />
               {result.ok && (
-                <StatusBadge state="completed">Operation completed</StatusBadge>
+                <StatusBadge state="completed">
+                  {msg("registry.operationCompleted")}
+                </StatusBadge>
               )}
               {result.data && <Json v={result.data} />}
             </section>

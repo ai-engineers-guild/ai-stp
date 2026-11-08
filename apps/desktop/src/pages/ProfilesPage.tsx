@@ -1,3 +1,4 @@
+import { useText } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import { useContexts } from "../contexts";
 import { Link } from "react-router";
@@ -26,6 +27,7 @@ type Review = {
 };
 
 export default function ProfilesPage() {
+  const msg = useText();
   const [connections, setConnections] = useState<CmdResult | null>(null);
   const [contexts, setContexts] = useState<CmdResult | null>(null);
   const [label, setLabel] = useState("");
@@ -177,35 +179,39 @@ export default function ProfilesPage() {
   return (
     <div className="page-stack">
       <PageHeader
-        eyebrow="System"
-        title="Connections and contexts"
-        description="Keep personal and company sessions together. Selecting a view preserves credentials, unfinished operations and installed harness files."
+        eyebrow={msg("profiles.system")}
+        title={msg("profiles.connectionsAndContexts")}
+        description={msg(
+          "profiles.keepPersonalAndCompanySessionsTogetherSelectingAView",
+        )}
         action={
           <button
             className="btn-outline"
             disabled={busy}
             onClick={() => void refresh()}
           >
-            Refresh local records
+            {msg("profiles.refreshLocalRecords")}
           </button>
         }
       />
       <section className="card space-y-4 p-6">
-        <h2 className="section-title">Retained connections</h2>
+        <h2 className="section-title">{msg("profiles.retainedConnections")}</h2>
         <Link className="btn-outline" to="/auth">
-          Local-owner account session
+          {msg("profiles.localOwnerAccountSession")}
         </Link>
-        {!connections && <Spinner label="Reading local connections" />}
+        {!connections && (
+          <Spinner label={msg("profiles.readingLocalConnections")} />
+        )}
         {connections && !connections.ok && (
           <>
             <ResultMeta r={connections} />
             <Link className="btn-outline" to="/settings">
-              Check local initialization
+              {msg("profiles.checkLocalInitialization")}
             </Link>
           </>
         )}
         {connections?.ok && !retained.length && (
-          <p>No retained connections yet.</p>
+          <p>{msg("profiles.noRetainedConnectionsYet")}</p>
         )}
         {retained.map((item) => (
           <div
@@ -222,7 +228,7 @@ export default function ProfilesPage() {
                 className="btn-outline"
                 to={`/auth?connection=${encodeURIComponent(String(item.connection_id))}`}
               >
-                Open this account session
+                {msg("profiles.openThisAccountSession")}
               </Link>
             ) : (
               <button
@@ -240,20 +246,19 @@ export default function ProfilesPage() {
                   }
                 }}
               >
-                Review interrupted creation
+                {msg("profiles.reviewInterruptedCreation")}
               </button>
             )}
           </div>
         ))}
       </section>
       <section className="card space-y-4 p-6">
-        <h2 className="section-title">Add a connection</h2>
+        <h2 className="section-title">{msg("profiles.addAConnection")}</h2>
         <p className="text-sm text-muted-foreground">
-          Each connection gets its own server enrollment key in your selected
-          credential store. Existing keys and sessions stay available.
+          {msg("profiles.eachConnectionGetsItsOwnServerEnrollmentKeyIn")}
         </p>
         <label className="field-label">
-          Connection label
+          {msg("profiles.connectionLabel")}
           <input
             className="input"
             value={label}
@@ -266,11 +271,11 @@ export default function ProfilesPage() {
           />
         </label>
         <label className="field-label">
-          Server origin
+          {msg("profiles.serverOrigin")}
           <input
             className="input"
             type="url"
-            placeholder="https://your-server.example"
+            placeholder={msg("profiles.httpsYourServerExample")}
             value={origin}
             disabled={busy}
             onChange={(e) => {
@@ -286,18 +291,17 @@ export default function ProfilesPage() {
           disabled={busy || !origin.trim()}
           onClick={() => void checkServer()}
         >
-          Check server sign-in methods
+          {msg("profiles.checkServerSignInMethods")}
         </button>
         {discovery && <ResultMeta r={discovery} />}
         {discovery?.ok && !providers.length && (
           <p role="status">
-            No sign-in methods supported by this engine are enabled on this
-            server.
+            {msg("profiles.noSignInMethodsSupportedByThisEngineAre")}
           </p>
         )}
         {!!providers.length && (
           <label className="field-label">
-            Sign-in method
+            {msg("profiles.signInMethod")}
             <select
               className="input"
               value={provider}
@@ -335,20 +339,20 @@ export default function ProfilesPage() {
             )
           }
         >
-          Review connection creation
+          {msg("profiles.reviewConnectionCreation")}
         </button>
       </section>
       <section className="card space-y-4 p-6">
-        <h2 className="section-title">Context views</h2>
+        <h2 className="section-title">{msg("profiles.contextViews")}</h2>
         <p className="text-sm text-muted-foreground">
-          These are retained observations and a selected view preference.
-          Current access requires an online check; selection does not activate a
-          harness configuration or retarget an existing plan.
+          {msg(
+            "profiles.theseAreRetainedObservationsAndASelectedViewPreference",
+          )}
         </p>
-        {!contexts && <Spinner label="Reading context views" />}
+        {!contexts && <Spinner label={msg("profiles.readingContextViews")} />}
         {contexts && !contexts.ok && <ResultMeta r={contexts} />}
         {contexts?.ok && !items(contexts.data?.contexts).length && (
-          <p>No saved contexts yet.</p>
+          <p>{msg("profiles.noSavedContextsYet")}</p>
         )}
         {items(contexts?.data?.contexts).map((item) => {
           const context = object(item.context),
@@ -361,12 +365,17 @@ export default function ProfilesPage() {
             >
               <h3 className="font-medium">
                 {String(context.label)}
-                {selected === context.context_id ? " · Selected view" : ""}
+                {selected === context.context_id
+                  ? msg("profiles.selectedView")
+                  : ""}
               </h3>
               <p className="text-sm text-muted-foreground">
                 {authority.kind === "local"
-                  ? "Personal · Native offline"
-                  : `${String(org.kind)} · ${String(org.display_name)} · Cached observation`}
+                  ? msg("profiles.personalNativeOffline")
+                  : msg("profiles.cachedOrganization", {
+                      kind: String(org.kind),
+                      name: String(org.display_name),
+                    })}
               </p>
               <button
                 className="btn-outline"
@@ -379,7 +388,7 @@ export default function ProfilesPage() {
                   )
                 }
               >
-                Review view selection
+                {msg("profiles.reviewViewSelection")}
               </button>
               {authority.kind === "remote" && (
                 <button
@@ -399,14 +408,14 @@ export default function ProfilesPage() {
                     }
                   }}
                 >
-                  Check current access
+                  {msg("profiles.checkCurrentAccess")}
                 </button>
               )}
             </div>
           );
         })}
         <label className="field-label">
-          Context label
+          {msg("profiles.contextLabel")}
           <input
             className="input"
             value={contextLabel}
@@ -419,7 +428,7 @@ export default function ProfilesPage() {
           />
         </label>
         <label className="field-label">
-          Context connection
+          {msg("profiles.contextConnection")}
           <select
             className="input"
             value={connection}
@@ -431,9 +440,9 @@ export default function ProfilesPage() {
               clearReview();
             }}
           >
-            <option value="">Personal · Native offline</option>
+            <option value="">{msg("profiles.personalNativeOffline")}</option>
             <option value="legacy-account">
-              Existing local-owner account session
+              {msg("profiles.existingLocalOwnerAccountSession")}
             </option>
             {retained
               .filter((item) => item.state === "ready")
@@ -453,18 +462,18 @@ export default function ProfilesPage() {
             disabled={busy}
             onClick={() => void readOrganizations()}
           >
-            Read available organizations
+            {msg("profiles.readAvailableOrganizations")}
           </button>
         )}
         {organizations && !organizations.ok && <ResultMeta r={organizations} />}
         {legacy && (
           <Link className="btn-outline" to="/auth">
-            Check existing account sign-in
+            {msg("profiles.checkExistingAccountSignIn")}
           </Link>
         )}
         {!!availableOrganizations.length && (
           <label className="field-label">
-            Organization
+            {msg("profiles.organization")}
             <select
               className="input"
               value={organization}
@@ -474,7 +483,7 @@ export default function ProfilesPage() {
                 clearReview();
               }}
             >
-              <option value="">Choose an organization</option>
+              <option value="">{msg("profiles.chooseAnOrganization")}</option>
               {availableOrganizations.map((item) => (
                 <option
                   key={String(item.organization_id)}
@@ -510,22 +519,27 @@ export default function ProfilesPage() {
             )
           }
         >
-          Review context creation
+          {msg("profiles.reviewContextCreation")}
         </button>
       </section>
       {review && (
         <section
           className="card space-y-4 p-6"
-          aria-label="Review native profile plan"
+          aria-label={msg("profiles.reviewNativeProfilePlan")}
         >
-          <h2 className="section-title">Review the exact change</h2>
+          <h2 className="section-title">
+            {msg("profiles.reviewTheExactChange")}
+          </h2>
           <p className="text-sm">
-            Creating the first connection or context explicitly upgrades the
-            shared authority registry to format 55. Older clients will refuse
-            that format. Preserve a compatible client for continued access.
+            {msg(
+              "profiles.creatingTheFirstConnectionOrContextExplicitlyUpgradesThe",
+            )}
           </p>
           <p className="break-all font-mono text-xs">{review.digest}</p>
-          <Details label="Exact public plan" value={review.plan} />
+          <Details
+            label={msg("profiles.exactPublicPlan")}
+            value={review.plan}
+          />
           <label className="flex items-start gap-3 text-sm">
             <input
               type="checkbox"
@@ -533,25 +547,30 @@ export default function ProfilesPage() {
               disabled={busy}
               onChange={(e) => setConfirmed(e.target.checked)}
             />
-            I reviewed this exact plan and authorize this local change.
+            {msg("profiles.iReviewedThisExactPlanAndAuthorizeThisLocal")}
           </label>
           <button
             className="btn-primary"
             disabled={busy || !confirmed}
             onClick={() => void apply()}
           >
-            Apply reviewed change
+            {msg("profiles.applyReviewedChange")}
           </button>
           <button className="btn-outline" disabled={busy} onClick={clearReview}>
-            Dismiss review
+            {msg("profiles.dismissReview")}
           </button>
         </section>
       )}
-      {busy && <Spinner label="Working through the native engine" />}
+      {busy && (
+        <Spinner label={msg("profiles.workingThroughTheNativeEngine")} />
+      )}
       {result && (
         <>
           <ResultMeta r={result} />
-          <Details label="Public operation result" value={result.data} />
+          <Details
+            label={msg("profiles.publicOperationResult")}
+            value={result.data}
+          />
         </>
       )}
     </div>

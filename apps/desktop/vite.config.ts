@@ -1,6 +1,6 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 
 // Tauri expects a fixed dev port and no env leaking.
 export default defineConfig({
@@ -14,4 +14,5 @@ export default defineConfig({
     target: "es2022",
     chunkSizeWarningLimit: 1600,
   },
+  test: { setupFiles: ["src/test-setup.ts"] },
 });
