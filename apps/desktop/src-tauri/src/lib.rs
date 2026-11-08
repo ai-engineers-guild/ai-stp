@@ -1,5 +1,5 @@
 use ai_stp_desktop_core::{
-    CliLocator, CliRunner, CmdResult, CommandRegistry, Envelope, MachineHelp, RunError,
+    CliLocator, CliRunner, CmdResult, CommandRegistry, MachineHelp, RunError,
 };
 use std::collections::BTreeMap;
 use std::path::PathBuf;
