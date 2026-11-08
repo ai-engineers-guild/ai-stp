@@ -6,7 +6,10 @@ import { record } from "../contexts";
 
 export function Json({ v }: { v: unknown }) {
   return (
-    <pre className="max-h-96 overflow-auto rounded-lg bg-muted/50 p-4 font-mono text-xs leading-5 text-foreground">
+    <pre
+      tabIndex={0}
+      className="max-h-96 overflow-auto rounded-lg bg-muted/50 p-4 font-mono text-xs leading-5 text-foreground"
+    >
       {JSON.stringify(v, null, 2)}
     </pre>
   );
