@@ -62,7 +62,9 @@ export function ResultMeta({ r }: { r: CmdResult }) {
           {r.error_code === "AI_STP_PRECONDITION_FAILED" &&
             r.error_details?.reason === "historical_native_identity" && (
               <p className="mt-3">
-                <Link className="btn-outline" to="/profiles">Review current context</Link>
+                <Link className="btn-outline" to="/profiles">
+                  Review current context
+                </Link>
               </p>
             )}
           {options.length > 0 && (
