@@ -6,7 +6,6 @@
       "name": "@ai-stp/web",
       "dependencies": {
         "@fumadocs/local-md": "^0.3.5",
-        "@hey-api/client-fetch": "^0.13.1",
         "@hookform/resolvers": "^5.9.2",
         "@next/third-parties": "16.4.2",
         "@radix-ui/react-dialog": "^1.3.1",
@@ -256,8 +255,6 @@
     "@fumadocs/local-md": ["@fumadocs/local-md@0.3.5", "", { "dependencies": { "@fumadocs/local-content": "0.2.2", "@mdx-js/mdx": "^3.1.1", "@standard-schema/spec": "^1.1.0", "estree-util-build-jsx": "^3.0.1", "estree-util-to-js": "^2.0.0", "hast-util-to-jsx-runtime": "^2.3.6", "remark": "^15.0.1", "remark-rehype": "^11.1.2", "vfile": "^6.0.3" }, "peerDependencies": { "@types/estree": "*", "@types/estree-jsx": "*", "@types/hast": "*", "@types/mdx": "*", "@types/react": "*", "fumadocs-core": "^16.8.0", "react": "^19.2.0", "react-dom": "^19.2.0", "unified": "*" }, "optionalPeers": ["@types/estree", "@types/estree-jsx", "@types/hast", "@types/mdx", "@types/react", "unified"], "bin": { "local-md": "./dist/bin.js" } }, "sha512-Co4MrbQS60tyiZvjU4Gw4AFWUmNJZN2xoP8MFhbHP60sgAKsp7USvia/HseC5urKZqyZzJLuFDdqRUetxCvI1A=="],
 
     "@fumari/image-size": ["@fumari/image-size@0.1.1", "", {}, "sha512-iaiV2wyzJ4mW358NX4CX3yGit+WjKYzpaQ+rldK9BjL/5jFpeV6ruWnZVq7MEyMn3Gd0DLi8g/79NZAAQaGscw=="],
-
-    "@hey-api/client-fetch": ["@hey-api/client-fetch@0.13.1", "", { "peerDependencies": { "@hey-api/openapi-ts": "< 2" } }, "sha512-29jBRYNdxVGlx5oewFgOrkulZckpIpBIRHth3uHFn1PrL2ucMy52FvWOY3U3dVx2go1Z3kUmMi6lr07iOpUqqA=="],
 
     "@hey-api/codegen-core": ["@hey-api/codegen-core@0.9.1", "", { "dependencies": { "@hey-api/types": "0.1.4", "ansi-colors": "4.1.3", "c12": "3.3.4", "color-support": "1.1.3" } }, "sha512-s97jL1dgTMuiMHv2BZ1X4Tgd99Mf9GOvGdNqNcGwIMmnR+PgYNoraj4Zvp134MKsNCap/m7k0r0vKKnl56pj4w=="],
 
