@@ -26,7 +26,7 @@ concurrency:
 env:
   BUN_VERSION: "1.4.4"
   CARGO_INCREMENTAL: "0"
-  NODE_VERSION: "26.12.1"
+  NODE_VERSION: "26.13.0"
 
 jobs:
   desktop:
@@ -55,7 +55,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
-          python-version: "3.14.9"
+          python-version: "3.15.2"
       - name: Install the native CLI toolchain
         shell: bash
         run: >-
@@ -187,7 +187,7 @@ jobs:
             echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-installed-corporate"
             echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
           } >> "${GITHUB_ENV}"
-          bash .github/scripts/install-uv.sh 0.13.5 "${RUNNER_TEMP}/uv"
+          bash .github/scripts/install-uv.sh 0.13.7 "${RUNNER_TEMP}/uv"
           echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
       - name: Installed corporate onboarding, lost reply and original binding recovery
         if: runner.os == 'Linux' && !inputs.packages_only

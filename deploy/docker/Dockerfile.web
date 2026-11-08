@@ -12,8 +12,8 @@ RUN bun install --frozen-lockfile
 
 # Development target: Bun installs deps; real Node runs Next.js (Bun's node
 # shim lacks async_hooks and makes next dev multi-second even for warm
-# routes). Same digest as the production web base: a dev image resolving a
-# different build could not reproduce what production runs.
+# routes). The development target uses Alpine's Node package; the production
+# target below selects its own digest-pinned Node runtime.
 FROM deps AS dev
 
 # Real Node for the Next.js server process (not Bun's node fallback symlink).
@@ -72,7 +72,7 @@ ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL} \
 
 RUN bun run build
 
-FROM node:26.12.1-slim@sha256:36793bcbb160a6a16cede1e62b93f84e26b78a972a8a4c0b879c1c12f22761ec AS prod
+FROM node:26.13.0-slim@sha256:5adad64f9a1fca2d51972caa65983634c8a774eb300d72b20f7f2a0f60368072 AS prod
 WORKDIR /app
 
 ENV NODE_ENV=production \

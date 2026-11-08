@@ -57,7 +57,7 @@ jobs:
         run: bash .github/scripts/install-rust-toolchain.sh apps/cli/rust-toolchain.toml
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
-          python-version: "3.14.9"
+          python-version: "3.15.2"
       - name: Bind version and prepare wire-contract validators
         shell: bash
         env:
@@ -77,7 +77,7 @@ jobs:
             echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-rust-release-contracts"
             echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
           } >> "${GITHUB_ENV}"
-          bash .github/scripts/install-uv.sh "0.13.5" "${RUNNER_TEMP}/uv"
+          bash .github/scripts/install-uv.sh "0.13.7" "${RUNNER_TEMP}/uv"
           echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
       - name: Install shared wire-contract validators
         shell: bash

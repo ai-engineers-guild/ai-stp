@@ -21,7 +21,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
-          python-version: "3.14.9"
+          python-version: "3.15.2"
       - name: Use the exact project compiler on this disposable runner
         run: bash .github/scripts/install-rust-toolchain.sh apps/cli/rust-toolchain.toml
       - name: Add only the pinned compiler's WASIp2 standard library
@@ -55,7 +55,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
-          python-version: "3.14.9"
+          python-version: "3.15.2"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: wasi-component

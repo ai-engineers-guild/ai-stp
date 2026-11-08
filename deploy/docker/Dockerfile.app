@@ -4,13 +4,12 @@
 # the scanner stage used to re-declare it as `app-base` in a second
 # Dockerfile because Docker cannot `FROM` a stage in another file.
 
-# Python 3.12, while `check.yml` also gates 3.14: the worker-safety stage
-# installs NVIDIA SkillSpector, which needs `yara-python`, and no release of it
-# ships cp314 wheels (VirusTotal/yara-python#281, rechecked 2026-10-25). Building
-# it here would need a compiler and OpenSSL headers the pinned Debian snapshot
-# cannot pair with this base. `pyright` checks the tree at pythonVersion 3.12,
-# so no newer standard-library API can slip into the server; move the base to
-# 3.14 once that issue ships wheels.
+# The application and worker-safety stages currently share Python 3.12.
+# Qualify the complete scanner image and its source-built YARA extension before
+# moving this base; missing newer wheels alone does not establish interpreter
+# incompatibility. The scanners' supported interpreter/dependency combinations
+# remain part of that image transition (#1407). CI and docs use the current
+# interpreter, while source typing preserves the deployed minimum.
 #
 # Pinned by digest and named by tag, for the same reason the `uv` line below
 # gives and against the same hazard: `python:3.12-slim` is republished whenever
@@ -34,7 +33,7 @@ ENV PYTHONUNBUFFERED=1 \
 # rather than moving references. The version also now matches the one every
 # gate installs, so what production resolves the lockfile with is what CI
 # proved it with; a contract test holds the two together.
-COPY --from=ghcr.io/astral-sh/uv:0.13.5@sha256:32a7bb39b496babbd997b0a39a4d66c126bdaf5661b302bf6f06abda8deca6ff /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490 /uv /bin/uv
 RUN useradd --create-home --uid 10001 appuser \
     && mkdir /app \
     && chown appuser:appuser /app
