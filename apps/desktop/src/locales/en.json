@@ -111,5 +111,8 @@
   "setup.savedHelp": "This review keeps the exact setup, folders and original context shown below. Editing the form does not change it.",
   "setup.loading": "Checking the original native operation",
   "error.engineConnection": "Could not communicate with the local engine",
-  "error.uncertainChange": "If a change was interrupted, check its original operation in Activity before trying again. You can also reopen the app."
+  "error.uncertainChange": "If a change was interrupted, check its original operation in Activity before trying again. You can also reopen the app.",
+  "home.contextUnavailableTitle": "Check your workspaces",
+  "home.contextUnavailableHelp": "Saved workspaces could not be read. Check Connections before creating or applying another setup.",
+  "home.contextUnavailableAction": "Check workspaces"
 }
