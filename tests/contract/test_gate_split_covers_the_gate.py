@@ -148,7 +148,8 @@ def _render(value: Expression) -> str:
     if isinstance(value, str):
         return value
     if len(value) == 2 and value[0] == "variable" and isinstance(value[1], str):
-        return _render(_parsed()["assignments"][value[1]]["value"])
+        assignment = _parsed()["assignments"].get(value[1])
+        return _render(assignment["value"]) if assignment else "{{" + value[1] + "}}"
     return "".join(_render(part) for part in value)
 
 
@@ -201,7 +202,7 @@ def _command_owners(entry: dict[str, Any]) -> list[str]:
     return recipes
 
 
-def _job_text(job: dict[str, Any]) -> str:
+def command_text(job: dict[str, Any]) -> str:
     entries = [job, *job.get("steps", [])]
     owners = [owner for entry in entries for owner in _command_owners(entry)]
     return "\n".join(
@@ -210,12 +211,12 @@ def _job_text(job: dict[str, Any]) -> str:
     )
 
 
-def _workflow_text() -> str:
+def workflow_text() -> str:
     parts: list[str] = []
     for path in sorted(WORKFLOW_DIR.glob("*.yml")):
         source = path.read_text(encoding="utf-8")
         document = yaml.safe_load(source)
-        parts.extend([source, *(_job_text(job) for job in document["jobs"].values())])
+        parts.extend([source, *(command_text(job) for job in document["jobs"].values())])
     return "\n".join(parts)
 
 
@@ -232,7 +233,7 @@ def test_every_recipe_leaf_of_full_verification_appears_in_the_gate() -> None:
     assert required, "the `verify` recipe resolved to nothing; the parser is wrong"
     unmapped = required - set(_LEAF_TOKENS)
     assert not unmapped, f"a leaf of `just verify` has no command tokens mapped: {sorted(unmapped)}"
-    gate = _workflow_text()
+    gate = workflow_text()
     missing = [
         (leaf, token)
         for leaf in sorted(required & set(_LEAF_TOKENS))
@@ -299,7 +300,7 @@ def test_setup_is_split_and_each_job_prepares_only_its_own_part() -> None:
     # minutes exactly where only Python is needed.
     python_only = {"package", "tests", "coverage"}
     for name, job in workflow["jobs"].items():
-        scripts = _job_text(job)
+        scripts = command_text(job)
         if name in python_only:
             assert "docs_scripts && bun install" not in scripts, (
                 f"{name} installs documentation Node tools"
@@ -315,12 +316,10 @@ def test_cli_and_web_tests_run_on_three_os_and_backend_stays_on_linux() -> None:
     for name in ("cli", "web-unit", "web-e2e", "web-profiles"):
         assert set(jobs[name]["strategy"]["matrix"]["os"]) == three, name
     assert jobs["tests"]["runs-on"] == "ubuntu-26.04"
-    native = "\n".join(step.get("run", "") for step in jobs["cli"]["steps"])
+    native = command_text(jobs["cli"])
     assert "cargo test --locked" in native
     assert "--package ai-stp-cli " not in native
-    assert "-n 8" in "\n".join(
-        step["run"] for step in jobs["tests"]["steps"] if isinstance(step.get("run"), str)
-    )
+    assert "-n 8" in command_text(jobs["tests"])
 
 
 def test_pr_native_checks_cover_platform_specific_code_and_real_vault_processes() -> None:
@@ -334,7 +333,7 @@ def test_pr_native_checks_cover_platform_specific_code_and_real_vault_processes(
         "macos-latest",
         "windows-latest",
     }
-    scripts = "\n".join(step.get("run", "") for step in native["steps"])
+    scripts = command_text(native)
     assert "cargo clippy --locked --all-targets -- -D warnings" in scripts
     vault = next(
         step
@@ -342,8 +341,8 @@ def test_pr_native_checks_cover_platform_specific_code_and_real_vault_processes(
         if step.get("name") == "Existing native vault and independent CLI processes"
     )
     assert vault["if"] == "runner.os != 'Linux'"
-    assert "cargo test --locked --test enrollments_native" in vault["run"]
-    assert "--ignored" not in vault["run"]
+    assert "cargo test --locked --test enrollments_native" in command_text(vault)
+    assert "--ignored" not in command_text(vault)
     pr_linux = next(
         step
         for step in native["steps"]
@@ -351,24 +350,24 @@ def test_pr_native_checks_cover_platform_specific_code_and_real_vault_processes(
     )
     assert pr_linux["if"] == "runner.os == 'Linux'"
     assert pr_linux["env"]["AI_STP_NATIVE_VAULT_ROUNDS"] == "10"
-    assert pr_linux["run"] == "bash .github/scripts/check-native-secret-service.sh"
+    assert "bash .github/scripts/check-native-secret-service.sh" in command_text(pr_linux)
     linux = next(
         step
         for step in jobs["cli"]["steps"]
         if step.get("name") == "Actual Linux Secret Service enrollment and recovery"
     )
     assert linux["if"] == "runner.os == 'Linux'"
-    assert linux["run"] == "bash .github/scripts/check-native-secret-service.sh"
+    assert "bash .github/scripts/check-native-secret-service.sh" in command_text(linux)
     assert linux["env"]["AI_STP_NATIVE_VAULT_ROUNDS"] == (
         "${{ inputs.native_vault_rounds || '100' }}"
     )
 
 
-def _shard_selection(extra: str) -> tuple[set[Path], set[Path]]:
+def _shard_selection(arguments: list[str]) -> tuple[set[Path], set[Path]]:
     """Split one shard's pytest arguments into selected and ignored trees."""
     selected: set[Path] = set()
     ignored: set[Path] = set()
-    for token in extra.split():
+    for token in arguments:
         if token.startswith("--ignore="):
             ignored.add(ROOT / token.removeprefix("--ignore="))
         elif token.startswith("-"):
@@ -402,7 +401,7 @@ def test_the_test_shards_cover_the_whole_tree_exactly_once() -> None:
     rows = workflow["jobs"]["tests"]["strategy"]["matrix"]["include"]
     covered: dict[Path, list[str]] = {}
     for row in rows:
-        selected, ignored = _shard_selection(row["extra"])
+        selected, ignored = _shard_selection(row["arguments"])
         for path in _files_under(selected) - _files_under(ignored):
             covered.setdefault(path, []).append(row["shard"])
 
@@ -425,11 +424,7 @@ def test_the_combined_coverage_names_every_shard_and_only_those() -> None:
     """
     workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
     shards = {row["shard"] for row in workflow["jobs"]["tests"]["strategy"]["matrix"]["include"]}
-    combine = "\n".join(
-        step["run"]
-        for step in workflow["jobs"]["coverage"]["steps"]
-        if isinstance(step.get("run"), str) and "coverage combine" in step["run"]
-    )
-    assert combine, "the coverage job no longer combines anything"
+    combine = command_text(workflow["jobs"]["coverage"])
+    assert "coverage combine" in combine, "the coverage job no longer combines anything"
     named = set(re.findall(r"\.coverage\.([a-z0-9-]+)", combine))
     assert named == shards, f"combined {sorted(named)} but the matrix runs {sorted(shards)}"
