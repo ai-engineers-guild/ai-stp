@@ -58,10 +58,11 @@ jobs:
             test "${GITHUB_REF}" = "refs/tags/desktop-v${EXPECTED_VERSION}"
           else
             [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+            test "${SOURCE_SHA}" = "${GITHUB_SHA}"
           fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ inputs.source_sha || github.sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
@@ -78,7 +79,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
-          HEAD_SHA: ${{ inputs.source_sha || github.sha }}
+          HEAD_SHA: ${{ github.sha }}
           EXPECTED_RUN_ID: ${{ inputs.source_run_id }}
           EXPECTED_VERSION: ${{ inputs.version }}
         run: |
@@ -96,7 +97,7 @@ jobs:
           digest-mismatch: error
       - name: Verify all qualified installer bytes and stage the publication payload
         env:
-          SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+          SOURCE_SHA: ${{ github.sha }}
         run: >-
           python -m release_scripts.desktop_artifacts verify
           --directory bundles --source "${SOURCE_SHA}"
@@ -136,7 +137,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ inputs.version }}
           SOURCE_RUN_ID: ${{ needs.guard.outputs.qualified_run_id }}
-          SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+          SOURCE_SHA: ${{ github.sha }}
           REPOSITORY: ${{ github.repository }}
         working-directory: release
         run: |

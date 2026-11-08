@@ -47,8 +47,11 @@ Only successful push-to-Dev owners retain native dependency caches.
    successful push-to-Dev run and current attempt, its unique successful
    `full-qualification`, the current Dev head and the reviewed live rules.
 4. Delivery registers the three unchanged, accepted CodeQL SARIF payloads for
-   the intended Main commit and reference. It preserves original Dev provenance,
-   findings, fingerprints and dispositions. Processing errors and open findings
+   the intended Main commit and reference. An authenticated GitHub upload receipt
+   binds each original payload to its Dev commit, category and reference, even
+   when the uploaded SARIF omits its optional provenance field. Existing
+   provenance, findings, fingerprints and dispositions remain unchanged.
+   Processing errors and open findings
    refuse delivery. The native Main CodeQL rule remains enforced.
 5. The job fast-forwards Main with `force: false`, reads it back, rechecks source
    authority and advances the monotonic `deploy/prod` ref. The target owns the

@@ -22,7 +22,7 @@ TARGET = "refs/heads/main"
 MAX_PAYLOAD = 64 * 1024 * 1024
 
 
-def payload(path: Path, head: str, language: str, repository: str) -> tuple[bytes, str]:
+def payload(path: Path, head: str, language: str, repository: str) -> tuple[bytes, str | None]:
     require(path.is_file() and not path.is_symlink(), "SARIF must be a regular file")
     require(0 < path.stat().st_size <= MAX_PAYLOAD, "SARIF exceeds the payload boundary")
     data = path.read_bytes()
@@ -41,6 +41,11 @@ def payload(path: Path, head: str, language: str, repository: str) -> tuple[byte
             "The retained payload changed analysis category",
         )
         provenance = run.get("versionControlProvenance")
+        if provenance is None:
+            # The exact uploaded CodeQL payload can omit this optional SARIF
+            # field. GitHub binds the accepted upload to a commit/reference;
+            # validate that acknowledgement rather than fabricating provenance.
+            continue
         require(
             isinstance(provenance, list) and len(provenance) == 1,
             "Exact source provenance required",
@@ -54,11 +59,42 @@ def payload(path: Path, head: str, language: str, repository: str) -> tuple[byte
         )
         require(isinstance(origin.get("branch"), str), "Original analysis reference is missing")
         refs.add(origin["branch"])
-    require(len(refs) == 1, "The payload combines different source references")
-    return data, refs.pop()
+    require(len(refs) <= 1, "The payload combines different source references")
+    return data, refs.pop() if refs else None
 
 
-def seal(directory: Path, output: Path, language: str, sarif_id: str) -> None:
+def accepted_analysis(api: GitHub, sarif_id: str, head: str, language: str, ref: str) -> int:
+    require(bool(re.fullmatch(r"[A-Za-z0-9_-]{1,128}", sarif_id)), "Accepted SARIF ID required")
+    receipt = api.read(f"code-scanning/sarifs/{sarif_id}")
+    require(
+        receipt.get("processing_status") == "complete" and not receipt.get("errors"),
+        "Original source analysis has not finished processing",
+    )
+    path = f"code-scanning/analyses?sarif_id={sarif_id}"
+    require(
+        receipt.get("analyses_url") == f"https://api.github.com/repos/{api.repository}/{path}",
+        "Original acceptance points outside its repository or upload",
+    )
+    analyses = api.read(path)
+    require(
+        isinstance(analyses, list) and len(analyses) == 1,
+        "Exactly one original language analysis required",
+    )
+    analysis = analyses[0]
+    require(
+        analysis.get("commit_sha") == head
+        and analysis.get("ref") == ref
+        and analysis.get("category", "").rstrip("/") == f"/language:{language}"
+        and analysis.get("tool", {}).get("name") == "CodeQL"
+        and analysis.get("error") == ""
+        and type(analysis.get("id")) is int
+        and analysis["id"] > 0,
+        "Original accepted analysis belongs to a different source or language",
+    )
+    return analysis["id"]
+
+
+def seal(directory: Path, output: Path, language: str, sarif_id: str, analysis_id: int) -> None:
     require(language in LANGUAGES, "Unknown CodeQL language")
     require(
         bool(re.fullmatch(r"[A-Za-z0-9_-]{1,128}", sarif_id)), "Accepted original SARIF ID required"
@@ -66,13 +102,16 @@ def seal(directory: Path, output: Path, language: str, sarif_id: str) -> None:
     repository, head = os.environ["GITHUB_REPOSITORY"], os.environ["GITHUB_SHA"]
     files = sorted(directory.glob("*.sarif"))
     require(len(files) == 1, "One complete language payload is required")
-    data, analysis_ref = payload(files[0], head, language, repository)
+    data, payload_ref = payload(files[0], head, language, repository)
+    analysis_ref = os.environ["GITHUB_REF"]
+    require(payload_ref in (None, analysis_ref), "Payload provenance differs from its acceptance")
+    require(type(analysis_id) is int and analysis_id > 0, "Accepted original analysis required")
     require(not output.exists(), "The evidence directory must be new")
     output.mkdir(parents=True, mode=0o700)
     with (output / "analysis.sarif").open("xb") as stream:
         stream.write(data)
     proof = {
-        "schema_version": 1,
+        "schema_version": 2,
         "repository": repository,
         "source_sha": head,
         "source_run_id": int(os.environ["GITHUB_RUN_ID"]),
@@ -80,6 +119,8 @@ def seal(directory: Path, output: Path, language: str, sarif_id: str) -> None:
         "source_event": os.environ["GITHUB_EVENT_NAME"],
         "source_ref": os.environ["GITHUB_REF"],
         "analysis_ref": analysis_ref,
+        "payload_ref": payload_ref,
+        "accepted_analysis_id": analysis_id,
         "language": language,
         "sarif_id": sarif_id,
         "sha256": hashlib.sha256(data).hexdigest(),
@@ -116,7 +157,7 @@ def admitted_payloads(
         )
         seen.add((language, source_attempt))
         require(
-            proof.get("schema_version") == 1
+            proof.get("schema_version") == 2
             and proof.get("repository") == repository
             and proof.get("source_sha") == head
             and proof.get("source_run_id") == run_id
@@ -134,9 +175,14 @@ def admitted_payloads(
             {item.name for item in path.parent.iterdir()} == {"analysis.sarif", "manifest.json"},
             "Unexpected content in the retained analysis",
         )
-        data, analysis_ref = payload(path.parent / "analysis.sarif", head, language, repository)
         require(
-            analysis_ref == proof["analysis_ref"]
+            type(proof.get("accepted_analysis_id")) is int and proof["accepted_analysis_id"] > 0,
+            "Original accepted analysis ID required",
+        )
+        data, payload_ref = payload(path.parent / "analysis.sarif", head, language, repository)
+        require(
+            payload_ref == proof.get("payload_ref")
+            and payload_ref in (None, proof["analysis_ref"])
             and len(data) == proof.get("size_bytes")
             and hashlib.sha256(data).hexdigest() == proof.get("sha256"),
             "Retained analysis bytes differ from the accepted source payload",
@@ -185,6 +231,11 @@ def register(directory: Path) -> None:
     selected = admitted_payloads(directory, api.repository, head, run_id, attempt)
     for language, (data, proof) in sorted(selected.items()):
         source(api, head, run_id, attempt)
+        require(
+            accepted_analysis(api, proof["sarif_id"], head, language, "refs/heads/dev")
+            == proof["accepted_analysis_id"],
+            "The original analysis acknowledgement changed",
+        )
         # Preserve every original finding, disposition, fingerprint, category
         # and Dev provenance byte. Only the API's destination reference changes.
         encoded = base64.b64encode(gzip.compress(data, mtime=0)).decode("ascii")
@@ -242,7 +293,20 @@ def main() -> None:
     arguments = parser.parse_args()
     try:
         if arguments.command == "seal":
-            seal(arguments.directory, arguments.output, arguments.language, arguments.sarif_id)
+            analysis_id = accepted_analysis(
+                GitHub(os.environ["GITHUB_REPOSITORY"]),
+                arguments.sarif_id,
+                os.environ["GITHUB_SHA"],
+                arguments.language,
+                os.environ["GITHUB_REF"],
+            )
+            seal(
+                arguments.directory,
+                arguments.output,
+                arguments.language,
+                arguments.sarif_id,
+                analysis_id,
+            )
         else:
             register(arguments.directory)
     except (PromotionRefused, KeyError, ValueError, OSError, subprocess.SubprocessError) as error:

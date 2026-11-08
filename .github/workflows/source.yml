@@ -393,10 +393,10 @@ jobs:
           # Every use verifies compiler/recipe/bytes and reruns actual API controls.
           # No prefix fallback may import another producer's artifacts.
           key: >-
-            previous-native-v2-${{ runner.os }}-${{ runner.arch }}-${{
+            previous-native-v3-${{ runner.os }}-${{ runner.arch }}-${{
             hashFiles('apps/cli/rust-toolchain.toml',
             '.github/scripts/build-previous-native-cli.sh',
-            '.github/scripts/previous-native-cache.py', '.github/workflows/source.yml') }}
+            '.github/scripts/previous-native-cache.py') }}
       - name: Native boundary checks
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13

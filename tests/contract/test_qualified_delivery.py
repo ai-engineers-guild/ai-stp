@@ -20,6 +20,7 @@ from release_scripts.cli_artifacts import seal as seal_cli
 from release_scripts.cli_artifacts import verify as verify_cli
 from release_scripts.code_scanning import LANGUAGES, admitted_payloads, seal
 from release_scripts.source_admission import POLICIES, ROOT
+from tests.contract.test_source_qualification import script
 
 # Only the external GitHub executable is replaced. Production admission,
 # serialization, filesystem verification and ref mutation code run unchanged.
@@ -30,8 +31,12 @@ from pathlib import Path
 path = Path(os.environ["DELIVERY_STATE"])
 state = json.loads(path.read_text())
 args = sys.argv[1:]
-method = args[args.index("--method") + 1]
-route = args[-1].removeprefix("repos/example/project").lstrip("/")
+method = args[args.index("--method") + 1] if "--method" in args else "GET"
+route = (
+    next(arg for arg in args if arg.startswith("repos/example/project"))
+    .removeprefix("repos/example/project")
+    .lstrip("/")
+)
 body = json.load(sys.stdin) if "--input" in args else None
 entry = {"method": method, "route": route, "body": body}
 state["trace"].append(entry)
@@ -82,6 +87,18 @@ elif route == "actions/runs/41/attempts/1/jobs?per_page=100":
     }
 elif route.startswith("code-scanning/alerts?"):
     result = state.get("findings", [])
+elif route.startswith("code-scanning/analyses?sarif_id="):
+    language = route.split("=", 1)[1].removeprefix("original-")
+    result = [
+        {
+            "id": state.get("original_id", 41),
+            "category": "/language:" + language,
+            "commit_sha": state.get("original_head", head),
+            "ref": "refs/heads/dev",
+            "error": "",
+            "tool": {"name": "CodeQL"},
+        }
+    ]
 elif route.startswith("code-scanning/analyses?"):
     result = [
         {
@@ -97,6 +114,8 @@ elif route.startswith("code-scanning/analyses?"):
     ]
 elif route.startswith("code-scanning/sarifs/"):
     result = {
+        "analyses_url": "https://api.github.com/repos/example/project/"
+        "code-scanning/analyses?sarif_id=" + route.rsplit("/", 1)[1],
         "processing_status": state.get("processing_status", "complete"),
         "errors": state.get("processing_errors", []),
     }
@@ -137,9 +156,13 @@ elif route.startswith("releases/tags/desktop-v"):
 else:
     status, result = 500, {"unexpected_read": route}
 path.write_text(json.dumps(state))
-print(
-    "HTTP/2.0 " + str(status) + " Contract\nContent-Type: application/json\n\n" + json.dumps(result)
-)
+if "--include" in args:
+    print("HTTP/2.0 " + str(status) + " Contract\nContent-Type: application/json\n")
+if "--jq" in args:
+    assert args[args.index("--jq") + 1] == ".object.sha"
+    print(result["object"]["sha"])
+else:
+    print(json.dumps(result))
 sys.exit(0 if status < 400 else 1)
 """
 
@@ -150,10 +173,13 @@ class Delivery:
     state: dict[str, Any]
 
     def run(self, module: str, *arguments: str) -> subprocess.CompletedProcess[str]:
+        return self.execute([sys.executable, "-m", f"release_scripts.{module}", *arguments])
+
+    def execute(self, command: list[str], **values: str) -> subprocess.CompletedProcess[str]:
         path = self.directory / "state.json"
         path.write_text(json.dumps(self.state))
         result = subprocess.run(
-            [sys.executable, "-m", f"release_scripts.{module}", *arguments],
+            command,
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -168,6 +194,10 @@ class Delivery:
                 "SOURCE_ATTEMPT": "1",
                 "GITHUB_ACTIONS": "true",
                 "RUNNER_ENVIRONMENT": "github-hosted",
+                "GITHUB_SHA": self.state["head"],
+                "OBSERVED_ATTEMPT": "1",
+                "GITHUB_OUTPUT": str(self.directory / "outputs"),
+                **values,
             },
         )
         self.state = json.loads(path.read_text())
@@ -214,6 +244,28 @@ def delivery(tmp_path: Path) -> Delivery:
 def test_read_only_admission_never_mutates_refs(delivery: Delivery) -> None:
     outcome = delivery.run("source_promotion")
     assert outcome.returncode == 0, outcome.stderr
+    assert delivery.writes() == []
+
+
+@pytest.mark.parametrize("change", [None, "source", "attempt"])
+def test_dispatcher_admits_only_its_own_qualified_sha_before_checkout(
+    delivery: Delivery,
+    change: str | None,
+) -> None:
+    values = (
+        {"GITHUB_SHA": "c" * 40}
+        if change == "source"
+        else ({"OBSERVED_ATTEMPT": "2"} if change == "attempt" else {})
+    )
+    outcome = delivery.execute(["bash", "-c", script("deploy.yml", "promote")], **values)
+    assert (outcome.returncode == 0) == (change is None), outcome.stderr
+    output = delivery.directory / "outputs"
+    if change:
+        assert not output.exists()
+    else:
+        assert output.read_text() == (
+            f"head_sha={delivery.state['head']}\nsource_run_id=41\nsource_attempt=1\n"
+        )
     assert delivery.writes() == []
 
 
@@ -266,7 +318,9 @@ def test_deployment_creation_requires_actual_missing_ref(delivery: Delivery, sta
         assert sum(item["route"] == "git/refs/heads/main" for item in delivery.writes()) == 1
 
 
-def retain(directory: Path, head: str, language: str, attempt: int = 1) -> bytes:
+def retain(
+    directory: Path, head: str, language: str, attempt: int = 1, *, provenance: bool = True
+) -> bytes:
     source = directory / f"input-{language}-{attempt}"
     source.mkdir()
     data = json.dumps(
@@ -295,6 +349,10 @@ def retain(directory: Path, head: str, language: str, attempt: int = 1) -> bytes
         },
         indent=2,
     ).encode()
+    if not provenance:
+        document = json.loads(data)
+        del document["runs"][0]["versionControlProvenance"]
+        data = json.dumps(document, indent=2).encode()
     (source / "upload.sarif").write_bytes(data)
     env = {
         "GITHUB_REPOSITORY": "example/project",
@@ -312,7 +370,8 @@ def retain(directory: Path, head: str, language: str, attempt: int = 1) -> bytes
             source,
             directory / "retained" / f"{language}-{attempt}",
             language,
-            "original-accepted-id",
+            f"original-{language}",
+            41,
         )
     finally:
         for key, value in previous.items():
@@ -345,11 +404,15 @@ def test_new_desktop_tag_is_annotated_immutable_and_repairable(delivery: Deliver
     )
 
 
+@pytest.mark.parametrize("provenance", [False, True])
 def test_registered_analysis_preserves_every_original_byte_and_disposition(
     delivery: Delivery,
+    provenance: bool,
 ) -> None:
     original = {
-        language: retain(delivery.directory, delivery.state["head"], language)
+        language: retain(
+            delivery.directory, delivery.state["head"], language, provenance=provenance
+        )
         for language in LANGUAGES
     }
     outcome = delivery.run(
@@ -370,7 +433,17 @@ def test_registered_analysis_preserves_every_original_byte_and_disposition(
 
 
 @pytest.mark.parametrize(
-    "failure", ["changed", "language", "reference", "attempt", "rejected", "processing"]
+    "failure",
+    [
+        "changed",
+        "language",
+        "reference",
+        "attempt",
+        "rejected",
+        "processing",
+        "original-source",
+        "original-id",
+    ],
 )
 def test_invalid_or_unprocessed_analysis_never_changes_refs(
     delivery: Delivery, failure: str
@@ -390,6 +463,10 @@ def test_invalid_or_unprocessed_analysis_never_changes_refs(
             "refs/pull/7/merge" if failure == "reference" else 2
         )
         path.write_text(json.dumps(proof))
+    elif failure == "original-source":
+        delivery.state["original_head"] = "c" * 40
+    elif failure == "original-id":
+        delivery.state["original_id"] = 42
     elif failure == "rejected":
         delivery.state["upload_status"] = 403
     else:

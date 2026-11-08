@@ -53,7 +53,7 @@ else
   chmod 755 "${cached_root}/ai-stp"
   cache_mode=create
 fi
-# The record identifies bytes, not acceptance. Only the owning main job saves
+# The record identifies bytes, not acceptance. Only the owning source job saves
 # this cache, after the actual previous/current-writer API controls succeed.
 python3 "${producer_directory}/previous-native-cache.py" \
   "${cached_root}" "${previous_commit}" "${previous_tree}" \

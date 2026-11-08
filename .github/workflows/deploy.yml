@@ -76,11 +76,12 @@ jobs:
               length == 1 and all(.[]; .status == "completed" and .conclusion == "success"))
           ' <<< "${jobs}" >/dev/null
           test "$(gh api "repos/${REPOSITORY}/git/ref/heads/dev" --jq .object.sha)" = "${head}"
+          test "${GITHUB_SHA}" = "${head}"
           printf 'head_sha=%s\nsource_run_id=%s\nsource_attempt=%s\n' \
             "${head}" "${SOURCE_RUN_ID}" "${attempt}" >> "${GITHUB_OUTPUT}"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ steps.source.outputs.head_sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
@@ -244,7 +245,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ needs.promote.outputs.head_sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:

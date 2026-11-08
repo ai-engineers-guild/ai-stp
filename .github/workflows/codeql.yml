@@ -60,6 +60,7 @@ jobs:
           post-processed-sarif-path: ${{ runner.temp }}/codeql-original-payload
       - name: Retain the exact accepted analysis and original provenance
         env:
+          GH_TOKEN: ${{ github.token }}
           SARIF_DIRECTORY: ${{ runner.temp }}/codeql-original-payload
           SARIF_OUTPUT: ${{ runner.temp }}/codeql-source-proof
           SOURCE_LANGUAGE: ${{ matrix.language }}
