@@ -89,6 +89,9 @@ def reconcile(api: GitHub, head: str, version: str, run_id: int) -> bool:
             release.get("tag_name") == tag and release.get("prerelease") is False,
             "Desktop release identity differs",
         )
+        if release.get("draft") is False and len(release.get("assets", [])) == 7:
+            published(release, tag, version)
+            return False
         # The publisher verifies existing digests, fills only missing assets
         # and publishes an acknowledged draft. It never replaces an asset.
         return True

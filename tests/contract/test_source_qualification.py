@@ -94,6 +94,8 @@ class QualificationTests(unittest.TestCase):
         self.assertEqual(set(full["on"]), {"push", "workflow_dispatch"})
         integration = workflow("integration.yml")
         self.assertEqual(set(integration["on"]), {"pull_request"})
+        self.assertEqual(full["concurrency"]["cancel-in-progress"], "false")
+        self.assertEqual(integration["concurrency"]["cancel-in-progress"], "true")
         for owner, context in [(full, "full-qualification"), (integration, "qualification")]:
             self.assertEqual(set(owner["jobs"]), {"verify", "qualification"})
             self.assertEqual(owner["jobs"]["verify"]["uses"], "./.github/workflows/source.yml")

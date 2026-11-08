@@ -14,18 +14,13 @@ jobs:
   branch-policy:
     runs-on: ubuntu-26.04
     steps:
-      - name: Require dev for ordinary main promotion
+      - name: Require integration pull requests to target Dev
         env:
           EVENT: ${{ github.event_name }}
           BASE: ${{ github.base_ref }}
-          HEAD: ${{ github.head_ref }}
-          SOURCE_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
-          REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
-          if [ "${EVENT}" = pull_request ] && [ "${BASE}" = main ]; then
-            if [ "${HEAD}" != dev ] || [ "${SOURCE_REPOSITORY}" != "${REPOSITORY}" ]; then
-              echo 'main requires same-repository dev; administrators may bypass.' >&2
-              exit 1
-            fi
+          if [ "${EVENT}" = pull_request ] && [ "${BASE}" != dev ]; then
+            echo 'Changes integrate through dev; main advances from qualified Dev source.' >&2
+            exit 1
           fi

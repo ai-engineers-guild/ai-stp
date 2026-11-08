@@ -27,6 +27,10 @@ Its final `full-qualification` has a different name from PR eligibility. Both
 wrappers refuse a failed, cancelled or skipped shared workflow. The shared gate
 accounts for every owner and the exact expected skips for its selected phase.
 Manual diagnosis runs the full matrix without automatic delivery authority.
+Started full qualifications finish their owning checks and caches. A newer push
+can replace a pending run but does not cancel one already running. The current
+Dev-head check still refuses delivery of a superseded source. PR integration
+cancels superseded attempts because they cannot qualify the updated PR.
 
 Registered native experiments join the same gate through their owning reusable
 workflow. Complete source checks select every registered experiment. PRs select

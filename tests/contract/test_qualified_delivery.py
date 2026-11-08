@@ -404,6 +404,14 @@ def test_new_desktop_tag_is_annotated_immutable_and_repairable(delivery: Deliver
     )
 
 
+def test_complete_desktop_release_needs_no_republication(delivery: Delivery) -> None:
+    delivery.state["tagged_source"] = delivery.state["head"]
+    outcome = delivery.run("source_promotion", "--apply")
+    assert outcome.returncode == 0, outcome.stderr
+    assert "publish_desktop=false\n" in (delivery.directory / "outputs").read_text()
+    assert all(item["route"] not in {"git/tags", "git/refs"} for item in delivery.writes())
+
+
 @pytest.mark.parametrize("provenance", [False, True])
 def test_registered_analysis_preserves_every_original_byte_and_disposition(
     delivery: Delivery,
