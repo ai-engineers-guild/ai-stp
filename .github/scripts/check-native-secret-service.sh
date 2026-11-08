@@ -15,6 +15,9 @@ if [[ "${1:-}" != --inside-fixture ]]; then
   elif [[ "${1:-}" == --installed-corporate-desktop ]]; then
     test "$#" -eq 1
     fixture_mode=corporate-desktop
+  elif [[ "${1:-}" == --desktop-performance ]]; then
+    test "$#" -eq 1
+    fixture_mode=desktop-performance
   else
     test "$#" -eq 0
   fi
@@ -33,7 +36,7 @@ fi
 
 test "$#" -eq 2
 fixture_mode="$2"
-[[ "${fixture_mode}" == native || "${fixture_mode}" == desktop || "${fixture_mode}" == corporate-desktop ]]
+[[ "${fixture_mode}" == native || "${fixture_mode}" == desktop || "${fixture_mode}" == corporate-desktop || "${fixture_mode}" == desktop-performance ]]
 test -d "${AI_STP_TEST_SECRET_SERVICE_ROOT}"
 test "${AI_STP_TEST_SECRET_SERVICE}" = isolated
 
@@ -129,6 +132,18 @@ if [[ "${fixture_mode}" == corporate-desktop ]]; then
   timeout --signal=TERM --kill-after=5s 300s xvfb-run --server-num=99 uv run --no-sync python -m tests.native_contract.verify_desktop_corporate \
     --driver "${RUNNER_TEMP}/ai-stp-webdriver/bin/tauri-driver" \
     --out "${RUNNER_TEMP}/installed-corporate-desktop-proof.json"
+  exit
+fi
+
+if [[ "${fixture_mode}" == desktop-performance ]]; then
+  current_packages=(apps/desktop/src-tauri/target/release/bundle/deb/*.deb)
+  test "${#current_packages[@]}" -eq 1 && test -f "${current_packages[0]}"
+  timeout --signal=TERM --kill-after=5s 300s xvfb-run --server-num=99 \
+    python .github/scripts/benchmark-installed-desktop.py \
+    --baseline-directory "${RUNNER_TEMP}/desktop-performance-baseline" \
+    --current-package "${current_packages[0]}" \
+    --driver "${RUNNER_TEMP}/ai-stp-webdriver/bin/tauri-driver" \
+    --out "${RUNNER_TEMP}/installed-desktop-performance.json"
   exit
 fi
 

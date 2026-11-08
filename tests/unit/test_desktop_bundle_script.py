@@ -32,6 +32,7 @@ exit 1
 """
 
 
+@pytest.mark.parametrize("frontend_built", [False, True])
 @pytest.mark.parametrize(
     ("runner", "case", "status", "bundles", "delays"),
     [
@@ -46,10 +47,25 @@ exit 1
     ],
 )
 def test_desktop_packaging_retries_only_busy_create_without_rebuilding(
-    tmp_path: Path, runner: str, case: str, status: int, bundles: int, delays: list[str]
+    tmp_path: Path,
+    runner: str,
+    case: str,
+    status: int,
+    bundles: int,
+    delays: list[str],
+    frontend_built: bool,
 ) -> None:
     bash = shutil.which("bash")
     assert bash is not None
+    project = tmp_path / "project"
+    script = project / ".github/scripts/build-desktop-bundles.sh"
+    script.parent.mkdir(parents=True)
+    shutil.copy2(SCRIPT, script)
+    frontend = project / "apps/desktop"
+    frontend.mkdir(parents=True)
+    if frontend_built:
+        (frontend / "dist").mkdir()
+        (frontend / "dist/index.html").write_text("qualified frontend fixture")
     bin_directory = tmp_path / "bin"
     bin_directory.mkdir()
     for name, content in (
@@ -63,7 +79,7 @@ def test_desktop_packaging_retries_only_busy_create_without_rebuilding(
     canary = tmp_path / "unowned"
     canary.write_bytes(b"preserve fixture data\n")
     result = subprocess.run(
-        [bash, str(SCRIPT)],
+        [bash, str(script), *(["--frontend-built"] if frontend_built else [])],
         env={
             **os.environ,
             "PATH": str(bin_directory) + os.pathsep + os.environ["PATH"],
@@ -80,8 +96,14 @@ def test_desktop_packaging_retries_only_busy_create_without_rebuilding(
         check=False,
     )
     assert result.returncode == status, (result.stdout, result.stderr)
-    expected = ["x tauri build --no-bundle"] if runner == "macOS" else ["x tauri build"]
-    assert calls.read_text().splitlines() == expected + ["x tauri bundle"] * bundles
+    command = "x tauri build"
+    if frontend_built:
+        command += " --config ../../.github/tauri-frontend-built.conf.json"
+    if runner == "macOS":
+        command += " --no-bundle"
+    if runner == "Windows":
+        command += " --config ../../.github/tauri-tools-windows.conf.json"
+    assert calls.read_text().splitlines() == [command] + ["x tauri bundle"] * bundles
     assert (waits.read_text().splitlines() if waits.exists() else []) == delays
     assert not list(tmp_path.glob("ai-stp-dmg.*"))
     assert canary.read_bytes() == b"preserve fixture data\n"

@@ -1,82 +1,11 @@
 use ai_stp_desktop_core::{
-    CliLocator, CliRunner, CommandRegistry, Envelope, MachineHelp, RunError,
+    CliLocator, CliRunner, CmdResult, CommandRegistry, MachineHelp, RunError, UiPreferences,
 };
-use serde::Serialize;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::Manager;
-
-/// Every IPC reply is a typed result — the frontend renders `ok` or the
-/// structured error; it never receives raw stderr.
-#[derive(Serialize)]
-struct CmdResult {
-    ok: bool,
-    data: Option<serde_json::Value>,
-    warnings: Vec<String>,
-    continuations: Vec<ai_stp_desktop_core::Continuation>,
-    error: Option<String>,
-    /// Stable machine code when the CLI produced one — the frontend keys
-    /// on this, never on the message text.
-    error_code: Option<String>,
-    /// Contract fields the UI can route on: operation tracking
-    /// and retry/disposition hints ride along unmodified.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    request_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    operation_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    error_retryable: Option<bool>,
-    /// `error.details` verbatim — `details.options` is the contract's
-    /// one-retry repair channel (cli-json.md) and losing it here would make
-    /// the shell thinner than the contract allows.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    error_details: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    next_actions: Vec<serde_json::Value>,
-}
-
-impl CmdResult {
-    fn from_envelope(env: Envelope) -> Self {
-        Self {
-            ok: env.ok,
-            data: env.data,
-            warnings: env.warnings,
-            continuations: env.continuations,
-            error: env
-                .error
-                .as_ref()
-                .map(|e| format!("{}: {}", e.code, e.message)),
-            error_code: env.error.as_ref().map(|e| e.code.clone()),
-            request_id: env.request_id,
-            operation_id: env.operation_id,
-            error_retryable: env.error.as_ref().map(|e| e.retryable),
-            error_details: env.error.and_then(|e| {
-                let d = e.details;
-                // `details` is a required wire field that defaults to `{}` —
-                // an empty object is no detail at all, so render nothing.
-                (!d.is_null() && !d.as_object().is_some_and(|o| o.is_empty())).then_some(d)
-            }),
-            next_actions: env.next_actions,
-        }
-    }
-    fn failed(code: &str, msg: impl ToString) -> Self {
-        Self {
-            ok: false,
-            data: None,
-            warnings: Vec::new(),
-            continuations: Vec::new(),
-            error: Some(msg.to_string()),
-            error_code: Some(code.into()),
-            request_id: None,
-            operation_id: None,
-            error_retryable: None,
-            error_details: None,
-            next_actions: Vec::new(),
-        }
-    }
-}
 
 /// The frontend routes on stable codes; keep the closed set aligned with
 /// the CLI's own (`AI_STP_NOT_FOUND`, `AI_STP_TIMEOUT_UNCONFIRMED`, …).
@@ -105,6 +34,7 @@ struct AppState {
     /// for the whole run so mutations are ordered, not concurrent. Read
     /// commands stay lock-free.
     mutation_lock: Mutex<()>,
+    preference_lock: Mutex<()>,
 }
 
 /// Digest re-verification interval: `capabilities` is a subprocess spawn,
@@ -120,6 +50,7 @@ impl AppState {
             runner: Mutex::new(None),
             registry: Mutex::new(None),
             mutation_lock: Mutex::new(()),
+            preference_lock: Mutex::new(()),
         }
     }
 
@@ -375,6 +306,38 @@ fn account_action(
 }
 
 // ---------------------------------------------------------------- commands
+
+async fn ui_preferences(app: tauri::AppHandle, next: Option<UiPreferences>) -> CmdResult {
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<Arc<AppState>>();
+        let _guard = state.preference_lock.lock().map_err(|_| ())?;
+        let directory = app.path().app_config_dir().map_err(|_| ())?;
+        if let Some(preferences) = next {
+            preferences.save(&directory).map_err(|_| ())?;
+            Ok(Some(preferences))
+        } else {
+            UiPreferences::read(&directory).map_err(|_| ())
+        }
+    })
+    .await;
+    match result {
+        Ok(Ok(preferences)) => CmdResult::success(serde_json::json!({"preferences": preferences})),
+        _ => CmdResult::failed(
+            "DESKTOP_PREFERENCES_UNAVAILABLE",
+            "Application preferences could not be read or saved.",
+        ),
+    }
+}
+
+#[tauri::command]
+async fn ui_preferences_read(app: tauri::AppHandle) -> CmdResult {
+    ui_preferences(app, None).await
+}
+
+#[tauri::command]
+async fn ui_preferences_write(app: tauri::AppHandle, preferences: UiPreferences) -> CmdResult {
+    ui_preferences(app, Some(preferences)).await
+}
 
 #[tauri::command]
 async fn cli_version(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, String> {
@@ -1331,6 +1294,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
+            ui_preferences_read,
+            ui_preferences_write,
             cli_version,
             cli_capabilities,
             cli_doctor,

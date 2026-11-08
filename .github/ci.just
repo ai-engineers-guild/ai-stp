@@ -1,12 +1,16 @@
 # Execution commands; SDKs, services, permissions and artifacts stay in workflows.
 
+# Secrets verify the scanner and inspect the selected source.
 [group('ci')]
+[private]
 [script('bash')]
 ci-secrets-verify-the-scanner-and-inspect-the-selected-source:
     set -euo pipefail
     python .github/scripts/check-source-secrets.py
 
+# Integration python check source contracts and units without server services.
 [group('ci')]
+[private]
 [script('bash')]
 ci-integration-python-check-source-contracts-and-units-without-server-services:
     set -euo pipefail
@@ -15,7 +19,9 @@ ci-integration-python-check-source-contracts-and-units-without-server-services:
     just back-static docs-source docs-test
     uv run --locked pytest -n 8 --dist=load -m 'not pg' tests/unit tests/contract
 
+# Integration web web syntax types and units.
 [group('ci')]
+[private]
 [script('bash')]
 ci-integration-web-web-syntax-types-and-units:
     set -euo pipefail
@@ -28,7 +34,9 @@ ci-integration-web-web-syntax-types-and-units:
     bun run i18n:check
     bun run test
 
+# Integration web desktop types and component units.
 [group('ci')]
+[private]
 [script('bash')]
 ci-integration-web-desktop-types-and-component-units:
     set -euo pipefail
@@ -37,17 +45,25 @@ ci-integration-web-desktop-types-and-component-units:
     bun install --frozen-lockfile
     bun run format:check
     bun run messages:check
-    bun x tsc --noEmit
+    bun scripts/generate-messages.mjs --check
+    bun scripts/generate-theme.mjs --check
+    bun scripts/generate-fonts.mjs --check
+    bun scripts/generate-contracts.mjs --check
+    bun run type-check
     bun x vitest run
 
+# Integration web documentation markdown syntax.
 [group('ci')]
+[private]
 [script('bash')]
 ci-integration-web-documentation-markdown-syntax:
     set -euo pipefail
     (cd docs_scripts && bun install --frozen-lockfile)
     python docs_scripts/run_markdownlint.py
 
+# Integration native native formatting all target analysis and library units.
 [group('ci')]
+[private]
 [script('bash')]
 ci-integration-native-native-formatting-all-target-analysis-and-library-units:
     set -euo pipefail
@@ -66,25 +82,33 @@ ci-integration-native-native-formatting-all-target-analysis-and-library-units:
       --all-targets -- -D warnings
     cargo test --locked --manifest-path apps/desktop/core/Cargo.toml
 
+# Integration native existing native vault and independent cli processes.
 [group('ci')]
+[private]
 [script('bash')]
 ci-integration-native-existing-native-vault-and-independent-cli-processes:
     set -euo pipefail
     cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- build cargo test --locked --test enrollments_native
 
+# Integration native public native configuration across independent cli processes.
 [group('ci')]
+[private]
 [script('bash')]
 ci-integration-native-public-native-configuration-across-independent-cli-processes:
     set -euo pipefail
     cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- build cargo test --locked --test enrollments_native public_native_configuration_keeps_original_context_across_cli_restarts -- --ignored
 
+# Integration native fresh concurrent linux clients and independent cli processes.
 [group('ci')]
+[private]
 [script('bash')]
 ci-integration-native-fresh-concurrent-linux-clients-and-independent-cli-processes:
     set -euo pipefail
     bash .github/scripts/check-native-secret-service.sh
 
+# Cli native boundary checks.
 [group('ci')]
+[private]
 [script('bash')]
 ci-cli-native-boundary-checks:
     set -euo pipefail
@@ -100,7 +124,9 @@ ci-cli-native-boundary-checks:
     cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
       cargo build --locked --release --bins --examples
 
+# Cli existing consumers and real sqlite backup.
 [group('ci')]
+[private]
 [script('bash')]
 ci-cli-existing-consumers-and-real-sqlite-backup:
     set -euo pipefail
@@ -111,47 +137,47 @@ ci-cli-existing-consumers-and-real-sqlite-backup:
     printf 'AI_STP_TEST_CLI_BINARY=%s\n' "$binary" >> "${GITHUB_ENV}"
     uv run --no-sync python tests/native_contract/verify.py "$binary"
 
+# Cli build the immutable previous schema58 native writer.
 [group('ci')]
+[private]
 [script('bash')]
 ci-cli-build-the-immutable-previous-schema58-native-writer:
     set -euo pipefail
     bash .github/scripts/build-previous-native-cli.sh 58
 
+# Cli build the qualified previous schema59 binding writer.
 [group('ci')]
+[private]
 [script('bash')]
 ci-cli-build-the-qualified-previous-schema59-binding-writer:
     set -euo pipefail
     bash .github/scripts/build-previous-native-cli.sh 59
 
+# Cli verify the immutable released schema60 native writer.
 [group('ci')]
+[private]
 [script('bash')]
 ci-cli-verify-the-immutable-released-schema60-native-writer:
     set -euo pipefail
     python3 .github/scripts/released-previous-native-cli.py "${RUNNER_TEMP}/ai-stp-previous-native-60-release"
 
+# Cli verify the immutable released schema61 native writer.
 [group('ci')]
+[private]
 [script('bash')]
 ci-cli-verify-the-immutable-released-schema61-native-writer:
     set -euo pipefail
     python3 .github/scripts/released-previous-native-cli.py "${RUNNER_TEMP}/ai-stp-previous-native-61-release" --schema 61
 
+# Cli ownership and corporate journeys through the native http client.
 [group('ci')]
-[script('bash')]
+[private]
 ci-cli-ownership-and-corporate-journeys-through-the-native-http-client:
-    set -euo pipefail
-    docker run --detach --name ai-stp-native-ownership \
-      -e POSTGRES_USER=ai_stp -e POSTGRES_PASSWORD=ai_stp_dev -e POSTGRES_DB=ai_stp \
-      -p 127.0.0.1:15432:5432 \
-      docker.io/library/postgres:18@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
-    trap 'docker rm --force ai-stp-native-ownership >/dev/null' EXIT
-    bash .github/scripts/wait-postgres.sh ai-stp-native-ownership
-    uv sync --locked
-    uv run --locked python -m tests.native_contract.verify_ownership \
-      "${AI_STP_TEST_CLI_BINARY}"
-    uv run --locked python -m tests.native_contract.verify_corporate \
-      "${AI_STP_TEST_CLI_BINARY}"
+    bash .github/scripts/qualify-native-http-client.sh
 
+# Docs prepare and check the documentation.
 [group('ci')]
+[private]
 [script('bash')]
 ci-docs-prepare-and-check-the-documentation:
     set -euo pipefail
@@ -161,19 +187,25 @@ ci-docs-prepare-and-check-the-documentation:
     (cd docs_scripts && bun install --frozen-lockfile)
     just docs-check
 
+# Docs build the pinned production docs image.
 [group('ci')]
+[private]
 [script('bash')]
 ci-docs-build-the-pinned-production-docs-image:
     set -euo pipefail
     docker build --file deploy/docker/Dockerfile.docs --target prod --tag ai-stp-docs-qualified:"${GITHUB_SHA}" .
 
+# Docs qualify the actual unprivileged docs process and both languages.
 [group('ci')]
+[private]
 [script('bash')]
 ci-docs-qualify-the-actual-unprivileged-docs-process-and-both-languages:
     set -euo pipefail
     timeout --signal=TERM --kill-after=35s 120s python .github/scripts/qualify-docs-runtime.py --image ai-stp-docs-qualified:"${GITHUB_SHA}" --source "${GITHUB_SHA}" --proof "${RUNNER_TEMP}/docs-runtime-proof.json"
 
+# Package static analysis packaging and the install regression.
 [group('ci')]
+[private]
 [script('bash')]
 ci-package-static-analysis-packaging-and-the-install-regression:
     set -euo pipefail
@@ -182,8 +214,10 @@ ci-package-static-analysis-packaging-and-the-install-regression:
     uv sync --locked --group docs --group dev
     just back-static back-regress
 
+# Tests run a shard of the test suite.
 [group('ci')]
 [positional-arguments]
+[private]
 [script('bash')]
 ci-tests-run-a-shard-of-the-test-suite +args:
     set -euo pipefail
@@ -193,7 +227,9 @@ ci-tests-run-a-shard-of-the-test-suite +args:
     uv run --locked pytest -n 8 --dist=load \
       "$@"
 
+# Coverage combine shard coverage and report.
 [group('ci')]
+[private]
 [script('bash')]
 ci-coverage-combine-shard-coverage-and-report:
     set -euo pipefail
@@ -204,7 +240,9 @@ ci-coverage-combine-shard-coverage-and-report:
       .coverage.contract .coverage.property
     uv run --locked coverage report --precision=2
 
+# Web static build static check audit and storybook.
 [group('ci')]
+[private]
 [script('bash')]
 ci-web-static-build-static-check-audit-and-storybook:
     set -euo pipefail
@@ -218,13 +256,17 @@ ci-web-static-build-static-check-audit-and-storybook:
     bun run audit
     bun run build-storybook
 
+# Web static dependency advisory scan with bounded source assessments.
 [group('ci')]
+[private]
 [script('bash')]
 ci-web-static-dependency-advisory-scan-with-bounded-source-assessments:
     set -euo pipefail
     bash scripts/safety/scan_lockfile.sh
 
+# Web unit unit and component tests.
 [group('ci')]
+[private]
 [script('bash')]
 ci-web-unit-unit-and-component-tests:
     set -euo pipefail
@@ -233,14 +275,18 @@ ci-web-unit-unit-and-component-tests:
     bun run test:coverage
     bun run test:coverage:catalog
 
+# Web e2e ensure a google chrome is present.
 [group('ci')]
+[private]
 [script('bash')]
 ci-web-e2e-ensure-a-google-chrome-is-present:
     set -euo pipefail
     bash .github/scripts/ensure-chrome.sh
 
+# Web e2e build and run the browser scenarios.
 [group('ci')]
 [positional-arguments]
+[private]
 [script('bash')]
 ci-web-e2e-build-and-run-the-browser-scenarios shard:
     set -euo pipefail
@@ -262,7 +308,9 @@ ci-web-e2e-build-and-run-the-browser-scenarios shard:
     # state the suite depends on is exactly as isolated as before.
     bun run test:e2e -- --shard=${1:?one browser shard is required}/2
 
+# Web profiles feature profile builds.
 [group('ci')]
+[private]
 [script('bash')]
 ci-web-profiles-feature-profile-builds:
     set -euo pipefail
@@ -270,60 +318,17 @@ ci-web-profiles-feature-profile-builds:
     bun install --frozen-lockfile
     bun run test:feature-profiles
 
+# Desktop tauri build.
 [group('ci')]
-[script('bash')]
-ci-desktop-frontend-checks-tsc-vitest-vite-build:
-    set -euo pipefail
-    cd apps/desktop
-    bun run format:check
-    bun run messages:check
-    bun x tsc --noEmit
-    bun x vitest run
-    bun x vite build
-
-[group('ci')]
-[script('bash')]
-ci-desktop-core-crate-tests:
-    set -euo pipefail
-    cd apps/desktop/core
-    cargo fmt --check
-    cargo clippy --locked --all-targets -- -D warnings
-    cargo test --locked
-
-[group('ci')]
-[script('bash')]
-ci-desktop-stub-sidecar-for-shell-crate-checks:
-    set -euo pipefail
-    cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- desktop-stub
-
-[group('ci')]
-[script('bash')]
-ci-desktop-shell-crate-tests:
-    set -euo pipefail
-    cd apps/desktop/src-tauri
-    cargo fmt --check
-    cargo clippy --locked --all-targets -- -D warnings
-    cargo test --locked
-
-[group('ci')]
-[script('bash')]
-ci-desktop-build-the-bundled-cli-sidecar:
-    set -euo pipefail
-    cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- desktop-build
-
-[group('ci')]
-[script('bash')]
-ci-desktop-sidecar-spawns-under-the-app-s-filtered-env:
-    set -euo pipefail
-    cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- desktop-probe
-
-[group('ci')]
+[private]
 [script('bash')]
 ci-desktop-tauri-build:
     set -euo pipefail
-    bash .github/scripts/build-desktop-bundles.sh
+    bash .github/scripts/build-desktop-bundles.sh --frontend-built
 
+# Desktop verify the macos disk image.
 [group('ci')]
+[private]
 [script('bash')]
 ci-desktop-verify-the-macos-disk-image:
     set -euo pipefail
@@ -331,37 +336,29 @@ ci-desktop-verify-the-macos-disk-image:
     test "${#images[@]}" -eq 1 && test -f "${images[0]}"
     /usr/bin/hdiutil verify "${images[0]}"
 
+# Desktop probe the packaged cli resource tree.
 [group('ci')]
+[private]
 [script('bash')]
 ci-desktop-probe-the-packaged-cli-resource-tree:
     set -euo pipefail
     cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- desktop-package-probe
 
+# Desktop three installed linux desktop journeys with bundled cli and native vault.
 [group('ci')]
-[script('bash')]
+[private]
 ci-desktop-three-installed-linux-desktop-journeys-with-bundled-cli-and-native-vault:
-    set -euo pipefail
-    for round in 1 2 3; do
-      printf 'Installed Desktop journey %s/3\n' "${round}"
-      bash .github/scripts/check-native-secret-service.sh --installed-desktop
-      mv "${RUNNER_TEMP}/installed-desktop-proof.json" \
-        "${RUNNER_TEMP}/installed-desktop-proof-${round}.json"
-    done
+    bash .github/scripts/run-installed-desktop-journeys.sh
 
+# Desktop installed corporate onboarding lost reply and original binding recovery.
 [group('ci')]
-[script('bash')]
+[private]
 ci-desktop-installed-corporate-onboarding-lost-reply-and-original-binding-recovery:
-    set -euo pipefail
-    fixture_postgres="$(docker run --detach --name ai-stp-installed-corporate \
-      -e POSTGRES_USER=ai_stp -e POSTGRES_PASSWORD=ai_stp_dev -e POSTGRES_DB=ai_stp \
-      -p 127.0.0.1:15434:5432 \
-      docker.io/library/postgres:18@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722)"
-    trap 'docker rm --force "${fixture_postgres}" >/dev/null' EXIT
-    bash .github/scripts/wait-postgres.sh "${fixture_postgres}"
-    uv sync --locked
-    bash .github/scripts/check-native-secret-service.sh --installed-corporate-desktop
+    bash .github/scripts/qualify-installed-corporate-desktop.sh
 
+# Build build the native executable.
 [group('ci')]
+[private]
 [script('bash')]
 ci-build-build-the-native-executable:
     set -euo pipefail
@@ -369,7 +366,9 @@ ci-build-build-the-native-executable:
     binary="$(cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- cli-binary)"
     printf 'CLI_SOURCE_BINARY=%s\n' "$binary" >> "${GITHUB_ENV}"
 
+# Build package and verify the extracted executable outside checkout.
 [group('ci')]
+[private]
 [script('bash')]
 ci-build-package-and-verify-the-extracted-executable-outside-checkout:
     set -euo pipefail
@@ -390,35 +389,15 @@ ci-build-package-and-verify-the-extracted-executable-outside-checkout:
     uv run --no-sync python tests/native_contract/verify.py \
       "${RUNNER_TEMP}/ai-stp-rust-install/${RELEASE_BINARY}"
 
+# Build package and qualify the native wheel.
 [group('ci')]
-[script('bash')]
+[private]
 ci-build-package-and-qualify-the-native-wheel:
-    set -euo pipefail
-    stem="ai-stp-cli-${RELEASE_VERSION}-${RELEASE_TARGET}"
-    cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- wheel \
-      --archive "release/${stem}.${RELEASE_EXTENSION}" \
-      --target "${RELEASE_TARGET}" --version "${RELEASE_VERSION}" \
-      --revision "${GITHUB_SHA}" --output wheels
-    wheel=$(find wheels -maxdepth 1 -name '*.whl' -type f)
-    test -n "${wheel}"
-    uv tool install --no-index "${wheel}"
-    cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- probe \
-      --binary "${UV_TOOL_BIN_DIR}/${RELEASE_BINARY}" --version "${RELEASE_VERSION}"
-    python -m venv "${RUNNER_TEMP}/pip-native"
-    if [[ "${RUNNER_OS}" == Windows ]]; then
-      pip_python="${RUNNER_TEMP}/pip-native/Scripts/python.exe"
-      pip_binary="${RUNNER_TEMP}/pip-native/Scripts/${RELEASE_BINARY}"
-    else
-      pip_python="${RUNNER_TEMP}/pip-native/bin/python"
-      pip_binary="${RUNNER_TEMP}/pip-native/bin/${RELEASE_BINARY}"
-    fi
-    "${pip_python}" -m pip install --no-index --no-deps "${wheel}"
-    cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- probe \
-      --binary "${pip_binary}" --version "${RELEASE_VERSION}"
-    cp "${wheel}" release/
-    (cd release && sha256sum -- *.whl > "$(basename "${wheel}").sha256")
+    bash .github/scripts/qualify-native-wheel.sh
 
+# Build qualify the standalone cargo source package.
 [group('ci')]
+[private]
 [script('bash')]
 ci-build-qualify-the-standalone-cargo-source-package:
     set -euo pipefail
@@ -430,13 +409,17 @@ ci-build-qualify-the-standalone-cargo-source-package:
     cd ../../release
     sha256sum -- *.crate > "ai-stp-cli-${RELEASE_VERSION}.crate.sha256"
 
+# Component compile one portable component without third party guest dependencies.
 [group('ci')]
+[private]
 [script('bash')]
 ci-component-compile-one-portable-component-without-third-party-guest-dependencies:
     set -euo pipefail
     python .github/scripts/qualify-wasi-confinement.py build "${ARTIFACT}"
 
+# Confinement verify runtime digest and exercise the identical guest component.
 [group('ci')]
+[private]
 [script('bash')]
 ci-confinement-verify-runtime-digest-and-exercise-the-identical-guest-component:
     set -euo pipefail

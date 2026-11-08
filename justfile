@@ -592,13 +592,22 @@ cli-check: cli-static cli-test cli-build cli-regress
 [group('desktop')]
 desktop-gen:
     {{ run }} python release_scripts/desktop_version.py
+    cd apps/desktop && bun scripts/generate-messages.mjs
+    cd apps/desktop && bun scripts/generate-theme.mjs
+    cd apps/desktop && bun scripts/generate-fonts.mjs
+    cd apps/desktop && bun scripts/generate-contracts.mjs
     cd apps/desktop/core && cargo fmt
     cd apps/desktop/src-tauri && cargo fmt
 
 [doc('Desktop types and formatting without building a webview or sidecar')]
 [group('desktop')]
 desktop-source:
-    {{ run }} python release_scripts/desktop_version.py --check
+    python release_scripts/desktop_version.py --check
+    python release_scripts/desktop_tools.py
+    cd apps/desktop && bun scripts/generate-messages.mjs --check
+    cd apps/desktop && bun scripts/generate-theme.mjs --check
+    cd apps/desktop && bun scripts/generate-fonts.mjs --check
+    cd apps/desktop && bun scripts/generate-contracts.mjs --check
     cd apps/desktop && bun run type-check
     cd apps/desktop && bun run format:check
     cd apps/desktop && bun run messages:check
@@ -608,12 +617,15 @@ desktop-source:
 # The frozen lockfile is the contract; `vite build` emits `dist/` and the
 # stub resource satisfies the existence check before the crates compile.
 # The repository-only Rust tool drives identical operations on all three OSes.
-[doc('Frontend build plus a stub sidecar for compile-time checks')]
+[doc('Frontend bundle without native compilation')]
 [group('desktop')]
-desktop-build:
+desktop-ui-build:
     {{ bunreq }}
-    cd apps/desktop && bun install --frozen-lockfile
     cd apps/desktop && bun x vite build
+
+[doc('Frontend and a compile-time sidecar resource, without native SDK compilation')]
+[group('desktop')]
+desktop-build: desktop-ui-build
     {{ native }} desktop-stub
 
 [doc('tsc, fmt and clippy for the UI and both crates')]
@@ -624,10 +636,25 @@ desktop-static: desktop-source desktop-build
 
 [doc('vitest and cargo test for both crates')]
 [group('desktop')]
-desktop-test: desktop-build
+desktop-ui-test:
     cd apps/desktop && bun x vitest run
+
+[doc('Native Desktop core tests without building a webview')]
+[group('desktop')]
+desktop-core-test:
     cd apps/desktop/core && cargo test --locked
+
+[doc('Frontend and both Rust crates')]
+[group('desktop')]
+desktop-test: desktop-build desktop-ui-test desktop-core-test
     cd apps/desktop/src-tauri && cargo test --locked
+
+[doc('Compile native IPC declarations on an execution host, then project TypeScript')]
+[group('desktop')]
+desktop-native-gen:
+    cd apps/desktop/core && cargo fmt
+    cd apps/desktop/core && AI_STP_WRITE_BINDINGS=1 cargo test --locked bindings::native_bindings_match
+    cd apps/desktop && bun scripts/generate-contracts.mjs
 
 # Builds the optimized Rust sidecar, replaces the generated stub, and runs
 # the same filtered-env resource probe as desktop.yml. The build and resource
@@ -645,9 +672,14 @@ desktop-regress: desktop-build
 desktop-bundle-test:
     {{ native }} desktop-package-probe
 
+[doc('Compare installed Desktop packages in the disposable hosted Linux vault fixture')]
+[group('desktop')]
+desktop-performance:
+    bash .github/scripts/check-native-secret-service.sh --desktop-performance
+
 [doc('The desktop aggregate')]
 [group('desktop')]
-desktop-check: desktop-build desktop-static desktop-test desktop-regress
+desktop-check: desktop-source desktop-build desktop-static desktop-test desktop-regress
 
 # Docker and Compose surface. Not a dependency of `check`: hadolint, shellcheck
 # and the Compose CLI are infra tools, not gate prerequisites — a maintainer

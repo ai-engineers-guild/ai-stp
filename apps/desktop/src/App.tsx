@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { iconSize } from "./generated/theme";
+import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
 import {
   HashRouter,
   Navigate,
@@ -24,26 +25,43 @@ import {
   Wrench,
 } from "lucide-react";
 import { useApp, useDebug } from "./store";
-import { readPreference, writePreference } from "./preferences";
+import { readPreference, usePreferences, writePreference } from "./preferences";
 import { useContexts } from "./contexts";
 import ContextSwitcher from "./components/ContextSwitcher";
 import ForegroundHeartbeat from "./components/ForegroundHeartbeat";
 import OverviewPage from "./pages/OverviewPage";
-import { useText, type MessageKey } from "./i18n";
+import {
+  i18n,
+  formatNumber,
+  loadCatalog,
+  useText,
+  type PlainMessageKey,
+  type Locale,
+} from "./i18n";
+import LanguageSelect from "./components/LanguageSelect";
 import { Spinner } from "./components/Result";
 import PageBoundary from "./components/PageBoundary";
 
-const AuthPage = lazy(() => import("./pages/AuthPage"));
-const ProfilesPage = lazy(() => import("./pages/ProfilesPage"));
-const CorporatePage = lazy(() => import("./pages/CorporatePage"));
-const CatalogPage = lazy(() => import("./pages/CatalogPage"));
-const TasksPage = lazy(() => import("./pages/TasksPage"));
-const InstallPage = lazy(() => import("./pages/InstallPage"));
-const TargetsPage = lazy(() => import("./pages/TargetsPage"));
-const DiscoveryPage = lazy(() => import("./pages/DiscoveryPage"));
-const RegistryPage = lazy(() => import("./pages/RegistryPage"));
-const DebugPage = lazy(() => import("./pages/DebugPage"));
-const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+function page(load: () => Promise<{ default: ComponentType }>) {
+  return lazy(async () => {
+    const [module] = await Promise.all([
+      load(),
+      loadCatalog(i18n.resolvedLanguage as Locale),
+    ]);
+    return module;
+  });
+}
+const AuthPage = page(() => import("./pages/AuthPage"));
+const ProfilesPage = page(() => import("./pages/ProfilesPage"));
+const CorporatePage = page(() => import("./pages/CorporatePage"));
+const CatalogPage = page(() => import("./pages/CatalogPage"));
+const TasksPage = page(() => import("./pages/TasksPage"));
+const InstallPage = page(() => import("./pages/InstallPage"));
+const TargetsPage = page(() => import("./pages/TargetsPage"));
+const DiscoveryPage = page(() => import("./pages/DiscoveryPage"));
+const RegistryPage = page(() => import("./pages/RegistryPage"));
+const DebugPage = page(() => import("./pages/DebugPage"));
+const SettingsPage = page(() => import("./pages/SettingsPage"));
 
 const PRIMARY = [
   { to: "/", icon: Home, label: "shell.home" },
@@ -73,6 +91,7 @@ function Shell() {
   const [dark, setDark] = useState(
     document.documentElement.classList.contains("dark"),
   );
+  const preferencePending = usePreferences((state) => state.pending);
   const location = useLocation();
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
@@ -100,10 +119,10 @@ function Shell() {
     const next = !dark;
     setDark(next);
     document.documentElement.classList.toggle("dark", next);
-    writePreference("ai-stp.theme", next ? "dark" : "light");
+    void writePreference("ai-stp.theme", next ? "dark" : "light");
   }
   function navigation(
-    items: readonly { to: string; icon: typeof Home; label: MessageKey }[],
+    items: readonly { to: string; icon: typeof Home; label: PlainMessageKey }[],
   ) {
     return items.map((item) => (
       <NavLink
@@ -112,10 +131,12 @@ function Shell() {
         end={item.to === "/"}
         className={({ isActive }) => `nav-item ${isActive ? "nav-active" : ""}`}
       >
-        <item.icon size={17} aria-hidden="true" />
+        <item.icon style={iconSize.sm} aria-hidden="true" />
         <span>{t(item.label)}</span>
         {item.to === "/debug" && failures > 0 && (
-          <span className="ms-auto text-xs text-destructive">{failures}</span>
+          <span className="ms-auto text-xs text-destructive">
+            {formatNumber(failures)}
+          </span>
         )}
       </NavLink>
     ));
@@ -136,7 +157,7 @@ function Shell() {
       <aside className="app-sidebar">
         <NavLink to="/" className="brand">
           <span className="brand-mark">
-            <SquareTerminal size={20} aria-hidden="true" />
+            <SquareTerminal style={iconSize.md} aria-hidden="true" />
           </span>
           <span>
             <strong>ai-stp</strong>
@@ -159,9 +180,10 @@ function Shell() {
           </details>
         </nav>
         <div className="sidebar-footer">
+          <LanguageSelect compact />
           <div className="engine-status">
             <Activity
-              size={15}
+              style={iconSize.sm}
               aria-hidden="true"
               className={cliOk ? "text-success" : "text-muted-foreground"}
             />
@@ -187,14 +209,19 @@ function Shell() {
                 : signedIn
                   ? t("shell.accountConnected")
                   : t("shell.connectAccount")}
-              <ArrowUpRight size={13} />
+              <ArrowUpRight style={iconSize.sm} />
             </NavLink>
             <button
               className="icon-button"
+              disabled={preferencePending}
               onClick={toggleTheme}
               aria-label={dark ? t("shell.light") : t("shell.dark")}
             >
-              {dark ? <Sun size={16} /> : <Moon size={16} />}
+              {dark ? (
+                <Sun style={iconSize.sm} />
+              ) : (
+                <Moon style={iconSize.sm} />
+              )}
             </button>
           </div>
         </div>

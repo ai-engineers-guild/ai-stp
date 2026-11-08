@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "tauri_cli_version": "2.12.4",
+  "source": "https://github.com/tauri-apps/tauri/tree/tauri-cli-v2.12.4/crates/tauri-bundler/src/bundle/windows",
+  "assets": [
+    {
+      "repository": "wixtoolset/wix3",
+      "asset": 158158052,
+      "size": 41297555,
+      "sha256": "6ac824e1642d6f7277d0ed7ea09411a508f6116ba6fae0aa5f2c7daa2ff43d31",
+      "file": "wix314-binaries.zip",
+      "extract_to": "WixTools314"
+    },
+    {
+      "repository": "tauri-apps/binary-releases",
+      "asset": 623832696,
+      "size": 2363925,
+      "sha256": "ba63dffc4410ee89193e1cb5a41989991bd77c61068da17e3156d136b7b0b3d8",
+      "file": "nsis-3.13.zip",
+      "extract_to": "NSIS",
+      "strip_prefix": "nsis-3.13"
+    },
+    {
+      "repository": "tauri-apps/nsis-tauri-utils",
+      "asset": 345882097,
+      "size": 34304,
+      "sha256": "5ba143b5db4a87d32d6e7802e033330aae56cbceabe0d1e3ba41948385ad4709",
+      "file": "nsis_tauri_utils.dll",
+      "install_to": "NSIS/Plugins/x86-unicode/additional/nsis_tauri_utils.dll"
+    }
+  ]
+}

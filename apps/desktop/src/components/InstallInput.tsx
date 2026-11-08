@@ -1,5 +1,7 @@
+import { useText } from "../i18n";
 import type { CmdResult } from "../transport";
 import { Details, ResultMeta, Spinner } from "./Result";
+import { choiceLabel } from "../labels";
 
 export interface InstallFields {
   harness: string;
@@ -62,7 +64,11 @@ export default function InstallInput({
   fields: InstallFields;
   setFields: (value: InstallFields) => void;
 }) {
-  if (!schema) return <Spinner label="Reading accepted installation inputs" />;
+  const msg = useText();
+  if (!schema)
+    return (
+      <Spinner label={msg("installInput.readingAcceptedInstallationInputs")} />
+    );
   if (!schema.ok) return <ResultMeta r={schema} />;
   const properties = schema.data?.properties as
     | Record<string, { enum?: string[]; propertyNames?: { enum?: string[] } }>
@@ -74,27 +80,29 @@ export default function InstallInput({
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="field-label">
-          Harness
+          {msg("installInput.harness")}
           <select
             className="input"
             value={fields.harness}
             onChange={(event) => update("harness", event.target.value)}
           >
-            <option value="">Choose a harness…</option>
+            <option value="">{msg("installInput.chooseAHarness")}</option>
             {choices("harness_id").map((value) => (
               <option key={value}>{value}</option>
             ))}
           </select>
         </label>
         <label className="field-label">
-          Operation
+          {msg("installInput.operation")}
           <select
             className="input"
             value={fields.operation}
             onChange={(event) => update("operation", event.target.value)}
           >
             {choices("operation").map((value) => (
-              <option key={value}>{value}</option>
+              <option key={value} value={value}>
+                {choiceLabel(msg, value)}
+              </option>
             ))}
           </select>
         </label>
@@ -102,20 +110,20 @@ export default function InstallInput({
       {fields.operation !== "remove" && (
         <fieldset className="space-y-3 rounded-md border border-border p-4">
           <legend className="px-1 text-sm font-medium">
-            Exact setup version
+            {msg("installInput.exactSetupVersion")}
           </legend>
           <label className="field-label">
-            Setup ID
+            {msg("installInput.setupId")}
             <input
               className="input font-mono font-normal"
               value={fields.setup}
               onChange={(event) => update("setup", event.target.value)}
-              placeholder="setup_…"
+              placeholder={msg("installInput.setup")}
             />
           </label>
           <div className="grid gap-3 sm:grid-cols-[100px_1fr]">
             <label className="field-label">
-              Version
+              {msg("installInput.version")}
               <input
                 className="input font-mono font-normal"
                 value={fields.version}
@@ -124,30 +132,34 @@ export default function InstallInput({
               />
             </label>
             <label className="field-label">
-              Passport digest
+              {msg("installInput.passportDigest")}
               <input
                 className="input font-mono font-normal"
                 value={fields.digest}
                 onChange={(event) => update("digest", event.target.value)}
-                placeholder="sha256:…"
+                placeholder={msg("installInput.sha256")}
               />
             </label>
           </div>
           <p className="field-help">
-            Use the immutable coordinates of an available setup. The engine
-            validates access, trust and compatibility.
+            {msg(
+              "installInput.useTheImmutableCoordinatesOfAnAvailableSetupThe",
+            )}
           </p>
         </fieldset>
       )}
       <fieldset className="space-y-3">
-        <legend className="mb-2 text-sm font-medium">Target directories</legend>
+        <legend className="mb-2 text-sm font-medium">
+          {msg("installInput.targetDirectories")}
+        </legend>
         <p className="field-help">
-          Provide an existing absolute directory for each scope you want to
-          configure. Leave other scopes empty.
+          {msg(
+            "installInput.provideAnExistingAbsoluteDirectoryForEachScopeYou",
+          )}
         </p>
         {(properties?.targets?.propertyNames?.enum ?? []).map((scope) => (
           <label className="field-label" key={scope}>
-            {scope.replaceAll("_", " ")}
+            {choiceLabel(msg, scope)}
             <input
               className="input font-mono font-normal"
               value={fields.targets[scope] ?? ""}
@@ -157,55 +169,60 @@ export default function InstallInput({
                   targets: { ...fields.targets, [scope]: event.target.value },
                 })
               }
-              placeholder="Absolute directory path"
+              placeholder={msg("installInput.absoluteDirectoryPath")}
             />
           </label>
         ))}
       </fieldset>
       <details className="space-y-4">
         <summary className="text-sm text-muted-foreground">
-          Activation and executable
+          {msg("installInput.activationAndExecutable")}
         </summary>
         <label className="field-label">
-          Activation
+          {msg("installInput.activation")}
           <select
             className="input"
             value={fields.activation}
             onChange={(event) => update("activation", event.target.value)}
           >
             {choices("activation").map((value) => (
-              <option key={value}>{value}</option>
+              <option key={value} value={value}>
+                {choiceLabel(msg, value)}
+              </option>
             ))}
           </select>
           <p className="field-help">
-            A running agent requires staged handoff and restart. The engine
-            checks whether its launcher supports this.
+            {msg(
+              "installInput.aRunningAgentRequiresStagedHandoffAndRestartThe",
+            )}
           </p>
         </label>
         <label className="field-label">
-          Installed harness executable
+          {msg("installInput.installedHarnessExecutable")}
           <input
             className="input font-mono font-normal"
             value={fields.executable}
             onChange={(event) => update("executable", event.target.value)}
-            placeholder="Optional absolute path"
+            placeholder={msg("installInput.optionalAbsolutePath")}
           />
           <p className="field-help">
-            Omit to discover the installed executable. ai-stp does not install
-            or update your harness.
+            {msg("installInput.omitToDiscoverTheInstalledExecutableAiStpDoes")}
           </p>
         </label>
         <label className="field-label">
-          Project root
+          {msg("installInput.projectRoot")}
           <input
             className="input font-mono font-normal"
             value={fields.project}
             onChange={(event) => update("project", event.target.value)}
-            placeholder="Optional absolute project path"
+            placeholder={msg("installInput.optionalAbsoluteProjectPath")}
           />
         </label>
       </details>
-      <Details label="Exact request" value={installInput(fields)} />
+      <Details
+        label={msg("installInput.exactRequest")}
+        value={installInput(fields)}
+      />
     </div>
   );
 }

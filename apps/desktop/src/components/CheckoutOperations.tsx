@@ -1,3 +1,4 @@
+import { useText } from "../i18n";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { record, records, useContexts } from "../contexts";
 import {
@@ -31,6 +32,7 @@ import { Details, ResultMeta, Spinner } from "./Result";
 import CheckoutLocation from "./CheckoutLocation";
 
 export default function CheckoutOperations() {
+  const msg = useText();
   const context = useContexts((state) => state.selected);
   const contexts = useContexts((state) => state.result);
   const switching = useContexts((state) => state.loading || state.switching);
@@ -421,28 +423,35 @@ export default function CheckoutOperations() {
   return (
     <section
       className="card space-y-4 p-5"
-      aria-label="Corporate checkout history"
+      aria-label={msg("checkoutOperations.corporateCheckoutHistory")}
     >
-      <h2 className="section-title">Corporate checkout operations</h2>
+      <h2 className="section-title">
+        {msg("checkoutOperations.corporateCheckoutOperations")}
+      </h2>
       <p className="text-sm text-muted-foreground">
-        Original requests and confirmations across saved views stay in the
-        native journal, including after restarting the app.
+        {msg(
+          "checkoutOperations.originalRequestsAndConfirmationsAcrossSavedViewsStayIn",
+        )}
       </p>
       <button
         className="btn-outline"
         disabled={locked}
         onClick={() => void load()}
       >
-        Read checkout history
+        {msg("checkoutOperations.readCheckoutHistory")}
       </button>
-      {busy && <Spinner label="Reading the original checkout operation" />}
+      {busy && (
+        <Spinner
+          label={msg("checkoutOperations.readingTheOriginalCheckoutOperation")}
+        />
+      )}
       {!busy && !supported && (
         <p className="text-sm text-muted-foreground">
-          This engine does not expose checkout history.
+          {msg("checkoutOperations.thisEngineDoesNotExposeCheckoutHistory")}
         </p>
       )}
       {supported && rows.length === 0 && !busy && (
-        <p>No retained checkout operations.</p>
+        <p>{msg("checkoutOperations.noRetainedCheckoutOperations")}</p>
       )}
       {rows.length > 0 && (
         <ul className="divide-y divide-border">
@@ -451,7 +460,10 @@ export default function CheckoutOperations() {
             return (
               <li className="space-y-2 py-3" key={String(item.operation_id)}>
                 <p className="text-sm font-medium">
-                  {String(record(snapshot.context).label ?? "Original context")}{" "}
+                  {String(
+                    record(snapshot.context).label ??
+                      msg("checkoutOperations.originalContext"),
+                  )}{" "}
                   · {String(item.state)}
                 </p>
                 <p className="break-all text-xs text-muted-foreground">
@@ -463,7 +475,8 @@ export default function CheckoutOperations() {
                   disabled={locked}
                   onClick={() => void inspect(String(item.operation_id))}
                 >
-                  Inspect {String(item.operation_id)}
+                  {msg("checkoutOperations.inspect")}{" "}
+                  {String(item.operation_id)}
                 </button>
               </li>
             );
@@ -476,26 +489,34 @@ export default function CheckoutOperations() {
           disabled={locked}
           onClick={() => void load(cursor)}
         >
-          Read more checkout history
+          {msg("checkoutOperations.readMoreCheckoutHistory")}
         </button>
       )}
       {result && <ResultMeta r={result} />}
       {review && selected && (
-        <div className="space-y-3" aria-label="Original checkout operation">
+        <div
+          className="space-y-3"
+          aria-label={msg("checkoutOperations.originalCheckoutOperation")}
+        >
           <p className="break-all font-mono text-xs">
             {String(review.plan.operation_id)} · {review.digest}
           </p>
-          <Details label="Original checkout journal" value={selected} />
+          <Details
+            label={msg("checkoutOperations.originalCheckoutJournal")}
+            value={selected}
+          />
           {["applying", "interrupted"].includes(String(selected.state)) && (
             <>
               <p className="text-sm text-muted-foreground">
-                Reconciliation reads the original outcome through a matching
-                current company context. An absent result stays unknown.
+                {msg(
+                  "checkoutOperations.reconciliationReadsTheOriginalOutcomeThroughAMatchingCurrent",
+                )}
               </p>
               {!reader && (
                 <p>
-                  Select a current context for the same account and company to
-                  read this original outcome.
+                  {msg(
+                    "checkoutOperations.selectACurrentContextForTheSameAccountAnd",
+                  )}
                 </p>
               )}
               <label className="flex items-start gap-3 text-sm">
@@ -505,15 +526,16 @@ export default function CheckoutOperations() {
                   disabled={!reader || locked}
                   onChange={(event) => setConfirmed(event.target.checked)}
                 />
-                I reviewed this original intent and authorize outcome
-                reconciliation.
+                {msg(
+                  "checkoutOperations.iReviewedThisOriginalIntentAndAuthorizeOutcomeReconciliation",
+                )}
               </label>
               <button
                 className="btn-primary"
                 disabled={!reader || !confirmed || locked}
                 onClick={() => void reconcile()}
               >
-                Reconcile original outcome
+                {msg("checkoutOperations.reconcileOriginalOutcome")}
               </button>
             </>
           )}
@@ -522,11 +544,12 @@ export default function CheckoutOperations() {
             !nextReview && (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Continue the original request with a fresh native review. The
-                  engine checks the current server link before any new change.
+                  {msg(
+                    "checkoutOperations.continueTheOriginalRequestWithAFreshNativeReview",
+                  )}
                 </p>
                 <label className="field-label">
-                  Registered checkout for binding
+                  {msg("checkoutOperations.registeredCheckoutForBinding")}
                   <input
                     className="input"
                     value={root}
@@ -535,7 +558,9 @@ export default function CheckoutOperations() {
                   />
                 </label>
                 <label className="field-label">
-                  Trusted Git executable for checkout review (optional)
+                  {msg(
+                    "checkoutOperations.trustedGitExecutableForCheckoutReviewOptional",
+                  )}
                   <input
                     className="input"
                     value={git}
@@ -555,7 +580,7 @@ export default function CheckoutOperations() {
                     }
                     onClick={() => void prepare("confirm")}
                   >
-                    Review original confirmation
+                    {msg("checkoutOperations.reviewOriginalConfirmation")}
                   </button>
                 )}
                 <button
@@ -563,7 +588,7 @@ export default function CheckoutOperations() {
                   disabled={!reader || !root.trim() || locked}
                   onClick={() => void prepare("adopt")}
                 >
-                  Review original local binding
+                  {msg("checkoutOperations.reviewOriginalLocalBinding")}
                 </button>
               </div>
             )}
@@ -580,34 +605,41 @@ export default function CheckoutOperations() {
               {selected.binding_retirement != null ? (
                 <>
                   <p role="status">
-                    This original local binding was retired. Its adoption
-                    receipt is preserved.
+                    {msg(
+                      "checkoutOperations.thisOriginalLocalBindingWasRetiredItsAdoptionReceipt",
+                    )}
                   </p>
                   <Details
-                    label="Verified local binding retirement"
+                    label={msg(
+                      "checkoutOperations.verifiedLocalBindingRetirement",
+                    )}
                     value={selected.binding_retirement}
                   />
                 </>
               ) : (
                 <>
                   <p role="status">
-                    Original corporate project binding receipt saved.
+                    {msg(
+                      "checkoutOperations.originalCorporateProjectBindingReceiptSaved",
+                    )}
                   </p>
                   {retirementSupported &&
                     selected.binding_retirement === null &&
                     !retirement && (
                       <>
                         <p className="text-sm text-muted-foreground">
-                          After this exact link is unlinked on the server,
-                          review releasing its local reservation. Checkout
-                          files, tasks and harness configuration are preserved.
+                          {msg(
+                            "checkoutOperations.afterThisExactLinkIsUnlinkedOnTheServer",
+                          )}
                         </p>
                         <button
                           className="btn-outline"
                           disabled={!reader || locked}
                           onClick={() => void prepareRetirement()}
                         >
-                          Review local binding retirement
+                          {msg(
+                            "checkoutOperations.reviewLocalBindingRetirement",
+                          )}
                         </button>
                       </>
                     )}
@@ -618,44 +650,52 @@ export default function CheckoutOperations() {
                 !retirement && (
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">
-                      If the retained checkout name is absent, separately review
-                      its original server link and physical parent. A moved
-                      checkout and all files remain preserved. An inaccessible
-                      parent or uncertain server result refuses.
+                      {msg(
+                        "checkoutOperations.ifTheRetainedCheckoutNameIsAbsentSeparatelyReview",
+                      )}
                     </p>
                     <button
                       className="btn-outline"
                       disabled={!reader || locked}
                       onClick={() => void prepareRetirement(true)}
                     >
-                      Review missing-checkout binding retirement
+                      {msg(
+                        "checkoutOperations.reviewMissingCheckoutBindingRetirement",
+                      )}
                     </button>
                   </div>
                 )}
               {retirement && (
                 <div
                   className="space-y-3"
-                  aria-label="Review local binding retirement"
+                  aria-label={msg(
+                    "checkoutOperations.reviewLocalBindingRetirement",
+                  )}
                 >
                   <h3 className="font-medium">
                     {missingRetirement
-                      ? "Release this absent checkout binding"
-                      : "Release only this original local binding"}
+                      ? msg(
+                          "checkoutOperations.releaseThisAbsentCheckoutBinding",
+                        )
+                      : msg(
+                          "checkoutOperations.releaseOnlyThisOriginalLocalBinding",
+                        )}
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    The CLI observed the exact server link as unlinked. Applying
-                    rechecks current rights and local state. It does not unlink
-                    another link or change checkout files, tasks or harness
-                    configuration.
+                    {msg(
+                      "checkoutOperations.theCliObservedTheExactServerLinkAsUnlinked",
+                    )}
                   </p>
                   {missingRetirement && (
                     <p role="status">
-                      The retained checkout name was absent under the reviewed
-                      physical parent. Apply checks again. This does not prove
-                      the original directory was deleted everywhere.
+                      {msg(
+                        "checkoutOperations.theRetainedCheckoutNameWasAbsentUnderTheReviewed",
+                      )}
                     </p>
                   )}
-                  <p className="text-sm">Reviewed checkout directory:</p>
+                  <p className="text-sm">
+                    {msg("checkoutOperations.reviewedCheckoutDirectory")}
+                  </p>
                   <p className="break-all font-mono text-xs">
                     {checkoutPath(
                       record(record(retirement.plan.snapshot).binding)
@@ -666,7 +706,9 @@ export default function CheckoutOperations() {
                     {retirement.digest}
                   </p>
                   <Details
-                    label="Exact local binding retirement plan"
+                    label={msg(
+                      "checkoutOperations.exactLocalBindingRetirementPlan",
+                    )}
                     value={retirement.plan}
                   />
                   <label className="flex items-start gap-3 text-sm">
@@ -676,20 +718,23 @@ export default function CheckoutOperations() {
                       disabled={!reader || locked}
                       onChange={(event) => setConfirmed(event.target.checked)}
                     />
-                    I reviewed this exact local binding retirement and authorize
-                    releasing its reservation.
+                    {msg(
+                      "checkoutOperations.iReviewedThisExactLocalBindingRetirementAndAuthorize",
+                    )}
                   </label>
                   <button
                     className="btn-primary"
                     disabled={!reader || !confirmed || locked}
                     onClick={() => void applyRetirement()}
                   >
-                    Apply reviewed local binding retirement
+                    {msg(
+                      "checkoutOperations.applyReviewedLocalBindingRetirement",
+                    )}
                   </button>
                   <p className="text-xs text-muted-foreground">
-                    If the reply is unconfirmed, inspect this original operation
-                    in Activity. An explicit retry retains this exact plan and
-                    operation.
+                    {msg(
+                      "checkoutOperations.ifTheReplyIsUnconfirmedInspectThisOriginalOperation",
+                    )}
                   </p>
                 </div>
               )}
@@ -698,17 +743,18 @@ export default function CheckoutOperations() {
           {nextReview && (
             <div
               className="space-y-3"
-              aria-label="Review retained checkout next change"
+              aria-label={msg(
+                "checkoutOperations.reviewRetainedCheckoutNextChange",
+              )}
             >
               <h3 className="font-medium">
-                Review original{" "}
-                {nextReview.action === "confirm"
-                  ? "confirmation"
-                  : "local binding"}
+                {msg("checkoutOperations.reviewOriginal", {
+                  action: nextReview.action,
+                })}
               </h3>
               <p className="break-all font-mono text-xs">{nextReview.digest}</p>
               <Details
-                label="Exact retained checkout next plan"
+                label={msg("checkoutOperations.exactRetainedCheckoutNextPlan")}
                 value={nextReview.plan}
               />
               <label className="flex items-start gap-3 text-sm">
@@ -718,14 +764,16 @@ export default function CheckoutOperations() {
                   disabled={!reader || locked}
                   onChange={(event) => setConfirmed(event.target.checked)}
                 />
-                I reviewed this exact retained checkout change and authorize it.
+                {msg(
+                  "checkoutOperations.iReviewedThisExactRetainedCheckoutChangeAndAuthorize",
+                )}
               </label>
               <button
                 className="btn-primary"
                 disabled={!reader || !confirmed || locked}
                 onClick={() => void applyNext()}
               >
-                Apply reviewed original checkout change
+                {msg("checkoutOperations.applyReviewedOriginalCheckoutChange")}
               </button>
             </div>
           )}

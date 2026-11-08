@@ -1,9 +1,11 @@
+import { useText } from "../i18n";
 import { Details } from "./Result";
 import { StatusBadge } from "./Layout";
 
 export default function TaskOutcome({ value }: { value: unknown }) {
+  const msg = useText();
   if (!value || typeof value !== "object")
-    return <Details label="Task result" value={value} />;
+    return <Details label={msg("taskOutcome.taskResult")} value={value} />;
   const result = value as Record<string, unknown>;
   const fields = [
     ["Harness", result.harness_id],
@@ -20,10 +22,14 @@ export default function TaskOutcome({ value }: { value: unknown }) {
     <section className="space-y-4 rounded-lg bg-muted/40 p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="section-title">
-          {typeof result.name === "string" ? result.name : "Task result"}
+          {typeof result.name === "string"
+            ? result.name
+            : msg("taskOutcome.taskResult")}
         </h3>
         {result.verified === true && (
-          <StatusBadge state="ready">Installation verified</StatusBadge>
+          <StatusBadge state="ready">
+            {msg("taskOutcome.installationVerified")}
+          </StatusBadge>
         )}
       </div>
       <dl className="grid gap-3">
@@ -39,7 +45,7 @@ export default function TaskOutcome({ value }: { value: unknown }) {
           </div>
         ))}
       </dl>
-      <Details label="Full receipt" value={value} />
+      <Details label={msg("taskOutcome.fullReceipt")} value={value} />
     </section>
   );
 }

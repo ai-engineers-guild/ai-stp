@@ -62,6 +62,9 @@ def test_reusable_release_keeps_mandatory_application_acceptance() -> None:
         "Installed corporate onboarding, lost reply and original binding recovery",
         "Retain the public installed corporate checkout result",
         "Retain public installed Desktop results",
+        "Prepare the exact installed performance baseline",
+        "Compare installed startup and repeated navigation on the same worker",
+        "Retain the exact same-worker performance observations",
     ):
         assert steps[name]["if"] == "runner.os == 'Linux' && !inputs.packages_only"
     assert "preflight-" in steps["Upload bundles"]["with"]["name"]
@@ -72,6 +75,9 @@ def test_reusable_release_keeps_mandatory_application_acceptance() -> None:
     order = list(steps)
     assert order.index("Seal the platform installers after native acceptance") > order.index(
         "Installed corporate onboarding, lost reply and original binding recovery"
+    )
+    assert order.index("Seal the platform installers after native acceptance") > order.index(
+        "Retain the exact same-worker performance observations"
     )
     assert steps["Upload bundles"]["with"]["if-no-files-found"] == "error"
     assert (

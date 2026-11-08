@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "tauri_cli_version": "2.12.4",
+  "source": "https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.12.4/crates/tauri-bundler/src/bundle/linux/appimage/linuxdeploy.rs",
+  "assets": [
+    {
+      "repository": "tauri-apps/binary-releases",
+      "asset": 274691722,
+      "size": 31552,
+      "sha256": "f30140a43a0a59e46db21bdefdf749b9e9f2c6946e92afabbacf98b8ae73fb4f",
+      "file": "AppRun-x86_64",
+      "executable": true
+    },
+    {
+      "repository": "tauri-apps/binary-releases",
+      "asset": 576945544,
+      "size": 19810808,
+      "sha256": "36a2d7e274d12e1050d0e9ecfe11d339ed54720b2bec464c286d53f8b07f5c62",
+      "file": "linuxdeploy-07333c6-x86_64.AppImage",
+      "executable": true
+    },
+    {
+      "repository": "linuxdeploy/linuxdeploy-plugin-appimage",
+      "asset": 602435573,
+      "size": 16488952,
+      "sha256": "49d6a17160675a6bd1781699aae6bdf7692d98552e02a3671d2183d10547842e",
+      "file": "linuxdeploy-plugin-appimage.AppImage",
+      "executable": true
+    }
+  ]
+}

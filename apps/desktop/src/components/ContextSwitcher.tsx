@@ -1,13 +1,18 @@
+import { iconSize } from "../generated/theme";
+import { useText } from "../i18n";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
 import { Building2, UserRound } from "lucide-react";
 import { useContexts } from "../contexts";
+import type { CmdResult } from "../transport";
+import { ResultMeta } from "./Result";
 
 export default function ContextSwitcher() {
+  const msg = useText();
   const { views, selected, loading, switching, result, refresh, select } =
     useContexts();
   const location = useLocation();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<CmdResult | null>(null);
   useEffect(() => {
     void refresh();
   }, [refresh, location.pathname]);
@@ -15,18 +20,24 @@ export default function ContextSwitcher() {
   return (
     <section
       className="mx-3 my-3 shrink-0 space-y-2 rounded-lg border border-border bg-card/60 p-3"
-      aria-label="Context view"
+      aria-label={msg("contextSwitcher.contextView")}
     >
       <div className="flex items-center gap-2 text-xs font-medium">
         {corporate ? (
-          <Building2 size={15} aria-hidden="true" />
+          <Building2 style={iconSize.sm} aria-hidden="true" />
         ) : (
-          <UserRound size={15} aria-hidden="true" />
+          <UserRound style={iconSize.sm} aria-hidden="true" />
         )}
-        <span>{corporate ? "Corporate" : "Personal"} context view</span>
+        <span>
+          {msg("contextSwitcher.modeTitle", {
+            mode: corporate ? "corporate" : "personal",
+          })}
+        </span>
       </div>
       <label className="field-label">
-        <span className="sr-only">Selected context view</span>
+        <span className="sr-only">
+          {msg("contextSwitcher.selectedContextView")}
+        </span>
         <select
           className="input w-full min-w-0 text-xs"
           value={selected?.id ?? ""}
@@ -34,23 +45,24 @@ export default function ContextSwitcher() {
           onChange={async (event) => {
             setError(null);
             const result = await select(event.target.value);
-            if (!result.ok)
-              setError(result.error ?? "The context could not be selected.");
+            if (!result.ok) setError(result);
           }}
         >
           {!selected && (
             <option value="" disabled>
               {loading
-                ? "Reading contexts…"
+                ? msg("contextSwitcher.readingContexts")
                 : result?.ok
-                  ? "Local default"
-                  : "Contexts unavailable"}
+                  ? msg("contextSwitcher.localDefault")
+                  : msg("contextSwitcher.contextsUnavailable")}
             </option>
           )}
           {views.map((view) => (
             <option key={view.id} value={view.id}>
-              {view.mode === "corporate" ? "Corporate" : "Personal"} ·{" "}
-              {view.label}
+              {view.mode === "corporate"
+                ? msg("contextSwitcher.corporate")
+                : msg("contextSwitcher.personal")}{" "}
+              · {view.label}
               {view.origin ? ` · ${view.origin}` : ""}
             </option>
           ))}
@@ -58,21 +70,26 @@ export default function ContextSwitcher() {
       </label>
       {selected?.organization && (
         <p className="break-words text-xs text-muted-foreground">
-          {selected.organization} · Saved view
+          {selected.organization} {msg("contextSwitcher.savedView")}
         </p>
       )}
-      <p className="text-xs leading-5 text-muted-foreground">
-        New company reads use this view. Existing tasks keep their original
-        context.
-      </p>
-      {error && (
-        <p role="alert" className="text-xs text-destructive">
-          {error}
-        </p>
-      )}
-      <Link className="text-xs text-primary hover:underline" to="/profiles">
-        Manage contexts
-      </Link>
+      <details className="text-xs text-muted-foreground">
+        <summary className="py-1 hover:text-foreground">
+          {msg("contextSwitcher.aboutView")}
+        </summary>
+        <div className="space-y-2 pt-2">
+          <p className="leading-5">
+            {msg("contextSwitcher.newCompanyReadsUseThisViewExistingTasksKeep")}
+          </p>
+          <Link
+            className="inline-block py-1 text-primary hover:underline"
+            to="/profiles"
+          >
+            {msg("contextSwitcher.manageContexts")}
+          </Link>
+        </div>
+      </details>
+      {error && <ResultMeta r={error} />}
     </section>
   );
 }

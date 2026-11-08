@@ -1,3 +1,5 @@
+import { iconSize } from "../generated/theme";
+import { useText } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { ArrowRight, Package, Search, X } from "lucide-react";
@@ -22,6 +24,7 @@ function ItemList({
   items: Item[];
   onShow: (id: string) => void;
 }) {
+  const msg = useText();
   return (
     <ul className="grid gap-4 lg:grid-cols-2">
       {items.map((item) => {
@@ -31,17 +34,20 @@ function ItemList({
           <li key={id}>
             <button
               onClick={() => onShow(id)}
-              className="flex h-full w-full flex-col rounded-lg border border-border p-5 text-left hover:border-primary/50 hover:bg-card"
+              className="flex h-full w-full flex-col rounded-lg border border-border p-5 text-start hover:border-primary/50 hover:bg-card"
             >
               <div className="mb-4 flex w-full items-center justify-between gap-3">
-                <Package size={20} className="text-muted-foreground" />
+                <Package
+                  style={iconSize.md}
+                  className="text-muted-foreground"
+                />
                 <span className="chip bg-muted text-muted-foreground">
                   {String(item.latest_harness_id ?? "")}
                 </span>
               </div>
               <h3 className="text-sm font-medium">
                 {String(item.latest_name ?? id)}
-                <span className="ml-2 font-mono text-xs text-muted-foreground">
+                <span className="ms-2 font-mono text-xs text-muted-foreground">
                   {String(item.latest_version ?? "")}
                 </span>
               </h3>
@@ -51,12 +57,12 @@ function ItemList({
               <div className="mt-auto flex flex-wrap gap-2 pt-5">
                 {trust.author_verified === true && (
                   <span className="chip bg-success/10 text-success">
-                    Author verified
+                    {msg("catalog.authorVerified")}
                   </span>
                 )}
                 {trust.component_verified === true && (
                   <span className="chip bg-success/10 text-success">
-                    Bytes verified
+                    {msg("catalog.bytesVerified")}
                   </span>
                 )}
                 {trust.trust_lane != null && (
@@ -73,6 +79,7 @@ function ItemList({
   );
 }
 export default function CatalogPage() {
+  const msg = useText();
   const [kinds, setKinds] = useState<string[]>([]);
   const [help, setHelp] = useState<CmdResult | null>(null);
   const [kind, setKind] = useState("setup");
@@ -271,8 +278,10 @@ export default function CatalogPage() {
   return (
     <div className="page-stack">
       <PageHeader
-        title="Find your next workflow"
-        description="Browse setups and components published in the ai-stp catalog."
+        title={msg("catalog.findYourNextWorkflow")}
+        description={msg(
+          "catalog.browseSetupsAndComponentsPublishedInTheAiStp",
+        )}
       />
       <form
         className="card flex flex-wrap items-end gap-4 p-5"
@@ -282,7 +291,7 @@ export default function CatalogPage() {
         }}
       >
         <label className="field-label">
-          Show
+          {msg("catalog.show")}
           <select
             className="input min-w-32"
             value={kind}
@@ -295,16 +304,16 @@ export default function CatalogPage() {
             {kinds.map((value) => (
               <option key={value} value={value}>
                 {value === "setup"
-                  ? "Setups"
+                  ? msg("catalog.setups")
                   : value === "component"
-                    ? "Components"
+                    ? msg("catalog.components")
                     : value}
               </option>
             ))}
           </select>
         </label>
         <label className="field-label min-w-48 flex-1">
-          Search
+          {msg("catalog.search")}
           <input
             className="input"
             maxLength={200}
@@ -313,15 +322,15 @@ export default function CatalogPage() {
               reset();
               setQuery(event.target.value);
             }}
-            placeholder="A tool, a workflow, an idea…"
+            placeholder={msg("catalog.aToolAWorkflowAnIdea")}
           />
         </label>
         <button
           className="btn-primary h-10"
           disabled={busy || !kinds.includes(kind)}
         >
-          <Search size={15} />
-          Search catalog
+          <Search style={iconSize.sm} />
+          {msg("catalog.searchCatalog")}
         </button>
         <label className="flex w-full items-center gap-2 text-xs text-muted-foreground">
           <input
@@ -332,37 +341,41 @@ export default function CatalogPage() {
               setExperimental(event.target.checked);
             }}
           />
-          Include experimental results in a separate section
+          {msg("catalog.includeExperimentalResultsInASeparateSection")}
         </label>
       </form>
       {help && !help.ok && <ResultMeta r={help} />}
-      {busy && <Spinner label="Searching the catalog" />}
+      {busy && <Spinner label={msg("catalog.searchingTheCatalog")} />}
       {result && <ResultMeta r={result} />}
       {!result && !busy && (
-        <EmptyState title="A starting point for your setup">
-          Search for complete setups or reusable components. The engine keeps
-          authoritative and experimental results separate.
+        <EmptyState title={msg("catalog.aStartingPointForYourSetup")}>
+          {msg("catalog.searchForCompleteSetupsOrReusableComponentsTheEngine")}
         </EmptyState>
       )}
-      {detailBusy && <Spinner label="Loading catalog details" />}
+      {detailBusy && <Spinner label={msg("catalog.loadingCatalogDetails")} />}
       {detail && (
-        <section className="card space-y-5 p-5" aria-label="Catalog details">
+        <section
+          className="card space-y-5 p-5"
+          aria-label={msg("catalog.catalogDetails")}
+        >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="eyebrow">{kind} details</p>
+              <p className="eyebrow">
+                {msg("catalog.detailsOfKind", { kind })}
+              </p>
               <h2 className="mt-2 text-lg font-medium">
-                {String(summary?.latest_name ?? "Catalog item")}
+                {String(summary?.latest_name ?? msg("catalog.unnamedItem"))}
               </h2>
             </div>
             <button
               className="icon-button"
-              aria-label="Close details"
+              aria-label={msg("catalog.closeDetails")}
               onClick={() => {
                 detailGeneration.current++;
                 setDetail(null);
               }}
             >
-              <X size={16} />
+              <X style={iconSize.sm} />
             </button>
           </div>
           <ResultMeta r={detail} />
@@ -385,12 +398,12 @@ export default function CatalogPage() {
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-medium">
-                      Version {version.version}
-                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      {msg("catalog.version")} {version.version}
+                      <span className="ms-2 text-xs font-normal text-muted-foreground">
                         {version.lifecycle}
                       </span>
                     </p>
-                    <p className="mt-1 break-all font-mono text-[10px] text-muted-foreground">
+                    <p className="mt-1 break-all font-mono text-micro text-muted-foreground">
                       {version.passport_digest}
                     </p>
                   </div>
@@ -401,14 +414,14 @@ export default function CatalogPage() {
                         disabled={downloadBusy}
                         onClick={() => void reviewDownload(version)}
                       >
-                        Download exact graph
+                        {msg("catalog.downloadExactGraph")}
                       </button>
                       <Link
                         className="btn-outline shrink-0"
                         to={`/targets?${new URLSearchParams({ setup: String(summary?.stable_id ?? ""), version: version.version, digest: version.passport_digest, harness: String(summary?.latest_harness_id ?? "") })}`}
                       >
-                        Review local installation
-                        <ArrowRight size={13} />
+                        {msg("catalog.reviewLocalInstallation")}
+                        <ArrowRight style={iconSize.sm} />
                       </Link>
                     </div>
                   )}
@@ -420,20 +433,25 @@ export default function CatalogPage() {
         </section>
       )}
       {download && (
-        <section className="card p-5" aria-label="Exact setup download">
-          <h2 className="text-lg font-semibold">Download exact public setup</h2>
+        <section
+          className="card p-5"
+          aria-label={msg("catalog.exactSetupDownload")}
+        >
+          <h2 className="text-lg font-semibold">
+            {msg("catalog.downloadExactPublicSetup")}
+          </h2>
           <p className="mt-2 text-sm">
-            This saves the reviewed graph in its original local library. It does
-            not configure folders or run a harness.
+            {msg("catalog.thisSavesTheReviewedGraphInItsOriginalLocal")}
           </p>
           <p className="mt-3 break-all text-sm">
             {download.id} · {download.version}
           </p>
           <p className="mt-1 break-all text-sm text-muted-foreground">
-            {download.endpoint} · {download.components} components
+            {download.endpoint} · {download.components}{" "}
+            {msg("catalog.components2")}
           </p>
           <Details
-            label="Exact source identity"
+            label={msg("catalog.exactSourceIdentity")}
             value={{
               passport_digest: download.passport,
               plan_digest: download.digest,
@@ -450,14 +468,14 @@ export default function CatalogPage() {
                     setDownloadApproved(event.target.checked)
                   }
                 />
-                Download this exact graph to the reviewed local library.
+                {msg("catalog.downloadThisExactGraphToTheReviewedLocalLibrary")}
               </label>
               <button
                 className="btn-primary mt-3"
                 disabled={downloadBusy || !downloadApproved}
                 onClick={() => void applyDownload()}
               >
-                Download reviewed graph
+                {msg("catalog.downloadReviewedGraph")}
               </button>
             </>
           ) : (
@@ -473,21 +491,21 @@ export default function CatalogPage() {
                 })
               }
             >
-              Configure downloaded setup
+              {msg("catalog.configureDownloadedSetup")}
             </Link>
           )}
         </section>
       )}
       {downloadBusy && (
-        <Spinner label="Checking the exact public setup graph" />
+        <Spinner label={msg("catalog.checkingTheExactPublicSetupGraph")} />
       )}
       {downloadResult && <ResultMeta r={downloadResult} />}
       {items.length > 0 && (
         <section className="space-y-4">
           <div className="flex justify-between">
-            <h2 className="section-title">Catalog results</h2>
+            <h2 className="section-title">{msg("catalog.catalogResults")}</h2>
             <p className="text-xs text-muted-foreground">
-              {items.length} loaded
+              {items.length} {msg("catalog.loaded")}
             </p>
           </div>
           <ItemList items={items} onShow={(id) => void show(id)} />
@@ -495,13 +513,13 @@ export default function CatalogPage() {
       )}
       {expItems.length > 0 && (
         <section className="space-y-4">
-          <h2 className="section-title">Experimental</h2>
+          <h2 className="section-title">{msg("catalog.experimental")}</h2>
           <ItemList items={expItems} onShow={(id) => void show(id)} />
         </section>
       )}
       {result?.ok && !items.length && !expItems.length && (
-        <EmptyState title="No matching results">
-          Try a different phrase or object kind.
+        <EmptyState title={msg("catalog.noMatchingResults")}>
+          {msg("catalog.tryADifferentPhraseOrObjectKind")}
         </EmptyState>
       )}
       {cursor && (
@@ -510,10 +528,12 @@ export default function CatalogPage() {
           disabled={busy}
           onClick={() => void search(true)}
         >
-          Load more
+          {msg("catalog.loadMore")}
         </button>
       )}
-      {result?.data && <Details label="Catalog response" value={result.data} />}
+      {result?.data && (
+        <Details label={msg("catalog.catalogResponse")} value={result.data} />
+      )}
     </div>
   );
 }
