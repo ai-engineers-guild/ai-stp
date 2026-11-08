@@ -24,6 +24,10 @@ export function ResultMeta({ r }: { r: CmdResult }) {
         (o) => typeof o === "string",
       )
     : [];
+  const errorBody =
+    r.error_code && r.error?.startsWith(`${r.error_code}:`)
+      ? r.error.slice(r.error_code.length)
+      : r.error;
   return (
     <div className="space-y-2">
       {r.warnings.length > 0 && (
@@ -80,12 +84,13 @@ export function ResultMeta({ r }: { r: CmdResult }) {
               <p className="font-medium">{t("error.requestFailed")}</p>
               <details className="technical-details mt-3">
                 <summary>{t("error.engineDetails")}</summary>
-                {r.error_code && !r.error?.startsWith(`${r.error_code}:`) && (
-                  <span className="me-2 font-mono font-semibold">
+                {r.error_code && (
+                  <code className="font-mono font-semibold">
                     {r.error_code}
-                  </span>
+                  </code>
                 )}
-                {r.error}
+                {r.error_code && errorBody === r.error && " "}
+                {errorBody}
               </details>
             </>
           )}

@@ -602,8 +602,8 @@ desktop-gen:
 [doc('Desktop types and formatting without building a webview or sidecar')]
 [group('desktop')]
 desktop-source:
-    {{ run }} python release_scripts/desktop_version.py --check
-    {{ run }} python release_scripts/desktop_tools.py
+    python release_scripts/desktop_version.py --check
+    python release_scripts/desktop_tools.py
     cd apps/desktop && bun scripts/generate-messages.mjs --check
     cd apps/desktop && bun scripts/generate-theme.mjs --check
     cd apps/desktop && bun scripts/generate-fonts.mjs --check
@@ -617,7 +617,7 @@ desktop-source:
 # The frozen lockfile is the contract; `vite build` emits `dist/` and the
 # stub resource satisfies the existence check before the crates compile.
 # The repository-only Rust tool drives identical operations on all three OSes.
-[doc('Frontend build plus a stub sidecar for compile-time checks')]
+[doc('Frontend bundle without native compilation')]
 [group('desktop')]
 desktop-ui-build:
     {{ bunreq }}
@@ -679,7 +679,7 @@ desktop-performance:
 
 [doc('The desktop aggregate')]
 [group('desktop')]
-desktop-check: desktop-build desktop-static desktop-test desktop-regress
+desktop-check: desktop-source desktop-build desktop-static desktop-test desktop-regress
 
 # Docker and Compose surface. Not a dependency of `check`: hadolint, shellcheck
 # and the Compose CLI are infra tools, not gate prerequisites — a maintainer

@@ -1016,9 +1016,8 @@ def installed_journey(
                 driver.click(dict(disclosure))
             codes = driver.wait(
                 lambda: driver.read(
-                    "return [...document.querySelectorAll(arguments[0]+' [role=alert]')]"
-                    ".flatMap(x=>x.textContent.match(/\\b(?:AI_STP_|DESKTOP_)[A-Z_]+|"
-                    "\\b(?:CONTEXT_VIEW|IPC_THROW)\\b/g)??[]);",
+                    "return [...document.querySelectorAll(arguments[0]+' [role=alert] code')]"
+                    ".map(node=>node.textContent.trim()).filter(Boolean);",
                     HISTORY,
                 ),
                 "same-display physical checkout refusal",

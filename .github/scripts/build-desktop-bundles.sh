@@ -3,18 +3,26 @@
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/../../apps/desktop"
+configuration=()
+if [[ "$#" -eq 1 && "$1" == --frontend-built ]]; then
+  test -f dist/index.html
+  configuration+=(--config ../../.github/tauri-frontend-built.conf.json)
+elif [[ "$#" -ne 0 ]]; then
+  echo 'Usage: build-desktop-bundles.sh [--frontend-built]' >&2
+  exit 64
+fi
 # Cargo cache restores can retain installers from a previous package version.
 # Rebuild only this generated output; keep compiler artifacts and strict probes.
 rm -rf -- src-tauri/target/release/bundle
 if [[ "${RUNNER_OS:-}" == Windows ]]; then
-  exec bun x tauri build --config ../../.github/tauri-tools-windows.conf.json
+  exec bun x tauri build "${configuration[@]}" --config ../../.github/tauri-tools-windows.conf.json
 fi
 if [[ "${RUNNER_OS:-}" != macOS ]]; then
-  exec bun x tauri build
+  exec bun x tauri build "${configuration[@]}"
 fi
 
 # Keep compilation and its hooks outside the idempotent packaging retry.
-bun x tauri build --no-bundle
+bun x tauri build "${configuration[@]}" --no-bundle
 : "${RUNNER_TEMP:?the disposable runner temporary directory is required}"
 bundle_log="$(mktemp "${RUNNER_TEMP}/ai-stp-dmg.XXXXXX")"
 trap 'rm -f -- "${bundle_log}"' EXIT

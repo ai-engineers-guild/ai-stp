@@ -102,43 +102,11 @@ jobs:
           python ../../release_scripts/desktop_version.py --check
           python ../../release_scripts/desktop_tools.py
           bun install --frozen-lockfile
-      - name: Frontend checks (tsc, vitest, vite build)
+      - name: Qualify Desktop through the shared project commands
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
         with:
-          recipe: ci-desktop-frontend-checks-tsc-vitest-vite-build
-      - name: Core crate tests
-        uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
-        with:
-          recipe: ci-desktop-core-crate-tests
-      - name: Stub sidecar for shell-crate checks
-        # tauri-build's build.rs verifies resource paths exist at compile
-        # time; the stub satisfies that before the real Rust sidecar
-        # is built below.
-        uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
-        with:
-          recipe: ci-desktop-stub-sidecar-for-shell-crate-checks
-      - name: Shell crate tests
-        uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
-        with:
-          recipe: ci-desktop-shell-crate-tests
-      - name: Build the bundled CLI sidecar
-        uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
-        with:
-          recipe: ci-desktop-build-the-bundled-cli-sidecar
-      - name: Sidecar spawns under the app's filtered env
-        # CliRunner clears the child env and re-adds a passthrough set —
-        # the same path the installed app takes. The probe verifies the Rust
-        # runtime, executable registry and native task input contract.
-        # The native tool is shared with `just desktop-regress`.
-        uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
-        with:
-          recipe: ci-desktop-sidecar-spawns-under-the-app-s-filtered-env
+          recipe: desktop-check
       - name: Prepare the exact Linux packaging tools
         if: runner.os == 'Linux'
         uses: >-
