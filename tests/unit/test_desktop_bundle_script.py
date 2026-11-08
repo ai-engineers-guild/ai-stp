@@ -81,6 +81,8 @@ def test_desktop_packaging_retries_only_busy_create_without_rebuilding(
     )
     assert result.returncode == status, (result.stdout, result.stderr)
     expected = ["x tauri build --no-bundle"] if runner == "macOS" else ["x tauri build"]
+    if runner == "Windows":
+        expected = ["x tauri build --config ../../.github/tauri-tools-windows.conf.json"]
     assert calls.read_text().splitlines() == expected + ["x tauri bundle"] * bundles
     assert (waits.read_text().splitlines() if waits.exists() else []) == delays
     assert not list(tmp_path.glob("ai-stp-dmg.*"))

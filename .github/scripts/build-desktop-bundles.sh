@@ -6,6 +6,9 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../../apps/desktop"
 # Cargo cache restores can retain installers from a previous package version.
 # Rebuild only this generated output; keep compiler artifacts and strict probes.
 rm -rf -- src-tauri/target/release/bundle
+if [[ "${RUNNER_OS:-}" == Windows ]]; then
+  exec bun x tauri build --config ../../.github/tauri-tools-windows.conf.json
+fi
 if [[ "${RUNNER_OS:-}" != macOS ]]; then
   exec bun x tauri build
 fi

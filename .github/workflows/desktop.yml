@@ -155,6 +155,19 @@ jobs:
         with:
           manifest: .github/tauri-tools.json
           directory: ${{ runner.temp }}/ai-stp-tauri-cache/tauri
+      - name: Prepare the exact Windows packaging assets
+        if: runner.os == 'Windows'
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+        with:
+          manifest: .github/tauri-tools-windows.json
+          directory: ${{ runner.temp }}/ai-stp-tauri-windows
+      - name: Prepare the SDK's native Windows tool layout
+        if: runner.os == 'Windows'
+        shell: bash
+        run: >-
+          python release_scripts/desktop_tools.py
+          --prepare-windows "${RUNNER_TEMP}/ai-stp-tauri-windows"
       - name: Tauri build
         shell: bash
         env:
