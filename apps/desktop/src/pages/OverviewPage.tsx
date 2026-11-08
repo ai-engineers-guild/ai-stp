@@ -94,6 +94,7 @@ export default function OverviewPage() {
         description={t("home.description")}
         action={
           <button
+            type="button"
             className="btn-outline"
             disabled={busy}
             onClick={() => void refresh()}

@@ -74,6 +74,10 @@ function selectedDimensions(query: DashboardQuery): Dimension[] {
   ];
 }
 
+function dimensionKey(item: DashboardResult["items"][number], keys: Dimension[]) {
+  return JSON.stringify(keys.map((key) => item.dimensions[key]));
+}
+
 function dimensionLabel(item: DashboardResult["items"][number], keys: Dimension[]) {
   return keys.map((key) => item.dimensions[key] ?? "—").join(" · ") || "—";
 }
@@ -614,9 +618,9 @@ function DashboardVisual({ result, measure }: { result: DashboardResult; measure
         <>
           {result.query.view === "bar" && (
             <div className="mt-5 space-y-3" role="img" aria-label={t("charts.bar")}>
-              {chartItems.map((item, index) => (
+              {chartItems.map((item) => (
                 <div
-                  key={index}
+                  key={dimensionKey(item, dimensions)}
                   className="grid grid-cols-[minmax(7rem,1fr)_3fr_auto] items-center gap-3 text-sm"
                 >
                   <span className="min-w-0 truncate" title={dimensionLabel(item, dimensions)}>
@@ -654,7 +658,7 @@ function DashboardVisual({ result, measure }: { result: DashboardResult; measure
                 />
                 {chartItems.map((item, index) => (
                   <circle
-                    key={index}
+                    key={dimensionKey(item, dimensions)}
                     cx={
                       chartItems.length === 1 ? 300 : 10 + (index * 580) / (chartItems.length - 1)
                     }
@@ -682,7 +686,7 @@ function DashboardVisual({ result, measure }: { result: DashboardResult; measure
                   const share = total ? (item.measures[measure] ?? 0) / total : 0;
                   const circle = (
                     <circle
-                      key={index}
+                      key={dimensionKey(item, dimensions)}
                       cx="60"
                       cy="60"
                       r="48"
@@ -707,8 +711,8 @@ function DashboardVisual({ result, measure }: { result: DashboardResult; measure
                 })}
               </svg>
               <ul className="space-y-1 text-sm">
-                {items.map((item, index) => (
-                  <li key={index}>
+                {items.map((item) => (
+                  <li key={dimensionKey(item, dimensions)}>
                     {dimensionLabel(item, dimensions)}: {item.measures[measure] ?? 0}
                   </li>
                 ))}
@@ -721,9 +725,9 @@ function DashboardVisual({ result, measure }: { result: DashboardResult; measure
               role="img"
               aria-label={t("charts.heatmap")}
             >
-              {chartItems.map((item, index) => (
+              {chartItems.map((item) => (
                 <div
-                  key={index}
+                  key={dimensionKey(item, dimensions)}
                   className="relative min-h-20 overflow-hidden rounded-sm border border-border p-2 text-xs"
                 >
                   <div
@@ -760,8 +764,8 @@ function DashboardVisual({ result, measure }: { result: DashboardResult; measure
                 </Tr>
               </THead>
               <TBody>
-                {items.map((item, index) => (
-                  <Tr key={index}>
+                {items.map((item) => (
+                  <Tr key={dimensionKey(item, dimensions)}>
                     {dimensions.map((key) => (
                       <Td key={key} className="p-2">
                         {item.dimensions[key] ?? "—"}

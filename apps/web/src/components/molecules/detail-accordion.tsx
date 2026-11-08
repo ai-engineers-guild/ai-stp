@@ -54,14 +54,13 @@ export function DetailAccordion({
         ) : null}
       </div>
       {open ? (
-        <div
+        <section
           id={panelId}
-          role="region"
           aria-labelledby={buttonId}
           className="border-t border-border px-4 py-4 sm:px-5 sm:py-5"
         >
           {children}
-        </div>
+        </section>
       ) : null}
     </section>
   );

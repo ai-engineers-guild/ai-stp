@@ -74,7 +74,11 @@ export default function DebugPage() {
         )}
         action={
           <div className="flex gap-2">
-            <button onClick={() => void copyBundle()} className="btn-outline">
+            <button
+              type="button"
+              onClick={() => void copyBundle()}
+              className="btn-outline"
+            >
               <ClipboardCopy style={iconSize.sm} />
               {copied
                 ? msg("debug.copied")
@@ -82,7 +86,7 @@ export default function DebugPage() {
                   ? msg("debug.clipboardUnavailable")
                   : msg("debug.copyReport")}
             </button>
-            <button onClick={clear} className="btn-outline">
+            <button type="button" onClick={clear} className="btn-outline">
               <Trash2 style={iconSize.sm} />
               {msg("debug.clear")}
             </button>
@@ -120,7 +124,11 @@ export default function DebugPage() {
             placeholder={msg("debug.commandPathEGVersion")}
             className="input w-72 font-mono"
           />
-          <button onClick={() => void runProbe()} className="btn-primary">
+          <button
+            type="button"
+            onClick={() => void runProbe()}
+            className="btn-primary"
+          >
             <Play style={iconSize.sm} /> {msg("debug.run")}
           </button>
         </div>
@@ -152,6 +160,7 @@ export default function DebugPage() {
           {log.map((e) => (
             <li key={e.id}>
               <button
+                type="button"
                 onClick={() => setExpanded(expanded === e.id ? null : e.id)}
                 aria-expanded={expanded === e.id}
                 className="flex w-full items-center gap-3 px-4 py-1.5 text-start hover:bg-accent"

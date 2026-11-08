@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { required } from "./test-values";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   act,
@@ -156,7 +157,7 @@ function proposal(action: "anchor" | "relocate" = "anchor"): CmdResult {
 function receipt(
   action: "anchor" | "relocate" = "anchor",
 ): Record<string, unknown> {
-  const value = proposal(action).data!,
+  const value = required(proposal(action).data),
     plan = record(value.plan);
   return {
     ...value,
@@ -264,7 +265,7 @@ it("separates the immutable adoption from explicit anchor review and exact termi
   authorize();
   await screen.findByText("Checkout anchor receipt saved.");
   expect(transport.cmdCheckoutLocationApply).toHaveBeenCalledWith(
-    proposal().data!.plan,
+    required(proposal().data).plan,
     digest("b"),
     true,
     undefined,
@@ -301,7 +302,7 @@ it("retains the exact plan and trusted executable after an unconfirmed reply", a
     vi.mocked(transport.cmdCheckoutLocationApply).mock.calls[1],
   );
   expect(transport.cmdCheckoutLocationApply).toHaveBeenLastCalledWith(
-    proposal().data!.plan,
+    required(proposal().data).plan,
     digest("b"),
     true,
     "/trusted/git",
@@ -529,7 +530,7 @@ it.each([
   "locator",
 ])("refuses mismatched %s before rendering a private review", async (field) => {
   const response = structuredClone(proposal()),
-    plan = record(response.data!.plan),
+    plan = record(required(response.data).plan),
     binding = record(plan.binding),
     reader = record(plan.reader);
   if (field === "original") record(plan.original).operation_id = id(8);
@@ -597,7 +598,8 @@ it("refuses history from another binding, duplicate IDs, malformed paths and for
   expect(locationHistory(history([2, 2]), id(1))).toBe(null);
   expect(locationHistory(history([2], id(2)), id(1))).toBe(null);
   const malformed = history([2]);
-  record((malformed.data!.locations as unknown[])[0]).root = path("relative");
+  record((required(malformed.data).locations as unknown[])[0]).root =
+    path("relative");
   expect(locationHistory(malformed, id(1))).toBe(null);
 });
 
@@ -624,4 +626,24 @@ it("refuses receipt effects, changed plans and an outcome belonging to another o
   expect(locationReceipt({ ...receipt(), operation_id: id(9) }, original)).toBe(
     null,
   );
+});
+
+it("refuses malformed location state and schema values without object coercion", () => {
+  const malformed = JSON.parse(
+    '{"toString":"not callable","valueOf":"not callable"}',
+  ) as unknown;
+  const held = history([2]);
+  expect(locationHistory(held, id(1))).not.toBeNull();
+  record((required(held.data).locations as unknown[])[0]).action = malformed;
+  expect(locationHistory(held, id(1))).toBeNull();
+  expect(
+    locationReview(proposal(), "anchor", context, original),
+  ).not.toBeNull();
+  for (const field of ["schema", "state"]) {
+    const reply = structuredClone(proposal());
+    const plan = record(required(reply.data).plan);
+    if (field === "schema") plan.registry_schema_before = malformed;
+    else record(record(plan.remote).link).state = malformed;
+    expect(locationReview(reply, "anchor", context, original)).toBeNull();
+  }
 });

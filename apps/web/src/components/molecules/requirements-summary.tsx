@@ -175,6 +175,7 @@ function RequirementList({
         <ul className="mt-1.5 space-y-1 text-sm leading-5">
           {values.map((value, index) => (
             <li
+              // biome-ignore lint/suspicious/noArrayIndexKey: These stateless requirement rows preserve duplicate values from one immutable result.
               key={`${value}-${index}`}
               className={mono ? "font-mono text-xs break-all" : "break-words"}
             >

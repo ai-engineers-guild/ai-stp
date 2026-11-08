@@ -35,6 +35,6 @@ export default function ForegroundHeartbeat() {
       document.removeEventListener("visibilitychange", tick);
       window.removeEventListener("focus", tick);
     };
-  }, [context?.id, loading]);
+  }, [context, loading]);
   return null;
 }

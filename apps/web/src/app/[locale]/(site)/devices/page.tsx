@@ -39,7 +39,7 @@ export default async function DevicesPage({ params, searchParams }: PageProps) {
     redirect(`/api/auth/logout?${params.toString()}`);
   }
 
-  let devices;
+  let devices: Awaited<ReturnType<typeof listDevices>>;
   try {
     devices = await listDevices(token ?? "");
   } catch (error) {

@@ -14,6 +14,14 @@ import {
   taskActors,
 } from "./generated/contract-rules";
 
+/** Preserve scalar spelling without inventing an identity from an object. */
+export function scalarText(value: unknown, fallback = ""): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "boolean") return String(value);
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return fallback;
+}
+
 type Parameter = Pick<CommandParameter, "name"> &
   Partial<
     Pick<

@@ -241,14 +241,23 @@ export function TechnologyLandscapeDialog({ state }: { state: LandscapeState }) 
                     {project.name}
                   </Link>
                   {project.usage.facts.map((fact, index) => (
-                    <div key={index} className="text-sm">
+                    <div
+                      // biome-ignore lint/suspicious/noArrayIndexKey: These stateless evidence rows preserve duplicate observations from one immutable result.
+                      key={index}
+                      className="text-sm"
+                    >
                       <span>
                         {t(`values.${fact.context}`)} · {fact.version || "—"} ·{" "}
                         {t(`values.${fact.review}`)}
                       </span>
                       <ul className="text-xs text-muted-foreground">
                         {fact.evidence.map((e, i) => (
-                          <li key={i}>{e.path ?? e.reference ?? e.source}</li>
+                          <li
+                            // biome-ignore lint/suspicious/noArrayIndexKey: These stateless evidence rows preserve duplicate observations from one immutable result.
+                            key={i}
+                          >
+                            {e.path ?? e.reference ?? e.source}
+                          </li>
                         ))}
                       </ul>
                     </div>

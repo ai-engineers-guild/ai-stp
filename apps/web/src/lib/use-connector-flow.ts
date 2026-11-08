@@ -94,8 +94,8 @@ export function useConnectorFlow<
     );
   }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh reads the latest options through a ref; callers declare the re-fetch inputs.
-  useEffect(refresh, options.deps);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: This hook forwards the caller-owned re-fetch inputs; refresh reads current options through its ref.
+  useEffect(refresh, options.deps); // eslint-disable-line react-hooks/exhaustive-deps -- refresh reads the latest options through a ref; callers declare the re-fetch inputs.
   useEffect(() => () => stopPolling.current?.(), []);
 
   const source = status?.connections.find((item) => item.purpose === "source") as

@@ -103,7 +103,7 @@ export function TechnologyLandscapeFilters({
           <Icon name="filter" size="sm" />
           {activeCount ? `${t("filters")} (${activeCount})` : t("filters")}
         </Button>
-        <div className="technology-view-switch" aria-label={t("view")}>
+        <fieldset className="technology-view-switch min-w-0" aria-label={t("view")}>
           <Button asChild variant="ghost" className={view === "grouped" ? "technology-active" : ""}>
             <Link
               href={viewHref(filters, "grouped")}
@@ -122,7 +122,7 @@ export function TechnologyLandscapeFilters({
               {w("table")}
             </Link>
           </Button>
-        </div>
+        </fieldset>
         {launch}
       </div>
       {filtersOpen ? (

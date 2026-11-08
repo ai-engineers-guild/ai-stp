@@ -10,7 +10,7 @@ import { Label } from "@/components/atoms/label";
 import { MemberImportFields } from "@/components/molecules/member-import-fields";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
 import { Select } from "@/components/atoms/select";
-import { type MemberImportRow, type ImportedMember } from "@/lib/member-import";
+import type { MemberImportRow, ImportedMember } from "@/lib/member-import";
 import { CopyValue } from "@/components/molecules/copy-value";
 import { downloadInvitationLinks, type InvitationLinkRow } from "@/lib/member-export";
 import type { CorporateInvitation } from "@/lib/api/generated/types.gen";
@@ -310,8 +310,10 @@ function InviteAccessFields({
           </p>
         ) : null}
       </div>
-      <fieldset disabled={busy} className="space-y-1.5">
-        <Label>{t("teamsOptional")}</Label>
+      <fieldset disabled={busy} className="min-w-0 space-y-1.5">
+        <legend className="text-sm leading-none font-medium text-foreground">
+          {t("teamsOptional")}
+        </legend>
         <SearchableMultiSelect
           inline
           name="team_ids"

@@ -21,7 +21,7 @@ export default async function PublicationPlanPage({ params }: PageProps) {
   const token = await sessionCookieValue();
   const csrf = await readCsrfToken();
 
-  let plan;
+  let plan: Awaited<ReturnType<typeof readPublicationPlan>>;
   try {
     plan = await readPublicationPlan(token ?? "", planId);
   } catch (error) {

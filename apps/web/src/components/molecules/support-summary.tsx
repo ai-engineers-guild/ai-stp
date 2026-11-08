@@ -56,7 +56,7 @@ export function SupportSummary({ support, labels, embedded = false }: SupportSum
   if (embedded) return evidence;
 
   return (
-    <div className="space-y-3" aria-labelledby="support-heading">
+    <section className="space-y-3" aria-labelledby="support-heading">
       <h2 id="support-heading" className="text-xl font-medium tracking-tight">
         {labels.evidence}
       </h2>
@@ -77,6 +77,6 @@ export function SupportSummary({ support, labels, embedded = false }: SupportSum
         </div>
       </dl>
       {evidence}
-    </div>
+    </section>
   );
 }

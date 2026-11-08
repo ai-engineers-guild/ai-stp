@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { required } from "./test-values";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   act,
@@ -196,11 +197,11 @@ it("requires the reviewed original context, origin, policy and bounded disclosur
   ).toBeNull();
   expect(consentReview(preview(), A, `sha256:${"b".repeat(64)}`)).toBeNull();
   const rounded = preview();
-  (rounded.data!.plan as Record<string, unknown>).expires_at =
+  (required(rounded.data).plan as Record<string, unknown>).expires_at =
     "2030-01-01T00:10:00.000Z";
   expect(consentReview(rounded, A, digest)).toBeNull();
   const response = preview();
-  response.data!.disclosure = { coverage: "all-harnesses" };
+  required(response.data).disclosure = { coverage: "all-harnesses" };
   expect(consentReview(response, A, digest)).toBeNull();
 });
 
@@ -217,8 +218,8 @@ it("reviews without sending and applies only a frozen, explicitly confirmed plan
     name: "Enable reviewed heartbeat reporting",
   });
   expect(button.hasAttribute("disabled")).toBe(true);
-  const original = structuredClone(response.data!.plan);
-  (response.data!.plan as Record<string, unknown>).policy_version = 99;
+  const original = structuredClone(required(response.data).plan);
+  (required(response.data).plan as Record<string, unknown>).policy_version = 99;
   fireEvent.click(screen.getByRole("checkbox"));
   fireEvent.click(button);
   await waitFor(() =>

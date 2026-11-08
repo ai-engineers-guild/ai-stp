@@ -58,6 +58,7 @@ export function CatalogSearchForm({
   }
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: This search landmark must also remain a native GET form for submission and FormData.
     <form
       id={id}
       className={cn("min-w-0", className)}

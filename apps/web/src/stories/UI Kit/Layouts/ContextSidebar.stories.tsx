@@ -46,6 +46,7 @@ function SidebarStoryFrame({ children }: { children: React.ReactNode }) {
         >
           <Icon name={collapsed ? "chevronRight" : "chevronLeft"} size="md" />
         </Button>
+        {/* biome-ignore lint/performance/noImgElement: This local mark is already sized for its display and needs no image transformation. */}
         <img src="/brand/logo-mark-64.png" alt="" width={28} height={28} />
         <span className="text-sm font-medium">ai_stp</span>
       </header>

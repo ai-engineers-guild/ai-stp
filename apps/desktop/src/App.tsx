@@ -109,6 +109,7 @@ function Shell() {
     void refreshCli();
     void refreshAuth();
   }, [refreshCli, refreshAuth]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies(location.pathname): Each route change starts the main scroll container at its beginning.
   useEffect(() => {
     document.getElementById("main-content")?.scrollTo(0, 0);
   }, [location.pathname]);
@@ -144,6 +145,7 @@ function Shell() {
   return (
     <div className="app-shell">
       <ForegroundHeartbeat />
+      {/* biome-ignore lint/a11y/useValidAnchor: This fragment skip link also moves keyboard focus to the main landmark. */}
       <a
         href="#main-content"
         className="skip-link"
@@ -212,6 +214,7 @@ function Shell() {
               <ArrowUpRight style={iconSize.sm} />
             </NavLink>
             <button
+              type="button"
               className="icon-button"
               disabled={preferencePending}
               onClick={toggleTheme}

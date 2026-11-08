@@ -223,14 +223,14 @@ export function CatalogFilterPanel({
           }
         />
         {hideAuthorFilter ? null : (
-          <label className="min-w-0 space-y-2 text-sm">
-            <span className="flex min-w-0 items-center gap-1 font-medium">
+          <fieldset className="min-w-0 space-y-2 text-sm">
+            <legend className="flex min-w-0 items-center gap-1 font-medium">
               {labels.authorFilter}
               <Help
                 label={labels.filterHelpLabel}
                 text={labels.authorFilterHelp ?? labels.filterHelpBody}
               />
-            </span>
+            </legend>
             <SearchableMultiSelect
               name="authors"
               label={labels.authorFilter}
@@ -242,7 +242,7 @@ export function CatalogFilterPanel({
               selectionSuffix={labels.authorSelectionSuffix}
               emptyHint={labels.authorSelectionHint}
             />
-          </label>
+          </fieldset>
         )}
         <UpdatedRangeFields
           labels={labels}

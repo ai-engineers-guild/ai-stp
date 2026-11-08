@@ -1,3 +1,4 @@
+import { required } from "@/mocks/fixtures/required";
 import { NextIntlClientProvider } from "next-intl";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -29,8 +30,9 @@ const fixtureCase = (
 if (!fixtureCase) throw new Error("Missing fixture");
 const base = `/v1/corporate/organizations/${fixtureCase.body.organization.organization_id}`;
 const context = corporateHandlers("GET", `${base}/context`, true, null)?.body as CorporateContext;
-const roles = (corporateHandlers("GET", `${base}/roles`, true, null)?.body as CorporateRoleList)
-  .items;
+const roles = (
+  required(corporateHandlers("GET", `${base}/roles`, true, null)).body as CorporateRoleList
+).items;
 
 it("recovers immediately from denial, explains unavailable roles and reuses the retry key", async () => {
   const user = userEvent.setup();

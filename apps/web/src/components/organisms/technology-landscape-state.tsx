@@ -18,11 +18,13 @@ export function versions(row: TechnologyLandscapeRow) {
           p.usage.facts
             .filter((f) => f.review !== "rejected" && f.freshness !== "absent")
             .map((f) => f.version)
-            .filter(Boolean),
+            .filter(
+              (version): version is string => typeof version === "string" && version.length > 0,
+            ),
         ),
       ),
     ]
-      .sort()
+      .sort((left, right) => (left < right ? -1 : left > right ? 1 : 0))
       .join(", ") || "—"
   );
 }

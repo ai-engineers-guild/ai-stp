@@ -1,6 +1,6 @@
 import { iconSize } from "../generated/theme";
 import { useText } from "../i18n";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import { Search, Play } from "lucide-react";
 import {
@@ -15,11 +15,13 @@ import { Json, ResultMeta, Spinner } from "../components/Result";
 import { EmptyState, PageHeader, StatusBadge } from "../components/Layout";
 import { useApp } from "../store";
 
+const NO_PREFIXES: string[] = [];
+
 /** Descriptor-driven advanced operations; the native process validates every rule. */
 export default function RegistryPage({
   title,
   description,
-  prefixes = [],
+  prefixes = NO_PREFIXES,
 }: {
   title?: string;
   description?: string;
@@ -44,33 +46,33 @@ export default function RegistryPage({
       current = false;
     };
   }, []);
-  const commands = ((help?.data?.commands ?? []) as Descriptor[]).filter(
-    (command) => {
-      const path = command.path.join(" ");
-      return (
-        !prefixes.length ||
-        prefixes.some(
-          (prefix) => path === prefix || path.startsWith(`${prefix} `),
-        )
-      );
-    },
+  const commands = useMemo(
+    () =>
+      ((help?.data?.commands ?? []) as Descriptor[]).filter((command) => {
+        const path = command.path.join(" ");
+        return (
+          !prefixes.length ||
+          prefixes.some(
+            (prefix) => path === prefix || path.startsWith(`${prefix} `),
+          )
+        );
+      }),
+    [help, prefixes],
   );
-  useEffect(() => {
-    const requested = params.get("command");
-    if (requested && help?.ok) {
-      const command = commands.find(
-        (command) => command.path.join(" ") === requested,
-      );
-      if (command) select(command);
-    }
-  }, [params, help]);
-  function select(command: Descriptor) {
+  const select = useCallback((command: Descriptor) => {
     setSelected(command);
     setValues({});
     setFlags([]);
     setConfirmed(false);
     setResult(null);
-  }
+  }, []);
+  const requested = params.get("command");
+  const requestedCommand = help?.ok
+    ? commands.find((command) => command.path.join(" ") === requested)
+    : undefined;
+  useEffect(() => {
+    if (requestedCommand) select(requestedCommand);
+  }, [requestedCommand, select]);
   const shown = commands.filter((command) =>
     `${command.path.join(" ")} ${command.summary}`
       .toLowerCase()
@@ -150,6 +152,7 @@ export default function RegistryPage({
             {shown.map((command) => (
               <li key={command.path.join(" ")}>
                 <button
+                  type="button"
                   aria-pressed={selected === command}
                   className={`w-full p-4 text-start hover:bg-accent ${selected === command ? "bg-primary/5" : ""}`}
                   disabled={busy}
@@ -202,7 +205,11 @@ export default function RegistryPage({
               </div>
               <fieldset disabled={busy} className="space-y-4">
                 {selected.parameters.map((parameter) => (
-                  <label className="field-label" key={parameter.name}>
+                  <label
+                    className="field-label"
+                    key={parameter.name}
+                    htmlFor={`command-parameter-${parameter.name}`}
+                  >
                     <span>
                       {parameter.name}
                       {parameter.required ? (
@@ -215,6 +222,7 @@ export default function RegistryPage({
                     </span>
                     {parameter.value_type === "boolean" ? (
                       <input
+                        id={`command-parameter-${parameter.name}`}
                         className="ms-2"
                         type="checkbox"
                         checked={flags.includes(parameter.name)}
@@ -231,6 +239,7 @@ export default function RegistryPage({
                       />
                     ) : parameter.choices?.length && !parameter.repeatable ? (
                       <select
+                        id={`command-parameter-${parameter.name}`}
                         className="input"
                         required={parameter.required}
                         value={values[parameter.name] ?? ""}
@@ -253,6 +262,7 @@ export default function RegistryPage({
                       </select>
                     ) : (
                       <textarea
+                        id={`command-parameter-${parameter.name}`}
                         className="input font-mono font-normal"
                         required={parameter.required}
                         rows={parameter.repeatable ? 3 : 1}

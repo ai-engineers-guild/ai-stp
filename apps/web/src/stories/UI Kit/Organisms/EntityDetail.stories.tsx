@@ -17,7 +17,11 @@ function EntityDetailExample() {
         }
         title="TypeScript"
         meta={<span className="text-sm text-muted-foreground">Technology · Adopt</span>}
-        menu={<button aria-label="More actions">•••</button>}
+        menu={
+          <button type="button" aria-label="More actions">
+            •••
+          </button>
+        }
       />
       <ObjectDetailFrame
         description={
@@ -26,7 +30,7 @@ function EntityDetailExample() {
             <p className="text-muted-foreground">Shared Markdown and media composition.</p>
           </section>
         }
-        media={<div className="aspect-video rounded-lg bg-muted" aria-label="Media" />}
+        media={<div role="img" className="aspect-video rounded-lg bg-muted" aria-label="Media" />}
         main={
           <DetailAccordion title="Projects" summary="2" defaultOpen>
             <p>Web platform, Developer experience</p>

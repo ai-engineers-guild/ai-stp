@@ -190,9 +190,8 @@ export function SearchableMultiSelect({
               placeholder={searchLabel}
               className="h-11 w-full rounded-sm border border-input bg-background px-3 text-base focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:text-sm"
             />
-            <div
-              className="max-h-[min(24rem,50vh)] space-y-1 overflow-y-auto"
-              role="group"
+            <fieldset
+              className="max-h-[min(24rem,50vh)] min-w-0 space-y-1 overflow-y-auto"
               aria-label={label}
             >
               {filtered.map((option) => {
@@ -226,7 +225,7 @@ export function SearchableMultiSelect({
                   </label>
                 );
               })}
-            </div>
+            </fieldset>
             {createLabel && onCreate && (
               <button
                 type="button"
@@ -261,7 +260,6 @@ export function SearchableMultiSelect({
       className="relative w-full min-w-0 rounded-sm border border-border bg-background sm:w-auto sm:min-w-36"
     >
       <summary
-        aria-expanded={open}
         aria-label={multiple ? undefined : `${label}: ${triggerText}`}
         className="flex min-h-11 min-w-0 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm whitespace-nowrap marker:content-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden"
       >
@@ -289,7 +287,7 @@ export function SearchableMultiSelect({
           .map((value) => (
             <input key={`hidden:${value}`} type="hidden" form={form} name={name} value={value} />
           ))}
-        <div className="max-h-56 space-y-1 overflow-y-auto" role="group" aria-label={label}>
+        <fieldset className="max-h-56 min-w-0 space-y-1 overflow-y-auto" aria-label={label}>
           {filtered.map((option) => {
             const value = optionValue(option);
             const text = optionLabel(option);
@@ -320,7 +318,7 @@ export function SearchableMultiSelect({
               </label>
             );
           })}
-        </div>
+        </fieldset>
       </div>
     </details>
   );

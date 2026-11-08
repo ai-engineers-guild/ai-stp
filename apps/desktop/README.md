@@ -115,7 +115,7 @@ Tauri needs the native webview development packages. From `apps/desktop`,
 `bun run tauri dev` starts the app; frontend-only `bun run dev` has no native IPC.
 
 ```sh
-just desktop-source       # Types, formatting and message syntax; no compilation
+just desktop-source       # Types, lint, formatting and message syntax; no compilation
 just desktop-gen          # Project version, messages, theme and fonts; format Rust
 just desktop-native-gen   # Compile and project changed IPC types on an execution host
 just desktop-ui-test      # Frontend tests without native SDK compilation
@@ -124,6 +124,10 @@ just desktop-ui-build     # Frontend assets without native SDK compilation
 just desktop-check        # Frontend, Rust crates and actual optimized sidecar
 just desktop-bundle-test  # Verify an existing packaged CLI resource tree
 ```
+
+Source checks use Biome for formatting and lint, Oxlint for type-aware rules,
+Knip for reachability and the native TypeScript compiler for strict types.
+Generated contracts and catalogs retain their producer-owned serialization.
 
 Hosted Linux acceptance also runs `just desktop-performance` inside a disposable
 vault fixture. It alternates the checksum-pinned baseline and current installed

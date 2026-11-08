@@ -42,8 +42,9 @@ export function CorporatePermissionTable({
     .filter(([, items]) => items.length > 0);
   function mark(definition: CorporatePermissionDefinition, label = false) {
     const granted = permissions.includes(definition.name);
+    const Mark = editable ? "label" : "div";
     return (
-      <label
+      <Mark
         key={definition.name}
         className="flex min-h-9 items-center gap-2 text-xs"
         title={`${definition.name} — ${definition.scopes.join(", ")}`}
@@ -67,7 +68,7 @@ export function CorporatePermissionTable({
           </span>
         )}
         {label ? <span>{permissionLabel(definition, t)}</span> : null}
-      </label>
+      </Mark>
     );
   }
   return (

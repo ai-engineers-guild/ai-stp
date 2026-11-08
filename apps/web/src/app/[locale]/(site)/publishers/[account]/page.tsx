@@ -78,7 +78,7 @@ export default async function PublisherPage({ params, searchParams }: PageProps)
     }
   })();
 
-  let profile;
+  let profile: Awaited<ReturnType<typeof readPublisherProfile>>;
   try {
     profile = await readPublisherProfile(accountId);
   } catch {
@@ -181,6 +181,7 @@ export default async function PublisherPage({ params, searchParams }: PageProps)
                 {profile.bio ? (
                   <div
                     className="prose prose-sm max-w-prose text-sm leading-relaxed text-muted-foreground [&_a]:underline [&_code]:font-mono [&_pre]:overflow-x-auto [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto"
+                    // biome-ignore lint/security/noDangerouslySetInnerHtml: Only output from the shared escaping Markdown renderer reaches this HTML boundary.
                     dangerouslySetInnerHTML={{ __html: renderMarkdownOnServer(profile.bio).html }}
                   />
                 ) : null}

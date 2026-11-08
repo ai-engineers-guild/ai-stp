@@ -1,3 +1,4 @@
+import { required } from "@/mocks/fixtures/required";
 import { entityMenuResult } from "../entity-menu-fixture";
 import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -78,7 +79,7 @@ describe("corporate resource actions", () => {
       expect(corporateMutation).toHaveBeenCalledTimes(2);
     });
     expect(vi.mocked(corporateMutation).mock.calls[1]?.[0].body).toEqual(
-      vi.mocked(corporateMutation).mock.calls[0]?.[0].body,
+      required(vi.mocked(corporateMutation).mock.calls[0])[0].body,
     );
     await screen.findByRole("button", { name: messages.corporate.update });
     await user.clear(screen.getByLabelText(messages.corporate.permissions));
@@ -89,7 +90,7 @@ describe("corporate resource actions", () => {
     });
     expect(vi.mocked(corporateMutation).mock.calls[2]?.[0].body).not.toMatchObject({
       idempotency_key: (
-        vi.mocked(corporateMutation).mock.calls[0]?.[0].body as { idempotency_key: string }
+        required(vi.mocked(corporateMutation).mock.calls[0])[0].body as { idempotency_key: string }
       ).idempotency_key,
     });
   });
@@ -111,7 +112,7 @@ describe("corporate resource actions", () => {
     await user.click(retry);
     await screen.findByText("Conflict");
     expect(vi.mocked(corporateMutation).mock.calls[1]?.[0].body).toEqual(
-      vi.mocked(corporateMutation).mock.calls[0]?.[0].body,
+      required(vi.mocked(corporateMutation).mock.calls[0])[0].body,
     );
   });
 });

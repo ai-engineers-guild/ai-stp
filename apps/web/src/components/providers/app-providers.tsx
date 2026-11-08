@@ -41,6 +41,8 @@ export function AppProviders({ children }: AppProvidersProps) {
     };
   }, []);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies(pathname): The navigation event commits the current route to browser storage.
+  // biome-ignore lint/correctness/useExhaustiveDependencies(search): The navigation event commits the current route to browser storage.
   useEffect(() => {
     const storage = getNavigationStorage();
     if (!storage) return;

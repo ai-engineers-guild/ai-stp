@@ -116,6 +116,7 @@ export function SiteHeader({
             prefetch={!corporate && isShellPrefetchHref("/")}
           >
             {/* Loop mark: abstract 5-node ring (club of five / human in the loop) */}
+            {/* biome-ignore lint/performance/noImgElement: This local mark is already sized for its display and needs no image transformation. */}
             <img
               src="/brand/logo-mark-64.png"
               alt=""

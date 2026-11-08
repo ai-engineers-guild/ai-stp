@@ -1,3 +1,4 @@
+import { required } from "@/mocks/fixtures/required";
 import { entityMenuResult, publicActions } from "../entity-menu-fixture";
 import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -118,12 +119,12 @@ it("creates a category through POST", async () => {
   const call = mutation.mock.calls[0]?.[0];
   expect(call?.method).toBe("POST");
   expect(call?.path).toBe(`/v1/corporate/organizations/${org}/technology-categories`);
-  expect(call?.body).toMatchObject({
+  expect(required(call).body).toMatchObject({
     state: "active",
     metadata: { name: "Observability" },
     authorization_revision: 7,
   });
-  const metadata = (call?.body as { metadata?: { icon?: string } }).metadata;
+  const metadata = (required(call).body as { metadata?: { icon?: string } }).metadata;
   expect(metadata?.icon).toMatch(/^lucide:/);
 });
 
@@ -143,7 +144,7 @@ it("updates a category with optimistic concurrency", async () => {
   const call = mutation.mock.calls[0]?.[0];
   expect(call?.method).toBe("PUT");
   expect(call?.path).toBe(`/v1/corporate/organizations/${org}/technology-categories/cat_db`);
-  expect(call?.body).toMatchObject({
+  expect(required(call).body).toMatchObject({
     metadata: { name: "Data stores" },
     expected_revision: 1,
   });
@@ -163,7 +164,7 @@ it("archives a category through the lifecycle endpoint", async () => {
   expect(call?.path).toBe(
     `/v1/corporate/organizations/${org}/technology-categories/cat_db/lifecycle`,
   );
-  expect(call?.body).toMatchObject({ target: "archived", expected_revision: 1 });
+  expect(required(call).body).toMatchObject({ target: "archived", expected_revision: 1 });
 });
 
 it("links technologies to a category by merging category_ids", async () => {
@@ -181,7 +182,7 @@ it("links technologies to a category by merging category_ids", async () => {
   const call = mutation.mock.calls[0]?.[0];
   expect(call?.method).toBe("PUT");
   expect(call?.path).toBe(`/v1/corporate/organizations/${org}/technologies/tech_ts`);
-  expect(call?.body).toMatchObject({
+  expect(required(call).body).toMatchObject({
     metadata: { name: "TypeScript", category_ids: ["cat_lang", "cat_db"] },
     expected_revision: 2,
   });
@@ -198,3 +199,14 @@ vi.mock("@/lib/entity-action-query", () => ({
     ),
   ),
 }));
+
+it("opens row details with the keyboard and restores focus on dismissal", async () => {
+  const user = userEvent.setup();
+  renderPanel();
+  const open = screen.getByRole("button", { name: "Programming languages" });
+  open.focus();
+  await user.keyboard("{Enter}");
+  expect(screen.getByRole("dialog", { name: "Programming languages" })).toBeVisible();
+  await user.keyboard("{Escape}");
+  await waitFor(() => expect(open).toHaveFocus());
+});

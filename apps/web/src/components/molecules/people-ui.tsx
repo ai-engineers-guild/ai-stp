@@ -102,12 +102,11 @@ export function PeopleTable({
   children: ReactNode;
 }) {
   return (
-    <div
-      role="region"
+    <section
       aria-label={label}
       // Keyboard access is required for scrolling the table on narrow viewports.
-      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-      tabIndex={0}
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: The named table scroll region must remain reachable by keyboard.
+      tabIndex={0} // eslint-disable-line jsx-a11y/no-noninteractive-tabindex
       className={`min-w-0 overflow-x-auto focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
         framed ? "rounded-lg border border-border" : ""
       }`}
@@ -115,7 +114,7 @@ export function PeopleTable({
       <table aria-label={label} className={`w-full border-collapse ${minWidth ?? ""}`}>
         {children}
       </table>
-    </div>
+    </section>
   );
 }
 
@@ -313,7 +312,12 @@ export function PeoplePager({
         </Button>
         {visible.map((value, index) =>
           value === "gap" ? (
-            <span key={`gap-${index}`} aria-hidden className="px-1 text-muted-foreground">
+            <span
+              // biome-ignore lint/suspicious/noArrayIndexKey: Decorative gap positions distinguish the two possible pagination ellipses.
+              key={`gap-${index}`}
+              aria-hidden
+              className="px-1 text-muted-foreground"
+            >
               &hellip;
             </span>
           ) : (

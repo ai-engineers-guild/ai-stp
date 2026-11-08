@@ -50,7 +50,7 @@ export default async function OwnerObjectsPage({ params, searchParams }: PagePro
   }
   const query = parsed.value;
 
-  let ownerObjects;
+  let ownerObjects: Awaited<ReturnType<typeof listOwnerObjects>>;
   try {
     ownerObjects = await listOwnerObjects(token, { page_size: 100 });
   } catch (error) {

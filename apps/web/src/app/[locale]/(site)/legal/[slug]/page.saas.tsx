@@ -108,7 +108,10 @@ export default async function LegalPolicyPage({ params, searchParams }: PageProp
           className="prose prose-neutral dark:prose-invert max-w-none"
           aria-label={t("contents")}
         >
-          <div dangerouslySetInnerHTML={{ __html: policy.html }} />
+          <div
+            // biome-ignore lint/security/noDangerouslySetInnerHtml: Immutable legal HTML is produced by the API's strict safe-Markdown renderer.
+            dangerouslySetInnerHTML={{ __html: policy.html }}
+          />
         </section>
       </div>
     </article>

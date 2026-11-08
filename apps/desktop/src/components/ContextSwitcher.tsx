@@ -13,6 +13,7 @@ export default function ContextSwitcher() {
     useContexts();
   const location = useLocation();
   const [error, setError] = useState<CmdResult | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies(location.pathname): Navigation refreshes the selected native context.
   useEffect(() => {
     void refresh();
   }, [refresh, location.pathname]);

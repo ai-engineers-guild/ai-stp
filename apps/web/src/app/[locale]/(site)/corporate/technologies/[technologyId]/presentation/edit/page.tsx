@@ -24,7 +24,7 @@ export default async function TechnologyPresentationEditPage({
   const session = (await sessionCookieValue()) ?? "";
   const corporate = await getTranslations("corporate");
   const technology = await getTranslations("technology");
-  let workspace;
+  let workspace: Awaited<ReturnType<typeof readCorporateContext>>;
   try {
     workspace = await readCorporateContext(session);
   } catch (error) {
@@ -45,8 +45,8 @@ export default async function TechnologyPresentationEditPage({
         description={corporate("noOrganization")}
       />
     );
-  let presentation;
-  let detail;
+  let presentation: Awaited<ReturnType<typeof readCorporatePresentation>>;
+  let detail: Awaited<ReturnType<typeof readTechnologyDetail>>;
   try {
     presentation = await readCorporatePresentation(
       session,

@@ -60,6 +60,7 @@ export function CookieConsent({ labels, privacyHref }: { labels: Labels; privacy
   }, []);
 
   function persist(value: Consent) {
+    // biome-ignore lint/suspicious/noDocumentCookie: Consent persistence and vendor-cookie removal must remain synchronous before optional analytics runs; see #1404.
     document.cookie = `${CONSENT_COOKIE}=${serializeConsent(value)}; Path=/; Max-Age=15552000; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
     setEdited(null);
     setDismissed(value);

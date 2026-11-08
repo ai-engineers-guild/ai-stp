@@ -19,7 +19,7 @@ export default async function StaffReportsPage({ params }: PageProps) {
   const tc = await getTranslations("common");
   const token = await sessionCookieValue();
 
-  let list;
+  let list: Awaited<ReturnType<typeof listStaffReports>>;
   try {
     list = await listStaffReports(token ?? "");
   } catch (error) {

@@ -58,6 +58,7 @@ export function CountryFlag({
   if (asset) {
     return (
       <span className={frame} data-flag={code}>
+        {/* biome-ignore lint/performance/noImgElement: This fixed-size local SVG needs no raster image transformation. */}
         <img
           src={asset}
           alt=""

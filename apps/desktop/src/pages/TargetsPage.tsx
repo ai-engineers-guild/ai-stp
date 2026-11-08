@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useContexts, record, records } from "../contexts";
 import { useApp } from "../store";
@@ -23,6 +23,7 @@ import { EmptyState, PageHeader, StatusBadge } from "../components/Layout";
 import NativeInventory from "../components/NativeInventory";
 import FolderField from "../components/FolderField";
 import { useText } from "../i18n";
+import { scalarText } from "../contracts";
 
 export default function TargetsPage() {
   const t = useText();
@@ -56,15 +57,18 @@ export default function TargetsPage() {
     alive = useRef(true);
   const operationRef = useRef(operation);
   operationRef.current = operation;
+  const operationId = operation?.operation;
+  const operationPhase = operation?.phase;
   useEffect(() => {
-    if (!operation) return;
+    if (!operationId || !operationPhase) return;
     const panel = document.getElementById("native-operation");
     panel?.scrollIntoView?.({ block: "start" });
     panel?.focus({ preventScroll: true });
-  }, [operation?.operation, operation?.phase]);
-  async function refresh() {
+  }, [operationId, operationPhase]);
+  const selectedId = selected?.id;
+  const refresh = useCallback(async () => {
     const current = ++epoch.current,
-      context = selected?.id;
+      context = selectedId;
     const [owned, pending] = await Promise.all([
       context
         ? cmdRunRead("configuration native effective", { context })
@@ -82,7 +86,7 @@ export default function TargetsPage() {
     ) {
       setOperation({ ...recovered, plan: operationRef.current?.plan ?? null });
     }
-  }
+  }, [selectedId]);
   useEffect(() => {
     alive.current = true;
     void refreshContexts();
@@ -90,10 +94,10 @@ export default function TargetsPage() {
       alive.current = false;
       epoch.current++;
     };
-  }, []);
+  }, [refreshContexts]);
   useEffect(() => {
     if (native.available === true) void refresh();
-  }, [selected?.id, native.available]);
+  }, [refresh, native.available]);
   const active =
     operation &&
     ["prepared", "applying", "finishing"].includes(operation.phase);
@@ -181,10 +185,10 @@ export default function TargetsPage() {
                 : held.restartRequired,
           phase:
             action === "apply"
-              ? String(response.data?.state ?? "configured")
+              ? scalarText(response.data?.state ?? "configured")
               : action === "cancel"
                 ? "cancelled"
-                : String(response.data?.state ?? held.phase),
+                : scalarText(response.data?.state ?? held.phase),
         });
       if (response.ok && action === "apply") setCustodyView(null);
       await refresh();
@@ -197,8 +201,8 @@ export default function TargetsPage() {
     setBusy(true);
     try {
       const response = await cmdRunRead("configuration native status", {
-        operation: String(item.operation_id ?? ""),
-        "plan-digest": String(item.plan_digest ?? ""),
+        operation: scalarText(item.operation_id ?? ""),
+        "plan-digest": scalarText(item.plan_digest ?? ""),
       });
       if (alive.current) {
         setResult(response);
@@ -214,8 +218,8 @@ export default function TargetsPage() {
   ) {
     if (!editable) return;
     const values = {
-      operation: String(item.operation_id ?? ""),
-      "plan-digest": String(item.plan_digest ?? ""),
+      operation: scalarText(item.operation_id ?? ""),
+      "plan-digest": scalarText(item.plan_digest ?? ""),
     };
     setBusy(true);
     setConfirmed(false);
@@ -244,7 +248,10 @@ export default function TargetsPage() {
   }
   const contextChanged = operation && selected?.id !== operation.context;
   const confirmCommand = operation
-    ? confirmationCommand(operation, String(capabilities?.data?.os ?? "linux"))
+    ? confirmationCommand(
+        operation,
+        scalarText(capabilities?.data?.os ?? "linux"),
+      )
     : null;
   const publications = records(operation?.plan?.publications);
   const isGuard = (item: Record<string, unknown>) =>
@@ -470,6 +477,7 @@ export default function TargetsPage() {
                 <p className="field-help">{t("setup.folderRequired")}</p>
               )}
               <button
+                type="button"
                 className="btn-primary"
                 disabled={!editable || !selected || !hasSetup || !hasFolders}
                 onClick={() => void review()}
@@ -539,19 +547,19 @@ export default function TargetsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {files.map((item, index) => {
+                          {files.map((item) => {
                             const root = record(item.root),
                               path = root.path;
                             const folder =
                               typeof path === "string"
                                 ? path
-                                : String(
+                                : scalarText(
                                     record(path).display ?? "Original folder",
                                   );
                             return (
                               <tr
                                 className="border-b border-border"
-                                key={index}
+                                key={JSON.stringify([item.root, item.path])}
                               >
                                 <td className="py-2 pe-3 break-all">
                                   {folder}
@@ -616,6 +624,7 @@ export default function TargetsPage() {
                     )}
                   </label>
                   <button
+                    type="button"
                     className="btn-primary mt-3"
                     disabled={!confirmed || busy}
                     onClick={() => void prepare()}
@@ -629,6 +638,7 @@ export default function TargetsPage() {
               ) && (
                 <div className="mt-4 flex flex-wrap gap-3">
                   <button
+                    type="button"
                     className="btn-primary"
                     disabled={busy}
                     onClick={() => void run("apply")}
@@ -639,6 +649,7 @@ export default function TargetsPage() {
                   </button>
                   {operation.phase === "prepared" && (
                     <button
+                      type="button"
                       className="btn-secondary"
                       disabled={busy}
                       onClick={() => void run("cancel")}
@@ -676,6 +687,7 @@ export default function TargetsPage() {
               )}
               {operation.phase !== "review" && (
                 <button
+                  type="button"
                   className="btn-secondary mt-4"
                   disabled={busy}
                   onClick={() => void run("status")}
@@ -694,6 +706,7 @@ export default function TargetsPage() {
                 {t("targets.currentContext")}
               </h2>
               <button
+                type="button"
                 className="btn-secondary"
                 disabled={busy}
                 onClick={() => void refresh()}
@@ -742,6 +755,7 @@ export default function TargetsPage() {
                   </div>
                   <StatusBadge state={String(item.ownership_state)} />
                   <button
+                    type="button"
                     className="btn-secondary"
                     disabled={busy}
                     onClick={() => void inspect(item)}
@@ -749,6 +763,7 @@ export default function TargetsPage() {
                     {t("targets.inspectOriginalOperation")}
                   </button>
                   <button
+                    type="button"
                     className="btn-secondary"
                     disabled={!editable}
                     onClick={() => void reviewExisting(item, "remove")}
@@ -773,6 +788,7 @@ export default function TargetsPage() {
               )}
             </p>
             <button
+              type="button"
               className="btn-secondary mt-3"
               disabled={busy}
               onClick={() => void inspectCustody()}
@@ -793,6 +809,7 @@ export default function TargetsPage() {
                     {String(item.harness_id)}
                   </p>
                   <button
+                    type="button"
                     className="btn-secondary mt-3"
                     disabled={!editable}
                     onClick={() => void reviewExisting(item, "retire")}

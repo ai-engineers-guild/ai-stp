@@ -7,7 +7,7 @@
     "dev": "next dev --port 3000",
     "build": "next build && node scripts/standalone-assets.mjs",
     "start": "next start",
-    "lint": "eslint . --max-warnings 0",
+    "lint": "bun run lint:biome && bun run lint:types && eslint . --max-warnings 0",
     "i18n:check": "vitest run tests/unit/i18n-parity.test.ts",
     "type-check": "node ./node_modules/typescript7/lib/tsc.js --noEmit -p tsconfig.json",
     "format": "biome format --write .",
@@ -27,7 +27,7 @@
     "build-storybook": "storybook build -o storybook-static --disable-telemetry",
     "check": "bun run lint && bun run type-check && bun run test && bun run build && bun run test:e2e",
     "lint:dependencies": "knip --dependencies --files",
-    "lint:biome": "biome lint --error-on-warnings .",
+    "lint:biome": "biome lint --error-on-warnings --diagnostic-level=warn .",
     "lint:types": "oxlint --type-aware --deny-warnings src tests scripts"
   },
   "dependencies": {

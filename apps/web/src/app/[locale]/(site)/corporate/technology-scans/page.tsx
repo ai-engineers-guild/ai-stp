@@ -24,8 +24,8 @@ export default async function TechnologyScansPage({
     t = await getTranslations("technology"),
     s = await getTranslations("technology.scans"),
     w = await getTranslations("technology.workspace");
-  let context;
-  let journal;
+  let context: Awaited<ReturnType<typeof readCorporateContext>>;
+  let journal: Awaited<ReturnType<typeof readTechnologyScanJournal>> | undefined;
   try {
     context = await readCorporateContext(session);
 

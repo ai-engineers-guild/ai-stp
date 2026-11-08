@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { required } from "./test-values";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   act,
@@ -185,7 +186,7 @@ it.each(["context", "project", "provider", "link"])(
   "rejects a mismatched %s before rendering response content",
   async (mismatch) => {
     const reply = response("/unrelated checkout");
-    const data = reply.data!.preview as Record<string, unknown>;
+    const data = required(reply.data).preview as Record<string, unknown>;
     if (mismatch === "context") data.context = { context_id: "context_B" };
     if (mismatch === "project")
       data.target = { remote_project_id: "remote_project_other" };

@@ -1,6 +1,7 @@
 /* eslint-disable max-lines -- Job-title table, detail panel, and assignment dialogs stay in one render owner. */
 "use client";
 
+import { isPeopleRowControl } from "@/lib/people-row";
 import { useRequestedEntityAction } from "@/lib/use-requested-entity-action";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -269,18 +270,29 @@ export function CorporateJobTitles({
                 key={title.job_title_id}
                 data-selected={selected?.job_title_id === title.job_title_id || undefined}
                 className="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-muted/30 data-[selected]:bg-primary/5"
-                onClick={() => {
+                onClick={(event) => {
+                  if (isPeopleRowControl(event.target)) return;
                   setSelectedId(title.job_title_id);
                   setMemberQuery("");
                 }}
               >
                 <td className={`${peopleCellClass} font-medium whitespace-nowrap`}>
-                  <span className="inline-flex items-center gap-2">
+                  <Button
+                    type="button"
+                    aria-haspopup="dialog"
+                    aria-expanded={selected?.job_title_id === title.job_title_id}
+                    variant="ghost"
+                    className="h-auto min-h-11 justify-start px-0 py-1 text-left"
+                    onClick={() => {
+                      setSelectedId(title.job_title_id);
+                      setMemberQuery("");
+                    }}
+                  >
                     {title.name}
                     {title.state === "retired" ? (
                       <Badge variant="secondary">{t("jobTitleRetired")}</Badge>
                     ) : null}
-                  </span>
+                  </Button>
                 </td>
                 <td className={`${peopleCellClass} max-w-80 text-muted-foreground`}>
                   <span className="line-clamp-2">{title.description}</span>
@@ -288,12 +300,7 @@ export function CorporateJobTitles({
                 <td className={`${peopleCellClass} tabular-nums`}>
                   {members === null ? "—" : (linked.get(title.job_title_id)?.length ?? 0)}
                 </td>
-                <td
-                  className="text-right"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                  }}
-                >
+                <td className="text-right">
                   <EntityDetailMenu
                     subject={{
                       kind: "job_title",

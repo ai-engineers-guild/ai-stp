@@ -21,7 +21,7 @@ export default async function CorporateAuditPage({
   const common = await getTranslations("common");
   const technology = await getTranslations("technology");
   const rawSearchParams = await searchParams;
-  let result;
+  let result: Awaited<ReturnType<typeof readCorporateAudit>>;
   try {
     result = await readCorporateAudit((await sessionCookieValue()) ?? "", rawSearchParams);
   } catch {

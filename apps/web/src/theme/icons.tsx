@@ -201,6 +201,7 @@ const REGISTRY: Record<IconName, LucideIcon> = {
   gitlab: Gitlab,
   google: ((props: LucideProps) => (
     <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <title>Google</title>
       <path d="M21.6 12.23c0-.71-.06-1.4-.18-2.07H12v3.92h5.38a4.6 4.6 0 0 1-2 3.02v2.55h3.24c1.9-1.75 2.98-4.33 2.98-7.42Z" />
       <path d="M12 22c2.7 0 4.98-.9 6.63-2.43l-3.24-2.55c-.9.6-2.05.96-3.39.96-2.6 0-4.81-1.76-5.6-4.13H3.06v2.63A10 10 0 0 0 12 22Z" />
       <path d="M6.4 13.85A6 6 0 0 1 6.08 12c0-.64.11-1.27.32-1.85V7.52H3.06A10 10 0 0 0 2 12c0 1.61.39 3.14 1.06 4.48l3.34-2.63Z" />

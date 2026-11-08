@@ -27,7 +27,7 @@ export async function CorporateCreatePage({
   const title = t(
     resource === "members" ? "addEmployee" : resource === "teams" ? "addTeam" : "addProject",
   );
-  let data;
+  let data: Awaited<ReturnType<typeof readCorporateCreateOptions>>;
   try {
     data = await readCorporateCreateOptions(token);
   } catch (error) {

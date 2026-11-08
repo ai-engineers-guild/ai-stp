@@ -50,6 +50,7 @@ function AvatarControls(props: {
         aria-describedby={error ? "profile-avatar-error" : undefined}
       >
         {avatarUrl ? (
+          // biome-ignore lint/performance/noImgElement: Browser previews and account-provided asset URLs must not be fetched by an image proxy.
           <img src={avatarUrl} alt="" className="h-20 w-20 object-cover" />
         ) : (
           <Icon name="user" size="lg" className="text-muted-foreground" />

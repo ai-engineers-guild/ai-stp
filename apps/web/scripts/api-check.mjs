@@ -39,7 +39,7 @@ function tree(root) {
     }
   };
   walk(root);
-  return found.sort();
+  return found.sort((left, right) => (left < right ? -1 : left > right ? 1 : 0));
 }
 
 try {

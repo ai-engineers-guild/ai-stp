@@ -30,6 +30,7 @@ import {
 } from "../transport";
 import { Details, ResultMeta, Spinner } from "./Result";
 import CheckoutLocation from "./CheckoutLocation";
+import { scalarText } from "../contracts";
 
 export default function CheckoutOperations() {
   const msg = useText();
@@ -58,6 +59,7 @@ export default function CheckoutOperations() {
   const [retirementSupported, setRetirementSupported] = useState(false);
   const active = useRef(false),
     epoch = useRef(0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies(context?.id): A context change clears the review and invalidates pending native responses.
   useLayoutEffect(() => {
     active.current = true;
     epoch.current++;
@@ -166,6 +168,7 @@ export default function CheckoutOperations() {
       if (active.current && sequence === epoch.current) setBusy(false);
     }
   }
+  // biome-ignore lint/correctness/useExhaustiveDependencies(load): Read this mounted receipt once; refresh and pagination explicitly own subsequent reads.
   useEffect(() => {
     void load();
   }, []);
@@ -432,6 +435,7 @@ export default function CheckoutOperations() {
         )}
       </p>
       <button
+        type="button"
         className="btn-outline"
         disabled={locked}
         onClick={() => void load()}
@@ -458,17 +462,18 @@ export default function CheckoutOperations() {
             return (
               <li className="space-y-2 py-3" key={String(item.operation_id)}>
                 <p className="text-sm font-medium">
-                  {String(
+                  {scalarText(
                     record(snapshot.context).label ??
                       msg("checkoutOperations.originalContext"),
                   )}{" "}
                   · {String(item.state)}
                 </p>
                 <p className="text-xs break-all text-muted-foreground">
-                  {String(record(snapshot.account).origin ?? "")} ·{" "}
-                  {String(record(snapshot.target).remote_project_id ?? "")}
+                  {scalarText(record(snapshot.account).origin ?? "")} ·{" "}
+                  {scalarText(record(snapshot.target).remote_project_id ?? "")}
                 </p>
                 <button
+                  type="button"
                   className="btn-outline"
                   disabled={locked}
                   onClick={() => void inspect(String(item.operation_id))}
@@ -483,6 +488,7 @@ export default function CheckoutOperations() {
       )}
       {cursor && (
         <button
+          type="button"
           className="btn-outline"
           disabled={locked}
           onClick={() => void load(cursor)}
@@ -492,7 +498,7 @@ export default function CheckoutOperations() {
       )}
       {result && <ResultMeta r={result} />}
       {review && selected && (
-        <div
+        <section
           className="space-y-3"
           aria-label={msg("checkoutOperations.originalCheckoutOperation")}
         >
@@ -529,6 +535,7 @@ export default function CheckoutOperations() {
                 )}
               </label>
               <button
+                type="button"
                 className="btn-primary"
                 disabled={!reader || !confirmed || locked}
                 onClick={() => void reconcile()}
@@ -568,6 +575,7 @@ export default function CheckoutOperations() {
                 </label>
                 {review.action === "request" && (
                   <button
+                    type="button"
                     className="btn-outline"
                     disabled={
                       !reader ||
@@ -582,6 +590,7 @@ export default function CheckoutOperations() {
                   </button>
                 )}
                 <button
+                  type="button"
                   className="btn-outline"
                   disabled={!reader || !root.trim() || locked}
                   onClick={() => void prepare("adopt")}
@@ -593,7 +602,7 @@ export default function CheckoutOperations() {
           {selected.state === "completed" && review.action === "adopt" && (
             <div className="space-y-3">
               <CheckoutLocation
-                key={`${context?.id}:${review.plan.operation_id}`}
+                key={`${context?.id}:${scalarText(review.plan.operation_id)}`}
                 original={selected}
                 context={context}
                 reader={reader}
@@ -631,6 +640,7 @@ export default function CheckoutOperations() {
                           )}
                         </p>
                         <button
+                          type="button"
                           className="btn-outline"
                           disabled={!reader || locked}
                           onClick={() => void prepareRetirement()}
@@ -653,6 +663,7 @@ export default function CheckoutOperations() {
                       )}
                     </p>
                     <button
+                      type="button"
                       className="btn-outline"
                       disabled={!reader || locked}
                       onClick={() => void prepareRetirement(true)}
@@ -664,7 +675,7 @@ export default function CheckoutOperations() {
                   </div>
                 )}
               {retirement && (
-                <div
+                <section
                   className="space-y-3"
                   aria-label={msg(
                     "checkoutOperations.reviewLocalBindingRetirement",
@@ -721,6 +732,7 @@ export default function CheckoutOperations() {
                     )}
                   </label>
                   <button
+                    type="button"
                     className="btn-primary"
                     disabled={!reader || !confirmed || locked}
                     onClick={() => void applyRetirement()}
@@ -734,12 +746,12 @@ export default function CheckoutOperations() {
                       "checkoutOperations.ifTheReplyIsUnconfirmedInspectThisOriginalOperation",
                     )}
                   </p>
-                </div>
+                </section>
               )}
             </div>
           )}
           {nextReview && (
-            <div
+            <section
               className="space-y-3"
               aria-label={msg(
                 "checkoutOperations.reviewRetainedCheckoutNextChange",
@@ -767,15 +779,16 @@ export default function CheckoutOperations() {
                 )}
               </label>
               <button
+                type="button"
                 className="btn-primary"
                 disabled={!reader || !confirmed || locked}
                 onClick={() => void applyNext()}
               >
                 {msg("checkoutOperations.applyReviewedOriginalCheckoutChange")}
               </button>
-            </div>
+            </section>
           )}
-        </div>
+        </section>
       )}
     </section>
   );

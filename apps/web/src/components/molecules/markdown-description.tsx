@@ -52,6 +52,7 @@ export function MarkdownDescription({
         // markdown-it escapes all emitted content (SPEC-029 REQ-2905). CodeQL
         // cannot carry either guarantee through the renderer internals.
         // codeql[js/xss]
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: Only output from the shared escaping Markdown renderer reaches this HTML boundary.
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </section>

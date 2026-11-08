@@ -70,17 +70,17 @@ function deviceCells(
       <Td className="px-4 py-3">{row.device_name}</Td>
       {view === "history" && (
         <Td className="px-4 py-3">
-          <div className="flex min-w-52 gap-px" role="group" aria-label={t("heartbeatHistory")}>
-            {(row.buckets ?? []).map((bucket, index) => (
+          <fieldset className="flex min-w-52 gap-px" aria-label={t("heartbeatHistory")}>
+            {(row.buckets ?? []).map((bucket) => (
               <button
-                key={index}
+                key={bucket.start}
                 type="button"
                 className={`h-3 min-w-0 flex-1 focus-visible:ring-2 focus-visible:ring-ring ${BUCKET_COLORS[bucket.state]}`}
                 title={`${utcDateTime(bucket.start)}–${utcDateTime(bucket.end)} · ${t("expected")}: ${bucket.expected} · ${t("received")}: ${bucket.received} · ${t("coveragePercent")}: ${bucket.expected ? Math.round((100 * Math.min(bucket.received, bucket.expected)) / bucket.expected) : 0}%`}
                 aria-label={`${t("expected")}: ${bucket.expected}, ${t("received")}: ${bucket.received}`}
               />
             ))}
-          </div>
+          </fieldset>
           <div
             aria-hidden="true"
             className="mt-1 flex justify-between text-[10px] text-muted-foreground"

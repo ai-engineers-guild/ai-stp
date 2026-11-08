@@ -15,6 +15,7 @@ import {
   type CmdResult,
 } from "../transport";
 import { Details, ResultMeta, Spinner } from "./Result";
+import { scalarText } from "../contracts";
 
 export default function HeartbeatDelivery({
   context,
@@ -32,6 +33,8 @@ export default function HeartbeatDelivery({
   const [busy, setBusy] = useState(false);
   const active = useRef(true),
     sequence = useRef(0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies(context.id): Changing context or locking delivery invalidates the reviewed consent.
+  // biome-ignore lint/correctness/useExhaustiveDependencies(disabled): Changing context or locking delivery invalidates the reviewed consent.
   useLayoutEffect(() => {
     active.current = true;
     sequence.current++;
@@ -152,6 +155,7 @@ export default function HeartbeatDelivery({
         </p>
       )}
       <button
+        type="button"
         className="btn-outline"
         disabled={locked}
         onClick={() => void run("read")}
@@ -159,6 +163,7 @@ export default function HeartbeatDelivery({
         {msg("heartbeatDelivery.readLocalDelivery")}
       </button>
       <button
+        type="button"
         className="btn-outline"
         disabled={locked || !!review}
         onClick={() => void run("review")}
@@ -166,6 +171,7 @@ export default function HeartbeatDelivery({
         {msg("heartbeatDelivery.reviewHeartbeatConsent")}
       </button>
       <button
+        type="button"
         className="btn-outline"
         disabled={locked}
         onClick={() => void run("disable")}
@@ -194,11 +200,12 @@ export default function HeartbeatDelivery({
           </p>
           <p className="text-sm">
             {msg("heartbeatDelivery.lastOutcome")}{" "}
-            {String(state.last_outcome ?? msg("common.none"))}
+            {scalarText(state.last_outcome ?? msg("common.none"))}
             {msg("heartbeatDelivery.lastConfirmedDelivery")}{" "}
-            {String(state.last_success_at ?? msg("common.none"))}.
+            {scalarText(state.last_success_at ?? msg("common.none"))}.
           </p>
           <button
+            type="button"
             className="btn-outline"
             disabled={locked || !state.enabled || !!review}
             onClick={() => void run("flush")}
@@ -208,7 +215,7 @@ export default function HeartbeatDelivery({
         </>
       )}
       {review && (
-        <div
+        <section
           className="space-y-3"
           aria-label={msg("heartbeatDelivery.reviewHeartbeatConsent")}
         >
@@ -247,6 +254,7 @@ export default function HeartbeatDelivery({
             )}
           </label>
           <button
+            type="button"
             className="btn-primary"
             disabled={locked || !confirmed}
             onClick={() => void run("apply")}
@@ -254,6 +262,7 @@ export default function HeartbeatDelivery({
             {msg("heartbeatDelivery.enableReviewedHeartbeatReporting")}
           </button>
           <button
+            type="button"
             className="btn-outline"
             disabled={locked}
             onClick={() => {
@@ -263,7 +272,7 @@ export default function HeartbeatDelivery({
           >
             {msg("heartbeatDelivery.discardConsentReview")}
           </button>
-        </div>
+        </section>
       )}
     </section>
   );

@@ -40,8 +40,8 @@ function CorporateCreateFields({
   const c = useTranslations("corporate");
   const h = useTranslations("hub");
   const select = (name: string, label: string, valuesFor: readonly Option[], multiple = true) => (
-    <div className="space-y-2">
-      <Label>{label}</Label>
+    <fieldset className="min-w-0 space-y-2">
+      <legend className="text-sm leading-none font-medium text-foreground">{label}</legend>
       <SearchableMultiSelect
         name={name}
         form={formId}
@@ -56,7 +56,7 @@ function CorporateCreateFields({
           choose(name, next);
         }}
       />
-    </div>
+    </fieldset>
   );
 
   return (

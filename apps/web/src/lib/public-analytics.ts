@@ -35,6 +35,7 @@ export function stopBrowserAnalytics(gaMeasurementId = ""): void {
     const name = part.split("=")[0]?.trim() ?? "";
     if (!name || name === "ai_stp_consent") continue;
     if (/^(_ym_|_ga)/.test(name) || name === "_gid" || name === "_gat") {
+      // biome-ignore lint/suspicious/noDocumentCookie: Consent persistence and vendor-cookie removal must remain synchronous before optional analytics runs; see #1404.
       document.cookie = `${name}=; Path=/; Max-Age=0`;
     }
   }

@@ -20,7 +20,7 @@ export default async function AccountProfilePreviewPage({ params }: PageProps) {
   const tc = await getTranslations("common");
   const token = (await sessionCookieValue()) ?? "";
 
-  let preview;
+  let preview: Awaited<ReturnType<typeof previewOwnerPublicProfile>>;
   try {
     preview = await previewOwnerPublicProfile(token);
   } catch (error) {

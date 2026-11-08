@@ -69,9 +69,8 @@ export function ComponentMediaGallery({
         {labels.gallery}
       </h2>
       <div className="relative">
-        <div
+        <section
           ref={carouselRef}
-          role="region"
           aria-roledescription="carousel"
           aria-label={labels.gallery}
           onScroll={() => {
@@ -101,7 +100,7 @@ export function ComponentMediaGallery({
               </button>
             </div>
           ))}
-        </div>
+        </section>
         {localizedItems.length > 1 ? (
           <>
             <Button
@@ -303,6 +302,7 @@ function Media({
     };
   }, [expanded]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies(item.id): A different media item owns a different observed DOM node.
   useEffect(() => {
     if (!expanded || !frameRef.current) return;
     const node = frameRef.current;
@@ -321,6 +321,7 @@ function Media({
   const shouldAutoplay =
     expanded && active && visible && inView && pageVisible && !prefersReducedMotion();
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies(item.id): A different media item owns a different video element.
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -373,6 +374,7 @@ function Media({
     const videoId = item.url;
     if (!expanded) {
       return (
+        // biome-ignore lint/performance/noImgElement: Published media supplies its own thumbnail and loads directly in the browser; do not proxy external assets.
         <img
           src={item.thumbnail_url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`}
           alt={item.alt}
@@ -402,6 +404,7 @@ function Media({
     );
   }
   return (
+    // biome-ignore lint/performance/noImgElement: Published media supplies its own thumbnail and loads directly in the browser; do not proxy external assets.
     <img
       src={expanded ? item.url : item.thumbnail_url || item.url}
       alt={item.alt}

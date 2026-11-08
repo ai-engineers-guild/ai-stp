@@ -99,13 +99,12 @@ export function TechnologyFindingsTable({ state }: { state: TechnologyReviewStat
           </div>
         )}
         {sectioned && <h3 className="mb-2 text-base font-medium">{w("sectionTechnologies")}</h3>}
-        <div
+        <section
           className="technology-table-frame"
-          role="region"
           aria-label={s("findings")}
           // The scroll region must remain keyboard accessible on narrow screens.
-          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-          tabIndex={0}
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: The named table scroll region must remain reachable by keyboard.
+          tabIndex={0} // eslint-disable-line jsx-a11y/no-noninteractive-tabindex
         >
           <Table
             className={mode === "mapping" ? "technology-mapping-table" : "technology-scan-table"}
@@ -130,7 +129,7 @@ export function TechnologyFindingsTable({ state }: { state: TechnologyReviewStat
               ))}
             </TBody>
           </Table>
-        </div>
+        </section>
         {!visible.length && (
           <p role="status" className="py-8 text-center text-sm text-muted-foreground">
             {w("noFindings")}
@@ -140,12 +139,11 @@ export function TechnologyFindingsTable({ state }: { state: TechnologyReviewStat
         {sectioned && (
           <section className="mt-6">
             <h3 className="mb-2 text-base font-medium">{w("sectionDependencies")}</h3>
-            <div
+            <section
               className="technology-table-frame"
-              role="region"
               aria-label={w("sectionDependencies")}
-              // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-              tabIndex={0}
+              // biome-ignore lint/a11y/noNoninteractiveTabindex: The named table scroll region must remain reachable by keyboard.
+              tabIndex={0} // eslint-disable-line jsx-a11y/no-noninteractive-tabindex
             >
               <Table className="technology-scan-table">
                 <caption className="sr-only">{w("sectionDependencies")}</caption>
@@ -167,7 +165,7 @@ export function TechnologyFindingsTable({ state }: { state: TechnologyReviewStat
                   ))}
                 </TBody>
               </Table>
-            </div>
+            </section>
             <TechnologyDependenciesPager state={state} />
           </section>
         )}

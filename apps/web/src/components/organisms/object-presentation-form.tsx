@@ -207,9 +207,8 @@ export function ObjectPresentationForm({
           ),
         }}
         afterBlocks={
-          <div
+          <section
             className="sticky bottom-0 z-10 -mx-1 space-y-3 border-t border-border bg-background/95 px-1 py-4 backdrop-blur-sm"
-            role="region"
             aria-label={labels.save}
           >
             <EntityEditorErrorSummary
@@ -234,7 +233,7 @@ export function ObjectPresentationForm({
                 {form.message}
               </p>
             </div>
-          </div>
+          </section>
         }
       />
     </form>

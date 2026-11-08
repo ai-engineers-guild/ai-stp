@@ -197,3 +197,14 @@ vi.mock("@/lib/entity-action-query", () => ({
     ),
   ),
 }));
+
+it("opens row details with the keyboard and restores focus on dismissal", async () => {
+  const user = userEvent.setup();
+  renderPanel();
+  const open = screen.getByRole("button", { name: "Project manager" });
+  open.focus();
+  await user.keyboard("{Enter}");
+  expect(screen.getByRole("dialog", { name: "Project manager" })).toBeVisible();
+  await user.keyboard("{Escape}");
+  await waitFor(() => expect(open).toHaveFocus());
+});

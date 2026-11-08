@@ -81,6 +81,7 @@ export function ObjectDetailHeader({
             />
             {githubStars !== null && githubStars !== undefined ? (
               <span
+                role="img"
                 className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-border px-2 py-1 text-sm"
                 aria-label={`${githubStarsLabel}: ${githubStars}`}
               >

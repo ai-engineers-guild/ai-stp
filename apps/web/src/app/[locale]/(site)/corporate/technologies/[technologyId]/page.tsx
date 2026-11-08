@@ -33,7 +33,7 @@ export default async function TechnologyDetailPage({
   if (!workspace || !/^technology_[0-9A-HJKMNP-TV-Z]{26}$/.test(technologyId))
     return <StatePanel kind="empty" title={t("registry")} description={t("notPermitted")} />;
   const organizationId = workspace.organization.organization_id;
-  let detail;
+  let detail: Awaited<ReturnType<typeof readTechnologyDetail>>;
   try {
     detail = await readTechnologyDetail(session, organizationId, technologyId);
   } catch {

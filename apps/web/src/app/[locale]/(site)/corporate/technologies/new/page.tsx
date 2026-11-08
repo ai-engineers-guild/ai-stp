@@ -15,7 +15,7 @@ export async function NewTechnologyContent({ params }: { params: Promise<{ local
   await requireSession(locale, `/${locale}/corporate/technologies/new`);
   const t = await getTranslations("technology");
   const c = await getTranslations("corporate");
-  let registry;
+  let registry: Awaited<ReturnType<typeof readTechnologyDirectory>>;
   try {
     registry = await readTechnologyDirectory((await sessionCookieValue()) ?? "", {
       page: 1,

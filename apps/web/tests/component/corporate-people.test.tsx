@@ -91,23 +91,8 @@ it("exposes a partial page selection as a native mixed checkbox", () => {
 
 it("returns focus to the external invitation button after Escape", async () => {
   const user = userEvent.setup();
-  function Example() {
-    const [open, setOpen] = useState(false);
-    return (
-      <>
-        <button
-          type="button"
-          onClick={() => {
-            setOpen(true);
-          }}
-        >
-          Invite member
-        </button>
-        <CorporateInviteDialog {...defaults} open={open} onOpenChange={setOpen} submit={vi.fn()} />
-      </>
-    );
-  }
-  render(wrap(<Example />));
+
+  render(wrap(<InvitationExample />));
   const trigger = screen.getByRole("button", { name: "Invite member" });
   await user.click(trigger);
   expect(screen.getByRole("dialog")).toBeVisible();
@@ -194,3 +179,20 @@ it.each([null, []])(
     expect(screen.getByRole("button", { name: "Отправить приглашение" })).toBeDisabled();
   },
 );
+
+function InvitationExample() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(true);
+        }}
+      >
+        Invite member
+      </button>
+      <CorporateInviteDialog {...defaults} open={open} onOpenChange={setOpen} submit={vi.fn()} />
+    </>
+  );
+}

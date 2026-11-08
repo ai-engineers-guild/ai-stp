@@ -55,7 +55,7 @@ export default async function SetupVersionPage({ params }: PageProps) {
   const setupId = tryAsSetupId(stableId);
   if (!setupId) notFound();
 
-  let response;
+  let response: Awaited<ReturnType<typeof readSetupVersion>>;
   try {
     response = await readSetupVersion(setupId, asVersionId(version));
   } catch (error) {

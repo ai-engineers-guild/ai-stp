@@ -67,7 +67,7 @@ export default async function ComponentVersionPage({ params }: PageProps) {
     redirect(`/${locale}/catalog/components/${stableId}/versions/${detail.summary.latest_version}`);
   }
 
-  let response;
+  let response: Awaited<ReturnType<typeof readComponentVersion>>;
   try {
     response = await readComponentVersion(componentId, asVersionId(version), token);
   } catch (error) {

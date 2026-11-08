@@ -224,8 +224,8 @@ export function CorporateRelationSection({
           >
             <div className="grid min-w-0 items-start gap-5 md:grid-cols-2">
               {directoryFacets[resource].map((facet) => (
-                <label key={facet} className="min-w-0 space-y-2 text-sm">
-                  <span className="font-medium">{facetLabel(labels, facet)}</span>
+                <fieldset key={facet} className="min-w-0 space-y-2 text-sm">
+                  <legend className="font-medium">{facetLabel(labels, facet)}</legend>
                   <SearchableMultiSelect
                     name={directoryFacetParams[facet]}
                     label={facetLabel(labels, facet)}
@@ -238,7 +238,7 @@ export function CorporateRelationSection({
                       setDraftSelected((previous) => ({ ...previous, [facet]: values }));
                     }}
                   />
-                </label>
+                </fieldset>
               ))}
               {resource === "members" ? (
                 <label className="flex min-h-11 items-center gap-2 text-sm md:col-span-2">

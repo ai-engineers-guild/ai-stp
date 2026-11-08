@@ -28,7 +28,7 @@ export default async function CategoryDirectoryPage({
   const t = await getTranslations("technology");
   const c = await getTranslations("corporate");
   const common = await getTranslations("common");
-  let context;
+  let context: Awaited<ReturnType<typeof readCorporateContext>>;
   try {
     context = await readCorporateContext(session);
   } catch (error) {
@@ -39,7 +39,7 @@ export default async function CategoryDirectoryPage({
   }
   if (!context)
     return <StatePanel kind="empty" title={h("categories")} description={c("noOrganization")} />;
-  let result;
+  let result: Awaited<ReturnType<typeof readCategoryDirectory>>;
   try {
     result = await readCategoryDirectory(session, context.organization.organization_id);
   } catch (error) {

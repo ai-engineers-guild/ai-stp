@@ -227,10 +227,9 @@ export function CorporateHeartbeatReport({
             closeLabel={t("close")}
           />
         </div>
-        <div
-          role="group"
+        <fieldset
           aria-label={t("heartbeat")}
-          className="flex rounded-sm border border-border"
+          className="flex min-w-0 rounded-sm border border-border"
         >
           {(["current", "history"] as const).map((option) => (
             <button
@@ -245,7 +244,7 @@ export function CorporateHeartbeatReport({
               {t(option)}
             </button>
           ))}
-        </div>
+        </fieldset>
       </div>
       {view === "history" && (
         <p className="mt-3 text-xs text-muted-foreground">

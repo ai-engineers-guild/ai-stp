@@ -29,10 +29,19 @@ export function CompactChipList({
   const hidden = unique.slice(limit);
 
   return (
-    <div className={cn("flex min-w-0 flex-wrap items-center gap-1", className)} aria-label={label}>
+    // biome-ignore lint/a11y/useSemanticElements: This is a non-form metadata group; a fieldset would misrepresent its text and links.
+    <div
+      role="group"
+      className={cn("flex min-w-0 flex-wrap items-center gap-1", className)}
+      aria-label={label}
+    >
       {visible.map((value) => {
         const href = hrefForValue?.(value);
-        const chip = <Badge variant={variant}>{value}</Badge>;
+        const chip = (
+          <Badge key={value} variant={variant}>
+            {value}
+          </Badge>
+        );
         return href ? (
           <Link
             key={value}
@@ -70,7 +79,11 @@ export function CompactChipList({
               <div className="flex flex-wrap gap-1">
                 {unique.map((value) => {
                   const href = hrefForValue?.(value);
-                  const chip = <Badge variant={variant}>{value}</Badge>;
+                  const chip = (
+                    <Badge key={value} variant={variant}>
+                      {value}
+                    </Badge>
+                  );
                   return href ? (
                     <MenuItem key={value} asChild>
                       <Link href={href} className="rounded-sm outline-none focus:bg-accent">

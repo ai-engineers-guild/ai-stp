@@ -1,3 +1,4 @@
+import { required } from "@/mocks/fixtures/required";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { uploadCorporateDetailMedia } from "@/lib/corporate-detail-upload";
@@ -99,7 +100,7 @@ describe("corporate profile media upload", () => {
     expect(replay).toEqual(first);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     for (const [, init] of fetchMock.mock.calls) {
-      expect((init?.headers as Record<string, string>)["Idempotency-Key"]).toBe(
+      expect((required(init).headers as Record<string, string>)["Idempotency-Key"]).toBe(
         baseInput.idempotencyKey,
       );
     }

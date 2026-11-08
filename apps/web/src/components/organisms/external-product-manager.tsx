@@ -566,6 +566,7 @@ function Field({
   children: ReactNode;
 }) {
   return (
+    // biome-ignore lint/a11y/noLabelWithoutControl: The caller supplies one native labelable control through children.
     <label className="min-w-0 space-y-1.5 text-sm">
       <span className="block font-medium">
         {label}

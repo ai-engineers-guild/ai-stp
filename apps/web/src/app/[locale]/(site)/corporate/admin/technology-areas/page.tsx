@@ -22,7 +22,7 @@ export default async function TechnologyAreasPage({
   const h = await getTranslations("hub");
   const c = await getTranslations("corporate");
   const common = await getTranslations("common");
-  let context;
+  let context: Awaited<ReturnType<typeof readCorporateContext>>;
   try {
     context = await readCorporateContext(session);
   } catch (error) {
@@ -34,7 +34,7 @@ export default async function TechnologyAreasPage({
   if (!context)
     return <StatePanel kind="empty" title={t("areas.title")} description={c("noOrganization")} />;
   const organizationId = context.organization.organization_id;
-  let directory;
+  let directory: Awaited<ReturnType<typeof readTechnologyAreaDirectory>>;
   try {
     directory = await readTechnologyAreaDirectory(session, organizationId);
   } catch (error) {

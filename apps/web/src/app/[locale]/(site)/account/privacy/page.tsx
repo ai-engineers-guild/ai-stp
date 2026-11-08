@@ -23,7 +23,7 @@ export default async function AccountPrivacyPage({ params }: PageProps) {
   const token = await sessionCookieValue();
   const csrfToken = (await readCsrfToken()) ?? "";
 
-  let profile;
+  let profile: Awaited<ReturnType<typeof readAccount>>;
   try {
     profile = await readAccount(token ?? "");
   } catch (error) {

@@ -116,6 +116,7 @@ async function SiteFooter({ docsHref }: { docsHref: string }) {
             prefetch={corporateHub ? false : undefined}
             className="inline-flex items-center gap-3 font-medium"
           >
+            {/* biome-ignore lint/performance/noImgElement: This local mark is already sized for its display and needs no image transformation. */}
             <img src="/brand/logo-mark-64.png" alt="" width={32} height={32} className="h-8 w-8" />
             <span>{SITE_NAME}</span>
           </Link>

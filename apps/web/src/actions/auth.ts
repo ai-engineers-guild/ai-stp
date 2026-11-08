@@ -35,12 +35,11 @@ export async function startLoginAction(
   const csrf = createCsrfToken();
   await setSessionCookies(token, csrf);
   const fallback = corporateHref(`/${locale}/account`);
-  const target =
-    options.returnTo && options.returnTo.startsWith(`/${locale}/`)
-      ? corporateHref(options.returnTo)
-      : options.returnTo && options.returnTo.startsWith("/")
-        ? corporateHref(`/${locale}${options.returnTo}`)
-        : fallback;
+  const target = options.returnTo?.startsWith(`/${locale}/`)
+    ? corporateHref(options.returnTo)
+    : options.returnTo?.startsWith("/")
+      ? corporateHref(`/${locale}${options.returnTo}`)
+      : fallback;
   // Provider is recorded only for UX parity tests; tokens never stored client-side.
   void provider;
   redirectTo(target);

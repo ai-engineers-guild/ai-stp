@@ -173,6 +173,7 @@ export function PagePager({
         {pageWindow(page, totalPages).map((entry, index) =>
           entry === "gap" ? (
             <span
+              // biome-ignore lint/suspicious/noArrayIndexKey: Decorative gap positions distinguish the two possible pagination ellipses.
               key={`gap-${index}`}
               className="inline-flex h-11 min-w-8 items-center justify-center text-xs text-muted-foreground"
               aria-hidden="true"

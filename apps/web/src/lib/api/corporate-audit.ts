@@ -9,7 +9,7 @@ export async function readCorporateAudit(
   params: Record<string, string | string[] | undefined> = {},
 ) {
   const context = await readCorporateContext(sessionToken);
-  if (!context || !context.capabilities.includes("audit.list")) return null;
+  if (!context?.capabilities.includes("audit.list")) return null;
   const { page, size } = corporateAuditPage(params);
   const path = `/v1/corporate/organizations/${context.organization.organization_id}`;
   const [audit, members] = await Promise.all([
@@ -42,8 +42,8 @@ export type CorporateAuditFilterValues = {
 const AUDIT_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const AUDIT_TEXT_PATTERN = /^[ -~]{1,128}$/;
 // Control characters are deliberately excluded from free-text journal search.
-// eslint-disable-next-line no-control-regex
-const AUDIT_QUERY_PATTERN = /^[^\u0000-\u001f]{1,200}$/u;
+// biome-ignore lint/suspicious/noControlCharactersInRegex: Reject control characters at the API query boundary.
+const AUDIT_QUERY_PATTERN = /^[^\u0000-\u001f]{1,200}$/u; // eslint-disable-line no-control-regex
 const AUDIT_TARGET_TABLE_PATTERN = /^[a-z][a-z0-9_]{0,63}$/;
 const AUDIT_OUTCOMES = new Set(["succeeded", "denied", "failed"]);
 

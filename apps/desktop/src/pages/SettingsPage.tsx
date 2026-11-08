@@ -175,6 +175,7 @@ export default function SettingsPage() {
               )}
             </label>
             <button
+              type="submit"
               className="btn-primary"
               disabled={busy || !confirmed || !choices.includes(store)}
             >

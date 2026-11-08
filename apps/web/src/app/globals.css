@@ -4,6 +4,7 @@
 
 /* Sonner's default transition animates toast height and forces layout on every frame. */
 [data-sonner-toast] {
+  /* biome-ignore lint/complexity/noImportantStyles: Override Sonner height transitions to avoid layout on every animation frame. */
   transition-property: transform, opacity, box-shadow !important;
 }
 
@@ -497,14 +498,18 @@ a {
 
 @media (prefers-reduced-motion: reduce) {
   html:focus-within {
+    /* biome-ignore lint/complexity/noImportantStyles: Reduced motion must override component scrolling styles. */
     scroll-behavior: auto !important;
   }
 
   *,
   *::before,
   *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: Reduced motion must override component and inline animation styles. */
     animation-play-state: paused !important;
+    /* biome-ignore lint/complexity/noImportantStyles: Reduced motion permits only brief non-spatial color transitions. */
     transition-property: color, background-color, border-color, box-shadow, opacity !important;
+    /* biome-ignore lint/complexity/noImportantStyles: Reduced motion must override component and inline transition durations. */
     transition-duration: 80ms !important;
   }
 
@@ -641,6 +646,7 @@ a {
   text-decoration: underline;
   text-underline-offset: 0.25em;
 }
+/* biome-ignore lint/style/noDescendingSpecificity: Article prose and the earlier docs prose are disjoint component scopes. */
 .article-prose__body code {
   color: var(--color-foreground);
   font-family: var(--font-mono);
@@ -880,7 +886,7 @@ a {
   min-height: 1.5rem;
   height: auto;
   padding: 0.125rem 0.625rem;
-  font-size: 0.6875rem !important;
+  font-size: 0.6875rem;
   border: 1px solid hsl(var(--border));
   font-family: var(--font-mono);
 }
@@ -898,6 +904,7 @@ a {
 .technology-workspace th {
   height: 2.5rem;
 }
+/* biome-ignore lint/style/noDescendingSpecificity: Technology tables and the earlier article-prose tables have disjoint component scopes. */
 .technology-workspace td {
   padding: 0.5rem 0.75rem;
   font-size: 0.8125rem;
@@ -935,6 +942,7 @@ a {
   color: hsl(var(--muted-foreground));
   margin-bottom: 0.375rem;
 }
+/* biome-ignore lint/style/noDescendingSpecificity: Scan metadata and the earlier summary metrics have disjoint component scopes. */
 .technology-scan-metadata dd {
   font-size: 0.8125rem;
   overflow-wrap: anywhere;
@@ -1016,6 +1024,19 @@ body:has(.technology-workspace) .projection-dock {
   min-width: 0;
 }
 @media (min-width: 1024px) {
+  .technology-workspace .technology-toolbar button,
+  .technology-workspace .technology-toolbar select,
+  .technology-workspace .technology-toolbar input,
+  .technology-workspace .technology-toolbar a,
+  .technology-workspace .technology-filter-bar button,
+  .technology-workspace .technology-filter-bar select,
+  .technology-workspace .technology-filter-bar input {
+    min-height: 2.125rem;
+    height: 2.125rem;
+  }
+  .technology-workspace .technology-page-actions a {
+    min-height: 2.25rem;
+  }
   body:has(.technology-workspace) [data-ui="site-header"] > div {
     height: 2.75rem;
   }
@@ -1031,19 +1052,6 @@ body:has(.technology-workspace) .projection-dock {
   body:has(.technology-workspace) [data-ui="context-sidebar"] [id] a {
     min-height: 2rem;
     height: 2rem;
-  }
-  .technology-workspace .technology-toolbar button,
-  .technology-workspace .technology-toolbar select,
-  .technology-workspace .technology-toolbar input,
-  .technology-workspace .technology-toolbar a,
-  .technology-workspace .technology-filter-bar button,
-  .technology-workspace .technology-filter-bar select,
-  .technology-workspace .technology-filter-bar input {
-    min-height: 2.125rem;
-    height: 2.125rem;
-  }
-  .technology-workspace .technology-page-actions a {
-    min-height: 2.25rem;
   }
 }
 @media (max-width: 639px) {
@@ -1068,12 +1076,18 @@ body:has(.technology-workspace) .projection-dock {
 .dark .technology-workspace .bg-primary:hover {
   background-color: color-mix(in srgb, hsl(var(--primary)) 70%, hsl(var(--background)));
 }
+
+/* biome-ignore lint/style/noDescendingSpecificity: This workspace-wide size guard is additive to the scoped component rules above. */
 .technology-workspace > *,
 .technology-workspace section,
-.technology-workspace nav > div {
+/* biome-ignore lint/style/noDescendingSpecificity: This workspace-wide size guard is additive to the scoped component rules above. */
+  .technology-workspace
+  nav
+  > div {
   min-width: 0;
   max-width: 100%;
 }
+/* biome-ignore lint/style/noDescendingSpecificity: This workspace-wide size guard is additive to the scoped component rules above. */
 .technology-workspace nav > div {
   flex-wrap: wrap;
 }
@@ -1120,7 +1134,9 @@ body:has(.technology-workspace) .projection-dock {
 .technology-scan-table th:last-child {
   width: 4rem;
 }
+/* biome-ignore lint/style/noDescendingSpecificity: Mapping tables and the earlier article-prose tables have disjoint component scopes. */
 .technology-mapping-table td,
+/* biome-ignore lint/style/noDescendingSpecificity: Scan tables and the earlier article-prose tables have disjoint component scopes. */
 .technology-scan-table td {
   overflow-wrap: anywhere;
 }

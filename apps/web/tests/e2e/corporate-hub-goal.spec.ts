@@ -427,7 +427,7 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
         }
         const id = new URL(href ?? "", page.url()).pathname.split("/").at(-1) ?? "";
         let canEdit = true;
-        let before;
+        let before: ReturnType<typeof entityProfileViewSchema.parse> | undefined;
         let profilePath = "";
         if (mode === "live") {
           const kind = {

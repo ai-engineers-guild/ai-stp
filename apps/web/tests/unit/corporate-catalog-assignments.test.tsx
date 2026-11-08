@@ -1,3 +1,4 @@
+import { required } from "@/mocks/fixtures/required";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
@@ -220,7 +221,7 @@ it("retries only failed selections with the same idempotency key", async () => {
   });
   expect(mutation.mock.calls[2]?.[0].body).toMatchObject({
     stable_id: "component_api",
-    idempotency_key: (mutation.mock.calls[1]?.[0].body as { idempotency_key: string })
+    idempotency_key: (required(mutation.mock.calls[1])[0].body as { idempotency_key: string })
       .idempotency_key,
   });
 });

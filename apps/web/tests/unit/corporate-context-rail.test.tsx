@@ -1,3 +1,4 @@
+import { required } from "@/mocks/fixtures/required";
 import type { ReactNode } from "react";
 import { cleanup, render, screen, within, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -315,7 +316,7 @@ it("closes the mobile modal at the desktop breakpoint and keeps the desktop pref
   expect(screen.getByRole("dialog")).toBeVisible();
   act(() => {
     media.matches = true;
-    (media.addEventListener.mock.calls[0]?.[1] as () => void)();
+    (required(media.addEventListener.mock.calls[0])[1] as () => void)();
   });
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(useUiSlice.getState().sidebarCollapsed).toBe(false);

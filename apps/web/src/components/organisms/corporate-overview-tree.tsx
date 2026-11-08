@@ -249,9 +249,8 @@ function OverviewHeading({
           <Icon name="list" size="sm" />
           {t(fullyExpanded ? "collapseAll" : "expandAll")}
         </Button>
-        <div
+        <fieldset
           className="inline-grid min-w-0 flex-1 grid-cols-2 rounded-sm border border-border p-1 lg:w-auto lg:flex-none"
-          role="group"
           aria-label={t("overviewView")}
         >
           {["organization", "components"].map((value) => (
@@ -267,7 +266,7 @@ function OverviewHeading({
               {t(value === "organization" ? "byOrganization" : "byComponents")}
             </Button>
           ))}
-        </div>
+        </fieldset>
       </div>
     </div>
   );

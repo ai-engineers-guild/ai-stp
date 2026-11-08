@@ -53,7 +53,11 @@ const TOKEN_CLASS: Record<JsonTokenType, string> = {
 
 export function highlightedJson(source: string): ReactNode[] {
   return tokenizeJson(source).map((token, index) => (
-    <span key={`${token.type}-${index}`} className={TOKEN_CLASS[token.type] || undefined}>
+    <span
+      // biome-ignore lint/suspicious/noArrayIndexKey: A stateless token's source position distinguishes repeated syntax.
+      key={`${token.type}-${index}`}
+      className={TOKEN_CLASS[token.type] || undefined}
+    >
       {token.value}
     </span>
   ));

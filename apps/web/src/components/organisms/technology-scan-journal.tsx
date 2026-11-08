@@ -162,13 +162,12 @@ export function TechnologyScanJournalTable({
     languages: scanType("languages"),
   };
   return (
-    <div
+    <section
       className="technology-table-frame"
-      role="region"
       aria-label={s("title")}
       // The scroll region must remain keyboard accessible on narrow screens.
-      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-      tabIndex={0}
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: The named table scroll region must remain reachable by keyboard.
+      tabIndex={0} // eslint-disable-line jsx-a11y/no-noninteractive-tabindex
     >
       <Table className="technology-journal-table">
         <caption className="sr-only">{s("title")}</caption>
@@ -295,6 +294,6 @@ export function TechnologyScanJournalTable({
           ))}
         </TBody>
       </Table>
-    </div>
+    </section>
   );
 }

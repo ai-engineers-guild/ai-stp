@@ -38,7 +38,7 @@ export default async function ReportsPage({ params, searchParams }: PageProps) {
   const token = await sessionCookieValue();
   const csrf = await readCsrfToken();
 
-  let cases;
+  let cases: Awaited<ReturnType<typeof listOwnReports>>;
   try {
     cases = await listOwnReports(token ?? "");
   } catch (error) {

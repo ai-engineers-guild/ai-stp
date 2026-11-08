@@ -16,6 +16,7 @@ export default class PageBoundary extends Component<
         <h1 className="page-title">{i18n.t("shell.loadError")}</h1>
         <p className="page-sub">{i18n.t("shell.loadErrorHelp")}</p>
         <button
+          type="button"
           className="btn-primary"
           onClick={() => window.location.reload()}
         >

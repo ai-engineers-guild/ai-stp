@@ -37,13 +37,12 @@ export function InvitationTable({
 }) {
   const t = useTranslations("people");
   return (
-    <div
+    <section
       className="min-w-0 overflow-x-auto focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-      role="region"
       aria-label={t("invitationsTable")}
       // Keyboard access lets narrow-screen users scroll every table column.
-      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-      tabIndex={0}
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: The named table scroll region must remain reachable by keyboard.
+      tabIndex={0} // eslint-disable-line jsx-a11y/no-noninteractive-tabindex
     >
       <Table className="min-w-[950px]">
         <THead>
@@ -155,6 +154,6 @@ export function InvitationTable({
           ) : null}
         </TBody>
       </Table>
-    </div>
+    </section>
   );
 }

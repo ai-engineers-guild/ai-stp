@@ -1,5 +1,5 @@
 import { useText } from "../i18n";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useContexts } from "../contexts";
 import { Link } from "react-router";
 import {
@@ -50,7 +50,7 @@ export default function ProfilesPage() {
   const [busy, setBusy] = useState(false);
   const active = useRef(true);
   const readEpoch = useRef(0);
-  async function refresh() {
+  const refresh = useCallback(async () => {
     const epoch = ++readEpoch.current;
     const [connections, contexts] = await Promise.all([
       cmdRunRead("account connections list"),
@@ -60,7 +60,7 @@ export default function ProfilesPage() {
       setConnections(connections);
       setContexts(contexts);
     }
-  }
+  }, []);
   useEffect(() => {
     active.current = true;
     void refresh();
@@ -68,7 +68,7 @@ export default function ProfilesPage() {
       active.current = false;
       readEpoch.current++;
     };
-  }, []);
+  }, [refresh]);
   function clearReview() {
     setReview(null);
     setConfirmed(false);
@@ -186,6 +186,7 @@ export default function ProfilesPage() {
         )}
         action={
           <button
+            type="button"
             className="btn-outline"
             disabled={busy}
             onClick={() => void refresh()}
@@ -232,6 +233,7 @@ export default function ProfilesPage() {
               </Link>
             ) : (
               <button
+                type="button"
                 className="btn-outline"
                 disabled={busy}
                 onClick={() => {
@@ -287,6 +289,7 @@ export default function ProfilesPage() {
           />
         </label>
         <button
+          type="button"
           className="btn-outline"
           disabled={busy || !origin.trim()}
           onClick={() => void checkServer()}
@@ -318,6 +321,7 @@ export default function ProfilesPage() {
           </label>
         )}
         <button
+          type="button"
           className="btn-primary"
           disabled={
             busy ||
@@ -378,6 +382,7 @@ export default function ProfilesPage() {
                     })}
               </p>
               <button
+                type="button"
                 className="btn-outline"
                 disabled={busy || selected === context.context_id}
                 onClick={() =>
@@ -392,6 +397,7 @@ export default function ProfilesPage() {
               </button>
               {authority.kind === "remote" && (
                 <button
+                  type="button"
                   className="btn-outline"
                   disabled={busy}
                   onClick={async () => {
@@ -458,6 +464,7 @@ export default function ProfilesPage() {
         </label>
         {!!connection && (
           <button
+            type="button"
             className="btn-outline"
             disabled={busy}
             onClick={() => void readOrganizations()}
@@ -496,6 +503,7 @@ export default function ProfilesPage() {
           </label>
         )}
         <button
+          type="button"
           className="btn-primary"
           disabled={
             busy ||
@@ -552,13 +560,19 @@ export default function ProfilesPage() {
             {msg("profiles.iReviewedThisExactPlanAndAuthorizeThisLocal")}
           </label>
           <button
+            type="button"
             className="btn-primary"
             disabled={busy || !confirmed}
             onClick={() => void apply()}
           >
             {msg("profiles.applyReviewedChange")}
           </button>
-          <button className="btn-outline" disabled={busy} onClick={clearReview}>
+          <button
+            type="button"
+            className="btn-outline"
+            disabled={busy}
+            onClick={clearReview}
+          >
             {msg("profiles.dismissReview")}
           </button>
         </section>

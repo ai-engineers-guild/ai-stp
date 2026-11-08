@@ -93,8 +93,10 @@ export function CorporateMembershipPolicyControls({
     <form onSubmit={savePolicy} aria-busy={busy}>
       <SettingsSection icon="mail" title={t("domainPolicy")} description={t("domainPolicyBody")}>
         <div className="grid gap-6 lg:grid-cols-2 lg:divide-x lg:divide-border">
-          <div className="space-y-3">
-            <Label>{t("domains")}</Label>
+          <fieldset className="min-w-0 space-y-3">
+            <legend className="text-sm leading-none font-medium text-foreground">
+              {t("domains")}
+            </legend>
             <div className="space-y-2">
               {domains.map((entry, index) => (
                 <div key={entry.key} className="flex items-center gap-2">
@@ -138,7 +140,7 @@ export function CorporateMembershipPolicyControls({
               <Icon name="plus" size="sm" aria-hidden />
               {t("addDomain")}
             </Button>
-          </div>
+          </fieldset>
           <div className="space-y-4 lg:pl-6">
             <h3 className="text-sm font-medium">{t("policySettings")}</h3>
             <SwitchRow

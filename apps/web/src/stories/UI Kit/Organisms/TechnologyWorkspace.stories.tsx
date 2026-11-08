@@ -39,6 +39,7 @@ export const Mapping: Story = { args: { mode: "mapping" } };
 export const ReadOnly: Story = { args: { canUpdate: false } };
 export const Empty: Story = { args: { scans: [] } };
 export const Dark: Story = { globals: { theme: "dark" } };
+// biome-ignore lint/suspicious/noShadowRestrictedNames: Keep the published Storybook map case ID.
 export const Map: Story = {
   render: () => (
     <TechnologyLandscapeResults

@@ -22,7 +22,7 @@ export default async function MyLikesPage({ params }: PageProps) {
     getTranslations("common"),
     getTranslations("catalog"),
   ]);
-  let reactions;
+  let reactions: Awaited<ReturnType<typeof listCatalogReactions>>;
   try {
     reactions = await listCatalogReactions(await sessionCookieValue());
   } catch (error) {

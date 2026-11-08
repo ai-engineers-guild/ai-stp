@@ -32,7 +32,7 @@ export default async function OwnerObjectDetailPage({ params }: PageProps) {
   const tCatalog = await getTranslations("catalog");
   const token = await sessionCookieValue();
 
-  let detail;
+  let detail: Awaited<ReturnType<typeof readOwnerObject>>;
   let allProducts: { schema_version: 1; items: ExternalProduct[] } = {
     schema_version: 1,
     items: [],

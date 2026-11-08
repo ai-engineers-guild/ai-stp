@@ -251,7 +251,12 @@ export function CatalogFilters({
         </div>
 
         {chips.length ? (
-          <div className="mt-3 flex min-w-0 flex-wrap gap-2" aria-label={labels.filtersButton}>
+          // biome-ignore lint/a11y/useSemanticElements: This is a non-form metadata group; a fieldset would misrepresent its text and links.
+          <div
+            role="group"
+            className="mt-3 flex min-w-0 flex-wrap gap-2"
+            aria-label={labels.filtersButton}
+          >
             {chips.map((chip) => {
               const fallbackLabel = chipLabel(chip.key, chip.label, labels);
               const text = chip.key.startsWith("author:")

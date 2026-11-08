@@ -98,13 +98,13 @@ export function CatalogQueryField({
             aria-describedby="catalog-query-assist"
           />
           {suggestions.length ? (
-            <ul
+            <div
               id={listId}
               role="listbox"
               className="absolute z-10 mt-1 w-full rounded-sm border border-border bg-popover py-1 shadow-sm"
             >
               {suggestions.map((word, index) => (
-                <li key={word} role="presentation">
+                <div key={word} role="presentation">
                   <button
                     id={`${listId}-${word}`}
                     type="button"
@@ -127,9 +127,9 @@ export function CatalogQueryField({
                       </span>
                     </span>
                   </button>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           ) : null}
         </div>
         <Button type="submit" className="min-h-11 w-full sm:w-auto">
@@ -167,6 +167,7 @@ function CatalogQueryPreview({ segments }: { segments: ReturnType<typeof highlig
     >
       {segments.map((segment, index) => (
         <span
+          // biome-ignore lint/suspicious/noArrayIndexKey: A stateless token's source position distinguishes repeated syntax.
           key={`${index}-${segment.text}`}
           className={
             segment.kind === "field"

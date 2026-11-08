@@ -292,8 +292,8 @@ export function CorporateCatalogAssignments({
                 }}
               />
             </label>
-            <label className="space-y-2 text-sm">
-              <span className="font-medium">{h("objectKind")}</span>
+            <fieldset className="min-w-0 space-y-2 text-sm">
+              <legend className="font-medium">{h("objectKind")}</legend>
               <SearchableMultiSelect
                 name="assignment-object-kind"
                 label={h("objectKind")}
@@ -307,7 +307,7 @@ export function CorporateCatalogAssignments({
                 closeLabel={h("closeFilters")}
                 modal
               />
-            </label>
+            </fieldset>
           </div>
         </RefineSurface>
       ) : null}

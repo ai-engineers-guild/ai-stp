@@ -102,6 +102,7 @@ export function IdentityList({ identities, csrfToken, returnTo, providers }: Ide
             >
               <div className="grid size-11 shrink-0 place-items-center rounded-full bg-muted text-foreground">
                 {avatar ? (
+                  // biome-ignore lint/performance/noImgElement: Browser previews and account-provided asset URLs must not be fetched by an image proxy.
                   <img
                     src={avatar}
                     alt=""

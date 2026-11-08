@@ -111,6 +111,7 @@ export function ComponentTargetMatrix({
                 {labels.heading}
               </h2>
               <span
+                role="img"
                 className="inline-flex size-7 shrink-0 items-center justify-center text-muted-foreground"
                 title={labels.summary}
                 aria-label={labels.summary}

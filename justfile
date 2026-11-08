@@ -448,9 +448,8 @@ web-gen:
     {{ run }} python -m ai_stp_contracts.web_projections
     {{ bunreq }}
     cd apps/web && bun run api:generate
-    # The generator does not emit repository-Prettier form.  Formatting must
-    # happen after generation so `just gen` is a deterministic clean producer
-    # and `web-static` can validate its output without a repair step.
+    # api:generate owns the generated client serialization. Source formatting
+    # leaves those exact producer bytes untouched.
     cd apps/web && bun run format
 
 # Ban on literal user-facing text and ru/en catalogue parity.
@@ -459,19 +458,19 @@ web-i18n:
     {{ bunreq }}
     cd apps/web && bun run i18n:check
 
-# ESLint, Prettier and TypeScript 7 in one pass.
+# Source formatting, untyped/type-aware lint and the native TypeScript compiler.
 [group('web')]
 web-source:
     {{ bunreq }}
     cd apps/web && bun run lint
+    cd apps/web && bun run type-check
     cd apps/web && bun run lint:dependencies
     cd apps/web && bun run api:check
     cd apps/web && bun run format:check
 
-[doc('Source and generated-route types over the built web app')]
+[doc('Source checks and localized catalogs, including generated-route types when present')]
 [group('web')]
 web-static: web-source web-i18n
-    cd apps/web && bun run type-check
 
 # Coverage is always measured: otherwise its thresholds would be a reference
 # number, not a gate.
@@ -626,6 +625,7 @@ desktop-source:
     cd apps/desktop && bun scripts/generate-fonts.mjs --check
     cd apps/desktop && bun scripts/generate-contracts.mjs --check
     cd apps/desktop && bun run type-check
+    cd apps/desktop && bun run lint
     cd apps/desktop && bun run format:check
     cd apps/desktop && bun run messages:check
     cd apps/desktop && bun run lint:dependencies

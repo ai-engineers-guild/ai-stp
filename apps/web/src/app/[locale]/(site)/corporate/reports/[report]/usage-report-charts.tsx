@@ -63,6 +63,7 @@ export async function UsageReportCharts({
       {chart === "day" ? (
         data.by_day.length ? (
           <div
+            role="img"
             className="flex h-32 items-end gap-1 overflow-x-auto"
             aria-label={t("recordedUsesByDay")}
           >
@@ -100,7 +101,11 @@ export async function UsageReportCharts({
             </THead>
             <TBody>
               {Array.from({ length: 24 }, (_, hour) => (
-                <Tr key={hour} className="border-b-0">
+                <Tr
+                  // biome-ignore lint/suspicious/noArrayIndexKey: The fixed 24 positions are hour-of-day identities, not reorderable rows.
+                  key={hour}
+                  className="border-b-0"
+                >
                   <Th scope="row" className="h-auto pr-2 pl-0 text-left font-normal">
                     {hour.toString().padStart(2, "0")}
                   </Th>

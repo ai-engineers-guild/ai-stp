@@ -89,7 +89,7 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
   if (!setupId) notFound();
   const token = await sessionCookieValue();
 
-  let detail;
+  let detail: Awaited<ReturnType<typeof readSetup>>;
   try {
     detail = await readSetup(setupId, token);
   } catch (error) {
@@ -192,6 +192,7 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
 
       <ObjectDetailHeader
         icon={
+          // biome-ignore lint/performance/noImgElement: This local catalog artwork is already sized for its display and needs no image transformation.
           <img
             src="/catalog-art/setup.webp"
             alt=""

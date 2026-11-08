@@ -21,7 +21,7 @@ export default async function StaffReportDetailPage({ params }: PageProps) {
   const token = await sessionCookieValue();
   const csrf = await readCsrfToken();
 
-  let detail;
+  let detail: Awaited<ReturnType<typeof readStaffReport>>;
   try {
     detail = await readStaffReport(token ?? "", caseId);
   } catch (error) {

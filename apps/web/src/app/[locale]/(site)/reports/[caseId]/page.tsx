@@ -16,7 +16,7 @@ export default async function ReportCasePage({
   await requireSession(locale, `/${locale}/reports/${caseId}`);
   const t = await getTranslations("reports");
   const tc = await getTranslations("common");
-  let report;
+  let report: Awaited<ReturnType<typeof readOwnReport>>;
   try {
     report = await readOwnReport((await sessionCookieValue()) ?? "", caseId);
   } catch (error) {

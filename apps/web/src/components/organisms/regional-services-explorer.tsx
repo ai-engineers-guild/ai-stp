@@ -262,13 +262,14 @@ function Hero({
             {labels.subtitle}
           </p>
         </header>
-        <div className="cis-constellation" role="group" aria-label={labels.cisRegion}>
+        <fieldset className="cis-constellation min-w-0" aria-label={labels.cisRegion}>
           <div className="cis-constellation__orbit" aria-hidden="true" />
           <div
             className="cis-constellation__orbit cis-constellation__orbit--inner"
             aria-hidden="true"
           />
           <div className="cis-constellation__hub" aria-hidden="true">
+            {/* biome-ignore lint/performance/noImgElement: This local mark is already sized for its display and needs no image transformation. */}
             <img
               src="/brand/logo-mark.png"
               alt=""
@@ -325,7 +326,7 @@ function Hero({
               );
             })}
           </div>
-        </div>
+        </fieldset>
       </div>
     </section>
   );

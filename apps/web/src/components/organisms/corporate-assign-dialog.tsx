@@ -64,49 +64,78 @@ export function CorporateAssignDialog({
 }: CorporateAssignDialogProps) {
   const h = context.labels;
   const router = useRouter();
-  const [versions, setVersions] = useState<string[]>([]);
   const [version, setVersion] = useState("latest");
-  const [options, setOptions] = useState<SubjectOptions>(EMPTY_OPTIONS);
   const [selected, setSelected] = useState<SubjectSelection>(EMPTY_SELECTION);
-  const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const loaded = useRef(false);
   const receipts = useRef(new Map<string, { key: string; saved: boolean; revision?: number }>());
 
-  async function load() {
-    const { organizationId, csrfToken } = context;
-    setLoading(true);
-    const [versionResult, ...subjectResults] = await Promise.all([
+  const { organizationId, csrfToken } = context;
+  const discoveryKey = JSON.stringify([
+    open,
+    organizationId,
+    context.authorizationRevision,
+    objectKind,
+    stableId,
+    csrfToken,
+  ]);
+  const [discovery, setDiscovery] = useState<{
+    key: string;
+    data: { versions: string[]; options: SubjectOptions } | null;
+    failed: boolean;
+  }>({ key: discoveryKey, data: null, failed: false });
+  // Reset the editable selection before a changed target can commit its UI.
+  if (discovery.key !== discoveryKey) {
+    setDiscovery({ key: discoveryKey, data: null, failed: false });
+    setSelected(EMPTY_SELECTION);
+    setVersion("latest");
+    setMessage(null);
+  }
+  const data = discovery.key === discoveryKey ? discovery.data : null;
+  const versions = data?.versions ?? [];
+  const options = data?.options ?? EMPTY_OPTIONS;
+  const loading = open && data === null;
+  const shownMessage = message ?? (discovery.failed ? h.assignFailed : null);
+  useEffect(() => {
+    if (!open) return;
+    let current = true;
+    void Promise.all([
       corporateCatalogVersionsAction({ kind: objectKind, id: stableId, csrfToken }),
       ...SUBJECT_KINDS.map((kind) =>
         corporateSubjectSearchAction({ organizationId, kind, csrfToken }),
       ),
-    ]);
-    if (versionResult.ok) setVersions(versionResult.versions);
-    setOptions(
-      Object.fromEntries(
-        SUBJECT_KINDS.map((kind, index) => {
-          const result = subjectResults[index];
-          return [kind, result?.ok ? result.items : []];
-        }),
-      ) as SubjectOptions,
-    );
-    setLoading(false);
-  }
-
-  // Radix only fires onOpenChange for user gestures; the menu opens the dialog
-  // programmatically, so the subject load has to key off the `open` prop itself.
-  useEffect(() => {
-    if (open && !loaded.current) {
-      loaded.current = true;
-      void load();
-    }
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+    ])
+      .then(([versionResult, ...subjectResults]) => {
+        if (!current) return;
+        setDiscovery({
+          key: discoveryKey,
+          failed: false,
+          data: {
+            versions: versionResult.ok ? versionResult.versions : [],
+            options: Object.fromEntries(
+              SUBJECT_KINDS.map((kind, index) => {
+                const result = subjectResults[index];
+                return [kind, result?.ok ? result.items : []];
+              }),
+            ) as SubjectOptions,
+          },
+        });
+      })
+      .catch(() => {
+        if (current)
+          setDiscovery({
+            key: discoveryKey,
+            failed: true,
+            data: { versions: [], options: EMPTY_OPTIONS },
+          });
+      });
+    return () => {
+      current = false;
+    };
+  }, [open, organizationId, csrfToken, objectKind, stableId, discoveryKey]);
 
   function handleOpenChange(next: boolean) {
     if (!next) {
-      loaded.current = false;
       receipts.current.clear();
       setSelected(EMPTY_SELECTION);
       setVersion("latest");
@@ -239,7 +268,7 @@ export function CorporateAssignDialog({
             />
           ))}
           {loading ? <p className="text-sm text-muted-foreground">{h.loading}</p> : null}
-          {message ? <p className="text-sm text-destructive">{message}</p> : null}
+          {shownMessage ? <p className="text-sm text-destructive">{shownMessage}</p> : null}
         </div>
         <DialogFooter>
           <Button

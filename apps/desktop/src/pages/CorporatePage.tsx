@@ -15,6 +15,7 @@ import { EmptyState, PageHeader } from "../components/Layout";
 import { Details, ResultMeta, Spinner } from "../components/Result";
 import CheckoutPreview from "../components/CheckoutPreview";
 import HeartbeatDelivery from "../components/HeartbeatDelivery";
+import { scalarText } from "../contracts";
 
 const TABS = [
   "Projects",
@@ -76,6 +77,7 @@ export default function CorporatePage() {
   const epoch = useRef(0);
   const request = useRef(0);
   const active = useRef(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies(context?.id): A context change resets the directory and invalidates its pending requests.
   useLayoutEffect(() => {
     active.current = true;
     epoch.current++;
@@ -122,8 +124,7 @@ export default function CorporatePage() {
     mapping?: string,
     page: { cursor?: string; offset?: number } = {},
   ) {
-    if (!context || context.mode !== "corporate" || contextLoading || busy)
-      return;
+    if (context?.mode !== "corporate" || contextLoading || busy) return;
     if (tab === "Heartbeat" && !heartbeatSupported) return;
     const view = context.id,
       viewEpoch = epoch.current,
@@ -299,13 +300,13 @@ export default function CorporatePage() {
               )}
             </p>
           </div>
-          <div
-            className="flex flex-wrap gap-2"
-            role="group"
+          <fieldset
+            className="flex min-w-0 flex-wrap gap-2"
             aria-label={msg("corporate.companyInformation")}
           >
             {TABS.map((value) => (
               <button
+                type="button"
                 className={tab === value ? "btn-primary" : "btn-outline"}
                 key={value}
                 aria-pressed={tab === value}
@@ -319,7 +320,7 @@ export default function CorporatePage() {
                 {msg(tabMessages[value])}
               </button>
             ))}
-          </div>
+          </fieldset>
           {unavailable && (
             <EmptyState
               title={
@@ -554,9 +555,9 @@ export default function CorporatePage() {
             >
               <p className="text-xs text-muted-foreground">
                 {msg("corporate.checked")}{" "}
-                {String(permissions.generated_at ?? "")}{" "}
+                {scalarText(permissions.generated_at ?? "")}{" "}
                 {msg("corporate.validThrough")}{" "}
-                {String(permissions.expires_at ?? "")}
+                {scalarText(permissions.expires_at ?? "")}
               </p>
               {mapping && (
                 <div className="card space-y-2">
@@ -582,7 +583,7 @@ export default function CorporatePage() {
                       </dd>
                       <dt>{msg("corporate.policyVersion")}</dt>
                       <dd>
-                        {String(
+                        {scalarText(
                           data.policy_version ?? msg("corporate.notReported"),
                         )}
                       </dd>
@@ -600,13 +601,13 @@ export default function CorporatePage() {
                       <dl className="grid gap-2 text-sm">
                         <dt>{msg("corporate.enrolledDevice")}</dt>
                         <dd className="font-mono break-all">
-                          {String(
+                          {scalarText(
                             data.device_id ?? msg("corporate.notReported"),
                           )}
                         </dd>
                         <dt>{msg("corporate.reportedDeviceHealth")}</dt>
                         <dd>
-                          {String(
+                          {scalarText(
                             data.health_state ?? msg("corporate.notReported"),
                           )}
                         </dd>
@@ -628,7 +629,7 @@ export default function CorporatePage() {
               ) : (
                 <ul className="grid gap-3 lg:grid-cols-2">
                   {rows.map((item, index) => {
-                    const id = String(
+                    const id = scalarText(
                       item.project_id ??
                         item.team_id ??
                         item.technology_id ??
@@ -636,7 +637,7 @@ export default function CorporatePage() {
                         item.version ??
                         index,
                     );
-                    const name = String(
+                    const name = scalarText(
                       item.name ??
                         item.display_name ??
                         item.latest_name ??
@@ -655,7 +656,14 @@ export default function CorporatePage() {
                       item.description ?? item.latest_description;
                     const digest = item.passport_digest ?? item.digest;
                     return (
-                      <li className="card space-y-3" key={`${id}:${index}`}>
+                      <li
+                        className="card space-y-3"
+                        key={JSON.stringify([
+                          id,
+                          item.version,
+                          item.passport_digest ?? item.digest,
+                        ])}
+                      >
                         <h2 className="font-medium">{name}</h2>
                         {(status != null || version != null) && (
                           <p className="text-sm text-muted-foreground">
@@ -680,6 +688,7 @@ export default function CorporatePage() {
                         )}
                         {tab === "Projects" && (
                           <button
+                            type="button"
                             className="btn-outline"
                             onClick={() => {
                               invalidate();
@@ -693,6 +702,7 @@ export default function CorporatePage() {
                         )}
                         {tab === "Projects" && checkoutSupported && (
                           <button
+                            type="button"
                             className="btn-outline"
                             disabled={busy || contextLoading}
                             onClick={() => setCheckoutProject({ id, name })}
@@ -702,6 +712,7 @@ export default function CorporatePage() {
                         )}
                         {tab === "Mappings" && !mapping && (
                           <button
+                            type="button"
                             className="btn-outline"
                             disabled={busy}
                             onClick={() => void read(String(item.version))}
@@ -722,6 +733,7 @@ export default function CorporatePage() {
               )}
               {(nextCursor !== null || nextOffset !== null) && (
                 <button
+                  type="button"
                   className="btn-outline"
                   disabled={busy || contextLoading}
                   onClick={() =>
@@ -729,7 +741,9 @@ export default function CorporatePage() {
                       undefined,
                       nextCursor !== null
                         ? { cursor: nextCursor }
-                        : { offset: nextOffset! },
+                        : nextOffset !== null
+                          ? { offset: nextOffset }
+                          : {},
                     )
                   }
                 >

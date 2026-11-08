@@ -53,8 +53,7 @@ export default async function LoginPage({ params, searchParams }: PageProps) {
   const signInProviders = env.AI_STP_AUTH_PROVIDERS;
   const ssoProviders = corporateSsoProviders(env.AI_STP_AUTH_SSO_PROVIDERS);
   const defaultReturn = corporateHref(`/${locale}/account`);
-  const returnTo =
-    sp.returnTo && sp.returnTo.startsWith("/") ? corporateHref(sp.returnTo) : defaultReturn;
+  const returnTo = sp.returnTo?.startsWith("/") ? corporateHref(sp.returnTo) : defaultReturn;
 
   return (
     <div className="mx-auto w-full max-w-md min-w-0 space-y-6">

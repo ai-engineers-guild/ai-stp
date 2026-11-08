@@ -1,6 +1,7 @@
 /* eslint-disable max-lines -- Category table, editor panel, icon picker, and linking dialog stay in one render owner. */
 "use client";
 
+import { isPeopleRowControl } from "@/lib/people-row";
 import { useRequestedEntityAction } from "@/lib/use-requested-entity-action";
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -515,15 +516,12 @@ export function CorporateTechCategories({
                 key={category.category_id}
                 data-selected={selected?.category_id === category.category_id || undefined}
                 className="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-muted/30 data-[selected]:bg-primary/5"
-                onClick={() => {
+                onClick={(event) => {
+                  if (isPeopleRowControl(event.target)) return;
                   setSelectedId(category.category_id);
                 }}
               >
-                <td
-                  onClick={(event) => {
-                    event.stopPropagation();
-                  }}
-                >
+                <td>
                   <PeopleCheckbox
                     label={category.name}
                     checked={checked.includes(category.category_id)}
@@ -537,14 +535,23 @@ export function CorporateTechCategories({
                   />
                 </td>
                 <td className={`${peopleCellClass} font-medium`}>
-                  <span className="inline-flex items-center gap-3">
+                  <Button
+                    type="button"
+                    aria-haspopup="dialog"
+                    aria-expanded={selected?.category_id === category.category_id}
+                    variant="ghost"
+                    className="h-auto min-h-11 justify-start px-0 py-1 text-left"
+                    onClick={() => {
+                      setSelectedId(category.category_id);
+                    }}
+                  >
                     <CategoryIconBadge
                       icon={iconFor(category)}
                       seed={category.category_id}
                       size={8}
                     />
                     <span className="whitespace-nowrap">{category.name}</span>
-                  </span>
+                  </Button>
                 </td>
                 <td className={`${peopleCellClass} tabular-nums`}>
                   {technologies === null ? "—" : (linked.get(category.category_id)?.length ?? 0)}
@@ -565,12 +572,7 @@ export function CorporateTechCategories({
                     {t(`state_${category.state ?? "active"}`)}
                   </Badge>
                 </td>
-                <td
-                  className="text-right"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                  }}
-                >
+                <td className="text-right">
                   <EntityDetailMenu
                     subject={{
                       kind: "category",

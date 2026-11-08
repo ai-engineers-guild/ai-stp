@@ -33,7 +33,7 @@ export default async function OwnerVersionPage({ params }: PageProps) {
   const token = await sessionCookieValue();
   const csrf = await readCsrfToken();
 
-  let detail;
+  let detail: Awaited<ReturnType<typeof readOwnerVersion>>;
   try {
     detail = await readOwnerVersion(token ?? "", kind, stableId, version);
   } catch (error) {

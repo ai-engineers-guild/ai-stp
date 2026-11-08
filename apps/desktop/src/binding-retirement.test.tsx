@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { required } from "./test-values";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   act,
@@ -149,7 +150,7 @@ function receipt(): Record<string, unknown> {
 }
 function locationProposal(): CmdResult {
   const value = structuredClone(proposal()),
-    plan = record(value.data!.plan),
+    plan = record(required(value.data).plan),
     binding = record(record(plan.snapshot).binding);
   plan.registry_schema_before = 61;
   plan.registry_schema_after = 61;
@@ -252,7 +253,7 @@ it("separately reviews the exact terminal link, applies only after confirmation 
     "This original local binding was retired. Its adoption receipt is preserved.",
   );
   expect(transport.cmdBindingRetirementApply).toHaveBeenCalledWith(
-    proposal().data!.plan,
+    required(proposal().data).plan,
     retirementDigest,
     true,
   );
@@ -341,7 +342,7 @@ it.each([
   "refuses a mismatched %s proposal before private content is displayed",
   async (field) => {
     const bad = structuredClone(proposal()),
-      plan = record(bad.data!.plan),
+      plan = record(required(bad.data).plan),
       value = record(plan.snapshot),
       binding = record(value.binding);
     if (field === "origin")
@@ -397,7 +398,7 @@ it("retains retirement review and immutable receipt lookup after a reviewed chec
   expect(bindingRetirementReview(value, context, original())).not.toBe(null);
   expect(
     bindingRetirementReceipt(
-      { ...receipt(), plan: value.data!.plan },
+      { ...receipt(), plan: required(value.data).plan },
       original(),
     ),
   ).toBe(true);
@@ -405,7 +406,7 @@ it("retains retirement review and immutable receipt lookup after a reviewed chec
 
 it("shows the current byte-preserving checkout before confirming retirement and restores that receipt", async () => {
   const value = locationProposal(),
-    retained = { ...receipt(), plan: value.data!.plan };
+    retained = { ...receipt(), plan: required(value.data).plan };
   vi.mocked(transport.cliPlan).mockResolvedValue(value);
   vi.mocked(transport.cmdBindingRetirementApply).mockImplementation(
     async () => {
@@ -424,7 +425,7 @@ it("shows the current byte-preserving checkout before confirming retirement and 
     "This original local binding was retired. Its adoption receipt is preserved.",
   );
   expect(transport.cmdBindingRetirementApply).toHaveBeenCalledWith(
-    value.data!.plan,
+    required(value.data).plan,
     retirementDigest,
     true,
   );
@@ -445,7 +446,7 @@ it("preserves known61 without a location and rejects future, upgrade and downgra
     [61, 60, false],
   ]) {
     const value = structuredClone(proposal()),
-      plan = record(value.data!.plan);
+      plan = record(required(value.data).plan);
     plan.registry_schema_before = before;
     plan.registry_schema_after = after;
     expect(bindingRetirementReview(value, context, original()) !== null).toBe(
@@ -464,7 +465,7 @@ it.each([
   "unknown",
 ])("refuses a changed checkout with %s location evidence", (field) => {
   const value = locationProposal(),
-    plan = record(value.data!.plan),
+    plan = record(required(value.data).plan),
     binding = record(record(plan.snapshot).binding),
     location = record(binding.location),
     physical = record(location.physical);
@@ -486,7 +487,7 @@ it("retains a full Windows128 file ID without converting it to an imprecise numb
     priorPlan = record(prior.plan),
     before = record(record(priorPlan.change).snapshot),
     value = locationProposal(),
-    plan = record(value.data!.plan),
+    plan = record(required(value.data).plan),
     binding = record(record(plan.snapshot).binding);
   priorPlan.checkout_root = path("C:\\original");
   record(record(before.local_project).root).path = priorPlan.checkout_root;
@@ -506,7 +507,7 @@ it("retains a full Windows128 file ID without converting it to an imprecise numb
 
 function missingProposal(): CmdResult {
   const value = structuredClone(proposal()),
-    old = record(value.data!.plan),
+    old = record(required(value.data).plan),
     snapshot = record(old.snapshot);
   return ok({
     plan_digest: retirementDigest,
@@ -667,7 +668,7 @@ it("rejects unknown missing-retirement meaning, parent identity, policy, lineage
     "extra",
   ]) {
     const response = structuredClone(missingProposal()),
-      plan = record(response.data!.plan),
+      plan = record(required(response.data).plan),
       snapshot = record(plan.snapshot),
       remote = record(snapshot.remote_outcome),
       reader = record(snapshot.reader),

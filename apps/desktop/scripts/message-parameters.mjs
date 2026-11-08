@@ -46,7 +46,12 @@ export function selectors(nodes, result = new Map()) {
   }
   return JSON.stringify(
     [...result]
-      .map(([name, choices]) => [name, [...choices].sort()])
+      .map(([name, choices]) => [
+        name,
+        [...choices].sort((left, right) =>
+          left < right ? -1 : left > right ? 1 : 0,
+        ),
+      ])
       .sort(([a], [b]) => a.localeCompare(b)),
   );
 }

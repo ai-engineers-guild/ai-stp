@@ -50,6 +50,7 @@ export default function TasksPage() {
         description={msg("tasks.resumeOpenTasksOrInspectAnyRetainedTaskBy")}
         action={
           <button
+            type="button"
             className="btn-outline"
             onClick={() => void refresh()}
             disabled={busy}

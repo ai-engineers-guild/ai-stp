@@ -91,7 +91,7 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
   if (!componentId) notFound();
   const token = await sessionCookieValue();
 
-  let detail;
+  let detail: Awaited<ReturnType<typeof readComponent>>;
   try {
     detail = await readComponent(componentId, token);
   } catch (error) {

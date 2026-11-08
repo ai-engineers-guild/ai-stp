@@ -47,6 +47,32 @@
     "enabled": false
   },
   "overrides": [
+    // Locator.innerText() is Playwright rendered-text evidence, not a DOM property read.
+    {
+      "includes": ["**/tests/e2e/**"],
+      "linter": {
+        "rules": {
+          "performance": {
+            "useDomNodeTextContent": "off"
+          }
+        }
+      }
+    },
+    // JSDOM consent fixtures use the same synchronous cookie API as the tested runtime.
+    {
+      "includes": [
+        "**/tests/component/consented-analytics.test.tsx",
+        "**/tests/component/cookie-consent.test.tsx",
+        "**/tests/unit/public-analytics.test.ts"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noDocumentCookie": "off"
+          }
+        }
+      }
+    },
     {
       "includes": [
         "**/src/lib/api/generated/**",

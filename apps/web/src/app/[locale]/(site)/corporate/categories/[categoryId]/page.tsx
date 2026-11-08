@@ -25,7 +25,7 @@ export default async function CategoryDetailPage({
   const t = await getTranslations("technology");
   const c = await getTranslations("corporate");
   const common = await getTranslations("common");
-  let context;
+  let context: Awaited<ReturnType<typeof readCorporateContext>>;
   try {
     context = await readCorporateContext(session);
   } catch (error) {
@@ -36,7 +36,7 @@ export default async function CategoryDetailPage({
   }
   if (!context)
     return <StatePanel kind="empty" title={h("categories")} description={c("noOrganization")} />;
-  let detail;
+  let detail: Awaited<ReturnType<typeof readCategoryDetail>>;
   try {
     detail = await readCategoryDetail(session, context.organization.organization_id, categoryId);
   } catch (error) {

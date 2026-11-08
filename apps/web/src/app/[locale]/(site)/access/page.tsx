@@ -31,7 +31,7 @@ export default async function AccessPage({ params, searchParams }: PageProps) {
     sp.object_kind === "setup" || sp.object_kind === "component" ? sp.object_kind : undefined;
   const stableId = sp.stable_id?.trim() || undefined;
 
-  let grants;
+  let grants: Awaited<ReturnType<typeof listGrants>>;
   try {
     grants = await listGrants(token ?? "");
   } catch (error) {

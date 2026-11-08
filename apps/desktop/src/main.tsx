@@ -9,7 +9,9 @@ import "./index.css";
 void preparePreferences({ cmdPreferencesRead, cmdPreferencesWrite })
   .then(prepareLocale)
   .then(() => {
-    createRoot(document.getElementById("root")!).render(
+    const root = document.getElementById("root");
+    if (!root) throw new Error("The desktop root element is missing.");
+    createRoot(root).render(
       <StrictMode>
         <App />
       </StrictMode>,

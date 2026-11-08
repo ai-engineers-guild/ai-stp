@@ -29,9 +29,13 @@ export default async function CorporateReportsPage({
     <Table className="text-left text-[10px]">
       <TBody>
         {rows.map((row, index) => (
-          <Tr key={index}>
+          <Tr
+            // biome-ignore lint/suspicious/noArrayIndexKey: This ordered template preview has stateless cells and intentionally repeated labels.
+            key={index}
+          >
             {row.map((cell, column) => (
               <Td
+                // biome-ignore lint/suspicious/noArrayIndexKey: This ordered template preview has stateless cells and intentionally repeated labels.
                 key={column}
                 className={`px-0 py-2 pr-2 text-[10px] ${index === 0 ? "text-muted-foreground" : ""}`}
               >
@@ -47,6 +51,7 @@ export default async function CorporateReportsPage({
     <div className="flex h-full min-h-36 items-end gap-2">
       {widths.map((width, index) => (
         <span
+          // biome-ignore lint/suspicious/noArrayIndexKey: This ordered template preview has stateless cells and intentionally repeated labels.
           key={index}
           className="block flex-1 rounded-t-sm bg-muted"
           style={{ height: `${width}%` }}
@@ -72,9 +77,16 @@ export default async function CorporateReportsPage({
           ["Claude", t("active"), "28m", "—"],
           ["Gemini", t("stale"), "2h", "1"],
         ].map((row, index) => (
-          <Tr key={index}>
+          <Tr
+            // biome-ignore lint/suspicious/noArrayIndexKey: This ordered template preview has stateless cells and intentionally repeated labels.
+            key={index}
+          >
             {row.map((cell, column) => (
-              <Td key={column} className="px-0 py-2 pr-2 text-[10px]">
+              <Td
+                // biome-ignore lint/suspicious/noArrayIndexKey: This ordered template preview has stateless cells and intentionally repeated labels.
+                key={column}
+                className="px-0 py-2 pr-2 text-[10px]"
+              >
                 {cell}
               </Td>
             ))}
@@ -87,6 +99,7 @@ export default async function CorporateReportsPage({
     <div className="flex h-full flex-col justify-center gap-4">
       {[74, 58, 82, 42, 65].map((width, index) => (
         <span
+          // biome-ignore lint/suspicious/noArrayIndexKey: This ordered template preview has stateless cells and intentionally repeated labels.
           key={index}
           className="block h-2 rounded-sm bg-muted"
           style={{ width: `${width}%` }}

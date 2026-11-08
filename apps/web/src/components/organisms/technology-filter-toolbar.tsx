@@ -186,8 +186,8 @@ function TechnologyFacetField({
   const t = useTranslations("technology");
   if (facet.kind === "options")
     return (
-      <label className="min-w-0 space-y-2 text-sm">
-        <span className="font-medium">{facet.label}</span>
+      <fieldset className="min-w-0 space-y-2 text-sm">
+        <legend className="font-medium">{facet.label}</legend>
         <SearchableMultiSelect
           name={`filter-${facet.key}`}
           label={facet.label}
@@ -199,7 +199,7 @@ function TechnologyFacetField({
           closeLabel={t("close")}
           onChange={onChange}
         />
-      </label>
+      </fieldset>
     );
   if (facet.kind === "date")
     return (

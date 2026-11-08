@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" role="img">
+  <title>MD</title>
   <rect width="200" height="400" fill="#003DA5"/>
   <rect x="200" width="200" height="400" fill="#FFD200"/>
   <rect x="400" width="200" height="400" fill="#CC092F"/>

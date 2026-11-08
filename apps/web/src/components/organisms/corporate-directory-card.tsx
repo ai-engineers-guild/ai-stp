@@ -183,7 +183,7 @@ function CardFooter({
   returnFilters: string;
 }) {
   const footer = footerReferences(resource, item);
-  if (!footer || !footer.refs.length) return null;
+  if (!footer?.refs.length) return null;
   return (
     <div className="mt-5 flex min-w-0 flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
       <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">

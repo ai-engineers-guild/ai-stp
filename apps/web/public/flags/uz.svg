@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" role="img">
+  <title>UZ</title>
   <rect width="600" height="133.33" fill="#0099B5"/>
   <rect y="133.33" width="600" height="6" fill="#CE1126"/>
   <rect y="139.33" width="600" height="121.34" fill="#FFFFFF"/>

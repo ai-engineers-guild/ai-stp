@@ -30,6 +30,7 @@ export function useSessionPresence(): boolean {
   const setSignedInHint = useSessionUiSlice((s) => s.setSignedInHint);
   const pathname = usePathname();
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies(pathname): A route change revalidates session presence.
   useEffect(() => {
     const aborter = new AbortController();
     void (async () => {

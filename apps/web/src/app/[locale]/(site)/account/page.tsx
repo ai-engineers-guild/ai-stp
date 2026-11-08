@@ -35,8 +35,8 @@ export default async function AccountPage({ params }: PageProps) {
   const token = await sessionCookieValue();
   const csrfToken = (await readCsrfToken()) ?? "";
 
-  let profile;
-  let corporateOrganization;
+  let profile: Awaited<ReturnType<typeof readAccount>>;
+  let corporateOrganization: Awaited<ReturnType<typeof readCorporateOrganization>>;
   try {
     [profile, corporateOrganization] = await Promise.all([
       readAccount(token ?? ""),

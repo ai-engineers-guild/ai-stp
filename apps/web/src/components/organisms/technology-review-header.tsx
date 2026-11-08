@@ -149,33 +149,37 @@ export function TechnologyScanMetadata({ state }: { state: TechnologyReviewState
     <>
       {scan && (
         <dl className="technology-scan-metadata">
-          {[
-            [w("project"), scan.project_name ?? scan.project_id],
-            [w("repository"), scan.repository ?? "—"],
+          {(
             [
-              w("source"),
-              <span key="source" className="flex items-center gap-2">
-                <Icon name={sourceIcon(scan.source)} size="sm" />
-                {s(`source.${scan.source}`)}
-              </span>,
-            ],
-            [w("branch"), scan.branch ?? "—"],
-            [w("commit"), scan.commit?.slice(0, 8) ?? "—"],
-            [w("scanType"), scan.scan_types.map((kind) => scanTypes[kind]).join(", ") || "—"],
-            [
-              w("status"),
-              <Badge key="status" variant="secondary">
-                {s(`status.${scan.status}`)}
-              </Badge>,
-            ],
-            [
-              w("duration"),
-              scan.duration_seconds == null ? "—" : w("seconds", { count: scan.duration_seconds }),
-            ],
-            [w("found"), state.allRows.filter((row) => row.tier !== "dependency").length],
-            [w("pending"), state.allRows.filter(state.pending).length],
-          ].map(([label, value], index) => (
-            <div key={index}>
+              [w("project"), scan.project_name ?? scan.project_id],
+              [w("repository"), scan.repository ?? "—"],
+              [
+                w("source"),
+                <span key="source" className="flex items-center gap-2">
+                  <Icon name={sourceIcon(scan.source)} size="sm" />
+                  {s(`source.${scan.source}`)}
+                </span>,
+              ],
+              [w("branch"), scan.branch ?? "—"],
+              [w("commit"), scan.commit?.slice(0, 8) ?? "—"],
+              [w("scanType"), scan.scan_types.map((kind) => scanTypes[kind]).join(", ") || "—"],
+              [
+                w("status"),
+                <Badge key="status" variant="secondary">
+                  {s(`status.${scan.status}`)}
+                </Badge>,
+              ],
+              [
+                w("duration"),
+                scan.duration_seconds == null
+                  ? "—"
+                  : w("seconds", { count: scan.duration_seconds }),
+              ],
+              [w("found"), state.allRows.filter((row) => row.tier !== "dependency").length],
+              [w("pending"), state.allRows.filter(state.pending).length],
+            ] as const
+          ).map(([label, value]) => (
+            <div key={label}>
               <dt>{label}</dt>
               <dd>{value}</dd>
             </div>
