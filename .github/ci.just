@@ -53,6 +53,7 @@ ci-integration-web-web-syntax-types-and-units:
     bun install --frozen-lockfile
     AI_STP_WEB_PROFILE=public_saas bun x next typegen
     bun run lint
+    bun run lint:dependencies
     bun run format:check
     bun run type-check
     bun run i18n:check
@@ -275,6 +276,7 @@ ci-web-static-build-static-check-audit-and-storybook:
     AI_STP_WEB_PROFILE=public_saas bun run build
     bun run i18n:check
     bun run lint
+    bun run lint:dependencies
     bun run format:check
     bun run type-check
     bun run audit

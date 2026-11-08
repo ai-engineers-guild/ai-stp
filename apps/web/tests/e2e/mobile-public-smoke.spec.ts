@@ -12,7 +12,7 @@ const COMPONENT_ID = "component_01JQZK7B8N4M6P2R9T5V0X3YBE";
 const SETUP_ID = "setup_01JQZK7B8N4M6P2R9T5V0X3YC2";
 const ACCOUNT_ID = "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
 
-// Same default as scripts/verify-production.mjs and shell-machine-contact.spec.ts.
+// Share the ignored review directory with shell-machine-contact.spec.ts.
 const reviewDir = path.resolve(
   process.cwd(),
   process.env.VERIFY_REVIEW_DIR ?? "test-results/review",
