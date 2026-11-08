@@ -181,7 +181,10 @@ jobs:
         run: |
           set -euo pipefail
           cd apps/desktop
+          python ../../release_scripts/desktop_version.py --check
           bun install --frozen-lockfile
+          bun run format:check
+          bun run messages:check
           bun x tsc --noEmit
           bun x vitest run
       - name: Documentation Markdown syntax

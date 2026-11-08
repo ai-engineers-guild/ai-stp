@@ -413,12 +413,19 @@ export function cmdNativeInventoryEnable(
   digest: string,
   confirmed: boolean,
 ): Promise<CmdResult> {
-  return call("native_inventory_enable", {plan,digest,confirmed});
+  return call("native_inventory_enable", { plan, digest, confirmed });
 }
 
-export function cmdSetupAcquisitionPlan(stableId:string,version:string):Promise<CmdResult> {
-  return call("setup_acquisition_plan",{stableId,version});
+export function cmdSetupAcquisitionPlan(
+  stableId: string,
+  version: string,
+): Promise<CmdResult> {
+  return call("setup_acquisition_plan", { stableId, version });
 }
-export function cmdSetupAcquisitionApply(plan:Record<string,unknown>,digest:string,confirmed:boolean):Promise<CmdResult> {
-  return call("setup_acquisition_apply",{plan,digest,confirmed});
+export function cmdSetupAcquisitionApply(
+  plan: Record<string, unknown>,
+  digest: string,
+  confirmed: boolean,
+): Promise<CmdResult> {
+  return call("setup_acquisition_apply", { plan, digest, confirmed });
 }

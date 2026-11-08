@@ -16,6 +16,7 @@ source="$(jq -ce --arg repo "${REPOSITORY}" --arg sha "${HEAD_SHA}" '
 ' <<< "${runs}")"
 source_id="$(jq -r .id <<< "${source}")"
 attempt="$(jq -r .run_attempt <<< "${source}")"
+[[ "${source_id}" =~ ^[1-9][0-9]*$ && "${attempt}" =~ ^[1-9][0-9]*$ ]]
 jobs="$(gh api "repos/${REPOSITORY}/actions/runs/${source_id}/attempts/${attempt}/jobs?per_page=100")"
 jq -e '
   .total_count == (.jobs | length) and
@@ -24,3 +25,7 @@ jq -e '
 ' <<< "${jobs}" >/dev/null
 printf 'Qualified client source %s; main run %s attempt %s\n' \
   "${HEAD_SHA}" "${source_id}" "${attempt}"
+if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
+  printf 'qualified_run_id=%s\nqualified_run_attempt=%s\n' \
+    "${source_id}" "${attempt}" >> "${GITHUB_OUTPUT}"
+fi

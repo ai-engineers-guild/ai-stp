@@ -562,6 +562,12 @@ class Driver:
 
     def navigate(self, route: str, *, keyboard: bool = False) -> None:
         link = self.find(f'nav[aria-label="Main navigation"] a[href="#/{route}"]')
+        disclosure = self.read(
+            "return arguments[0].closest('details:not([open])')?.querySelector('summary')??null;",
+            link,
+        )
+        if disclosure:
+            self.click(dict(disclosure))
         if keyboard:
             # Exercise actual accessible link activation, including when a
             # retained company identity changes the scrollable sidebar height.
@@ -959,7 +965,8 @@ def prepare_native_setup(
             lambda label=label: driver.read(
                 "const label=[...document.querySelectorAll('main label')]"
                 ".find(x=>x.textContent.trim()===arguments[0]);"
-                "const input=label?.querySelector('input');"
+                "const input=label?.querySelector('input')??"
+                "document.getElementById(label?.htmlFor);"
                 "return input&&!input.disabled?input:null;",
                 label,
             ),
@@ -1149,8 +1156,9 @@ def main() -> None:
         driver.start()
         driver.wait(
             lambda: driver.read(
-                "return document.querySelector('main').textContent.includes(arguments[0]);",
-                f"Rust {version}",
+                "return document.querySelector('[data-testid=engine-version]')"
+                "?.textContent.includes(arguments[0]);",
+                version,
             ),
             "bundled Rust engine through actual IPC",
         )
@@ -1210,6 +1218,39 @@ def main() -> None:
         )
         driver.audit_accessibility("retained-personal-profiles")
         accessibility = list(driver.accessibility)
+        driver.navigate("")
+        driver.click(driver.button("Refresh"))
+        driver.button("Refresh")
+        driver.selected(first)
+        external_selection = native(
+            binary, environment, ["context", "select", "plan", "--context", second]
+        )
+        selection_file = root / "external-context-selection.json"
+        selection_file.write_text(json.dumps(external_selection["plan"]), encoding="utf-8")
+        selection_file.chmod(0o600)
+        native(
+            binary,
+            environment,
+            [
+                "context",
+                "apply",
+                "--plan",
+                str(selection_file),
+                "--plan-digest",
+                external_selection["plan_digest"],
+            ],
+        )
+        driver.click(driver.button("Refresh"))
+        driver.selected(second)
+        driver.wait(
+            lambda: driver.read(
+                "return document.querySelector('main').textContent"
+                ".includes('Installed personal two');"
+            ),
+            "Overview refresh observes the external CLI context selection",
+        )
+        driver.navigate("profiles")
+        driver.select_context("Installed personal one", first)
         local = next(
             item["context"]["local_identity"]
             for item in listed["contexts"]
@@ -1336,6 +1377,7 @@ def main() -> None:
                 "native_os_keyring": True,
                 "two_offline_personal_contexts": True,
                 "view_switching_and_restart_persistence": True,
+                "overview_refresh_observes_external_context_selection": True,
                 "personal_task_started_through_ui": True,
                 "personal_task_ownership_after_restart": True,
                 "personal_task_original_owner_after_view_switch": True,

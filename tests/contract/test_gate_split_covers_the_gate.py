@@ -1,4 +1,4 @@
-"""The gate split across jobs covers exactly what `just check` covers.
+"""The gate split across jobs covers full verification.
 
 Splitting by required capability (`ADR-0105`, unpublished; `ADR-0116`) is worth
 having right up to the moment one check silently falls out of the union. Nothing
@@ -6,7 +6,7 @@ fails when it does:
 the run stays green and the check simply stops running, and the only trace is a
 line missing from a log nobody reads.
 
-So the union is checked mechanically. The `just check` dependency tree is
+So the union is checked mechanically. The `just verify` dependency tree is
 expanded to its leaves, every leaf is mapped to the distinctive commands of its
 recipe body, and those commands have to appear in the workflow. The workflow,
 in turn, must not invoke `just` at all: the local task runner is a convenience
@@ -26,11 +26,11 @@ JUSTFILE = ROOT / "justfile"
 WORKFLOW = ROOT / ".github/workflows/check.yml"
 WORKFLOW_DIR = WORKFLOW.parent
 
-#: `name: dep dep` at the start of a line. No recipe in the `check` tree takes
+#: `name: dep dep` at the start of a line. No recipe in the verification tree takes
 #: parameters, so everything to the right of the colon is a dependency list.
 _RECIPE = re.compile(r"^([a-z][a-z0-9-]*):(?:\s+([a-z0-9\- ]*))?$", re.MULTILINE)
 
-#: One or more distinctive substrings per leaf recipe of `just check`. A leaf
+#: One or more distinctive substrings per leaf recipe of `just verify`. A leaf
 #: is covered by the gate exactly when every token appears in the workflow.
 #: The mapping is deliberately explicit: when a recipe body changes its
 #: command, updating this table is the review moment where drift is named.
@@ -75,11 +75,23 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
     ),
     "back-build": ("uv build --all-packages",),
     "back-regress": ("clean_install_regress.sh",),
+    "cli-source": ("cargo fmt --check",),
     "cli-static": (
         "-- resources --check",
-        "cargo fmt --check",
         "cargo clippy --locked --all-targets -- -D warnings",
     ),
+    "desktop-source": (
+        "release_scripts/desktop_version.py --check",
+        "tsc --noEmit",
+        "cargo fmt --check",
+        "bun run format:check",
+        "bun run messages:check",
+    ),
+    "desktop-build": ("vite build", "desktop-stub"),
+    "desktop-static": ("cargo clippy --locked --all-targets -- -D warnings",),
+    "desktop-test": ("vitest run", "cargo test --locked"),
+    "desktop-regress": ("desktop-build", "desktop-probe"),
+    "just-fmt": (),
     "cli-test": ("cargo test --locked",),
     "cli-build": ("cargo build --locked --release --bins --examples",),
     "cli-regress": ("cli-binary", 'tests/native_contract/verify.py "$binary"'),
@@ -87,11 +99,11 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
     "web-build": ("AI_STP_WEB_PROFILE=public_saas bun run build",),
     "web-storybook": ("build-storybook",),
     "web-i18n": ("bun run i18n:check",),
-    "web-static": (
+    "web-source": (
         "bun run lint",
         "bun run format:check",
-        "bun run type-check",
     ),
+    "web-static": ("bun run type-check",),
     "web-test": ("bun run test:coverage", "bun run test:coverage:catalog"),
     "web-regress": ("ensure-chrome.sh", "bun run test:e2e"),
     "web-feature-profiles": ("ensure-chrome.sh", "bun run test:feature-profiles"),
@@ -167,7 +179,7 @@ def _workflow_text() -> str:
     )
 
 
-def test_every_recipe_leaf_of_just_check_appears_in_the_gate() -> None:
+def test_every_recipe_leaf_of_full_verification_appears_in_the_gate() -> None:
     """No check disappears when the gate is split, across jobs or across trees.
 
     Splitting is worth having right up to the moment a check falls out of the
@@ -176,10 +188,10 @@ def test_every_recipe_leaf_of_just_check_appears_in_the_gate() -> None:
     well as across jobs, so the union is asserted over the whole published
     workflow directory rather than one file.
     """
-    required = _expand(["check"])
-    assert required, "the `check` recipe resolved to nothing; the parser is wrong"
+    required = _expand(["verify"])
+    assert required, "the `verify` recipe resolved to nothing; the parser is wrong"
     unmapped = required - set(_LEAF_TOKENS)
-    assert not unmapped, f"a leaf of `just check` has no command tokens mapped: {sorted(unmapped)}"
+    assert not unmapped, f"a leaf of `just verify` has no command tokens mapped: {sorted(unmapped)}"
     gate = _workflow_text()
     missing = [
         (leaf, token)
@@ -193,9 +205,37 @@ def test_every_recipe_leaf_of_just_check_appears_in_the_gate() -> None:
 def test_the_parser_sees_the_shape_it_claims_to_see() -> None:
     """A gate nobody has watched fail is a gate of unknown shape."""
     graph = _dependencies()
-    assert graph["check"] == ("docs-check", "back-check", "cli-check", "web-check", "security")
+    assert graph["check"] == (
+        "docs-static",
+        "back-static",
+        "cli-source",
+        "desktop-source",
+        "web-source",
+        "just-fmt",
+    )
+    assert graph["verify"] == (
+        "check",
+        "docs-check",
+        "back-check",
+        "cli-check",
+        "web-check",
+        "desktop-check",
+        "security",
+    )
     assert "back-test" in _expand(["back-check"])
     assert _expand(["security"]) == {"security"}
+
+
+def test_source_checks_cannot_build_install_or_execute_test_suites() -> None:
+    bodies = _bodies()
+    forbidden = re.compile(
+        r"cargo (?:run|build|check|clippy|test)|bun (?:install|x)|"
+        r"bun run (?:build|test|i18n:check|audit)|pytest|unittest|uv (?:sync|build)"
+    )
+    for recipe in _expand(["check"]):
+        assert not forbidden.search(bodies[recipe]), f"{recipe} is not a source-only check"
+    assert _expand(["pre-commit"]) == _expand(["check"])
+    assert {"docs-test", "cli-static", "cli-test", "web-test", "desktop-test"} <= _expand(["test"])
 
 
 def test_the_published_gate_never_invokes_the_local_task_runner() -> None:
@@ -214,7 +254,7 @@ def test_the_published_gate_never_invokes_the_local_task_runner() -> None:
 def test_setup_is_split_and_each_job_prepares_only_its_own_part() -> None:
     """The full preparation stays local while CI prepares one part per job."""
     graph = _dependencies()
-    assert graph["setup"] == ("setup-python", "setup-docs", "setup-web")
+    assert graph["setup"] == ("setup-python", "setup-docs", "setup-web", "setup-desktop")
     workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
     # A job running the full preparation would bring back the Node and bun
     # minutes exactly where only Python is needed.

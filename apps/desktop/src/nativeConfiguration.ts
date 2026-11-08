@@ -28,9 +28,13 @@ const id = /^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
 const hash = /^sha256:[0-9a-f]{64}$/;
 export function nativeReview(result: CmdResult): NativeOperation | null {
   if (!result.ok) return null;
-  const plan = record(result.data?.plan), retirement = record(plan.missing_retirement);
-  const metadataOnly = retirement.format === "ai-stp-native-missing-target-retirement/1";
-  const native = record(metadataOnly ? retirement.original_plan : plan.native_plan);
+  const plan = record(result.data?.plan),
+    retirement = record(plan.missing_retirement);
+  const metadataOnly =
+    retirement.format === "ai-stp-native-missing-target-retirement/1";
+  const native = record(
+    metadataOnly ? retirement.original_plan : plan.native_plan,
+  );
   const context = record(native.context),
     target = record(native.target);
   const operation = String(plan.operation_id ?? ""),
@@ -38,7 +42,8 @@ export function nativeReview(result: CmdResult): NativeOperation | null {
   if (
     plan.format !== "ai-stp-native-custody-review/1" ||
     native.format !== "ai-stp-native-installation/1" ||
-    native.operation_id !== (metadataOnly ? retirement.source_operation : operation) ||
+    native.operation_id !==
+      (metadataOnly ? retirement.source_operation : operation) ||
     !id.test(operation) ||
     !hash.test(digest) ||
     typeof context.context_id !== "string" ||
@@ -55,7 +60,9 @@ export function nativeReview(result: CmdResult): NativeOperation | null {
     plan,
     phase: "review",
     metadataOnly,
-    stateParent: metadataOnly ? originalState({root:record(retirement.controller).path}) : originalState(context),
+    stateParent: metadataOnly
+      ? originalState({ root: record(retirement.controller).path })
+      : originalState(context),
   };
 }
 export function nativePending(result: CmdResult): NativeOperation | null {
@@ -81,25 +88,44 @@ export function nativePending(result: CmdResult): NativeOperation | null {
     plan: null,
     phase: String(record(pending.custody).state ?? "unknown"),
     metadataOnly: pending.kind === "retire_missing",
-    stateParent: pending.kind === "retire_missing" ? originalState({root:record(pending.controller).path}) : originalState(context),
+    stateParent:
+      pending.kind === "retire_missing"
+        ? originalState({ root: record(pending.controller).path })
+        : originalState(context),
   };
 }
 /** A completed original operation remains inspectable after an app restart. */
 export function nativeStatus(result: CmdResult): NativeOperation | null {
   if (!result.ok) return null;
-  const data = record(result.data), context = record(data.original_context);
+  const data = record(result.data),
+    context = record(data.original_context);
   const receipt = record(data.receipt);
-  const operation = String(data.operation_id ?? ""), digest = String(data.review_digest ?? "");
-  if (!id.test(operation) || !hash.test(digest) ||
-      receipt.operation_id !== operation || receipt.review_digest !== digest ||
-      record(receipt.original_context).context_id !== context.context_id ||
-      typeof context.context_id !== "string" || typeof context.label !== "string" ||
-      typeof receipt.harness_id !== "string" ||
-      !["configured", "confirmed"].includes(String(data.state)) ||
-      typeof receipt.restart_required !== "boolean") return null;
-  return {operation,digest,context:context.context_id,label:context.label,
-    harness:receipt.harness_id,phase:String(data.state),plan:null,
-    stateParent:originalState(context),restartRequired:receipt.restart_required};
+  const operation = String(data.operation_id ?? ""),
+    digest = String(data.review_digest ?? "");
+  if (
+    !id.test(operation) ||
+    !hash.test(digest) ||
+    receipt.operation_id !== operation ||
+    receipt.review_digest !== digest ||
+    record(receipt.original_context).context_id !== context.context_id ||
+    typeof context.context_id !== "string" ||
+    typeof context.label !== "string" ||
+    typeof receipt.harness_id !== "string" ||
+    !["configured", "confirmed"].includes(String(data.state)) ||
+    typeof receipt.restart_required !== "boolean"
+  )
+    return null;
+  return {
+    operation,
+    digest,
+    context: context.context_id,
+    label: context.label,
+    harness: receipt.harness_id,
+    phase: String(data.state),
+    plan: null,
+    stateParent: originalState(context),
+    restartRequired: receipt.restart_required,
+  };
 }
 
 export function nativeArguments(

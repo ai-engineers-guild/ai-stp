@@ -50,7 +50,11 @@ def test_reusable_release_keeps_mandatory_application_acceptance() -> None:
     reusable_inputs = cast(dict[str, Any], reusable.get("inputs") or {})
     assert "packages_only" not in reusable_inputs
     release = workflow("desktop-release")
-    assert "packages_only" not in release["jobs"]["bundle"].get("with", {})
+    assert "bundle" not in release["jobs"]
+    check = workflow("check")
+    assert check["jobs"]["desktop"]["uses"] == "./.github/workflows/desktop.yml"
+    assert "packages_only" not in check["jobs"]["desktop"].get("with", {})
+    assert "desktop" in check["jobs"]["qualification"]["needs"]
     steps = {step.get("name"): step for step in desktop["jobs"]["desktop"]["steps"]}
     for name in (
         "Install the release package on the disposable Linux runner",
@@ -61,6 +65,15 @@ def test_reusable_release_keeps_mandatory_application_acceptance() -> None:
     ):
         assert steps[name]["if"] == "runner.os == 'Linux' && !inputs.packages_only"
     assert "preflight-" in steps["Upload bundles"]["with"]["name"]
+    assert (
+        steps["Seal the platform installers after native acceptance"]["if"]
+        == "${{ !inputs.packages_only }}"
+    )
+    order = list(steps)
+    assert order.index("Seal the platform installers after native acceptance") > order.index(
+        "Installed corporate onboarding, lost reply and original binding recovery"
+    )
+    assert steps["Upload bundles"]["with"]["if-no-files-found"] == "error"
     assert (
         '"application_acceptance":false'
         in steps["Record that diagnostic packages have no application acceptance"]["run"]

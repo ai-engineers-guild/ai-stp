@@ -37,9 +37,15 @@ import InstallInput, {
 function checkedTask(response: CmdResult, id: string): CmdResult {
   if (!response.ok) return { ...response, data: null };
   if (isTask(response.data) && response.data.task_id === id) return response;
-  return { ok: false, data: null, error_code: "DESKTOP_TASK_CONTRACT",
-    error: "The engine reply does not describe the requested task and supported ownership.",
-    warnings: [], continuations: [] };
+  return {
+    ok: false,
+    data: null,
+    error_code: "DESKTOP_TASK_CONTRACT",
+    error:
+      "The engine reply does not describe the requested task and supported ownership.",
+    warnings: [],
+    continuations: [],
+  };
 }
 
 export default function InstallPage() {
@@ -113,7 +119,12 @@ export default function InstallPage() {
     if (taskId) {
       setBusy(true);
       void cmdTaskStatus(taskId).then((response) => {
-        if (!active || generation.current !== epoch || reads.current !== request) return;
+        if (
+          !active ||
+          generation.current !== epoch ||
+          reads.current !== request
+        )
+          return;
         const r = checkedTask(response, taskId);
         setResult(r);
         if (isTask(r.data)) setTask(r.data);
@@ -152,7 +163,12 @@ export default function InstallPage() {
     setBusy(true);
     try {
       const response = checkedTask(await cmdTaskStatus(id), id);
-      if (current.current && activeTask.current === id && generation.current === epoch && reads.current === request) {
+      if (
+        current.current &&
+        activeTask.current === id &&
+        generation.current === epoch &&
+        reads.current === request
+      ) {
         setTask(isTask(response.data) ? response.data : null);
         setAnswers({});
         setContinuations(response.continuations);
@@ -160,23 +176,49 @@ export default function InstallPage() {
       }
       return response;
     } finally {
-      if (current.current && activeTask.current === id && generation.current === epoch && reads.current === request) setBusy(false);
+      if (
+        current.current &&
+        activeTask.current === id &&
+        generation.current === epoch &&
+        reads.current === request
+      )
+        setBusy(false);
     }
   }
   async function step(action: () => Promise<CmdResult>) {
-    if (!task || task.legacy_read_only || busy || activeTask.current !== task.task_id) return;
+    if (
+      !task ||
+      task.legacy_read_only ||
+      busy ||
+      activeTask.current !== task.task_id
+    )
+      return;
     const epoch = generation.current;
     setBusy(true);
     try {
       const returned = await action();
-      if (!current.current || activeTask.current !== task.task_id || generation.current !== epoch) return;
-      const response = returned.data && typeof returned.data === "object" && "task_id" in returned.data
-        ? checkedTask(returned, task.task_id) : returned;
+      if (
+        !current.current ||
+        activeTask.current !== task.task_id ||
+        generation.current !== epoch
+      )
+        return;
+      const response =
+        returned.data &&
+        typeof returned.data === "object" &&
+        "task_id" in returned.data
+          ? checkedTask(returned, task.task_id)
+          : returned;
       setResult(response);
-      if (isTask(response.data) && response.data.task_id === task.task_id) setTask(response.data);
+      if (isTask(response.data) && response.data.task_id === task.task_id)
+        setTask(response.data);
       await refresh(task.task_id, false);
     } finally {
-      if (current.current && activeTask.current === task.task_id && generation.current === epoch)
+      if (
+        current.current &&
+        activeTask.current === task.task_id &&
+        generation.current === epoch
+      )
         setBusy(false);
     }
   }
@@ -192,13 +234,18 @@ export default function InstallPage() {
     await step(async () => {
       const args = argvToCall(continuation.path, continuation.argv);
       const help = await cmdMachineHelp();
-      if (!current.current || activeTask.current !== task.task_id || generation.current !== epoch)
+      if (
+        !current.current ||
+        activeTask.current !== task.task_id ||
+        generation.current !== epoch
+      )
         return {
           ok: false,
           data: null,
           warnings: [],
           continuations: [],
-          error: "This task view changed before the step was submitted. Review the original task again.",
+          error:
+            "This task view changed before the step was submitted. Review the original task again.",
           error_code: "DESKTOP_TASK_VIEW_CHANGED",
         };
       if (!help.ok) return help;

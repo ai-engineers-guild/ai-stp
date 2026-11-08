@@ -14,7 +14,7 @@ export default function ContextSwitcher() {
   const corporate = selected?.mode === "corporate";
   return (
     <section
-      className="mx-3 my-3 space-y-2 rounded-lg border border-border bg-card/60 p-3"
+      className="mx-3 my-3 shrink-0 space-y-2 rounded-lg border border-border bg-card/60 p-3"
       aria-label="Context view"
     >
       <div className="flex items-center gap-2 text-xs font-medium">

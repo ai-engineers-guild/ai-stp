@@ -6,7 +6,13 @@ const APPLY = ["install", "apply"];
 describe("argvToCall", () => {
   it("parses a flag-valued continuation", () => {
     expect(
-      argvToCall(APPLY, ["install", "apply", "--operation", "op_123", "--json"]),
+      argvToCall(APPLY, [
+        "install",
+        "apply",
+        "--operation",
+        "op_123",
+        "--json",
+      ]),
     ).toEqual({
       path: "install apply",
       values: { operation: "op_123" },
@@ -17,7 +23,10 @@ describe("argvToCall", () => {
 
   it("parses boolean flags and mixed values", () => {
     expect(
-      argvToCall(["task", "answer"], ["task", "answer", "--task", "t1", "--revision", "3", "--force"]),
+      argvToCall(
+        ["task", "answer"],
+        ["task", "answer", "--task", "t1", "--revision", "3", "--force"],
+      ),
     ).toEqual({
       path: "task answer",
       values: { task: "t1", revision: "3" },
@@ -40,18 +49,33 @@ describe("argvToCall", () => {
   it("keeps dash-leading values via --name=value", () => {
     const r = argvToCall(
       ["task", "answer"],
-      ["task", "answer", "--task", "t1", "--revision", "3", "--question-id", "q", "--value=-x"],
+      [
+        "task",
+        "answer",
+        "--task",
+        "t1",
+        "--revision",
+        "3",
+        "--question-id",
+        "q",
+        "--value=-x",
+      ],
     );
     expect(r?.values["value"]).toBe("-x");
   });
 
   it("collects repeated options instead of last-wins collapsing", () => {
     const r = argvToCall(APPLY, [
-      "install", "apply",
-      "--operation", "op_1",
-      "--component", "a@1.0",
-      "--component", "b@2.0",
-      "--allow-permission", "fs:read",
+      "install",
+      "apply",
+      "--operation",
+      "op_1",
+      "--component",
+      "a@1.0",
+      "--component",
+      "b@2.0",
+      "--allow-permission",
+      "fs:read",
     ]);
     expect(r).toEqual({
       path: "install apply",
@@ -63,9 +87,11 @@ describe("argvToCall", () => {
 
   it("mixes --name=value and --name value for the same key", () => {
     const r = argvToCall(APPLY, [
-      "install", "apply",
+      "install",
+      "apply",
       "--component=a@1.0",
-      "--component", "b@2.0",
+      "--component",
+      "b@2.0",
     ]);
     expect(r?.repeated["component"]).toEqual(["a@1.0", "b@2.0"]);
     expect(r?.values["component"]).toBeUndefined();
@@ -77,7 +103,9 @@ describe("argvToCall", () => {
   });
 
   it("refuses positionals after the declared path", () => {
-    expect(argvToCall(APPLY, ["install", "apply", "stray", "--operation", "x"])).toBeNull();
+    expect(
+      argvToCall(APPLY, ["install", "apply", "stray", "--operation", "x"]),
+    ).toBeNull();
   });
 
   it("refuses when the declared path is missing from argv", () => {
@@ -97,13 +125,27 @@ describe("argvToCall", () => {
   it("keeps values that look like paths or ids", () => {
     const r = argvToCall(
       ["task", "answer"],
-      ["task", "answer", "--task", "task_01X", "--question-id", "project-root", "--value", "/home/u/proj"],
+      [
+        "task",
+        "answer",
+        "--task",
+        "task_01X",
+        "--question-id",
+        "project-root",
+        "--value",
+        "/home/u/proj",
+      ],
     );
     expect(r?.values["value"]).toBe("/home/u/proj");
   });
 
   it("treats a value that starts with -- as a flag, not a value", () => {
     const r = argvToCall(["x", "y"], ["x", "y", "--a", "--b", "v"]);
-    expect(r).toEqual({ path: "x y", values: { b: "v" }, flags: ["a"], repeated: {} });
+    expect(r).toEqual({
+      path: "x y",
+      values: { b: "v" },
+      flags: ["a"],
+      repeated: {},
+    });
   });
 });

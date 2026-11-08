@@ -256,10 +256,10 @@ body {
     @apply flex h-dvh overflow-hidden bg-background text-foreground;
   }
   .app-sidebar {
-    @apply flex w-56 shrink-0 flex-col border-r border-border bg-card/60;
+    @apply flex w-56 shrink-0 flex-col overflow-hidden border-e border-border bg-card/60;
   }
   .brand {
-    @apply flex items-center gap-3 px-5 py-7;
+    @apply flex shrink-0 items-center gap-3 px-5 py-5;
   }
   .brand-mark {
     @apply grid h-10 w-10 place-items-center rounded-lg bg-foreground text-background;
@@ -271,7 +271,7 @@ body {
     @apply mt-0.5 block text-[10px] text-muted-foreground;
   }
   .sidebar-nav {
-    @apply flex-1 space-y-5 overflow-y-auto px-3 pb-5;
+    @apply min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-5;
   }
   .nav-group > .eyebrow {
     @apply mb-2 px-3;
@@ -283,7 +283,7 @@ body {
     @apply bg-primary/10 font-medium text-primary hover:bg-primary/10 hover:text-primary;
   }
   .sidebar-footer {
-    @apply space-y-3 border-t border-border px-5 py-4;
+    @apply shrink-0 space-y-3 border-t border-border px-5 py-4;
   }
   .engine-status {
     @apply flex items-center gap-2 font-mono text-[11px] text-muted-foreground;
@@ -319,7 +319,7 @@ body {
     @apply relative flex items-center justify-between gap-6 overflow-hidden rounded-xl border border-border bg-card px-7 py-8;
   }
   .hero-title {
-    @apply mt-3 text-3xl font-medium leading-tight tracking-tight;
+    @apply mt-3 text-balance text-2xl font-medium leading-tight tracking-tight;
   }
   .hero-emblem {
     @apply mr-5 hidden shrink-0 flex-col items-center gap-4 text-muted-foreground/60 xl:flex;
@@ -376,6 +376,21 @@ body {
     @apply w-full bg-background py-2 placeholder:text-muted-foreground disabled:opacity-60;
   }
   .skip-link {
-    @apply fixed left-60 top-2 z-50 -translate-y-20 rounded bg-background px-4 py-2 focus:translate-y-0;
+    @apply fixed start-60 top-2 z-50 -translate-y-20 rounded bg-background px-4 py-2 focus:translate-y-0;
+  }
+  .setup-progress {
+    @apply grid grid-cols-2 gap-3 rounded-lg border border-border p-4 xl:grid-cols-4;
+  }
+  .setup-progress li {
+    @apply flex items-center gap-2 text-xs text-muted-foreground;
+  }
+  .setup-progress li[aria-current="step"] {
+    @apply font-medium text-primary;
+  }
+  .step-number {
+    @apply grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border font-mono text-xs;
+  }
+  .setup-progress li[aria-current="step"] .step-number {
+    @apply border-primary bg-primary text-primary-foreground;
   }
 }

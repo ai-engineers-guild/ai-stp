@@ -1,7 +1,5 @@
-# Single entry point for local checks. `just` is a maintainer convenience,
-# never a CI dependency: workflows write the recipe bodies out inline, and
-# tests/contract/test_gate_split_covers_the_gate.py proves the two unions
-# match. The conventions this file follows live in standards/just.md.
+# Source checks are separate from compilation, tests and packaging. Prepare
+# dependencies with `setup`; checks never install or repair them implicitly.
 #
 # The file rests on a duality: `gen` writes, `check` reads. Everything else is
 # the same operations narrowed to one group.
@@ -14,15 +12,14 @@
 #   desktop-* — apps/desktop (UI + core + src-tauri crates);
 #   infra-*   — Docker images, Compose stacks and the host-side deploy chain.
 #
-# `desktop-*` and `infra-*` are deliberately not in `check`: they need the
-# WebKitGTK and Docker toolchains, which are not universal — fleet
-# devices exist with no Docker at all, and `check` is the gate every host
-# can run.
+# Desktop compilation and infrastructure checks need native SDKs and Docker.
+# Their source checks can run on any prepared authoring host.
 #
 # Every group carries the same verb set, so a command is derived, not
 # remembered:
 #   <group>-gen      rewrite machine text (format and generated artifacts);
-#   <group>-static   read source without executing it;
+#   <group>-source   checks that need no build;
+#   <group>-static   static analysis, including compiled checks;
 #   <group>-test     run tests;
 #   <group>-build    build the artifact;
 #   <group>-regress  run the built artifact in a real engine;
@@ -37,8 +34,8 @@
 set minimum-version := "1.59.0"
 
 scripts := "docs_scripts"
-py := "uv run --locked --group docs python"
-run := "uv run --locked"
+py := "uv run --offline --no-sync --group docs python"
+run := "uv run --offline --no-sync"
 native := "cd apps/cli && cargo run --quiet --locked --manifest-path xtask/Cargo.toml --"
 # Keep installed validation tooling outside the source tree, with one environment
 # per checkout. uv and managed frontends continue to own their package caches.
@@ -96,9 +93,9 @@ default:
 # dependencies — a measured 1 m 35 s on `setup-node` and 1 m 55 s on the bun
 # cache, wasted every time (`ADR-0105`, unpublished; `ADR-0116` publishes the
 # job split).
-[doc('Prepare the whole environment: Python, documentation and web tools')]
+[doc('Prepare Python, documentation, web and Desktop dependencies')]
 [group('gate')]
-setup: setup-python setup-docs setup-web
+setup: setup-python setup-docs setup-web setup-desktop
 
 # The Python environment: everything `uv run` executes.
 [group('gate')]
@@ -110,6 +107,12 @@ setup-python:
 setup-docs:
     {{ bunreq }}
     cd docs_scripts && bun install --frozen-lockfile
+
+# Prepare the Desktop frontend without compiling the native shell.
+[group('gate')]
+setup-desktop:
+    {{ bunreq }}
+    cd apps/desktop && bun install --frozen-lockfile
 
 # The web dependencies.
 [group('gate')]
@@ -126,17 +129,41 @@ hooks:
 [group('gate')]
 gen: docs-gen back-gen web-gen cli-gen
 
-# Everything that reads.
+# Offline source validation. No test runner, compiler, bundler or installer.
 [group('gate')]
-check: docs-check back-check cli-check web-check security
+check: docs-static back-static cli-source desktop-source web-source just-fmt
+
+[doc('Compile and run the repository test suites')]
+[group('gate')]
+test: docs-test back-test cli-static cli-test web-build web-static web-test desktop-static desktop-test
+
+[doc('Build documentation, server packages and native/web clients')]
+[group('gate')]
+build: docs-build back-build cli-build web-build web-storybook desktop-build
+
+[doc('Complete source, runtime, package and security qualification')]
+[group('gate')]
+verify: check docs-check back-check cli-check web-check desktop-check security
+
+[doc('Apply the owning source formatters')]
+[group('gate')]
+fix:
+    just --fmt --unstable
+    {{ run }} ruff format .
+    cd apps/cli && cargo fmt
+    cd apps/cli && cargo fmt --manifest-path xtask/Cargo.toml
+    cd apps/desktop/core && cargo fmt
+    cd apps/desktop/src-tauri && cargo fmt
+    cd apps/desktop && bun run format
+    cd apps/web && bun run format
 
 # Fast gate for the local commit hook: source-level documentation checks, their
 # validator unit tests, and static Python analysis. Full documentation builds,
 # backend tests, wheel/install regression, web suites, and security scans are
 # CI-only and run from the pull-request or main-push workflow.
-[doc('Fast local gate: docs-static, docs-test, back-static, just-fmt')]
+[doc('Validate source before committing; executable tests run in test/verify')]
 [group('gate')]
-pre-commit: docs-static docs-test back-static just-fmt
+pre-commit: check
 
 # Local-only leaf: CI runs no `just`, so this file's own format check can only
 # live outside the `check` tree.
@@ -413,11 +440,15 @@ web-i18n:
 
 # ESLint, Prettier and TypeScript 7 in one pass.
 [group('web')]
-web-static: web-i18n
+web-source:
     {{ bunreq }}
     cd apps/web && bun run lint
     cd apps/web && bun run api:check
     cd apps/web && bun run format:check
+
+[doc('Source and generated-route types over the built web app')]
+[group('web')]
+web-static: web-source web-i18n
     cd apps/web && bun run type-check
 
 # Coverage is always measured: otherwise its thresholds would be a reference
@@ -495,12 +526,16 @@ cli-gen:
     cd apps/cli && cargo fmt
     cd apps/cli && cargo fmt --manifest-path xtask/Cargo.toml
 
-# Native formatting and compiler diagnostics, including evidence examples
+[doc('Read-only native formatting without compiling the resource tool')]
 [group('cli')]
-cli-static:
-    {{ native }} resources --check
+cli-source:
     cd apps/cli && cargo fmt --check
     cd apps/cli && cargo fmt --manifest-path xtask/Cargo.toml --check
+
+# Resource and compiler diagnostics belong to the compiling test gate.
+[group('cli')]
+cli-static: cli-source
+    {{ native }} resources --check
     cd apps/cli && cargo clippy --locked --manifest-path xtask/Cargo.toml --all-targets -- -D warnings
     {{ native }} build cargo clippy --locked --all-targets -- -D warnings
 
@@ -544,17 +579,26 @@ cli-check: cli-static cli-test cli-build cli-regress
 # real-sidecar spawn test. `desktop-build` writes `dist/` and a stub
 # sidecar because tauri-build and `generate_context!` read both at compile
 # time; the stub is written only when no sidecar exists, so a real
-# native build is never replaced. `desktop-*` is deliberately outside
-# `gen`/`check` — it needs Rust plus WebKitGTK system packages and is
-# covered in CI by desktop.yml, not check.yml — the same exclusion
-# `infra-*` has.
+# native build is never replaced. Compiled checks need Rust and WebKitGTK;
+# desktop.yml also qualifies the installed application on native runners.
 
-# Formats both Rust crates (writes only).
-[doc('Format the two Rust crates')]
+# Projects the canonical Desktop version and formats both Rust crates.
+[doc('Project Desktop version metadata and format the two Rust crates')]
 [group('desktop')]
 desktop-gen:
+    {{ run }} python release_scripts/desktop_version.py
     cd apps/desktop/core && cargo fmt
     cd apps/desktop/src-tauri && cargo fmt
+
+[doc('Desktop types and formatting without building a webview or sidecar')]
+[group('desktop')]
+desktop-source:
+    {{ run }} python release_scripts/desktop_version.py --check
+    cd apps/desktop && bun run type-check
+    cd apps/desktop && bun run format:check
+    cd apps/desktop && bun run messages:check
+    cd apps/desktop/core && cargo fmt --check
+    cd apps/desktop/src-tauri && cargo fmt --check
 
 # The frozen lockfile is the contract; `vite build` emits `dist/` and the
 # stub resource satisfies the existence check before the crates compile.
@@ -569,11 +613,8 @@ desktop-build:
 
 [doc('tsc, fmt and clippy for the UI and both crates')]
 [group('desktop')]
-desktop-static: desktop-build
-    cd apps/desktop && bun x tsc --noEmit
-    cd apps/desktop/core && cargo fmt --check
+desktop-static: desktop-source desktop-build
     cd apps/desktop/core && cargo clippy --locked --all-targets -- -D warnings
-    cd apps/desktop/src-tauri && cargo fmt --check
     cd apps/desktop/src-tauri && cargo clippy --locked --all-targets -- -D warnings
 
 [doc('vitest and cargo test for both crates')]

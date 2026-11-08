@@ -425,9 +425,17 @@ it("keeps native setup reviews and original contexts out of shared diagnostics",
     "canary-digest",
     true,
   );
-  await cmdNativeInventoryEnable({ context: "canary-company" }, "canary-digest", true);
-  await cmdSetupAcquisitionPlan("canary-setup","1.0");
-  await cmdSetupAcquisitionApply({source:"canary-plan"},"canary-digest",true);
+  await cmdNativeInventoryEnable(
+    { context: "canary-company" },
+    "canary-digest",
+    true,
+  );
+  await cmdSetupAcquisitionPlan("canary-setup", "1.0");
+  await cmdSetupAcquisitionApply(
+    { source: "canary-plan" },
+    "canary-digest",
+    true,
+  );
   await cmdRunRead("configuration native pending");
   await cliApplyConfirmed(
     "configuration native apply",

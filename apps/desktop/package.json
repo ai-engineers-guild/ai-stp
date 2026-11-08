@@ -1,20 +1,29 @@
 {
   "name": "ai-stp-desktop",
   "private": true,
-  "version": "0.4.1",
+  "version": "0.4.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "type-check": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "format": "prettier --write src scripts \"*.ts\" \"*.json\" \"src-tauri/capabilities/*.json\"",
+    "format:check": "prettier --check src scripts \"*.ts\" \"*.json\" \"src-tauri/capabilities/*.json\"",
+    "messages:check": "node scripts/check-messages.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.4",
+    "@tauri-apps/plugin-dialog": "2.8.4",
     "@tauri-apps/plugin-opener": "^2.7.2",
+    "i18next": "26.7.1",
+    "i18next-icu": "2.6.1",
+    "intl-messageformat": "12.1.3",
     "lucide-react": "1.61.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "react-i18next": "17.1.11",
     "react-router": "^8.5.0",
     "zustand": "^5.0.16"
   },
@@ -26,6 +35,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "jsdom": "30.1.3",
+    "prettier": "3.9.10",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "8.3.5",
