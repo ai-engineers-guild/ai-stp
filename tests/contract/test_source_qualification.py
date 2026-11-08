@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 from typing import Any, cast
@@ -294,6 +295,7 @@ class DesktopReleaseAdmissionTests(unittest.TestCase):
         *,
         current: str | None = None,
         count: int | None = None,
+        output: Path | None = None,
     ) -> bool:
         fixture = """
 gh() {
@@ -315,6 +317,7 @@ gh() {
                 ),
                 "JOBS": json.dumps(jobs),
                 "CURRENT": "a" * 40 if current is None else current,
+                **({"GITHUB_OUTPUT": str(output)} if output else {}),
             },
         )
         return outcome.returncode == 0
@@ -361,18 +364,49 @@ gh() {
 
     def test_published_packages_are_owned_by_the_installed_three_os_workflow(self) -> None:
         release = workflow("desktop-release.yml")
+        self.assertNotIn("bundle", release["jobs"])
+        self.assertEqual(release["jobs"]["release"]["needs"], "guard")
         self.assertEqual(
-            release["jobs"]["bundle"],
-            {"needs": "guard", "uses": "./.github/workflows/desktop.yml"},
+            workflow("check.yml")["jobs"]["desktop"]["uses"], "./.github/workflows/desktop.yml"
         )
-        self.assertEqual(release["jobs"]["release"]["needs"], "bundle")
         publisher = release["jobs"]["release"]["steps"]
-        self.assertEqual(publisher[0]["with"]["pattern"], "ai-stp-desktop-*")
+        self.assertEqual(publisher[0]["with"]["name"], "qualified-desktop-release")
+        self.assertEqual(publisher[0]["with"]["digest-mismatch"], "error")
         self.assertFalse(any("actions/checkout@" in step.get("uses", "") for step in publisher))
+        self.assertTrue(all("python" not in step.get("run", "") for step in publisher))
+        source_download = next(
+            step
+            for step in release["jobs"]["guard"]["steps"]
+            if step.get("name") == "Download the qualified source installers"
+        )
+        self.assertEqual(
+            source_download["with"]["run-id"], "${{ steps.source.outputs.qualified_run_id }}"
+        )
+        self.assertEqual(source_download["with"]["digest-mismatch"], "error")
+        self.assertEqual(release["jobs"]["guard"]["permissions"]["contents"], "read")
         admission = "bash .github/scripts/require-client-release-source.sh"
         self.assertEqual(script("desktop-release.yml", "guard", 3), admission)
         self.assertEqual(script("cli-release.yml", "guard", 1), admission)
         self.assertEqual(workflow("cli-release.yml")["jobs"]["build"]["needs"], "guard")
+
+    def test_exports_only_the_verified_source_run_and_attempt(self) -> None:
+        fixtures = PromotionAdmissionTests()
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "outputs"
+            self.assertTrue(
+                self.release_decision([fixtures.candidate()], fixtures.jobs(), output=output)
+            )
+            self.assertEqual(output.read_text(), "qualified_run_id=41\nqualified_run_attempt=1\n")
+            output.unlink()
+            for field in ("id", "run_attempt"):
+                self.assertFalse(
+                    self.release_decision(
+                        [fixtures.candidate() | {field: "41\nforged=1"}],
+                        fixtures.jobs(),
+                        output=output,
+                    )
+                )
+                self.assertFalse(output.exists())
 
 
 class ScannerSelectionTests(unittest.TestCase):
