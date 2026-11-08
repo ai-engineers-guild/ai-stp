@@ -555,7 +555,9 @@ fn retained_admission(previous: Option<&Path>) -> std::result::Result<(), Box<dy
     )?;
     drop(custody);
     let executable = root.join("codex");
-    if std::fs::hard_link(std::env::current_exe()?, &executable).is_err() {
+    if cfg!(target_os = "macos")
+        || std::fs::hard_link(std::env::current_exe()?, &executable).is_err()
+    {
         std::fs::copy(std::env::current_exe()?, &executable)?;
     }
     std::thread::sleep(std::time::Duration::from_millis(30));
