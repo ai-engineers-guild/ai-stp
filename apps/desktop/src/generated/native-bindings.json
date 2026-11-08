@@ -1,0 +1,13 @@
+{
+  "declarations": [
+    "type Continuation = { kind: string, path: Array<string>, arguments: unknown, missing: Array<string>, \n/**\n * Ready-to-spawn argument list; the executable form, never eval'd.\n */\nargv: Array<string>, actor: string | null, };",
+    "type CmdResult = { ok: boolean, data: unknown, warnings: Array<string>, continuations: Array<Continuation>, error: string | null, \n/**\n * Stable machine code when the CLI produced one — the frontend keys\n * on this, never on the message text.\n */\nerror_code: string | null, \n/**\n * Contract fields the UI can route on: operation tracking\n * and retry/disposition hints ride along unmodified.\n */\nrequest_id?: string | null, operation_id?: string | null, error_retryable?: boolean | null, \n/**\n * `error.details` verbatim — `details.options` is the contract's\n * one-retry repair channel (cli-json.md) and losing it here would make\n * the shell thinner than the contract allows.\n */\nerror_details?: unknown, next_actions?: unknown[], };"
+  ],
+  "inputs": {
+    "core/Cargo.lock": "10f0eec37209a85a31462ec1f0eebc5eb7007d51103e3b08daa280e3d38f6175",
+    "core/Cargo.toml": "2127a91cf95f8cc110a539a99691afb6d71e91a192c683ad2115867b4a3a9083",
+    "core/src/bindings.rs": "d3718446b57412867c908732f212033e48c2deb7732eae1210cf0ca91c427ba5",
+    "core/src/bridge.rs": "4f3c3ef470e33ba444ef02b955e29eb0ccf40afbdc03cdc9d577bd7187841f98",
+    "core/src/envelope.rs": "fd8592a589353e72fac23ff9539a4f97d97557003f8af1d7670eab42da802f56"
+  }
+}

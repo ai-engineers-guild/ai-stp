@@ -590,6 +590,7 @@ desktop-gen:
     cd apps/desktop && bun scripts/generate-messages.mjs
     cd apps/desktop && bun scripts/generate-theme.mjs
     cd apps/desktop && bun scripts/generate-fonts.mjs
+    cd apps/desktop && bun scripts/generate-contracts.mjs
     cd apps/desktop/core && cargo fmt
     cd apps/desktop/src-tauri && cargo fmt
 
@@ -600,6 +601,7 @@ desktop-source:
     cd apps/desktop && bun scripts/generate-messages.mjs --check
     cd apps/desktop && bun scripts/generate-theme.mjs --check
     cd apps/desktop && bun scripts/generate-fonts.mjs --check
+    cd apps/desktop && bun scripts/generate-contracts.mjs --check
     cd apps/desktop && bun run type-check
     cd apps/desktop && bun run format:check
     cd apps/desktop && bun run messages:check
@@ -611,10 +613,13 @@ desktop-source:
 # The repository-only Rust tool drives identical operations on all three OSes.
 [doc('Frontend build plus a stub sidecar for compile-time checks')]
 [group('desktop')]
-desktop-build:
+desktop-ui-build:
     {{ bunreq }}
-    cd apps/desktop && bun install --frozen-lockfile
     cd apps/desktop && bun x vite build
+
+[doc('Frontend and a compile-time sidecar resource, without native SDK compilation')]
+[group('desktop')]
+desktop-build: desktop-ui-build
     {{ native }} desktop-stub
 
 [doc('tsc, fmt and clippy for the UI and both crates')]
@@ -625,10 +630,21 @@ desktop-static: desktop-source desktop-build
 
 [doc('vitest and cargo test for both crates')]
 [group('desktop')]
-desktop-test: desktop-build
+desktop-ui-test:
     cd apps/desktop && bun x vitest run
+
+[doc('Frontend and both Rust crates')]
+[group('desktop')]
+desktop-test: desktop-build desktop-ui-test
     cd apps/desktop/core && cargo test --locked
     cd apps/desktop/src-tauri && cargo test --locked
+
+[doc('Compile native IPC declarations on an execution host, then project TypeScript')]
+[group('desktop')]
+desktop-native-gen:
+    cd apps/desktop/core && cargo fmt
+    cd apps/desktop/core && AI_STP_WRITE_BINDINGS=1 cargo test --locked bindings::native_bindings_match
+    cd apps/desktop && bun scripts/generate-contracts.mjs
 
 # Builds the optimized Rust sidecar, replaces the generated stub, and runs
 # the same filtered-env resource probe as desktop.yml. The build and resource

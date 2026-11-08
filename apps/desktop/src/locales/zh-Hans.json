@@ -482,7 +482,6 @@
   "install.installation": "安装",
   "install.acceptedInputSchema": "支持的输入模式",
   "install.readingTheLatestTaskState": "正在读取任务的最新状态",
-  "install.task": "任务",
   "install.revision": "修订号",
   "install.thisRetainedLegacyTaskIsReadOnly": "此保留的旧格式任务仅支持只读访问。",
   "install.waitingFor": "· 等待 {actor} 处理",
@@ -747,5 +746,6 @@
   "heartbeatDelivery.intervalHelp": "观察间隔：{interval, plural, other {# 秒}}。重试在 {retry, plural, other {# 秒}}后开始，并在四分钟内过期。",
   "profiles.registryFormat": "此计划使用权限注册表格式 {version}。不支持该格式的客户端将拒绝访问。请保留兼容的客户端。",
   "profiles.registryFormatUnknown": "请在确切计划中检查注册表格式。旧客户端可能拒绝较新的格式，请保留兼容客户端。",
-  "heartbeatDelivery.intervalUnavailable": "引擎未报告有效的观察和重试间隔。"
+  "heartbeatDelivery.intervalUnavailable": "引擎未报告有效的观察和重试间隔。",
+  "install.taskTitle": "{intent}任务"
 }

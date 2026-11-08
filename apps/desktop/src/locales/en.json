@@ -482,7 +482,6 @@
   "install.installation": "installation",
   "install.acceptedInputSchema": "Accepted input schema",
   "install.readingTheLatestTaskState": "Reading the latest task state",
-  "install.task": "task",
   "install.revision": "Revision",
   "install.thisRetainedLegacyTaskIsReadOnly": "This retained legacy task is read-only.",
   "install.waitingFor": "· waiting for {actor}",
@@ -747,5 +746,6 @@
   "heartbeatDelivery.intervalHelp": "Observation interval: {interval, plural, one {# second} other {# seconds}}. Retries start after {retry, plural, one {# second} other {# seconds}} and expire within four minutes.",
   "profiles.registryFormat": "This plan uses authority registry format {version}. Clients that do not support it will refuse access. Keep a compatible client.",
   "profiles.registryFormatUnknown": "Review the registry format in the exact plan. Older clients may refuse newer formats. Keep a compatible client.",
-  "heartbeatDelivery.intervalUnavailable": "The engine has not reported valid observation and retry intervals."
+  "heartbeatDelivery.intervalUnavailable": "The engine has not reported valid observation and retry intervals.",
+  "install.taskTitle": "{intent} task"
 }

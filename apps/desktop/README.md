@@ -90,6 +90,11 @@ account codes and private task content. No automatic diagnostic upload occurs.
 - `src/transport.ts` is the IPC boundary; `store.ts` shares engine state and
   `taskStart.ts` retains a logical start's retry identity. Common components use
   shared theme roles, visible focus and reduced motion.
+- `src/generated/cli.ts` projects the canonical CLI JSON schemas. IPC declarations
+  come from `core/src/bridge.rs` and `core/src/envelope.rs` through a test-only Rust
+  generator. Source checks verify its input digests; native tests compare the
+  compiled declarations. Regenerate changed IPC inputs on an execution host with
+  `just desktop-native-gen`. UI view types select fields from these projections.
 - `src/i18n.ts`, `src/localization.json` and `src/locales/` own the five language
   catalogs, script matching and direction. ICU keys and required argument types
   are checked. Startup includes only English shell guidance; full packaged
@@ -109,6 +114,9 @@ Tauri needs the native webview development packages. From `apps/desktop`,
 ```sh
 just desktop-source       # Types, formatting and message syntax; no compilation
 just desktop-gen          # Project version, messages, theme and fonts; format Rust
+just desktop-native-gen   # Compile and project changed IPC types on an execution host
+just desktop-ui-test      # Frontend tests without native SDK compilation
+just desktop-ui-build     # Frontend assets without native SDK compilation
 just desktop-check        # Frontend, Rust crates and actual optimized sidecar
 just desktop-bundle-test  # Verify an existing packaged CLI resource tree
 ```

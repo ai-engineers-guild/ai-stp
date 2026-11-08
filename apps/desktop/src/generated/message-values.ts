@@ -27,4 +27,5 @@ export type MessageValues = {
   "catalog.detailsOfKind": { kind: string };
   "heartbeatDelivery.intervalHelp": { interval: number; retry: number };
   "profiles.registryFormat": { version: string | number };
+  "install.taskTitle": { intent: string | number };
 };

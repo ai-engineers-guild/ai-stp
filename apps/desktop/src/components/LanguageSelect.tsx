@@ -14,6 +14,7 @@ export default function LanguageSelect({
           {text("language.label")}
         </span>
         <select
+          name="language"
           className="input w-full"
           value={locale}
           disabled={pending}

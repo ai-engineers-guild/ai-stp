@@ -4,10 +4,15 @@
 //! calls off the async runtime (`tauri::async_runtime::spawn_blocking`), and
 //! nothing in this crate talks to a WebView, a socket, or the network.
 
+pub mod bridge;
 pub mod cli_runner;
 pub mod commands;
 pub mod envelope;
 
+pub use bridge::CmdResult;
 pub use cli_runner::{CliLocator, CliRunner, DEFAULT_TIMEOUT, MUTATING_TIMEOUT, RunError};
 pub use commands::{BuildError, CommandDescriptor, CommandRegistry, MachineHelp};
 pub use envelope::{Continuation, ContinuationActor, Envelope, ParseFailure, parse};
+
+#[cfg(test)]
+mod bindings;

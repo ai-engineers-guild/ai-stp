@@ -482,7 +482,6 @@
   "install.installation": "қолдану",
   "install.acceptedInputSchema": "Қабылданатын кіріс деректерінің схемасы",
   "install.readingTheLatestTaskState": "Тапсырманың соңғы күйі оқылуда",
-  "install.task": "тапсырма",
   "install.revision": "Ревизия",
   "install.thisRetainedLegacyTaskIsReadOnly": "Ескі форматтағы осы сақталған тапсырма тек оқуға қолжетімді.",
   "install.waitingFor": "· әрекет күтілуде: {actor}",
@@ -747,5 +746,6 @@
   "heartbeatDelivery.intervalHelp": "Бақылау аралығы: {interval, plural, one {# секунд} other {# секунд}}. Қайталау {retry, plural, one {# секундтан} other {# секундтан}} кейін басталып, төрт минуттан кейін аяқталады.",
   "profiles.registryFormat": "Бұл жоспар құқықтар тізілімінің {version} форматын пайдаланады. Оны қолдамайтын клиенттер кіруге рұқсат бермейді. Үйлесімді клиентті сақтаңыз.",
   "profiles.registryFormatUnknown": "Нақты жоспардан тізілім форматын тексеріңіз. Ескі клиенттер жаңа форматтарды қолдамауы мүмкін. Үйлесімді клиентті сақтаңыз.",
-  "heartbeatDelivery.intervalUnavailable": "Қозғалтқыш жарамды бақылау және қайталау аралықтарын хабарламады."
+  "heartbeatDelivery.intervalUnavailable": "Қозғалтқыш жарамды бақылау және қайталау аралықтарын хабарламады.",
+  "install.taskTitle": "«{intent}» тапсырмасы"
 }

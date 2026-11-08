@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { IntlMessageFormat } from "intl-messageformat";
-import ts from "typescript-api";
+import ts from "typescript";
 import { parameters, selectors } from "./message-parameters.mjs";
 
 const directory = new URL("../src/locales/", import.meta.url);

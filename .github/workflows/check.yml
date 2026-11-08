@@ -185,7 +185,11 @@ jobs:
           bun install --frozen-lockfile
           bun run format:check
           bun run messages:check
-          bun x tsc --noEmit
+          bun scripts/generate-messages.mjs --check
+          bun scripts/generate-theme.mjs --check
+          bun scripts/generate-fonts.mjs --check
+          bun scripts/generate-contracts.mjs --check
+          bun run type-check
           bun x vitest run
       - name: Documentation Markdown syntax
         run: |

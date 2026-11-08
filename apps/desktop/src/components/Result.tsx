@@ -2,6 +2,7 @@ import type { CmdResult } from "../transport";
 import { Link } from "react-router";
 import { useText } from "../i18n";
 import { choiceLabel } from "../labels";
+import { record } from "../contexts";
 
 export function Json({ v }: { v: unknown }) {
   return (
@@ -15,8 +16,8 @@ export function Json({ v }: { v: unknown }) {
  *  continuations, engine-named next actions, and the structured error. */
 export function ResultMeta({ r }: { r: CmdResult }) {
   const t = useText();
-  const options = Array.isArray(r.error_details?.options)
-    ? (r.error_details?.options as unknown[]).filter(
+  const options = Array.isArray(record(r.error_details).options)
+    ? (record(r.error_details).options as unknown[]).filter(
         (o) => typeof o === "string",
       )
     : [];
@@ -86,7 +87,7 @@ export function ResultMeta({ r }: { r: CmdResult }) {
             </>
           )}
           {r.error_code === "AI_STP_PRECONDITION_FAILED" &&
-            r.error_details?.reason === "historical_native_identity" && (
+            record(r.error_details).reason === "historical_native_identity" && (
               <p className="mt-3">
                 <Link className="btn-outline" to="/profiles">
                   {t("result.reviewCurrentContext")}

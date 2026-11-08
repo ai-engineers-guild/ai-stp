@@ -5,30 +5,33 @@
 import { invoke } from "@tauri-apps/api/core";
 import { redact } from "./redact";
 import { useDebug, type IpcEntry } from "./store";
+import type {
+  CmdResult as NativeResult,
+  Continuation,
+} from "./generated/native";
+import type { SuccessEnvelope } from "./generated/cli";
+import type { Descriptor } from "./contracts";
 
-export interface CliContinuation {
-  kind: string;
-  path: string[];
-  arguments: unknown;
-  missing: string[];
-  argv: string[];
-  actor: "cli" | "human" | "external" | "agent" | null;
-}
+export type CliContinuation = Continuation;
+/** The CLI requires object data. Rust retains JSON until this display boundary. */
+export type CmdResult = Omit<NativeResult, "data"> & {
+  data: SuccessEnvelope["data"] | null;
+};
 
-export interface CmdResult {
-  ok: boolean;
-  data: Record<string, unknown> | null;
-  warnings: string[];
-  continuations: CliContinuation[];
-  error: string | null;
-  error_code: string | null;
-  // `error.details` verbatim — `details.options` is the contract's
-  // one-retry repair channel for parse/selector failures (cli-json.md).
-  error_details?: Record<string, unknown> | null;
-  request_id?: string | null;
-  operation_id?: string | null;
-  error_retryable?: boolean | null;
-  next_actions?: unknown[];
+function displayReply(reply: NativeResult): CmdResult {
+  if (
+    reply.data !== null &&
+    (typeof reply.data !== "object" || Array.isArray(reply.data))
+  )
+    return {
+      ...reply,
+      ok: false,
+      data: null,
+      error: "The native engine returned non-object data.",
+      error_code: "DESKTOP_REPLY_INVALID",
+      error_details: { original_reply: reply },
+    };
+  return reply as CmdResult;
 }
 
 /** Every call goes through here: the Debug page logs cmd, args, latency,
@@ -74,9 +77,10 @@ function call(
     if (useDebug.getState().debugMode) useDebug.getState().push(e);
   };
   return Promise.resolve()
-    .then(() => invoke<CmdResult>(command, argsRec))
+    .then(() => invoke<NativeResult>(command, argsRec))
     .then(
-      (r) => {
+      (reply) => {
+        const r = displayReply(reply);
         trace({
           cmd: command,
           args: tracedArgs,
@@ -138,16 +142,6 @@ export function cmdMachineHelp(): Promise<CmdResult> {
   return helpRequest;
 }
 
-interface WireParameter {
-  name?: string;
-  choices?: string[];
-}
-
-interface WireDescriptor {
-  path?: string[];
-  parameters?: WireParameter[];
-}
-
 /** The `choices` the CLI publishes for `path`'s `param`, or `null` when the
  *  machine help cannot answer; callers must keep the operation unavailable. */
 export function descriptorChoices(
@@ -155,7 +149,7 @@ export function descriptorChoices(
   path: string,
   param: string,
 ): string[] | null {
-  const commands = (help?.data?.commands as WireDescriptor[] | undefined) ?? [];
+  const commands = (help?.data?.commands as Descriptor[] | undefined) ?? [];
   const choices = commands
     .find((d) => (d.path ?? []).join(" ") === path)
     ?.parameters?.find((p) => p.name === param)?.choices;

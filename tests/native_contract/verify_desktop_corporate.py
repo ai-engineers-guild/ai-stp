@@ -951,6 +951,12 @@ def installed_journey(
         request = public_plan(driver, CHECKOUT_REVIEW)
         original_path(request)
         assert request["change"]["snapshot"]["target"]["remote_project_id"] == project
+        original_review = driver.find(CHECKOUT_REVIEW + " pre")
+        original_review_bytes = driver.read("return arguments[0].textContent;", original_review)
+        qualified_languages = driver.audit_languages(
+            "corporate-checkout-review",
+            ((original_review, "textContent", original_review_bytes),),
+        )
         authorize(driver, CHECKOUT_REVIEW, "Apply reviewed checkout change")
         driver.click(driver.button("Review link confirmation"))
         confirmation = public_plan(driver, CHECKOUT_REVIEW)
@@ -962,12 +968,14 @@ def installed_journey(
             lambda: driver.read("return !!document.querySelector('main [role=alert]');"),
             "unconfirmed committed response",
         )
+        driver.audit_languages("corporate-unconfirmed-reply")
         current = native(
             binary,
             environment,
             ["corporate", "project", "link", "show", "--operation", confirmation["operation_id"]],
         )
         assert current["state"] == "applying"
+        localization_accessibility = list(driver.accessibility)
     finally:
         driver.close()
     driver = driver_type(driver_path, environment, root / "corporate-restarted-driver.log")
@@ -1309,6 +1317,10 @@ def installed_journey(
                 binary, environment, ["corporate", "heartbeat", "delivery", "--context", company]
             )["enabled"],
             "lost_committed_confirmation": True,
+            "localized_languages": qualified_languages,
+            "language_switch_preserves_original_checkout_review": True,
+            "localized_unconfirmed_response_both_themes": True,
+            "accessibility_checks": localization_accessibility + driver.accessibility,
             "restart_and_original_reconciliation": True,
             "active_binding_adoption": True,
             "exact_terminal_native_unlink": True,

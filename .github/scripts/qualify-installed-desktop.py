@@ -373,6 +373,86 @@ class Driver:
             "completed finite theme transitions",
         )
 
+    def language(self, locale: str) -> None:
+        control = self.find('aside select[name="language"]')
+        option = self.read(
+            "return [...arguments[0].options].find(option=>option.value===arguments[1]);",
+            control,
+            locale,
+        )
+        require(isinstance(option, dict), "packaged language option is absent")
+        self.click(option)
+        self.wait(
+            lambda: self.read(
+                "return document.documentElement.lang===arguments[0]&&"
+                "!document.querySelector('aside select[name=language]').disabled;",
+                locale,
+            ),
+            "packaged language selection",
+        )
+        self.command("POST", f"/element/{control[ELEMENT]}/value", {"text": "\ue00c"})
+
+    def audit_languages(
+        self, surface: str, retained: tuple[tuple[Any, str, str], ...] = ()
+    ) -> list[str]:
+        """Use actual controls; preserve existing field/review DOM identities and bytes."""
+        source = Path(__file__).resolve().parents[2] / "apps/desktop/src"
+        configuration = json.loads((source / "localization.json").read_text())
+        languages = configuration["languages"]
+        previous_dark = self.read("return document.documentElement.classList.contains('dark');")
+        for dark in (False, True):
+            self.language("en")
+            self.theme(dark)
+            for locale, language in languages.items():
+                self.language(locale)
+                messages = json.loads((source / "locales" / f"{locale}.json").read_text())
+                require(
+                    self.read("return document.documentElement.dir;") == language["direction"],
+                    "installed layout direction differs from language configuration",
+                )
+                require(
+                    self.read(
+                        "return document.querySelector('aside select[name=language]')"
+                        ".labels[0].querySelector('span').textContent;"
+                    )
+                    == messages["language.label"],
+                    "installed language label differs from its packaged catalog",
+                )
+                require(
+                    self.read(
+                        "return document.querySelector('nav a[href=\"#/\"] > span').textContent;"
+                    )
+                    == messages["shell.home"],
+                    "installed navigation differs from its packaged catalog",
+                )
+                self.wait(
+                    lambda: self.read("return document.fonts.status==='loaded';"),
+                    "packaged multilingual fonts",
+                )
+                require(
+                    self.read(
+                        "return [document.documentElement,document.body,"
+                        "document.querySelector('main')].every(element=>"
+                        "element.scrollWidth<=element.clientWidth);"
+                    ),
+                    "localized layout overflows its native window",
+                )
+                for element, property_name, expected in retained:
+                    require(
+                        self.read(
+                            "return arguments[0].isConnected&&"
+                            "arguments[0][arguments[1]]===arguments[2];",
+                            element,
+                            property_name,
+                            expected,
+                        ),
+                        "language change replaced entered fields or retained review bytes",
+                    )
+                self.audit_accessibility(f"{surface}-{locale}-{'dark' if dark else 'light'}")
+        self.language("en")
+        self.theme(previous_dark)
+        return list(languages)
+
     def check_sidebar_theme_switch(self, dark: bool) -> None:
         self.theme(not dark)
         label = "Use dark theme" if dark else "Use light theme"
@@ -916,7 +996,7 @@ def prepare_native_setup(
     driver: Driver, binary: Path, environment: dict[str, str], root: Path, context: str
 ) -> tuple[Path, str, str]:
     """Prepare through installed UI; only the public CLI authors the fixture graph."""
-    source, target = root / "native-source", root / "native-target"
+    source, target = root / "native-source", root / "native-target-Ә-مرحبا-测试"
     source.mkdir(mode=0o700)
     target.mkdir(mode=0o700)
     (source / "guide.md").write_bytes(b"# Installed native setup canary\nPreserve user data.\n")
@@ -955,6 +1035,7 @@ def prepare_native_setup(
     require(len(versions["versions"]) == 1, "fixture must have one immutable setup version")
     version = versions["versions"][0]
     driver.navigate("targets")
+    entered = []
     for label, value in (
         ("Setup ID", setup),
         ("Exact version", version["version"]),
@@ -974,8 +1055,14 @@ def prepare_native_setup(
         )
         driver.command("POST", f"/element/{element[ELEMENT]}/clear", {})
         driver.command("POST", f"/element/{element[ELEMENT]}/value", {"text": value})
+        entered.append((element, "value", value))
+    driver.audit_languages("filled-native-setup", tuple(entered))
     driver.click(driver.button("Review setup"))
     operation, digest = native_operation(driver)
+    review = driver.find(NATIVE_OPERATION + " p.font-mono")
+    coordinates = driver.read("return arguments[0].textContent;", review)
+    driver.audit_languages("pending-native-review", ((review, "textContent", coordinates),))
+    require(native_operation(driver) == (operation, digest), "language retargeted native review")
     require(
         driver.read(
             "return document.querySelector(arguments[0]).textContent.includes('AGENTS.md');",
@@ -1217,7 +1304,6 @@ def main() -> None:
             "installed CLI and UI differ",
         )
         driver.audit_accessibility("retained-personal-profiles")
-        accessibility = list(driver.accessibility)
         driver.navigate("")
         driver.click(driver.button("Refresh"))
         driver.button("Refresh")
@@ -1300,6 +1386,8 @@ def main() -> None:
         )
         driver.navigate("profiles")
         driver.select_context("Installed personal two", second)
+        driver.language("ar")
+        accessibility = list(driver.accessibility)
     finally:
         driver.close()
     # Only this disposable fixture's GTK configuration is changed. A fresh real
@@ -1312,6 +1400,12 @@ def main() -> None:
     try:
         driver.start()
         restart_start_ms = driver.startup_ms
+        require(
+            driver.read("return [document.documentElement.lang,document.documentElement.dir];")
+            == ["ar", "rtl"],
+            "installed restart lost the language preference",
+        )
+        driver.language("en")
         driver.selected(second)
         driver.observe_reduced_motion()
         driver.navigate("profiles")
@@ -1377,6 +1471,8 @@ def main() -> None:
                 "native_os_keyring": True,
                 "two_offline_personal_contexts": True,
                 "view_switching_and_restart_persistence": True,
+                "language_preference_survives_restart": True,
+                "five_languages_preserve_entered_fields_and_pending_native_review": True,
                 "overview_refresh_observes_external_context_selection": True,
                 "personal_task_started_through_ui": True,
                 "personal_task_ownership_after_restart": True,

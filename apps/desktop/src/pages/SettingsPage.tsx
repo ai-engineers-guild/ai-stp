@@ -13,10 +13,19 @@ import {
 import { PageHeader, StatusBadge } from "../components/Layout";
 import { ResultMeta } from "../components/Result";
 import LanguageSelect from "../components/LanguageSelect";
+import type { DoctorReport } from "../generated/cli";
 
 export default function SettingsPage() {
   const msg = useText();
-  const { location, doctor, capabilities, refreshCli, refreshAuth } = useApp();
+  const {
+    location,
+    doctor,
+    capabilities,
+    cliOk,
+    engineResult,
+    refreshCli,
+    refreshAuth,
+  } = useApp();
   const { debugMode, setDebugMode } = useDebug();
   const [stores, setStores] = useState<string[]>([]);
   const [store, setStore] = useState("os_keyring");
@@ -35,16 +44,31 @@ export default function SettingsPage() {
       current = false;
     };
   }, []);
-  const ready = (
-    doctor?.data?.checks as { name: string; state: string }[] | undefined
-  )?.some(
-    (check) => check.name === "local_identity" && check.state === "ready",
+  const identity = doctor?.ok
+    ? (doctor.data?.checks as DoctorReport["checks"] | undefined)?.find(
+        (check) => check.name === "local_identity",
+      )
+    : undefined;
+  const ready = identity?.state === "ready";
+  const workspaceState = identity
+    ? ready
+      ? "ready"
+      : "needs_user_action"
+    : cliOk === null
+      ? "pending"
+      : "unavailable";
+  const stateDirectory =
+    typeof location?.data?.state_dir === "string"
+      ? location.data.state_dir
+      : null;
+  const readFailure = [engineResult, doctor, location, help].find(
+    (result) => result && !result.ok,
   );
   const choices = stores.filter(
     (choice) => choice !== "file" || capabilities?.data?.os !== "windows",
   );
   async function initialize() {
-    if (!confirmed || busy) return;
+    if (!confirmed || busy || !choices.includes(store)) return;
     setBusy(true);
     try {
       const response = await cliApplyConfirmed(
@@ -75,20 +99,30 @@ export default function SettingsPage() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <h2 className="section-title">{msg("settings.localWorkspace")}</h2>
-            <p className="mt-2 break-all font-mono text-xs text-muted-foreground">
-              {String(
-                location?.data?.state_dir ?? msg("settings.resolvingLocation"),
+            <p className="mt-2 text-xs text-muted-foreground">
+              {stateDirectory ? (
+                <code className="break-all">{stateDirectory}</code>
+              ) : (
+                msg(
+                  cliOk === null
+                    ? "settings.resolvingLocation"
+                    : "common.unavailable",
+                )
               )}
             </p>
           </div>
-          <StatusBadge state={ready ? "ready" : "needs_user_action"}>
-            {ready ? msg("settings.initialized") : msg("settings.setupNeeded")}
+          <StatusBadge state={workspaceState}>
+            {identity
+              ? ready
+                ? msg("settings.initialized")
+                : msg("settings.setupNeeded")
+              : undefined}
           </StatusBadge>
         </div>
         <p className="text-sm leading-6 text-muted-foreground">
           {msg("settings.theAppAndCliShareOneLocalIdentityAnd")}
         </p>
-        {!ready && (
+        {identity && !ready && (
           <form
             className="space-y-4 border-t border-border pt-5"
             onSubmit={(event) => {
@@ -151,7 +185,7 @@ export default function SettingsPage() {
             </button>
           </form>
         )}
-        {help && !help.ok && <ResultMeta r={help} />}
+        {readFailure && <ResultMeta r={readFailure} />}
         {result && <ResultMeta r={result} />}
       </section>
       <section className="card space-y-4 p-6">

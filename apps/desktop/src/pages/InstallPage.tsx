@@ -1,3 +1,4 @@
+import { record } from "../contexts";
 import { iconSize } from "../generated/theme";
 import { useText } from "../i18n";
 import { choiceLabel, intentGuidance, intentLabel } from "../labels";
@@ -146,7 +147,7 @@ export default function InstallPage() {
     if (taskId || starter.busy || !starter.result || starter.opened) return;
     const id = isTask(starter.result.data)
       ? starter.result.data.task_id
-      : starter.result.error_details?.task_id;
+      : record(starter.result.error_details).task_id;
     if (typeof id === "string") {
       setParams({ task: id });
       starter.acknowledge();
@@ -512,7 +513,9 @@ export default function InstallPage() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="section-title capitalize">
-                {task.intent} {msg("install.task")}
+                {msg("install.taskTitle", {
+                  intent: intentLabel(msg, task.intent),
+                })}
               </h2>
               <p className="mt-2 break-all font-mono text-xs text-muted-foreground">
                 {task.task_id}
@@ -530,7 +533,7 @@ export default function InstallPage() {
           )}
           <TaskOwnership value={task.ownership} />
           {task.questions.map((question) =>
-            question.actor === "external" || question.actor === "agent" ? (
+            question.actor != null && question.actor !== "human" ? (
               <p
                 key={question.question_id}
                 className="text-sm text-muted-foreground"
@@ -717,7 +720,7 @@ export default function InstallPage() {
       {taskId &&
         starter.result &&
         !starter.result.ok &&
-        starter.result.error_details?.task_id === taskId && (
+        record(starter.result.error_details).task_id === taskId && (
           <ResultMeta r={starter.result} />
         )}
       {taskId && !task && !busy && (

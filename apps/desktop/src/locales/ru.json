@@ -482,7 +482,6 @@
   "install.installation": "применение",
   "install.acceptedInputSchema": "Допустимая схема входных данных",
   "install.readingTheLatestTaskState": "Чтение последнего состояния задачи",
-  "install.task": "задача",
   "install.revision": "Ревизия",
   "install.thisRetainedLegacyTaskIsReadOnly": "Эта сохранённая задача старого формата доступна только для чтения.",
   "install.waitingFor": "· ожидается действие: {actor}",
@@ -747,5 +746,6 @@
   "heartbeatDelivery.intervalHelp": "Интервал наблюдения: {interval, plural, one {# секунда} few {# секунды} many {# секунд} other {# секунды}}. Повторы начинаются через {retry, plural, one {# секунду} few {# секунды} many {# секунд} other {# секунды}} и прекращаются через четыре минуты.",
   "profiles.registryFormat": "Этот план использует формат реестра прав {version}. Клиенты без его поддержки откажут в доступе. Сохраните совместимый клиент.",
   "profiles.registryFormatUnknown": "Проверьте формат реестра в точном плане. Старые клиенты могут не поддерживать новые форматы. Сохраните совместимый клиент.",
-  "heartbeatDelivery.intervalUnavailable": "Движок не сообщил допустимые интервалы наблюдения и повторов."
+  "heartbeatDelivery.intervalUnavailable": "Движок не сообщил допустимые интервалы наблюдения и повторов.",
+  "install.taskTitle": "Задача «{intent}»"
 }

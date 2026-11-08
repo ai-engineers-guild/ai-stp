@@ -482,7 +482,6 @@
   "install.installation": "التثبيت",
   "install.acceptedInputSchema": "مخطط المدخلات المقبول",
   "install.readingTheLatestTaskState": "جارٍ قراءة أحدث حالة للمهمة",
-  "install.task": "مهمة",
   "install.revision": "المراجعة",
   "install.thisRetainedLegacyTaskIsReadOnly": "هذه المهمة المحفوظة ذات التنسيق القديم متاحة للقراءة فقط.",
   "install.waitingFor": "· بانتظار إجراء من: {actor}",
@@ -747,5 +746,6 @@
   "heartbeatDelivery.intervalHelp": "فاصل الرصد: {interval, plural, zero {# ثانية} one {ثانية واحدة} two {ثانيتان} few {# ثوانٍ} many {# ثانية} other {# ثانية}}. تبدأ إعادة المحاولات بعد {retry, plural, zero {# ثانية} one {ثانية واحدة} two {ثانيتين} few {# ثوانٍ} many {# ثانية} other {# ثانية}} وتنتهي خلال أربع دقائق.",
   "profiles.registryFormat": "تستخدم هذه الخطة تنسيق سجل الصلاحيات {version}. سترفض البرامج التي لا تدعمه الوصول. احتفظ ببرنامج عميل متوافق.",
   "profiles.registryFormatUnknown": "راجع تنسيق السجل في الخطة الدقيقة. قد ترفض البرامج القديمة التنسيقات الأحدث. احتفظ ببرنامج عميل متوافق.",
-  "heartbeatDelivery.intervalUnavailable": "لم يبلّغ المحرّك عن فواصل رصد وإعادة محاولة صالحة."
+  "heartbeatDelivery.intervalUnavailable": "لم يبلّغ المحرّك عن فواصل رصد وإعادة محاولة صالحة.",
+  "install.taskTitle": "مهمة «{intent}»"
 }
