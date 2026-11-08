@@ -45,6 +45,9 @@ Settings. The first launch uses a supported system language and script; subseque
 launches use the saved choice. Language changes preserve entered fields and the
 original operation. Arabic mirrors navigation and layout; paths, IDs and technical
 output retain their original direction. Messages and fonts are packaged locally.
+Language and theme choices are saved in the application's own local preferences;
+the controls wait for acknowledged native storage. A failed save leaves the choice
+active in the current window and shows a retryable message.
 
 If a start or apply reply is uncertain, inspect its original retained operation
 in Activity before starting again. Identical interrupted task starts keep their
@@ -91,7 +94,7 @@ account codes and private task content. No automatic diagnostic upload occurs.
   `taskStart.ts` retains a logical start's retry identity. Common components use
   shared theme roles, visible focus and reduced motion.
 - `src/generated/cli.ts` projects the canonical CLI JSON schemas. IPC declarations
-  come from `core/src/bridge.rs` and `core/src/envelope.rs` through a test-only Rust
+  come from the core reply, continuation and UI-preference owners through a test-only Rust
   generator. Source checks verify its input digests; native tests compare the
   compiled declarations. Regenerate changed IPC inputs on an execution host with
   `just desktop-native-gen`. UI view types select fields from these projections.
@@ -116,10 +119,18 @@ just desktop-source       # Types, formatting and message syntax; no compilation
 just desktop-gen          # Project version, messages, theme and fonts; format Rust
 just desktop-native-gen   # Compile and project changed IPC types on an execution host
 just desktop-ui-test      # Frontend tests without native SDK compilation
+just desktop-core-test    # Native core tests without compiling a webview
 just desktop-ui-build     # Frontend assets without native SDK compilation
 just desktop-check        # Frontend, Rust crates and actual optimized sidecar
 just desktop-bundle-test  # Verify an existing packaged CLI resource tree
 ```
+
+Hosted Linux acceptance also runs `just desktop-performance` inside a disposable
+vault fixture. It alternates the checksum-pinned baseline and current installed
+packages on one worker, using fresh application profiles and the same native
+personal-context workload. The retained result reports startup and repeated
+navigation distributions, including automation transport and font/paint readiness.
+OS caches remain shared; these observations do not imply a universal latency budget.
 
 Release packages require `cli/ai-stp-desktop-cli`; missing bundled engines refuse.
 Development may use `AI_STP_CLI` or PATH only when no bundled resource is present.

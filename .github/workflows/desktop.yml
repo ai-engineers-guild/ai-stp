@@ -257,6 +257,27 @@ jobs:
           path: ${{ runner.temp }}/installed-desktop-proof-*.json
           if-no-files-found: error
           retention-days: 7
+      - name: Prepare the exact installed performance baseline
+        if: runner.os == 'Linux' && !inputs.packages_only
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          manifest: .github/desktop-performance-baseline.json
+          directory: ${{ runner.temp }}/desktop-performance-baseline
+      - name: Compare installed startup and repeated navigation on the same worker
+        if: runner.os == 'Linux' && !inputs.packages_only
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: desktop-performance
+      - name: Retain the exact same-worker performance observations
+        if: runner.os == 'Linux' && !inputs.packages_only
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: installed-linux-desktop-performance
+          path: ${{ runner.temp }}/installed-desktop-performance.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Seal the platform installers after native acceptance
         if: ${{ !inputs.packages_only }}
         shell: bash

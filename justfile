@@ -634,7 +634,7 @@ desktop-static: desktop-source desktop-build
 desktop-ui-test:
     cd apps/desktop && bun x vitest run
 
-[doc('Frontend and both Rust crates')]
+[doc('Native Desktop core tests without building a webview')]
 [group('desktop')]
 desktop-core-test:
     cd apps/desktop/core && cargo test --locked
@@ -666,6 +666,11 @@ desktop-regress: desktop-build
 [group('desktop')]
 desktop-bundle-test:
     {{ native }} desktop-package-probe
+
+[doc('Compare installed Desktop packages in the disposable hosted Linux vault fixture')]
+[group('desktop')]
+desktop-performance:
+    bash .github/scripts/check-native-secret-service.sh --desktop-performance
 
 [doc('The desktop aggregate')]
 [group('desktop')]
