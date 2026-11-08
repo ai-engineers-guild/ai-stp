@@ -113,8 +113,8 @@ def public_plan(driver: Any, scope: str) -> dict[str, Any]:
     def ready() -> bool:
         observed = driver.read(
             "return {ready:!!document.querySelector(arguments[0]),"
-            "codes:[...document.querySelectorAll('main [role=alert]')]"
-            ".flatMap(x=>x.textContent.match(/\\b(?:AI_STP_|DESKTOP_)[A-Z_]+|\\b(?:CONTEXT_VIEW|HEARTBEAT_VIEW)\\b/g)??[])};",
+            "codes:[...document.querySelectorAll('main [role=alert] code')]"
+            ".map(node=>node.textContent.trim()).filter(Boolean)};",
             scope,
         )
         if observed["ready"]:
@@ -123,7 +123,25 @@ def public_plan(driver: Any, scope: str) -> dict[str, Any]:
             raise ValueError("Public native review refused: " + observed["codes"][0])
         return False
 
-    driver.wait(ready, "public native plan review")
+    try:
+        driver.wait(ready, "public native plan review")
+    except ValueError:
+        if driver.last_response_ok:
+            print(
+                json.dumps(
+                    {
+                        "diagnostic": "installed_plan_review",
+                        "state": driver.read(
+                            "return {reviewPresent:!!document.querySelector(arguments[0]),"
+                            "alertCount:document.querySelectorAll('main [role=alert]').length,"
+                            "pendingCount:document.querySelectorAll('main [role=status]').length,"
+                            "missingReviewClick:window.__installedMissingReview??null};",
+                            scope,
+                        ),
+                    }
+                )
+            )
+        raise
     driver.click(driver.find(scope + " details summary"))
     value = json.loads(
         driver.read("return document.querySelector(arguments[0]+' pre').textContent;", scope)
@@ -559,7 +577,17 @@ def installed_locations(
         driver.navigate("tasks", keyboard=True)
         driver.click(driver.button("Read checkout history", HISTORY))
         driver.click(driver.button("Inspect " + missing_binding, HISTORY))
-        driver.click(driver.button("Review missing-checkout binding retirement", HISTORY))
+        missing_control = driver.button("Review missing-checkout binding retirement", HISTORY)
+        driver.read(
+            "window.__installedMissingReview={clicks:0,trusted:0};"
+            "arguments[0].addEventListener('click',event=>{"
+            "const value=window.__installedMissingReview;"
+            "value.clicks=Math.min(16,value.clicks+1);"
+            "if(event.isTrusted)value.trusted=Math.min(16,value.trusted+1);"
+            "},{capture:true,passive:true});",
+            missing_control,
+        )
+        driver.click(missing_control)
         missing_scope = HISTORY + ' [aria-label="Review local binding retirement"]'
         missing = public_plan(driver, missing_scope)
         assert missing["kind"] == "corporate.project_binding.retire_missing"
