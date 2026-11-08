@@ -97,6 +97,7 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
     "desktop-static": ("cargo clippy --locked --all-targets -- -D warnings",),
     "desktop-ui-test": ("vitest run",),
     "desktop-test": ("cargo test --locked",),
+    "desktop-core-test": ("cargo test --locked",),
     "desktop-regress": ("desktop-build", "desktop-probe"),
     "just-fmt": (),
     "cli-test": ("cargo test --locked",),

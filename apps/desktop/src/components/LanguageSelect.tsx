@@ -1,4 +1,5 @@
 import { changeLocale, isLocale, languages, useLocale, useText } from "../i18n";
+import { usePreferences } from "../preferences";
 
 export default function LanguageSelect({
   compact = false,
@@ -7,6 +8,7 @@ export default function LanguageSelect({
 }) {
   const text = useText();
   const { locale, pending, failed } = useLocale();
+  const preferences = usePreferences();
   return (
     <div className={compact ? "text-xs" : "space-y-2"}>
       <label className="field-label">
@@ -17,7 +19,7 @@ export default function LanguageSelect({
           name="language"
           className="input w-full"
           value={locale}
-          disabled={pending}
+          disabled={pending || preferences.pending}
           onChange={(event) => {
             const next = event.target.value;
             if (isLocale(next)) void changeLocale(next);
@@ -43,6 +45,11 @@ export default function LanguageSelect({
       {failed && (
         <p role="alert" className="text-xs text-destructive">
           {text("language.loadFailed")}
+        </p>
+      )}
+      {preferences.failed && (
+        <p role="alert" className="text-xs text-destructive">
+          {text("language.saveFailed")}
         </p>
       )}
     </div>

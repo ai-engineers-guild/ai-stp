@@ -373,6 +373,12 @@ class Driver:
             ),
             "completed finite theme transitions",
         )
+        self.wait(
+            lambda: self.read(
+                "return !document.querySelector('aside select[name=language]')?.disabled;"
+            ),
+            "acknowledged theme preference",
+        )
 
     def language(self, locale: str) -> None:
         control = self.find('aside select[name="language"]')
@@ -1400,6 +1406,7 @@ def main() -> None:
         )
         driver.navigate("profiles")
         driver.select_context("Installed personal two", second)
+        driver.theme(True)
         driver.language("ar")
         accessibility = list(driver.accessibility)
     finally:
@@ -1420,6 +1427,11 @@ def main() -> None:
             "installed restart lost the language preference",
         )
         driver.language("en")
+        require(
+            driver.read("return document.documentElement.classList.contains('dark');"),
+            "installed restart lost the theme preference",
+        )
+        driver.theme(False)
         driver.selected(second)
         driver.observe_reduced_motion()
         driver.navigate("profiles")

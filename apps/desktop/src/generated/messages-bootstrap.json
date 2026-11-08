@@ -161,5 +161,6 @@
   "status.removed": "Removed",
   "status.restartObserved": "Restart observed",
   "status.done": "Done",
-  "contextSwitcher.aboutView": "About this view"
+  "contextSwitcher.aboutView": "About this view",
+  "language.saveFailed": "Your choice applies to this window, but could not be saved. Try changing it again."
 }

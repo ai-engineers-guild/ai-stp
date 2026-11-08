@@ -121,7 +121,7 @@ export async function changeLocale(
     if (request !== generation) return false;
     await i18n.changeLanguage(locale);
     if (request !== generation) return false;
-    if (persist) writePreference("ai-stp.locale", locale);
+    if (persist) await writePreference("ai-stp.locale", locale);
     useLocale.setState({ pending: false });
     return true;
   } catch {

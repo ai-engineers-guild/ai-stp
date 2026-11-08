@@ -748,5 +748,6 @@
   "profiles.registryFormatUnknown": "Нақты жоспардан тізілім форматын тексеріңіз. Ескі клиенттер жаңа форматтарды қолдамауы мүмкін. Үйлесімді клиентті сақтаңыз.",
   "heartbeatDelivery.intervalUnavailable": "Қозғалтқыш жарамды бақылау және қайталау аралықтарын хабарламады.",
   "install.taskTitle": "«{intent}» тапсырмасы",
-  "contextSwitcher.aboutView": "Бұл көрініс туралы"
+  "contextSwitcher.aboutView": "Бұл көрініс туралы",
+  "language.saveFailed": "Таңдауыңыз осы терезеде қолданылады, бірақ оны сақтау мүмкін болмады. Қайта таңдап көріңіз."
 }

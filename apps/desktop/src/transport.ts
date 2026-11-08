@@ -8,7 +8,14 @@ import { useDebug, type IpcEntry } from "./store";
 import type {
   CmdResult as NativeResult,
   Continuation,
+  UiPreferences,
 } from "./generated/native";
+
+export const cmdPreferencesRead = (): Promise<CmdResult> =>
+  call("ui_preferences_read");
+export const cmdPreferencesWrite = (
+  preferences: UiPreferences,
+): Promise<CmdResult> => call("ui_preferences_write", { preferences });
 import type { SuccessEnvelope } from "./generated/cli";
 import type { Descriptor } from "./contracts";
 

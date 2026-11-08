@@ -36,3 +36,4 @@ export type CmdResult = {
   error_details?: unknown;
   next_actions?: unknown[];
 };
+export type UiPreferences = { locale: string | null; theme: string | null };

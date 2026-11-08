@@ -6,7 +6,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { useApp } from "../store";
 import SettingsPage from "./SettingsPage";
 
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+  isTauri: () => false,
+}));
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();

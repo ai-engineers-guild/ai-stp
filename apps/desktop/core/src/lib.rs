@@ -8,11 +8,13 @@ pub mod bridge;
 pub mod cli_runner;
 pub mod commands;
 pub mod envelope;
+pub mod preferences;
 
 pub use bridge::CmdResult;
 pub use cli_runner::{CliLocator, CliRunner, DEFAULT_TIMEOUT, MUTATING_TIMEOUT, RunError};
 pub use commands::{BuildError, CommandDescriptor, CommandRegistry, MachineHelp};
 pub use envelope::{Continuation, ContinuationActor, Envelope, ParseFailure, parse};
+pub use preferences::UiPreferences;
 
 #[cfg(test)]
 mod bindings;

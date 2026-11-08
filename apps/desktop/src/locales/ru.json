@@ -748,5 +748,6 @@
   "profiles.registryFormatUnknown": "Проверьте формат реестра в точном плане. Старые клиенты могут не поддерживать новые форматы. Сохраните совместимый клиент.",
   "heartbeatDelivery.intervalUnavailable": "Движок не сообщил допустимые интервалы наблюдения и повторов.",
   "install.taskTitle": "Задача «{intent}»",
-  "contextSwitcher.aboutView": "О режиме просмотра"
+  "contextSwitcher.aboutView": "О режиме просмотра",
+  "language.saveFailed": "Выбор действует в этом окне, но сохранить его не удалось. Попробуйте выбрать ещё раз."
 }

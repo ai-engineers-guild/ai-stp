@@ -748,5 +748,6 @@
   "profiles.registryFormatUnknown": "Review the registry format in the exact plan. Older clients may refuse newer formats. Keep a compatible client.",
   "heartbeatDelivery.intervalUnavailable": "The engine has not reported valid observation and retry intervals.",
   "install.taskTitle": "{intent} task",
-  "contextSwitcher.aboutView": "About this view"
+  "contextSwitcher.aboutView": "About this view",
+  "language.saveFailed": "Your choice applies to this window, but could not be saved. Try changing it again."
 }

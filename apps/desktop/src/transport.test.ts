@@ -28,7 +28,10 @@ import {
   cmdSetupAcquisitionApply,
 } from "./transport";
 import { useDebug } from "./store";
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+  isTauri: () => false,
+}));
 
 it.each([[], 42, "not-object", undefined])(
   "refuses non-object IPC data while retaining the original reply: %j",

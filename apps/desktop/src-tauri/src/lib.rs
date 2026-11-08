@@ -1,5 +1,5 @@
 use ai_stp_desktop_core::{
-    CliLocator, CliRunner, CmdResult, CommandRegistry, MachineHelp, RunError,
+    CliLocator, CliRunner, CmdResult, CommandRegistry, MachineHelp, RunError, UiPreferences,
 };
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -34,6 +34,7 @@ struct AppState {
     /// for the whole run so mutations are ordered, not concurrent. Read
     /// commands stay lock-free.
     mutation_lock: Mutex<()>,
+    preference_lock: Mutex<()>,
 }
 
 /// Digest re-verification interval: `capabilities` is a subprocess spawn,
@@ -49,6 +50,7 @@ impl AppState {
             runner: Mutex::new(None),
             registry: Mutex::new(None),
             mutation_lock: Mutex::new(()),
+            preference_lock: Mutex::new(()),
         }
     }
 
@@ -304,6 +306,38 @@ fn account_action(
 }
 
 // ---------------------------------------------------------------- commands
+
+async fn ui_preferences(app: tauri::AppHandle, next: Option<UiPreferences>) -> CmdResult {
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<Arc<AppState>>();
+        let _guard = state.preference_lock.lock().map_err(|_| ())?;
+        let directory = app.path().app_config_dir().map_err(|_| ())?;
+        if let Some(preferences) = next {
+            preferences.save(&directory).map_err(|_| ())?;
+            Ok(Some(preferences))
+        } else {
+            UiPreferences::read(&directory).map_err(|_| ())
+        }
+    })
+    .await;
+    match result {
+        Ok(Ok(preferences)) => CmdResult::success(serde_json::json!({"preferences": preferences})),
+        _ => CmdResult::failed(
+            "DESKTOP_PREFERENCES_UNAVAILABLE",
+            "Application preferences could not be read or saved.",
+        ),
+    }
+}
+
+#[tauri::command]
+async fn ui_preferences_read(app: tauri::AppHandle) -> CmdResult {
+    ui_preferences(app, None).await
+}
+
+#[tauri::command]
+async fn ui_preferences_write(app: tauri::AppHandle, preferences: UiPreferences) -> CmdResult {
+    ui_preferences(app, Some(preferences)).await
+}
 
 #[tauri::command]
 async fn cli_version(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, String> {
@@ -1260,6 +1294,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
+            ui_preferences_read,
+            ui_preferences_write,
             cli_version,
             cli_capabilities,
             cli_doctor,

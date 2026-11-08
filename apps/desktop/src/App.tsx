@@ -25,7 +25,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { useApp, useDebug } from "./store";
-import { readPreference, writePreference } from "./preferences";
+import { readPreference, usePreferences, writePreference } from "./preferences";
 import { useContexts } from "./contexts";
 import ContextSwitcher from "./components/ContextSwitcher";
 import ForegroundHeartbeat from "./components/ForegroundHeartbeat";
@@ -91,6 +91,7 @@ function Shell() {
   const [dark, setDark] = useState(
     document.documentElement.classList.contains("dark"),
   );
+  const preferencePending = usePreferences((state) => state.pending);
   const location = useLocation();
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
@@ -118,7 +119,7 @@ function Shell() {
     const next = !dark;
     setDark(next);
     document.documentElement.classList.toggle("dark", next);
-    writePreference("ai-stp.theme", next ? "dark" : "light");
+    void writePreference("ai-stp.theme", next ? "dark" : "light");
   }
   function navigation(
     items: readonly { to: string; icon: typeof Home; label: PlainMessageKey }[],
@@ -212,6 +213,7 @@ function Shell() {
             </NavLink>
             <button
               className="icon-button"
+              disabled={preferencePending}
               onClick={toggleTheme}
               aria-label={dark ? t("shell.light") : t("shell.dark")}
             >

@@ -49,7 +49,7 @@ export const useDebug = create<DebugState>((set) => ({
       ),
     })),
   setDebugMode: (v) => {
-    writePreference("ai-stp.debug", v ? "1" : "0");
+    void writePreference("ai-stp.debug", v ? "1" : "0");
     set({ debugMode: v });
   },
   clear: () => set({ log: [] }),

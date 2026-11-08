@@ -748,5 +748,6 @@
   "profiles.registryFormatUnknown": "请在确切计划中检查注册表格式。旧客户端可能拒绝较新的格式，请保留兼容客户端。",
   "heartbeatDelivery.intervalUnavailable": "引擎未报告有效的观察和重试间隔。",
   "install.taskTitle": "{intent}任务",
-  "contextSwitcher.aboutView": "关于此视图"
+  "contextSwitcher.aboutView": "关于此视图",
+  "language.saveFailed": "你的选择已在此窗口生效，但无法保存。请重新选择一次。"
 }

@@ -4,7 +4,7 @@ use serde::Serialize;
 
 /// Every IPC reply is a typed result — the frontend renders `ok` or the
 /// structured error; it never receives raw stderr.
-#[derive(Serialize)]
+#[derive(Default, Serialize)]
 #[cfg_attr(test, derive(ts_rs::TS))]
 pub struct CmdResult {
     pub ok: bool,
@@ -36,6 +36,14 @@ pub struct CmdResult {
 }
 
 impl CmdResult {
+    pub fn success(data: serde_json::Value) -> Self {
+        Self {
+            ok: true,
+            data: Some(data),
+            ..Self::default()
+        }
+    }
+
     pub fn from_envelope(env: Envelope) -> Self {
         Self {
             ok: env.ok,

@@ -14,7 +14,10 @@ import { useApp } from "../store";
 import { useContexts } from "../contexts";
 import type { CmdResult } from "../transport";
 
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+  isTauri: () => false,
+}));
 
 const ok = (data: Record<string, unknown>): CmdResult => ({
   ok: true,

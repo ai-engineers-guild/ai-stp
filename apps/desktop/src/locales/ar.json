@@ -748,5 +748,6 @@
   "profiles.registryFormatUnknown": "راجع تنسيق السجل في الخطة الدقيقة. قد ترفض البرامج القديمة التنسيقات الأحدث. احتفظ ببرنامج عميل متوافق.",
   "heartbeatDelivery.intervalUnavailable": "لم يبلّغ المحرّك عن فواصل رصد وإعادة محاولة صالحة.",
   "install.taskTitle": "مهمة «{intent}»",
-  "contextSwitcher.aboutView": "عن هذا العرض"
+  "contextSwitcher.aboutView": "عن هذا العرض",
+  "language.saveFailed": "يُطبّق اختيارك في هذه النافذة، لكن تعذّر حفظه. حاول اختياره مرة أخرى."
 }

@@ -1,5 +1,5 @@
 //! Compile-derived IPC declarations, checked against their committed projection.
-use crate::{CmdResult, Continuation};
+use crate::{CmdResult, Continuation, UiPreferences};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use ts_rs::{Config, TS};
@@ -12,6 +12,11 @@ fn native_bindings_match() {
         ("core/src/bridge.rs", include_str!("bridge.rs")),
         ("core/src/envelope.rs", include_str!("envelope.rs")),
         ("core/src/bindings.rs", include_str!("bindings.rs")),
+        ("core/src/preferences.rs", include_str!("preferences.rs")),
+        (
+            "src/localization.json",
+            include_str!("../../src/localization.json"),
+        ),
     ];
     let inputs: BTreeMap<_, _> = sources
         .into_iter()
@@ -27,7 +32,7 @@ fn native_bindings_match() {
     let configuration = Config::default();
     let expected = serde_json::json!({
         "inputs": inputs,
-        "declarations": [Continuation::decl(&configuration), CmdResult::decl(&configuration)],
+        "declarations": [Continuation::decl(&configuration), CmdResult::decl(&configuration), UiPreferences::decl(&configuration)],
     });
     let target = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../src/generated/native-bindings.json");

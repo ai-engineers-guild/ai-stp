@@ -636,8 +636,12 @@ desktop-ui-test:
 
 [doc('Frontend and both Rust crates')]
 [group('desktop')]
-desktop-test: desktop-build desktop-ui-test
+desktop-core-test:
     cd apps/desktop/core && cargo test --locked
+
+[doc('Frontend and both Rust crates')]
+[group('desktop')]
+desktop-test: desktop-build desktop-ui-test desktop-core-test
     cd apps/desktop/src-tauri && cargo test --locked
 
 [doc('Compile native IPC declarations on an execution host, then project TypeScript')]
