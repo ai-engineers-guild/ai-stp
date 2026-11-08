@@ -329,7 +329,7 @@ export function ObjectCard({
       <article
         data-ui={UI.catalog.card}
         className={cn(
-          "group @container relative min-w-0 overflow-x-hidden px-4 py-3 transition-colors",
+          "group @container relative min-w-0 overflow-x-clip px-4 py-3 transition-colors",
           kind === "setup"
             ? "bg-muted/50 hover:bg-muted"
             : "bg-background hover:bg-muted/35 focus-within:bg-muted/35",
@@ -403,7 +403,7 @@ export function ObjectCard({
     <article
       data-ui={UI.catalog.card}
       className={cn(
-        "group border-border focus-within:ring-ring relative flex h-full min-w-0 flex-col gap-3 overflow-x-hidden rounded-lg border p-3 shadow-sm transition-colors focus-within:ring-2",
+        "group border-border focus-within:ring-ring relative flex h-full min-w-0 flex-col gap-3 overflow-x-clip rounded-lg border p-3 shadow-sm transition-colors focus-within:ring-2",
         kind === "setup" ? "bg-muted/50 hover:bg-muted p-4" : "bg-card hover:bg-muted/30",
       )}
       data-kind={kind}
@@ -529,7 +529,7 @@ function OwnerFallbackCard({
       data-kind={item.object_kind}
       data-view={view}
       className={cn(
-        "group relative min-w-0 overflow-x-hidden transition-colors",
+        "group relative min-w-0 overflow-x-clip transition-colors",
         view === "list"
           ? "bg-background hover:bg-muted/35 px-4 py-3"
           : "bg-card border-border hover:bg-muted/30 flex h-full flex-col gap-3 rounded-lg border p-4 shadow-sm",
