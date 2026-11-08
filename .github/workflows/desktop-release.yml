@@ -50,24 +50,7 @@ jobs:
           EXPECTED_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          for m in \
-            apps/desktop/package.json \
-            apps/desktop/src-tauri/tauri.conf.json; do
-            actual=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$m" | head -1)
-            [[ "${actual}" == "${EXPECTED_VERSION}" ]] || {
-              echo "${m} has ${actual}, tag wants ${EXPECTED_VERSION}" >&2
-              exit 1
-            }
-          done
-          for m in \
-            apps/desktop/src-tauri/Cargo.toml \
-            apps/desktop/core/Cargo.toml; do
-            actual=$(sed -n 's/^version = "\([^"]*\)"/\1/p' "$m" | head -1)
-            [[ "${actual}" == "${EXPECTED_VERSION}" ]] || {
-              echo "${m} has ${actual}, tag wants ${EXPECTED_VERSION}" >&2
-              exit 1
-            }
-          done
+          python release_scripts/desktop_version.py --check --expected "${EXPECTED_VERSION}"
 
       - name: Require the exact currently qualified main source
         env:
@@ -125,6 +108,16 @@ jobs:
         run: |
           set -euo pipefail
           cat > "${RUNNER_TEMP}/NOTES.md" <<'NOTES'
+          This release makes the setup journey easier to follow:
+
+          - Overview explains the next step for this device and workspace.
+          - Find an exact setup, choose folders with the system picker or paste
+            their paths, then review file changes before applying.
+          - Advanced tools, identifiers and replacement options stay available
+            in disclosures. Small windows keep theme and account controls visible.
+          - Pages load on demand, and communication errors explain how to recover
+            an interrupted change without starting it again blindly.
+
           Desktop application over the native ai-stp CLI. The CLI is
           bundled inside the app as the optimized Rust `ai-stp-desktop-cli`
           with a digest manifest via `bundle.resources` — no separate install is

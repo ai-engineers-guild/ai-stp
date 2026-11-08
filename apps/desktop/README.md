@@ -6,7 +6,7 @@ receives public JSON envelopes. Harness programs remain user/vendor managed.
 
 ## Use
 
-Choose the installer for your OS from [Desktop 0.4.1](https://github.com/ai-engineers-guild/ai-stp/releases/tag/desktop-v0.4.1)
+Choose the installer for your OS from [Desktop 0.4.2](https://github.com/ai-engineers-guild/ai-stp/releases/tag/desktop-v0.4.2)
 and verify it against `SHA256SUMS`. The app bundles CLI 0.3.0. The installed engine
 reports its platform capabilities in Overview.
 
@@ -97,7 +97,7 @@ Tauri needs the native webview development packages. From `apps/desktop`,
 
 ```sh
 just desktop-source       # Types, formatting and message syntax; no compilation
-just desktop-gen          # Format Rust
+just desktop-gen          # Project the version and format Rust
 just desktop-check        # Frontend, Rust crates and actual optimized sidecar
 just desktop-bundle-test  # Verify an existing packaged CLI resource tree
 ```
@@ -109,6 +109,10 @@ actual CLI; UI unit tests isolate IPC responses. Installed application acceptanc
 and native platform qualification remain separate from compilation.
 
 ## Release
+
+`package.json` owns the Desktop version. Run `just desktop-gen` after changing it;
+the native manifest fields and local Cargo lock entries are projections checked
+by `just desktop-source` and release admission. Dependency versions are preserved.
 
 Tag the verified source `desktop-vX.Y.Z`, matching all desktop manifest versions,
 then dispatch `.github/workflows/desktop-release.yml` on the tag. It checks/packages

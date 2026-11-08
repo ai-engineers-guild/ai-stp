@@ -99,7 +99,9 @@ jobs:
           save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       - name: Frontend install
         working-directory: apps/desktop
-        run: bun install --frozen-lockfile
+        run: |
+          python ../../release_scripts/desktop_version.py --check
+          bun install --frozen-lockfile
       - name: Frontend checks (tsc, vitest, vite build)
         working-directory: apps/desktop
         shell: bash
