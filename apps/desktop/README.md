@@ -115,7 +115,12 @@ the native manifest fields and local Cargo lock entries are projections checked
 by `just desktop-source` and release admission. Dependency versions are preserved.
 
 Tag the verified source `desktop-vX.Y.Z`, matching all desktop manifest versions,
-then dispatch `.github/workflows/desktop-release.yml` on the tag. It checks/packages
-Linux, macOS and Windows installers and publishes `SHA256SUMS`. Bundles are
-unsigned; no application signing credentials are configured. Exact source and
+then dispatch `.github/workflows/desktop-release.yml` on the tag. It verifies
+the currently qualified main source and publishes its exact Linux, macOS and
+Windows installers with `SHA256SUMS`. Platform manifests seal the installer hashes
+after native acceptance. A read-only admission job verifies all three manifests,
+source/version identity and every installer byte before a separate publisher
+receives the payload. Publication runs no repository code and does not rebuild
+the tested installers. Missing, changed or incomplete artifacts refuse release.
+Bundles are unsigned; no application signing credentials are configured. Exact source and
 qualification receipts belong to the GitHub release and source PR.

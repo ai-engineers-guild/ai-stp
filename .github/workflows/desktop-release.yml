@@ -1,5 +1,6 @@
-# Desktop release: the same three-OS owner builds and qualifies the exact
-# published packages, including installed Linux journeys. The run
+# Desktop release: the three-OS source owner builds and qualifies packages,
+# including installed Linux journeys. Publication reuses
+# those exact installers from the successful main run. The release run
 # must sit on the tag it claims, the version inside tauri.conf.json must
 # equal the tag, and every artifact is checksummed before upload.
 #
@@ -31,6 +32,8 @@ jobs:
     permissions:
       contents: read
       actions: read
+    outputs:
+      qualified_run_id: ${{ steps.source.outputs.qualified_run_id }}
     steps:
       - name: The dispatch must run on the tag it claims to release
         env:
@@ -53,19 +56,40 @@ jobs:
           python release_scripts/desktop_version.py --check --expected "${EXPECTED_VERSION}"
 
       - name: Require the exact currently qualified main source
+        id: source
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           HEAD_SHA: ${{ github.sha }}
         run: bash .github/scripts/require-client-release-source.sh
 
-  bundle:
-    needs: guard
-    uses: ./.github/workflows/desktop.yml
+      - name: Download the qualified source installers
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.source.outputs.qualified_run_id }}
+          pattern: ai-stp-desktop-*
+          merge-multiple: true
+          path: bundles
+          digest-mismatch: error
+      - name: Verify all qualified installer bytes and stage the publication payload
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: >-
+          python -m release_scripts.desktop_artifacts verify
+          --directory bundles --source "${SOURCE_SHA}"
+          --output "${RUNNER_TEMP}/verified-desktop-release"
+      - name: Retain only the verified publication payload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualified-desktop-release
+          path: ${{ runner.temp }}/verified-desktop-release/
+          if-no-files-found: error
+          retention-days: 7
 
   release:
     name: publish-github-release
-    needs: bundle
+    needs: guard
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     environment:
@@ -75,35 +99,21 @@ jobs:
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
-          pattern: ai-stp-desktop-*
-          merge-multiple: true
-          path: bundles
-      - name: Select only the six qualified install bundles and reject collisions
-        run: |
-          set -euo pipefail
-          mkdir release
-          while IFS= read -r -d '' file; do
-            base="$(basename "${file}")"
-            test ! -e "release/${base}"
-            mv "${file}" "release/${base}"
-          done < <(find bundles -type f \
-            \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \
-            -o -name '*.dmg' -o -name '*.msi' -o -name '*-setup.exe' \) -print0)
-          for extension in deb rpm AppImage dmg msi exe; do
-            files=(release/*."${extension}")
-            test "${#files[@]}" -eq 1 && test -f "${files[0]}"
-          done
-          test "$(find release -maxdepth 1 -type f | wc -l)" -eq 6
-      - name: Checksum everything
+          name: qualified-desktop-release
+          path: release
+          digest-mismatch: error
+      - name: Check the verified payload without executing repository code
         working-directory: release
         run: |
           set -euo pipefail
-          sha256sum -- * > SHA256SUMS
-          cat SHA256SUMS
+          test "$(find . -maxdepth 1 -type f | wc -l)" -eq 7
+          test "$(wc -l < SHA256SUMS)" -eq 6
+          sha256sum --check SHA256SUMS
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ inputs.version }}
+          SOURCE_RUN_ID: ${{ needs.guard.outputs.qualified_run_id }}
         working-directory: release
         run: |
           set -euo pipefail
@@ -159,6 +169,8 @@ jobs:
           - Windows: `.msi` / `-setup.exe`
           NOTES
           sed -i 's/^          //' "${RUNNER_TEMP}/NOTES.md"
+          printf '\nQualified source: https://github.com/%s/actions/runs/%s\n' \
+            "${{ github.repository }}" "${SOURCE_RUN_ID}" >> "${RUNNER_TEMP}/NOTES.md"
           # No checkout in this job: name the repository explicitly, gh
           # cannot resolve it from a missing .git directory.
           gh release create "desktop-v${VERSION}" \
