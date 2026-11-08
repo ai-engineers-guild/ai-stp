@@ -464,6 +464,7 @@ web-i18n:
 web-source:
     {{ bunreq }}
     cd apps/web && bun run lint
+    cd apps/web && bun run lint:dependencies
     cd apps/web && bun run api:check
     cd apps/web && bun run format:check
 

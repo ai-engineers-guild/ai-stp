@@ -4,8 +4,7 @@ import path from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
-// Same default as scripts/verify-production.mjs: inside this app, under an
-// already-ignored directory. VERIFY_REVIEW_DIR overrides both together.
+// Keep review evidence inside this app's ignored test-results directory.
 const reviewDir = path.resolve(
   process.cwd(),
   process.env.VERIFY_REVIEW_DIR ?? "test-results/review",
