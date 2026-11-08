@@ -80,6 +80,9 @@ def fill(driver: Any, label: str, value: str, *, scope: str = "main") -> None:
     driver.command(
         "POST", f"/element/{element['element-6066-11e4-a52e-4f735466cecf']}/value", {"text": value}
     )
+    assert driver.read("return arguments[0].value;", element) == value, (
+        "Native keyboard entry did not retain the exact fixture value"
+    )
 
 
 def choose(driver: Any, label: str, value: str, *, scope: str = "main") -> None:
@@ -989,15 +992,53 @@ def installed_journey(
         root_field = field(driver, "Registered checkout for binding", scope=HISTORY)
         assert driver.read("return arguments[0].value;", root_field) == str(checkout)
         fill(driver, "Registered checkout for binding", str(neighbor), scope=HISTORY)
-        driver.click(driver.button("Review original local binding", HISTORY))
-        codes = driver.wait(
-            lambda: driver.read(
-                "return [...document.querySelectorAll(arguments[0]+' [role=alert]')]"
-                ".flatMap(x=>x.textContent.match(/\\b(?:AI_STP_|DESKTOP_)[A-Z_]+|\\bCONTEXT_VIEW\\b/g)??[]);",
-                HISTORY,
-            ),
-            "same-display physical checkout refusal",
+        original_review_control = driver.button("Review original local binding", HISTORY)
+        driver.read(
+            "const node=arguments[0];window.__installedBindingReview={clicks:0,trusted:0};"
+            "node.addEventListener('click',event=>{"
+            "const count=window.__installedBindingReview;"
+            "count.clicks=Math.min(16,count.clicks+1);"
+            "if(event.isTrusted)count.trusted=Math.min(16,count.trusted+1);"
+            "},{capture:true,passive:true});",
+            original_review_control,
         )
+        driver.click(original_review_control)
+        try:
+            codes = driver.wait(
+                lambda: driver.read(
+                    "return [...document.querySelectorAll(arguments[0]+' [role=alert]')]"
+                    ".flatMap(x=>x.textContent.match(/\\b(?:AI_STP_|DESKTOP_)[A-Z_]+|\\bCONTEXT_VIEW\\b/g)??[]);",
+                    HISTORY,
+                ),
+                "same-display physical checkout refusal",
+            )
+        except ValueError:
+            if driver.last_response_ok:
+                observed = driver.read(
+                    "const root=document.querySelector(arguments[0]);"
+                    "const field=[...root?.querySelectorAll('label')||[]]"
+                    ".find(node=>node.textContent.trim()==='Registered checkout for binding')"
+                    "?.querySelector('input');"
+                    "return {click:window.__installedBindingReview,historyPresent:!!root,"
+                    "nextReviewPresent:!!root?.querySelector("
+                    "'[aria-label=\"Review retained checkout next change\"]'),"
+                    "alertCount:root?.querySelectorAll('[role=alert]').length??0,"
+                    "pendingCount:root?.querySelectorAll('[role=status]').length??0,"
+                    "enteredNeighbor:field?.value===arguments[1],"
+                    "retainedOriginal:field?.value===arguments[2],"
+                    "reviewConnected:arguments[3].isConnected,"
+                    "reviewDisabled:arguments[3].disabled};",
+                    HISTORY,
+                    str(neighbor),
+                    str(checkout),
+                    original_review_control,
+                )
+                print(
+                    json.dumps(
+                        {"diagnostic": "installed_original_binding_refusal", "state": observed}
+                    )
+                )
+            raise
         assert set(codes) == {"AI_STP_PRECONDITION_FAILED"}
         # Reinspect through the actual read control, clearing the refusal and
         # proving that the original byte-preserving root is prefilled again.
