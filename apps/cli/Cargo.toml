@@ -69,7 +69,8 @@ zbus = { version = "=6.2.1", default-features = false, features = ["default-rt",
 [target.'cfg(target_os = "macos")'.dependencies]
 apple-native-keyring-store = { version = "=1.0.2", features = ["keychain"] }
 security-framework = "=3.7.0"
-libproc = "=0.15.0"
+# The next libproc line needs a compatible SQLite bindgen feature set (#1401).
+libproc = "=0.14.11"
 
 [target.'cfg(any(target_os = "macos", windows))'.dependencies]
 keyring-core = "=1.0.1"
