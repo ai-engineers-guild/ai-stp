@@ -72,7 +72,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
-          python-version: "3.14.9"
+          python-version: "3.15.2"
       - name: Check the qualified source and reviewed live delivery rules
         env:
           GH_TOKEN: ${{ github.token }}
@@ -147,7 +147,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
-          python-version: "3.14.9"
+          python-version: "3.15.2"
       # Promotion and deployment are separate events, so an immediate check
       # would measure whether the target had already deployed a commit promoted
       # seconds earlier — it never has. Waiting a bounded time is what makes a
