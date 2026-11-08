@@ -29,7 +29,10 @@ jobs:
       - name: Compile one portable component without third-party guest dependencies
         env:
           ARTIFACT: ${{ runner.temp }}/wasi-component
-        run: python .github/scripts/qualify-wasi-confinement.py build "${ARTIFACT}"
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-component-compile-one-portable-component-without-third-party-guest-dependencies
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: wasi-component
@@ -58,7 +61,9 @@ jobs:
           name: wasi-component
           path: ${{ runner.temp }}/wasi-component
       - name: Verify runtime digest and exercise the identical guest component
-        shell: bash
         env:
           ARTIFACT: ${{ runner.temp }}/wasi-component
-        run: python .github/scripts/qualify-wasi-confinement.py exercise "${ARTIFACT}"
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-confinement-verify-runtime-digest-and-exercise-the-identical-guest-component
