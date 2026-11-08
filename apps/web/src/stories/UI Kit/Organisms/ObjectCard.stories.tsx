@@ -83,7 +83,7 @@ export const NarrowList: Story = {
   },
   decorators: [
     (Story) => (
-      <div className="w-[360px] max-w-full overflow-x-hidden">
+      <div className="w-[360px] max-w-full overflow-x-clip">
         <Story />
       </div>
     ),

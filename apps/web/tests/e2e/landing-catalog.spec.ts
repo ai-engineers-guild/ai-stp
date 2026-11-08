@@ -1,6 +1,26 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("landing → search → detail smoke (REQ-2213)", () => {
+  for (const width of [390, 1440]) {
+    for (const view of ["list", "cards"]) {
+      test(`${view} at ${width}px stays in the page's vertical scrolling flow`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto(`/en/catalog?resource=components&view=${view}`);
+        const card = page.locator(`article[data-kind="component"][data-view="${view}"]`).first();
+        await expect(card).toBeVisible();
+        // Hidden on x makes visible on y compute to auto, creating inner scrollbars.
+        await expect(card).toHaveCSS("overflow-y", "visible");
+        const documentWidth = await page.evaluate(() => ({
+          content: document.documentElement.scrollWidth,
+          viewport: document.documentElement.clientWidth,
+        }));
+        expect(documentWidth.content).toBeLessThanOrEqual(documentWidth.viewport);
+      });
+    }
+  }
+
   test("bilingual landing and catalog detail path without experimental toggle", async ({
     page,
   }) => {

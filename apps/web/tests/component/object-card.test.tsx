@@ -90,7 +90,7 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
       "items-start",
       "gap-x-3",
     );
-    expect(container.querySelector("article")).toHaveClass("min-w-0", "overflow-x-hidden");
+    expect(container.querySelector("article")).toHaveClass("min-w-0", "overflow-x-clip");
     expect(container.querySelector("article")).toHaveAttribute("data-view", "list");
     expect(screen.getByRole("button", { name: "More actions" })).toHaveClass("size-11");
   });
@@ -111,11 +111,7 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
     expect(screen.getAllByText(componentSummaryFixture.latest_component_type)).toHaveLength(1);
     expect(container).not.toHaveTextContent("Author verified");
     expect(container).not.toHaveTextContent("Support tier");
-    expect(container.querySelector("article")).toHaveClass(
-      "h-full",
-      "min-w-0",
-      "overflow-x-hidden",
-    );
+    expect(container.querySelector("article")).toHaveClass("h-full", "min-w-0", "overflow-x-clip");
     expect(container.querySelector("article")).toHaveAttribute("data-view", "cards");
     expect(screen.getByRole("button", { name: "More actions" })).toHaveClass("size-11");
   });
