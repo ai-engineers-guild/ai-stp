@@ -21,11 +21,11 @@ SOURCE_PATH = "contents/packages/contracts/src/ai_stp_contracts/cli_copy.py?ref=
 def _step() -> tuple[str, list[str]]:
     workflow = yaml.safe_load(Path(".github/workflows/deploy.yml").read_text())
     steps = workflow["jobs"]["promote"]["steps"]
-    names = [step["name"] for step in steps]
+    names = [step.get("name", step.get("uses", "")) for step in steps]
     step = next(
         step
         for step in steps
-        if step["name"] == "Require the published CLI download before promotion"
+        if step.get("name") == "Require the published CLI download before promotion"
     )
     return step["run"].split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0], names
 
@@ -201,10 +201,11 @@ def test_promotion_refuses_unpublished_incomplete_or_unrelated_downloads(
         _execute(monkeypatch, responses)
 
 
-def test_publication_is_checked_after_main_admission_and_before_ref_mutation() -> None:
+def test_publication_is_checked_after_source_admission_and_before_delivery_mutation() -> None:
     _, names = _step()
     assert (
-        names.index("Admit only the current successful main qualification attempt")
+        names.index("Admit the exact successful Dev source before executing its code")
         < names.index("Require the published CLI download before promotion")
-        < names.index("Verify the source of this promotion and advance the ref")
+        < names.index("Register unchanged qualified analysis for the release reference")
+        < names.index("Prepare Main admission or reconcile the promoted deployment")
     )

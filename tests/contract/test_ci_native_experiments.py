@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 @cache
 def workflow() -> dict[str, Any]:
-    return yaml.safe_load((ROOT / ".github/workflows/check.yml").read_text())
+    return yaml.safe_load((ROOT / ".github/workflows/source.yml").read_text())
 
 
 def accepted(results: dict[str, dict[str, str]], phase: str, private: bool, wasi: str) -> bool:

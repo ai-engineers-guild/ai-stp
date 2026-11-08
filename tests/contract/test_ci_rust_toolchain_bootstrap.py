@@ -90,8 +90,8 @@ def test_moving_or_ambiguous_pins_refuse_before_any_install(tmp_path: Path, pin:
 def test_native_desktop_and_archive_jobs_use_the_shared_pinned_bootstrap() -> None:
     helper = ".github/scripts/install-rust-toolchain.sh"
     for name, job in [
-        ("check.yml", "cli"),
-        ("check.yml", "integration-native"),
+        ("source.yml", "cli"),
+        ("source.yml", "integration-native"),
         ("desktop.yml", "desktop"),
         ("cli-archives.yml", "build"),
     ]:
@@ -103,11 +103,11 @@ def test_native_desktop_and_archive_jobs_use_the_shared_pinned_bootstrap() -> No
         assert "apps/cli/rust-toolchain.toml" in installs[0]["run"]
         assert installs[0].get("continue-on-error") != "true"
         assert "rustup toolchain install" not in text
-        if name != "check.yml":
+        if name != "source.yml":
             assert "workflow_call" in workflow["on"]
             assert "pull_request" not in workflow["on"]
             caller = yaml.load(
-                (ROOT / ".github/workflows/check.yml").read_text(), Loader=yaml.BaseLoader
+                (ROOT / ".github/workflows/source.yml").read_text(), Loader=yaml.BaseLoader
             )
             assert any(
                 item.get("uses") == f"./.github/workflows/{name}"

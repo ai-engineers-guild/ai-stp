@@ -1,11 +1,11 @@
 ---
 description: "Exact-source deployment, settlement and verification."
-last_verified: "2026-11-04"
+last_verified: "2026-11-08"
 ---
 
 # Deployment
 
-GitHub Actions promotes qualified source through `.github/workflows/deploy.yml`.
+GitHub Actions prepares and deploys qualified source through `.github/workflows/deploy.yml`.
 The production timer runs `deploy/pull-deploy.sh`. Use the current scripts and
 Compose configuration under `deploy/` for activation and recovery.
 
@@ -24,13 +24,25 @@ They must be configured; a missing docs origin is not a successful skipped check
 
 ## Promotion and activation
 
-A successful push-triggered `check` on `main` and a published native CLI download
-let the deployment workflow advance `deploy/prod` to that exact qualified SHA.
-The promotion reads the candidate's literal CLI link without executing candidate
-code. It refuses an absent, draft, incomplete or unrelated release before moving
-the ref. A version release therefore qualifies main first, publishes the tag-owned
-CLI assets, then reruns the blocked deployment workflow against that same source
-run and attempt. Do not rerun main merely to release a completed publication hold.
+A successful push-triggered `check` on current `dev` provides the exact qualified
+source. Run `just delivery-prepare SOURCE_RUN_ID` and observe its completed
+preparation before promotion. Delivery verifies its published native CLI download and registers the
+three unchanged, accepted CodeQL payloads for Main. It reads the candidate's
+literal CLI link without executing candidate code and refuses absent, draft,
+incomplete or unrelated releases.
+
+From the qualified checkout, the existing Main administrator runs
+`just delivery-promote SOURCE_SHA SOURCE_RUN_ID SOURCE_ATTEMPT`. This repeats
+source and policy admission, requires processed Main analysis, fast-forwards
+Main without force and dispatches CI. Hosted delivery never writes Main or
+switches credentials after a refusal. Once Main equals the source, CI advances
+`deploy/prod`, verifies public rollout and publishes any new Desktop version
+from the qualified installers. See [Git workflow](../../engineering/git-workflow.md).
+
+For interrupted publication, complete the original release and dispatch `deploy`
+on Dev with the same successful `source_run_id`. Do not rebuild or rerun full
+qualification merely to release a completed publication hold. Repeating the
+operator command reuses an already advanced Main and dispatches reconciliation.
 The production host is not a CI runner;
 its timer fetches the public repository anonymously and initiates deployment.
 No production SSH credentials are stored in Actions.

@@ -1,5 +1,29 @@
 # Execution commands; SDKs, services, permissions and artifacts stay in workflows.
 
+# Seal the exact processed CodeQL payload and its original source provenance.
+[group('ci')]
+[private]
+ci-codeql-retain-analysis:
+    python -m release_scripts.code_scanning seal --directory "${SARIF_DIRECTORY}" --output "${SARIF_OUTPUT}" --language "${SOURCE_LANGUAGE}" --sarif-id "${ORIGINAL_SARIF_ID}"
+
+# Admit the exact successful source and active delivery rules without changing refs.
+[group('ci')]
+[private]
+ci-delivery-admit:
+    python -m release_scripts.source_promotion
+
+# Reuse every original finding and fingerprint for the exact release source.
+[group('ci')]
+[private]
+ci-delivery-register-findings:
+    python -m release_scripts.code_scanning register --directory source-analysis
+
+# Prepare the operator admission, or deploy Main after its explicit promotion.
+[group('ci')]
+[private]
+ci-delivery-promote:
+    python -m release_scripts.source_promotion --apply
+
 # Secrets verify the scanner and inspect the selected source.
 [group('ci')]
 [private]

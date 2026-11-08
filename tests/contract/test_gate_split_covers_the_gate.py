@@ -18,7 +18,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 JUSTFILE = ROOT / "justfile"
 #: The gate this tree runs and publishes as its own.
-WORKFLOW = ROOT / ".github/workflows/check.yml"
+WORKFLOW = ROOT / ".github/workflows/source.yml"
 WORKFLOW_DIR = WORKFLOW.parent
 
 #: One or more distinctive substrings per leaf recipe of `just verify`. A leaf

@@ -56,7 +56,9 @@ user runtime state and other projects. Secrets never enter logs, fixtures or doc
 
 Keep permanent local/remote `dev` and `main`. Branch from current `dev`, PR into
 `dev`, then promote same-repository `dev` into `main` after exact-SHA checks.
-Use merge commits; preserve history. See [Git workflow](docs/engineering/git-workflow.md).
+Use merge commits for integration PRs and fast-forward Main only from the exact
+fully qualified Dev source; preserve history. See
+[Git workflow](docs/engineering/git-workflow.md).
 Stage only intended paths. The agent does not pass `--author` or add fictional
 `Co-authored-by` / `Generated-by` lines. Read identity using
 `git config --global --get user.name` and `git config --global --get user.email`.

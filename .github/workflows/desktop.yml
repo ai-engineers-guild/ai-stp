@@ -82,7 +82,7 @@ jobs:
             libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
             librsvg2-dev patchelf dbus-daemon gnome-keyring libglib2.0-bin \
             webkitgtk-webdriver xvfb xauth
-      - name: Restore and retain only successful main's desktop dependencies
+      - name: Restore and retain only successful Dev's desktop dependencies
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         continue-on-error: true
         timeout-minutes: 5
@@ -95,7 +95,7 @@ jobs:
             apps/desktop/core
             apps/desktop/src-tauri
           cache-bin: 'false'
-          save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
       - name: Frontend install
         working-directory: apps/desktop
         run: |

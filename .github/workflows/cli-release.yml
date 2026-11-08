@@ -1,4 +1,4 @@
-# Release-only authority stays outside the reusable source archive checks.
+# Attest the exact qualified Dev archives; publication never rebuilds source.
 name: cli-release
 
 on:
@@ -24,26 +24,54 @@ jobs:
       contents: read
       actions: read
     steps:
+      - name: Dispatch must name its exact release tag
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "${EXPECTED_VERSION}" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          test "${GITHUB_REF}" = "refs/tags/cli-v${EXPECTED_VERSION}"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Require the exact currently qualified main source
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.14.9"
+      - name: Require the exact currently qualified Main source
+        id: source
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           HEAD_SHA: ${{ github.sha }}
         run: bash .github/scripts/require-client-release-source.sh
 
-  build:
-    needs: guard
-    uses: ./.github/workflows/cli-archives.yml
-    with:
-      version: ${{ inputs.version }}
+      - name: Download the exact qualified native archives
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.source.outputs.qualified_run_id }}
+          pattern: ai-stp-rust-*-${{ github.sha }}
+          path: qualified
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Verify all native archive bytes without running them
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+        run: >-
+          python -m release_scripts.cli_artifacts verify --directory qualified
+          --source "${GITHUB_SHA}" --version "${EXPECTED_VERSION}"
+          --output "${RUNNER_TEMP}/verified-cli-release"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualified-cli-release
+          path: ${{ runner.temp }}/verified-cli-release/
+          if-no-files-found: error
+          retention-days: 7
 
   attest:
     name: attest-release-archives
     if: github.event_name == 'workflow_dispatch' && inputs.version != ''
-    needs: build
+    needs: guard
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
@@ -54,9 +82,9 @@ jobs:
       # No checkout or repository code executes on the OIDC-bearing runner.
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
-          pattern: ai-stp-rust-*-${{ github.sha }}
+          name: qualified-cli-release
           path: release
-          merge-multiple: true
+          digest-mismatch: error
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
         with:
           subject-path: release/*

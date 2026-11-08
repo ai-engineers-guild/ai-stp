@@ -1,72 +1,119 @@
 ---
-description: "Branch integration, exact-head qualification and release promotion."
-last_verified: "2026-11-04"
+description: "Branch integration, exact-source qualification and artifact publication."
+last_verified: "2026-11-08"
 ---
 
 # Git workflow
 
-CI push branches: `main`.
+CI push branches: `dev`.
 
-The `check` workflow runs a finite PR integration phase: redacted secret
-scanning with scanner controls, Python/docs syntax and source contracts,
-non-database unit tests, web/Desktop types and units, and native library analysis
-and units. CodeQL analyzes each public candidate and waits for processed findings.
-A PR proves integration eligibility; it does not claim packaged runtime acceptance.
+`dev` is the integration and complete source qualification branch. `main` names
+an already qualified release source. Both branches are permanent locally and
+remotely. Work branches use `feat/`, `fix/`, `refactor/`, `docs/`, `test/` or
+`chore/`; Dependabot updates target `dev`.
 
-Integrated `main` pushes run the complete repository matrix, including Desktop,
-CodeQL, native archives and the production docs image. Full native builds, database
-scenarios, browser/SDK matrices, package consumption and installed target acceptance
-remain here. `dev` pushes do not repeat source builds. Impact is currently
-conservative: every main candidate selects the full contract. Manual diagnosis
-also selects the full contract and cannot promote production.
+## Source qualification
 
-Registered native experiments join the same final qualification through their
-owning reusable workflow. Main and manual qualification run every registered
-experiment. PRs run an experiment when its source, pinned toolchain or GitHub
-automation changes; an unchanged owner is explicitly skipped. Unknown or missing
-native probes refuse selection until an owner is registered. The WASIp2 experiment
-executes one identical component on Linux, macOS and Windows; it does not enable a
-production provider backend. Source selection does not waive common PR checks.
+Pull requests run `integration`: redacted secret scanning with scanner controls,
+Python/docs syntax and source contracts, non-database units, web/Desktop types
+and units, and native library analysis and units. Actual CodeQL analysis waits
+for processing and refuses open findings. The final `qualification` means that
+the PR is eligible to integrate; it does not claim installed acceptance.
 
-The final `qualification` depends on every owning job and requires successful
-results for the selected phase and explicit skips for the other phase. Failure,
-cancellation, missing work and an unexpected skip or run refuse. Public source
-qualification also refuses open code-scanning findings for the validated ref after
-SARIF processing. Independent scheduled CodeQL and explicit release dispatches
-retain their owners.
+A push to `dev` runs `check`. The shared `source` workflow owns the same complete
+matrix: server/database scenarios, web/browser/SDK matrices, CLI consumers,
+archives, documentation image, Desktop installers and installed Linux journeys.
+Its final `full-qualification` has a different name from PR eligibility. Both
+wrappers refuse a failed, cancelled or skipped shared workflow. The shared gate
+accounts for every owner and the exact expected skips for its selected phase.
+Manual diagnosis runs the full matrix without automatic delivery authority.
+Started full qualifications finish their owning checks and caches. A newer push
+can replace a pending run but does not cancel one already running. The current
+Dev-head check still refuses delivery of a superseded source. PR integration
+cancels superseded attempts because they cannot qualify the updated PR.
 
-Both branches are permanent locally and remotely. `main` is the default protected
-release branch; `dev` integrates work. Create a work branch from current `dev`
-using `feat/`, `fix/`, `refactor/`, `docs/`, `test/` or `chore/`. Dependabot heads
-are accepted only for verified same-repository bot PRs.
+Registered native experiments join the same gate through their owning reusable
+workflow. Complete source checks select every registered experiment. PRs select
+one when its source, compiler or automation changes. Missing or unknown owners
+refuse selection. The WASIp2 experiment executes one identical component on
+Linux, macOS and Windows; it does not enable a production provider backend.
+Only successful push-to-Dev owners retain native dependency caches.
 
-1. Implement, run affected checks, regenerate artifacts and review the diff.
-2. Stage intended paths and make atomic Conventional Commits with the user's
-   existing global Git identity; no author overrides or invented attribution.
-3. Open a PR into `dev`. Record exact base/head, behavior, integration checks/results
-   and rollback. Merge with a merge commit after green exact-head PR qualification.
-4. Promote same-repository `dev` into `main` by PR and current PR qualification.
-   Complete main validation must pass before the deployment ref can advance.
-5. Synchronize local branches and return release merge history to `dev` through
-   a PR. Remove only merged temporary branches owned by this work.
+## Integration and delivery
 
-Never force-push or delete permanent branches. Existing administrator bypass
-permits exceptions but does not substitute for evidence. No mandatory human
-approval count applies. Rule sources live in `.github/*ruleset.json`; live GitHub
-settings determine enforcement. The permanent-branch rule source requires
-up-to-date `qualification` and CodeQL results; apply it only after the candidate
-workflow has qualified, and read back the live rules. Production promotion checks
-the current successful main run/attempt and its completed qualification before
-advancing the deployment ref. Dependabot updates target `dev`; default-branch
-security PRs must be retargeted or transferred before normal promotion.
+1. Branch from current `dev`, implement, regenerate affected projections and run
+   source checks with `just check`. Run affected execution checks on their native
+   hosts. Review the diff and record exact-source evidence in the PR.
+2. Commit intended paths with the existing global Git identity. Do not override
+   authors or invent attribution. Merge a green, current PR into `dev` with a
+   merge commit.
+3. `check` qualifies that integrated commit once. Dispatch preparation with
+   `just delivery-prepare SOURCE_RUN_ID`. `deploy` admits only the latest
+   successful push-to-Dev run and current attempt, its unique successful
+   `full-qualification`, the current Dev head and the reviewed live rules.
+4. Delivery registers the three unchanged, accepted CodeQL SARIF payloads for
+   the intended Main commit and reference. An authenticated GitHub upload receipt
+   binds each original payload to its Dev commit, category and reference, even
+   when the uploaded SARIF omits its optional provenance field. Existing
+   provenance, findings, fingerprints and dispositions remain unchanged.
+   Processing errors and open findings
+   refuse delivery. The native Main CodeQL rule remains enforced.
+5. The first delivery run prepares Main admission without changing references.
+   Using the existing authorized Main administrator, run
+   `just delivery-promote SOURCE_SHA SOURCE_RUN_ID SOURCE_ATTEMPT` from that
+   qualified checkout. It independently rechecks source evidence, complete live
+   rule actor lists, current Dev and accepted Main analysis, fast-forwards Main
+   with `force: false`, reads it back and dispatches CI reconciliation. No new
+   credential or Actions bypass is required. A refused write ends the operation.
+6. CI only advances the monotonic `deploy/prod` ref once Main already equals the
+   qualified source. The target owns the rollout; the workflow carries no host
+   credential. Public verification checks the exact source, schema and service
+   health. A preparation run does not claim deployment or publish installers.
+7. A new Desktop version gets an immutable annotated tag and publication of the
+   six installers from that successful source run. All manifests, source identity
+   and SHA-256 hashes are verified before publication. The publisher executes no
+   repository program, preserves existing assets and uploads only missing names
+   with identical expected bytes. It can finish an interrupted draft.
 
-Record affected local checks in the PR. Production promotion requires a
-successful push-triggered main qualification. Correct mistakes through a follow-up
-PR or revert commit. Publish client releases through their own workflows.
+Main does not rebuild the source. Client release workflows use the current Main
+commit's successful Dev run. Desktop publication stages the qualified installers;
+explicit CLI attestation stages the fourteen qualified archives, wheels, crate
+and checksum files. Neither path recompiles the product. The OIDC-bearing CLI
+attestation job executes no repository code. Unsigned Desktop bundles retain
+that disclosure; publication does not assert notarization or code signing.
 
-First-party setup configuration changes follow this repository workflow and
-release with the native CLI/Desktop. Historical external-provider artifacts and
-consumer pins retain their original exact publication and qualification contract;
-an integrated configuration change does not rewrite an old operation identity.
-Harness executables use the vendor's official installation/update commands and
-are outside the setup configuration release.
+## Admission and recovery
+
+Rule sources live in `.github/*ruleset.json`; live GitHub rules enforce access.
+Dev requires PR integration. Main requires `full-qualification` and real CodeQL
+results, forbids deletion/non-fast-forward updates, and retains the existing
+administrator-only Main update restriction. The built-in GitHub Actions integration cannot be registered as a ruleset bypass
+actor. Hosted delivery therefore never attempts a Main write: the existing
+operator is an explicit, evidence-checked step, with no alternate-credential
+retry after a refusal. Existing administrator authority does not replace
+qualification or code-scanning evidence.
+
+Activating this delivery arrangement changes existing repository access and the
+default branch. It is a separate repository-administration decision after the
+candidate has qualified. Read back every rule, including complete actor lists,
+and the default branch. The hosted controller cannot change rulesets. GitHub
+may omit actor lists from its read-only response, while GitHub still
+authorizes deployment writes. The operator requires the complete actor lists.
+Both paths refuse other visible policy drift. Until
+the four reviewed rules and default Dev are active, it changes no references.
+
+When Main has not yet advanced, use `just delivery-promote` with the admitted
+source, run and attempt. For an interrupted deployment after Main advanced,
+dispatch `deploy` on Dev with the existing successful `source_run_id`. If the
+operator's dispatch failed after its Main update, rerunning the same command
+reuses Main and retries only reconciliation. Admission is repeated against
+current GitHub state. Completed Main/ref/tag operations are reused; existing tags
+and release assets never move.
+Do not rebuild to repair publication. Correct source mistakes through a new PR
+or a reviewed revert. Keep branches synchronized and remove only finished work
+owned by the task.
+
+First-party setup configuration releases with the CLI/Desktop. Historical
+external-provider plans, artifacts and receipts retain their exact compatibility
+route. Context selection never retargets an admitted operation. Harness
+executables remain user/vendor managed through official vendor commands.

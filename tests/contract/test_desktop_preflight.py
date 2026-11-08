@@ -51,7 +51,7 @@ def test_reusable_release_keeps_mandatory_application_acceptance() -> None:
     assert "packages_only" not in reusable_inputs
     release = workflow("desktop-release")
     assert "bundle" not in release["jobs"]
-    check = workflow("check")
+    check = workflow("source")
     assert check["jobs"]["desktop"]["uses"] == "./.github/workflows/desktop.yml"
     assert "packages_only" not in check["jobs"]["desktop"].get("with", {})
     assert "desktop" in check["jobs"]["qualification"]["needs"]
