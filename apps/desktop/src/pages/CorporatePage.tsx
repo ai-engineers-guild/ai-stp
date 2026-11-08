@@ -669,7 +669,7 @@ export default function CorporatePage() {
                           <p className="text-sm text-muted-foreground">
                             {[status, version]
                               .filter((value) => value != null)
-                              .map(String)
+                              .map((value) => scalarText(value))
                               .join(" · ")}
                           </p>
                         )}
