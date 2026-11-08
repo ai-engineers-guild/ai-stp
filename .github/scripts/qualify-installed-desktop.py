@@ -965,7 +965,8 @@ def prepare_native_setup(
             lambda label=label: driver.read(
                 "const label=[...document.querySelectorAll('main label')]"
                 ".find(x=>x.textContent.trim()===arguments[0]);"
-                "const input=label?.querySelector('input')??document.getElementById(label?.htmlFor);"
+                "const input=label?.querySelector('input')??"
+                "document.getElementById(label?.htmlFor);"
                 "return input&&!input.disabled?input:null;",
                 label,
             ),
@@ -1155,7 +1156,8 @@ def main() -> None:
         driver.start()
         driver.wait(
             lambda: driver.read(
-                "return document.querySelector('[data-testid=engine-version]')?.textContent.includes(arguments[0]);",
+                "return document.querySelector('[data-testid=engine-version]')"
+                "?.textContent.includes(arguments[0]);",
                 version,
             ),
             "bundled Rust engine through actual IPC",

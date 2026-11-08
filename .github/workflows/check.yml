@@ -182,6 +182,8 @@ jobs:
           set -euo pipefail
           cd apps/desktop
           bun install --frozen-lockfile
+          bun run format:check
+          bun run messages:check
           bun x tsc --noEmit
           bun x vitest run
       - name: Documentation Markdown syntax
