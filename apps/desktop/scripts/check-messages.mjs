@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { IntlMessageFormat } from "intl-messageformat";
 import ts from "typescript-api";
+import { parameters, selectors } from "./message-parameters.mjs";
 
 const directory = new URL("../src/locales/", import.meta.url);
 const configuration = JSON.parse(
@@ -147,16 +148,8 @@ if (
   ) !== JSON.stringify([...catalogs].sort())
 )
   throw new Error("Packaged Desktop catalogs differ from configured languages");
-function variables(nodes, output = new Set()) {
-  for (const node of nodes) {
-    if (node.type !== 0 && node.value) output.add(node.value);
-    if (node.children) variables(node.children, output);
-    if (node.options)
-      for (const option of Object.values(node.options))
-        variables(option.value, output);
-  }
-  return [...output].sort().join(",");
-}
+const signature = (nodes) =>
+  JSON.stringify([...parameters(nodes)].sort(([a], [b]) => a.localeCompare(b)));
 for (const name of catalogs) {
   const messages = JSON.parse(readFileSync(new URL(name, directory), "utf8"));
   if (
@@ -180,8 +173,10 @@ for (const name of catalogs) {
       undefined,
       { ignoreTag: true },
     ).getAst();
-    if (variables(ast) !== variables(original))
-      throw new Error(`${name}: variables differ for ${key}`);
+    if (signature(ast) !== signature(original))
+      throw new Error(`${name}: argument names or kinds differ for ${key}`);
+    if (selectors(ast) !== selectors(original))
+      throw new Error(`${name}: selector tokens differ for ${key}`);
   }
 }
 console.log(

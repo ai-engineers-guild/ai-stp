@@ -1,3 +1,4 @@
+import { iconSize } from "../generated/theme";
 import { useState } from "react";
 import { Link } from "react-router";
 import { ArrowRight, RefreshCw, CircleCheck } from "lucide-react";
@@ -96,7 +97,7 @@ export default function OverviewPage() {
             disabled={busy}
             onClick={() => void refresh()}
           >
-            <RefreshCw size={14} aria-hidden="true" />
+            <RefreshCw style={iconSize.sm} aria-hidden="true" />
             {t("common.refresh")}
           </button>
         }
@@ -113,7 +114,7 @@ export default function OverviewPage() {
           {next.to && next.action && (
             <Link className="btn-primary mt-5" to={next.to}>
               {t(next.action)}
-              <ArrowRight size={15} aria-hidden="true" />
+              <ArrowRight style={iconSize.sm} aria-hidden="true" />
             </Link>
           )}
           {checking && (
@@ -125,7 +126,7 @@ export default function OverviewPage() {
         {ready && (
           <CircleCheck
             className="hidden shrink-0 text-success lg:block"
-            size={48}
+            style={iconSize.hero}
             strokeWidth={1.5}
             aria-hidden="true"
           />
@@ -217,7 +218,7 @@ export default function OverviewPage() {
         className="inline-flex min-h-9 items-center gap-2 text-sm text-primary hover:underline"
       >
         {t("home.authorTitle")}
-        <ArrowRight size={14} aria-hidden="true" />
+        <ArrowRight style={iconSize.sm} aria-hidden="true" />
       </Link>
     </div>
   );

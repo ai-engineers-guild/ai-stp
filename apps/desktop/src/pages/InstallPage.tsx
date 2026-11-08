@@ -1,3 +1,4 @@
+import { iconSize } from "../generated/theme";
 import { useText } from "../i18n";
 import { choiceLabel, intentGuidance, intentLabel } from "../labels";
 import { useEffect, useRef, useState } from "react";
@@ -319,7 +320,7 @@ export default function InstallPage() {
         action={
           <Link className="btn-outline" to="/tasks">
             {msg("install.viewActivity")}
-            <ArrowRight size={14} />
+            <ArrowRight style={iconSize.sm} />
           </Link>
         }
       />
@@ -492,7 +493,7 @@ export default function InstallPage() {
               {intent === "author"
                 ? msg("install.authoring")
                 : msg("install.installation")}
-              <ArrowRight size={14} />
+              <ArrowRight style={iconSize.sm} />
             </button>
           </fieldset>
           {inputSchema?.data && (
@@ -534,7 +535,10 @@ export default function InstallPage() {
                 key={question.question_id}
                 className="text-sm text-muted-foreground"
               >
-                {question.prompt} {msg("install.waitingFor")} {question.actor}
+                {question.prompt}{" "}
+                {msg("install.waitingFor", {
+                  actor: choiceLabel(msg, question.actor ?? "human"),
+                })}
               </p>
             ) : (
               <form
@@ -600,7 +604,7 @@ export default function InstallPage() {
                     )
                   }
                 >
-                  <StepForward size={14} />
+                  <StepForward style={iconSize.sm} />
                   {msg("install.submitAnswer")}
                 </button>
               </form>
@@ -645,8 +649,9 @@ export default function InstallPage() {
                   </>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    {msg("install.waitingFor2")}{" "}
-                    {choiceLabel(msg, item.actor ?? "human")}
+                    {msg("install.waitingFor2", {
+                      actor: choiceLabel(msg, item.actor ?? "human"),
+                    })}
                     {item.missing.length
                       ? msg("install.missingParameters", {
                           parameters: item.missing.join(", "),
@@ -665,7 +670,7 @@ export default function InstallPage() {
                 void refresh(task.task_id);
               }}
             >
-              <RefreshCw size={14} />
+              <RefreshCw style={iconSize.sm} />
               {msg("common.refresh")}
             </button>
             {!settled(task) && !task.legacy_read_only && (
@@ -679,7 +684,7 @@ export default function InstallPage() {
                     )
                   }
                 >
-                  <StepForward size={14} />
+                  <StepForward style={iconSize.sm} />
                   {msg("install.continueTask")}
                 </button>
                 <button
@@ -691,7 +696,7 @@ export default function InstallPage() {
                     )
                   }
                 >
-                  <Ban size={14} />
+                  <Ban style={iconSize.sm} />
                   {msg("install.cancelTask")}
                 </button>
               </>

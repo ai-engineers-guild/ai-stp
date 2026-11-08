@@ -531,9 +531,11 @@ export default function ProfilesPage() {
             {msg("profiles.reviewTheExactChange")}
           </h2>
           <p className="text-sm">
-            {msg(
-              "profiles.creatingTheFirstConnectionOrContextExplicitlyUpgradesThe",
-            )}
+            {typeof object(review.plan).registry_schema_after === "number"
+              ? msg("profiles.registryFormat", {
+                  version: Number(object(review.plan).registry_schema_after),
+                })
+              : msg("profiles.registryFormatUnknown")}
           </p>
           <p className="break-all font-mono text-xs">{review.digest}</p>
           <Details

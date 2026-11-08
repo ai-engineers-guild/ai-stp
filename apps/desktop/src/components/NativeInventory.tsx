@@ -179,9 +179,7 @@ export default function NativeInventory({ context }: { context: ContextView }) {
       </div>
       {review && (
         <div className="mt-4 rounded-lg border border-border p-4">
-          <p>
-            {msg("nativeInventory.consentFor")} {review.label}
-          </p>
+          <p>{msg("nativeInventory.consentFor", { context: review.label })}</p>
           {review.context !== context.id && (
             <p className="mt-2 text-sm">
               {msg(

@@ -1,3 +1,4 @@
+import { iconSize } from "../generated/theme";
 import type { ReactNode } from "react";
 import {
   ArrowUpRight,
@@ -6,9 +7,9 @@ import {
   CircleDashed,
 } from "lucide-react";
 import { Link } from "react-router";
-import { useText, type MessageKey } from "../i18n";
+import { useText, type PlainMessageKey } from "../i18n";
 
-const statusMessages: Record<string, MessageKey> = {
+const statusMessages: Record<string, PlainMessageKey> = {
   ready: "status.ready",
   completed: "status.completed",
   authorized: "status.authorized",
@@ -76,7 +77,7 @@ export function EmptyState({
   return (
     <div className="empty-state">
       <CircleDashed
-        size={28}
+        style={iconSize.lg}
         className="text-muted-foreground"
         aria-hidden="true"
       />
@@ -110,7 +111,7 @@ export function StatusBadge({
     <span
       className={`status-badge ${good ? "status-good" : warning ? "status-warning" : bad ? "status-bad" : ""}`}
     >
-      <Icon size={13} aria-hidden="true" />
+      <Icon style={iconSize.sm} aria-hidden="true" />
       {children ??
         (statusMessages[state]
           ? text(statusMessages[state])
@@ -134,7 +135,7 @@ export function ActionLink({
         <h2 className="section-title">{title}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{children}</p>
       </div>
-      <ArrowUpRight size={18} aria-hidden="true" />
+      <ArrowUpRight style={iconSize.sm} aria-hidden="true" />
     </Link>
   );
 }

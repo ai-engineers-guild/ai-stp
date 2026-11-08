@@ -1,3 +1,4 @@
+import { iconSize } from "../generated/theme";
 import { formatDateTime, useText } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
@@ -53,7 +54,7 @@ export default function TasksPage() {
             onClick={() => void refresh()}
             disabled={busy}
           >
-            <RefreshCw size={14} />
+            <RefreshCw style={iconSize.sm} />
             {msg("common.refresh")}
           </button>
         }
@@ -77,7 +78,7 @@ export default function TasksPage() {
             to={`/install?task=${encodeURIComponent(inspectId.trim())}`}
           >
             {msg("tasks.openTask")}
-            <ArrowRight size={14} />
+            <ArrowRight style={iconSize.sm} />
           </Link>
         </div>
       </section>
@@ -97,7 +98,7 @@ export default function TasksPage() {
             )}
             <Link className="btn-outline mt-5" to="/targets">
               {msg("tasks.createOrInstallASetup")}
-              <ArrowRight size={14} />
+              <ArrowRight style={iconSize.sm} />
             </Link>
           </EmptyState>
         )}

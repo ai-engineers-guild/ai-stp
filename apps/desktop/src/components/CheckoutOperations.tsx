@@ -748,10 +748,9 @@ export default function CheckoutOperations() {
               )}
             >
               <h3 className="font-medium">
-                {msg("checkoutOperations.reviewOriginal")}{" "}
-                {nextReview.action === "confirm"
-                  ? msg("checkoutOperations.confirmation")
-                  : msg("checkoutOperations.localBinding")}
+                {msg("checkoutOperations.reviewOriginal", {
+                  action: nextReview.action,
+                })}
               </h3>
               <p className="break-all font-mono text-xs">{nextReview.digest}</p>
               <Details

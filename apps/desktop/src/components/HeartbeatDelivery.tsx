@@ -130,6 +130,9 @@ export default function HeartbeatDelivery({
     }
   }
   const locked = busy || disabled || !supported;
+  const observedPolicy = record(review?.plan.policy);
+  const interval = observedPolicy.interval_seconds;
+  const retry = observedPolicy.retry_base_seconds;
   return (
     <section
       aria-label={msg("heartbeatDelivery.foregroundHeartbeatDelivery")}
@@ -215,11 +218,12 @@ export default function HeartbeatDelivery({
             {String(review.plan.policy_version)}.
           </p>
           <p className="text-sm">
-            {msg("heartbeatDelivery.observationInterval")}{" "}
-            {String(record(review.plan.policy).interval_seconds)}{" "}
-            {msg("heartbeatDelivery.secondsRetriesStartAfter")}{" "}
-            {String(record(review.plan.policy).retry_base_seconds)}{" "}
-            {msg("heartbeatDelivery.secondsAndExpireWithinFourMinutes")}
+            {typeof interval === "number" &&
+            Number.isFinite(interval) &&
+            typeof retry === "number" &&
+            Number.isFinite(retry)
+              ? msg("heartbeatDelivery.intervalHelp", { interval, retry })
+              : msg("heartbeatDelivery.intervalUnavailable")}
           </p>
           <p className="text-sm">
             {msg(

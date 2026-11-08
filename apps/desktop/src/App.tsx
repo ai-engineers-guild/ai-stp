@@ -1,3 +1,4 @@
+import { iconSize } from "./generated/theme";
 import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
 import {
   HashRouter,
@@ -31,9 +32,10 @@ import ForegroundHeartbeat from "./components/ForegroundHeartbeat";
 import OverviewPage from "./pages/OverviewPage";
 import {
   i18n,
+  formatNumber,
   loadCatalog,
   useText,
-  type MessageKey,
+  type PlainMessageKey,
   type Locale,
 } from "./i18n";
 import LanguageSelect from "./components/LanguageSelect";
@@ -119,7 +121,7 @@ function Shell() {
     writePreference("ai-stp.theme", next ? "dark" : "light");
   }
   function navigation(
-    items: readonly { to: string; icon: typeof Home; label: MessageKey }[],
+    items: readonly { to: string; icon: typeof Home; label: PlainMessageKey }[],
   ) {
     return items.map((item) => (
       <NavLink
@@ -128,10 +130,12 @@ function Shell() {
         end={item.to === "/"}
         className={({ isActive }) => `nav-item ${isActive ? "nav-active" : ""}`}
       >
-        <item.icon size={17} aria-hidden="true" />
+        <item.icon style={iconSize.sm} aria-hidden="true" />
         <span>{t(item.label)}</span>
         {item.to === "/debug" && failures > 0 && (
-          <span className="ms-auto text-xs text-destructive">{failures}</span>
+          <span className="ms-auto text-xs text-destructive">
+            {formatNumber(failures)}
+          </span>
         )}
       </NavLink>
     ));
@@ -152,7 +156,7 @@ function Shell() {
       <aside className="app-sidebar">
         <NavLink to="/" className="brand">
           <span className="brand-mark">
-            <SquareTerminal size={20} aria-hidden="true" />
+            <SquareTerminal style={iconSize.md} aria-hidden="true" />
           </span>
           <span>
             <strong>ai-stp</strong>
@@ -178,7 +182,7 @@ function Shell() {
           <LanguageSelect compact />
           <div className="engine-status">
             <Activity
-              size={15}
+              style={iconSize.sm}
               aria-hidden="true"
               className={cliOk ? "text-success" : "text-muted-foreground"}
             />
@@ -204,14 +208,18 @@ function Shell() {
                 : signedIn
                   ? t("shell.accountConnected")
                   : t("shell.connectAccount")}
-              <ArrowUpRight size={13} />
+              <ArrowUpRight style={iconSize.sm} />
             </NavLink>
             <button
               className="icon-button"
               onClick={toggleTheme}
               aria-label={dark ? t("shell.light") : t("shell.dark")}
             >
-              {dark ? <Sun size={16} /> : <Moon size={16} />}
+              {dark ? (
+                <Sun style={iconSize.sm} />
+              ) : (
+                <Moon style={iconSize.sm} />
+              )}
             </button>
           </div>
         </div>

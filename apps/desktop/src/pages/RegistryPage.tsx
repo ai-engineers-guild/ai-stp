@@ -1,3 +1,4 @@
+import { iconSize } from "../generated/theme";
 import { useText } from "../i18n";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
@@ -130,7 +131,7 @@ export default function RegistryPage({
           <div className="border-b border-border p-3">
             <label className="relative block">
               <Search
-                size={15}
+                style={iconSize.sm}
                 className="absolute start-3 top-3 text-muted-foreground"
               />
               <input
@@ -315,7 +316,7 @@ export default function RegistryPage({
                   (selected.mutability === "apply" && !confirmed)
                 }
               >
-                <Play size={14} />
+                <Play style={iconSize.sm} />
                 {busy
                   ? msg("registry.running")
                   : selected.mutability === "read"

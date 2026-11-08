@@ -1,3 +1,4 @@
+import { iconSize } from "../generated/theme";
 import { useText } from "../i18n";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
@@ -23,9 +24,9 @@ export default function ContextSwitcher() {
     >
       <div className="flex items-center gap-2 text-xs font-medium">
         {corporate ? (
-          <Building2 size={15} aria-hidden="true" />
+          <Building2 style={iconSize.sm} aria-hidden="true" />
         ) : (
-          <UserRound size={15} aria-hidden="true" />
+          <UserRound style={iconSize.sm} aria-hidden="true" />
         )}
         <span>
           {msg("contextSwitcher.modeTitle", {

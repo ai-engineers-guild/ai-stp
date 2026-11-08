@@ -1,7 +1,7 @@
-import type { MessageKey, useText } from "./i18n";
+import type { PlainMessageKey, useText } from "./i18n";
 
 type Text = ReturnType<typeof useText>;
-const choices: Record<string, MessageKey> = {
+const choices: Record<string, PlainMessageKey> = {
   install: "choice.install",
   update: "choice.update",
   remove: "choice.remove",
@@ -28,7 +28,7 @@ const choices: Record<string, MessageKey> = {
   human: "choice.human",
   external: "choice.external",
 };
-const intents: Record<string, MessageKey> = {
+const intents: Record<string, PlainMessageKey> = {
   inspect: "intent.inspect",
   initialize: "intent.initialize",
   install: "install.installASetup",
@@ -39,7 +39,7 @@ const intents: Record<string, MessageKey> = {
   publish: "intent.publish",
   technology: "intent.technology",
 };
-const guidance: Record<string, MessageKey> = {
+const guidance: Record<string, PlainMessageKey> = {
   install: "intent.installHelp",
   author: "intent.authorHelp",
 };

@@ -1,3 +1,4 @@
+import { iconSize } from "../generated/theme";
 import { useText } from "../i18n";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
@@ -97,7 +98,7 @@ export default function SettingsPage() {
           >
             <label className="field-label max-w-sm">
               <span className="flex items-center gap-2">
-                <KeyRound size={15} />
+                <KeyRound style={iconSize.sm} />
                 {msg("settings.credentialStorage")}
               </span>
               <select
@@ -146,7 +147,7 @@ export default function SettingsPage() {
               {busy
                 ? msg("settings.initializing")
                 : msg("settings.initializeWorkspace")}
-              <ArrowRight size={14} />
+              <ArrowRight style={iconSize.sm} />
             </button>
           </form>
         )}

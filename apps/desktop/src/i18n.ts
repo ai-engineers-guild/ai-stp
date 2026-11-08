@@ -6,8 +6,16 @@ import { readPreference, writePreference } from "./preferences";
 import configuration from "./localization.json";
 import bootstrap from "./generated/messages-bootstrap.json";
 import type en from "./locales/en.json";
+import type { MessageValues } from "./generated/message-values";
 
 export type MessageKey = keyof typeof en;
+export type PlainMessageKey = Exclude<MessageKey, keyof MessageValues>;
+export type Text = <K extends MessageKey>(
+  key: K,
+  ...values: K extends keyof MessageValues
+    ? [values: MessageValues[K]]
+    : [values?: never]
+) => string;
 export type Locale = keyof typeof configuration.languages;
 export const languages = configuration.languages;
 const fallback = configuration.defaultLocale as Locale;
@@ -43,17 +51,24 @@ export function isLocale(value: string): value is Locale {
 export function preferredLocale(): Locale {
   const saved = readPreference("ai-stp.locale");
   if (saved && isLocale(saved)) return saved;
-  for (const language of globalThis.navigator?.languages ?? []) {
-    const candidate = language.toLowerCase();
-    if (
-      candidate === "zh" ||
-      candidate.startsWith("zh-hans") ||
-      candidate.startsWith("zh-cn") ||
-      candidate.startsWith("zh-sg")
-    )
-      return "zh-Hans";
-    const base = candidate.split("-")[0];
-    if (isLocale(base)) return base;
+  return matchLocale(globalThis.navigator?.languages ?? []);
+}
+
+export function matchLocale(preferences: readonly string[]): Locale {
+  for (const preference of preferences) {
+    try {
+      const candidate = new Intl.Locale(preference).maximize();
+      for (const locale of Object.keys(languages) as Locale[]) {
+        const supported = new Intl.Locale(locale).maximize();
+        if (
+          candidate.language === supported.language &&
+          candidate.script === supported.script
+        )
+          return locale;
+      }
+    } catch {
+      // Ignore malformed platform preferences and try the next one.
+    }
   }
   return fallback;
 }
@@ -145,8 +160,16 @@ export function formatTime(value: number): string {
   }).format(value);
 }
 
-export function useText() {
+export function formatClock(seconds: number): string {
+  const digits = new Intl.NumberFormat(i18n.resolvedLanguage ?? fallback, {
+    minimumIntegerDigits: 2,
+    useGrouping: false,
+  });
+  return `${digits.format(Math.floor(seconds / 60))}:${digits.format(seconds % 60)}`;
+}
+
+export function useText(): Text {
   const { t } = useTranslation(undefined, { i18n });
-  return (key: MessageKey, values?: Record<string, string | number>) =>
-    t(key, values);
+  return ((key: MessageKey, values?: Record<string, string | number | Date>) =>
+    t(key, values)) as Text;
 }

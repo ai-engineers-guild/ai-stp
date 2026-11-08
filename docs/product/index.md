@@ -10,6 +10,6 @@ last_verified: "2026-10-15"
 | Document | Description | Verified |
 | -------- | ----- | ------- |
 | [BRAND.md](BRAND.md) | Product identity and current asset owners. | 2026-10-15 |
-| [DESIGN.md](DESIGN.md) | Shared web component, typography and theme boundaries. | 2026-10-15 |
+| [DESIGN.md](DESIGN.md) | Shared product tokens and interface boundaries. | 2026-11-08 |
 
 <!-- END CONTENTS -->

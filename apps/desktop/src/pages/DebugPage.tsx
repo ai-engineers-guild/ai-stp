@@ -1,3 +1,4 @@
+import { iconSize } from "../generated/theme";
 import { formatTime, useText } from "../i18n";
 import { useEffect, useState } from "react";
 import { ClipboardCopy, Play, Trash2 } from "lucide-react";
@@ -74,7 +75,7 @@ export default function DebugPage() {
         action={
           <div className="flex gap-2">
             <button onClick={() => void copyBundle()} className="btn-outline">
-              <ClipboardCopy size={14} />
+              <ClipboardCopy style={iconSize.sm} />
               {copied
                 ? msg("debug.copied")
                 : copyError
@@ -82,7 +83,7 @@ export default function DebugPage() {
                   : msg("debug.copyReport")}
             </button>
             <button onClick={clear} className="btn-outline">
-              <Trash2 size={14} />
+              <Trash2 style={iconSize.sm} />
               {msg("debug.clear")}
             </button>
           </div>
@@ -120,7 +121,7 @@ export default function DebugPage() {
             className="input w-72 font-mono"
           />
           <button onClick={() => void runProbe()} className="btn-primary">
-            <Play size={14} /> {msg("debug.run")}
+            <Play style={iconSize.sm} /> {msg("debug.run")}
           </button>
         </div>
         {probeResult && (
@@ -134,11 +135,10 @@ export default function DebugPage() {
       <section className="card overflow-hidden">
         <div className="flex items-center justify-between border-b border-border px-4 py-2">
           <h2 className="section-title">
-            {msg("debug.ipcTrace")}
-            {log.length})
+            {msg("debug.ipcTrace", { count: log.length })}
           </h2>
           <p className="text-xs text-muted-foreground">
-            {failures.length} {msg("debug.failureS")}
+            {msg("debug.failureS", { count: failures.length })}
           </p>
         </div>
         <ul className="max-h-96 divide-y divide-border overflow-auto font-mono text-xs">
@@ -166,9 +166,8 @@ export default function DebugPage() {
                   }`}
                 />
                 <span className="w-40 shrink-0">{e.cmd}</span>
-                <span className="w-16 shrink-0 text-muted-foreground">
-                  {e.ms}
-                  {msg("debug.ms")}
+                <span className="min-w-16 shrink-0 text-muted-foreground">
+                  {msg("debug.ms", { duration: e.ms })}
                 </span>
                 <span className="flex-1 truncate text-muted-foreground">
                   {e.error_code ?? (e.ok ? msg("debug.ok") : "—")}

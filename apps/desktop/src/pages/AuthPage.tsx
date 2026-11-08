@@ -1,4 +1,5 @@
-import { useText } from "../i18n";
+import { iconSize } from "../generated/theme";
+import { formatClock, useText } from "../i18n";
 import {
   useCallback,
   useEffect,
@@ -300,7 +301,7 @@ export default function AuthPage() {
             disabled={busy || waiting}
             onClick={() => void refreshAuth()}
           >
-            <RefreshCw size={14} />
+            <RefreshCw style={iconSize.sm} />
             {msg("auth.refreshStatus")}
           </button>
         }
@@ -316,7 +317,10 @@ export default function AuthPage() {
       <section className="card space-y-5 p-6">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <ShieldCheck size={22} className="text-muted-foreground" />
+            <ShieldCheck
+              style={iconSize.lg}
+              className="text-muted-foreground"
+            />
             <h2 className="section-title">
               {signedIn
                 ? msg("shell.accountConnected")
@@ -434,7 +438,7 @@ export default function AuthPage() {
               }
             >
               {busy ? msg("auth.starting") : msg("auth.startSignIn")}
-              <ExternalLink size={14} />
+              <ExternalLink style={iconSize.sm} />
             </button>
           </div>
         )}
@@ -454,7 +458,7 @@ export default function AuthPage() {
               disabled={busy}
               onClick={() => void action(() => cmdAuthLogout(connection))}
             >
-              <LogOut size={14} />
+              <LogOut style={iconSize.sm} />
               {msg("auth.signOut")}
             </button>
           </div>
@@ -481,14 +485,13 @@ export default function AuthPage() {
               disabled={waiting || busy || !url || !!pending}
               onClick={() => void waitForLogin()}
             >
-              <ExternalLink size={14} />
+              <ExternalLink style={iconSize.sm} />
               {waiting
                 ? msg("auth.waitingForApproval")
                 : msg("auth.openBrowserAndConfirm")}
             </button>
             <p className="font-mono text-xs text-muted-foreground">
-              {Math.floor(remaining / 60)}:
-              {String(remaining % 60).padStart(2, "0")} {msg("auth.remaining")}
+              {msg("auth.remaining", { time: formatClock(remaining) })}
             </p>
           </div>
           {waiting && (

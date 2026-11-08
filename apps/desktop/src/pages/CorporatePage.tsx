@@ -1,3 +1,4 @@
+import { iconSize } from "../generated/theme";
 import { useText, type MessageKey } from "../i18n";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router";
@@ -265,7 +266,7 @@ export default function CorporatePage() {
         )}
         action={
           <Building2
-            size={26}
+            style={iconSize.lg}
             className="text-muted-foreground"
             aria-hidden="true"
           />
@@ -521,7 +522,7 @@ export default function CorporatePage() {
               }
               type="submit"
             >
-              <RefreshCw size={15} aria-hidden="true" />
+              <RefreshCw style={iconSize.sm} aria-hidden="true" />
               {tab === "Assignments"
                 ? msg("corporate.previewAssignments")
                 : tab === "Heartbeat"

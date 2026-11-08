@@ -1,3 +1,4 @@
+import { iconSize } from "../generated/theme";
 import { useText } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
@@ -36,7 +37,10 @@ function ItemList({
               className="flex h-full w-full flex-col rounded-lg border border-border p-5 text-start hover:border-primary/50 hover:bg-card"
             >
               <div className="mb-4 flex w-full items-center justify-between gap-3">
-                <Package size={20} className="text-muted-foreground" />
+                <Package
+                  style={iconSize.md}
+                  className="text-muted-foreground"
+                />
                 <span className="chip bg-muted text-muted-foreground">
                   {String(item.latest_harness_id ?? "")}
                 </span>
@@ -325,7 +329,7 @@ export default function CatalogPage() {
           className="btn-primary h-10"
           disabled={busy || !kinds.includes(kind)}
         >
-          <Search size={15} />
+          <Search style={iconSize.sm} />
           {msg("catalog.searchCatalog")}
         </button>
         <label className="flex w-full items-center gap-2 text-xs text-muted-foreground">
@@ -357,7 +361,7 @@ export default function CatalogPage() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="eyebrow">
-                {kind} {msg("catalog.details")}
+                {msg("catalog.detailsOfKind", { kind })}
               </p>
               <h2 className="mt-2 text-lg font-medium">
                 {String(summary?.latest_name ?? msg("catalog.unnamedItem"))}
@@ -371,7 +375,7 @@ export default function CatalogPage() {
                 setDetail(null);
               }}
             >
-              <X size={16} />
+              <X style={iconSize.sm} />
             </button>
           </div>
           <ResultMeta r={detail} />
@@ -399,7 +403,7 @@ export default function CatalogPage() {
                         {version.lifecycle}
                       </span>
                     </p>
-                    <p className="mt-1 break-all font-mono text-[10px] text-muted-foreground">
+                    <p className="mt-1 break-all font-mono text-micro text-muted-foreground">
                       {version.passport_digest}
                     </p>
                   </div>
@@ -417,7 +421,7 @@ export default function CatalogPage() {
                         to={`/targets?${new URLSearchParams({ setup: String(summary?.stable_id ?? ""), version: version.version, digest: version.passport_digest, harness: String(summary?.latest_harness_id ?? "") })}`}
                       >
                         {msg("catalog.reviewLocalInstallation")}
-                        <ArrowRight size={13} />
+                        <ArrowRight style={iconSize.sm} />
                       </Link>
                     </div>
                   )}

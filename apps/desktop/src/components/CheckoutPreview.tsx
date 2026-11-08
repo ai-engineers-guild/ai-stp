@@ -200,7 +200,7 @@ export default function CheckoutPreview({
     >
       <div className="space-y-2">
         <h2 className="section-title">
-          {msg("checkoutPreview.reviewCheckoutFor")} {project.name}
+          {msg("checkoutPreview.reviewCheckoutFor", { project: project.name })}
         </h2>
         <p className="text-sm text-muted-foreground">
           {msg(
@@ -337,12 +337,7 @@ export default function CheckoutPreview({
           aria-label={msg("checkoutPreview.reviewCorporateCheckoutChange")}
         >
           <h3 className="section-title">
-            {msg("checkoutPreview.review")}{" "}
-            {review.action === "request"
-              ? msg("checkoutPreview.serverPlanRequest")
-              : review.action === "confirm"
-                ? msg("checkoutPreview.projectLinkConfirmation")
-                : msg("checkoutPreview.localProjectBinding")}
+            {msg("checkoutPreview.review", { action: review.action })}
           </h3>
           <p className="text-sm text-muted-foreground">
             {msg(

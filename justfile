@@ -588,6 +588,8 @@ cli-check: cli-static cli-test cli-build cli-regress
 desktop-gen:
     {{ run }} python release_scripts/desktop_version.py
     cd apps/desktop && bun scripts/generate-messages.mjs
+    cd apps/desktop && bun scripts/generate-theme.mjs
+    cd apps/desktop && bun scripts/generate-fonts.mjs
     cd apps/desktop/core && cargo fmt
     cd apps/desktop/src-tauri && cargo fmt
 
@@ -596,6 +598,8 @@ desktop-gen:
 desktop-source:
     {{ run }} python release_scripts/desktop_version.py --check
     cd apps/desktop && bun scripts/generate-messages.mjs --check
+    cd apps/desktop && bun scripts/generate-theme.mjs --check
+    cd apps/desktop && bun scripts/generate-fonts.mjs --check
     cd apps/desktop && bun run type-check
     cd apps/desktop && bun run format:check
     cd apps/desktop && bun run messages:check
