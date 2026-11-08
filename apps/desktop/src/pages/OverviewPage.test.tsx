@@ -1,11 +1,20 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { afterEach, expect, it, vi } from "vitest";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
+import { invoke } from "@tauri-apps/api/core";
 import { MemoryRouter } from "react-router";
 import OverviewPage from "./OverviewPage";
 import { useApp } from "../store";
 import { useContexts } from "../contexts";
 import type { CmdResult } from "../transport";
+
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 const ok = (data: Record<string, unknown>): CmdResult => ({
   ok: true,
@@ -15,7 +24,10 @@ const ok = (data: Record<string, unknown>): CmdResult => ({
   warnings: [],
   continuations: [],
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.resetAllMocks();
+});
 function open({
   engine = true,
   identity = true,
@@ -62,6 +74,43 @@ it("shows unsupported configuration as unavailable after a successful capability
   const status = screen.getByText("Setup configuration").parentElement!;
   expect(within(status).getByText("Unavailable")).toBeTruthy();
   expect(within(status).queryByText("Checking…")).toBeNull();
+});
+it("refreshes the selected context changed outside the app before offering the next step", async () => {
+  const context = "context_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+  vi.mocked(invoke).mockImplementation(async (command, args) => {
+    if (command === "cli_version") return ok({ version: "0.3.0" });
+    if (command === "cli_capabilities")
+      return ok({ native_configuration: { available: true } });
+    if (command === "cli_doctor")
+      return ok({ checks: [{ name: "local_identity", state: "ready" }] });
+    if (command === "cli_run_read") {
+      const path = (args as { path: string }).path;
+      if (path === "state path") return ok({ state_dir: "/fixture/state" });
+      if (path === "context list")
+        return ok({
+          contexts: [
+            {
+              context: {
+                context_id: context,
+                label: "Created in CLI",
+                authority: { kind: "local" },
+              },
+            },
+          ],
+          selected: { context_id: context },
+        });
+    }
+    throw new Error(`Unexpected native call ${command}`);
+  });
+  open({ context: false });
+  expect(
+    screen.getByRole("region", { name: "Create your workspace" }),
+  ).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  expect(await screen.findByText("Created in CLI")).toBeTruthy();
+  expect(
+    await screen.findByRole("region", { name: "Choose a setup for your tool" }),
+  ).toBeTruthy();
 });
 it.each([
   [
