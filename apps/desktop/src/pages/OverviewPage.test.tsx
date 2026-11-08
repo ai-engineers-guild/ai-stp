@@ -33,6 +33,7 @@ function open({
   identity = true,
   context = true,
   installation = true,
+  contextError = false,
 } = {}) {
   useApp.setState({
     cliOk: engine,
@@ -52,6 +53,15 @@ function open({
   });
   useContexts.setState({
     loading: false,
+    result: contextError
+      ? {
+          ...ok({}),
+          ok: false,
+          data: null,
+          error: "Context read failed",
+          error_code: "CONTEXT_VIEW",
+        }
+      : null,
     selected: context
       ? {
           id: "context_fixture",
@@ -74,6 +84,16 @@ it("shows unsupported configuration as unavailable after a successful capability
   const status = screen.getByText("Setup configuration").parentElement!;
   expect(within(status).getByText("Unavailable")).toBeTruthy();
   expect(within(status).queryByText("Checking…")).toBeNull();
+});
+it("distinguishes an unreadable workspace list from a workspace that does not exist", () => {
+  open({ context: false, contextError: true });
+  expect(screen.queryByRole("link", { name: "Create a context" })).toBeNull();
+  expect(
+    screen.getByRole("link", { name: "Check workspaces" }).getAttribute("href"),
+  ).toBe("/profiles");
+  expect(screen.getByRole("alert").textContent).toContain(
+    "Context read failed",
+  );
 });
 it("refreshes the selected context changed outside the app before offering the next step", async () => {
   const context = "context_01ARZ3NDEKTSV4RRFFQ69G5FAV";
