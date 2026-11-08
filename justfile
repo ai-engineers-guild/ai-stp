@@ -598,6 +598,7 @@ desktop-gen:
 [group('desktop')]
 desktop-source:
     {{ run }} python release_scripts/desktop_version.py --check
+    {{ run }} python release_scripts/desktop_tools.py
     cd apps/desktop && bun scripts/generate-messages.mjs --check
     cd apps/desktop && bun scripts/generate-theme.mjs --check
     cd apps/desktop && bun scripts/generate-fonts.mjs --check

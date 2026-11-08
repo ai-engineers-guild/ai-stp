@@ -100,6 +100,7 @@ jobs:
         working-directory: apps/desktop
         run: |
           python ../../release_scripts/desktop_version.py --check
+          python ../../release_scripts/desktop_tools.py
           bun install --frozen-lockfile
       - name: Frontend checks (tsc, vitest, vite build)
         working-directory: apps/desktop
@@ -147,8 +148,17 @@ jobs:
         # runtime, executable registry and native task input contract.
         # The native tool is shared with `just desktop-regress`.
         run: cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- desktop-probe
+      - name: Prepare the exact Linux packaging tools
+        if: runner.os == 'Linux'
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+        with:
+          manifest: .github/tauri-tools.json
+          directory: ${{ runner.temp }}/ai-stp-tauri-cache/tauri
       - name: Tauri build
         shell: bash
+        env:
+          XDG_CACHE_HOME: ${{ runner.temp }}/ai-stp-tauri-cache
         run: bash .github/scripts/build-desktop-bundles.sh
       - name: Verify the macOS disk image
         if: runner.os == 'macOS'

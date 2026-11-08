@@ -82,6 +82,7 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
     ),
     "desktop-source": (
         "release_scripts/desktop_version.py --check",
+        "release_scripts/desktop_tools.py",
         "scripts/generate-messages.mjs --check",
         "scripts/generate-theme.mjs --check",
         "scripts/generate-fonts.mjs --check",
