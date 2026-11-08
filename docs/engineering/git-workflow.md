@@ -66,7 +66,9 @@ Only successful push-to-Dev owners retain native dependency caches.
    with `force: false`, reads it back and dispatches CI reconciliation. No new
    credential or Actions bypass is required. A refused write ends the operation.
 6. CI only advances the monotonic `deploy/prod` ref once Main already equals the
-   qualified source. The target owns the rollout; the workflow carries no host
+   qualified source and its CLI download is completely published. Admission checks
+   the annotated release tag, source ancestry and all fourteen native payloads and
+   checksum assets. The target owns the rollout; the workflow carries no host
    credential. Public verification checks the exact source, schema and service
    health. A preparation run does not claim deployment or publish installers.
 7. A new Desktop version gets an immutable annotated tag and publication of the
@@ -81,6 +83,14 @@ explicit CLI attestation stages the fourteen qualified archives, wheels, crate
 and checksum files. Neither path recompiles the product. The OIDC-bearing CLI
 attestation job executes no repository code. Unsigned Desktop bundles retain
 that disclosure; publication does not assert notarization or code signing.
+
+A new CLI version reaches qualified Main before its release tag and attestation.
+Until its exact archives are published, reconciliation refuses deployment and
+leaves `deploy/prod` unchanged. Publish those admitted bytes, then retry delivery
+with the same qualified source run. Main analysis preparation and the explicit
+Main operator do not require a download that cannot yet be published; actual
+deployment always does. The canonical download link matches the source package
+version, so a deployed Web page cannot point to the unpublished next version.
 
 ## Admission and recovery
 

@@ -25,7 +25,7 @@ from tests.contract.test_source_qualification import script
 # Only the external GitHub executable is replaced. Production admission,
 # serialization, filesystem verification and ref mutation code run unchanged.
 GITHUB = r"""
-import json, os, sys
+import base64, json, os, sys
 from pathlib import Path
 
 path = Path(os.environ["DELIVERY_STATE"])
@@ -135,6 +135,41 @@ elif route == "git/ref/heads/deploy/prod":
     result = {"object": {"sha": state["deployment"]}}
 elif route.startswith("compare/"):
     result = {"status": state.get("comparison", "ahead")}
+elif route.startswith("contents/packages/contracts/src/ai_stp_contracts/cli_copy.py?ref="):
+    source = (
+        'CLI_RELEASES_URL: str = "https://github.com/ai-engineers-guild/ai-stp/'
+        'releases/tag/cli-v' + state["cli_version"] + '"\n'
+        'raise RuntimeError("download source must never execute")\n'
+    )
+    result = {"encoding": "base64", "content": base64.b64encode(source.encode()).decode()}
+elif route.startswith("releases/tags/cli-v"):
+    status = state.get("cli_release_status", 200)
+    assets = [
+        {"name": name, "state": "uploaded", "size": 123, "digest": "sha256:" + "a" * 64}
+        for name in state["cli_assets"]
+    ]
+    if state.get("cli_missing_asset"):
+        assets.pop()
+    if state.get("cli_missing_digest"):
+        assets[0]["digest"] = None
+    result = {
+        "tag_name": "cli-v" + state["cli_version"],
+        "draft": state.get("cli_draft", False),
+        "prerelease": False,
+        "published_at": "2026-11-08T00:00:00Z",
+        "assets": assets,
+    }
+elif route.startswith("git/ref/tags/cli-v"):
+    result = {"object": {"type": "tag", "sha": "annotated-cli"}}
+elif route == "git/tags/annotated-cli":
+    result = {
+        "tag": "cli-v" + state["cli_version"],
+        "object": {"type": "commit", "sha": "c" * 40},
+    }
+    if state.get("change_main_during_cli_admission"):
+        state["main"] = "e" * 40
+    if state.get("change_dev_during_cli_admission"):
+        state["dev"] = "e" * 40
 elif route.startswith("git/ref/tags/desktop-v"):
     status = 200 if state.get("tag_exists", True) else 404
     result = {"object": {"type": "tag", "sha": "annotated-desktop"}}
@@ -241,6 +276,8 @@ def delivery(tmp_path: Path) -> Delivery:
             "run": run,
             "trace": [],
             "version": json.loads((ROOT / "apps/desktop/package.json").read_text())["version"],
+            "cli_version": "0.3.1",
+            "cli_assets": sorted({name for target in PLATFORMS for name in names("0.3.1", target)}),
             "policies": [
                 json.loads((ROOT / f".github/{name}.ruleset.json").read_text()) for name in POLICIES
             ],
@@ -323,11 +360,13 @@ def test_ff_refusal_has_one_attempt_and_no_alternate_authority(delivery: Deliver
 
 def test_hosted_preparation_never_attempts_main_or_claims_deployment(delivery: Delivery) -> None:
     delivery.state["main_write_status"] = 403
+    delivery.state["cli_release_status"] = 404
     outcome = delivery.run("source_promotion", "--apply")
     assert outcome.returncode == 0, outcome.stderr
     assert delivery.writes() == []
     assert (delivery.directory / "outputs").read_text() == "deployed=false\n"
     assert delivery.state["main"] == delivery.state["deployment"] == "b" * 40
+    assert not any("cli-v" in item["route"] for item in delivery.state["trace"])
 
 
 @pytest.mark.parametrize("failure", ["stale-analysis", "processing-error", "main-findings"])
@@ -352,6 +391,7 @@ def test_operator_requires_processed_clean_main_analysis_before_any_write(
 def test_explicit_operator_verifies_authority_advances_only_main_and_dispatches(
     delivery: Delivery, failure: str | None
 ) -> None:
+    delivery.state["cli_release_status"] = 404
     if failure == "principal":
         delivery.state["operator_admin"] = False
     elif failure == "hidden-actors":
@@ -377,6 +417,7 @@ def test_explicit_operator_verifies_authority_advances_only_main_and_dispatches(
     assert delivery.state["main"] == delivery.state["head"]
     assert delivery.state["deployment"] == "b" * 40
     assert not (delivery.directory / "outputs").exists()
+    assert not any("cli-v" in item["route"] for item in delivery.state["trace"])
     # A repair reuses Main, dispatching reconciliation without another ref write.
     delivery.state["dispatch_status"] = 204
     again = delivery.execute(
@@ -405,6 +446,51 @@ def test_deployment_creation_requires_actual_missing_ref(delivery: Delivery, sta
         again = delivery.run("source_promotion", "--apply")
         assert again.returncode == 0, again.stderr
         assert all(item["route"] != "git/refs/heads/main" for item in delivery.writes())
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "missing",
+        "draft",
+        "missing-asset",
+        "missing-digest",
+        "main-changed",
+        "dev-changed",
+    ],
+)
+def test_deployment_refuses_unpublished_or_stale_cli_admission(
+    delivery: Delivery, failure: str
+) -> None:
+    delivery.state["main"] = delivery.state["head"]
+    key, value = {
+        "missing": ("cli_release_status", 404),
+        "draft": ("cli_draft", True),
+        "missing-asset": ("cli_missing_asset", True),
+        "missing-digest": ("cli_missing_digest", True),
+        "main-changed": ("change_main_during_cli_admission", True),
+        "dev-changed": ("change_dev_during_cli_admission", True),
+    }[failure]
+    delivery.state[key] = value
+    outcome = delivery.run("source_promotion", "--apply")
+    assert outcome.returncode != 0, outcome.stdout
+    assert delivery.writes() == []
+    assert delivery.state["deployment"] == "b" * 40
+    assert not (delivery.directory / "outputs").exists()
+
+
+def test_publication_then_retry_reconciles_the_same_qualified_main(delivery: Delivery) -> None:
+    delivery.state["main"] = delivery.state["head"]
+    delivery.state["cli_release_status"] = 404
+    refused = delivery.run("source_promotion", "--apply")
+    assert refused.returncode != 0
+    assert delivery.writes() == []
+    delivery.state["cli_release_status"] = 200
+    accepted = delivery.run("source_promotion", "--apply")
+    assert accepted.returncode == 0, accepted.stderr
+    assert delivery.state["deployment"] == delivery.state["head"]
+    assert [item["route"] for item in delivery.writes()] == ["git/refs/heads/deploy/prod"]
+    assert "Published native CLI cli-v0.3.1: all 14 assets" in accepted.stdout
 
 
 def retain(
