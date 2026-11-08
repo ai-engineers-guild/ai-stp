@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import base64
 import json
-import subprocess
-from pathlib import Path
+from typing import Any
 
 import pytest
-import yaml
+from release_scripts._github_delivery import GitHub, PromotionRefused
+from release_scripts.cli_artifacts import require_published
 
 REPOSITORY = "ai-engineers-guild/ai-stp"
 HEAD = "a" * 40
@@ -16,18 +16,6 @@ TAG_OBJECT = "b" * 40
 RELEASE_SOURCE = "c" * 40
 TAG = "cli-v0.3.0"
 SOURCE_PATH = "contents/packages/contracts/src/ai_stp_contracts/cli_copy.py?ref=" + HEAD
-
-
-def _step() -> tuple[str, list[str]]:
-    workflow = yaml.safe_load(Path(".github/workflows/deploy.yml").read_text())
-    steps = workflow["jobs"]["promote"]["steps"]
-    names = [step.get("name", step.get("uses", "")) for step in steps]
-    step = next(
-        step
-        for step in steps
-        if step.get("name") == "Require the published CLI download before promotion"
-    )
-    return step["run"].split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0], names
 
 
 def _document(source: str) -> dict[str, str]:
@@ -84,26 +72,17 @@ def _responses() -> dict[str, object]:
 
 
 def _execute(monkeypatch: pytest.MonkeyPatch, responses: dict[str, object]) -> list[str]:
-    monkeypatch.setenv("REPOSITORY", REPOSITORY)
-    monkeypatch.setenv("HEAD_SHA", HEAD)
     calls: list[str] = []
+    api = GitHub(REPOSITORY)
 
-    def read(
-        args: list[str], *, check: bool, capture_output: bool, text: bool, timeout: int
-    ) -> subprocess.CompletedProcess[str]:
-        assert args[:2] == ["gh", "api"]
-        assert check and capture_output and text and timeout == 30
-        prefix = f"repos/{REPOSITORY}/"
-        assert args[2].startswith(prefix) and len(args) == 3
-        path = args[2].removeprefix(prefix)
+    def read(path: str) -> Any:
         calls.append(path)
         if path not in responses:
-            raise subprocess.CalledProcessError(1, args, stderr="HTTP 404")
-        return subprocess.CompletedProcess(args, 0, stdout=json.dumps(responses[path]))
+            raise PromotionRefused("HTTP 404")
+        return responses[path]
 
-    monkeypatch.setattr(subprocess, "run", read)
-    source, _ = _step()
-    exec(compile(source, "<published-cli-promotion>", "exec"), {})
+    monkeypatch.setattr(api, "read", read)
+    require_published(api, HEAD)
     return calls
 
 
@@ -197,15 +176,5 @@ def test_promotion_refuses_unpublished_incomplete_or_unrelated_downloads(
         }[case]
         responses[SOURCE_PATH] = _document(source)
 
-    with pytest.raises((AssertionError, subprocess.CalledProcessError)):
+    with pytest.raises(PromotionRefused):
         _execute(monkeypatch, responses)
-
-
-def test_publication_is_checked_after_source_admission_and_before_delivery_mutation() -> None:
-    _, names = _step()
-    assert (
-        names.index("Admit the exact successful Dev source before executing its code")
-        < names.index("Require the published CLI download before promotion")
-        < names.index("Register unchanged qualified analysis for the release reference")
-        < names.index("Prepare Main admission or reconcile the promoted deployment")
-    )

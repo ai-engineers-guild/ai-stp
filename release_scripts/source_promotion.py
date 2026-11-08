@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 
 from release_scripts._github_delivery import GitHub, PromotionRefused, require
+from release_scripts.cli_artifacts import require_published
 from release_scripts.code_scanning import require_registered
 from release_scripts.desktop_publication import reconcile
 from release_scripts.desktop_version import version
@@ -88,6 +89,7 @@ def promote(
         )
         return
     read_back(api, "main", head)
+    require_published(api, head)
     source(api, head, run_id, attempt)
     require(
         api.read("git/ref/heads/main")["object"]["sha"] == head, "Main changed before deployment"

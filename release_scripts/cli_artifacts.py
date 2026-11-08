@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import ast
+import base64
 import hashlib
 import json
 import re
 import shutil
 from pathlib import Path
 
-from release_scripts._github_delivery import PromotionRefused, require
+from release_scripts._github_delivery import GitHub, PromotionRefused, require
 
 PLATFORMS = {
     "x86_64-unknown-linux-gnu": ("tar.gz", "manylinux_2_43_x86_64"),
@@ -32,6 +34,64 @@ def names(version: str, target: str) -> set[str]:
     if target == "x86_64-unknown-linux-gnu":
         files.add(f"ai-stp-cli-{version}.crate")
     return files | {name + ".sha256" for name in files}
+
+
+def require_published(api: GitHub, head: str) -> None:
+    """Admit the qualified source's public download before changing deploy/prod."""
+    require(bool(re.fullmatch(r"[0-9a-f]{40}", head)), "Exact qualified source required")
+    document = api.read("contents/packages/contracts/src/ai_stp_contracts/cli_copy.py?ref=" + head)
+    require(document["encoding"] == "base64", "Encoded CLI download source required")
+    source = base64.b64decode("".join(document["content"].split()), validate=True)
+    values = [
+        node.value.value
+        for node in ast.parse(source).body
+        if isinstance(node, ast.AnnAssign)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == "CLI_RELEASES_URL"
+        and isinstance(node.value, ast.Constant)
+        and isinstance(node.value.value, str)
+    ]
+    require(len(values) == 1, "One literal native CLI release link required")
+    match = re.fullmatch(
+        r"https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v"
+        r"((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))",
+        values[0],
+    )
+    if match is None:
+        raise PromotionRefused("Canonical stable native CLI release link required")
+    version = match[1]
+    tag = "cli-v" + version
+    release = api.read("releases/tags/" + tag)
+    require(
+        release["tag_name"] == tag
+        and release["draft"] is False
+        and release["prerelease"] is False
+        and bool(release["published_at"]),
+        "CLI release is not completely published",
+    )
+    expected = set().union(*(names(version, target) for target in PLATFORMS))
+    assets = release["assets"]
+    require(
+        len(assets) == len(expected) == 14
+        and {asset["name"] for asset in assets} == expected
+        and all(
+            asset["state"] == "uploaded"
+            and asset["size"] > 0
+            and re.fullmatch(r"sha256:[0-9a-f]{64}", asset["digest"] or "")
+            for asset in assets
+        ),
+        "Complete uploaded CLI release assets and digests required",
+    )
+    reference = api.read("git/ref/tags/" + tag)["object"]
+    require(reference["type"] == "tag", "Annotated CLI release tag required")
+    tagged = api.read("git/tags/" + reference["sha"])
+    require(
+        tagged["tag"] == tag and tagged["object"]["type"] == "commit",
+        "CLI release annotation differs",
+    )
+    comparison = api.read("compare/" + tagged["object"]["sha"] + "..." + head)
+    require(comparison["status"] in {"ahead", "identical"}, "CLI release outside source history")
+    print(f"Published native CLI {tag}: all 14 assets; source ancestry accepted")
 
 
 def digest(path: Path) -> str:
