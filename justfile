@@ -154,6 +154,7 @@ fix:
     cd apps/cli && cargo fmt --manifest-path xtask/Cargo.toml
     cd apps/desktop/core && cargo fmt
     cd apps/desktop/src-tauri && cargo fmt
+    cd apps/desktop && bun run format
     cd apps/web && bun run format
 
 # Fast gate for the local commit hook: source-level documentation checks, their
@@ -578,10 +579,8 @@ cli-check: cli-static cli-test cli-build cli-regress
 # real-sidecar spawn test. `desktop-build` writes `dist/` and a stub
 # sidecar because tauri-build and `generate_context!` read both at compile
 # time; the stub is written only when no sidecar exists, so a real
-# native build is never replaced. `desktop-*` is deliberately outside
-# `gen`/`check` — it needs Rust plus WebKitGTK system packages and is
-# covered in CI by desktop.yml, not check.yml — the same exclusion
-# `infra-*` has.
+# native build is never replaced. Compiled checks need Rust and WebKitGTK;
+# desktop.yml also qualifies the installed application on native runners.
 
 # Formats both Rust crates (writes only).
 [doc('Format the two Rust crates')]
@@ -594,6 +593,8 @@ desktop-gen:
 [group('desktop')]
 desktop-source:
     cd apps/desktop && bun run type-check
+    cd apps/desktop && bun run format:check
+    cd apps/desktop && bun run messages:check
     cd apps/desktop/core && cargo fmt --check
     cd apps/desktop/src-tauri && cargo fmt --check
 

@@ -14,7 +14,11 @@ import { useContexts } from "./contexts";
 import { useApp } from "./store";
 import * as transport from "./transport";
 import type { CmdResult } from "./transport";
-import { confirmationCommand, nativeReview, nativeStatus } from "./nativeConfiguration";
+import {
+  confirmationCommand,
+  nativeReview,
+  nativeStatus,
+} from "./nativeConfiguration";
 vi.mock("./transport", () => ({
   cmdRunRead: vi.fn(),
   cliPlan: vi.fn(),
@@ -90,6 +94,53 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   useContexts.setState({ refresh: originalRefresh });
+});
+it("takes an exact catalog selection straight to folder review without re-entering coordinates", async () => {
+  vi.mocked(transport.cmdNativeConfigurationPlan).mockResolvedValue(reviewed);
+  const setup = "setup_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+  render(
+    <MemoryRouter
+      initialEntries={[
+        `/targets?setup=${setup}&version=1.0&digest=${encodeURIComponent(DIGEST)}&harness=codex`,
+      ]}
+    >
+      <TargetsPage />
+    </MemoryRouter>,
+  );
+  expect(
+    screen.getByLabelText("Setup progress").querySelectorAll("li").length,
+  ).toBe(4);
+  expect(
+    screen
+      .getByText("Exact setup coordinates")
+      .parentElement?.hasAttribute("open"),
+  ).toBe(false);
+  const button = screen.getByRole("button", {
+    name: "Review setup",
+  }) as HTMLButtonElement;
+  expect(button.disabled).toBe(true);
+  expect(
+    screen.getByText("Choose at least one configuration folder to continue."),
+  ).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("Global configuration folder"), {
+    target: { value: "/my/config" },
+  });
+  expect(button.disabled).toBe(false);
+  fireEvent.click(button);
+  await waitFor(() =>
+    expect(transport.cmdNativeConfigurationPlan).toHaveBeenCalledWith(A, {
+      schema_version: 1,
+      setup: { stable_id: setup, version: "1.0", passport_digest: DIGEST },
+      harness_id: "codex",
+      operation: "install",
+      roots: { global: "/my/config" },
+      trust: "pinned",
+    }),
+  );
+  await screen.findByRole("checkbox", {
+    name: /I reviewed these exact effects/,
+  });
+  expect(transport.cmdNativeConfigurationPrepare).not.toHaveBeenCalled();
 });
 it("retains the reviewed original context when the current view changes before preparation", async () => {
   vi.mocked(transport.cmdNativeConfigurationPlan).mockResolvedValue(reviewed);
@@ -218,32 +269,88 @@ it("copies the raw original state spelling rather than a normalized display path
 });
 
 it("opens the exact original status after restart and preserves the no-restart receipt", () => {
-  const receipt = {operation_id:OP,review_digest:DIGEST,original_context:context,harness_id:"codex",restart_required:false};
-  const response = ok({operation_id:OP,review_digest:DIGEST,original_context:context,state:"configured",receipt});
+  const receipt = {
+    operation_id: OP,
+    review_digest: DIGEST,
+    original_context: context,
+    harness_id: "codex",
+    restart_required: false,
+  };
+  const response = ok({
+    operation_id: OP,
+    review_digest: DIGEST,
+    original_context: context,
+    state: "configured",
+    receipt,
+  });
   const original = nativeStatus(response);
   expect(original?.context).toBe(A);
   expect(original?.restartRequired).toBe(false);
-  expect(confirmationCommand(original!,"linux")).toContain("'/original state'");
-  expect(nativeStatus(ok({...response.data,receipt:{...receipt,operation_id:"operation_other"}}))).toBeNull();
+  expect(confirmationCommand(original!, "linux")).toContain(
+    "'/original state'",
+  );
+  expect(
+    nativeStatus(
+      ok({
+        ...response.data,
+        receipt: { ...receipt, operation_id: "operation_other" },
+      }),
+    ),
+  ).toBeNull();
 });
 it("takes an exact catalog selection into native adoption review", async () => {
   vi.mocked(transport.cmdNativeConfigurationPlan).mockResolvedValue(reviewed);
-  render(<MemoryRouter initialEntries={["/targets?setup=setup_selected&version=2.0&digest="+DIGEST+"&harness=codex"]}><TargetsPage /></MemoryRouter>);
-  fireEvent.change(screen.getByLabelText("Global configuration folder"), {target:{value:"/fixture/config"}});
-  fireEvent.change(screen.getByLabelText("Change"), {target:{value:"adopt"}});
-  fireEvent.click(screen.getByRole("button",{name:"Review setup"}));
-  await waitFor(() => expect(transport.cmdNativeConfigurationPlan).toHaveBeenCalledWith(A,expect.objectContaining({
-    setup:{stable_id:"setup_selected",version:"2.0",passport_digest:DIGEST},operation:"adopt",
-  })));
+  render(
+    <MemoryRouter
+      initialEntries={[
+        "/targets?setup=setup_selected&version=2.0&digest=" +
+          DIGEST +
+          "&harness=codex",
+      ]}
+    >
+      <TargetsPage />
+    </MemoryRouter>,
+  );
+  fireEvent.change(screen.getByLabelText("Global configuration folder"), {
+    target: { value: "/fixture/config" },
+  });
+  fireEvent.change(screen.getByLabelText("Change"), {
+    target: { value: "adopt" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Review setup" }));
+  await waitFor(() =>
+    expect(transport.cmdNativeConfigurationPlan).toHaveBeenCalledWith(
+      A,
+      expect.objectContaining({
+        setup: {
+          stable_id: "setup_selected",
+          version: "2.0",
+          passport_digest: DIGEST,
+        },
+        operation: "adopt",
+      }),
+    ),
+  );
 });
 
 it("retains the original source context and controller state for missing-folder retirement", () => {
-  const source="operation_01ARZ3NDEKTSV4RRFFQ69G5FAW";
-  const metadata = {...plan,native_plan:null,missing_retirement:{
-    format:"ai-stp-native-missing-target-retirement/1",source_operation:source,
-    original_plan:{...plan.native_plan,operation_id:source},controller:{path:{display:"normalized controller",utf8_base64:btoa("/original controller")}},
-  }};
-  const operation=nativeReview(ok({plan:metadata,plan_digest:DIGEST}));
+  const source = "operation_01ARZ3NDEKTSV4RRFFQ69G5FAW";
+  const metadata = {
+    ...plan,
+    native_plan: null,
+    missing_retirement: {
+      format: "ai-stp-native-missing-target-retirement/1",
+      source_operation: source,
+      original_plan: { ...plan.native_plan, operation_id: source },
+      controller: {
+        path: {
+          display: "normalized controller",
+          utf8_base64: btoa("/original controller"),
+        },
+      },
+    },
+  };
+  const operation = nativeReview(ok({ plan: metadata, plan_digest: DIGEST }));
   expect(operation?.metadataOnly).toBe(true);
   expect(operation?.context).toBe(A);
   expect(operation?.stateParent).toBe("/original controller");

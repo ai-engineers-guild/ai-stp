@@ -16,6 +16,7 @@
         { "url": "http://[::1]*" }
       ]
     },
-    "window-state:default"
+    "window-state:default",
+    "dialog:allow-open"
   ]
 }

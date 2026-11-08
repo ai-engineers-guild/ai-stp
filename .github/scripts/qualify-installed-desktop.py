@@ -562,6 +562,12 @@ class Driver:
 
     def navigate(self, route: str, *, keyboard: bool = False) -> None:
         link = self.find(f'nav[aria-label="Main navigation"] a[href="#/{route}"]')
+        disclosure = self.read(
+            "return arguments[0].closest('details:not([open])')?.querySelector('summary')??null;",
+            link,
+        )
+        if disclosure:
+            self.click(dict(disclosure))
         if keyboard:
             # Exercise actual accessible link activation, including when a
             # retained company identity changes the scrollable sidebar height.
@@ -959,7 +965,7 @@ def prepare_native_setup(
             lambda label=label: driver.read(
                 "const label=[...document.querySelectorAll('main label')]"
                 ".find(x=>x.textContent.trim()===arguments[0]);"
-                "const input=label?.querySelector('input');"
+                "const input=label?.querySelector('input')??document.getElementById(label?.htmlFor);"
                 "return input&&!input.disabled?input:null;",
                 label,
             ),
@@ -1149,8 +1155,8 @@ def main() -> None:
         driver.start()
         driver.wait(
             lambda: driver.read(
-                "return document.querySelector('main').textContent.includes(arguments[0]);",
-                f"Rust {version}",
+                "return document.querySelector('[data-testid=engine-version]')?.textContent.includes(arguments[0]);",
+                version,
             ),
             "bundled Rust engine through actual IPC",
         )

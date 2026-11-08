@@ -80,7 +80,12 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
         "-- resources --check",
         "cargo clippy --locked --all-targets -- -D warnings",
     ),
-    "desktop-source": ("tsc --noEmit", "cargo fmt --check"),
+    "desktop-source": (
+        "tsc --noEmit",
+        "cargo fmt --check",
+        "bun run format:check",
+        "bun run messages:check",
+    ),
     "desktop-build": ("vite build", "desktop-stub"),
     "desktop-static": ("cargo clippy --locked --all-targets -- -D warnings",),
     "desktop-test": ("vitest run", "cargo test --locked"),
