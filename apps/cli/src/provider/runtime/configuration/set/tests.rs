@@ -275,7 +275,7 @@ fn attribution(parent: &Path, template: &Plan) -> std::result::Result<(), Box<dy
         };
         group.save(&record)?;
         {
-            let store = Store::planning(parent)?;
+            let mut store = Store::planning(parent)?;
             let before = store.connection.serialize("main")?.to_vec();
             let physical = identity(&Target::open(&project_root)?)?;
             assert!(
