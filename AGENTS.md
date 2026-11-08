@@ -62,18 +62,19 @@ Stage only intended paths. The agent does not pass `--author` or add fictional
 `git config --global --get user.name` and `git config --global --get user.email`.
 The agent does not change `user.name` or `user.email`.
 
-Run affected checks through `just`: `docs-check`, `back-static`, `back-test`,
+Run source checks with `just check`. Prepare dependencies explicitly with
+`just setup`; checks never install them. Run affected execution checks through
+`just`: `docs-check`, `back-static`, `back-test`,
 `cli-check`, `web-check`, and `desktop-check` for desktop changes. `just --show
 check` gives the aggregate; CI runs its shards. Record commands and observed results
 on the exact final SHA in the PR. Generated output and its source change together.
 Finish with a diff review, current documentation and synchronized branches.
 
-Source authoring and ordinary code validation may share a host. Compiling checks,
-unit tests, formatting, linters and LSP use its existing managed toolchains,
-cache and leases. Real application, GUI, emulator and resource-heavy integration
-workloads use their assigned execution targets; platform acceptance stays on
-the corresponding native hosts. Keep source-check compilation separate from
-application deployment and runner-fleet admission.
+Source authoring, formatting, linters and type analysis may share a host. Builds,
+compiled analysis, tests, applications, emulators and Docker use the assigned
+execution hosts or CI runners; platform acceptance stays on the corresponding
+native hosts. Use existing managed toolchains, cache and leases. Keep source
+validation separate from application deployment and runner-fleet admission.
 An admitted local store is sufficient for local code checks. Shared network
 storage requires acceptance of the semantics the operation actually uses; its
 unfinished adoption does not block unrelated validation in an available local

@@ -7,8 +7,7 @@ import stat
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-# pre-push calls `just check` directly: a separate recipe alias would only give
-# this behavior a second name.
+# Both hooks run source checks; builds and tests run on execution hosts and CI.
 HOOKS = {
     "pre-commit": "just pre-commit\n",
     "pre-push": "just check\n",
