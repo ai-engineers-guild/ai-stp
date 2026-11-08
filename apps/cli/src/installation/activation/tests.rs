@@ -159,7 +159,11 @@ fn all_seven_native_consumers_require_stop_and_a_genuine_new_session()
         } else {
             name.to_owned()
         });
-        if std::fs::hard_link(std::env::current_exe()?, &executable).is_err() {
+        // Keep Darwin consumer images on their own vnode, independent of the
+        // running test image and other harness names in the process observer.
+        if cfg!(target_os = "macos")
+            || std::fs::hard_link(std::env::current_exe()?, &executable).is_err()
+        {
             std::fs::copy(std::env::current_exe()?, &executable)?;
         }
         let targets = [
@@ -170,6 +174,23 @@ fn all_seven_native_consumers_require_stop_and_a_genuine_new_session()
         let refs = targets.iter().collect::<Vec<_>>();
         let mut consumer = spawn(command(&executable, &home, &project, definition, &global))?;
         let mut handoff = Handoff::prepare(&definition.harness_id, &refs)?;
+        let consumer_pid = consumer.0.as_ref().ok_or("consumer")?.id();
+        assert!(
+            handoff
+                .sessions
+                .iter()
+                .any(|session| session.pid == consumer_pid),
+            "the named consumer itself must be observed: {}",
+            definition.harness_id
+        );
+        assert!(
+            handoff
+                .sessions
+                .iter()
+                .all(|session| session.pid != std::process::id()),
+            "the test runner must not alias a consumer image: {}",
+            definition.harness_id
+        );
         let document = handoff.value()?;
         assert!(
             !document["sessions"]
@@ -186,16 +207,40 @@ fn all_seven_native_consumers_require_stop_and_a_genuine_new_session()
         assert!(handoff.require_idle().is_err());
         assert!(handoff.published().is_err());
         consumer.finish()?;
-        let idle = handoff.require_idle()?;
-        idle.revalidate()?;
+        let idle = handoff.require_idle().map_err(|error| {
+            format!(
+                "{} after first consumer exit: {}",
+                definition.harness_id,
+                error.kind.code()
+            )
+        })?;
+        idle.revalidate().map_err(|error| {
+            format!(
+                "{} before intervening consumer: {}",
+                definition.harness_id,
+                error.kind.code()
+            )
+        })?;
         let mut intervening = spawn(command(&executable, &home, &project, definition, &global))?;
         assert!(
             idle.revalidate().is_err(),
             "an idle guard must refuse a later consumer"
         );
         intervening.finish()?;
-        idle.revalidate()?;
-        handoff.published()?;
+        idle.revalidate().map_err(|error| {
+            format!(
+                "{} after intervening consumer exit: {}",
+                definition.harness_id,
+                error.kind.code()
+            )
+        })?;
+        handoff.published().map_err(|error| {
+            format!(
+                "{} at publication: {}",
+                definition.harness_id,
+                error.kind.code()
+            )
+        })?;
         assert!(
             handoff.confirm().is_err(),
             "a caller outside a new harness cannot confirm"

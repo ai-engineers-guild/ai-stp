@@ -1,3 +1,5 @@
+import { iconSize } from "../generated/theme";
+import { useText } from "../i18n";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { ArrowRight, KeyRound } from "lucide-react";
@@ -10,9 +12,20 @@ import {
 } from "../transport";
 import { PageHeader, StatusBadge } from "../components/Layout";
 import { ResultMeta } from "../components/Result";
+import LanguageSelect from "../components/LanguageSelect";
+import type { DoctorReport } from "../generated/cli";
 
 export default function SettingsPage() {
-  const { location, doctor, capabilities, refreshCli, refreshAuth } = useApp();
+  const msg = useText();
+  const {
+    location,
+    doctor,
+    capabilities,
+    cliOk,
+    engineResult,
+    refreshCli,
+    refreshAuth,
+  } = useApp();
   const { debugMode, setDebugMode } = useDebug();
   const [stores, setStores] = useState<string[]>([]);
   const [store, setStore] = useState("os_keyring");
@@ -31,16 +44,31 @@ export default function SettingsPage() {
       current = false;
     };
   }, []);
-  const ready = (
-    doctor?.data?.checks as { name: string; state: string }[] | undefined
-  )?.some(
-    (check) => check.name === "local_identity" && check.state === "ready",
+  const identity = doctor?.ok
+    ? (doctor.data?.checks as DoctorReport["checks"] | undefined)?.find(
+        (check) => check.name === "local_identity",
+      )
+    : undefined;
+  const ready = identity?.state === "ready";
+  const workspaceState = identity
+    ? ready
+      ? "ready"
+      : "needs_user_action"
+    : cliOk === null
+      ? "pending"
+      : "unavailable";
+  const stateDirectory =
+    typeof location?.data?.state_dir === "string"
+      ? location.data.state_dir
+      : null;
+  const readFailure = [engineResult, doctor, location, help].find(
+    (result) => result && !result.ok,
   );
   const choices = stores.filter(
     (choice) => choice !== "file" || capabilities?.data?.os !== "windows",
   );
   async function initialize() {
-    if (!confirmed || busy) return;
+    if (!confirmed || busy || !choices.includes(store)) return;
     setBusy(true);
     try {
       const response = await cliApplyConfirmed(
@@ -60,27 +88,41 @@ export default function SettingsPage() {
   return (
     <div className="page-stack">
       <PageHeader
-        eyebrow="System"
-        title="Settings"
-        description="Your local workspace, credentials and application preferences."
+        eyebrow={msg("settings.system")}
+        title={msg("shell.settings")}
+        description={msg(
+          "settings.yourLocalWorkspaceCredentialsAndApplicationPreferences",
+        )}
       />
       <section className="card space-y-5 p-6">
+        <LanguageSelect />
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h2 className="section-title">Local workspace</h2>
-            <p className="mt-2 break-all font-mono text-xs text-muted-foreground">
-              {String(location?.data?.state_dir ?? "Resolving location…")}
+            <h2 className="section-title">{msg("settings.localWorkspace")}</h2>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {stateDirectory ? (
+                <code className="break-all">{stateDirectory}</code>
+              ) : (
+                msg(
+                  cliOk === null
+                    ? "settings.resolvingLocation"
+                    : "common.unavailable",
+                )
+              )}
             </p>
           </div>
-          <StatusBadge state={ready ? "ready" : "needs_user_action"}>
-            {ready ? "Initialized" : "Setup needed"}
+          <StatusBadge state={workspaceState}>
+            {identity
+              ? ready
+                ? msg("settings.initialized")
+                : msg("settings.setupNeeded")
+              : undefined}
           </StatusBadge>
         </div>
         <p className="text-sm leading-6 text-muted-foreground">
-          The app and CLI share one local identity and operation history.
-          Opening the app does not initialize or migrate your data.
+          {msg("settings.theAppAndCliShareOneLocalIdentityAnd")}
         </p>
-        {!ready && (
+        {identity && !ready && (
           <form
             className="space-y-4 border-t border-border pt-5"
             onSubmit={(event) => {
@@ -90,8 +132,8 @@ export default function SettingsPage() {
           >
             <label className="field-label max-w-sm">
               <span className="flex items-center gap-2">
-                <KeyRound size={15} />
-                Credential storage
+                <KeyRound style={iconSize.sm} />
+                {msg("settings.credentialStorage")}
               </span>
               <select
                 className="input"
@@ -105,9 +147,9 @@ export default function SettingsPage() {
                 {choices.map((choice) => (
                   <option key={choice} value={choice}>
                     {choice === "os_keyring"
-                      ? "Operating system keyring"
+                      ? msg("settings.operatingSystemKeyring")
                       : choice === "file"
-                        ? "Local file (unencrypted)"
+                        ? msg("settings.localFileUnencrypted")
                         : choice}
                   </option>
                 ))}
@@ -115,8 +157,10 @@ export default function SettingsPage() {
             </label>
             <p className="text-xs leading-5 text-muted-foreground">
               {store === "file"
-                ? "File storage is unencrypted and available only on Unix. The CLI restricts access to the owner."
-                : "Uses the operating system credential service. The CLI never silently falls back to file storage."}
+                ? msg("settings.fileStorageIsUnencryptedAndAvailableOnlyOnUnix")
+                : msg(
+                    "settings.usesTheOperatingSystemCredentialServiceTheCliNever",
+                  )}
             </p>
             <label className="flex items-start gap-3 text-sm">
               <input
@@ -126,59 +170,63 @@ export default function SettingsPage() {
                 disabled={busy}
                 onChange={(event) => setConfirmed(event.target.checked)}
               />
-              Initialize or resume this device using the selected credential
-              storage.
+              {msg(
+                "settings.initializeOrResumeThisDeviceUsingTheSelectedCredential",
+              )}
             </label>
             <button
               className="btn-primary"
               disabled={busy || !confirmed || !choices.includes(store)}
             >
-              {busy ? "Initializing…" : "Initialize workspace"}
-              <ArrowRight size={14} />
+              {busy
+                ? msg("settings.initializing")
+                : msg("settings.initializeWorkspace")}
+              <ArrowRight style={iconSize.sm} />
             </button>
           </form>
         )}
-        {help && !help.ok && <ResultMeta r={help} />}
+        {readFailure && <ResultMeta r={readFailure} />}
         {result && <ResultMeta r={result} />}
       </section>
       <section className="card space-y-4 p-6">
-        <h2 className="section-title">Advanced state operations</h2>
+        <h2 className="section-title">
+          {msg("settings.advancedStateOperations")}
+        </h2>
         <p className="text-sm leading-6 text-muted-foreground">
-          An existing Python workspace requires an explicit migration plan and
-          its exact digest. Inspect configuration or migration status through
-          the native command forms.
+          {msg(
+            "settings.anExistingPythonWorkspaceRequiresAnExplicitMigrationPlan",
+          )}
         </p>
         <div className="flex flex-wrap gap-3">
           <Link
             className="btn-outline"
             to="/registry?command=state%20migrate%20plan"
           >
-            Migration plan
+            {msg("settings.migrationPlan")}
           </Link>
           <Link
             className="btn-outline"
             to="/registry?command=state%20migrate%20status"
           >
-            Migration status
+            {msg("settings.migrationStatus")}
           </Link>
           <Link className="btn-outline" to="/registry?command=config%20show">
-            View configuration
+            {msg("settings.viewConfiguration")}
           </Link>
         </div>
       </section>
       <section className="card space-y-3 p-6">
-        <h2 className="section-title">Local diagnostics</h2>
+        <h2 className="section-title">{msg("settings.localDiagnostics")}</h2>
         <label className="flex items-center gap-3 text-sm">
           <input
             type="checkbox"
             checked={debugMode}
             onChange={(event) => setDebugMode(event.target.checked)}
           />
-          Record a temporary IPC trace
+          {msg("settings.recordATemporaryIpcTrace")}
         </label>
         <p className="text-xs leading-5 text-muted-foreground">
-          Kept in memory on this device. Nothing is sent automatically. Review
-          and copy a redacted report in Diagnostics.
+          {msg("settings.keptInMemoryOnThisDeviceNothingIsSent")}
         </p>
       </section>
     </div>

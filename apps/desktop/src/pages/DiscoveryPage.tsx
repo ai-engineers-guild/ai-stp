@@ -1,9 +1,13 @@
+import { useText } from "../i18n";
 import RegistryPage from "./RegistryPage";
 export default function DiscoveryPage() {
+  const msg = useText();
   return (
     <RegistryPage
-      title="Discovery"
-      description="Inspect local projects and sources before choosing or creating a setup."
+      title={msg("shell.discovery")}
+      description={msg(
+        "discovery.inspectLocalProjectsAndSourcesBeforeChoosingOrCreating",
+      )}
       prefixes={[
         "component discover",
         "project discover",

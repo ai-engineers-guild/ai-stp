@@ -80,6 +80,9 @@ def fill(driver: Any, label: str, value: str, *, scope: str = "main") -> None:
     driver.command(
         "POST", f"/element/{element['element-6066-11e4-a52e-4f735466cecf']}/value", {"text": value}
     )
+    assert driver.read("return arguments[0].value;", element) == value, (
+        "Native keyboard entry did not retain the exact fixture value"
+    )
 
 
 def choose(driver: Any, label: str, value: str, *, scope: str = "main") -> None:
@@ -951,6 +954,12 @@ def installed_journey(
         request = public_plan(driver, CHECKOUT_REVIEW)
         original_path(request)
         assert request["change"]["snapshot"]["target"]["remote_project_id"] == project
+        original_review = driver.find(CHECKOUT_REVIEW + " pre")
+        original_review_bytes = driver.read("return arguments[0].textContent;", original_review)
+        qualified_languages = driver.audit_languages(
+            "corporate-checkout-review",
+            ((original_review, "textContent", original_review_bytes),),
+        )
         authorize(driver, CHECKOUT_REVIEW, "Apply reviewed checkout change")
         driver.click(driver.button("Review link confirmation"))
         confirmation = public_plan(driver, CHECKOUT_REVIEW)
@@ -962,12 +971,14 @@ def installed_journey(
             lambda: driver.read("return !!document.querySelector('main [role=alert]');"),
             "unconfirmed committed response",
         )
+        driver.audit_languages("corporate-unconfirmed-reply")
         current = native(
             binary,
             environment,
             ["corporate", "project", "link", "show", "--operation", confirmation["operation_id"]],
         )
         assert current["state"] == "applying"
+        localization_accessibility = list(driver.accessibility)
     finally:
         driver.close()
     driver = driver_type(driver_path, environment, root / "corporate-restarted-driver.log")
@@ -981,16 +992,64 @@ def installed_journey(
         root_field = field(driver, "Registered checkout for binding", scope=HISTORY)
         assert driver.read("return arguments[0].value;", root_field) == str(checkout)
         fill(driver, "Registered checkout for binding", str(neighbor), scope=HISTORY)
-        driver.click(driver.button("Review original local binding", HISTORY))
-        codes = driver.wait(
-            lambda: driver.read(
-                "return [...document.querySelectorAll(arguments[0]+' [role=alert]')]"
-                ".flatMap(x=>x.textContent.match(/\\b(?:AI_STP_|DESKTOP_)[A-Z_]+|\\bCONTEXT_VIEW\\b/g)??[]);",
-                HISTORY,
-            ),
-            "same-display physical checkout refusal",
+        original_review_control = driver.button("Review original local binding", HISTORY)
+        driver.read(
+            "const node=arguments[0];window.__installedBindingReview={clicks:0,trusted:0};"
+            "node.addEventListener('click',event=>{"
+            "const count=window.__installedBindingReview;"
+            "count.clicks=Math.min(16,count.clicks+1);"
+            "if(event.isTrusted)count.trusted=Math.min(16,count.trusted+1);"
+            "},{capture:true,passive:true});",
+            original_review_control,
         )
-        assert set(codes) == {"AI_STP_PRECONDITION_FAILED"}
+        driver.click(original_review_control)
+        try:
+            refusal = driver.find(HISTORY + " [role=alert]")
+            # Technical errors are disclosed through a native details control.
+            # Inspect that control as a user before asserting the engine code.
+            disclosure = driver.read(
+                "return arguments[0].querySelector("
+                "'details.technical-details:not([open])>summary');",
+                refusal,
+            )
+            if disclosure:
+                driver.click(dict(disclosure))
+            codes = driver.wait(
+                lambda: driver.read(
+                    "return [...document.querySelectorAll(arguments[0]+' [role=alert] code')]"
+                    ".map(node=>node.textContent.trim()).filter(Boolean);",
+                    HISTORY,
+                ),
+                "same-display physical checkout refusal",
+            )
+        except ValueError:
+            if driver.last_response_ok:
+                observed = driver.read(
+                    "const root=document.querySelector(arguments[0]);"
+                    "const field=[...root?.querySelectorAll('label')||[]]"
+                    ".find(node=>node.textContent.trim()==='Registered checkout for binding')"
+                    "?.querySelector('input');"
+                    "return {click:window.__installedBindingReview,historyPresent:!!root,"
+                    "nextReviewPresent:!!root?.querySelector("
+                    "'[aria-label=\"Review retained checkout next change\"]'),"
+                    "alertCount:root?.querySelectorAll('[role=alert]').length??0,"
+                    "pendingCount:root?.querySelectorAll('[role=status]').length??0,"
+                    "enteredNeighbor:field?.value===arguments[1],"
+                    "retainedOriginal:field?.value===arguments[2],"
+                    "reviewConnected:arguments[3].isConnected,"
+                    "reviewDisabled:arguments[3].disabled};",
+                    HISTORY,
+                    str(neighbor),
+                    str(checkout),
+                    original_review_control,
+                )
+                print(
+                    json.dumps(
+                        {"diagnostic": "installed_original_binding_refusal", "state": observed}
+                    )
+                )
+            raise
+        assert set(codes) == {"AI_STP_PRECONDITION_FAILED"}, codes
         # Reinspect through the actual read control, clearing the refusal and
         # proving that the original byte-preserving root is prefilled again.
         driver.click(driver.button("Inspect " + confirmation["operation_id"], HISTORY))
@@ -1309,6 +1368,10 @@ def installed_journey(
                 binary, environment, ["corporate", "heartbeat", "delivery", "--context", company]
             )["enabled"],
             "lost_committed_confirmation": True,
+            "localized_languages": qualified_languages,
+            "language_switch_preserves_original_checkout_review": True,
+            "localized_unconfirmed_response_both_themes": True,
+            "accessibility_checks": localization_accessibility + driver.accessibility,
             "restart_and_original_reconciliation": True,
             "active_binding_adoption": True,
             "exact_terminal_native_unlink": True,

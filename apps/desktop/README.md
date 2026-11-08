@@ -40,6 +40,15 @@ Discovery, Commands and Diagnostics are under **Advanced tools**. The main page
 shows device diagnostics on request. Pages load when opened; the initial view
 does not load every account, company and authoring screen.
 
+Choose English, Русский, Қазақша (KZ), العربية or 简体中文 in the sidebar or
+Settings. The first launch uses a supported system language and script; subsequent
+launches use the saved choice. Language changes preserve entered fields and the
+original operation. Arabic mirrors navigation and layout; paths, IDs and technical
+output retain their original direction. Messages and fonts are packaged locally.
+Language and theme choices are saved in the application's own local preferences;
+the controls wait for acknowledged native storage. A failed save leaves the choice
+active in the current window and shows a retryable message.
+
 If a start or apply reply is uncertain, inspect its original retained operation
 in Activity before starting again. Identical interrupted task starts keep their
 retry identity while the app is running. Choosing a separate request does not
@@ -83,11 +92,21 @@ account codes and private task content. No automatic diagnostic upload occurs.
   full native reviews 8 MiB); the CLI validates every object and digest.
 - `src/transport.ts` is the IPC boundary; `store.ts` shares engine state and
   `taskStart.ts` retains a logical start's retry identity. Common components use
-  shared theme roles, vendored IBM Plex fonts, visible focus and reduced motion.
-- `src/i18n.ts` and `src/locales/` own the new workspace and setup guidance.
-  Messages use ICU syntax and typed keys. The current English catalog is bundled
-  offline; migration of the remaining views and the full language set is tracked
-  in [#1372](https://github.com/ai-engineers-guild/ai-stp/issues/1372).
+  shared theme roles, visible focus and reduced motion.
+- `src/generated/cli.ts` projects the canonical CLI JSON schemas. IPC declarations
+  come from the core reply, continuation and UI-preference owners through a test-only Rust
+  generator. Source checks verify its input digests; native tests compare the
+  compiled declarations. Regenerate changed IPC inputs on an execution host with
+  `just desktop-native-gen`. UI view types select fields from these projections.
+- `src/i18n.ts`, `src/localization.json` and `src/locales/` own the five language
+  catalogs, script matching and direction. ICU keys and required argument types
+  are checked. Startup includes only English shell guidance; full packaged
+  catalogs load when needed. Original engine explanations remain available in
+  technical details and are never rewritten as translated evidence.
+- `src/generated/theme.*` projects the product tokens in
+  `../web/src/theme/tokens.json`, including Desktop contrast overrides. Local IBM
+  Plex and Noto font assets come from pinned dependencies; `font-assets.json`
+  selects weights. Generation retains WOFF2 subsets and their license notices.
 
 ## Develop and verify
 
@@ -97,10 +116,21 @@ Tauri needs the native webview development packages. From `apps/desktop`,
 
 ```sh
 just desktop-source       # Types, formatting and message syntax; no compilation
-just desktop-gen          # Project the version and format Rust
+just desktop-gen          # Project version, messages, theme and fonts; format Rust
+just desktop-native-gen   # Compile and project changed IPC types on an execution host
+just desktop-ui-test      # Frontend tests without native SDK compilation
+just desktop-core-test    # Native core tests without compiling a webview
+just desktop-ui-build     # Frontend assets without native SDK compilation
 just desktop-check        # Frontend, Rust crates and actual optimized sidecar
 just desktop-bundle-test  # Verify an existing packaged CLI resource tree
 ```
+
+Hosted Linux acceptance also runs `just desktop-performance` inside a disposable
+vault fixture. It alternates the checksum-pinned baseline and current installed
+packages on one worker, using fresh application profiles and the same native
+personal-context workload. The retained result reports startup and repeated
+navigation distributions, including automation transport and font/paint readiness.
+OS caches remain shared; these observations do not imply a universal latency budget.
 
 Release packages require `cli/ai-stp-desktop-cli`; missing bundled engines refuse.
 Development may use `AI_STP_CLI` or PATH only when no bundled resource is present.

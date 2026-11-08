@@ -149,8 +149,7 @@ exclude = [
 typeCheckingMode = "basic"
 strict = ["packages", "apps", "tests"]
 pythonVersion = "3.12"
-venvPath = "."
-venv = ".venv"
+# Resolve the interpreter from the prepared uv environment.
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

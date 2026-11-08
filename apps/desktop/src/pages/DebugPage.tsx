@@ -1,3 +1,5 @@
+import { iconSize } from "../generated/theme";
+import { formatTime, useText } from "../i18n";
 import { useEffect, useState } from "react";
 import { ClipboardCopy, Play, Trash2 } from "lucide-react";
 import { cmdDebugInfo, cmdRunRead, type CmdResult } from "../transport";
@@ -9,6 +11,7 @@ import { useDebug } from "../store";
  *  CLI binary, and a raw-envelope inspector. Nothing here writes — the
  *  inspector is gated to mutability=read on the shell side anyway. */
 export default function DebugPage() {
+  const msg = useText();
   const { log, clear, debugMode, setDebugMode } = useDebug();
   const [info, setInfo] = useState<CmdResult | null>(null);
   const [probe, setProbe] = useState("version");
@@ -64,22 +67,24 @@ export default function DebugPage() {
   return (
     <div className="page-stack">
       <PageHeader
-        eyebrow="System"
-        title="Diagnostics"
-        description="Local engine information and an optional trace for troubleshooting."
+        eyebrow={msg("debug.system")}
+        title={msg("shell.diagnostics")}
+        description={msg(
+          "debug.localEngineInformationAndAnOptionalTraceForTroubleshooting",
+        )}
         action={
           <div className="flex gap-2">
             <button onClick={() => void copyBundle()} className="btn-outline">
-              <ClipboardCopy size={14} />
+              <ClipboardCopy style={iconSize.sm} />
               {copied
-                ? "Copied"
+                ? msg("debug.copied")
                 : copyError
-                  ? "Clipboard unavailable"
-                  : "Copy report"}
+                  ? msg("debug.clipboardUnavailable")
+                  : msg("debug.copyReport")}
             </button>
             <button onClick={clear} className="btn-outline">
-              <Trash2 size={14} />
-              Clear
+              <Trash2 style={iconSize.sm} />
+              {msg("debug.clear")}
             </button>
           </div>
         }
@@ -90,11 +95,11 @@ export default function DebugPage() {
           checked={debugMode}
           onChange={(event) => setDebugMode(event.target.checked)}
         />
-        Record a temporary local trace
+        {msg("debug.recordATemporaryLocalTrace")}
       </label>
 
       <section className="card p-4">
-        <h2 className="section-title mb-2">Environment</h2>
+        <h2 className="section-title mb-2">{msg("debug.environment")}</h2>
         {info?.data ? (
           <Json v={info.data} />
         ) : (
@@ -103,21 +108,20 @@ export default function DebugPage() {
       </section>
 
       <section className="card space-y-2 p-4">
-        <h2 className="section-title">Envelope inspector</h2>
+        <h2 className="section-title">{msg("debug.envelopeInspector")}</h2>
         <p className="text-xs text-muted-foreground">
-          Runs a read-tier command and shows the raw envelope — continuations,
-          warnings, error codes.
+          {msg("debug.runsAReadTierCommandAndShowsTheRaw")}
         </p>
         <div className="flex gap-2">
           <input
             value={probe}
             onChange={(e) => setProbe(e.target.value)}
-            aria-label="Read-only command"
-            placeholder="Command path, e.g. version"
+            aria-label={msg("debug.readOnlyCommand")}
+            placeholder={msg("debug.commandPathEGVersion")}
             className="input w-72 font-mono"
           />
           <button onClick={() => void runProbe()} className="btn-primary">
-            <Play size={14} /> Run
+            <Play style={iconSize.sm} /> {msg("debug.run")}
           </button>
         </div>
         {probeResult && (
@@ -130,17 +134,19 @@ export default function DebugPage() {
 
       <section className="card overflow-hidden">
         <div className="flex items-center justify-between border-b border-border px-4 py-2">
-          <h2 className="section-title">IPC trace ({log.length})</h2>
+          <h2 className="section-title">
+            {msg("debug.ipcTrace", { count: log.length })}
+          </h2>
           <p className="text-xs text-muted-foreground">
-            {failures.length} failure(s)
+            {msg("debug.failureS", { count: failures.length })}
           </p>
         </div>
         <ul className="max-h-96 divide-y divide-border overflow-auto font-mono text-xs">
           {log.length === 0 && (
             <li className="px-4 py-3 text-muted-foreground">
               {debugMode
-                ? "No calls yet."
-                : "IPC trace is off — enable it above."}
+                ? msg("debug.noCallsYet")
+                : msg("debug.ipcTraceIsOffEnableItAbove")}
             </li>
           )}
           {log.map((e) => (
@@ -148,7 +154,7 @@ export default function DebugPage() {
               <button
                 onClick={() => setExpanded(expanded === e.id ? null : e.id)}
                 aria-expanded={expanded === e.id}
-                className="flex w-full items-center gap-3 px-4 py-1.5 text-left hover:bg-accent"
+                className="flex w-full items-center gap-3 px-4 py-1.5 text-start hover:bg-accent"
               >
                 <span
                   className={`h-1.5 w-1.5 shrink-0 rounded-full ${
@@ -160,20 +166,20 @@ export default function DebugPage() {
                   }`}
                 />
                 <span className="w-40 shrink-0">{e.cmd}</span>
-                <span className="w-16 shrink-0 text-muted-foreground">
-                  {e.ms}ms
+                <span className="min-w-16 shrink-0 text-muted-foreground">
+                  {msg("debug.ms", { duration: e.ms })}
                 </span>
                 <span className="flex-1 truncate text-muted-foreground">
-                  {e.error_code ?? (e.ok ? "ok" : "—")}
+                  {e.error_code ?? (e.ok ? msg("debug.ok") : "—")}
                 </span>
                 <span className="shrink-0 text-muted-foreground">
-                  {new Date(e.ts).toLocaleTimeString()}
+                  {formatTime(e.ts)}
                 </span>
               </button>
               {expanded === e.id && (
                 <div className="border-t border-border bg-muted/40 px-4 py-2">
                   <p className="mb-1 text-muted-foreground">
-                    args: {JSON.stringify(e.args)}
+                    {msg("debug.args")} {JSON.stringify(e.args)}
                   </p>
                   {e.result && <Json v={e.result} />}
                 </div>

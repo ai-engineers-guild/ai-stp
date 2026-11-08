@@ -1,3 +1,7 @@
+import { record } from "../contexts";
+import { iconSize } from "../generated/theme";
+import { useText } from "../i18n";
+import { choiceLabel, intentGuidance, intentLabel } from "../labels";
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { ArrowRight, Ban, RefreshCw, StepForward } from "lucide-react";
@@ -49,6 +53,7 @@ function checkedTask(response: CmdResult, id: string): CmdResult {
 }
 
 export default function InstallPage() {
+  const msg = useText();
   const [params, setParams] = useSearchParams();
   const taskId = params.get("task");
   const activeTask = useRef(taskId);
@@ -142,7 +147,7 @@ export default function InstallPage() {
     if (taskId || starter.busy || !starter.result || starter.opened) return;
     const id = isTask(starter.result.data)
       ? starter.result.data.task_id
-      : starter.result.error_details?.task_id;
+      : record(starter.result.error_details).task_id;
     if (typeof id === "string") {
       setParams({ task: id });
       starter.acknowledge();
@@ -305,22 +310,27 @@ export default function InstallPage() {
   return (
     <div className="page-stack">
       <PageHeader
-        title={taskId ? "Task workspace" : "Your next setup"}
+        title={
+          taskId ? msg("install.taskWorkspace") : msg("install.yourNextSetup")
+        }
         description={
           taskId
-            ? "Review the current state and continue through the engine's retained steps."
-            : "Create from your files or install an exact setup into your chosen harness."
+            ? msg("install.reviewTheCurrentStateAndContinueThroughTheEngine")
+            : msg("install.createFromYourFilesOrInstallAnExactSetup")
         }
         action={
           <Link className="btn-outline" to="/tasks">
-            View activity
-            <ArrowRight size={14} />
+            {msg("install.viewActivity")}
+            <ArrowRight style={iconSize.sm} />
           </Link>
         }
       />
       {!taskId && (
         <section className="card space-y-6 p-6">
-          <div className="flex flex-wrap gap-2" aria-label="Task intent">
+          <div
+            className="flex flex-wrap gap-2"
+            aria-label={msg("install.taskIntent")}
+          >
             {intents.map((item) => (
               <button
                 key={item.name}
@@ -332,22 +342,23 @@ export default function InstallPage() {
                   setConfirmed(false);
                 }}
               >
-                {item.name === "install"
-                  ? "Install a setup"
-                  : item.name === "author"
-                    ? "Create from files"
-                    : item.name}
+                {intentLabel(msg, item.name)}
               </button>
             ))}
           </div>
-          {!intentResult && <Spinner label="Reading available flows" />}
+          {!intentResult && (
+            <Spinner label={msg("install.readingAvailableFlows")} />
+          )}
           {intentResult && !intentResult.ok && <ResultMeta r={intentResult} />}
           <p className="text-sm leading-6 text-muted-foreground">
-            {intents.find((item) => item.name === intent)?.when}
+            {intentGuidance(
+              msg,
+              intent,
+              intents.find((item) => item.name === intent)?.when,
+            )}
           </p>
           <p className="text-sm text-muted-foreground">
-            These flows create personal tasks. Selecting a company view does not
-            make them company-managed installations.
+            {msg("install.theseFlowsCreatePersonalTasksSelectingACompanyView")}
           </p>
           {unavailable && (
             <div
@@ -355,19 +366,24 @@ export default function InstallPage() {
               className="rounded-md border border-warning/40 bg-warning/5 p-4 text-sm"
             >
               {capabilities
-                ? `Setup installation is unavailable on ${String(capabilities.data?.os ?? "this platform")}. Authoring and catalog browsing remain available.`
-                : "Checking installation support…"}
+                ? msg("install.platformUnavailable", {
+                    platform: String(
+                      capabilities.data?.os ?? msg("common.thisPlatform"),
+                    ),
+                  })
+                : msg("install.checkingInstallationSupport")}
             </div>
           )}
           {starter.busy && (
-            <Spinner label="The engine is running this task. You can return through Activity." />
+            <Spinner
+              label={msg("install.theEngineIsRunningThisTaskYouCanReturn")}
+            />
           )}
           {pendingStart && !isTask(pendingStart.data) && (
             <div className="space-y-3">
               <ResultMeta r={pendingStart} />
               <p className="text-sm text-muted-foreground">
-                The last request is retained for an identical retry. If its
-                effect is unconfirmed, inspect Activity before retrying.
+                {msg("install.theLastRequestIsRetainedForAnIdenticalRetry")}
               </p>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -376,10 +392,10 @@ export default function InstallPage() {
                     if (starter.request) void starter.start(starter.request);
                   }}
                 >
-                  Retry the same request
+                  {msg("install.retryTheSameRequest")}
                 </button>
                 <Link className="btn-outline" to="/tasks">
-                  Inspect activity
+                  {msg("install.inspectActivity")}
                 </Link>
                 <button
                   className="btn-outline"
@@ -388,14 +404,14 @@ export default function InstallPage() {
                     setConfirmed(false);
                   }}
                 >
-                  Edit a new request
+                  {msg("install.editANewRequest")}
                 </button>
               </div>
             </div>
           )}
           <fieldset disabled={locked || !!pendingStart} className="space-y-5">
             <label className="field-label max-w-xs">
-              Input method
+              {msg("install.inputMethod")}
               <select
                 className="input"
                 value={mode}
@@ -406,15 +422,17 @@ export default function InstallPage() {
               >
                 <option value="form">
                   {intent === "author"
-                    ? "Guided questions"
-                    : "Installation form"}
+                    ? msg("install.guidedQuestions")
+                    : msg("install.installationForm")}
                 </option>
-                <option value="file">Existing JSON file (advanced)</option>
+                <option value="file">
+                  {msg("install.existingJsonFileAdvanced")}
+                </option>
               </select>
             </label>
             {mode === "file" ? (
               <label className="field-label">
-                Task input JSON file
+                {msg("install.taskInputJsonFile")}
                 <input
                   className="input font-mono font-normal"
                   value={inputPath}
@@ -422,11 +440,10 @@ export default function InstallPage() {
                     setInputPath(event.target.value);
                     setConfirmed(false);
                   }}
-                  placeholder="Absolute path to the input file"
+                  placeholder={msg("install.absolutePathToTheInputFile")}
                 />
                 <p className="field-help">
-                  The CLI reads and validates this file. Use it for advanced
-                  access, trust pins and placement options.
+                  {msg("install.theCliReadsAndValidatesThisFileUseIt")}
                 </p>
               </label>
             ) : intent === "install" ? (
@@ -440,9 +457,9 @@ export default function InstallPage() {
               />
             ) : (
               <p className="rounded-md bg-muted/50 p-4 text-sm leading-6">
-                The engine will ask for your directory, harness, component kind,
-                name and license. Answering the final question authorizes
-                creation.
+                {msg(
+                  "install.theEngineWillAskForYourDirectoryHarnessComponent",
+                )}
               </p>
             )}
             <label className="flex items-start gap-3 rounded-md border border-border p-4 text-sm">
@@ -452,8 +469,7 @@ export default function InstallPage() {
                 checked={confirmed}
                 onChange={(event) => setConfirmed(event.target.checked)}
               />
-              I authorize this request. Starting or answering can apply changes
-              immediately after the engine validates the inputs.
+              {msg("install.iAuthorizeThisRequestStartingOrAnsweringCanApply")}
             </label>
             <button
               className="btn-primary"
@@ -474,43 +490,58 @@ export default function InstallPage() {
                 })
               }
             >
-              Start {intent === "author" ? "authoring" : "installation"}
-              <ArrowRight size={14} />
+              {msg("install.start")}{" "}
+              {intent === "author"
+                ? msg("install.authoring")
+                : msg("install.installation")}
+              <ArrowRight style={iconSize.sm} />
             </button>
           </fieldset>
           {inputSchema?.data && (
-            <Details label="Accepted input schema" value={inputSchema.data} />
+            <Details
+              label={msg("install.acceptedInputSchema")}
+              value={inputSchema.data}
+            />
           )}
         </section>
       )}
-      {taskId && busy && <Spinner label="Reading the latest task state" />}
+      {taskId && busy && (
+        <Spinner label={msg("install.readingTheLatestTaskState")} />
+      )}
       {task && (
         <section className="card space-y-6 p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="section-title capitalize">{task.intent} task</h2>
+              <h2 className="section-title capitalize">
+                {msg("install.taskTitle", {
+                  intent: intentLabel(msg, task.intent),
+                })}
+              </h2>
               <p className="mt-2 break-all font-mono text-xs text-muted-foreground">
                 {task.task_id}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Revision {task.revision}
+                {msg("install.revision")} {task.revision}
               </p>
             </div>
             <StatusBadge state={task.state} />
           </div>
           {task.legacy_read_only && (
             <p className="text-sm text-muted-foreground">
-              This retained legacy task is read-only.
+              {msg("install.thisRetainedLegacyTaskIsReadOnly")}
             </p>
           )}
           <TaskOwnership value={task.ownership} />
           {task.questions.map((question) =>
-            question.actor === "external" || question.actor === "agent" ? (
+            question.actor != null && question.actor !== "human" ? (
               <p
                 key={question.question_id}
                 className="text-sm text-muted-foreground"
               >
-                {question.prompt} · waiting for {question.actor}
+                {question.prompt}{" "}
+                {msg("install.waitingFor", {
+                  actor: choiceLabel(msg, question.actor ?? "human"),
+                })}
               </p>
             ) : (
               <form
@@ -541,7 +572,7 @@ export default function InstallPage() {
                         })
                       }
                     >
-                      <option value="">Choose…</option>
+                      <option value="">{msg("install.choose")}</option>
                       {question.choices.map((choice) => (
                         <option key={choice}>{choice}</option>
                       ))}
@@ -576,18 +607,21 @@ export default function InstallPage() {
                     )
                   }
                 >
-                  <StepForward size={14} />
-                  Submit answer
+                  <StepForward style={iconSize.sm} />
+                  {msg("install.submitAnswer")}
                 </button>
               </form>
             ),
           )}
           {task.handoff != null && (
             <section className="space-y-3">
-              <h3 className="section-title">Activation handoff</h3>
+              <h3 className="section-title">
+                {msg("install.activationHandoff")}
+              </h3>
               <p className="text-sm text-muted-foreground">
-                Follow the engine's restart instructions before continuing this
-                task.
+                {msg(
+                  "install.followTheEngineSRestartInstructionsBeforeContinuingThis",
+                )}
               </p>
               <Json v={task.handoff} />
             </section>
@@ -613,16 +647,20 @@ export default function InstallPage() {
                       disabled={locked || task.legacy_read_only}
                       onClick={() => void runContinuation(item)}
                     >
-                      Approve and run this step
+                      {msg("install.approveAndRunThisStep")}
                     </button>
                   </>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    Waiting for {item.actor ?? "human"}
+                    {msg("install.waitingFor2", {
+                      actor: choiceLabel(msg, item.actor ?? "human"),
+                    })}
                     {item.missing.length
-                      ? ` · needs ${item.missing.join(", ")}`
+                      ? msg("install.missingParameters", {
+                          parameters: item.missing.join(", "),
+                        })
                       : ""}
-                    . Refresh after completing the external step.
+                    {msg("install.refreshAfterCompletingTheExternalStep")}
                   </p>
                 )}
               </div>
@@ -635,8 +673,8 @@ export default function InstallPage() {
                 void refresh(task.task_id);
               }}
             >
-              <RefreshCw size={14} />
-              Refresh
+              <RefreshCw style={iconSize.sm} />
+              {msg("common.refresh")}
             </button>
             {!settled(task) && !task.legacy_read_only && (
               <>
@@ -649,8 +687,8 @@ export default function InstallPage() {
                     )
                   }
                 >
-                  <StepForward size={14} />
-                  Continue task
+                  <StepForward style={iconSize.sm} />
+                  {msg("install.continueTask")}
                 </button>
                 <button
                   className="btn-outline"
@@ -661,8 +699,8 @@ export default function InstallPage() {
                     )
                   }
                 >
-                  <Ban size={14} />
-                  Cancel task
+                  <Ban style={iconSize.sm} />
+                  {msg("install.cancelTask")}
                 </button>
               </>
             )}
@@ -671,7 +709,9 @@ export default function InstallPage() {
               disabled={locked}
               onClick={closeTask}
             >
-              {settled(task) ? "Start another flow" : "Close view"}
+              {settled(task)
+                ? msg("install.startAnotherFlow")
+                : msg("install.closeView")}
             </button>
           </div>
         </section>
@@ -680,16 +720,16 @@ export default function InstallPage() {
       {taskId &&
         starter.result &&
         !starter.result.ok &&
-        starter.result.error_details?.task_id === taskId && (
+        record(starter.result.error_details).task_id === taskId && (
           <ResultMeta r={starter.result} />
         )}
       {taskId && !task && !busy && (
         <div className="flex flex-wrap gap-3">
           <button className="btn-outline" onClick={() => void refresh(taskId)}>
-            Read task again
+            {msg("install.readTaskAgain")}
           </button>
           <button className="btn-outline" onClick={closeTask}>
-            Back to setups
+            {msg("install.backToSetups")}
           </button>
         </div>
       )}

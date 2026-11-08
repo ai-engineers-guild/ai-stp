@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import yaml
+from tests.contract.test_gate_split_covers_the_gate import command_text
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github/workflows"
@@ -105,7 +106,10 @@ class QualificationTests(unittest.TestCase):
             )
             self.assertEqual(job["if"], expected, name)
             if name.startswith("integration-"):
-                self.assertLessEqual(int(job["timeout-minutes"]), 20)
+                self.assertLessEqual(
+                    int(job.get("timeout-minutes", job.get("with", {}).get("timeout-minutes"))),
+                    20,
+                )
                 if name == "integration-native":
                     self.assertEqual(
                         job["strategy"],
@@ -118,7 +122,7 @@ class QualificationTests(unittest.TestCase):
                     self.assertEqual(job["runs-on"], "${{ matrix.os }}")
                 else:
                     self.assertNotIn("strategy", job)
-                commands = "\n".join(step.get("run", "") for step in job["steps"])
+                commands = command_text(job)
                 for command in ["--release", "tauri build", "test:e2e", "uv build"]:
                     self.assertNotIn(command, commands, name)
         self.assertNotIn("if", source["jobs"]["secrets"])

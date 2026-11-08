@@ -100,65 +100,59 @@ jobs:
         working-directory: apps/desktop
         run: |
           python ../../release_scripts/desktop_version.py --check
+          python ../../release_scripts/desktop_tools.py
           bun install --frozen-lockfile
-      - name: Frontend checks (tsc, vitest, vite build)
-        working-directory: apps/desktop
-        shell: bash
-        run: |
-          set -euo pipefail
-          bun run format:check
-          bun run messages:check
-          bun x tsc --noEmit
-          bun x vitest run
-          bun x vite build
-      - name: Core crate tests
-        working-directory: apps/desktop/core
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo fmt --check
-          cargo clippy --locked --all-targets -- -D warnings
-          cargo test --locked
-      - name: Stub sidecar for shell-crate checks
-        shell: bash
-        # tauri-build's build.rs verifies resource paths exist at compile
-        # time; the stub satisfies that before the real Rust sidecar
-        # is built below.
-        run: cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- desktop-stub
-      - name: Shell crate tests
-        working-directory: apps/desktop/src-tauri
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo fmt --check
-          cargo clippy --locked --all-targets -- -D warnings
-          cargo test --locked
-      - name: Build the bundled CLI sidecar
-        shell: bash
-        run: cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- desktop-build
-      - name: Sidecar spawns under the app's filtered env
-        shell: bash
-        # CliRunner clears the child env and re-adds a passthrough set —
-        # the same path the installed app takes. The probe verifies the Rust
-        # runtime, executable registry and native task input contract.
-        # The native tool is shared with `just desktop-regress`.
-        run: cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- desktop-probe
-      - name: Tauri build
-        shell: bash
-        run: bash .github/scripts/build-desktop-bundles.sh
-      - name: Verify the macOS disk image
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          set -euo pipefail
-          images=(apps/desktop/src-tauri/target/release/bundle/dmg/*.dmg)
-          test "${#images[@]}" -eq 1 && test -f "${images[0]}"
-          /usr/bin/hdiutil verify "${images[0]}"
-      - name: Probe the packaged CLI resource tree
+      - name: Qualify Desktop through the shared project commands
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: desktop-check
+      - name: Prepare the exact Linux packaging tools
+        if: runner.os == 'Linux'
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+        with:
+          manifest: .github/tauri-tools.json
+          directory: ${{ runner.temp }}/ai-stp-tauri-cache/tauri
+      - name: Prepare the exact Windows packaging assets
+        if: runner.os == 'Windows'
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+        with:
+          manifest: .github/tauri-tools-windows.json
+          directory: ${{ runner.temp }}/ai-stp-tauri-windows
+      - name: Prepare the SDK's native Windows tool layout
+        if: runner.os == 'Windows'
         shell: bash
         run: >-
-          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml --
-          desktop-package-probe
+          python release_scripts/desktop_tools.py
+          --prepare-windows "${RUNNER_TEMP}/ai-stp-tauri-windows"
+      - name: Tauri build
+        env:
+          XDG_CACHE_HOME: ${{ runner.temp }}/ai-stp-tauri-cache
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-desktop-tauri-build
+      - name: Verify the macOS disk image
+        if: runner.os == 'macOS'
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-desktop-verify-the-macos-disk-image
+      - name: Probe the packaged CLI resource tree
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-desktop-probe-the-packaged-cli-resource-tree
+      - name: Retain built Linux bytes before installed diagnosis
+        if: runner.os == 'Linux' && !inputs.packages_only
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: desktop-build-linux
+          path: apps/desktop/src-tauri/target/release/bundle/
+          if-no-files-found: error
+          retention-days: 7
       - name: Install the release package on the disposable Linux runner
         if: runner.os == 'Linux' && !inputs.packages_only
         shell: bash
@@ -178,15 +172,11 @@ jobs:
           --root "${RUNNER_TEMP}/ai-stp-webdriver"
       - name: Three installed Linux Desktop journeys with bundled CLI and native vault
         if: runner.os == 'Linux' && !inputs.packages_only
-        shell: bash
-        run: |
-          set -euo pipefail
-          for round in 1 2 3; do
-            printf 'Installed Desktop journey %s/3\n' "${round}"
-            bash .github/scripts/check-native-secret-service.sh --installed-desktop
-            mv "${RUNNER_TEMP}/installed-desktop-proof.json" \
-              "${RUNNER_TEMP}/installed-desktop-proof-${round}.json"
-          done
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: >-
+            ci-desktop-three-installed-linux-desktop-journeys-with-bundled-cli-and-native-vault
       - name: Prepare the actual corporate API fixture on Linux
         if: runner.os == 'Linux' && !inputs.packages_only
         shell: bash
@@ -201,19 +191,12 @@ jobs:
           echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
       - name: Installed corporate onboarding, lost reply and original binding recovery
         if: runner.os == 'Linux' && !inputs.packages_only
-        shell: bash
         env:
           AI_STP_TEST_DB_URL: postgresql+asyncpg://ai_stp:ai_stp_dev@127.0.0.1:15434/ai_stp
-        run: |
-          set -euo pipefail
-          fixture_postgres="$(docker run --detach --name ai-stp-installed-corporate \
-            -e POSTGRES_USER=ai_stp -e POSTGRES_PASSWORD=ai_stp_dev -e POSTGRES_DB=ai_stp \
-            -p 127.0.0.1:15434:5432 \
-            docker.io/library/postgres:18@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722)"
-          trap 'docker rm --force "${fixture_postgres}" >/dev/null' EXIT
-          bash .github/scripts/wait-postgres.sh "${fixture_postgres}"
-          uv sync --locked
-          bash .github/scripts/check-native-secret-service.sh --installed-corporate-desktop
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-desktop-installed-corporate-onboarding-lost-reply-and-original-binding-recovery
       - name: Retain the public installed corporate checkout result
         if: runner.os == 'Linux' && !inputs.packages_only
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -228,6 +211,27 @@ jobs:
         with:
           name: installed-linux-desktop-proof
           path: ${{ runner.temp }}/installed-desktop-proof-*.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Prepare the exact installed performance baseline
+        if: runner.os == 'Linux' && !inputs.packages_only
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          manifest: .github/desktop-performance-baseline.json
+          directory: ${{ runner.temp }}/desktop-performance-baseline
+      - name: Compare installed startup and repeated navigation on the same worker
+        if: runner.os == 'Linux' && !inputs.packages_only
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: desktop-performance
+      - name: Retain the exact same-worker performance observations
+        if: runner.os == 'Linux' && !inputs.packages_only
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: installed-linux-desktop-performance
+          path: ${{ runner.temp }}/installed-desktop-performance.json
           if-no-files-found: error
           retention-days: 7
       - name: Seal the platform installers after native acceptance

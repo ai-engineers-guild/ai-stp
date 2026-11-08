@@ -39,6 +39,8 @@ jobs:
     timeout-minutes: 5
     outputs:
       wasi: ${{ steps.select.outputs.wasi }}
+      python: ${{ steps.sdk.outputs.python }}
+      uv: ${{ steps.sdk.outputs.uv }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -47,6 +49,16 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+      - name: Export the selected public SDK versions
+        id: sdk
+        run: |
+          echo "python=${PYTHON_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "uv=${UV_VERSION}" >> "${GITHUB_OUTPUT}"
+      - name: Check the project command grammar and formatting
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: just-fmt
       - name: Select only registered native experiment owners
         id: select
         env:
@@ -84,62 +96,23 @@ jobs:
           EVENT: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: python .github/scripts/check-source-secrets.py
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-secrets-verify-the-scanner-and-inspect-the-selected-source
   integration-python:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-26.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          fetch-depth: '0'
-          persist-credentials: 'false'
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Isolate this job's Python environment
-        run: |
-          set -euo pipefail
-          python_path="$(python -c 'import sys; print(sys.executable)')"
-          test -n "${python_path}"
-          {
-            echo "UV_PYTHON=${python_path}"
-            echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-integration-python"
-            echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
-          } >> "${GITHUB_ENV}"
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: ${{ runner.temp }}/uv-cache
-          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
-          restore-keys: ${{ runner.os }}-uv-
-      - name: Install pinned uv
-        run: |
-          set -euo pipefail
-          bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
-          echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
-      - name: Check source contracts and units without server services
-        run: |
-          set -euo pipefail
-          source .github/scripts/provider-safe-path.sh
-          ai_stp_use_provider_safe_path
-          uv sync --locked --group docs --group dev
-          uv run --locked ruff format --check .
-          uv run --locked ruff check .
-          uv run --locked pyright
-          uv run --locked python -m ai_stp_contracts.schemas --check schemas/v1
-          uv run --locked python -m ai_stp_contracts.inventory_record --check
-          uv run --locked python -m ai_stp_contracts.web_projections --check
-          uv run --locked python -m ai_stp_contracts.technology_seed --check
-          uv run --locked python release_scripts/provider_kit.py --check provider-kit/v3
-          uv run --locked python release_scripts/first_party_corpus_digests.py --check
-          uv run --locked python release_scripts/safety_requirements.py --check
-          uv run --locked python -m release_scripts.update_component_fixture --check
-          uv run --locked --group docs python docs_scripts/skill_projections.py --check
-          uv run --locked --group docs python docs_scripts/docs_lint.py
-          uv run --locked --group docs python docs_scripts/contract_lint.py
-          uv run --locked --group docs python -m yamllint -c docs_scripts/.yamllint.yml .
-          uv run --locked --group docs python -m unittest discover -s docs_scripts/tests -v
-          uv run --locked pytest -n 8 --dist=load -m 'not pg' tests/unit tests/contract
+    needs: native-experiments
+    uses: >-
+      NDDev-Technocracy-OpenNetwork/nddev-ci/.github/workflows/recipe.yml@2141b5788e0dbd7518781a125618def620600f13
+    with:
+      runner: ubuntu-26.04
+      timeout-minutes: 15
+      fetch-depth: 0
+      python-version: ${{ needs.native-experiments.outputs.python }}
+      uv-version: ${{ needs.native-experiments.outputs.uv }}
+      prepare: setup-python
+      recipe: ci-integration-python-check-source-contracts-and-units-without-server-services
   integration-web:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-26.04
@@ -167,31 +140,20 @@ jobs:
           key: ${{ runner.os }}-bun-${{ hashFiles('apps/web/bun.lock') }}
           restore-keys: ${{ runner.os }}-bun-
       - name: Web syntax, types and units
-        run: |
-          set -euo pipefail
-          cd apps/web
-          bun install --frozen-lockfile
-          AI_STP_WEB_PROFILE=public_saas bun x next typegen
-          bun run lint
-          bun run format:check
-          bun run type-check
-          bun run i18n:check
-          bun run test
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-integration-web-web-syntax-types-and-units
       - name: Desktop types and component units
-        run: |
-          set -euo pipefail
-          cd apps/desktop
-          python ../../release_scripts/desktop_version.py --check
-          bun install --frozen-lockfile
-          bun run format:check
-          bun run messages:check
-          bun x tsc --noEmit
-          bun x vitest run
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-integration-web-desktop-types-and-component-units
       - name: Documentation Markdown syntax
-        run: |
-          set -euo pipefail
-          (cd docs_scripts && bun install --frozen-lockfile)
-          python docs_scripts/run_markdownlint.py
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-integration-web-documentation-markdown-syntax
   integration-native:
     if: github.event_name == 'pull_request'
     name: integration-native-${{ matrix.os }}
@@ -236,36 +198,22 @@ jobs:
           cache-bin: 'false'
           save-if: 'false'
       - name: Native formatting, all-target analysis and library units
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- resources --check
-          cargo fmt --manifest-path apps/cli/Cargo.toml --check
-          cargo fmt --manifest-path apps/cli/xtask/Cargo.toml --check
-          cargo clippy --locked --manifest-path apps/cli/xtask/Cargo.toml \
-            --all-targets -- -D warnings
-          cargo test --locked --manifest-path apps/cli/xtask/Cargo.toml
-          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- build \
-            cargo clippy --locked --all-targets -- -D warnings
-          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- build \
-            cargo test --locked --lib
-          cargo fmt --manifest-path apps/desktop/core/Cargo.toml --check
-          cargo clippy --locked --manifest-path apps/desktop/core/Cargo.toml \
-            --all-targets -- -D warnings
-          cargo test --locked --manifest-path apps/desktop/core/Cargo.toml
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-integration-native-native-formatting-all-target-analysis-and-library-units
       - name: Existing native vault and independent CLI processes
         if: runner.os != 'Linux'
-        shell: bash
-        run: >-
-          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- build
-          cargo test --locked --test enrollments_native
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-integration-native-existing-native-vault-and-independent-cli-processes
       - name: Public native configuration across independent CLI processes
         if: runner.os != 'Linux'
-        shell: bash
-        run: >-
-          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- build
-          cargo test --locked --test enrollments_native
-          public_native_configuration_keeps_original_context_across_cli_restarts -- --ignored
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-integration-native-public-native-configuration-across-independent-cli-processes
       - name: Install the isolated Linux credential fixture
         if: runner.os == 'Linux'
         shell: bash
@@ -275,10 +223,12 @@ jobs:
             dbus-daemon gnome-keyring libglib2.0-bin
       - name: Fresh concurrent Linux clients and independent CLI processes
         if: runner.os == 'Linux'
-        shell: bash
         env:
           AI_STP_NATIVE_VAULT_ROUNDS: '10'
-        run: bash .github/scripts/check-native-secret-service.sh
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-integration-native-fresh-concurrent-linux-clients-and-independent-cli-processes
 
   desktop:
     if: github.event_name != 'pull_request'
@@ -462,27 +412,16 @@ jobs:
             '.github/scripts/build-previous-native-cli.sh',
             '.github/scripts/previous-native-cache.py', '.github/workflows/check.yml') }}
       - name: Native boundary checks
-        working-directory: apps/cli
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- resources --check
-          cargo fmt --check
-          cargo fmt --manifest-path xtask/Cargo.toml --check
-          cargo clippy --locked --manifest-path xtask/Cargo.toml --all-targets -- -D warnings
-          cargo test --locked --manifest-path xtask/Cargo.toml
-          cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
-            cargo clippy --locked --all-targets -- -D warnings
-          cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build cargo test --locked
-          cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
-            cargo build --locked --release --bins --examples
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-cli-native-boundary-checks
       - name: Public native configuration across independent CLI processes
         if: runner.os != 'Linux'
-        shell: bash
-        run: >-
-          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- build
-          cargo test --locked --test enrollments_native
-          public_native_configuration_keeps_original_context_across_cli_restarts -- --ignored
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-integration-native-public-native-configuration-across-independent-cli-processes
       - name: Install the isolated Linux credential fixture
         if: runner.os == 'Linux'
         shell: bash
@@ -492,62 +431,53 @@ jobs:
             dbus-daemon gnome-keyring libglib2.0-bin
       - name: Actual Linux Secret Service enrollment and recovery
         if: runner.os == 'Linux'
-        shell: bash
         env:
           AI_STP_NATIVE_VAULT_ROUNDS: ${{ inputs.native_vault_rounds || '100' }}
-        run: bash .github/scripts/check-native-secret-service.sh
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-integration-native-fresh-concurrent-linux-clients-and-independent-cli-processes
       - name: Existing consumers and real SQLite backup
-        shell: bash
-        run: |
-          set -euo pipefail
-          binary="$(
-            cd apps/cli &&
-              cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- cli-binary
-          )"
-          printf 'AI_STP_TEST_CLI_BINARY=%s\n' "$binary" >> "${GITHUB_ENV}"
-          uv run --no-sync python tests/native_contract/verify.py "$binary"
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-cli-existing-consumers-and-real-sqlite-backup
       - name: Build the immutable previous schema58 native writer
         if: runner.os == 'Linux'
-        shell: bash
-        run: bash .github/scripts/build-previous-native-cli.sh 58
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-cli-build-the-immutable-previous-schema58-native-writer
       - name: Build the qualified previous schema59 binding writer
         if: runner.os == 'Linux'
-        shell: bash
-        run: bash .github/scripts/build-previous-native-cli.sh 59
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-cli-build-the-qualified-previous-schema59-binding-writer
       - name: Verify the immutable released schema60 native writer
         if: runner.os == 'Linux'
-        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >-
-          python3 .github/scripts/released-previous-native-cli.py
-          "${RUNNER_TEMP}/ai-stp-previous-native-60-release"
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-cli-verify-the-immutable-released-schema60-native-writer
       - name: Verify the immutable released schema61 native writer
         if: runner.os == 'Linux'
-        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >-
-          python3 .github/scripts/released-previous-native-cli.py
-          "${RUNNER_TEMP}/ai-stp-previous-native-61-release" --schema 61
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-cli-verify-the-immutable-released-schema61-native-writer
       - name: Ownership and corporate journeys through the native HTTP client
         if: runner.os == 'Linux'
-        shell: bash
         env:
           AI_STP_TEST_DB_URL: postgresql+asyncpg://ai_stp:ai_stp_dev@127.0.0.1:15432/ai_stp
-        run: |
-          set -euo pipefail
-          docker run --detach --name ai-stp-native-ownership \
-            -e POSTGRES_USER=ai_stp -e POSTGRES_PASSWORD=ai_stp_dev -e POSTGRES_DB=ai_stp \
-            -p 127.0.0.1:15432:5432 \
-            docker.io/library/postgres:18@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
-          trap 'docker rm --force ai-stp-native-ownership >/dev/null' EXIT
-          bash .github/scripts/wait-postgres.sh ai-stp-native-ownership
-          uv sync --locked
-          uv run --locked python -m tests.native_contract.verify_ownership \
-            "${AI_STP_TEST_CLI_BINARY}"
-          uv run --locked python -m tests.native_contract.verify_corporate \
-            "${AI_STP_TEST_CLI_BINARY}"
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-cli-ownership-and-corporate-journeys-through-the-native-http-client
       - name: Cache previous native builds after API acceptance
         if: >-
           success() && github.event_name == 'push' && github.ref == 'refs/heads/main' &&
@@ -618,37 +548,22 @@ jobs:
           bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
           echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
       - name: Prepare and check the documentation
-        run: |
-          set -euo pipefail
-          source .github/scripts/provider-safe-path.sh
-          ai_stp_use_provider_safe_path
-          uv sync --locked --group docs --group dev
-          # A subshell, not `cd … && … && cd ..`: when the install failed, the
-          # trailing `cd ..` was skipped and every command after it ran from
-          # `docs_scripts`, so the job's first real error was a confusing
-          # `docs_scripts/docs_scripts/docs_lint.py`.
-          (cd docs_scripts && bun install --frozen-lockfile)
-          uv run --locked --group docs python docs_scripts/docs_lint.py
-          uv run --locked --group docs python docs_scripts/contract_lint.py
-          uv run --locked --group docs python docs_scripts/run_markdownlint.py
-          uv run --locked --group docs python -m yamllint -c docs_scripts/.yamllint.yml .
-          uv run --locked --group docs python -m unittest discover -s docs_scripts/tests -v
-          uv run --locked --group docs python -m mkdocs build --strict -f docs_scripts/mkdocs.yml
-          uv run --locked --group docs python -m mkdocs build --strict \
-            -f docs_scripts/user-mkdocs.yml
-          uv run --locked --group docs python docs_scripts/mermaid_check.py
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-docs-prepare-and-check-the-documentation
       - name: Build the pinned production docs image
         timeout-minutes: 15
-        run: >-
-          docker build --file deploy/docker/Dockerfile.docs --target prod
-          --tag ai-stp-docs-qualified:${{ github.sha }} .
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-docs-build-the-pinned-production-docs-image
       - name: Qualify the actual unprivileged docs process and both languages
         timeout-minutes: 3
-        run: >-
-          timeout --signal=TERM --kill-after=35s 120s
-          python .github/scripts/qualify-docs-runtime.py
-          --image ai-stp-docs-qualified:${{ github.sha }} --source ${{ github.sha }}
-          --proof "${RUNNER_TEMP}/docs-runtime-proof.json"
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-docs-qualify-the-actual-unprivileged-docs-process-and-both-languages
       - name: Retain the public docs runtime result
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
@@ -700,27 +615,10 @@ jobs:
           bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
           echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
       - name: Static analysis, packaging and the install regression
-        run: |
-          set -euo pipefail
-          source .github/scripts/provider-safe-path.sh
-          ai_stp_use_provider_safe_path
-          uv sync --locked --group docs --group dev
-          uv run --locked ruff format --check .
-          uv run --locked ruff check .
-          uv run --locked pyright
-          uv run --locked python -m ai_stp_contracts.schemas --check schemas/v1
-          uv run --locked python -m ai_stp_contracts.inventory_record --check
-          uv run --locked python -m ai_stp_contracts.web_projections --check
-          uv run --locked python -m ai_stp_contracts.technology_seed --check
-          uv run --locked python release_scripts/provider_kit.py --check provider-kit/v3
-          uv run --locked python release_scripts/first_party_corpus_digests.py --check
-          uv run --locked python release_scripts/safety_requirements.py --check
-          uv run --locked python -m release_scripts.update_component_fixture --check
-          uv run --locked --group docs python docs_scripts/skill_projections.py --check
-          rm -rf dist
-          uv build --all-packages --out-dir dist -q
-          bash release_scripts/clean_install_regress.sh
-
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-package-static-analysis-packaging-and-the-install-regression
   tests:
     if: github.event_name != 'pull_request'
     name: tests-${{ matrix.shard }}
@@ -735,21 +633,31 @@ jobs:
           # a 4-vCPU runner is deliberate: the suite waits on the database
           # and on subprocesses, not on cores (ADR-0116).
           - shard: api
-            extra: tests/api
+            arguments:
+              - "tests/api"
           - shard: integration
-            extra: tests/integration
+            arguments:
+              - "tests/integration"
           - shard: scenario
-            extra: tests/scenario
+            arguments:
+              - "tests/scenario"
           - shard: unit-platform
-            extra: tests/unit/platform
+            arguments:
+              - "tests/unit/platform"
           - shard: unit-api
-            extra: tests/unit/api
+            arguments:
+              - "tests/unit/api"
           - shard: unit
-            extra: tests/unit --ignore=tests/unit/platform --ignore=tests/unit/api
+            arguments:
+              - "tests/unit"
+              - "--ignore=tests/unit/platform"
+              - "--ignore=tests/unit/api"
           - shard: contract
-            extra: tests/contract
+            arguments:
+              - "tests/contract"
           - shard: property
-            extra: tests/property
+            arguments:
+              - "tests/property"
     services:
       postgres:
         # GitHub-hosted runners are exempt from public Docker Hub pull limits.
@@ -813,13 +721,11 @@ jobs:
           AI_STP_TEST_DB_URL: postgresql+asyncpg://ai_stp:ai_stp_dev@127.0.0.1:5432/ai_stp
           COVERAGE_FILE: .coverage.${{ matrix.shard }}
           COVERAGE_CORE: sysmon
-        run: |
-          set -euo pipefail
-          source .github/scripts/provider-safe-path.sh
-          ai_stp_use_provider_safe_path
-          uv sync --locked --group dev
-          uv run --locked pytest -n 8 --dist=load \
-            ${{ matrix.extra }}
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-tests-run-a-shard-of-the-test-suite
+          arguments: ${{ toJSON(matrix.arguments) }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-${{ matrix.shard }}
@@ -871,15 +777,10 @@ jobs:
           pattern: coverage-*
           merge-multiple: true
       - name: Combine shard coverage and report
-        run: |
-          set -euo pipefail
-          uv sync --locked --group dev
-          uv run --locked coverage combine \
-            .coverage.api .coverage.integration .coverage.scenario \
-            .coverage.unit-platform .coverage.unit-api .coverage.unit \
-            .coverage.contract .coverage.property
-          uv run --locked coverage report --precision=2
-
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-coverage-combine-shard-coverage-and-report
   # Lint, types, production build, audit and Storybook are Linux-only: they
   # do not read the host OS the way the test suites do. Unit, e2e and feature
   # profiles run on three operating systems (ADR-0116). Browser jobs pay for
@@ -927,22 +828,18 @@ jobs:
             ${{ runner.os }}-next-${{ hashFiles('apps/web/bun.lock') }}-
             ${{ runner.os }}-next-
       - name: Build, static-check, audit and Storybook
-        run: |
-          set -euo pipefail
-          cd apps/web
-          bun install --frozen-lockfile
-          AI_STP_WEB_PROFILE=public_saas bun run build
-          bun run i18n:check
-          bun run lint
-          bun run format:check
-          bun run type-check
-          bun run audit
-          bun run build-storybook
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-web-static-build-static-check-audit-and-storybook
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Dependency advisory scan with bounded source assessments
-        run: bash scripts/safety/scan_lockfile.sh
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-web-static-dependency-advisory-scan-with-bounded-source-assessments
 
   web-unit:
     if: github.event_name != 'pull_request'
@@ -997,13 +894,10 @@ jobs:
           key: ${{ runner.os }}-bun-${{ hashFiles('apps/web/bun.lock') }}
           restore-keys: ${{ runner.os }}-bun-
       - name: Unit and component tests
-        run: |
-          set -euo pipefail
-          cd apps/web
-          bun install --frozen-lockfile
-          bun run test:coverage
-          bun run test:coverage:catalog
-
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-web-unit-unit-and-component-tests
   web-e2e:
     if: github.event_name != 'pull_request'
     name: web-e2e (${{ matrix.os }}, ${{ matrix.shard }}/2)
@@ -1041,7 +935,10 @@ jobs:
           key: ${{ runner.os }}-bun-${{ hashFiles('apps/web/bun.lock') }}
           restore-keys: ${{ runner.os }}-bun-
       - name: Ensure a Google Chrome is present
-        run: bash .github/scripts/ensure-chrome.sh
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-web-e2e-ensure-a-google-chrome-is-present
       - name: Cache the Next.js build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
@@ -1056,25 +953,11 @@ jobs:
             ${{ runner.os }}-next-${{ hashFiles('apps/web/bun.lock') }}-
             ${{ runner.os }}-next-
       - name: Build and run the browser scenarios
-        run: |
-          set -euo pipefail
-          cd apps/web
-          bun install --frozen-lockfile
-          AI_STP_WEB_PROFILE=public_saas bun run build
-          # Two shards, not four, and the difference was measured rather than
-          # reasoned about. Four shards do split the suite correctly —
-          # 46/44/46/44 whose union is exactly 180 — and bought nothing: the
-          # slowest Windows shard ran 269s against 262s at two. The tests were
-          # never the cost. Before one of them runs, the Windows leg spends
-          # ~140s installing bun and restoring its cache and another ~120s
-          # building Next.js, and splitting the list pays that fixed cost on
-          # four runners instead of two. It also put six more jobs in a queue
-          # that was already the binding constraint, and the run got slower.
-          #
-          # Serial execution is untouched — `fullyParallel: false` and one
-          # worker still hold inside each shard, so the process-local mock
-          # state the suite depends on is exactly as isolated as before.
-          bun run test:e2e -- --shard=${{ matrix.shard }}/2
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-web-e2e-build-and-run-the-browser-scenarios
+          arguments: ${{ format('["{0}"]', matrix.shard) }}
       # A failing browser scenario used to end here, leaving a line of console
       # output and nothing to diagnose it with: whether the biography never
       # reached the catalogue, reached it and did not render, or rendered after
@@ -1126,7 +1009,10 @@ jobs:
           key: ${{ runner.os }}-bun-${{ hashFiles('apps/web/bun.lock') }}
           restore-keys: ${{ runner.os }}-bun-
       - name: Ensure a Google Chrome is present
-        run: bash .github/scripts/ensure-chrome.sh
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-web-e2e-ensure-a-google-chrome-is-present
       - name: Cache the Next.js build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
@@ -1141,8 +1027,7 @@ jobs:
             ${{ runner.os }}-next-${{ hashFiles('apps/web/bun.lock') }}-
             ${{ runner.os }}-next-
       - name: Feature profile builds
-        run: |
-          set -euo pipefail
-          cd apps/web
-          bun install --frozen-lockfile
-          bun run test:feature-profiles
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-web-profiles-feature-profile-builds

@@ -24,11 +24,13 @@ pub struct CliError {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct Continuation {
     pub kind: String,
     #[serde(default)]
     pub path: Vec<String>,
     #[serde(default)]
+    #[cfg_attr(test, ts(type = "unknown"))]
     pub arguments: Value,
     #[serde(default)]
     pub missing: Vec<String>,

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "version": "0.4.2",
+  "source_commit": "682e6939fb38b4151d974e9e540d9b334527482b",
+  "assets": [
+    {
+      "repository": "ai-engineers-guild/ai-stp",
+      "asset": 723008983,
+      "size": 20268630,
+      "sha256": "a8d4f9535dab9cfb345130142cd3c6dbf180c5bd21517212d92a0cb4dd1fcf13",
+      "file": "ai-stp-desktop_0.4.2_amd64.deb"
+    }
+  ]
+}

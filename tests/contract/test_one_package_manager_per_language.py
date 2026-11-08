@@ -35,6 +35,7 @@ WATCHED = ("npm", "npx", "pip", "pipx", "pnpm", "poetry", "yarn")
 #: Files that make up the toolchain: what CI runs and what a developer runs.
 def _toolchain(root: Path = ROOT) -> dict[str, str]:
     paths: list[Path] = [root / "justfile"]
+    paths.extend(sorted((root / ".github").glob("*.just")))
     for directory in (root / ".github" / "workflows", root / ".github" / "scripts"):
         if directory.is_dir():
             paths.extend(sorted(directory.rglob("*")))
@@ -55,8 +56,9 @@ def test_toolchain_reads_source_without_decoding_generated_bytecode(tmp_path: Pa
     (tmp_path / "justfile").write_text("check:\n    uv run check\n")
     source = "pip install forbidden-package\n"
     (scripts / "probe.py").write_text(source)
+    (scripts.parent / "ci.just").write_text("probe:\n    pip install forbidden-package\n")
     observed = _toolchain(tmp_path)
-    assert set(observed) == {"justfile", ".github/scripts/probe.py"}
+    assert set(observed) == {"justfile", ".github/scripts/probe.py", ".github/ci.just"}
     assert observed[".github/scripts/probe.py"] == source
 
 
@@ -124,15 +126,13 @@ def test_the_toolchain_invokes_only_uv_and_bun() -> None:
     offences: list[str] = []
     for name, text in _toolchain().items():
         commands = _commands(text, Path(name).suffix).replace("uv pip ", "uv-pip ")
-        if name == ".github/workflows/cli-archives.yml":
+        if name == ".github/scripts/qualify-native-wheel.sh":
             # Consumer qualification must exercise real pip. This one isolated
             # install reads only the built wheel, without indexes or dependencies;
             # repository environments and build tools still use uv exclusively.
-            commands = commands.replace(
-                '"${pip_python}" -m pip install --no-index --no-deps "${wheel}"',
-                "",
-                1,
-            )
+            consumer = '"${pip_python}" -m pip install --no-index --no-deps "${wheel}"'
+            assert commands.count(consumer) == 1, "The isolated real pip consumer probe is missing"
+            commands = commands.replace(consumer, "", 1)
         for match in pattern.finditer(commands):
             line = commands[: match.start()].count("\n") + 1
             offences.append(f"{name}:{line}: {match.group(1)}")

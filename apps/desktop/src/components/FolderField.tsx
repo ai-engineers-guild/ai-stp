@@ -1,3 +1,4 @@
+import { iconSize } from "../generated/theme";
 import { useRef, useState, useEffect, useId } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { FolderOpen } from "lucide-react";
@@ -75,7 +76,7 @@ export default function FolderField({
           aria-label={`${t("setup.folderBrowse")}: ${label}`}
           onClick={() => void choose()}
         >
-          <FolderOpen size={16} aria-hidden="true" />
+          <FolderOpen style={iconSize.sm} aria-hidden="true" />
           <span>{t("setup.folderBrowse")}</span>
         </button>
       </div>

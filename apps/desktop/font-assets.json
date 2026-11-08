@@ -1,0 +1,9 @@
+{
+  "weights": [400, 500],
+  "packages": [
+    "@fontsource/ibm-plex-sans",
+    "@fontsource/ibm-plex-mono",
+    "@fontsource/ibm-plex-sans-arabic",
+    "@fontsource/noto-sans-sc"
+  ]
+}

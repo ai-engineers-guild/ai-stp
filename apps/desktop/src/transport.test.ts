@@ -28,7 +28,53 @@ import {
   cmdSetupAcquisitionApply,
 } from "./transport";
 import { useDebug } from "./store";
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+  isTauri: () => false,
+}));
+
+it.each([[], 42, "not-object", undefined])(
+  "refuses non-object IPC data while retaining the original reply: %j",
+  async (data) => {
+    const reply = {
+      ok: true,
+      data,
+      warnings: [],
+      continuations: [],
+      error: null,
+      error_code: null,
+    };
+    vi.mocked(invoke).mockResolvedValue(reply);
+    const result = await cmdVersion();
+    expect(result.ok).toBe(false);
+    expect(result.error_code).toBe("DESKTOP_REPLY_INVALID");
+    expect(result.data).toBeNull();
+    expect(result.error_details).toEqual({ original_reply: reply });
+  },
+);
+
+it("preserves opaque native error details and unknown continuation actors", async () => {
+  const reply = {
+    ok: false,
+    data: null,
+    warnings: [],
+    continuations: [
+      {
+        kind: "wait",
+        path: [],
+        arguments: {},
+        missing: [],
+        argv: [],
+        actor: "future-executor",
+      },
+    ],
+    error: "original explanation",
+    error_code: "ORIGINAL_CODE",
+    error_details: ["original", { value: 42 }],
+  };
+  vi.mocked(invoke).mockResolvedValue(reply);
+  expect(await cmdVersion()).toBe(reply);
+});
 
 it("omits personal task replies, retained ownership and free prose from shared diagnostics", async () => {
   useDebug.setState({ debugMode: true });
