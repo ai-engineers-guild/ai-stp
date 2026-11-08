@@ -50,24 +50,7 @@ jobs:
           EXPECTED_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          for m in \
-            apps/desktop/package.json \
-            apps/desktop/src-tauri/tauri.conf.json; do
-            actual=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$m" | head -1)
-            [[ "${actual}" == "${EXPECTED_VERSION}" ]] || {
-              echo "${m} has ${actual}, tag wants ${EXPECTED_VERSION}" >&2
-              exit 1
-            }
-          done
-          for m in \
-            apps/desktop/src-tauri/Cargo.toml \
-            apps/desktop/core/Cargo.toml; do
-            actual=$(sed -n 's/^version = "\([^"]*\)"/\1/p' "$m" | head -1)
-            [[ "${actual}" == "${EXPECTED_VERSION}" ]] || {
-              echo "${m} has ${actual}, tag wants ${EXPECTED_VERSION}" >&2
-              exit 1
-            }
-          done
+          python release_scripts/desktop_version.py --check --expected "${EXPECTED_VERSION}"
 
       - name: Require the exact currently qualified main source
         env:

@@ -582,16 +582,18 @@ cli-check: cli-static cli-test cli-build cli-regress
 # native build is never replaced. Compiled checks need Rust and WebKitGTK;
 # desktop.yml also qualifies the installed application on native runners.
 
-# Formats both Rust crates (writes only).
-[doc('Format the two Rust crates')]
+# Projects the canonical Desktop version and formats both Rust crates.
+[doc('Project Desktop version metadata and format the two Rust crates')]
 [group('desktop')]
 desktop-gen:
+    {{ run }} python release_scripts/desktop_version.py
     cd apps/desktop/core && cargo fmt
     cd apps/desktop/src-tauri && cargo fmt
 
 [doc('Desktop types and formatting without building a webview or sidecar')]
 [group('desktop')]
 desktop-source:
+    {{ run }} python release_scripts/desktop_version.py --check
     cd apps/desktop && bun run type-check
     cd apps/desktop && bun run format:check
     cd apps/desktop && bun run messages:check

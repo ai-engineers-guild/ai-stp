@@ -81,6 +81,7 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
         "cargo clippy --locked --all-targets -- -D warnings",
     ),
     "desktop-source": (
+        "release_scripts/desktop_version.py --check",
         "tsc --noEmit",
         "cargo fmt --check",
         "bun run format:check",
