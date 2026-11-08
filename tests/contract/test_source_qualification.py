@@ -397,8 +397,8 @@ gh() {
                 self.release_decision([fixtures.candidate()], fixtures.jobs(), output=output)
             )
             self.assertEqual(output.read_text(), "qualified_run_id=41\nqualified_run_attempt=1\n")
+            output.unlink()
             for field in ("id", "run_attempt"):
-                output.unlink()
                 self.assertFalse(
                     self.release_decision(
                         [fixtures.candidate() | {field: "41\nforged=1"}],
