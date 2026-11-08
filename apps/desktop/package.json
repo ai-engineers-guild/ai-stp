@@ -9,6 +9,7 @@
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
     "tauri": "tauri",
+    "lint:dependencies": "knip",
     "format": "prettier --write src scripts \"*.ts\" \"*.json\" \"src-tauri/capabilities/*.json\"",
     "format:check": "prettier --check src scripts \"*.ts\" \"*.json\" \"src-tauri/capabilities/*.json\"",
     "messages:check": "node scripts/check-messages.mjs"
@@ -43,6 +44,7 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.2.1",
     "jsdom": "31.0.0",
+    "knip": "6.44.1",
     "prettier": "3.9.10",
     "tailwindcss": "4.3.4",
     "typescript": "6.0.3",

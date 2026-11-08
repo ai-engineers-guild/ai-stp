@@ -7,7 +7,7 @@ import {
 } from "./transport";
 
 const prefix = "corporate heartbeat ";
-export const hash = (value: unknown): value is string =>
+const hash = (value: unknown): value is string =>
   typeof value === "string" && /^sha256:[0-9a-f]{64}$/.test(value);
 export function heartbeatSupported(
   help: CmdResult,

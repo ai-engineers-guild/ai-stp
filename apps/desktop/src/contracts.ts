@@ -14,7 +14,7 @@ import {
   taskActors,
 } from "./generated/contract-rules";
 
-export type Parameter = Pick<CommandParameter, "name"> &
+type Parameter = Pick<CommandParameter, "name"> &
   Partial<
     Pick<
       CommandParameter,
@@ -28,7 +28,7 @@ export type Descriptor = Pick<
   Partial<Pick<CommandDescriptor, "confirmation" | "parameter_rules">> & {
     parameters: Parameter[];
   };
-export type TaskQuestion = Pick<WireQuestion, "question_id" | "prompt"> &
+type TaskQuestion = Pick<WireQuestion, "question_id" | "prompt"> &
   Partial<Pick<WireQuestion, "actor" | "why" | "choices" | "recommended">>;
 export type PersonalTaskOwnership = NativePersonalTaskOwnership;
 export type TaskIntent = Pick<TaskIntentDescriptor, "name" | "when">;
