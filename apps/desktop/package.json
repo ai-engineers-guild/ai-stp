@@ -31,6 +31,9 @@
     "react-router": "^8.5.0",
     "zustand": "^5.0.16"
   },
+  "overrides": {
+    "js-yaml": "4.3.2"
+  },
   "devDependencies": {
     "@hey-api/openapi-ts": "0.99.0",
     "@tailwindcss/vite": "^4.3.3",
