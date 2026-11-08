@@ -69,7 +69,7 @@ def require_published(api: GitHub, head: str) -> None:
         and bool(release["published_at"]),
         "CLI release is not completely published",
     )
-    expected = set().union(*(names(version, target) for target in PLATFORMS))
+    expected = {name for target in PLATFORMS for name in names(version, target)}
     assets = release["assets"]
     require(
         len(assets) == len(expected) == 14

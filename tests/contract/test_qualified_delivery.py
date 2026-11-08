@@ -277,7 +277,7 @@ def delivery(tmp_path: Path) -> Delivery:
             "trace": [],
             "version": json.loads((ROOT / "apps/desktop/package.json").read_text())["version"],
             "cli_version": "0.3.1",
-            "cli_assets": sorted(set().union(*(names("0.3.1", target) for target in PLATFORMS))),
+            "cli_assets": sorted({name for target in PLATFORMS for name in names("0.3.1", target)}),
             "policies": [
                 json.loads((ROOT / f".github/{name}.ruleset.json").read_text()) for name in POLICIES
             ],
