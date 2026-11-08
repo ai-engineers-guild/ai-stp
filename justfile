@@ -628,6 +628,7 @@ desktop-source:
     cd apps/desktop && bun run type-check
     cd apps/desktop && bun run format:check
     cd apps/desktop && bun run messages:check
+    cd apps/desktop && bun run lint:dependencies
     cd apps/desktop/core && cargo fmt --check
     cd apps/desktop/src-tauri && cargo fmt --check
 

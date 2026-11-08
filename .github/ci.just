@@ -70,6 +70,7 @@ ci-integration-web-desktop-types-and-component-units:
     bun install --frozen-lockfile
     bun run format:check
     bun run messages:check
+    bun run lint:dependencies
     bun scripts/generate-messages.mjs --check
     bun scripts/generate-theme.mjs --check
     bun scripts/generate-fonts.mjs --check

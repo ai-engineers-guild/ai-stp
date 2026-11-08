@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { cmdTaskStart, type CmdResult } from "./transport";
 
-export interface StartRequest {
+interface StartRequest {
   intent: string;
   inputPath?: string;
   input?: Record<string, unknown>;
