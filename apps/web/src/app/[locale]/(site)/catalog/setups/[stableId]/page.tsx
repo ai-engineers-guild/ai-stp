@@ -195,15 +195,15 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
           <img
             src="/catalog-art/setup.webp"
             alt=""
-            className="bg-muted h-12 w-12 shrink-0 rounded-lg object-cover sm:h-16 sm:w-16"
+            className="h-12 w-12 shrink-0 rounded-lg bg-muted object-cover sm:h-16 sm:w-16"
           />
         }
         title={summary.latest_name}
         badges={
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="text-primary text-sm font-semibold">{t("setupKind")}</span>
-              <span className="text-muted-foreground text-sm">
+              <span className="text-sm font-semibold text-primary">{t("setupKind")}</span>
+              <span className="text-sm text-muted-foreground">
                 {t("version")} {summary.latest_version}
               </span>
               <Badge variant="secondary">{summary.latest_harness_id}</Badge>
@@ -360,7 +360,7 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
               <CorporateCatalogOwnerEditor ownership={corporateOwnership.ownership} />
             ) : null}
             {isFeatureEnabled("catalog_usage_metrics") && summary.usage_metrics != null ? (
-              <div className="border-border bg-card rounded-lg border p-4 shadow-sm">
+              <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
                 <CatalogUsageStats
                   metrics={summary.usage_metrics}
                   locale={locale}

@@ -68,7 +68,7 @@ export function TechnologyReviewHeader({ state }: { state: TechnologyReviewState
       </div>
       <header className="space-y-2">
         <h1>{scan ? w("scanTitle", { id: scan.scan_id }) : t("mappingTitle")}</h1>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           {w(scan ? "scanDescription" : "mappingDescription")}
         </p>
       </header>
@@ -183,7 +183,7 @@ export function TechnologyScanMetadata({ state }: { state: TechnologyReviewState
         </dl>
       )}
       {scan?.error && (
-        <p role="alert" className="border-destructive rounded-sm border p-3 text-sm">
+        <p role="alert" className="rounded-sm border border-destructive p-3 text-sm">
           {w("scanFailed")}
         </p>
       )}

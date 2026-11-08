@@ -70,7 +70,7 @@ export default async function TechnologyScansPage({
       </div>
       <header className="space-y-2">
         <h1>{s("title")}</h1>
-        <p className="text-muted-foreground text-sm">{w("journalDescription")}</p>
+        <p className="text-sm text-muted-foreground">{w("journalDescription")}</p>
       </header>
       <TechnologyScanJournal
         items={journal.scans.items}

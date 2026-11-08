@@ -92,17 +92,17 @@ export async function CorporateOverview({
           <li key={item.key}>
             <Link
               href={item.href}
-              className="border-border bg-card hover:bg-muted focus-visible:ring-ring flex min-h-28 items-center gap-4 rounded-lg border p-5 font-medium focus-visible:ring-2"
+              className="flex min-h-28 items-center gap-4 rounded-lg border border-border bg-card p-5 font-medium hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <span className="bg-muted grid size-12 shrink-0 place-items-center rounded-md">
+              <span className="grid size-12 shrink-0 place-items-center rounded-md bg-muted">
                 <Icon name={item.icon as IconName} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="text-muted-foreground block text-sm font-normal">
+                <span className="block text-sm font-normal text-muted-foreground">
                   {t(item.key)}
                 </span>
                 <span className="mt-1 block text-3xl tabular-nums">{item.count}</span>
-                <span className="text-muted-foreground mt-1 block text-xs font-normal">
+                <span className="mt-1 block text-xs font-normal text-muted-foreground">
                   {item.caption}
                 </span>
               </span>

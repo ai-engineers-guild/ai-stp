@@ -63,7 +63,7 @@ export function MarkdownEditor({
       </div>
       {mode === "preview" ? (
         <div
-          className="border-input bg-background prose-sm min-h-36 w-full overflow-x-auto rounded-sm border px-3 py-2 text-sm leading-relaxed [&_a]:underline [&_code]:font-mono [&_ol]:list-decimal [&_ol]:pl-5 [&_table]:w-full [&_ul]:list-disc [&_ul]:pl-5"
+          className="prose-sm min-h-36 w-full overflow-x-auto rounded-sm border border-input bg-background px-3 py-2 text-sm leading-relaxed [&_a]:underline [&_code]:font-mono [&_ol]:list-decimal [&_ol]:pl-5 [&_table]:w-full [&_ul]:list-disc [&_ul]:pl-5"
           aria-label={label}
           dangerouslySetInnerHTML={{ __html: rendered.html || "<p></p>" }}
         />
@@ -81,7 +81,7 @@ export function MarkdownEditor({
           }}
         />
       )}
-      <p className="text-muted-foreground font-mono text-xs">
+      <p className="font-mono text-xs text-muted-foreground">
         {value.length}/{maxLength}
       </p>
     </EntityEditorField>

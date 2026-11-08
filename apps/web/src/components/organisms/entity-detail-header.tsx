@@ -18,7 +18,7 @@ export function EntityDetailHeader({
   return (
     <header
       data-ui={UI.component.detailHeader}
-      className="border-border relative min-w-0 overflow-x-clip border-b pb-8"
+      className="relative min-w-0 overflow-x-clip border-b border-border pb-8"
     >
       {menu ? <div className="absolute top-0 right-0 z-10">{menu}</div> : null}
       <div className="flex min-w-0 items-start gap-3 pr-12 sm:gap-4">

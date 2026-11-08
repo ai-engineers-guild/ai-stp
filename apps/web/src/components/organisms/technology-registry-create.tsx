@@ -125,7 +125,7 @@ export function TechnologyRegistrySeed({
   const [busy, startTransition] = useTransition();
   return (
     <section className="max-w-prose space-y-3" aria-busy={busy}>
-      <p className="text-muted-foreground text-sm">{t("seedDescription")}</p>
+      <p className="text-sm text-muted-foreground">{t("seedDescription")}</p>
       <Button
         size="lg"
         disabled={busy}
@@ -361,7 +361,7 @@ export function TechnologyLifecycleControls({
   return (
     <section className="space-y-3" aria-busy={busy}>
       <h2 className="text-xl font-medium">{t("lifecycle")}</h2>
-      <p className="text-muted-foreground text-sm">{t("lifecycleDescription")}</p>
+      <p className="text-sm text-muted-foreground">{t("lifecycleDescription")}</p>
       <div className="flex flex-wrap gap-3">
         {allowed.map((target) => (
           <Button

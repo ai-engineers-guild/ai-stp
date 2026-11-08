@@ -13,7 +13,7 @@ type Story = StoryObj<typeof meta>;
 
 export const CardPlaceholder: Story = {
   render: () => (
-    <div className="border-border bg-card w-80 space-y-3 rounded-lg border p-4 shadow-sm">
+    <div className="w-80 space-y-3 rounded-lg border border-border bg-card p-4 shadow-sm">
       <Skeleton className="h-4 w-1/3" />
       <Skeleton className="h-6 w-2/3" />
       <Skeleton className="h-16 w-full" />

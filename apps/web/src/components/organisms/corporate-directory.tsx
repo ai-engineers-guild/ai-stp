@@ -76,7 +76,7 @@ function InlineCorporateCreate({
   const c = useTranslations("corporate");
   return (
     <form
-      className="border-border bg-card max-w-xl space-y-4 rounded-lg border p-5"
+      className="max-w-xl space-y-4 rounded-lg border border-border bg-card p-5"
       onSubmit={(event) => {
         event.preventDefault();
         onSubmit(event.currentTarget);
@@ -109,7 +109,7 @@ function InlineCorporateCreate({
               <Select
                 id="create-role"
                 name="role"
-                className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
+                className="min-h-11 w-full rounded-sm border border-input bg-background px-3 text-sm"
               >
                 {roles.map((role) => (
                   <option key={role} value={role}>
@@ -207,7 +207,7 @@ export function CorporateDirectory({
         <header className="min-w-0 space-y-2">
           <div className="min-w-0 space-y-2">
             <h1 className="text-4xl font-medium tracking-tight break-words">{t(titleKey)}</h1>
-            <p className="text-muted-foreground text-lg">{description}</p>
+            <p className="text-lg text-muted-foreground">{description}</p>
           </div>
         </header>
       ) : null}

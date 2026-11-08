@@ -410,7 +410,7 @@ function MemberSelection({
   return (
     <div
       aria-live="polite"
-      className="bg-muted flex items-center justify-between rounded-sm px-3 py-2 text-sm"
+      className="flex items-center justify-between rounded-sm bg-muted px-3 py-2 text-sm"
     >
       <span>{t("selected", { count })}</span>
       <div className="flex items-center gap-2">

@@ -249,12 +249,12 @@ export function CatalogResults({
                 {labels.resultsHeading}
               </h2>
               {showExperimental ? (
-                <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                   {labels.experimentalNote}
                 </p>
               ) : null}
             </div>
-            <p className="text-muted-foreground font-mono text-sm" aria-live="polite">
+            <p className="font-mono text-sm text-muted-foreground" aria-live="polite">
               {totalItems ?? rows.length}
             </p>
           </div>

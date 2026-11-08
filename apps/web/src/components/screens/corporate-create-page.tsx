@@ -45,7 +45,7 @@ export async function CorporateCreatePage({
         <header className="space-y-2">
           <Link
             href={`/corporate/${routeResource}`}
-            className="text-primary text-sm underline underline-offset-4"
+            className="text-sm text-primary underline underline-offset-4"
           >
             {c("backToWorkspace")}
           </Link>

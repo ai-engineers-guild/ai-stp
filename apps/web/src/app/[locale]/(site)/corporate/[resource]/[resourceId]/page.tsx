@@ -319,7 +319,6 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
         resource={resource === "roles" ? "teams" : resource}
         resourceId={resourceId}
         title={detail.name}
-
         meta={
           member?.job_title_name ? <Badge variant="secondary">{member.job_title_name}</Badge> : null
         }

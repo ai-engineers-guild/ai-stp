@@ -253,7 +253,7 @@ export function CorporateRelationSection({
                 </label>
               ) : null}
             </div>
-            <div className="border-border bg-card sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t py-5">
+            <div className="sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-card py-5">
               <Button
                 type="button"
                 variant="ghost"
@@ -294,11 +294,11 @@ export function CorporateRelationSection({
             ))}
           </ul>
         ) : (
-          <p className="text-muted-foreground py-2 text-sm">{labels.noMatches}</p>
+          <p className="py-2 text-sm text-muted-foreground">{labels.noMatches}</p>
         )}
         {total > PAGE_SIZE ? (
           <nav
-            className="border-border mt-4 flex items-center justify-between gap-3 border-t pt-4"
+            className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-4"
             aria-label={title}
           >
             <Button
@@ -311,7 +311,7 @@ export function CorporateRelationSection({
             >
               {labels.previous}
             </Button>
-            <span className="text-muted-foreground text-sm">
+            <span className="text-sm text-muted-foreground">
               {labels.page} {currentPage + 1} / {pageCount}
             </span>
             <Button

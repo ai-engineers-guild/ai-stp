@@ -112,7 +112,7 @@ export default async function TechnologyLandscapePage({
     <div className="technology-workspace technology-map-page space-y-2.5">
       <header className="space-y-1">
         <h1>{w("mapTitle")}</h1>
-        <p className="text-muted-foreground text-sm">{w("mapDescription")}</p>
+        <p className="text-sm text-muted-foreground">{w("mapDescription")}</p>
       </header>
       <TechnologyLandscapeFilters
         filters={filters}

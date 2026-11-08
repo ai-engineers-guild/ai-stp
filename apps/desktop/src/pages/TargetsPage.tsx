@@ -294,7 +294,7 @@ export default function TargetsPage() {
             ))}
           </ol>
           <section
-            className="card p-5 space-y-5"
+            className="card space-y-5 p-5"
             aria-label={t("targets.reviewSetup")}
           >
             <div>
@@ -311,7 +311,7 @@ export default function TargetsPage() {
             {hasSetup && (
               <div className="rounded-lg border border-border bg-background p-4">
                 <p className="eyebrow">{t("setup.selected")}</p>
-                <p className="mt-2 break-all font-mono text-sm">
+                <p className="mt-2 font-mono text-sm break-all">
                   {setup} · {version}
                 </p>
               </div>
@@ -373,7 +373,7 @@ export default function TargetsPage() {
                 </label>
               </div>
             </details>
-            <div className="border-t border-border pt-5 space-y-4">
+            <div className="space-y-4 border-t border-border pt-5">
               <div>
                 <h2 className="text-lg font-semibold">
                   {t("setup.folderTitle")}
@@ -464,7 +464,7 @@ export default function TargetsPage() {
                 </Link>
               </p>
             )}
-            <div className="border-t border-border pt-4 space-y-3">
+            <div className="space-y-3 border-t border-border pt-4">
               <p className="field-help">{t("setup.reviewHelp")}</p>
               {!hasFolders && (
                 <p className="field-help">{t("setup.folderRequired")}</p>
@@ -506,7 +506,7 @@ export default function TargetsPage() {
               )}
               <details className="technical-details mt-3">
                 <summary>{t("setup.operationDetails")}</summary>
-                <p className="break-all font-mono text-xs text-muted-foreground">
+                <p className="font-mono text-xs break-all text-muted-foreground">
                   {operation.operation}
                   <br />
                   {operation.digest}

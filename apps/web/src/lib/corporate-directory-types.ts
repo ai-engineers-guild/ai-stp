@@ -11,7 +11,13 @@ export type DirectoryRef = Pick<CorporateDirectoryReference, "id" | "name"> & {
 
 export type DirectoryResource = "teams" | "projects" | "technologies" | "members" | "components";
 export type DirectoryFacet =
-  "leads" | "teams" | "technologies" | "projects" | "categories" | "areas" | "job_titles";
+  | "leads"
+  | "teams"
+  | "technologies"
+  | "projects"
+  | "categories"
+  | "areas"
+  | "job_titles";
 export type CorporateCatalogFacet =
   | "team_ids"
   | "project_ids"

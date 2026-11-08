@@ -25,7 +25,7 @@ export function PassportJsonViewer({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-muted-foreground text-sm">{label}</p>
+        <p className="text-sm text-muted-foreground">{label}</p>
         <ClipboardIconButton
           value={json}
           label={copyLabel}
@@ -33,7 +33,7 @@ export function PassportJsonViewer({
           {...(errorLabel ? { errorLabel } : {})}
         />
       </div>
-      <pre className="bg-muted border-border max-h-[32rem] overflow-auto rounded-sm border p-3 font-mono text-xs leading-5">
+      <pre className="max-h-[32rem] overflow-auto rounded-sm border border-border bg-muted p-3 font-mono text-xs leading-5">
         <code>{highlightedJson(json)}</code>
       </pre>
     </div>

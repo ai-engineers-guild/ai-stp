@@ -8,7 +8,7 @@ function RadiusScale() {
       {Object.entries(radii).map(([name, value]) => (
         <div key={name} className="flex flex-col items-center gap-2">
           <div
-            className="border-border bg-secondary h-20 w-20 border-2"
+            className="h-20 w-20 border-2 border-border bg-secondary"
             style={{ borderRadius: value }}
           />
           <code className="font-mono text-xs">

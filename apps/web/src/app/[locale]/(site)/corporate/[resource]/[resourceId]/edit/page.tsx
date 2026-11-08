@@ -8,7 +8,7 @@ export default async function EditPage({
   return (
     <>
       <CorporateResourcePage params={params} searchParams={Promise.resolve({})} />
-      <CorporateEntityEditPage {...await params} />
+      <CorporateEntityEditPage {...(await params)} />
     </>
   );
 }

@@ -128,7 +128,7 @@ export default async function ComponentVersionPage({ params }: PageProps) {
         publicLabel={t("public")}
         privateLabel={t("private")}
       />
-      <p className="text-muted-foreground break-words">{passport.description}</p>
+      <p className="break-words text-muted-foreground">{passport.description}</p>
       <div className="flex flex-wrap gap-2">
         <Badge>{response.trust.trust_lane}</Badge>
         <Badge variant="secondary">{passport.component_type}</Badge>
@@ -146,46 +146,46 @@ export default async function ComponentVersionPage({ params }: PageProps) {
       <dl className="grid gap-3 sm:grid-cols-2">
         {response.lifecycle !== "active" ? (
           <div>
-            <dt className="text-muted-foreground text-sm">{t("lifecycle")}</dt>
+            <dt className="text-sm text-muted-foreground">{t("lifecycle")}</dt>
             <dd>{response.lifecycle}</dd>
           </div>
         ) : null}
         <div>
-          <dt className="text-muted-foreground text-sm">{t("publishedAt")}</dt>
+          <dt className="text-sm text-muted-foreground">{t("publishedAt")}</dt>
           <dd>{response.published_at}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-sm">{t("harness")}</dt>
+          <dt className="text-sm text-muted-foreground">{t("harness")}</dt>
           <dd>{harnesses.join(", ")}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-sm">{t("supportedOs")}</dt>
+          <dt className="text-sm text-muted-foreground">{t("supportedOs")}</dt>
           <dd>
             <OsBadgeList values={supportedOperatingSystems} empty={t("noneListed")} />
           </dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-sm">{t("type")}</dt>
+          <dt className="text-sm text-muted-foreground">{t("type")}</dt>
           <dd>{passport.component_type}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-sm">{t("projectionKind")}</dt>
+          <dt className="text-sm text-muted-foreground">{t("projectionKind")}</dt>
           <dd>{projectionKinds.join(", ") || t("noneListed")}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-sm">{t("license")}</dt>
+          <dt className="text-sm text-muted-foreground">{t("license")}</dt>
           <dd>{passport.license.spdx_id}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-sm">{t("requiresCredentials")}</dt>
+          <dt className="text-sm text-muted-foreground">{t("requiresCredentials")}</dt>
           <dd>{passport.requires_credentials ? tc("yes") : tc("no")}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-sm">{t("requiresAuthorization")}</dt>
+          <dt className="text-sm text-muted-foreground">{t("requiresAuthorization")}</dt>
           <dd>{passport.requires_authorization}</dd>
         </div>
         <div className="sm:col-span-2">
-          <dt className="text-muted-foreground text-sm">{t("publisher")}</dt>
+          <dt className="text-sm text-muted-foreground">{t("publisher")}</dt>
           <dd>
             <Link href={`/publishers/${publisherId}`} className="font-mono text-sm underline">
               {publisherId}
@@ -193,7 +193,7 @@ export default async function ComponentVersionPage({ params }: PageProps) {
           </dd>
         </div>
         <div className="sm:col-span-2">
-          <dt className="text-muted-foreground text-sm">{t("tags")}</dt>
+          <dt className="text-sm text-muted-foreground">{t("tags")}</dt>
           <dd className="flex flex-wrap gap-1">
             {passport.tags.map((tag) => (
               <Badge key={tag} variant="outline">
@@ -203,7 +203,7 @@ export default async function ComponentVersionPage({ params }: PageProps) {
           </dd>
         </div>
         <div className="sm:col-span-2">
-          <dt className="text-muted-foreground text-sm">{t("evidenceSummary")}</dt>
+          <dt className="text-sm text-muted-foreground">{t("evidenceSummary")}</dt>
           <dd>
             {passport.compatibility_evidence_refs.length === 0
               ? t("noEvidence")
@@ -211,15 +211,15 @@ export default async function ComponentVersionPage({ params }: PageProps) {
           </dd>
         </div>
         <div className="sm:col-span-2">
-          <dt className="text-muted-foreground text-sm">{t("passportDigest")}</dt>
+          <dt className="text-sm text-muted-foreground">{t("passportDigest")}</dt>
           <dd className="font-mono text-xs break-all">{response.passport_digest}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-sm">{t("authorVerified")}</dt>
+          <dt className="text-sm text-muted-foreground">{t("authorVerified")}</dt>
           <dd>{response.trust.author_verified ? tc("yes") : tc("no")}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-sm">{t("componentVerified")}</dt>
+          <dt className="text-sm text-muted-foreground">{t("componentVerified")}</dt>
           <dd>{response.trust.component_verified ? tc("yes") : tc("no")}</dd>
         </div>
       </dl>
@@ -263,9 +263,9 @@ export default async function ComponentVersionPage({ params }: PageProps) {
         publicLabel={t("public")}
         privateLabel={t("private")}
       />
-      <section id="report" className="border-border space-y-2 rounded-lg border p-3">
+      <section id="report" className="space-y-2 rounded-lg border border-border p-3">
         <h2 className="text-lg font-medium tracking-tight">{t("reportSection")}</h2>
-        <p className="text-muted-foreground text-sm">{t("reportSectionBody")}</p>
+        <p className="text-sm text-muted-foreground">{t("reportSectionBody")}</p>
         <p className="font-mono text-xs break-all">{canonical.web_url}</p>
       </section>
       <SupportSummary support={response.support} labels={supportLabels(t)} />

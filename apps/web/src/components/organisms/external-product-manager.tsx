@@ -70,16 +70,16 @@ export function ExternalProductManager(props: Props) {
   }
 
   return (
-    <section className="border-border min-w-0 space-y-4 rounded-lg border p-4">
+    <section className="min-w-0 space-y-4 rounded-lg border border-border p-4">
       <header className="space-y-1">
         <h3 className="text-lg font-medium">{t("servicesEditorTitle")}</h3>
-        <p className="text-muted-foreground text-sm">{t("servicesEditorHint")}</p>
+        <p className="text-sm text-muted-foreground">{t("servicesEditorHint")}</p>
       </header>
 
       {hasMultipleRelations ? (
-        <div className="border-border bg-muted/30 rounded-md border p-3 text-sm" role="alert">
+        <div className="rounded-md border border-border bg-muted/30 p-3 text-sm" role="alert">
           <p>{t("multipleServicesWarning")}</p>
-          <p className="text-muted-foreground mt-1 font-mono text-xs break-all">
+          <p className="mt-1 font-mono text-xs break-all text-muted-foreground">
             {props.selectedDomains.join(", ")}
           </p>
         </div>
@@ -176,15 +176,15 @@ function ServiceSelector({
       <span className="block">{labels.field}</span>
       <details
         ref={detailsRef}
-        className="border-input bg-background relative min-w-0 rounded-sm border"
+        className="relative min-w-0 rounded-sm border border-input bg-background"
       >
-        <summary className="focus-visible:ring-ring flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm marker:content-none focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm marker:content-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden">
           <span className="min-w-0 truncate">
             {selected ? `${selected.name} · ${selected.canonical_domain}` : labels.none}
           </span>
           <Icon name="chevronDown" size="sm" />
         </summary>
-        <div className="bg-popover border-border absolute top-[calc(100%+0.375rem)] right-0 left-0 z-50 min-w-0 space-y-2 rounded-sm border p-3 shadow-md">
+        <div className="absolute top-[calc(100%+0.375rem)] right-0 left-0 z-50 min-w-0 space-y-2 rounded-sm border border-border bg-popover p-3 shadow-md">
           <label className="sr-only" htmlFor="service-search">
             {labels.search}
           </label>
@@ -202,7 +202,7 @@ function ServiceSelector({
             role="radiogroup"
             aria-label={labels.field}
           >
-            <label className="hover:bg-muted flex min-h-11 cursor-pointer items-start gap-2 rounded-sm px-2 py-2 text-sm">
+            <label className="flex min-h-11 cursor-pointer items-start gap-2 rounded-sm px-2 py-2 text-sm hover:bg-muted">
               <input
                 type="radio"
                 name="external-service"
@@ -216,7 +216,7 @@ function ServiceSelector({
             {filtered.map((product) => (
               <label
                 key={product.canonical_domain}
-                className="hover:bg-muted flex min-h-11 cursor-pointer items-start gap-2 rounded-sm px-2 py-2 text-sm"
+                className="flex min-h-11 cursor-pointer items-start gap-2 rounded-sm px-2 py-2 text-sm hover:bg-muted"
               >
                 <input
                   type="radio"
@@ -228,11 +228,11 @@ function ServiceSelector({
                 />
                 <span className="min-w-0">
                   <span className="block break-words">{product.name}</span>
-                  <span className="text-muted-foreground block font-mono text-xs break-all">
+                  <span className="block font-mono text-xs break-all text-muted-foreground">
                     {product.canonical_domain}
                   </span>
                   {product.country_codes.length ? (
-                    <span className="text-muted-foreground mt-1 block text-xs">
+                    <span className="mt-1 block text-xs text-muted-foreground">
                       {labels.countries}: {product.country_codes.join(", ")}
                     </span>
                   ) : null}
@@ -240,9 +240,9 @@ function ServiceSelector({
               </label>
             ))}
             {!products.length ? (
-              <p className="text-muted-foreground px-2 py-2 text-sm">{labels.noOptions}</p>
+              <p className="px-2 py-2 text-sm text-muted-foreground">{labels.noOptions}</p>
             ) : filtered.length === 0 ? (
-              <p className="text-muted-foreground px-2 py-2 text-sm">{labels.noResults}</p>
+              <p className="px-2 py-2 text-sm text-muted-foreground">{labels.noResults}</p>
             ) : null}
           </div>
         </div>
@@ -257,13 +257,13 @@ function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
       type="button"
       aria-label={label}
       title={label}
-      className="group/add text-foreground hover:bg-accent focus-visible:ring-ring border-input relative grid h-11 w-11 shrink-0 place-items-center rounded-sm border focus-visible:ring-2 focus-visible:outline-none"
+      className="group/add relative grid h-11 w-11 shrink-0 place-items-center rounded-sm border border-input text-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       onClick={onClick}
     >
       <Icon name="plus" size="sm" />
       <span
         role="tooltip"
-        className="border-border bg-popover text-popover-foreground pointer-events-none absolute right-0 bottom-full z-[70] mb-2 hidden w-max max-w-[min(16rem,calc(100vw-2rem))] rounded-md border p-2 text-left text-xs font-normal shadow-md group-hover/add:block group-focus-visible/add:block"
+        className="pointer-events-none absolute right-0 bottom-full z-[70] mb-2 hidden w-max max-w-[min(16rem,calc(100vw-2rem))] rounded-md border border-border bg-popover p-2 text-left text-xs font-normal text-popover-foreground shadow-md group-hover/add:block group-focus-visible/add:block"
       >
         {label}
       </span>
@@ -530,7 +530,7 @@ function CountryRequestDialog({
             </Field>
           </div>
           {status ? (
-            <p className="text-destructive text-sm" role="alert">
+            <p className="text-sm text-destructive" role="alert">
               {status.text}
             </p>
           ) : null}
@@ -573,7 +573,7 @@ function Field({
       </span>
       {children}
       {help ? (
-        <span className="text-muted-foreground block text-xs leading-relaxed">{help}</span>
+        <span className="block text-xs leading-relaxed text-muted-foreground">{help}</span>
       ) : null}
     </label>
   );

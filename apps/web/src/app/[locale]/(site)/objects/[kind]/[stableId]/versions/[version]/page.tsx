@@ -55,24 +55,24 @@ export default async function OwnerVersionPage({ params }: PageProps) {
           publicLabel={tCatalog("public")}
           privateLabel={tCatalog("private")}
         />
-        <p className="text-muted-foreground font-mono text-xs tracking-wide uppercase">
+        <p className="font-mono text-xs tracking-wide text-muted-foreground uppercase">
           {detail.object_kind} · {detail.version}
         </p>
         <h1 className="text-3xl font-medium tracking-tight">{detail.name}</h1>
-        <p className="text-muted-foreground font-mono text-xs">{detail.stable_id}</p>
+        <p className="font-mono text-xs text-muted-foreground">{detail.stable_id}</p>
       </div>
 
-      <dl className="bg-muted/40 border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2">
+      <dl className="grid gap-3 rounded-lg border border-border bg-muted/40 p-4 sm:grid-cols-2">
         <div>
-          <dt className="text-muted-foreground font-mono text-xs">{t("lifecycle")}</dt>
+          <dt className="font-mono text-xs text-muted-foreground">{t("lifecycle")}</dt>
           <dd className="font-mono text-sm">{detail.lifecycle_state}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground font-mono text-xs">{t("visibility")}</dt>
+          <dt className="font-mono text-xs text-muted-foreground">{t("visibility")}</dt>
           <dd className="font-mono text-sm">{detail.visibility}</dd>
         </div>
         <div className="sm:col-span-2">
-          <dt className="text-muted-foreground font-mono text-xs">{t("digest")}</dt>
+          <dt className="font-mono text-xs text-muted-foreground">{t("digest")}</dt>
           <dd className="font-mono text-xs break-all">{detail.content_digest ?? "—"}</dd>
         </div>
       </dl>
@@ -89,7 +89,7 @@ export default async function OwnerVersionPage({ params }: PageProps) {
         </Badge>
       </div>
 
-      <p className="text-muted-foreground max-w-2xl text-sm">{t("eligibilityNote")}</p>
+      <p className="max-w-2xl text-sm text-muted-foreground">{t("eligibilityNote")}</p>
 
       <OwnerCoverage detail={detail} t={t} />
 
@@ -108,7 +108,7 @@ export default async function OwnerVersionPage({ params }: PageProps) {
       {detail.open_publication_plan_id ? (
         <Link
           href={`/publications/${detail.open_publication_plan_id}`}
-          className="text-primary text-sm font-medium underline-offset-4 hover:underline"
+          className="text-sm font-medium text-primary underline-offset-4 hover:underline"
           prefetch={false}
         >
           {t("openPlan")}
@@ -131,7 +131,7 @@ export default async function OwnerVersionPage({ params }: PageProps) {
 
       <Link
         href={`/reports?object_kind=${detail.object_kind}&stable_id=${detail.stable_id}&version=${detail.version}&digest=${encodeURIComponent(detail.content_digest ?? "")}`}
-        className="text-muted-foreground text-sm underline-offset-4 hover:underline"
+        className="text-sm text-muted-foreground underline-offset-4 hover:underline"
         prefetch={false}
       >
         {t("reportVersion")}
@@ -144,7 +144,7 @@ function OwnerCoverage({ detail, t }: { detail: OwnerVersionDetail; t: (key: str
   return (
     <>
       {detail.target_gaps.length ? (
-        <section className="border-border space-y-3 rounded-lg border p-4">
+        <section className="space-y-3 rounded-lg border border-border p-4">
           <h2 className="font-semibold">{t("targetGaps")}</h2>
           <ul className="space-y-2">
             {detail.target_gaps.map((gap) => (
@@ -153,7 +153,7 @@ function OwnerCoverage({ detail, t }: { detail: OwnerVersionDetail; t: (key: str
                   {gap.harness_id}
                   {gap.scope ? ` · ${gap.scope}` : ""} · {gap.state}
                 </p>
-                <p className="text-muted-foreground text-xs">
+                <p className="text-xs text-muted-foreground">
                   {t("nextAction")}: {gap.next_action}
                   {gap.reason_code ? ` · ${gap.reason_code}` : ""}
                 </p>
@@ -162,23 +162,23 @@ function OwnerCoverage({ detail, t }: { detail: OwnerVersionDetail; t: (key: str
           </ul>
         </section>
       ) : detail.object_kind === "component" ? (
-        <p className="text-muted-foreground text-sm">{t("targetGapsEmpty")}</p>
+        <p className="text-sm text-muted-foreground">{t("targetGapsEmpty")}</p>
       ) : null}
       {detail.family ? (
-        <section className="border-border space-y-2 rounded-lg border p-4">
+        <section className="space-y-2 rounded-lg border border-border p-4">
           <h2 className="font-semibold">{t("ownerFamily")}</h2>
           <p className="text-sm">
             {detail.family.name} · {t("ownerFamilyRevision")} {detail.family.revision}
           </p>
           {detail.family.diagnostics.length ? (
-            <ul className="text-muted-foreground list-inside list-disc text-sm">
+            <ul className="list-inside list-disc text-sm text-muted-foreground">
               {detail.family.diagnostics.map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
           ) : null}
           {detail.family.allowed_actions.length ? (
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm text-muted-foreground">
               {t("ownerFamilyActions")}: {detail.family.allowed_actions.join(", ")}
             </p>
           ) : null}

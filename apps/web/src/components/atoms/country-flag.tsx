@@ -40,7 +40,7 @@ export function CountryFlag({
   className?: string;
 }) {
   const frame = cn(
-    "border-border bg-muted relative flex shrink-0 items-center justify-center overflow-hidden rounded-sm border",
+    "relative flex shrink-0 items-center justify-center overflow-hidden rounded-sm border border-border bg-muted",
     compact ? "h-4 w-6" : "h-8 w-12",
     className,
   );
@@ -73,7 +73,7 @@ export function CountryFlag({
 
   return (
     <span className={frame} data-flag={code}>
-      <span className="text-muted-foreground font-mono text-[9px] font-medium tracking-wide">
+      <span className="font-mono text-[9px] font-medium tracking-wide text-muted-foreground">
         {/^[A-Z]{2}$/.test(normalized) ? normalized : "—"}
       </span>
     </span>

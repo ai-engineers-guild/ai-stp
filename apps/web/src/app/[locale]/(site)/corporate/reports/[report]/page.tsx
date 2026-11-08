@@ -28,7 +28,7 @@ function UsageStatusNotice({ data, t }: { data: RuntimeUsageReport; t: Translato
   return (
     <div
       role="status"
-      className="border-border bg-muted/30 mb-4 rounded-lg border px-4 py-3 text-sm"
+      className="mb-4 rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm"
     >
       {!data.usage_collection_enabled && <p>{t("usageCollectionOff")}</p>}
       {data.usage_collection_enabled && <p>{t("nativeCoveragePartial")}</p>}
@@ -149,7 +149,7 @@ async function UsageReportBody({
           },
         ]}
       />
-      <p className="text-muted-foreground mb-4 text-sm">
+      <p className="mb-4 text-sm text-muted-foreground">
         {t("summaryEmployees", { count: data.employees.length })} ·{" "}
         {t("summaryAssignments", {
           count: data.employees.reduce((sum, row) => sum + row.assigned_components, 0),
@@ -225,7 +225,7 @@ export default async function FutureCorporateReport({
           {t("title")}
         </Link>
         <h1 className="mt-6 text-3xl font-medium">{t(report)}</h1>
-        <p className="text-muted-foreground mt-2">{t("later")}</p>
+        <p className="mt-2 text-muted-foreground">{t("later")}</p>
       </main>
     );
   }
@@ -249,7 +249,7 @@ export default async function FutureCorporateReport({
         {t("title")}
       </Link>
       <h1 className="mt-6 text-3xl font-medium">{t("usage")}</h1>
-      <p className="text-muted-foreground mt-2 mb-6 text-sm">{t("usageSubtitle")}</p>
+      <p className="mt-2 mb-6 text-sm text-muted-foreground">{t("usageSubtitle")}</p>
       <UsageReportFilters
         context={context}
         employeeOptions={employeeOptions}

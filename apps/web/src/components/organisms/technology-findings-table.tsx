@@ -132,7 +132,7 @@ export function TechnologyFindingsTable({ state }: { state: TechnologyReviewStat
           </Table>
         </div>
         {!visible.length && (
-          <p role="status" className="text-muted-foreground py-8 text-center text-sm">
+          <p role="status" className="py-8 text-center text-sm text-muted-foreground">
             {w("noFindings")}
           </p>
         )}
@@ -215,7 +215,7 @@ export function TechnologyFindingTableRow({
       <Td>
         <span className="font-medium">{name}</span>
         {needsReview && (
-          <span className="text-muted-foreground mt-1 block text-sm">
+          <span className="mt-1 block text-sm text-muted-foreground">
             {w(`findingState.${findingStatus(row, state.names)}`)}
           </span>
         )}

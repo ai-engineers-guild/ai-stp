@@ -31,7 +31,7 @@ export default async function MachineLayout({ children, params }: MachineLayoutP
     >
       <a
         href="#main-content"
-        className="focus:bg-background focus:ring-ring sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-sm focus:px-3 focus:py-2 focus:ring-2"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-sm focus:bg-background focus:px-3 focus:py-2 focus:ring-2 focus:ring-ring"
       >
         {t("skipToContent")}
       </a>

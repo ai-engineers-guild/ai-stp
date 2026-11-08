@@ -17,7 +17,7 @@ export const DialogOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
-    className={cn("bg-scrim/60 fixed inset-0 z-50", className)}
+    className={cn("fixed inset-0 z-50 bg-scrim/60", className)}
     {...props}
   />
 ));
@@ -63,9 +63,9 @@ export const DialogContent = React.forwardRef<
           {children}
           <DialogPrimitive.Close
             className={cn(
-              "ring-offset-background bg-background absolute top-3 right-3 z-[60] rounded-sm p-2",
+              "absolute top-3 right-3 z-[60] rounded-sm bg-background p-2 ring-offset-background",
               "text-foreground opacity-70 transition-opacity hover:opacity-100",
-              "focus:ring-ring focus:ring-2 focus:outline-none",
+              "focus:ring-2 focus:ring-ring focus:outline-none",
             )}
           >
             <Icon name="close" size="sm" />
@@ -114,7 +114,7 @@ export const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-muted-foreground text-sm", className)}
+    className={cn("text-sm text-muted-foreground", className)}
     {...props}
   />
 ));

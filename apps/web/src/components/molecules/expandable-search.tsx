@@ -45,7 +45,7 @@ export function ExpandableSearch({
       </Button>
       {open ? (
         <form
-          className="border-border bg-card basis-full rounded-lg border p-3"
+          className="basis-full rounded-lg border border-border bg-card p-3"
           onSubmit={(event) => {
             event.preventDefault();
             onSubmit?.();
@@ -68,7 +68,7 @@ export function ExpandableSearch({
                 <Icon
                   name="search"
                   size="sm"
-                  className="text-muted-foreground absolute top-1/2 left-3 -translate-y-1/2"
+                  className="absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
                 />
               )}
               <Input

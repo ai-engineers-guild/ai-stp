@@ -8,7 +8,13 @@
 export type UsageOutcome = "succeeded" | "failed" | "cancelled";
 
 export type UsageGroupBy =
-  "component" | "setup" | "employee" | "device" | "project" | "harness" | "outcome";
+  | "component"
+  | "setup"
+  | "employee"
+  | "device"
+  | "project"
+  | "harness"
+  | "outcome";
 
 export type UsageReportRow = {
   group_value: string;

@@ -31,9 +31,9 @@ export function TechnologyLandscapeTable({ state }: { state: LandscapeState }) {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-2xl font-medium">{w("summary")}</h2>
-          <p className="text-muted-foreground text-sm">{w("summaryDescription")}</p>
+          <p className="text-sm text-muted-foreground">{w("summaryDescription")}</p>
         </div>
-        <p className="text-muted-foreground text-xs">
+        <p className="text-xs text-muted-foreground">
           {w("shown", { count: shown.length, total: landscape.total })}
         </p>
       </div>
@@ -136,7 +136,7 @@ export function TechnologyLandscapeTable({ state }: { state: LandscapeState }) {
         </Table>
       </div>
       {!shown.length && (
-        <p role="status" className="text-muted-foreground p-6 text-sm">
+        <p role="status" className="p-6 text-sm text-muted-foreground">
           {t("empty")}
         </p>
       )}

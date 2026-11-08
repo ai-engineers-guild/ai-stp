@@ -37,7 +37,7 @@ export function CompactChipList({
           <Link
             key={value}
             href={href}
-            className="focus-visible:ring-ring rounded-sm hover:underline focus-visible:ring-2 focus-visible:outline-none"
+            className="rounded-sm hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             {chip}
           </Link>
@@ -53,7 +53,7 @@ export function CompactChipList({
                 type="button"
                 className={cn(
                   badgeVariants({ variant }),
-                  "focus-visible:ring-ring relative cursor-pointer focus-visible:ring-2 focus-visible:outline-none",
+                  "relative cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
                 )}
                 aria-label={`${label}: ${unique.join(", ")}`}
               >
@@ -66,14 +66,14 @@ export function CompactChipList({
               sideOffset={8}
               className="w-max max-w-[min(18rem,calc(100vw-2rem))] p-2"
             >
-              <p className="text-muted-foreground mb-1 text-xs font-medium">{label}</p>
+              <p className="mb-1 text-xs font-medium text-muted-foreground">{label}</p>
               <div className="flex flex-wrap gap-1">
                 {unique.map((value) => {
                   const href = hrefForValue?.(value);
                   const chip = <Badge variant={variant}>{value}</Badge>;
                   return href ? (
                     <MenuItem key={value} asChild>
-                      <Link href={href} className="focus:bg-accent rounded-sm outline-none">
+                      <Link href={href} className="rounded-sm outline-none focus:bg-accent">
                         {chip}
                       </Link>
                     </MenuItem>

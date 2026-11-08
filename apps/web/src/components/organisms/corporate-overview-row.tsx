@@ -30,12 +30,12 @@ function OverviewDisclosure({
 }) {
   const panelId = useId();
   return (
-    <div className="border-border/70 bg-background/30 min-w-0 rounded-sm border">
+    <div className="min-w-0 rounded-sm border border-border/70 bg-background/30">
       <button
         type="button"
         aria-expanded={open}
         aria-controls={panelId}
-        className="hover:bg-muted/60 focus-visible:ring-ring flex min-h-9 w-full items-center justify-between gap-2 px-2 text-left text-xs font-medium focus-visible:ring-2 focus-visible:outline-none"
+        className="flex min-h-9 w-full items-center justify-between gap-2 px-2 text-left text-xs font-medium hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();
@@ -48,7 +48,7 @@ function OverviewDisclosure({
         <Icon name={open ? "chevronUp" : "chevronDown"} size="sm" className="shrink-0" />
       </button>
       {open && (
-        <div id={panelId} className="border-border/70 space-y-2 border-t p-2">
+        <div id={panelId} className="space-y-2 border-t border-border/70 p-2">
           {children}
         </div>
       )}
@@ -61,7 +61,7 @@ function AssignmentList({ node }: { node: CorporateOverviewNode }) {
   const [all, setAll] = useState(false);
   const [openGroups, setOpenGroups] = useState({ technology: true, component: true, setup: true });
   if (!node.assignments_readable)
-    return <p className="text-muted-foreground text-xs">{t("assignmentsRestricted")}</p>;
+    return <p className="text-xs text-muted-foreground">{t("assignmentsRestricted")}</p>;
   const assignments = [
     ...new Map(
       node.assignments.map((item) => [
@@ -198,7 +198,7 @@ function AssignmentList({ node }: { node: CorporateOverviewNode }) {
         </OverviewDisclosure>
       )}
       {!technologies.length && !components.length && !setups.length && (
-        <p className="text-muted-foreground text-xs">{t("noAssignments")}</p>
+        <p className="text-xs text-muted-foreground">{t("noAssignments")}</p>
       )}
     </div>
   );
@@ -278,9 +278,9 @@ export function TreeBranch({
                     key={lead.id}
                     href={corporateNodeHref(lead)}
                     prefetch={false}
-                    className="hover:text-primary focus-visible:ring-ring flex items-center gap-2 hover:underline focus-visible:ring-2 focus-visible:outline-none"
+                    className="flex items-center gap-2 hover:text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                   >
-                    <span className="bg-muted grid size-7 shrink-0 place-items-center rounded-full text-xs">
+                    <span className="grid size-7 shrink-0 place-items-center rounded-full bg-muted text-xs">
                       {lead.name
                         .split(/\s+/)
                         .slice(0, 2)
@@ -299,7 +299,7 @@ export function TreeBranch({
         {!employee && (
           <>
             {node.assignments_readable && (
-              <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                 {counts.map((item) => (
                   <span
                     key={item.kind}
@@ -311,7 +311,7 @@ export function TreeBranch({
                 ))}
               </div>
             )}
-            <p className="text-muted-foreground max-w-full text-xs">
+            <p className="max-w-full text-xs text-muted-foreground">
               {branch.children.length} {t(node.kind === "project" ? "teams" : "employees")}
               {node.kind === "project" &&
                 ` · ${new Set(branch.children.flatMap(employeeIds)).size} ${t("employees")}`}
@@ -326,8 +326,8 @@ export function TreeBranch({
     <li
       className={
         level === 0
-          ? "border-border bg-card min-w-0 overflow-hidden rounded-lg border"
-          : "border-border min-w-0 border-t"
+          ? "min-w-0 overflow-hidden rounded-lg border border-border bg-card"
+          : "min-w-0 border-t border-border"
       }
     >
       {employee ? (
@@ -337,7 +337,7 @@ export function TreeBranch({
           open={level === 0 ? depth > 0 : depth > 2 || (depth === 2 && initiallyOpen)}
           className="[&[open]>summary>svg]:rotate-90"
         >
-          <summary className="hover:bg-muted focus-visible:ring-ring flex min-w-0 cursor-pointer list-none items-start gap-4 overflow-hidden px-4 py-3 focus-visible:ring-2 [&::-webkit-details-marker]:hidden">
+          <summary className="flex min-w-0 cursor-pointer list-none items-start gap-4 overflow-hidden px-4 py-3 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
             <Icon name="chevronRight" size="sm" className="mt-1" />
             {content}
           </summary>
@@ -385,7 +385,7 @@ function BranchChildren({
         );
   const limited = branch.node.kind === "team" && depth < 3 && !all && children.length > 3;
   return (
-    <ul className="border-border ml-4 border-l sm:ml-5">
+    <ul className="ml-4 border-l border-border sm:ml-5">
       {(limited ? children.slice(0, 3) : children).map((child, index) => (
         <TreeBranch
           key={child.node.id}
@@ -397,7 +397,7 @@ function BranchChildren({
         />
       ))}
       {branch.node.kind === "team" && depth < 3 && children.length > 3 && (
-        <li className="border-border border-t px-4 py-1 sm:pl-10">
+        <li className="border-t border-border px-4 py-1 sm:pl-10">
           <Button
             variant="ghost"
             size="sm"

@@ -13,7 +13,7 @@ export function CatalogEngagement({
 }) {
   const showStars = stars !== null && stars !== undefined;
   return (
-    <div className="text-muted-foreground flex min-w-0 flex-wrap items-center gap-3 text-xs">
+    <div className="flex min-w-0 flex-wrap items-center gap-3 text-xs text-muted-foreground">
       <span
         className="inline-flex items-center gap-1"
         aria-label={`${likesLabel ?? "Likes"}: ${likes}`}

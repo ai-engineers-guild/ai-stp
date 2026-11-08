@@ -22,7 +22,7 @@ export default async function CorporateDashboard({
     <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
       <div>
         <h1 className="text-3xl font-medium tracking-tight">{t("title")}</h1>
-        <p className="text-muted-foreground mt-2 text-sm">{t("description")}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{t("description")}</p>
       </div>
       <DashboardBuilder
         csrfToken={(await readCsrfToken()) ?? ""}

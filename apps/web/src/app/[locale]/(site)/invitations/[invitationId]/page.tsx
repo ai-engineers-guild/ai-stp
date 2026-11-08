@@ -25,8 +25,8 @@ export default async function AcceptInvitationPage({ params }: PageProps) {
     <div className="mx-auto max-w-lg space-y-6">
       <div className="space-y-2">
         <h1 className="text-3xl font-medium tracking-tight">{t("title")}</h1>
-        <p className="text-muted-foreground text-sm">{t("subtitle")}</p>
-        <p className="text-muted-foreground font-mono text-xs">{invitationId}</p>
+        <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+        <p className="font-mono text-xs text-muted-foreground">{invitationId}</p>
       </div>
       <AcceptInvitation
         invitationId={invitationId}

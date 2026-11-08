@@ -59,7 +59,7 @@ function MemberRow({
   );
   return (
     <tr
-      className="border-border hover:bg-muted/30 border-b transition-colors last:border-0"
+      className="border-b border-border transition-colors last:border-0 hover:bg-muted/30"
       data-selected={selected || undefined}
     >
       <td>
@@ -68,7 +68,7 @@ function MemberRow({
       <td className={`${peopleCellClass} max-w-64`}>
         <Link
           href={profile}
-          className="focus-visible:ring-ring block rounded-sm hover:underline focus-visible:ring-2 focus-visible:outline-none"
+          className="block rounded-sm hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           <PersonIdentity name={name} you={member.account_id === context.member.account_id} />
         </Link>
@@ -82,7 +82,7 @@ function MemberRow({
             {member.contact_email}
           </a>
         ) : (
-          <Badge variant="outline" className="text-muted-foreground font-sans font-normal">
+          <Badge variant="outline" className="font-sans font-normal text-muted-foreground">
             {t("noEmail")}
           </Badge>
         )}
@@ -102,10 +102,10 @@ function MemberRow({
           {t(member.state)}
         </Badge>
       </td>
-      <td className={`${peopleCellClass} text-muted-foreground whitespace-nowrap tabular-nums`}>
+      <td className={`${peopleCellClass} whitespace-nowrap text-muted-foreground tabular-nums`}>
         {member.joined_at?.slice(0, 10) ?? "—"}
       </td>
-      <td className={`${peopleCellClass} text-muted-foreground whitespace-nowrap`}>
+      <td className={`${peopleCellClass} whitespace-nowrap text-muted-foreground`}>
         {activityLabel(member.last_activity_at, now, locale)}
       </td>
       <td className="text-right">
@@ -171,7 +171,7 @@ export function CorporateMembersTable({
   return (
     <PeopleTable label={t("membersTable")} minWidth="min-w-[1100px]">
       <thead>
-        <tr className="border-border border-b">
+        <tr className="border-b border-border">
           <th className="w-11">
             <PeopleCheckbox
               label={t("selectPage")}
@@ -205,7 +205,7 @@ export function CorporateMembersTable({
               {key === "joinedColumn" ? (
                 <button
                   type="button"
-                  className="focus-visible:ring-ring inline-flex items-center gap-1 rounded-sm focus-visible:ring-2 focus-visible:outline-none"
+                  className="inline-flex items-center gap-1 rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                   onClick={() => {
                     update("sort", sort === "joined_desc" ? "joined" : "joined_desc");
                   }}
@@ -243,7 +243,7 @@ export function CorporateMembersTable({
         ))}
         {!rows.length ? (
           <tr>
-            <td colSpan={10} className="text-muted-foreground py-14 text-center text-sm">
+            <td colSpan={10} className="py-14 text-center text-sm text-muted-foreground">
               {t(empty ? "noMembers" : "noMatchingMembers")}
             </td>
           </tr>
@@ -269,7 +269,7 @@ function EmployeeAccessTable({
   return (
     <PeopleTable label={t("employee")} minWidth="min-w-[52rem]" framed>
       <thead>
-        <tr className="bg-muted/30 text-muted-foreground text-xs uppercase">
+        <tr className="bg-muted/30 text-xs text-muted-foreground uppercase">
           {[
             p("nameColumn"),
             p("email"),
@@ -292,17 +292,17 @@ function EmployeeAccessTable({
           );
           const roles = [...new Set([member.role, ...assignments.map((binding) => binding.role)])];
           return (
-            <tr key={member.account_id} className="border-border hover:bg-muted/20 border-t">
+            <tr key={member.account_id} className="border-t border-border hover:bg-muted/20">
               <td className="px-3 py-3">
                 <button
                   type="button"
                   onClick={() => inspect?.(member.account_id)}
-                  className="focus-visible:ring-ring rounded-sm text-left focus-visible:ring-2"
+                  className="rounded-sm text-left focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <PersonIdentity name={member.display_name ?? member.account_id} />
                 </button>
               </td>
-              <td className="text-muted-foreground px-3 py-3 text-sm">
+              <td className="px-3 py-3 text-sm text-muted-foreground">
                 {member.contact_email ?? "—"}
               </td>
               <td className="max-w-64 px-3 py-3">
@@ -353,7 +353,7 @@ function EmployeeAccessTable({
         })}
         {!rows.length ? (
           <tr>
-            <td colSpan={7} className="text-muted-foreground p-6 text-center text-sm">
+            <td colSpan={7} className="p-6 text-center text-sm text-muted-foreground">
               {p("noMatchingMembers")}
             </td>
           </tr>

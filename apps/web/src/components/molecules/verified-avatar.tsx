@@ -36,10 +36,10 @@ export function VerifiedAvatar({
           src={src}
           width={styles.image}
           height={styles.image}
-          className="border-border bg-muted block size-full max-w-none rounded-full border object-cover"
+          className="block size-full max-w-none rounded-full border border-border bg-muted object-cover"
           fallback={
             <span
-              className="border-border bg-muted text-foreground grid size-full place-items-center rounded-full border text-[0.65em] font-medium"
+              className="grid size-full place-items-center rounded-full border border-border bg-muted text-[0.65em] font-medium text-foreground"
               style={{ width: styles.image, height: styles.image }}
             >
               {fallback ?? <Icon name="user" size={size === "lg" ? "md" : "sm"} />}
@@ -52,7 +52,7 @@ export function VerifiedAvatar({
           role="img"
           aria-label={verifiedLabel}
           className={cn(
-            "border-background bg-primary text-primary-foreground absolute bottom-0 left-0 grid -translate-x-1/4 translate-y-1/4 place-items-center rounded-full border-2",
+            "absolute bottom-0 left-0 grid -translate-x-1/4 translate-y-1/4 place-items-center rounded-full border-2 border-background bg-primary text-primary-foreground",
             styles.marker,
           )}
           title={verifiedLabel}

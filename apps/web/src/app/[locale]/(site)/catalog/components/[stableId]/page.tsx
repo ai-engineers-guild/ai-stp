@@ -199,10 +199,10 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
         badges={
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="text-primary text-sm font-semibold">
+              <span className="text-sm font-semibold text-primary">
                 {summary.latest_component_type}
               </span>
-              <span className="text-muted-foreground text-sm">
+              <span className="text-sm text-muted-foreground">
                 {t("version")} {summary.latest_version}
               </span>
               <CompactChipList
@@ -353,7 +353,7 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
               <CorporateCatalogOwnerEditor ownership={corporateOwnership.ownership} />
             ) : null}
             {isFeatureEnabled("catalog_usage_metrics") && summary.usage_metrics != null ? (
-              <div className="border-border bg-card rounded-lg border p-4 shadow-sm">
+              <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
                 <CatalogUsageStats
                   metrics={summary.usage_metrics}
                   locale={locale}

@@ -208,7 +208,7 @@ export function CorporateAssignDialog({
             <Label htmlFor="assign-version">{h.version}</Label>
             <Select
               id="assign-version"
-              className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
+              className="min-h-11 w-full rounded-sm border border-input bg-background px-3 text-sm"
               value={version}
               disabled={busy || loading}
               onChange={(event) => {
@@ -238,8 +238,8 @@ export function CorporateAssignDialog({
               modal
             />
           ))}
-          {loading ? <p className="text-muted-foreground text-sm">{h.loading}</p> : null}
-          {message ? <p className="text-destructive text-sm">{message}</p> : null}
+          {loading ? <p className="text-sm text-muted-foreground">{h.loading}</p> : null}
+          {message ? <p className="text-sm text-destructive">{message}</p> : null}
         </div>
         <DialogFooter>
           <Button

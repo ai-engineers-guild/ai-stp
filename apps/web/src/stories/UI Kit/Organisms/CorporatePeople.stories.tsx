@@ -35,7 +35,7 @@ const meta = {
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
   decorators: [
     (Story) => (
-      <div className="bg-background text-foreground min-h-dvh p-4 sm:p-8">
+      <div className="min-h-dvh bg-background p-4 text-foreground sm:p-8">
         <Story />
       </div>
     ),

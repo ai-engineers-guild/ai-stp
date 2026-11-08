@@ -75,7 +75,11 @@ export async function readCorporateDirectory(
 }
 
 export type CorporateDirectoryResource =
-  "projects" | "teams" | "members" | "employees" | "technologies";
+  | "projects"
+  | "teams"
+  | "members"
+  | "employees"
+  | "technologies";
 
 export type CorporateDirectoryPageOptions = Omit<
   CorporateDirectoryQuery,
@@ -432,13 +436,13 @@ export async function readCorporateCatalogScopeOptions(
       let cursor: string | null = null;
       do {
         const page:
-          Awaited<ReturnType<typeof searchComponents>> | Awaited<ReturnType<typeof searchSetups>> =
-          await search({
-            sessionToken: session,
-            organization_id: organizationId,
-            page_size: 64,
-            ...(cursor ? { cursor: asCursorToken(cursor) } : {}),
-          });
+          | Awaited<ReturnType<typeof searchComponents>>
+          | Awaited<ReturnType<typeof searchSetups>> = await search({
+          sessionToken: session,
+          organization_id: organizationId,
+          page_size: 64,
+          ...(cursor ? { cursor: asCursorToken(cursor) } : {}),
+        });
         options.push(
           ...[...page.items, ...page.experimental].map((item) => ({
             value: `catalog_object:${item.stable_id}`,

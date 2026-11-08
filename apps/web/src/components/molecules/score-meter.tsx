@@ -44,7 +44,7 @@ export function ScoreMeter({
     >
       <span
         className={cn(
-          "bg-muted relative block h-1 overflow-hidden rounded-full",
+          "relative block h-1 overflow-hidden rounded-full bg-muted",
           compact ? "w-8" : "w-10",
         )}
         aria-hidden="true"

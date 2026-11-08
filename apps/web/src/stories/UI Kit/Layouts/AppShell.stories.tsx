@@ -20,7 +20,7 @@ function AppShellPreview({
     <div className="flex min-h-screen flex-col">
       <a
         href="#main-content"
-        className="focus:bg-background focus:ring-ring sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-sm focus:px-3 focus:py-2 focus:ring-2"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-sm focus:bg-background focus:px-3 focus:py-2 focus:ring-2 focus:ring-ring"
       >
         Skip to content
       </a>
@@ -32,13 +32,13 @@ function AppShellPreview({
         {children ?? (
           <div className="space-y-2">
             <h1 className="text-3xl font-medium tracking-tight">Page content</h1>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm text-muted-foreground">
               Product routes render here inside the shell.
             </p>
           </div>
         )}
       </main>
-      <footer className="border-border text-muted-foreground border-t py-6 text-center text-xs">
+      <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
         ai_stp
       </footer>
     </div>
@@ -70,7 +70,7 @@ export const CatalogPageChrome: Story = {
     <AppShellPreview signedIn={args.signedIn}>
       <div className="space-y-4">
         <h1 className="text-3xl font-medium">Catalog</h1>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           Filters + results organisms mount under this shell on `/catalog`.
         </p>
       </div>

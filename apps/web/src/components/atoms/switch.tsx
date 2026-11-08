@@ -45,14 +45,14 @@ export function Switch({
           data-ui={UI.primitive.switch}
           aria-hidden="true"
           className={cn(
-            "bg-muted h-6 w-11 rounded-full transition-colors duration-[var(--duration-fast)]",
-            "peer-checked:bg-primary peer-focus-visible:ring-ring peer-focus-visible:ring-2",
+            "h-6 w-11 rounded-full bg-muted transition-colors duration-[var(--duration-fast)]",
+            "peer-checked:bg-primary peer-focus-visible:ring-2 peer-focus-visible:ring-ring",
             "peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
           )}
         />
         <span
           aria-hidden="true"
-          className="bg-background absolute top-0.5 left-0.5 h-5 w-5 rounded-full shadow-sm transition-transform duration-[var(--duration-fast)] peer-checked:translate-x-5"
+          className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-background shadow-sm transition-transform duration-[var(--duration-fast)] peer-checked:translate-x-5"
         />
       </label>
     </>

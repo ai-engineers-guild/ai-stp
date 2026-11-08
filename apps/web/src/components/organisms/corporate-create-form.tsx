@@ -90,7 +90,7 @@ function CorporateCreateFields({
               id={`${formId}-role`}
               name="role"
               required
-              className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
+              className="min-h-11 w-full rounded-sm border border-input bg-background px-3 text-sm"
             >
               {roles.map((role) => (
                 <option key={role} value={role}>
@@ -225,7 +225,7 @@ export function CorporateCreateForm({
       onSubmit={(event) => {
         void submit(event);
       }}
-      className="bg-card border-border max-w-3xl space-y-6 rounded-lg border p-5"
+      className="max-w-3xl space-y-6 rounded-lg border border-border bg-card p-5"
     >
       <CorporateCreateFields
         resource={resource}
@@ -236,7 +236,7 @@ export function CorporateCreateForm({
         choose={choose}
       />
       {message ? (
-        <p role="alert" className="text-destructive text-sm">
+        <p role="alert" className="text-sm text-destructive">
           {message}
         </p>
       ) : null}

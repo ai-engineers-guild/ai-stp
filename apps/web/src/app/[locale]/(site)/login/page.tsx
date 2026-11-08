@@ -60,7 +60,7 @@ export default async function LoginPage({ params, searchParams }: PageProps) {
     <div className="mx-auto w-full max-w-md min-w-0 space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-medium tracking-tight sm:text-3xl">{t("title")}</h1>
-        <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
+        <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
           {t("subtitle")}
         </p>
       </div>

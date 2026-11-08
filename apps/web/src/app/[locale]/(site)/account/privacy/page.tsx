@@ -40,7 +40,7 @@ export default async function AccountPrivacyPage({ params }: PageProps) {
       <HistoryBackButton label={t("backToAccount")} fallback="/account" />
       <header className="space-y-2">
         <h1 className="text-2xl font-medium tracking-tight sm:text-3xl">{t("privacy")}</h1>
-        <p className="text-muted-foreground max-w-[70ch] text-sm">{t("privacySubtitle")}</p>
+        <p className="max-w-[70ch] text-sm text-muted-foreground">{t("privacySubtitle")}</p>
       </header>
       <PrivacyPreferencesForm
         csrfToken={csrfToken}
@@ -55,9 +55,9 @@ export default async function AccountPrivacyPage({ params }: PageProps) {
           failed: t("preferencesSaveFailed"),
         }}
       />
-      <section className="border-border space-y-3 border-t pt-6">
+      <section className="space-y-3 border-t border-border pt-6">
         <h2 className="text-lg font-semibold">{tConsent("title")}</h2>
-        <p className="text-muted-foreground max-w-[70ch] text-sm">{tConsent("body")}</p>
+        <p className="max-w-[70ch] text-sm text-muted-foreground">{tConsent("body")}</p>
         <CookiePreferencesTrigger label={tConsent("manage")} />
       </section>
     </article>

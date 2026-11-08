@@ -144,7 +144,7 @@ export function CorporateAccessModel({
       {!count ? (
         <StatePanel kind="empty" title={t("noResults")} />
       ) : (
-        <div className="border-border overflow-x-auto rounded-lg border">
+        <div className="overflow-x-auto rounded-lg border border-border">
           {view !== "sections" ? (
             <table
               className="w-full min-w-[58rem] border-collapse"
@@ -165,21 +165,21 @@ export function CorporateAccessModel({
               </thead>
               <tbody>
                 {entities.map(([resource, items]) => (
-                  <tr key={resource} className="border-border hover:bg-muted/20 border-t">
+                  <tr key={resource} className="border-t border-border hover:bg-muted/20">
                     <th scope="row" className={`${cell} min-w-48 text-left`}>
                       <button
                         type="button"
                         onClick={() => {
                           inspect(resource);
                         }}
-                        className="focus-visible:ring-ring flex items-center gap-3 rounded-sm text-left focus-visible:ring-2"
+                        className="flex items-center gap-3 rounded-sm text-left focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <Icon name={entityMeta(resource).icon} />
                         <span>
                           <span className="block font-medium">
                             {t(`entities.${resource}.name`)}
                           </span>
-                          <span className="text-muted-foreground block text-xs font-normal">
+                          <span className="block text-xs font-normal text-muted-foreground">
                             {t(`entities.${resource}.description`)}
                           </span>
                         </span>
@@ -198,7 +198,7 @@ export function CorporateAccessModel({
                                   inspect(resource, "actionsTab");
                                 }}
                                 title={item.name}
-                                className="bg-muted/60 hover:bg-muted focus-visible:ring-ring rounded-sm px-2 py-1 text-xs focus-visible:ring-2"
+                                className="rounded-sm bg-muted/60 px-2 py-1 text-xs hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
                               >
                                 {permissionLabel(item, t)}
                               </button>
@@ -243,19 +243,19 @@ export function CorporateAccessModel({
               </thead>
               <tbody>
                 {pages.map((page) => (
-                  <tr key={page.id} className="border-border hover:bg-muted/20 border-t">
+                  <tr key={page.id} className="border-t border-border hover:bg-muted/20">
                     <th className={`${cell} text-left`} scope="row">
                       <button
                         type="button"
                         onClick={() => {
                           inspect(page.id);
                         }}
-                        className="focus-visible:ring-ring flex items-center gap-3 rounded-sm text-left focus-visible:ring-2"
+                        className="flex items-center gap-3 rounded-sm text-left focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <Icon name={page.icon} />
                         <span>
                           <span className="block font-medium">{h(page.label)}</span>
-                          <span className="text-muted-foreground block text-xs font-normal">
+                          <span className="block text-xs font-normal text-muted-foreground">
                             {page.href}
                           </span>
                         </span>
@@ -303,7 +303,7 @@ export function CorporateAccessModel({
           )}
         </div>
       )}
-      <p className="text-muted-foreground text-sm">
+      <p className="text-sm text-muted-foreground">
         {t(view === "sections" ? "sectionCount" : "entityCount", { count })}
       </p>
       <CorporateDetailDrawer
@@ -325,11 +325,11 @@ export function CorporateAccessModel({
               <Icon name={section.icon} size="lg" />
               <div>
                 <h3 className="font-medium">{h(section.label)}</h3>
-                <p className="text-muted-foreground text-xs">{section.href}</p>
+                <p className="text-xs text-muted-foreground">{section.href}</p>
               </div>
             </div>
-            <p className="text-muted-foreground text-sm">{t(`sections.${section.id}`)}</p>
-            <div className="border-border space-y-3 border-t pt-4">
+            <p className="text-sm text-muted-foreground">{t(`sections.${section.id}`)}</p>
+            <div className="space-y-3 border-t border-border pt-4">
               <h3 className="font-medium">{t("visibleWhen")}</h3>
               <p className="text-sm">{visibility(section)}</p>
               <Badge variant="secondary">
@@ -340,7 +340,7 @@ export function CorporateAccessModel({
                 )}
               </Badge>
             </div>
-            <div className="border-border space-y-3 border-t pt-4">
+            <div className="space-y-3 border-t border-border pt-4">
               <h3 className="font-medium">{t("keyPermissions")}</h3>
               <div className="flex flex-wrap gap-1">
                 {sectionPermissions(section, definitions).map((name) => (
@@ -350,7 +350,7 @@ export function CorporateAccessModel({
                 ))}
               </div>
             </div>
-            <div className="border-border space-y-3 border-t pt-4">
+            <div className="space-y-3 border-t border-border pt-4">
               <h3 className="font-medium">{t("availableRoles")}</h3>
               {roles
                 .filter((role) => corporateNavPageVisible(section, [...rolePermissions(role)]))
@@ -366,7 +366,7 @@ export function CorporateAccessModel({
           </div>
         ) : entity ? (
           <div className="space-y-4">
-            <div className="border-border flex border-b">
+            <div className="flex border-b border-border">
               {["overview", "actionsTab"].map((tab) => (
                 <Button
                   key={tab}
@@ -375,7 +375,7 @@ export function CorporateAccessModel({
                   onClick={() => {
                     setDetailTab(tab);
                   }}
-                  className={detailTab === tab ? "border-primary rounded-none border-b-2" : ""}
+                  className={detailTab === tab ? "rounded-none border-b-2 border-primary" : ""}
                 >
                   {t(tab)}
                 </Button>
@@ -383,10 +383,10 @@ export function CorporateAccessModel({
             </div>
             {detailTab === "overview" ? (
               <>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-sm text-muted-foreground">
                   {t(`entities.${entity[0]}.description`)}
                 </p>
-                <dl className="border-border bg-muted/20 space-y-3 rounded-lg border p-4 text-sm">
+                <dl className="space-y-3 rounded-lg border border-border bg-muted/20 p-4 text-sm">
                   <div>
                     <dt className="text-muted-foreground">{t("entityType")}</dt>
                     <dd>{t(`entities.${entity[0]}.name`)}</dd>
@@ -406,7 +406,7 @@ export function CorporateAccessModel({
               {t("availableActions", { count: entity[1].length })}
             </h3>
             {detailTab === "overview" ? (
-              <ul className="divide-border divide-y text-sm">
+              <ul className="divide-y divide-border text-sm">
                 {entity[1].map((item) => (
                   <li key={item.name} className="py-2">
                     {permissionLabel(item, t)}
@@ -418,10 +418,10 @@ export function CorporateAccessModel({
                 {entity[1].map((item) => (
                   <li
                     key={item.name}
-                    className="border-border bg-muted/20 space-y-2 rounded-md border p-3 text-sm"
+                    className="space-y-2 rounded-md border border-border bg-muted/20 p-3 text-sm"
                   >
                     <p className="font-medium">{permissionLabel(item, t)}</p>
-                    <p className="text-muted-foreground font-mono text-xs">{item.name}</p>
+                    <p className="font-mono text-xs text-muted-foreground">{item.name}</p>
                     <Badge variant="secondary">
                       {t(
                         effective.some((grant) => grant.permission === item.name)
@@ -434,7 +434,7 @@ export function CorporateAccessModel({
                       ?.source_records.map((source) => (
                         <p
                           key={source.source_id}
-                          className="text-muted-foreground text-xs break-all"
+                          className="text-xs break-all text-muted-foreground"
                         >
                           {source.role ? roleTitle(source.role, t) : source.kind} ·{" "}
                           {t(`scopes.${source.scope_kind}`)}: {source.scope_id}

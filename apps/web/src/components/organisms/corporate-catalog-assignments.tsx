@@ -311,7 +311,7 @@ export function CorporateCatalogAssignments({
           </div>
         </RefineSurface>
       ) : null}
-      <ul className="border-border divide-border grid min-w-0 divide-y overflow-hidden rounded-lg border">
+      <ul className="grid min-w-0 divide-y divide-border overflow-hidden rounded-lg border border-border">
         {filteredItems.map((item) => {
           const card = cards?.[item.assignment_id] ?? assignmentCardItem(item);
           const version =
@@ -389,7 +389,7 @@ export function CorporateCatalogAssignments({
         })}
       </ul>
       {!filteredItems.length && (
-        <p className="text-muted-foreground text-sm">{h("noAssignments")}</p>
+        <p className="text-sm text-muted-foreground">{h("noAssignments")}</p>
       )}
       <Dialog open={adding} onOpenChange={setAdding}>
         <DialogContent className="max-h-[min(46rem,calc(100vh-2rem))] overflow-y-auto sm:max-w-2xl">
@@ -419,7 +419,7 @@ export function CorporateCatalogAssignments({
               <Label htmlFor="assignment-kind">{h("objectKind")}</Label>
               <Select
                 id="assignment-kind"
-                className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
+                className="min-h-11 w-full rounded-sm border border-input bg-background px-3 text-sm"
                 value={kind}
                 onChange={(event) => {
                   const value = event.target.value as "all" | "setup" | "component";
@@ -444,7 +444,7 @@ export function CorporateCatalogAssignments({
               return (
                 <li
                   key={`${item.kind}:${item.id}`}
-                  className="border-border min-w-0 rounded-lg border p-3"
+                  className="min-w-0 rounded-lg border border-border p-3"
                 >
                   <div className="flex min-h-11 min-w-0 items-center gap-3 text-sm">
                     <PeopleCheckbox
@@ -455,14 +455,14 @@ export function CorporateCatalogAssignments({
                       }}
                     />
                     <span className="min-w-0 font-medium break-words">{item.name}</span>
-                    <span className="text-muted-foreground ml-auto text-xs">{h(item.kind)}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{h(item.kind)}</span>
                   </div>
                 </li>
               );
             })}
           </ul>
           {selected.length ? (
-            <div className="border-border space-y-2 border-t pt-4">
+            <div className="space-y-2 border-t border-border pt-4">
               {selected.map((item) => (
                 <div
                   key={`${item.kind}:${item.id}`}
@@ -471,7 +471,7 @@ export function CorporateCatalogAssignments({
                   <span className="min-w-0 truncate text-sm">{item.name}</span>
                   <Select
                     aria-label={`${item.name} ${h("exactVersion")}`}
-                    className="border-input bg-background min-h-11 rounded-sm border px-3 text-sm"
+                    className="min-h-11 rounded-sm border border-input bg-background px-3 text-sm"
                     value={item.version}
                     onChange={(event) => {
                       setSelected((entries) =>
@@ -494,7 +494,7 @@ export function CorporateCatalogAssignments({
             </div>
           ) : null}
           {message ? (
-            <p role="alert" className="text-destructive text-sm">
+            <p role="alert" className="text-sm text-destructive">
               {message}
             </p>
           ) : null}

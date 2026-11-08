@@ -48,7 +48,7 @@ export default async function CorporateReportsPage({
       {widths.map((width, index) => (
         <span
           key={index}
-          className="bg-muted block flex-1 rounded-t-sm"
+          className="block flex-1 rounded-t-sm bg-muted"
           style={{ height: `${width}%` }}
         />
       ))}
@@ -57,7 +57,7 @@ export default async function CorporateReportsPage({
   const usagePreview = (
     <div className="flex h-full flex-col">
       {bars([36, 48, 44, 63, 56, 74, 67, 85])}
-      <div className="text-muted-foreground mt-2 flex justify-between">
+      <div className="mt-2 flex justify-between text-muted-foreground">
         <span>{t("team")} 8</span>
         <span>{t("employee")} 36</span>
       </div>
@@ -88,7 +88,7 @@ export default async function CorporateReportsPage({
       {[74, 58, 82, 42, 65].map((width, index) => (
         <span
           key={index}
-          className="bg-muted block h-2 rounded-sm"
+          className="block h-2 rounded-sm bg-muted"
           style={{ width: `${width}%` }}
         />
       ))}
@@ -124,7 +124,7 @@ export default async function CorporateReportsPage({
     <main className="mx-auto w-full max-w-6xl space-y-7 px-4 py-8 sm:px-6">
       <div>
         <h1 className="text-3xl font-medium tracking-tight">{t("title")}</h1>
-        <p className="text-muted-foreground mt-2">{t("subtitle")}</p>
+        <p className="mt-2 text-muted-foreground">{t("subtitle")}</p>
       </div>
       <div className="grid gap-5 lg:grid-cols-2">
         {cards.map(({ key, description, href, preview }) => (

@@ -4,22 +4,22 @@ import { COLOR_ROLES, colorChannels, type ColorRole } from "@/theme";
 
 function ColorSwatch({ role }: { role: ColorRole }) {
   return (
-    <div className="border-border flex flex-col overflow-hidden rounded-lg border shadow-sm">
+    <div className="flex flex-col overflow-hidden rounded-lg border border-border shadow-sm">
       <div
         className="h-16 w-full"
         style={{ backgroundColor: `hsl(${colorChannels(role, "light")})` }}
       />
       <div className="space-y-1 p-3">
         <p className="text-sm font-medium">{role}</p>
-        <p className="text-muted-foreground font-mono text-xs">
+        <p className="font-mono text-xs text-muted-foreground">
           light: {colorChannels(role, "light")}
         </p>
-        <p className="text-muted-foreground font-mono text-xs">
+        <p className="font-mono text-xs text-muted-foreground">
           dark: {colorChannels(role, "dark")}
         </p>
         <p className="text-xs">
-          Utility: <code className="bg-muted rounded px-1">bg-{role}</code> /{" "}
-          <code className="bg-muted rounded px-1">text-{role}</code>
+          Utility: <code className="rounded bg-muted px-1">bg-{role}</code> /{" "}
+          <code className="rounded bg-muted px-1">text-{role}</code>
         </p>
       </div>
     </div>

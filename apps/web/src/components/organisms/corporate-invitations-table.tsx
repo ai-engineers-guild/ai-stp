@@ -38,7 +38,7 @@ export function InvitationTable({
   const t = useTranslations("people");
   return (
     <div
-      className="focus-visible:ring-ring min-w-0 overflow-x-auto focus-visible:ring-2 focus-visible:outline-none"
+      className="min-w-0 overflow-x-auto focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       role="region"
       aria-label={t("invitationsTable")}
       // Keyboard access lets narrow-screen users scroll every table column.
@@ -101,7 +101,7 @@ export function InvitationTable({
                     {t(state)}
                   </Badge>
                   {row.delivery_state === "failed" ? (
-                    <p className="text-destructive mt-1 text-xs">{t("deliveryFailed")}</p>
+                    <p className="mt-1 text-xs text-destructive">{t("deliveryFailed")}</p>
                   ) : null}
                 </Td>
                 <Td>
@@ -117,10 +117,10 @@ export function InvitationTable({
                     row.issuer_account_id ??
                     "—"}
                 </Td>
-                <Td className="text-muted-foreground whitespace-nowrap tabular-nums">
+                <Td className="whitespace-nowrap text-muted-foreground tabular-nums">
                   {row.created_at.slice(0, 10)}
                 </Td>
-                <Td className="text-muted-foreground whitespace-nowrap tabular-nums">
+                <Td className="whitespace-nowrap text-muted-foreground tabular-nums">
                   {row.expires_at.slice(0, 10)}
                 </Td>
                 <Td className="text-right">
@@ -148,7 +148,7 @@ export function InvitationTable({
           })}
           {!rows.length ? (
             <Tr>
-              <Td colSpan={9} className="text-muted-foreground py-14 text-center">
+              <Td colSpan={9} className="py-14 text-center text-muted-foreground">
                 {t("noMatchingInvitations")}
               </Td>
             </Tr>

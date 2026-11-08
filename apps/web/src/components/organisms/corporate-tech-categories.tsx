@@ -84,7 +84,7 @@ function IconPicker({
       <div
         role="listbox"
         aria-label={label}
-        className="border-border grid max-h-64 grid-cols-6 gap-1 overflow-y-auto rounded-sm border p-2 sm:grid-cols-8"
+        className="grid max-h-64 grid-cols-6 gap-1 overflow-y-auto rounded-sm border border-border p-2 sm:grid-cols-8"
       >
         {names.map((name) => (
           <button
@@ -94,7 +94,7 @@ function IconPicker({
             aria-selected={name === value}
             title={name}
             aria-label={name}
-            className={`focus-visible:ring-ring hover:bg-muted grid size-10 place-items-center rounded-sm focus-visible:ring-2 focus-visible:outline-none ${
+            className={`grid size-10 place-items-center rounded-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
               name === value ? "bg-primary/10 text-primary" : ""
             }`}
             onClick={() => {
@@ -408,7 +408,7 @@ export function CorporateTechCategories({
         {checked.length ? (
           <div
             aria-live="polite"
-            className="bg-muted flex items-center justify-between rounded-sm px-3 py-2 text-sm"
+            className="flex items-center justify-between rounded-sm bg-muted px-3 py-2 text-sm"
           >
             <span>{tp("selected", { count: checked.length })}</span>
             <div className="flex items-center gap-2">
@@ -466,7 +466,7 @@ export function CorporateTechCategories({
         ) : null}
         <PeopleTable label={t("title")} minWidth="min-w-[720px]" framed>
           <thead>
-            <tr className="border-border border-b">
+            <tr className="border-b border-border">
               <th className="w-11">
                 <PeopleCheckbox
                   label={tp("selectPage")}
@@ -514,7 +514,7 @@ export function CorporateTechCategories({
               <tr
                 key={category.category_id}
                 data-selected={selected?.category_id === category.category_id || undefined}
-                className="border-border hover:bg-muted/30 data-[selected]:bg-primary/5 cursor-pointer border-b transition-colors last:border-0"
+                className="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-muted/30 data-[selected]:bg-primary/5"
                 onClick={() => {
                   setSelectedId(category.category_id);
                 }}
@@ -549,7 +549,7 @@ export function CorporateTechCategories({
                 <td className={`${peopleCellClass} tabular-nums`}>
                   {technologies === null ? "—" : (linked.get(category.category_id)?.length ?? 0)}
                 </td>
-                <td className={`${peopleCellClass} text-muted-foreground max-w-72`}>
+                <td className={`${peopleCellClass} max-w-72 text-muted-foreground`}>
                   <span className="line-clamp-2">{category.description}</span>
                 </td>
                 <td className={peopleCellClass}>
@@ -577,7 +577,6 @@ export function CorporateTechCategories({
                       id: category.category_id,
                       organization_id: organizationId,
                     }}
-
                     moreLabel={t("categoryActions", { name: category.name })}
                     choices={[
                       {
@@ -625,7 +624,7 @@ export function CorporateTechCategories({
             ))}
             {!rows.length ? (
               <tr>
-                <td colSpan={6} className="text-muted-foreground py-14 text-center text-sm">
+                <td colSpan={6} className="py-14 text-center text-sm text-muted-foreground">
                   {t(categories.length ? "noMatches" : "empty")}
                 </td>
               </tr>
@@ -682,7 +681,7 @@ export function CorporateTechCategories({
               </Badge>
             </div>
             <div className="space-y-1">
-              <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+              <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                 {t("description")}
               </h3>
               <p className="text-sm break-words">{selected.description || "—"}</p>
@@ -707,7 +706,7 @@ export function CorporateTechCategories({
                   </Button>
                 ) : null}
               </div>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-sm text-muted-foreground">
                 {t("linkedCount", { count: selectedLinked.length })}
               </p>
               <ul className="space-y-1 text-sm">
@@ -718,11 +717,11 @@ export function CorporateTechCategories({
                 ))}
               </ul>
               {selectedLinked.length > 6 ? (
-                <p className="text-muted-foreground text-sm">
+                <p className="text-sm text-muted-foreground">
                   {t("moreTechnologies", { count: selectedLinked.length - 6 })}
                 </p>
               ) : null}
-              <dl className="text-muted-foreground space-y-1 text-xs">
+              <dl className="space-y-1 text-xs text-muted-foreground">
                 <div className="flex justify-between gap-2">
                   <dt>{t("revision")}</dt>
                   <dd className="tabular-nums">{selected.revision}</dd>
@@ -772,7 +771,7 @@ export function CorporateTechCategories({
         {draft ? (
           <>
             <div className="space-y-2">
-              <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+              <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                 {t("categoryIcon")}
               </h3>
               <div className="flex items-center gap-3">
@@ -840,7 +839,7 @@ export function CorporateTechCategories({
                   setDraft({ ...draft, description: event.target.value });
                 }}
               />
-              <p className="text-muted-foreground text-right text-xs tabular-nums">
+              <p className="text-right text-xs text-muted-foreground tabular-nums">
                 {draft.description.length}/2000
               </p>
             </div>
@@ -898,7 +897,7 @@ export function CorporateTechCategories({
       </FormDialog>
 
       {message ? (
-        <p className="text-muted-foreground text-sm" role="status" aria-live="polite">
+        <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
           {message}
         </p>
       ) : null}

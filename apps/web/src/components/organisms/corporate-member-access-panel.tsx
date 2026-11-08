@@ -144,8 +144,8 @@ export function CorporateMemberAccessPanel({
             role={message.error ? "alert" : undefined}
             className={
               message.error
-                ? "text-destructive text-sm font-medium"
-                : "text-muted-foreground text-sm"
+                ? "text-sm font-medium text-destructive"
+                : "text-sm text-muted-foreground"
             }
           >
             {message.text}
@@ -156,7 +156,7 @@ export function CorporateMemberAccessPanel({
       <section>
         <h3 className="font-medium">{labels.bindings}</h3>
         {bindings.length || membershipRole ? (
-          <div className="border-border mt-3 overflow-x-auto rounded-md border">
+          <div className="mt-3 overflow-x-auto rounded-md border border-border">
             <table className="w-full text-left text-xs">
               <thead className="bg-muted/30 text-muted-foreground">
                 <tr>
@@ -170,15 +170,15 @@ export function CorporateMemberAccessPanel({
               </thead>
               <tbody>
                 {membershipRole && !bindings.some((binding) => binding.origin === "membership") ? (
-                  <tr className="border-border border-t">
+                  <tr className="border-t border-border">
                     <td className="p-2 font-medium">{roleTitle(membershipRole, a)}</td>
                     <td className="p-2">{labels.organization}</td>
-                    <td className="text-muted-foreground p-2">{labels.originMembership}</td>
+                    <td className="p-2 text-muted-foreground">{labels.originMembership}</td>
                     <td />
                   </tr>
                 ) : null}
                 {bindings.map((binding) => (
-                  <tr key={binding.binding_id} className="border-border border-t">
+                  <tr key={binding.binding_id} className="border-t border-border">
                     <td className="p-2 font-medium">{roleTitle(binding.role, a)}</td>
                     <td className="p-2">
                       <span className="block">
@@ -190,7 +190,7 @@ export function CorporateMemberAccessPanel({
                           : labels.coverageSelf}
                       </span>
                     </td>
-                    <td className="text-muted-foreground p-2">{originLabel(binding.origin)}</td>
+                    <td className="p-2 text-muted-foreground">{originLabel(binding.origin)}</td>
                     <td className="p-2">
                       {binding.state === "active" && can("binding.delete") ? (
                         <Button
@@ -214,27 +214,27 @@ export function CorporateMemberAccessPanel({
             </table>
           </div>
         ) : (
-          <p className="text-muted-foreground mt-2 text-sm">{labels.noBindings}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{labels.noBindings}</p>
         )}
       </section>
 
       <section>
         <h3 className="font-medium">{labels.directGrants}</h3>
-        <p className="text-muted-foreground mt-1 text-sm">{labels.directGrantsBody}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{labels.directGrantsBody}</p>
         {grants.length ? (
           <ul className="mt-3 space-y-2">
             {grants.map((grant) => (
               <li
                 key={grant.grant_id}
-                className="border-border flex flex-wrap items-center justify-between gap-2 rounded border p-3 text-sm"
+                className="flex flex-wrap items-center justify-between gap-2 rounded border border-border p-3 text-sm"
               >
                 <span className="min-w-0">
                   <span className="text-xs font-medium">{permissionName(grant.permission)}</span>
-                  <span className="text-muted-foreground block text-xs">
+                  <span className="block text-xs text-muted-foreground">
                     {" "}
                     {scopeName(grant.scope_kind, grant.scope_id)}
                   </span>
-                  <span className="text-muted-foreground block text-xs">
+                  <span className="block text-xs text-muted-foreground">
                     {labels.issuer} {grant.issuer_account_id}
                   </span>
                 </span>
@@ -257,7 +257,7 @@ export function CorporateMemberAccessPanel({
             ))}
           </ul>
         ) : (
-          <p className="text-muted-foreground mt-2 text-sm">{labels.noGrants}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{labels.noGrants}</p>
         )}
       </section>
     </div>

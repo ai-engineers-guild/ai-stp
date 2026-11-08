@@ -290,7 +290,7 @@ export default function CorporatePage() {
         <>
           <div className="card space-y-1 text-sm">
             <p className="font-medium">{context.label}</p>
-            <p className="break-all text-xs text-muted-foreground">
+            <p className="text-xs break-all text-muted-foreground">
               {context.origin}
             </p>
             <p className="text-xs text-muted-foreground">
@@ -563,7 +563,7 @@ export default function CorporatePage() {
                   <h2 className="section-title">
                     {msg("corporate.mapping")} {String(data.version)}
                   </h2>
-                  <p className="break-all font-mono text-xs text-muted-foreground">
+                  <p className="font-mono text-xs break-all text-muted-foreground">
                     {String(data.digest)}
                   </p>
                 </div>
@@ -599,7 +599,7 @@ export default function CorporatePage() {
                     <>
                       <dl className="grid gap-2 text-sm">
                         <dt>{msg("corporate.enrolledDevice")}</dt>
-                        <dd className="break-all font-mono">
+                        <dd className="font-mono break-all">
                           {String(
                             data.device_id ?? msg("corporate.notReported"),
                           )}
@@ -670,11 +670,11 @@ export default function CorporatePage() {
                             {description}
                           </p>
                         )}
-                        <p className="break-all font-mono text-xs text-muted-foreground">
+                        <p className="font-mono text-xs break-all text-muted-foreground">
                           {id}
                         </p>
                         {typeof digest === "string" && (
-                          <p className="break-all font-mono text-xs text-muted-foreground">
+                          <p className="font-mono text-xs break-all text-muted-foreground">
                             {digest}
                           </p>
                         )}

@@ -294,9 +294,9 @@ export default function CheckoutPreview({
             {msg("checkoutPreview.checkoutVerifiedForReview")}
           </h3>
           {typeof observedRoot === "string" && (
-            <p className="break-all text-sm">{observedRoot}</p>
+            <p className="text-sm break-all">{observedRoot}</p>
           )}
-          <p className="break-all font-mono text-xs text-muted-foreground">
+          <p className="font-mono text-xs break-all text-muted-foreground">
             {msg("checkoutPreview.commit")} {String(checkout.commit ?? "")}
           </p>
           <p className="text-sm text-muted-foreground">
@@ -344,7 +344,7 @@ export default function CheckoutPreview({
               "checkoutPreview.thisOperationRetainsItsOriginalCompanyAndCheckoutIt",
             )}
           </p>
-          <p className="break-all font-mono text-xs">{review.digest}</p>
+          <p className="font-mono text-xs break-all">{review.digest}</p>
           <Details
             label={msg("checkoutPreview.exactCheckoutPlan")}
             value={review.plan}
@@ -387,7 +387,7 @@ export default function CheckoutPreview({
           className="space-y-2"
           aria-label={msg("checkoutPreview.retainedCheckoutOperation")}
         >
-          <p className="break-all font-mono text-xs">
+          <p className="font-mono text-xs break-all">
             {msg("checkoutPreview.originalRequest")} {request}
           </p>
           {phase === "adopt" ? (

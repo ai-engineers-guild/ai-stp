@@ -36,16 +36,16 @@ export default async function MyLikesPage({ params }: PageProps) {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
-      <header className="border-border grid gap-5 border-b pb-7 sm:grid-cols-[1fr_auto] sm:items-end">
+      <header className="grid gap-5 border-b border-border pb-7 sm:grid-cols-[1fr_auto] sm:items-end">
         <div className="space-y-2">
-          <div className="text-primary flex items-center gap-2 text-sm font-medium">
+          <div className="flex items-center gap-2 text-sm font-medium text-primary">
             <Icon name="heart" size="sm" fill="currentColor" />
             {t("results")}
           </div>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{t("title")}</h1>
-          <p className="text-muted-foreground max-w-2xl text-sm leading-relaxed">{t("subtitle")}</p>
+          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">{t("subtitle")}</p>
         </div>
-        <p className="text-muted-foreground font-mono text-sm tabular-nums">{items.length}</p>
+        <p className="font-mono text-sm text-muted-foreground tabular-nums">{items.length}</p>
       </header>
 
       {items.length === 0 ? (

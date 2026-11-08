@@ -38,7 +38,7 @@ export async function AppShell({
     <div data-ui={UI.shell.root} className="flex min-h-dvh min-w-0 flex-col">
       <a
         href="#main-content"
-        className="focus:bg-background focus:ring-ring sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-sm focus:px-3 focus:py-2 focus:ring-2"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-sm focus:bg-background focus:px-3 focus:py-2 focus:ring-2 focus:ring-ring"
       >
         {t("skipToContent")}
       </a>
@@ -99,7 +99,7 @@ async function SiteFooter({ docsHref }: { docsHref: string }) {
     <footer
       id="site-footer"
       data-ui={UI.shell.footer}
-      className="border-border bg-background border-t"
+      className="border-t border-border bg-background"
     >
       <div
         className={`mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:px-6 ${
@@ -119,7 +119,7 @@ async function SiteFooter({ docsHref }: { docsHref: string }) {
             <img src="/brand/logo-mark-64.png" alt="" width={32} height={32} className="h-8 w-8" />
             <span>{SITE_NAME}</span>
           </Link>
-          <p className="text-muted-foreground max-w-xs text-sm leading-relaxed">{tf("summary")}</p>
+          <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">{tf("summary")}</p>
           <a href="/llms.txt" className="font-mono text-xs underline underline-offset-4">
             {tm("llms")}
           </a>
@@ -166,25 +166,25 @@ async function SiteFooter({ docsHref }: { docsHref: string }) {
           </>
         ) : null}
       </div>
-      <div className="border-border border-t">
+      <div className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-4 sm:px-6 md:flex-row">
-          <p className="text-muted-foreground font-mono text-[11px] tracking-wide">
+          <p className="font-mono text-[11px] tracking-wide text-muted-foreground">
             {tf("licenseLine", { year: 2026 })}
           </p>
           <div
             data-ui={UI.navigation.shortcuts}
-            className="text-muted-foreground hidden items-center gap-2 font-mono text-[11px] lg:flex"
+            className="hidden items-center gap-2 font-mono text-[11px] text-muted-foreground lg:flex"
           >
             <span>{tf("shortcuts")}</span>
             {saasPublicPages ? (
-              <kbd className="border-border rounded-sm border px-1.5 py-0.5">
+              <kbd className="rounded-sm border border-border px-1.5 py-0.5">
                 {tf("shortcutContact")}
               </kbd>
             ) : null}
-            <kbd className="border-border rounded-sm border px-1.5 py-0.5">
+            <kbd className="rounded-sm border border-border px-1.5 py-0.5">
               {tf("shortcutProfile")}
             </kbd>
-            <kbd className="border-border rounded-sm border px-1.5 py-0.5">
+            <kbd className="rounded-sm border border-border px-1.5 py-0.5">
               {tf("shortcutCatalog")}
             </kbd>
           </div>
@@ -211,7 +211,7 @@ function FooterColumn({
               {isExternalHref(href) ? (
                 <a
                   href={href}
-                  className="text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+                  className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                 >
                   {label}
                 </a>
@@ -219,7 +219,7 @@ function FooterColumn({
                 <Link
                   href={href}
                   prefetch={COMPILED_FEATURE_PROFILE === "corporate_hub" ? false : undefined}
-                  className="text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+                  className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                 >
                   {label}
                 </Link>

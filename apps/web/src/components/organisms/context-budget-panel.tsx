@@ -42,7 +42,7 @@ export function ContextBudgetPanel({
               </div>
             </dl>
             {budget.unavailable_components > 0 ? (
-              <p className="text-muted-foreground mt-4 text-sm" role="status">
+              <p className="mt-4 text-sm text-muted-foreground" role="status">
                 {labels.unavailable}: {budget.unavailable_components}
               </p>
             ) : null}
@@ -53,7 +53,7 @@ export function ContextBudgetPanel({
           </p>
         )}
       </DetailAccordion>
-      <p className="text-muted-foreground mt-2 text-xs">{labels.lead}</p>
+      <p className="mt-2 text-xs text-muted-foreground">{labels.lead}</p>
     </div>
   );
 }
@@ -94,12 +94,12 @@ export function ComponentContextBudgetPanel({
             </div>
           </dl>
         ) : (
-          <p className="text-muted-foreground text-sm" role="status">
+          <p className="text-sm text-muted-foreground" role="status">
             {budget?.status === "not_applicable" ? runtimeDerived : unavailable}
           </p>
         )}
       </DetailAccordion>
-      <p className="text-muted-foreground mt-2 text-xs">{labels.componentLead ?? labels.lead}</p>
+      <p className="mt-2 text-xs text-muted-foreground">{labels.componentLead ?? labels.lead}</p>
     </div>
   );
 }

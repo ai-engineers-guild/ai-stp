@@ -244,7 +244,7 @@ function TypeMark({
     );
   return (
     <span
-      className="bg-muted border-border inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-sm border"
+      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-sm border border-border bg-muted"
       aria-hidden="true"
     >
       <Icon name="controls" size="sm" />
@@ -253,7 +253,7 @@ function TypeMark({
 }
 function RequirementCount({ item, labels }: { item: CatalogItem; labels: Labels }) {
   return (
-    <p className="text-muted-foreground text-xs">
+    <p className="text-xs text-muted-foreground">
       {labels.requirements ?? "Requirements"}: {item.latest_requirements_count}
       {item.latest_requires_credentials
         ? ` · ${labels.credentialsRequired ?? "credentials required"}`
@@ -332,7 +332,7 @@ export function ObjectCard({
           "group @container relative min-w-0 overflow-x-clip px-4 py-3 transition-colors",
           kind === "setup"
             ? "bg-muted/50 hover:bg-muted"
-            : "bg-background hover:bg-muted/35 focus-within:bg-muted/35",
+            : "bg-background focus-within:bg-muted/35 hover:bg-muted/35",
         )}
         data-kind={kind}
         data-view="list"
@@ -352,7 +352,7 @@ export function ObjectCard({
               </Link>
             </h3>
             {reason ? (
-              <p className="text-muted-foreground mt-1 line-clamp-1 text-xs" data-why-open="">
+              <p className="mt-1 line-clamp-1 text-xs text-muted-foreground" data-why-open="">
                 {reason}
               </p>
             ) : null}
@@ -403,8 +403,8 @@ export function ObjectCard({
     <article
       data-ui={UI.catalog.card}
       className={cn(
-        "group border-border focus-within:ring-ring relative flex h-full min-w-0 flex-col gap-3 overflow-x-clip rounded-lg border p-3 shadow-sm transition-colors focus-within:ring-2",
-        kind === "setup" ? "bg-muted/50 hover:bg-muted p-4" : "bg-card hover:bg-muted/30",
+        "group relative flex h-full min-w-0 flex-col gap-3 overflow-x-clip rounded-lg border border-border p-3 shadow-sm transition-colors focus-within:ring-2 focus-within:ring-ring",
+        kind === "setup" ? "bg-muted/50 p-4 hover:bg-muted" : "bg-card hover:bg-muted/30",
       )}
       data-kind={kind}
       data-view="cards"
@@ -444,20 +444,20 @@ export function ObjectCard({
           />
           <CardFacts item={catalogItem} kind={kind} labels={labels} />
           {reason ? (
-            <p className="text-muted-foreground mt-1 line-clamp-1 text-xs" data-why-open="">
+            <p className="mt-1 line-clamp-1 text-xs text-muted-foreground" data-why-open="">
               {reason}
             </p>
           ) : null}
         </div>
       </div>
-      <p className="text-muted-foreground line-clamp-2 text-sm leading-relaxed">
+      <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
         {catalogItem.latest_description}
       </p>
       <div className="flex flex-wrap items-center justify-between gap-3 py-1">
         {metrics}
         {kind === "component" ? <SafetyScore item={catalogItem} labels={labels} /> : null}
       </div>
-      <div className="border-border relative z-20 mt-auto flex items-end justify-between gap-3 border-t pt-3">
+      <div className="relative z-20 mt-auto flex items-end justify-between gap-3 border-t border-border pt-3">
         <RequirementCount item={catalogItem} labels={labels} />
         {authorBlock}
       </div>
@@ -531,8 +531,8 @@ function OwnerFallbackCard({
       className={cn(
         "group relative min-w-0 overflow-x-clip transition-colors",
         view === "list"
-          ? "bg-background hover:bg-muted/35 px-4 py-3"
-          : "bg-card border-border hover:bg-muted/30 flex h-full flex-col gap-3 rounded-lg border p-4 shadow-sm",
+          ? "bg-background px-4 py-3 hover:bg-muted/35"
+          : "flex h-full flex-col gap-3 rounded-lg border border-border bg-card p-4 shadow-sm hover:bg-muted/30",
       )}
     >
       <div
@@ -544,13 +544,13 @@ function OwnerFallbackCard({
         )}
       >
         <span
-          className="bg-muted border-border text-foreground inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-sm border"
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-sm border border-border bg-muted text-foreground"
           aria-hidden="true"
         >
           <Icon name="controls" size="sm" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-muted-foreground font-mono text-xs tracking-wide uppercase">
+          <p className="font-mono text-xs tracking-wide text-muted-foreground uppercase">
             {item.object_kind}
           </p>
           <h2 className="mt-1 min-w-0 text-lg leading-snug font-medium">
@@ -562,9 +562,9 @@ function OwnerFallbackCard({
               {item.name}
             </Link>
           </h2>
-          <p className="text-muted-foreground mt-1 font-mono text-xs break-all">{item.stable_id}</p>
+          <p className="mt-1 font-mono text-xs break-all text-muted-foreground">{item.stable_id}</p>
           {item.latest_version ? (
-            <span className="text-muted-foreground mt-1 block font-mono text-xs">
+            <span className="mt-1 block font-mono text-xs text-muted-foreground">
               {item.latest_version}
             </span>
           ) : null}
@@ -611,7 +611,7 @@ function CardFacts({
     ? item.latest_assurance
     : { verified_targets: 0, assessed_targets: 0 };
   return (
-    <div className="text-muted-foreground mt-1 flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-xs">
+    <div className="mt-1 flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
       {kind === "component" && isComponentSummary(item) ? (
         <p data-ui={UI.catalog.assurance}>
           {formatAssuranceCounts(
@@ -673,7 +673,7 @@ function SafetyScore({
   if (computed === null || !summary) {
     return (
       <p
-        className="text-muted-foreground text-center text-xs"
+        className="text-center text-xs text-muted-foreground"
         title={labels.safetyNoScan ?? explanation}
         data-safety="empty"
       >

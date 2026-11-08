@@ -69,7 +69,7 @@ export default function ContextSwitcher() {
         </select>
       </label>
       {selected?.organization && (
-        <p className="break-words text-xs text-muted-foreground">
+        <p className="text-xs break-words text-muted-foreground">
           {selected.organization} {msg("contextSwitcher.savedView")}
         </p>
       )}

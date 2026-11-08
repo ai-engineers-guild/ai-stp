@@ -28,7 +28,7 @@ export function AreaField({
         id={`${prefix}-area`}
         name="area_id"
         defaultValue={initial?.area_id ?? ""}
-        className="border-input bg-background text-foreground focus-visible:ring-ring h-11 w-full rounded-sm border px-3 text-sm focus-visible:ring-2"
+        className="h-11 w-full rounded-sm border border-input bg-background px-3 text-sm text-foreground focus-visible:ring-2 focus-visible:ring-ring"
       >
         <option value="">{areaT("unassigned")}</option>
         {areas.map((area) => (
@@ -50,7 +50,7 @@ export function CategoryStateField({ prefix }: { prefix: string }) {
         id={`${prefix}-state`}
         name="state"
         defaultValue="active"
-        className="border-input bg-background text-foreground focus-visible:ring-ring h-11 w-full rounded-sm border px-3 text-sm focus-visible:ring-2"
+        className="h-11 w-full rounded-sm border border-input bg-background px-3 text-sm text-foreground focus-visible:ring-2 focus-visible:ring-ring"
       >
         <option value="active">{t("values.active")}</option>
         <option value="draft">{t("values.draft")}</option>
@@ -101,7 +101,7 @@ export function TechnologyFields({
             emptyHint={t("categories")}
           />
           {categories.length === 0 && (
-            <p className="text-muted-foreground text-sm">{t("categoryRequired")}</p>
+            <p className="text-sm text-muted-foreground">{t("categoryRequired")}</p>
           )}
         </div>
       )}
@@ -114,7 +114,7 @@ export function TechnologyFields({
               name="aliases"
               rows={3}
               defaultValue={initial?.aliases.join("\n")}
-              className="border-input bg-background focus-visible:ring-ring w-full rounded-sm border px-3 py-2 text-sm focus-visible:ring-2"
+              className="w-full rounded-sm border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
           <div className="space-y-2">
@@ -134,7 +134,7 @@ export function TechnologyFields({
               name="official_urls"
               rows={3}
               defaultValue={initial?.official_urls.join("\n")}
-              className="border-input bg-background focus-visible:ring-ring w-full rounded-sm border px-3 py-2 text-sm focus-visible:ring-2"
+              className="w-full rounded-sm border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
         </>

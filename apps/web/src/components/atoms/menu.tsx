@@ -33,7 +33,7 @@ export function MenuSubTrigger({
   return (
     <DropdownMenu.SubTrigger
       className={cn(
-        "focus:bg-muted data-[state=open]:bg-muted flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm outline-none",
+        "flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm outline-none focus:bg-muted data-[state=open]:bg-muted",
         className,
       )}
       {...props}
@@ -64,7 +64,7 @@ export function MenuSubContent({
       <DropdownMenu.SubContent
         collisionPadding={12}
         className={cn(
-          "border-border bg-popover text-popover-foreground z-[81] min-w-52 rounded-lg border p-1 shadow-md",
+          "z-[81] min-w-52 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md",
           className,
         )}
         {...props}
@@ -89,7 +89,7 @@ export function MenuContent({
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
         className={cn(
-          "border-border bg-popover text-popover-foreground z-[80] max-w-[min(20rem,calc(100vw-1.5rem))] min-w-52 rounded-lg border p-1 shadow-md",
+          "z-[80] max-w-[min(20rem,calc(100vw-1.5rem))] min-w-52 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md",
           className,
         )}
         {...props}
@@ -102,7 +102,7 @@ export function MenuItem({ className, ...props }: ComponentProps<typeof Dropdown
   return (
     <DropdownMenu.Item
       className={cn(
-        "hover:bg-muted focus:bg-muted focus-visible:bg-muted flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm outline-none focus-visible:outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        "flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm outline-none hover:bg-muted focus:bg-muted focus-visible:bg-muted focus-visible:outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className,
       )}
       {...props}
@@ -115,6 +115,6 @@ export function MenuSeparator({
   ...props
 }: ComponentProps<typeof DropdownMenu.Separator>) {
   return (
-    <DropdownMenu.Separator className={cn("bg-border -mx-1 my-1 h-px", className)} {...props} />
+    <DropdownMenu.Separator className={cn("-mx-1 my-1 h-px bg-border", className)} {...props} />
   );
 }

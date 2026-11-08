@@ -517,7 +517,7 @@ export default function InstallPage() {
                   intent: intentLabel(msg, task.intent),
                 })}
               </h2>
-              <p className="mt-2 break-all font-mono text-xs text-muted-foreground">
+              <p className="mt-2 font-mono text-xs break-all text-muted-foreground">
                 {task.task_id}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -639,7 +639,7 @@ export default function InstallPage() {
                 item.argv.length > 0 &&
                 !item.missing.length ? (
                   <>
-                    <p className="break-all font-mono text-xs text-muted-foreground">
+                    <p className="font-mono text-xs break-all text-muted-foreground">
                       {item.argv.join(" ")}
                     </p>
                     <button

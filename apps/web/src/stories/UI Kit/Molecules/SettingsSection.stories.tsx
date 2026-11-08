@@ -12,7 +12,7 @@ const meta = {
     icon: "activity",
     title: "Device heartbeat",
     description: "Control periodic installation heartbeat reporting.",
-    children: <p className="text-muted-foreground text-sm">Section body</p>,
+    children: <p className="text-sm text-muted-foreground">Section body</p>,
   },
 } satisfies Meta<typeof SettingsSection>;
 

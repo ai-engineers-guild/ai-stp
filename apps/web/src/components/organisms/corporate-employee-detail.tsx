@@ -74,7 +74,7 @@ function EmployeeCatalog({
     const visible = items.slice(page * 10, (page + 1) * 10);
     return (
       <DetailAccordion title={title} summary={`${items.length}`} defaultOpen>
-        <ul className="border-border divide-border grid min-w-0 divide-y overflow-hidden rounded-lg border">
+        <ul className="grid min-w-0 divide-y divide-border overflow-hidden rounded-lg border border-border">
           {visible.map((item) =>
             item.summary ? (
               <li key={`${item.kind}:${item.id}`} className="min-w-0">
@@ -124,7 +124,7 @@ function EmployeeCatalog({
         </ul>
         {pageCount > 1 ? (
           <nav
-            className="border-border mt-4 flex items-center justify-between gap-3 border-t pt-4"
+            className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-4"
             aria-label={title}
           >
             <Button
@@ -138,7 +138,7 @@ function EmployeeCatalog({
             >
               {t("previous")}
             </Button>
-            <span className="text-muted-foreground text-sm">
+            <span className="text-sm text-muted-foreground">
               {t("page")} {page + 1} / {pageCount}
             </span>
             <Button
@@ -179,7 +179,7 @@ function ReadState({
 }) {
   return (
     <DetailAccordion title={title} summary="0">
-      <p className="text-muted-foreground mt-3 text-sm" data-state={state}>
+      <p className="mt-3 text-sm text-muted-foreground" data-state={state}>
         {message}
       </p>
     </DetailAccordion>

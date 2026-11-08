@@ -74,7 +74,7 @@ export default async function ReportsPage({ params, searchParams }: PageProps) {
     <div className="space-y-8">
       <div className="space-y-2">
         <h1 className="text-3xl font-medium tracking-tight">{t("title")}</h1>
-        <p className="text-muted-foreground max-w-2xl text-sm">{t("subtitle")}</p>
+        <p className="max-w-2xl text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
 
       <ReportForm
@@ -140,21 +140,21 @@ export default async function ReportsPage({ params, searchParams }: PageProps) {
         {cases.items.length === 0 ? (
           <StatePanel kind="empty" title={tc("empty")} description={t("empty")} />
         ) : (
-          <ul className="divide-border border-border divide-y rounded-lg border">
+          <ul className="divide-y divide-border rounded-lg border border-border">
             {cases.items.map((item) => (
               <li
                 key={item.case_id}
-                className="hover:bg-muted/30 grid gap-3 px-4 py-4 transition-colors sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                className="grid gap-3 px-4 py-4 transition-colors hover:bg-muted/30 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
               >
                 <Link href={`/reports/${item.case_id}`} className="min-w-0 space-y-1">
                   <p className="font-medium">{reportTopicLabel(item.topic, t)}</p>
-                  <p className="text-muted-foreground text-sm">{reportTargetLabel(item, t)}</p>
-                  <p className="text-muted-foreground font-mono text-xs break-all">
+                  <p className="text-sm text-muted-foreground">{reportTargetLabel(item, t)}</p>
+                  <p className="font-mono text-xs break-all text-muted-foreground">
                     {item.case_id}
                   </p>
                 </Link>
                 <div className="flex items-center gap-3 sm:justify-self-end">
-                  <time className="text-muted-foreground text-xs" dateTime={item.created_at}>
+                  <time className="text-xs text-muted-foreground" dateTime={item.created_at}>
                     {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
                       new Date(item.created_at),
                     )}

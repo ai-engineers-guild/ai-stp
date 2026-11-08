@@ -175,7 +175,8 @@ export default function AuthPage() {
   }, [origin, attempt, connection, authResult?.ok, auth?.provider]);
   const session = (auth?.session ?? {}) as Record<string, unknown>;
   const pending = auth?.pending_operation as
-    { plan?: { action?: string } } | undefined;
+    | { plan?: { action?: string } }
+    | undefined;
   const authorized = session.state === "authorized";
   const signedIn =
     authorized &&
@@ -343,7 +344,7 @@ export default function AuthPage() {
           {msg("auth.signInThroughYourBrowserTheCliKeepsCredentials")}
         </p>
         {signedIn && (
-          <p className="break-all font-mono text-xs text-muted-foreground">
+          <p className="font-mono text-xs break-all text-muted-foreground">
             {String(session.account_id ?? "")}
           </p>
         )}
@@ -469,14 +470,14 @@ export default function AuthPage() {
         <section className="card space-y-5 p-6">
           <div>
             <p className="eyebrow">{msg("auth.deviceConfirmation")}</p>
-            <h2 className="mt-3 section-title">
+            <h2 className="section-title mt-3">
               {msg("auth.approveThisDeviceInYourBrowser")}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
               {msg("auth.useTheCodeBelowOnTheVerificationPage")}
             </p>
           </div>
-          <p className="select-all rounded-lg bg-muted/60 px-5 py-6 text-center font-mono text-3xl tracking-[0.25em]">
+          <p className="rounded-lg bg-muted/60 px-5 py-6 text-center font-mono text-3xl tracking-[0.25em] select-all">
             {String(session.user_code ?? "")}
           </p>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -508,7 +509,7 @@ export default function AuthPage() {
             </p>
           )}
           {url && (
-            <p className="select-all break-all font-mono text-xs text-muted-foreground">
+            <p className="font-mono text-xs break-all text-muted-foreground select-all">
               {url}
             </p>
           )}

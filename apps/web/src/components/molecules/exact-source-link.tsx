@@ -24,7 +24,7 @@ export function ExactSourceLink({
           href={item.href}
           target="_blank"
           rel="noreferrer"
-          className="focus-visible:ring-ring inline-flex items-center gap-2 font-medium underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
+          className="inline-flex items-center gap-2 font-medium underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           <Icon name={item.provider === "GitHub" ? "github" : "link"} size="sm" /> {item.label}
         </a>

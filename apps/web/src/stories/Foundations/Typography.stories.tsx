@@ -18,7 +18,7 @@ function TypographyScale() {
         <h2 className="text-lg font-medium">Sizes</h2>
         {Object.entries(fontSizes).map(([name, value]) => (
           <p key={name} style={{ fontSize: value }} className="leading-snug">
-            <span className="text-muted-foreground mr-2 font-mono text-xs">
+            <span className="mr-2 font-mono text-xs text-muted-foreground">
               {name} ({value})
             </span>
             Build harness setups without a second source of truth.

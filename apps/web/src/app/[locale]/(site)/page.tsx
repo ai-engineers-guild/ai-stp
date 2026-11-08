@@ -42,7 +42,7 @@ export default async function LandingPage({ params }: PageProps) {
 
   return (
     <div data-ui={UI.landing.page} className="min-w-0">
-      <section className="landing-hero dark bg-background text-foreground relative left-1/2 isolate -my-6 flex min-h-[calc(100dvh-4rem)] w-screen -translate-x-1/2 items-center overflow-hidden px-4 py-16 sm:px-6">
+      <section className="landing-hero dark relative left-1/2 isolate -my-6 flex min-h-[calc(100dvh-4rem)] w-screen -translate-x-1/2 items-center overflow-hidden bg-background px-4 py-16 text-foreground sm:px-6">
         <div className="landing-hero__media" aria-hidden="true">
           <LandingHeroPreview />
         </div>
@@ -53,7 +53,7 @@ export default async function LandingPage({ params }: PageProps) {
             <h1 className="max-w-3xl text-[2.25rem] leading-[1.08] font-medium tracking-[-0.035em] text-balance sm:text-5xl lg:text-6xl">
               {t("title")}
             </h1>
-            <p className="text-muted-foreground max-w-2xl text-base leading-relaxed sm:text-lg">
+            <p className="max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
               {t("subtitle")}
             </p>
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">

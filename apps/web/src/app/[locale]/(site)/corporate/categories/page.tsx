@@ -80,7 +80,7 @@ export default async function CategoryDirectoryPage({
         </details>
       )}
       {items.length ? (
-        <ul className="divide-border divide-y">
+        <ul className="divide-y divide-border">
           {items.map((item) => (
             <li key={item.category_id} className="space-y-1 py-4">
               <span className="flex flex-wrap items-center gap-3">
@@ -97,7 +97,7 @@ export default async function CategoryDirectoryPage({
                   </Badge>
                 )}
               </span>
-              <p className="text-muted-foreground max-w-prose text-sm">{item.description}</p>
+              <p className="max-w-prose text-sm text-muted-foreground">{item.description}</p>
             </li>
           ))}
         </ul>

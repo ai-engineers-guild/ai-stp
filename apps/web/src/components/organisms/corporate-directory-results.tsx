@@ -149,7 +149,7 @@ function DirectoryItemList({
 }) {
   if (!items.length) {
     return (
-      <p className="text-muted-foreground border-border rounded-lg border border-dashed p-8 text-center text-sm">
+      <p className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
         {emptyLabel}
       </p>
     );
@@ -422,19 +422,19 @@ export function CorporateDirectoryResults({
         {...(facets ? { facets } : {})}
       />
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted-foreground text-sm" aria-live="polite">
+        <p className="text-sm text-muted-foreground" aria-live="polite">
           {serverPaginated ? (total ?? visible.length) : visible.length}{" "}
           {t(resource === "members" ? "employees" : resource)}
         </p>
         {serverPaginated ? (
-          <label className="text-muted-foreground flex items-center gap-2 text-sm">
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>{t("pageSize")}</span>
             <Select
               value={pageSize}
               onChange={(event) => {
                 changePageSize(Number(event.target.value));
               }}
-              className="border-input bg-background text-foreground h-9 rounded-sm border px-2 text-sm"
+              className="h-9 rounded-sm border border-input bg-background px-2 text-sm text-foreground"
             >
               {[10, 24, 48, 64].map((size) => (
                 <option key={size} value={size}>

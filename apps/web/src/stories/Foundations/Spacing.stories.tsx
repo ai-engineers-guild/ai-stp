@@ -7,8 +7,8 @@ function SpacingScale() {
     <div className="space-y-3">
       {Object.entries(spacing).map(([name, value]) => (
         <div key={name} className="flex items-center gap-4">
-          <code className="text-muted-foreground w-16 font-mono text-xs">{name}</code>
-          <div className="bg-primary h-4 rounded-sm" style={{ width: value }} />
+          <code className="w-16 font-mono text-xs text-muted-foreground">{name}</code>
+          <div className="h-4 rounded-sm bg-primary" style={{ width: value }} />
           <span className="font-mono text-xs">{value}</span>
         </div>
       ))}

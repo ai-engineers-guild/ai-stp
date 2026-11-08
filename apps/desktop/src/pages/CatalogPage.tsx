@@ -384,7 +384,7 @@ export default function CatalogPage() {
               <p className="text-sm leading-6 text-muted-foreground">
                 {String(summary.latest_description ?? "")}
               </p>
-              <p className="break-all font-mono text-xs text-muted-foreground">
+              <p className="font-mono text-xs break-all text-muted-foreground">
                 {String(summary.stable_id)}
               </p>
             </>
@@ -403,7 +403,7 @@ export default function CatalogPage() {
                         {version.lifecycle}
                       </span>
                     </p>
-                    <p className="mt-1 break-all font-mono text-micro text-muted-foreground">
+                    <p className="mt-1 font-mono text-micro break-all text-muted-foreground">
                       {version.passport_digest}
                     </p>
                   </div>
@@ -443,10 +443,10 @@ export default function CatalogPage() {
           <p className="mt-2 text-sm">
             {msg("catalog.thisSavesTheReviewedGraphInItsOriginalLocal")}
           </p>
-          <p className="mt-3 break-all text-sm">
+          <p className="mt-3 text-sm break-all">
             {download.id} · {download.version}
           </p>
-          <p className="mt-1 break-all text-sm text-muted-foreground">
+          <p className="mt-1 text-sm break-all text-muted-foreground">
             {download.endpoint} · {download.components}{" "}
             {msg("catalog.components2")}
           </p>

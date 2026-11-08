@@ -52,7 +52,7 @@ export function AuditDrawer({
           <span>
             {t(`actors.${item.actor_type}`)}
             {item.actor_id ? (
-              <span className="text-muted-foreground mt-0.5 block font-mono text-xs">
+              <span className="mt-0.5 block font-mono text-xs text-muted-foreground">
                 {item.actor_id}
               </span>
             ) : null}
@@ -126,11 +126,11 @@ export function AuditDrawer({
           ) : null}
         </div>
         {hasPayload ? (
-          <pre className="border-border bg-muted/30 max-h-96 overflow-auto rounded-md border p-3 font-mono text-xs whitespace-pre-wrap">
+          <pre className="max-h-96 overflow-auto rounded-md border border-border bg-muted/30 p-3 font-mono text-xs whitespace-pre-wrap">
             {payload}
           </pre>
         ) : (
-          <p className="border-border text-muted-foreground rounded-md border border-dashed p-3 text-sm">
+          <p className="rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">
             {t("noChanges")}
           </p>
         )}

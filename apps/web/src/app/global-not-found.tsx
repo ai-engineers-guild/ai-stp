@@ -12,7 +12,7 @@ export default function RootNotFound() {
     <html lang="en" suppressHydrationWarning>
       <body
         suppressHydrationWarning
-        className="bg-background text-foreground m-0 flex min-h-screen items-center justify-center p-6 font-sans"
+        className="m-0 flex min-h-screen items-center justify-center bg-background p-6 font-sans text-foreground"
       >
         <main className="flex w-full max-w-xl flex-col gap-6">
           <h1 className="text-3xl font-medium tracking-tight">Page not found</h1>

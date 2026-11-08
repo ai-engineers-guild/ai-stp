@@ -179,7 +179,7 @@ export function DashboardBuilder({
   return (
     <div className="space-y-6">
       <section
-        className="border-border bg-card rounded-lg border p-4 sm:p-6"
+        className="rounded-lg border border-border bg-card p-4 sm:p-6"
         aria-label={t("constructor")}
       >
         <h2 className="text-lg font-medium">{t("constructor")}</h2>
@@ -292,7 +292,7 @@ export function DashboardBuilder({
               <label key={value} className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
-                  className="accent-primary size-4"
+                  className="size-4 accent-primary"
                   checked={query.dimensions?.includes(value) ?? false}
                   disabled={
                     !(query.dimensions?.includes(value) ?? false) &&
@@ -325,7 +325,7 @@ export function DashboardBuilder({
                 <label key={value} className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
-                    className="accent-primary size-4"
+                    className="size-4 accent-primary"
                     checked={query.measures?.includes(value) ?? false}
                     disabled={
                       (query.measures?.length ?? 0) === 1 && query.measures?.includes(value)
@@ -489,7 +489,7 @@ export function DashboardBuilder({
       </section>
 
       <section
-        className="border-border bg-card rounded-lg border p-4 sm:p-6"
+        className="rounded-lg border border-border bg-card p-4 sm:p-6"
         aria-label={t("savedViews")}
       >
         <h2 className="text-lg font-medium">{t("savedViews")}</h2>
@@ -594,12 +594,12 @@ function DashboardVisual({ result, measure }: { result: DashboardResult; measure
   ];
   return (
     <section
-      className="border-border bg-card rounded-lg border p-4 sm:p-6"
+      className="rounded-lg border border-border bg-card p-4 sm:p-6"
       aria-label={t("results")}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-lg font-medium">{t("results")}</h2>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           {t("summary", { rows: result.total_source_rows, groups: result.total_groups })}
         </p>
       </div>
@@ -622,9 +622,9 @@ function DashboardVisual({ result, measure }: { result: DashboardResult; measure
                   <span className="min-w-0 truncate" title={dimensionLabel(item, dimensions)}>
                     {dimensionLabel(item, dimensions)}
                   </span>
-                  <div className="bg-muted h-5 rounded-sm">
+                  <div className="h-5 rounded-sm bg-muted">
                     <div
-                      className="bg-primary h-5 rounded-sm"
+                      className="h-5 rounded-sm bg-primary"
                       style={{ width: `${(100 * (item.measures[measure] ?? 0)) / max}%` }}
                     />
                   </div>
@@ -639,7 +639,7 @@ function DashboardVisual({ result, measure }: { result: DashboardResult; measure
                 role="img"
                 aria-label={t("charts.line")}
                 viewBox="0 0 600 180"
-                className="text-primary h-44 w-full min-w-[320px]"
+                className="h-44 w-full min-w-[320px] text-primary"
               >
                 <polyline
                   fill="none"
@@ -724,10 +724,10 @@ function DashboardVisual({ result, measure }: { result: DashboardResult; measure
               {chartItems.map((item, index) => (
                 <div
                   key={index}
-                  className="border-border relative min-h-20 overflow-hidden rounded-sm border p-2 text-xs"
+                  className="relative min-h-20 overflow-hidden rounded-sm border border-border p-2 text-xs"
                 >
                   <div
-                    className="bg-primary absolute inset-0"
+                    className="absolute inset-0 bg-primary"
                     style={{ opacity: 0.1 + (0.8 * (item.measures[measure] ?? 0)) / max }}
                   />
                   <div className="relative">
@@ -816,7 +816,7 @@ function PivotTable({ result, measure }: { result: DashboardResult; measure: Mea
         <TBody>
           {rows.map((row) => (
             <Tr key={row}>
-              <Th scope="row" className="text-foreground p-2 font-medium">
+              <Th scope="row" className="p-2 font-medium text-foreground">
                 {row}
               </Th>
               {columns.map((column) => (

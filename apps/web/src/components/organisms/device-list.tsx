@@ -72,7 +72,7 @@ function DeviceCard({
 
   return (
     <li
-      className="border-border bg-card text-card-foreground rounded-lg border p-4 shadow-sm"
+      className="rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm"
       data-device-id={device.device_id}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -118,15 +118,15 @@ function DeviceCard({
       </div>
       <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
         <div>
-          <dt className="text-muted-foreground text-xs">{t("connection")}</dt>
+          <dt className="text-xs text-muted-foreground">{t("connection")}</dt>
           <dd>{t(deviceType === "web" ? "webBrowser" : "cliDevice")}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-xs">{t("lastConnected")}</dt>
+          <dt className="text-xs text-muted-foreground">{t("lastConnected")}</dt>
           <dd suppressHydrationWarning>{lastConnected}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-xs">{t("approximateLocation")}</dt>
+          <dt className="text-xs text-muted-foreground">{t("approximateLocation")}</dt>
           <dd>{location ?? t("locationUnavailable")}</dd>
         </div>
       </dl>
@@ -136,23 +136,23 @@ function DeviceCard({
           data-summary-fields={DEVICE_SUMMARY_FIELDS.join(",")}
         >
           <div>
-            <dt className="text-muted-foreground text-xs">{t("displayName")}</dt>
+            <dt className="text-xs text-muted-foreground">{t("displayName")}</dt>
             <dd className="font-medium">{summary.display_name}</dd>
           </div>
           <div>
-            <dt className="text-muted-foreground text-xs">{t("os")}</dt>
+            <dt className="text-xs text-muted-foreground">{t("os")}</dt>
             <dd className="font-medium capitalize">{summary.operating_system}</dd>
           </div>
           <div>
-            <dt className="text-muted-foreground text-xs">{t("architecture")}</dt>
+            <dt className="text-xs text-muted-foreground">{t("architecture")}</dt>
             <dd className="font-mono text-sm font-medium">{summary.architecture}</dd>
           </div>
           <div>
-            <dt className="text-muted-foreground text-xs">{t("toolchain")}</dt>
+            <dt className="text-xs text-muted-foreground">{t("toolchain")}</dt>
             <dd className="font-mono text-sm font-medium">{summary.toolchain_profile_version}</dd>
           </div>
           <div className="sm:col-span-2">
-            <dt className="text-muted-foreground text-xs">{t("harnesses")}</dt>
+            <dt className="text-xs text-muted-foreground">{t("harnesses")}</dt>
             <dd>
               <ul className="list-disc pl-5 font-mono text-sm">
                 {summary.detected_harnesses.map((h) => (
@@ -164,13 +164,13 @@ function DeviceCard({
             </dd>
           </div>
           <div>
-            <dt className="text-muted-foreground text-xs">{t("updatedAt")}</dt>
+            <dt className="text-xs text-muted-foreground">{t("updatedAt")}</dt>
             <dd className="font-mono text-sm">{summary.summary_updated_at}</dd>
           </div>
         </dl>
       ) : null}
       <details className="mt-4 border-t pt-3">
-        <summary className="text-muted-foreground cursor-pointer text-xs font-medium">
+        <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
           {t("technicalDetails")}
         </summary>
         <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2 text-sm">
@@ -192,7 +192,7 @@ function DeviceCard({
             <Icon name="copy" size="sm" />
           </Button>
           {device.user_agent ? (
-            <p className="text-muted-foreground w-full text-xs break-all">{device.user_agent}</p>
+            <p className="w-full text-xs break-all text-muted-foreground">{device.user_agent}</p>
           ) : null}
         </div>
       </details>
@@ -249,7 +249,7 @@ export function DeviceList({ devices, currentDeviceId, csrfToken, locale }: Devi
   }
 
   if (devices.length === 0) {
-    return <p className="text-muted-foreground text-sm">{t("empty")}</p>;
+    return <p className="text-sm text-muted-foreground">{t("empty")}</p>;
   }
 
   return (

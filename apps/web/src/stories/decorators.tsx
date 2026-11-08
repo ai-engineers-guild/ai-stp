@@ -9,7 +9,7 @@ import en from "../../messages/en.json";
 export const withAppChrome: Decorator = (Story) => (
   <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
     <NextIntlClientProvider locale="en" messages={en}>
-      <div className="bg-background text-foreground min-h-[200px] p-4">
+      <div className="min-h-[200px] bg-background p-4 text-foreground">
         <Story />
       </div>
       <Toaster richColors position="top-center" />

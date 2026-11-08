@@ -252,7 +252,7 @@ export function CatalogFilterPanel({
           onToChange={setUpdatedTo}
         />
         {corporateFacets.length ? (
-          <fieldset className="border-border min-w-0 space-y-3 rounded-lg border p-4 md:col-span-2">
+          <fieldset className="min-w-0 space-y-3 rounded-lg border border-border p-4 md:col-span-2">
             <legend className="px-1 text-sm font-medium">
               {labels.corporateFilters ?? "Corporate"}
             </legend>
@@ -355,7 +355,7 @@ function LinkedRelationFacets({
   selectedServices: string[];
 }) {
   return (
-    <fieldset className="border-border min-w-0 space-y-3 rounded-lg border p-4 md:col-span-2">
+    <fieldset className="min-w-0 space-y-3 rounded-lg border border-border p-4 md:col-span-2">
       <legend className="px-1 text-sm font-medium">{labels.serviceFilter}</legend>
       <div className="grid min-w-0 gap-3 sm:grid-cols-2">
         <Facet
@@ -428,13 +428,13 @@ function UpdatedRangeFields({
           <Help label={labels.filterHelpLabel} text={labels.updatedRangeHelp} />
         ) : null}
       </legend>
-      <details className="border-input bg-background min-w-0 rounded-sm border">
+      <details className="min-w-0 rounded-sm border border-input bg-background">
         <summary className="flex min-h-11 cursor-pointer list-none items-center px-3 text-sm break-all marker:content-none">
           {updatedFrom || updatedTo
             ? `${updatedFrom || "…"} — ${updatedTo || "…"}`
             : `${labels.updatedFrom ?? "Updated from"} — ${labels.updatedTo ?? "Updated to"}`}
         </summary>
-        <div className="border-border grid gap-3 border-t p-3 sm:grid-cols-2">
+        <div className="grid gap-3 border-t border-border p-3 sm:grid-cols-2">
           <label className="space-y-1 text-xs font-medium">
             <span>{labels.updatedFrom ?? "Updated from"}</span>
             <Input
@@ -464,7 +464,7 @@ function UpdatedRangeFields({
       {updatedFrom || updatedTo ? (
         <button
           type="button"
-          className="text-muted-foreground text-xs underline underline-offset-4"
+          className="text-xs text-muted-foreground underline underline-offset-4"
           onClick={() => {
             onFromChange("");
             onToChange("");
@@ -503,7 +503,7 @@ function Help({ label, text }: { label: string; text: string }) {
   return (
     <button
       type="button"
-      className="group/help text-muted-foreground hover:bg-muted focus-visible:ring-ring relative inline-grid size-6 shrink-0 place-items-center rounded-sm focus-visible:ring-2"
+      className="group/help relative inline-grid size-6 shrink-0 place-items-center rounded-sm text-muted-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
       aria-label={label}
     >
       <span aria-hidden="true" className="text-xs font-semibold">
@@ -511,7 +511,7 @@ function Help({ label, text }: { label: string; text: string }) {
       </span>
       <span
         role="tooltip"
-        className="border-border bg-popover text-popover-foreground pointer-events-none absolute bottom-full left-0 z-[70] mb-2 hidden w-[min(14rem,calc(100vw-2.5rem))] rounded-md border p-2 text-left text-xs font-normal shadow-md group-hover/help:block group-focus/help:block"
+        className="pointer-events-none absolute bottom-full left-0 z-[70] mb-2 hidden w-[min(14rem,calc(100vw-2.5rem))] rounded-md border border-border bg-popover p-2 text-left text-xs font-normal text-popover-foreground shadow-md group-hover/help:block group-focus/help:block"
       >
         {text}
       </span>

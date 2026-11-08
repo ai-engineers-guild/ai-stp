@@ -47,7 +47,7 @@ function DetailDemo({ wide = false }: { wide?: boolean }) {
           </div>
           <div>
             <h3 className="text-sm font-medium">Description</h3>
-            <p className="text-muted-foreground mt-2 text-sm">
+            <p className="mt-2 text-sm text-muted-foreground">
               Full access to every organization resource.
             </p>
           </div>

@@ -198,7 +198,7 @@ function LandscapeFilterSurface({
       labels={{ filtersButton: t("filters"), closeFilters: t("close") }}
       onClose={onClose}
     >
-      <p className="text-muted-foreground -mt-3 mb-4 text-sm">{w("filterDescription")}</p>
+      <p className="-mt-3 mb-4 text-sm text-muted-foreground">{w("filterDescription")}</p>
       <div className="grid min-w-0 items-start gap-5 md:grid-cols-2">
         <div className="min-w-0 space-y-2 text-sm">
           <Label htmlFor="landscape-organization" className="font-medium">
@@ -248,7 +248,7 @@ function LandscapeFilterSurface({
           </div>
         ))}
       </div>
-      <div className="border-border bg-card sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t py-5">
+      <div className="sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-card py-5">
         <Button
           type="button"
           variant="ghost"

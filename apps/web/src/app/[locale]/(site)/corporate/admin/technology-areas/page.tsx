@@ -55,7 +55,7 @@ export default async function TechnologyAreasPage({
       <header className="space-y-3">
         <HistoryBackButton label={h("referenceData")} fallback="/corporate/admin" />
         <h1 className="text-3xl font-medium tracking-tight sm:text-4xl">{t("areas.title")}</h1>
-        <p className="text-muted-foreground max-w-prose">{t("areas.description")}</p>
+        <p className="max-w-prose text-muted-foreground">{t("areas.description")}</p>
       </header>
       <TaxonomyDirectory
         kind="area"

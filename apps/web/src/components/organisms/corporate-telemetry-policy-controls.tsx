@@ -393,7 +393,7 @@ export function CorporateTelemetryPolicyControls({
         {canManage ? (
           <div className="flex items-center justify-end gap-4">
             {mutation.message && (
-              <p className="text-muted-foreground text-sm" role="status">
+              <p className="text-sm text-muted-foreground" role="status">
                 {mutation.message}
               </p>
             )}

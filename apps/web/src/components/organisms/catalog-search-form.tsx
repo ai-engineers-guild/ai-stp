@@ -69,15 +69,15 @@ export function CatalogSearchForm({
       {children}
       {pending ? (
         <div
-          className="bg-muted mt-3 h-0.5 overflow-hidden"
+          className="mt-3 h-0.5 overflow-hidden bg-muted"
           role="status"
           aria-label={updatingLabel}
         >
-          <div className="bg-primary h-full w-2/5 animate-pulse" />
+          <div className="h-full w-2/5 animate-pulse bg-primary" />
         </div>
       ) : null}
       {queryError ? (
-        <p className="text-destructive mt-2 text-sm" role="alert">
+        <p className="mt-2 text-sm text-destructive" role="alert">
           {queryError}
         </p>
       ) : null}

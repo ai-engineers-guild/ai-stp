@@ -74,18 +74,18 @@ export function CorporateEmployeeAccessDrawer({
           [a("joined"), member.joined_at?.slice(0, 10) ?? "—"],
         ].map(([label, value]) => (
           <div key={label}>
-            <dt className="text-muted-foreground text-xs">{label}</dt>
+            <dt className="text-xs text-muted-foreground">{label}</dt>
             <dd className="mt-0.5 truncate">{value}</dd>
           </div>
         ))}
       </dl>
 
-      <section className="border-border space-y-5 border-t pt-5">
+      <section className="space-y-5 border-t border-border pt-5">
         <h2 className="font-medium">{a("grants")}</h2>
         {children}
       </section>
 
-      <section className="border-border space-y-3 border-t pt-5">
+      <section className="space-y-3 border-t border-border pt-5">
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-medium">
             {a("effectivePermissions")} <Badge variant="secondary">{effective.length}</Badge>
@@ -103,14 +103,14 @@ export function CorporateEmployeeAccessDrawer({
         </div>
         <form method="get" className="flex flex-wrap items-end gap-2" aria-label={c("selectScope")}>
           <input type="hidden" name="employee" value={member.account_id} />
-          <label className="text-muted-foreground w-full text-xs" htmlFor="access-scope">
+          <label className="w-full text-xs text-muted-foreground" htmlFor="access-scope">
             {c("selectScope")}
           </label>
           <select
             id="access-scope"
             name="scope"
             defaultValue={currentScope}
-            className="border-input bg-background h-10 min-w-0 flex-1 rounded-sm border px-2 text-sm"
+            className="h-10 min-w-0 flex-1 rounded-sm border border-input bg-background px-2 text-sm"
           >
             {scopeOptions.map((scope) => (
               <option key={scope.value} value={scope.value}>
@@ -126,10 +126,10 @@ export function CorporateEmployeeAccessDrawer({
           <CorporatePermissionTable definitions={granted} permissions={permissions} />
         ) : (
           entityDefinitions(granted).map(([resource, items]) => (
-            <details key={resource} className="border-border border-b py-3">
+            <details key={resource} className="border-b border-border py-3">
               <summary className="cursor-pointer text-sm font-medium">
                 {a(`entities.${resource}.name`)}{" "}
-                <span className="text-muted-foreground font-normal">· {items.length}</span>
+                <span className="font-normal text-muted-foreground">· {items.length}</span>
               </summary>
               <ul className="mt-3 space-y-3">
                 {items.map((definition) => (
@@ -154,22 +154,22 @@ export function CorporateEmployeeAccessDrawer({
             </details>
           ))
         )}
-        {!granted.length ? <p className="text-muted-foreground text-sm">{a("noResults")}</p> : null}
+        {!granted.length ? <p className="text-sm text-muted-foreground">{a("noResults")}</p> : null}
       </section>
 
-      <section className="border-border space-y-3 border-t pt-5 text-sm">
+      <section className="space-y-3 border-t border-border pt-5 text-sm">
         <h2 className="font-medium">{a("activity")}</h2>
         <p className="text-muted-foreground">
           {p("lastActivity")}: {member.last_activity_at ?? "—"}
         </p>
-        <ul className="divide-border divide-y">
+        <ul className="divide-y divide-border">
           {activity.map((event) => (
             <li key={event.audit_id} className="space-y-1 py-3">
               <p className="font-medium">{event.action}</p>
-              <p className="text-muted-foreground text-xs">
+              <p className="text-xs text-muted-foreground">
                 {event.created_at} · {event.outcome}
               </p>
-              <p className="text-muted-foreground text-xs break-all">
+              <p className="text-xs break-all text-muted-foreground">
                 {event.target_table}: {event.target_id}
               </p>
             </li>

@@ -123,7 +123,7 @@ export default async function AssignedObjectsPage({ params, searchParams }: Page
         <h1 className="text-2xl font-medium tracking-tight break-words sm:text-3xl">
           {t("title")}
         </h1>
-        <p className="text-muted-foreground max-w-2xl text-sm">{t("subtitle")}</p>
+        <p className="max-w-2xl text-sm text-muted-foreground">{t("subtitle")}</p>
         <CatalogFilters
           query={query}
           locale={locale}

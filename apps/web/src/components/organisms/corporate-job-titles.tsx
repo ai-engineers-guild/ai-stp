@@ -248,7 +248,7 @@ export function CorporateJobTitles({
         </div>
         <PeopleTable label={t("jobTitles")} minWidth="min-w-[640px]" framed>
           <thead>
-            <tr className="border-border border-b">
+            <tr className="border-b border-border">
               <th scope="col" className={peopleHeadClass}>
                 {t("jobTitleName")}
               </th>
@@ -268,7 +268,7 @@ export function CorporateJobTitles({
               <tr
                 key={title.job_title_id}
                 data-selected={selected?.job_title_id === title.job_title_id || undefined}
-                className="border-border hover:bg-muted/30 data-[selected]:bg-primary/5 cursor-pointer border-b transition-colors last:border-0"
+                className="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-muted/30 data-[selected]:bg-primary/5"
                 onClick={() => {
                   setSelectedId(title.job_title_id);
                   setMemberQuery("");
@@ -282,7 +282,7 @@ export function CorporateJobTitles({
                     ) : null}
                   </span>
                 </td>
-                <td className={`${peopleCellClass} text-muted-foreground max-w-80`}>
+                <td className={`${peopleCellClass} max-w-80 text-muted-foreground`}>
                   <span className="line-clamp-2">{title.description}</span>
                 </td>
                 <td className={`${peopleCellClass} tabular-nums`}>
@@ -300,7 +300,6 @@ export function CorporateJobTitles({
                       id: title.job_title_id,
                       organization_id: organizationId,
                     }}
-
                     moreLabel={t("jobTitleActions", { name: title.name })}
                     choices={[
                       {
@@ -349,7 +348,7 @@ export function CorporateJobTitles({
             ))}
             {!rows.length ? (
               <tr>
-                <td colSpan={4} className="text-muted-foreground py-14 text-center text-sm">
+                <td colSpan={4} className="py-14 text-center text-sm text-muted-foreground">
                   {t(jobTitles.length ? "noMatches" : "jobTitleNoItems")}
                 </td>
               </tr>
@@ -409,12 +408,12 @@ export function CorporateJobTitles({
         {selected ? (
           <div className="space-y-5">
             <div className="space-y-1">
-              <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+              <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                 {t("description")}
               </h3>
               <p className="text-sm break-words">{selected.description || "—"}</p>
             </div>
-            <div className="border-border text-muted-foreground flex items-center gap-2 rounded-sm border px-3 py-2 text-sm">
+            <div className="flex items-center gap-2 rounded-sm border border-border px-3 py-2 text-sm text-muted-foreground">
               <Icon name="user" size="sm" />
               {t("linkedEmployeesCount", { count: assigned.length })}
             </div>
@@ -446,12 +445,12 @@ export function CorporateJobTitles({
                       setMemberQuery(event.target.value);
                     }}
                   />
-                  <ul className="divide-border divide-y">
+                  <ul className="divide-y divide-border">
                     {visibleAssigned.map((member) => (
                       <li key={member.account_id} className="flex items-center gap-2 py-2">
                         <Link
                           href={`/corporate/employees/${encodeURIComponent(member.account_id)}`}
-                          className="focus-visible:ring-ring min-w-0 flex-1 rounded-sm focus-visible:ring-2 focus-visible:outline-none"
+                          className="min-w-0 flex-1 rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                         >
                           <PersonIdentity
                             name={employeeName(member)}
@@ -626,7 +625,7 @@ export function CorporateJobTitles({
       </FormDialog>
 
       {message ? (
-        <p className="text-muted-foreground text-sm" role="status" aria-live="polite">
+        <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
           {message}
         </p>
       ) : null}

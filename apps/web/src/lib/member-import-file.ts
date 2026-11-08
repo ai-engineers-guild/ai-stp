@@ -3,7 +3,10 @@ import { inspectMemberCells, inspectMemberImport, type MemberImportRow } from ".
 export const MEMBER_IMPORT_ACCEPT = ".csv,.json,.md,.markdown,.xlsx,.txt";
 export const MEMBER_IMPORT_MAX_BYTES = 2 * 1024 * 1024;
 export type MemberImportFileError =
-  "unsupportedFile" | "fileTooLarge" | "tooManyRows" | "importFailed";
+  | "unsupportedFile"
+  | "fileTooLarge"
+  | "tooManyRows"
+  | "importFailed";
 
 export class MemberImportError extends Error {
   constructor(public readonly reason: MemberImportFileError) {

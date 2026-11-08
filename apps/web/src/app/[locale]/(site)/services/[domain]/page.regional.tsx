@@ -43,18 +43,18 @@ export default async function ServicePage({
       {seo ? <SeoJsonLd jsonLd={seo.profile.json_ld} /> : null}
       <HistoryBackButton label={t("backToServices")} fallback="/services" />
       <header className="max-w-3xl space-y-4">
-        <p className="text-muted-foreground text-sm">{t("externalService")}</p>
+        <p className="text-sm text-muted-foreground">{t("externalService")}</p>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="min-w-0">
             <h1 className="text-4xl font-medium tracking-tight sm:text-5xl">
               {seo?.profile.title ?? service.name}
             </h1>
-            <p className="text-muted-foreground mt-2 font-mono text-sm">
+            <p className="mt-2 font-mono text-sm text-muted-foreground">
               {service.canonical_domain}
             </p>
           </div>
           <a
-            className="text-primary inline-flex min-h-11 items-center gap-2 text-sm font-medium underline underline-offset-4"
+            className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary underline underline-offset-4"
             href={service.primary_url}
             rel="noreferrer"
           >
@@ -88,7 +88,7 @@ export default async function ServicePage({
             }}
           />
         </div>
-        <aside className="border-border bg-card rounded-lg border p-5">
+        <aside className="rounded-lg border border-border bg-card p-5">
           <h2 className="text-lg font-medium">{t("overview")}</h2>
           <dl className="mt-5 space-y-4 text-sm">
             <div>
@@ -97,7 +97,7 @@ export default async function ServicePage({
                 {service.country_codes.length ? (
                   service.country_codes.map((code) => (
                     <Link
-                      className="border-border hover:bg-muted inline-flex items-center gap-2 rounded-md border px-2.5 py-1.5"
+                      className="inline-flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5 hover:bg-muted"
                       href={`/countries/${code}`}
                       key={code}
                     >
@@ -142,7 +142,7 @@ function ObjectGroups({
         <h2 id="service-objects-heading" className="text-2xl font-medium tracking-tight">
           {labels.automations}
         </h2>
-        <p className="text-muted-foreground mt-1 text-sm">{labels.linkedObjectsHint}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{labels.linkedObjectsHint}</p>
       </div>
       <div className="space-y-6">
         {components.length ? <ObjectGroup heading={labels.components} items={components} /> : null}
@@ -166,11 +166,11 @@ function ObjectGroup({
         {items.map((item) => (
           <li key={`${item.object_kind}:${item.stable_id}`}>
             <Link
-              className="border-border bg-card hover:bg-muted focus-visible:ring-ring flex min-h-12 items-center justify-between gap-3 rounded-md border px-4 py-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
+              className="flex min-h-12 items-center justify-between gap-3 rounded-md border border-border bg-card px-4 py-3 text-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               href={`/catalog/${item.object_kind === "component" ? "components" : "setups"}/${item.stable_id}`}
             >
               <span className="min-w-0 break-words">{item.name}</span>
-              <Icon name="chevronRight" size="sm" className="text-muted-foreground shrink-0" />
+              <Icon name="chevronRight" size="sm" className="shrink-0 text-muted-foreground" />
             </Link>
           </li>
         ))}

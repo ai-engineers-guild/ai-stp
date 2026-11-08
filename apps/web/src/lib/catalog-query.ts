@@ -326,7 +326,11 @@ export function parseCatalogSearchParams(
       view,
       supportTier: supportTierRaw as "primary" | "beta" | undefined,
       supportState: supportStateRaw as
-        "verified" | "stale" | "missing" | "not_verified" | undefined,
+        | "verified"
+        | "stale"
+        | "missing"
+        | "not_verified"
+        | undefined,
       serviceDomains,
       countryCodes,
       ...(updatedFrom ? { updatedFrom } : {}),

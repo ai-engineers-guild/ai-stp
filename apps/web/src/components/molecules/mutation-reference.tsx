@@ -9,7 +9,7 @@ export function MutationReference({ label, operationId }: MutationReferenceProps
     return null;
   }
   return (
-    <p className="text-muted-foreground font-mono text-xs" role="status">
+    <p className="font-mono text-xs text-muted-foreground" role="status">
       {label}: {operationId}
     </p>
   );

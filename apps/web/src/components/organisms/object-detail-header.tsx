@@ -81,7 +81,7 @@ export function ObjectDetailHeader({
             />
             {githubStars !== null && githubStars !== undefined ? (
               <span
-                className="border-border inline-flex min-h-11 items-center gap-1.5 rounded-md border px-2 py-1 text-sm"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-border px-2 py-1 text-sm"
                 aria-label={`${githubStarsLabel}: ${githubStars}`}
               >
                 <Icon name="star" size="sm" />
@@ -97,14 +97,14 @@ export function ObjectDetailHeader({
                     href={item.href}
                     target="_blank"
                     rel="noreferrer"
-                    className="focus-visible:ring-ring inline-flex min-h-11 min-w-0 items-center gap-1.5 text-sm font-medium break-words underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
+                    className="inline-flex min-h-11 min-w-0 items-center gap-1.5 text-sm font-medium break-words underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                   >
                     <Icon name={item.provider === "GitHub" ? "github" : "link"} size="sm" />
                     {item.label}
                   </a>
                 ))}
                 {archived === true ? (
-                  <span className="border-border bg-muted inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium">
+                  <span className="inline-flex items-center rounded-md border border-border bg-muted px-2 py-0.5 text-xs font-medium">
                     {archivedLabel}
                   </span>
                 ) : null}

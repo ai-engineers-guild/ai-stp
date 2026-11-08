@@ -36,7 +36,7 @@ export default async function AreaDetailPage({
         <div className="space-y-2">
           <h1 className="text-3xl font-medium">{area.name}</h1>
           <Badge variant="secondary">{area.state}</Badge>
-          <p className="text-muted-foreground max-w-prose">{area.description}</p>
+          <p className="max-w-prose text-muted-foreground">{area.description}</p>
         </div>
         <EntityDetailMenu
           moreLabel={w("actions")}
@@ -46,7 +46,7 @@ export default async function AreaDetailPage({
       </header>
       <section className="space-y-3">
         <h2 className="text-xl font-medium">{h("categories")}</h2>
-        <ul className="divide-border divide-y">
+        <ul className="divide-y divide-border">
           {categories?.items
             .filter((category) => category.area_id === areaId)
             .map((category) => (

@@ -85,7 +85,6 @@ export default async function TechnologyDetailPage({
         resource="technologies"
         resourceId={technologyId}
         title={technology.name}
-
         {...(technology.lifecycle === "active"
           ? {}
           : { state: t(`values.${technology.lifecycle}`) })}
@@ -234,7 +233,7 @@ function TechnologyProjectsPanel({
     />
   ) : (
     <DetailAccordion title={labels.title} summary="0">
-      <p className="text-muted-foreground text-sm">{labels.empty}</p>
+      <p className="text-sm text-muted-foreground">{labels.empty}</p>
     </DetailAccordion>
   );
 }

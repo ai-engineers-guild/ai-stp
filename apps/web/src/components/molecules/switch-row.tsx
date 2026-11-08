@@ -49,7 +49,7 @@ export function SwitchRow({
         {icon ? (
           <span
             aria-hidden
-            className="border-border bg-muted/40 text-muted-foreground grid size-10 shrink-0 place-items-center rounded-md border"
+            className="grid size-10 shrink-0 place-items-center rounded-md border border-border bg-muted/40 text-muted-foreground"
           >
             <Icon name={icon} size="sm" />
           </span>
@@ -62,7 +62,7 @@ export function SwitchRow({
             {hint ? <FieldHint text={hint} /> : null}
           </span>
           {description ? (
-            <span className="text-muted-foreground mt-0.5 block text-sm">{description}</span>
+            <span className="mt-0.5 block text-sm text-muted-foreground">{description}</span>
           ) : null}
         </span>
       </span>
@@ -81,7 +81,7 @@ export function SwitchRow({
         {status ? (
           <span className="hidden w-44 sm:block">
             <span className="block text-sm font-medium">{on ? status.on : status.off}</span>
-            <span className="text-muted-foreground block text-xs">
+            <span className="block text-xs text-muted-foreground">
               {on ? (status.onHint ?? "") : (status.offHint ?? "")}
             </span>
           </span>

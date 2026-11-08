@@ -1,16 +1,17 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
 const { request } = vi.hoisted(() => ({
-  request: vi.fn<
-    (
-      path: string,
-      options?: {
-        method?: string;
-        query?: Record<string, string | number | boolean | readonly string[] | undefined>;
-        body?: unknown;
-      },
-    ) => unknown
-  >(),
+  request:
+    vi.fn<
+      (
+        path: string,
+        options?: {
+          method?: string;
+          query?: Record<string, string | number | boolean | readonly string[] | undefined>;
+          body?: unknown;
+        },
+      ) => unknown
+    >(),
 }));
 vi.mock("@/lib/api/http", () => ({ apiRequest: request }));
 import {

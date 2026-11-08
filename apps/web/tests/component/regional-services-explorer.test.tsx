@@ -11,8 +11,9 @@ vi.mock("@/lib/i18n/navigation", () => ({
   ),
 }));
 
-const { RegionalServicesExplorer } =
-  await import("@/components/organisms/regional-services-explorer");
+const { RegionalServicesExplorer } = await import(
+  "@/components/organisms/regional-services-explorer"
+);
 
 const labels = {
   title: "Regional services",

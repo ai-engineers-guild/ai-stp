@@ -51,8 +51,8 @@ export function NavigationTabs({
       className={cn(
         "flex min-w-0 items-center",
         variant === "secondary" && "gap-2 overflow-x-auto",
-        variant === "segmented" && "border-border gap-1 rounded-sm border p-1",
-        variant === "underline" && "border-border gap-2 overflow-x-auto border-b",
+        variant === "segmented" && "gap-1 rounded-sm border border-border p-1",
+        variant === "underline" && "gap-2 overflow-x-auto border-b border-border",
         className,
       )}
     >

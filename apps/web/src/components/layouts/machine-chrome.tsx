@@ -47,7 +47,7 @@ export function MachineHeader({
     <header
       id="machine-header"
       data-ui={UI.machine.header}
-      className="border-border bg-background sticky top-0 z-40 border-b font-mono"
+      className="sticky top-0 z-40 border-b border-border bg-background font-mono"
     >
       <KeyboardNavigation
         accountHref={accountPath}
@@ -76,7 +76,7 @@ export function MachineHeader({
           <Select
             id="machine-locale"
             data-ui={UI.machine.locale}
-            className="border-border bg-background h-9 border px-2"
+            className="h-9 border border-border bg-background px-2"
             value={locale}
             onChange={(event) => {
               router.replace(pathname, { locale: event.target.value });
@@ -103,7 +103,7 @@ export function MachineFooter() {
     <footer
       id="machine-footer"
       data-ui={UI.machine.footer}
-      className="border-border bg-background border-t pb-16 font-mono text-xs"
+      className="border-t border-border bg-background pb-16 font-mono text-xs"
     >
       <div className="mx-auto flex max-w-4xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p>{machine("copyright", { year: 2026, projection: machine("projection") })}</p>

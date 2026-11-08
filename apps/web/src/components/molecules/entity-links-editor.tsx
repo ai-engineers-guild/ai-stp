@@ -38,9 +38,9 @@ export function EntityLinksEditor({
     <EntityEditorSection title={`${labels.title} (up to ${max})`}>
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
         {links.length === 0 ? (
-          <p className="text-muted-foreground text-xs">{labels.empty}</p>
+          <p className="text-xs text-muted-foreground">{labels.empty}</p>
         ) : (
-          <span className="text-muted-foreground text-xs">
+          <span className="text-xs text-muted-foreground">
             {links.length}/{max}
           </span>
         )}
@@ -125,7 +125,7 @@ export function EntityLinksEditor({
         })}
       </div>
       {(error ?? fieldErrors.links) ? (
-        <p className="text-destructive text-xs" role="alert">
+        <p className="text-xs text-destructive" role="alert">
           {error ?? fieldErrors.links}
         </p>
       ) : null}

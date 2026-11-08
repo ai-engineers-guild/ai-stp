@@ -27,7 +27,7 @@ export function CatalogUsageStats({
     <div
       data-ui={UI.catalog.usage}
       className={cn(
-        "text-muted-foreground flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1",
+        "flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground",
         compact ? "text-xs" : "text-sm",
       )}
     >

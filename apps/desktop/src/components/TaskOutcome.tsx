@@ -39,7 +39,7 @@ export default function TaskOutcome({ value }: { value: unknown }) {
             className="grid gap-1 sm:grid-cols-[120px_minmax(0,1fr)]"
           >
             <dt className="text-xs text-muted-foreground">{String(label)}</dt>
-            <dd className="select-all break-all font-mono text-xs">
+            <dd className="font-mono text-xs break-all select-all">
               {String(value)}
             </dd>
           </div>

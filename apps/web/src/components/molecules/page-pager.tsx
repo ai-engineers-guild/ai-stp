@@ -70,7 +70,7 @@ function PagerEntry({
       size="icon"
       aria-current={current ? "page" : undefined}
       aria-label={ariaLabel}
-      className={cn("h-11 w-11", current && "border-primary text-primary border")}
+      className={cn("h-11 w-11", current && "border border-primary text-primary")}
       onClick={() => {
         onPage?.(value);
       }}
@@ -100,7 +100,7 @@ function EdgeControl({
     return (
       <span
         aria-hidden
-        className="border-border inline-flex h-11 w-11 items-center justify-center rounded-sm border opacity-50"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-sm border border-border opacity-50"
       >
         {icon}
       </span>
@@ -112,7 +112,7 @@ function EdgeControl({
         href={hrefFor(target)}
         prefetch={false}
         aria-label={ariaLabel}
-        className="border-border inline-flex h-11 w-11 items-center justify-center rounded-sm border"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-sm border border-border"
       >
         {icon}
       </Link>
@@ -148,14 +148,14 @@ export function PagePager({
     <nav
       aria-label={label}
       className={cn(
-        "border-border mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4",
+        "mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4",
         className,
       )}
     >
       {summary !== undefined ? (
         summary
       ) : (
-        <span className="text-muted-foreground font-mono text-xs">
+        <span className="font-mono text-xs text-muted-foreground">
           {page} / {totalPages}
         </span>
       )}
@@ -174,7 +174,7 @@ export function PagePager({
           entry === "gap" ? (
             <span
               key={`gap-${index}`}
-              className="text-muted-foreground inline-flex h-11 min-w-8 items-center justify-center text-xs"
+              className="inline-flex h-11 min-w-8 items-center justify-center text-xs text-muted-foreground"
               aria-hidden="true"
             >
               &hellip;
@@ -230,7 +230,7 @@ export function SingleResourcePager({
           <Link
             href={catalogHref(basePath, { ...query, cursor: nextCursor })}
             prefetch={false}
-            className="text-primary inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4"
+            className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline underline-offset-4"
           >
             {nextLabel}
           </Link>

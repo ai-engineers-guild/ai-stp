@@ -275,11 +275,9 @@ export default function CheckoutOperations() {
     setBusy(true);
     setConfirmed(false);
     try {
-      let response = await (
-        missingRetirement
-          ? cmdMissingBindingRetirementApply
-          : cmdBindingRetirementApply
-      )(exact.plan, exact.digest, true);
+      let response = await (missingRetirement
+        ? cmdMissingBindingRetirementApply
+        : cmdBindingRetirementApply)(exact.plan, exact.digest, true);
       if (!active.current || sequence !== epoch.current) return;
       if (
         response.ok &&
@@ -466,7 +464,7 @@ export default function CheckoutOperations() {
                   )}{" "}
                   · {String(item.state)}
                 </p>
-                <p className="break-all text-xs text-muted-foreground">
+                <p className="text-xs break-all text-muted-foreground">
                   {String(record(snapshot.account).origin ?? "")} ·{" "}
                   {String(record(snapshot.target).remote_project_id ?? "")}
                 </p>
@@ -498,7 +496,7 @@ export default function CheckoutOperations() {
           className="space-y-3"
           aria-label={msg("checkoutOperations.originalCheckoutOperation")}
         >
-          <p className="break-all font-mono text-xs">
+          <p className="font-mono text-xs break-all">
             {String(review.plan.operation_id)} · {review.digest}
           </p>
           <Details
@@ -696,13 +694,13 @@ export default function CheckoutOperations() {
                   <p className="text-sm">
                     {msg("checkoutOperations.reviewedCheckoutDirectory")}
                   </p>
-                  <p className="break-all font-mono text-xs">
+                  <p className="font-mono text-xs break-all">
                     {checkoutPath(
                       record(record(retirement.plan.snapshot).binding)
                         .checkout_root,
                     )}
                   </p>
-                  <p className="break-all font-mono text-xs">
+                  <p className="font-mono text-xs break-all">
                     {retirement.digest}
                   </p>
                   <Details
@@ -752,7 +750,7 @@ export default function CheckoutOperations() {
                   action: nextReview.action,
                 })}
               </h3>
-              <p className="break-all font-mono text-xs">{nextReview.digest}</p>
+              <p className="font-mono text-xs break-all">{nextReview.digest}</p>
               <Details
                 label={msg("checkoutOperations.exactRetainedCheckoutNextPlan")}
                 value={nextReview.plan}

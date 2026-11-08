@@ -37,12 +37,12 @@ export function DocsSearch({ locale }: { locale: string }) {
         }}
       />
       {results.length ? (
-        <ul className="border-border bg-popover rounded-md border p-1 text-sm">
+        <ul className="rounded-md border border-border bg-popover p-1 text-sm">
           {results.map((item) => (
             <li key={`${item.id}-${item.url}`}>
               <Link
                 href={item.url.replace(`/docs/${locale}`, "/docs")}
-                className="hover:bg-muted block rounded-sm px-2 py-2"
+                className="block rounded-sm px-2 py-2 hover:bg-muted"
               >
                 {item.content}
               </Link>

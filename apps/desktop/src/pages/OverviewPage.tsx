@@ -41,7 +41,8 @@ export default function OverviewPage() {
     checks.find((check) => check.name === "local_identity")?.state === "ready";
   const installation = (
     capabilities?.data?.native_configuration as
-      { available?: boolean } | undefined
+      | { available?: boolean }
+      | undefined
   )?.available;
   const checking = cliOk === null || contextsLoading;
   const next: {
@@ -204,7 +205,7 @@ export default function OverviewPage() {
           ))}
         </ul>
         {location?.data && (
-          <p className="mt-4 break-all text-xs text-muted-foreground">
+          <p className="mt-4 text-xs break-all text-muted-foreground">
             {t("home.localWorkspace")}{" "}
             <code>{String(location.data.state_dir)}</code>
           </p>

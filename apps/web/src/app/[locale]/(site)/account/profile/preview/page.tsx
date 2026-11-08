@@ -38,7 +38,7 @@ export default async function AccountProfilePreviewPage({ params }: PageProps) {
   const p = preview.projection;
   return (
     <article className="space-y-6">
-      <div className="border-border bg-muted flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-muted px-3 py-2 text-sm">
         <span>{t("profilePreviewBanner")}</span>
         <Button asChild variant="outline" size="sm">
           <Link href="/account/profile/edit">{t("profileEdit")}</Link>

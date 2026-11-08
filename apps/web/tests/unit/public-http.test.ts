@@ -53,7 +53,8 @@ describe("publicApiGet", () => {
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const init = fetchMock.mock.calls[0]?.[1] as
-      (RequestInit & { next?: { revalidate?: number } }) | undefined;
+      | (RequestInit & { next?: { revalidate?: number } })
+      | undefined;
     expect(init).toBeDefined();
     if (!init) {
       throw new Error("missing fetch init");

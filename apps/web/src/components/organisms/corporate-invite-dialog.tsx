@@ -64,7 +64,7 @@ export function CorporateInviteDialog({
     >
       <DialogContent
         closeLabel={t("close")}
-        className={`bg-card max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] ${bulk ? "max-w-3xl" : "max-w-[460px]"} gap-5 overflow-y-auto p-6`}
+        className={`max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] bg-card ${bulk ? "max-w-3xl" : "max-w-[460px]"} gap-5 overflow-y-auto p-6`}
       >
         <div className="space-y-2 pr-6">
           <DialogTitle className="text-2xl leading-tight">
@@ -117,7 +117,7 @@ export function CorporateInviteDialog({
             setSelectedTeams={setSelectedTeams}
           />
           {error ? (
-            <p role="alert" className="text-destructive text-sm">
+            <p role="alert" className="text-sm text-destructive">
               {error}
             </p>
           ) : null}
@@ -185,10 +185,10 @@ function ImportHelp({
         <DialogTitle>{t("importHelp")}</DialogTitle>
         <DialogDescription>{t("importFileHint")}</DialogDescription>
         <p className="text-sm leading-relaxed">{t("importHelpBody")}</p>
-        <pre className="bg-muted overflow-x-auto rounded-sm p-3 text-sm">
+        <pre className="overflow-x-auto rounded-sm bg-muted p-3 text-sm">
           {"email,display_name\nalex@example.com,Alex Morgan\nmaya@example.com,Maya Chen"}
         </pre>
-        <p className="text-muted-foreground text-sm leading-relaxed">{t("importHelpValidation")}</p>
+        <p className="text-sm leading-relaxed text-muted-foreground">{t("importHelpValidation")}</p>
         <Button
           type="button"
           variant="outline"
@@ -304,7 +304,7 @@ function InviteAccessFields({
           <p
             id="invite-role-hint"
             role={!allowedRoles.length ? "alert" : undefined}
-            className="text-muted-foreground text-sm leading-relaxed"
+            className="text-sm leading-relaxed text-muted-foreground"
           >
             {roleHint}
           </p>

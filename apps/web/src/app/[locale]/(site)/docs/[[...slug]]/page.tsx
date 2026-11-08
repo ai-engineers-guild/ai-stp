@@ -36,7 +36,7 @@ export default async function DocsPage({ params }: Props) {
       <article className="prose-docs max-w-3xl min-w-0">
         <h1>{page.data.title}</h1>
         {page.data.description ? (
-          <p className="text-muted-foreground text-lg">{page.data.description}</p>
+          <p className="text-lg text-muted-foreground">{page.data.description}</p>
         ) : null}
         {content.body}
       </article>

@@ -25,7 +25,7 @@ export function DetailAccordion({
   const panelId = useId();
 
   return (
-    <section className={cn("border-border min-w-0 overflow-hidden rounded-lg border", className)}>
+    <section className={cn("min-w-0 overflow-hidden rounded-lg border border-border", className)}>
       <div className="flex min-w-0 items-start gap-1">
         <div className="min-w-0 flex-1">
           <h2 className="text-base font-semibold">
@@ -37,14 +37,14 @@ export function DetailAccordion({
               onClick={() => {
                 setOpen((value) => !value);
               }}
-              className="hover:bg-muted/40 focus-visible:bg-muted focus-visible:ring-ring flex min-h-11 w-full cursor-pointer items-center justify-between gap-4 px-4 pt-3 text-left focus-visible:ring-2 focus-visible:outline-none sm:px-5"
+              className="flex min-h-11 w-full cursor-pointer items-center justify-between gap-4 px-4 pt-3 text-left hover:bg-muted/40 focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:px-5"
             >
               <span className="min-w-0 break-words">{title}</span>
               <Icon name={open ? "chevronUp" : "chevronDown"} size="sm" />
             </button>
           </h2>
           {summary ? (
-            <div className="text-muted-foreground px-4 pb-3 text-sm leading-5 sm:px-5">
+            <div className="px-4 pb-3 text-sm leading-5 text-muted-foreground sm:px-5">
               {summary}
             </div>
           ) : null}
@@ -58,7 +58,7 @@ export function DetailAccordion({
           id={panelId}
           role="region"
           aria-labelledby={buttonId}
-          className="border-border border-t px-4 py-4 sm:px-5 sm:py-5"
+          className="border-t border-border px-4 py-4 sm:px-5 sm:py-5"
         >
           {children}
         </div>

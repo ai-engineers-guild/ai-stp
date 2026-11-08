@@ -84,15 +84,15 @@ export default async function AccessPage({ params, searchParams }: PageProps) {
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="text-3xl font-medium tracking-tight">{t("title")}</h1>
-        <p className="text-muted-foreground max-w-2xl text-sm">{t("subtitle")}</p>
+        <p className="max-w-2xl text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
       {objectKind && stableId ? (
         <Link
           href={`/catalog/${objectKind === "component" ? "components" : "setups"}/${stableId}`}
-          className="border-border bg-muted/20 hover:bg-muted/40 focus-visible:ring-ring block max-w-xl rounded-lg border p-4 focus-visible:ring-2 focus-visible:outline-none"
+          className="block max-w-xl rounded-lg border border-border bg-muted/20 p-4 hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           <p className="font-medium">{objectName ?? stableId}</p>
-          <p className="text-muted-foreground mt-1 font-mono text-xs break-all">
+          <p className="mt-1 font-mono text-xs break-all text-muted-foreground">
             {objectKind} · {stableId}
           </p>
         </Link>

@@ -100,7 +100,7 @@ export function ObjectVisibilityDialog({
           </label>
         ) : null}
         {error ? (
-          <p role="alert" className="text-destructive text-sm">
+          <p role="alert" className="text-sm text-destructive">
             {edit.labels.failed}
           </p>
         ) : null}

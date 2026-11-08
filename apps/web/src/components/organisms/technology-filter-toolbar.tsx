@@ -99,14 +99,14 @@ export function TechnologyFilterToolbar({
           <Icon name="controls" size="sm" />
         </Button>
       </div>
-      <div className={cn("border-border bg-card rounded-lg border p-3", !searchOpen && "sr-only")}>
+      <div className={cn("rounded-lg border border-border bg-card p-3", !searchOpen && "sr-only")}>
         <label htmlFor={`${id}-search`} className="space-y-1.5 text-sm font-medium">
           <span>{t("search")}</span>
           <span className="relative block">
             <Icon
               name="search"
               size="sm"
-              className="text-muted-foreground absolute top-1/2 left-3 -translate-y-1/2"
+              className="absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
             />
             <Input
               id={`${id}-search`}
@@ -141,7 +141,7 @@ export function TechnologyFilterToolbar({
               />
             ))}
           </div>
-          <div className="border-border bg-card sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t py-5">
+          <div className="sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-card py-5">
             <Button
               type="button"
               variant="ghost"
@@ -219,7 +219,7 @@ function TechnologyFacetField({
     <Label className="flex min-h-11 items-center gap-2 text-sm">
       <input
         type="checkbox"
-        className="accent-primary size-4"
+        className="size-4 accent-primary"
         checked={Boolean(value)}
         onChange={(event) => {
           onChange(event.target.checked);

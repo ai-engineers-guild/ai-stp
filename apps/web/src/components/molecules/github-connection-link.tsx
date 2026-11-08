@@ -65,9 +65,9 @@ export function GitHubConnectionLink({
 
   if (compact) {
     return (
-      <div className="border-border bg-background flex min-w-0 flex-wrap items-center gap-3 rounded-lg border p-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-3 rounded-lg border border-border bg-background p-3">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="bg-muted text-foreground grid size-10 shrink-0 place-items-center rounded-full">
+          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-foreground">
             <Icon name="github" size="md" />
           </span>
           <span className="truncate text-sm font-medium">{t("title")}</span>
@@ -94,7 +94,7 @@ export function GitHubConnectionLink({
           {error ? (
             <span
               role="alert"
-              className="text-destructive max-w-full text-xs [overflow-wrap:anywhere]"
+              className="max-w-full text-xs [overflow-wrap:anywhere] text-destructive"
             >
               {t("error")}
             </span>

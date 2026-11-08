@@ -55,7 +55,7 @@ export function ContactReportDialog({
             <button
               type="button"
               role="menuitem"
-              className="hover:bg-muted focus-visible:bg-muted flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm focus-visible:outline-none"
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
             >
               <Icon name="flag" size="sm" />
               {label}

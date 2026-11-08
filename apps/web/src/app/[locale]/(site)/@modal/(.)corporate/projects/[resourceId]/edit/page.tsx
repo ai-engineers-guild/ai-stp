@@ -4,5 +4,5 @@ export default async function EditModal({
 }: {
   params: Promise<{ locale: string; resourceId: string }>;
 }) {
-  return <CorporateEntityEditPage {...await params} resource="projects" />;
+  return <CorporateEntityEditPage {...(await params)} resource="projects" />;
 }

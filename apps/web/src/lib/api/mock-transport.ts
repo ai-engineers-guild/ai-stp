@@ -232,7 +232,11 @@ function searchComponents(query?: URLSearchParams): MockResult {
   const componentType = query?.get("component_type");
   const supportTier = query?.get("support_tier") as "primary" | "beta" | null;
   const supportState = query?.get("support_state") as
-    "verified" | "stale" | "missing" | "not_verified" | null;
+    | "verified"
+    | "stale"
+    | "missing"
+    | "not_verified"
+    | null;
   const pageSize = Number.parseInt(query?.get("page_size") ?? "25", 10) || 25;
   const cursor = query?.get("cursor") ?? null;
   const filtered = filterComponentSummaries({
@@ -275,7 +279,11 @@ function searchSetups(query?: URLSearchParams): MockResult {
   const harnessId = query?.get("harness_id");
   const supportTier = query?.get("support_tier") as "primary" | "beta" | null;
   const supportState = query?.get("support_state") as
-    "verified" | "stale" | "missing" | "not_verified" | null;
+    | "verified"
+    | "stale"
+    | "missing"
+    | "not_verified"
+    | null;
   const pageSize = Number.parseInt(query?.get("page_size") ?? "25", 10) || 25;
   const cursor = query?.get("cursor") ?? null;
   const filtered = filterSetupSummaries({

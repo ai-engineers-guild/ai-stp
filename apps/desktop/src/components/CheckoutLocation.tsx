@@ -239,7 +239,7 @@ export default function CheckoutLocation({
       <p className="text-sm">
         {msg("checkoutLocation.originalAdoptionDirectory")}
       </p>
-      <p className="break-all font-mono text-xs">
+      <p className="font-mono text-xs break-all">
         {checkoutPath(record(original.plan).checkout_root)}
       </p>
       <p className="text-sm text-muted-foreground">
@@ -285,7 +285,7 @@ export default function CheckoutLocation({
                       : msg("checkoutLocation.reviewedRelocation")}{" "}
                     · {entry.completed_at}
                   </p>
-                  <p className="break-all font-mono text-xs">
+                  <p className="font-mono text-xs break-all">
                     {checkoutPath(entry.root)}
                   </p>
                   <button
@@ -324,10 +324,10 @@ export default function CheckoutLocation({
               <p className="text-sm">
                 {msg("checkoutLocation.recordedDirectory")}
               </p>
-              <p className="break-all font-mono text-xs">
+              <p className="font-mono text-xs break-all">
                 {checkoutPath(receipt.plan.destination)}
               </p>
-              <p className="break-all font-mono text-xs">
+              <p className="font-mono text-xs break-all">
                 {String(receipt.plan.operation_id)} · {receipt.digest}
               </p>
               <Details
@@ -399,16 +399,16 @@ export default function CheckoutLocation({
               <p className="text-sm">
                 {msg("checkoutLocation.previouslyRegisteredDirectory")}
               </p>
-              <p className="break-all font-mono text-xs">
+              <p className="font-mono text-xs break-all">
                 {checkoutPath(record(review.plan.binding).checkout_root)}
               </p>
               <p className="text-sm">
                 {msg("checkoutLocation.reviewedDestination")}
               </p>
-              <p className="break-all font-mono text-xs">
+              <p className="font-mono text-xs break-all">
                 {checkoutPath(review.plan.destination)}
               </p>
-              <p className="break-all font-mono text-xs">
+              <p className="font-mono text-xs break-all">
                 {String(review.plan.operation_id)} · {review.digest}
               </p>
               <Details

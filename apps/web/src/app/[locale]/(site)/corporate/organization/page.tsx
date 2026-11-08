@@ -29,14 +29,14 @@ export default async function OrganizationPage({
         <h1 className="text-3xl font-medium tracking-tight">{context.organization.display_name}</h1>
         <p className="text-muted-foreground">{t("organizationBody")}</p>
       </header>
-      <ul className="border-border divide-border divide-y rounded-lg border">
+      <ul className="divide-y divide-border rounded-lg border border-border">
         {sections
           .filter((item) => canViewCorporateSection(item.key, context.capabilities))
           .map((item) => (
             <li key={item.key}>
               <Link
                 href={item.href}
-                className="hover:bg-muted focus-visible:ring-ring flex min-h-14 items-center p-4 font-medium focus-visible:ring-2"
+                className="flex min-h-14 items-center p-4 font-medium hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {t(item.key)}
               </Link>

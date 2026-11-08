@@ -159,7 +159,7 @@ export function CatalogFilters({
           <input type="hidden" name="resource" value={displayedQuery.resource} />
         ) : null}
         <div className="grid min-w-0 items-start gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
-          <p className="text-muted-foreground max-w-3xl min-w-0 text-sm leading-relaxed">{intro}</p>
+          <p className="max-w-3xl min-w-0 text-sm leading-relaxed text-muted-foreground">{intro}</p>
           <div className="flex min-w-0 flex-wrap items-center gap-2 md:justify-end">
             {!hideSearch ? (
               <DisclosureButton
@@ -193,7 +193,7 @@ export function CatalogFilters({
           {searchOpen ? (
             <section
               id="catalog-text-search"
-              className="border-border bg-card min-w-0 overflow-x-hidden rounded-lg border p-4 sm:p-5"
+              className="min-w-0 overflow-x-hidden rounded-lg border border-border bg-card p-4 sm:p-5"
             >
               <CatalogQueryField
                 label={labels.search}
@@ -207,7 +207,7 @@ export function CatalogFilters({
                   labels.queryLiteralHint ?? 'Quotes search a reserved word as text: "AND".'
                 }
               />
-              <p className="text-muted-foreground mt-2 max-w-3xl text-xs leading-relaxed">
+              <p className="mt-2 max-w-3xl text-xs leading-relaxed text-muted-foreground">
                 {labels.searchHelp}
               </p>
             </section>
@@ -229,10 +229,10 @@ export function CatalogFilters({
                 hideAuthorFilter={hideAuthorFilter}
                 corporateFacets={corporateFacets}
               />
-              <div className="border-border bg-card sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t py-5">
+              <div className="sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-card py-5">
                 <button
                   type="button"
-                  className="text-muted-foreground inline-flex min-h-11 items-center text-sm underline underline-offset-4"
+                  className="inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4"
                   onClick={() => {
                     setOptimisticReset({ sourceKey: queryKey, query: defaultCatalogQuery() });
                     setResetNonce((nonce) => nonce + 1);
@@ -260,7 +260,7 @@ export function CatalogFilters({
               return (
                 <span
                   key={chip.key}
-                  className="border-border bg-muted inline-flex min-h-11 max-w-full items-center gap-1 rounded-md border py-1 pr-1 pl-3 font-mono text-xs transition-shadow hover:shadow-md"
+                  className="inline-flex min-h-11 max-w-full items-center gap-1 rounded-md border border-border bg-muted py-1 pr-1 pl-3 font-mono text-xs transition-shadow hover:shadow-md"
                 >
                   <span className="min-w-0 break-all">
                     {chip.key.startsWith("author:") ? (
@@ -277,7 +277,7 @@ export function CatalogFilters({
                     href={hrefFor(chip.without, basePath)}
                     prefetch={false}
                     aria-label={`${labels.dismissFilter}: ${text}`}
-                    className="text-muted-foreground hover:bg-background hover:text-foreground focus-visible:ring-ring inline-flex size-9 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                    className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                   >
                     <Icon name="close" size="sm" />
                   </Link>
@@ -399,7 +399,7 @@ function AuthorChipContent({
         fallback={
           <InitialsAvatar
             name={displayName}
-            className="bg-background text-muted-foreground size-5 text-[9px]"
+            className="size-5 bg-background text-[9px] text-muted-foreground"
           />
         }
       />

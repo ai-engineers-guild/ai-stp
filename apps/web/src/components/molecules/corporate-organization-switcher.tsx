@@ -27,7 +27,7 @@ export function CorporateOrganizationSwitcher({
   const [busy, startTransition] = useTransition();
   return (
     <label className="flex min-w-0 items-center gap-2 text-sm">
-      <span className="text-muted-foreground shrink-0">{label}</span>
+      <span className="shrink-0 text-muted-foreground">{label}</span>
       <Select
         name="organization"
         defaultValue={selectedId}
@@ -38,7 +38,7 @@ export function CorporateOrganizationSwitcher({
           formData.set("organization", event.target.value);
           startTransition(() => selectCorporateOrganization(formData));
         }}
-        className="border-input bg-background h-9 min-w-0 rounded-sm border px-2 text-sm"
+        className="h-9 min-w-0 rounded-sm border border-input bg-background px-2 text-sm"
       >
         {organizations.map((item) => (
           <option key={item.id} value={item.id}>

@@ -41,7 +41,7 @@ export function ObjectRelationships({
               <li key={code}>
                 <Link
                   href={`/countries/${code}`}
-                  className="border-border hover:bg-muted focus-visible:ring-ring inline-flex items-center rounded-md border px-2 py-1 text-sm focus-visible:ring-2 focus-visible:outline-none"
+                  className="inline-flex items-center rounded-md border border-border px-2 py-1 text-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 >
                   {localizedCountryName(code, locale)}
                 </Link>
@@ -53,13 +53,13 @@ export function ObjectRelationships({
       {services.length > 0 ? (
         <div className="min-w-0 space-y-1.5">
           <h2 className="text-sm font-medium">{labels.linkedServices}</h2>
-          <p className="text-muted-foreground text-xs">{labels.notExclusive}</p>
+          <p className="text-xs text-muted-foreground">{labels.notExclusive}</p>
           <ul className="flex flex-wrap gap-2">
             {services.map((service) => (
               <li key={service.canonical_domain}>
                 <Link
                   href={`/services/${service.canonical_domain}`}
-                  className="border-border hover:bg-muted focus-visible:ring-ring inline-flex items-center rounded-md border px-2 py-1 text-sm focus-visible:ring-2 focus-visible:outline-none"
+                  className="inline-flex items-center rounded-md border border-border px-2 py-1 text-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 >
                   {service.name}
                 </Link>

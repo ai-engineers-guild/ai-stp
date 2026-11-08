@@ -99,9 +99,11 @@ export function useConnectorFlow<
   useEffect(() => () => stopPolling.current?.(), []);
 
   const source = status?.connections.find((item) => item.purpose === "source") as
-    S["connections"][number] | undefined;
+    | S["connections"][number]
+    | undefined;
   const admin = status?.connections.find((item) => item.purpose === "administration") as
-    S["connections"][number] | undefined;
+    | S["connections"][number]
+    | undefined;
 
   return {
     status,

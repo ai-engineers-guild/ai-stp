@@ -84,8 +84,8 @@ export default async function DeviceHeartbeatReportPage({
   }
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
-      <nav aria-label={t("title")} className="text-muted-foreground mb-4 text-sm">
-        <Link href="/corporate/reports" className="hover:text-foreground underline">
+      <nav aria-label={t("title")} className="mb-4 text-sm text-muted-foreground">
+        <Link href="/corporate/reports" className="underline hover:text-foreground">
           {t("title")}
         </Link>
         <span aria-hidden="true" className="mx-2">
@@ -94,7 +94,7 @@ export default async function DeviceHeartbeatReportPage({
         <span className="text-foreground">{t("heartbeat")}</span>
       </nav>
       <h1 className="text-3xl font-medium tracking-tight">{t("heartbeat")}</h1>
-      <p className="text-muted-foreground mt-2 mb-6">
+      <p className="mt-2 mb-6 text-muted-foreground">
         {t(view === "history" ? "historyDescription" : "currentDescription")}
       </p>
       {report ? (

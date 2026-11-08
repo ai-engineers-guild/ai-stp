@@ -37,7 +37,7 @@ export async function UsageReportCharts({
   return (
     <section
       aria-label={t("usageChart")}
-      className="border-border bg-card mb-5 rounded-lg border p-4"
+      className="mb-5 rounded-lg border border-border bg-card p-4"
     >
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="font-medium">{t("usageOverTime")}</h2>
@@ -75,15 +75,15 @@ export async function UsageReportCharts({
                 aria-label={t("bucketDayAria", { day: bucket.day, uses: bucket.uses })}
               >
                 <span
-                  className="bg-primary block w-full rounded-t-sm"
+                  className="block w-full rounded-t-sm bg-primary"
                   style={{ height: `${Math.max(3, (bucket.uses / maxDayUses) * 100)}%` }}
                 />
-                <span className="text-muted-foreground mt-1 text-xs">{bucket.day.slice(5)}</span>
+                <span className="mt-1 text-xs text-muted-foreground">{bucket.day.slice(5)}</span>
               </Link>
             ))}
           </div>
         ) : (
-          <p className="text-muted-foreground text-sm">{t("noRecordedUses")}</p>
+          <p className="text-sm text-muted-foreground">{t("noRecordedUses")}</p>
         )
       ) : (
         <div className="overflow-x-auto">
@@ -121,7 +121,7 @@ export async function UsageReportCharts({
                             uses,
                           })}
                           title={t("heatmapTitle", { uses })}
-                          className="bg-primary block h-4 rounded-sm"
+                          className="block h-4 rounded-sm bg-primary"
                           style={{
                             opacity: uses ? Math.max(0.2, uses / maxHourUses) : 0.06,
                           }}
@@ -135,7 +135,7 @@ export async function UsageReportCharts({
           </Table>
         </div>
       )}
-      <p className="text-muted-foreground mt-2 text-xs">
+      <p className="mt-2 text-xs text-muted-foreground">
         {t("timezone", { timezone: data.report_timezone })}
       </p>
     </section>

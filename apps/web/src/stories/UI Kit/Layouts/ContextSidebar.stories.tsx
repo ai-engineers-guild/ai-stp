@@ -33,7 +33,7 @@ function SidebarStoryFrame({ children }: { children: React.ReactNode }) {
   const setCollapsed = useUiSlice((s) => s.setSidebarCollapsed);
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="border-border bg-background flex h-14 items-center gap-3 border-b px-4 pl-16 lg:pl-4">
+      <header className="flex h-14 items-center gap-3 border-b border-border bg-background px-4 pl-16 lg:pl-4">
         <Button
           type="button"
           variant="ghost"

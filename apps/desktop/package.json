@@ -10,9 +10,11 @@
     "test": "vitest run",
     "tauri": "tauri",
     "lint:dependencies": "knip",
-    "format": "prettier --write src scripts \"*.ts\" \"*.json\" \"src-tauri/capabilities/*.json\"",
-    "format:check": "prettier --check src scripts \"*.ts\" \"*.json\" \"src-tauri/capabilities/*.json\"",
-    "messages:check": "node scripts/check-messages.mjs"
+    "format": "biome format --write src scripts *.ts *.json .oxlintrc.json src-tauri/capabilities",
+    "format:check": "biome format src scripts *.ts *.json .oxlintrc.json src-tauri/capabilities",
+    "messages:check": "node scripts/check-messages.mjs",
+    "lint:biome": "biome lint --error-on-warnings src scripts *.ts *.json .oxlintrc.json src-tauri/capabilities",
+    "lint:types": "oxlint --type-aware --deny-warnings src scripts"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "5.3.0",
@@ -36,6 +38,7 @@
     "js-yaml": "4.3.2"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.6.5",
     "@hey-api/openapi-ts": "0.99.0",
     "@tailwindcss/vite": "4.3.4",
     "@tauri-apps/cli": "2.12.4",
@@ -45,6 +48,8 @@
     "@vitejs/plugin-react": "6.2.1",
     "jsdom": "31.0.0",
     "knip": "6.44.1",
+    "oxlint": "1.91.0",
+    "oxlint-tsgolint": "7.0.2006",
     "prettier": "3.9.10",
     "tailwindcss": "4.3.4",
     "typescript": "6.0.3",

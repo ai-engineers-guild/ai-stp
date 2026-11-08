@@ -219,7 +219,7 @@ export default function ProfilesPage() {
             key={String(item.connection_id)}
           >
             <h3 className="font-medium">{String(item.label)}</h3>
-            <p className="break-all text-sm text-muted-foreground">
+            <p className="text-sm break-all text-muted-foreground">
               {String(item.origin)} · {String(item.provider)} ·{" "}
               {String(item.state)}
             </p>
@@ -537,7 +537,7 @@ export default function ProfilesPage() {
                 })
               : msg("profiles.registryFormatUnknown")}
           </p>
-          <p className="break-all font-mono text-xs">{review.digest}</p>
+          <p className="font-mono text-xs break-all">{review.digest}</p>
           <Details
             label={msg("profiles.exactPublicPlan")}
             value={review.plan}

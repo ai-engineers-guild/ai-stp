@@ -53,7 +53,7 @@ export default async function DevicesPage({ params, searchParams }: PageProps) {
     <div className="space-y-10">
       <header className="space-y-2">
         <h1 className="text-3xl font-medium tracking-tight">{t("title")}</h1>
-        <p className="text-muted-foreground max-w-2xl">{t("subtitle")}</p>
+        <p className="max-w-2xl text-muted-foreground">{t("subtitle")}</p>
       </header>
 
       <DeviceList
@@ -65,13 +65,13 @@ export default async function DevicesPage({ params, searchParams }: PageProps) {
 
       <section
         aria-labelledby="authorize-device-heading"
-        className="border-border bg-card text-card-foreground space-y-5 rounded-lg border p-6 shadow-sm"
+        className="space-y-5 rounded-lg border border-border bg-card p-6 text-card-foreground shadow-sm"
       >
         <div className="space-y-2">
           <h2 id="authorize-device-heading" className="text-lg font-medium tracking-tight">
             {t("authorizeTitle")}
           </h2>
-          <p className="text-muted-foreground max-w-3xl text-sm">
+          <p className="max-w-3xl text-sm text-muted-foreground">
             {t.rich("authorizeHint", {
               command: (chunks) => <code className="font-mono text-xs">{chunks}</code>,
             })}

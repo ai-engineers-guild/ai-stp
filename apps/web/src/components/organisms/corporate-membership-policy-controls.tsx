@@ -92,7 +92,7 @@ export function CorporateMembershipPolicyControls({
   return (
     <form onSubmit={savePolicy} aria-busy={busy}>
       <SettingsSection icon="mail" title={t("domainPolicy")} description={t("domainPolicyBody")}>
-        <div className="lg:divide-border grid gap-6 lg:grid-cols-2 lg:divide-x">
+        <div className="grid gap-6 lg:grid-cols-2 lg:divide-x lg:divide-border">
           <div className="space-y-3">
             <Label>{t("domains")}</Label>
             <div className="space-y-2">
@@ -167,7 +167,7 @@ export function CorporateMembershipPolicyControls({
                 <option value="teammates">{t("peopleVisibilityTeammates")}</option>
                 <option value="admins">{t("peopleVisibilityAdmins")}</option>
               </select>
-              <p className="text-muted-foreground text-xs">{t("peopleVisibilityHint")}</p>
+              <p className="text-xs text-muted-foreground">{t("peopleVisibilityHint")}</p>
             </div>
           </div>
         </div>
@@ -177,7 +177,7 @@ export function CorporateMembershipPolicyControls({
           {message ? (
             <p
               className={
-                message.error ? "text-destructive text-sm" : "text-muted-foreground text-sm"
+                message.error ? "text-sm text-destructive" : "text-sm text-muted-foreground"
               }
             >
               {message.text}

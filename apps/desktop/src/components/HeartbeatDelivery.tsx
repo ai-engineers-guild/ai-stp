@@ -230,7 +230,7 @@ export default function HeartbeatDelivery({
               "heartbeatDelivery.reportsAccountDeviceIdsCliVersionTheFixedCli",
             )}
           </p>
-          <p className="break-all font-mono text-xs">{review.digest}</p>
+          <p className="font-mono text-xs break-all">{review.digest}</p>
           <Details
             label={msg("heartbeatDelivery.originalHeartbeatConsentPlan")}
             value={review.plan}
