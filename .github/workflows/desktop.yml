@@ -105,6 +105,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          bun run format:check
+          bun run messages:check
           bun x tsc --noEmit
           bun x vitest run
           bun x vite build

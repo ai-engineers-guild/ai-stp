@@ -75,10 +75,17 @@ for lockfile in \
   apps/cli/Cargo.lock \
   apps/cli/xtask/Cargo.lock \
   requirements.txt:scripts/safety/requirements.lock; do
+  scanner_status=0
   if [[ -n "${config_override}" ]]; then
-    "${scanner}" scan source "--config=${config_override}" "--lockfile=${lockfile}"
+    "${scanner}" scan source --format=json "--config=${config_override}" "--lockfile=${lockfile}" \
+      > "${tmp}/report.json" || scanner_status=$?
   else
-    "${scanner}" scan source "--lockfile=${lockfile}"
-  fi || status=1
+    "${scanner}" scan source --format=json "--lockfile=${lockfile}" \
+      > "${tmp}/report.json" || scanner_status=$?
+  fi
+  # Keep complete advisory records in the log. Unknown and actual vulnerabilities
+  # still fail; unscored RustSec maintenance notices are reported without expiry.
+  python "${SCRIPT_DIR}/report_osv.py" "${tmp}/report.json" "${scanner_status}" "${lockfile}" \
+    || status=1
 done
 exit "${status}"

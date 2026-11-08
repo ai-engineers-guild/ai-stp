@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { ArrowRight, RefreshCw, TerminalSquare } from "lucide-react";
+import { ArrowRight, RefreshCw, CircleCheck } from "lucide-react";
 import { ResultMeta, Spinner, Details } from "../components/Result";
 import { ActionLink, PageHeader, StatusBadge } from "../components/Layout";
 import { useApp } from "../store";
+import { useContexts } from "../contexts";
+import { useText, type MessageKey } from "../i18n";
 
 export default function OverviewPage() {
+  const t = useText();
   const {
     cliVersion,
     cliOk,
@@ -15,6 +18,8 @@ export default function OverviewPage() {
     engineResult,
     refreshCli,
   } = useApp();
+  const selected = useContexts((state) => state.selected);
+  const contextsLoading = useContexts((state) => state.loading);
   const [busy, setBusy] = useState(false);
   async function refresh() {
     setBusy(true);
@@ -31,124 +36,148 @@ export default function OverviewPage() {
   }[];
   const ready =
     checks.find((check) => check.name === "local_identity")?.state === "ready";
-  const installation = (capabilities?.data?.native_configuration as { available?: boolean } | undefined)?.available;
+  const installation = (
+    capabilities?.data?.native_configuration as
+      { available?: boolean } | undefined
+  )?.available;
+  const checking = cliOk === null || contextsLoading;
+  const next: {
+    title: MessageKey;
+    help: MessageKey;
+    action?: MessageKey;
+    to?: string;
+  } = checking
+    ? { title: "home.checkTitle", help: "home.checkHelp" }
+    : !cliOk || doctor?.ok === false
+      ? {
+          title: "home.repairTitle",
+          help: "home.repairHelp",
+          action: "home.repairAction",
+          to: "/settings",
+        }
+      : !ready
+        ? {
+            title: "home.initializeTitle",
+            help: "home.initializeHelp",
+            action: "home.initializeAction",
+            to: "/settings",
+          }
+        : !selected
+          ? {
+              title: "home.contextTitle",
+              help: "home.contextHelp",
+              action: "home.contextAction",
+              to: "/profiles",
+            }
+          : {
+              title: "home.browseTitle",
+              help: "home.browseHelp",
+              action: "home.browseAction",
+              to: "/catalog",
+            };
   return (
     <div className="page-stack">
       <PageHeader
-        title="A home for your AI setups"
-        description="Configure your tools. Keep your workflow yours."
+        eyebrow={t("common.workspace")}
+        title={t("home.title")}
+        description={t("home.description")}
         action={
           <button
             className="btn-outline"
             disabled={busy}
             onClick={() => void refresh()}
           >
-            <RefreshCw size={14} />
-            Refresh
+            <RefreshCw size={14} aria-hidden="true" />
+            {t("common.refresh")}
           </button>
         }
       />
-      <section className="hero-panel">
+      <section className="hero-panel" aria-labelledby="next-step-title">
         <div className="max-w-xl">
-          <p className="eyebrow">One workspace. Your harnesses.</p>
-          <h2 className="hero-title">
-            Good tools deserve
-            <br />a considered setup.
+          <p className="eyebrow">{t("home.next")}</p>
+          <h2 id="next-step-title" className="hero-title">
+            {t(next.title)}
           </h2>
           <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground">
-            Discover complete configurations, create your own, and apply them
-            through the native ai-stp engine.
+            {t(next.help)}
           </p>
-          <Link
-            className="btn-primary mt-6"
-            to={ready ? "/catalog" : "/settings"}
-          >
-            {ready ? "Explore the catalog" : "Set up this device"}
-            <ArrowRight size={15} />
-          </Link>
+          {next.to && next.action && (
+            <Link className="btn-primary mt-5" to={next.to}>
+              {t(next.action)}
+              <ArrowRight size={15} aria-hidden="true" />
+            </Link>
+          )}
+          {checking && (
+            <div className="mt-4">
+              <Spinner label={t("common.checking")} />
+            </div>
+          )}
         </div>
-        <div className="hero-emblem" aria-hidden="true">
-          <TerminalSquare size={60} strokeWidth={1} />
-          <span>ai-stp / native</span>
-        </div>
+        {ready && (
+          <CircleCheck
+            className="hidden shrink-0 text-success lg:block"
+            size={48}
+            strokeWidth={1.5}
+            aria-hidden="true"
+          />
+        )}
       </section>
       <section
-        aria-label="Workspace status"
-        className="grid grid-cols-1 gap-4 lg:grid-cols-3"
+        aria-label={t("home.device")}
+        className="grid gap-4 sm:grid-cols-3"
       >
         <div className="stat-card">
-          <p className="eyebrow">Engine</p>
-          <p className="stat-value">
-            {cliOk === null
-              ? "Connecting…"
-              : cliOk
-                ? `Rust ${cliVersion}`
-                : "Unavailable"}
-          </p>
-          <p className="stat-note">
-            Bundled native CLI ·{" "}
-            {String(capabilities?.data?.os ?? "checking platform")}
-          </p>
-        </div>
-        <div className="stat-card">
-          <p className="eyebrow">Local identity</p>
+          <p className="eyebrow">{t("home.identity")}</p>
           <p className="stat-value">
             {!doctor
-              ? cliOk === false
-                ? "Not checked"
-                : "Checking…"
-              : ready
-                ? "Ready to work"
-                : "Setup needed"}
+              ? t(cliOk === false ? "home.notChecked" : "common.checking")
+              : t(ready ? "home.identityReady" : "home.identityNeeded")}
           </p>
-          <p className="stat-note">
-            {ready
-              ? "Shared with your command-line workspace"
-              : "Initialize explicitly in Settings"}
+          <p className="stat-note" data-testid="engine-version">
+            {t("home.engineVersion", { version: cliVersion ?? "—" })}
           </p>
         </div>
         <div className="stat-card">
-          <p className="eyebrow">Setup installation</p>
+          <p className="eyebrow">{t("home.context")}</p>
+          <p className="stat-value break-words">
+            {selected?.label ?? t("home.noContext")}
+          </p>
+          <p className="stat-note">{t("home.contextHelpShort")}</p>
+        </div>
+        <div className="stat-card">
+          <p className="eyebrow">{t("home.installation")}</p>
           <p className="stat-value">
-            {installation === true
-              ? "Available"
-              : installation
-                ? "Unavailable"
-                : "Checking…"}
+            {t(
+              installation === true
+                ? "common.available"
+                : capabilities || cliOk === false
+                  ? "common.unavailable"
+                  : "common.checking",
+            )}
           </p>
-          <p className="stat-note">
-            {installation === true
-              ? "Isolated execution, durable recovery"
-              : "Availability is reported by the CLI"}
-          </p>
+          <p className="stat-note">{t("home.installationHelp")}</p>
         </div>
       </section>
-      {busy && <Spinner label="Refreshing workspace status" />}
+      {busy && <Spinner label={t("home.refreshing")} />}
       {engineResult && !engineResult.ok && <ResultMeta r={engineResult} />}
       {doctor && !doctor.ok && <ResultMeta r={doctor} />}
       <section className="grid gap-4 lg:grid-cols-2">
-        <ActionLink to="/install?intent=author" title="Make it your own">
-          Create a component and setup from your local files.
+        <ActionLink to="/targets" title={t("home.reviewTitle")}>
+          {t("home.reviewHelp")}
         </ActionLink>
-        <ActionLink to="/tasks" title="Pick up where you left off">
-          Inspect and resume work retained by the engine.
+        <ActionLink to="/tasks" title={t("home.activityTitle")}>
+          {t("home.activityHelp")}
         </ActionLink>
       </section>
-      <section className="card overflow-hidden">
-        <div className="panel-heading">
-          <h2 className="section-title">Environment checks</h2>
-          <span className="text-xs text-muted-foreground">
-            Read-only diagnostics
-          </span>
-        </div>
-        {!doctor && cliOk !== false && (
-          <div className="p-5">
-            <Spinner label="Checking this device" />
-          </div>
-        )}
-        <ul className="divide-y divide-border">
+      <details className="card p-5">
+        <summary className="section-title">{t("home.checks")}</summary>
+        <p className="mt-3 text-xs text-muted-foreground">
+          {t("home.checksHelp")}
+        </p>
+        {!doctor && cliOk !== false && <Spinner label={t("home.checkTitle")} />}
+        <ul className="mt-3 divide-y divide-border">
           {checks.map((check) => (
-            <li key={check.name} className="check-row">
+            <li key={check.name} className="check-row px-0">
               <div className="min-w-0">
                 <p className="text-sm font-medium capitalize">
                   {check.name.replaceAll("_", " ")}
@@ -161,15 +190,23 @@ export default function OverviewPage() {
             </li>
           ))}
         </ul>
-      </section>
-      {location?.data && (
-        <p className="break-all text-xs text-muted-foreground">
-          Local workspace <code>{String(location.data.state_dir)}</code>
-        </p>
-      )}
-      {capabilities?.data && (
-        <Details label="Engine capabilities" value={capabilities.data} />
-      )}
+        {location?.data && (
+          <p className="mt-4 break-all text-xs text-muted-foreground">
+            {t("home.localWorkspace")}{" "}
+            <code>{String(location.data.state_dir)}</code>
+          </p>
+        )}
+        {capabilities?.data && (
+          <Details label={t("home.capabilities")} value={capabilities.data} />
+        )}
+      </details>
+      <Link
+        to="/install?intent=author"
+        className="inline-flex min-h-9 items-center gap-2 text-sm text-primary hover:underline"
+      >
+        {t("home.authorTitle")}
+        <ArrowRight size={14} aria-hidden="true" />
+      </Link>
     </div>
   );
 }

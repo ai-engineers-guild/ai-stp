@@ -49,12 +49,18 @@ export default function CorporatePage() {
     name: string;
   } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [heartbeatView, setHeartbeatView] = useState<"policy" | "status">("policy");
-  const heartbeatPath = `corporate heartbeat ${heartbeatView}`;
-  const heartbeatSupported = help?.ok === true && records(help.data?.commands).some(
-    (command) => Array.isArray(command.path) && command.path.join(" ") === heartbeatPath &&
-      command.mutability === "read",
+  const [heartbeatView, setHeartbeatView] = useState<"policy" | "status">(
+    "policy",
   );
+  const heartbeatPath = `corporate heartbeat ${heartbeatView}`;
+  const heartbeatSupported =
+    help?.ok === true &&
+    records(help.data?.commands).some(
+      (command) =>
+        Array.isArray(command.path) &&
+        command.path.join(" ") === heartbeatPath &&
+        command.mutability === "read",
+    );
   const epoch = useRef(0);
   const request = useRef(0);
   const active = useRef(false);
@@ -217,7 +223,8 @@ export default function CorporatePage() {
       : null;
   const unavailable =
     help?.ok === false ||
-    (help?.ok === true && (tab === "Heartbeat" ? !heartbeatSupported : !harnesses.length));
+    (help?.ok === true &&
+      (tab === "Heartbeat" ? !heartbeatSupported : !harnesses.length));
   const checkoutSupported = records(help?.data?.commands).some(
     (command) =>
       Array.isArray(command.path) &&
@@ -229,9 +236,14 @@ export default function CorporatePage() {
     ["corporate project link-confirm plan", "plan"],
     ["corporate project link-adopt plan", "plan"],
     ["corporate project link apply", "apply"],
-  ].every(([path, mutability]) => records(help?.data?.commands).some((command) =>
-    Array.isArray(command.path) && command.path.join(" ") === path && command.mutability === mutability,
-  ));
+  ].every(([path, mutability]) =>
+    records(help?.data?.commands).some(
+      (command) =>
+        Array.isArray(command.path) &&
+        command.path.join(" ") === path &&
+        command.mutability === mutability,
+    ),
+  );
   return (
     <div className="page-stack">
       <PageHeader
@@ -293,9 +305,13 @@ export default function CorporatePage() {
             ))}
           </div>
           {unavailable && (
-            <EmptyState title={tab === "Heartbeat"
-              ? "This engine does not advertise this heartbeat read"
-              : "This engine does not advertise company reads"}>
+            <EmptyState
+              title={
+                tab === "Heartbeat"
+                  ? "This engine does not advertise this heartbeat read"
+                  : "This engine does not advertise company reads"
+              }
+            >
               Use a matching CLI and desktop release to open these views.
             </EmptyState>
           )}
@@ -310,10 +326,16 @@ export default function CorporatePage() {
               {tab === "Heartbeat" && (
                 <label className="field-label">
                   Heartbeat view
-                  <select className="input" value={heartbeatView} onChange={(event) => {
-                    invalidate();
-                    setHeartbeatView(event.target.value as "policy" | "status");
-                  }}>
+                  <select
+                    className="input"
+                    value={heartbeatView}
+                    onChange={(event) => {
+                      invalidate();
+                      setHeartbeatView(
+                        event.target.value as "policy" | "status",
+                      );
+                    }}
+                  >
                     <option value="policy">Reporting policy</option>
                     <option value="status">Enrolled device status</option>
                   </select>
@@ -446,11 +468,19 @@ export default function CorporatePage() {
               </p>
             )}
             {tab === "Heartbeat" && (
-              <><p className="text-sm text-muted-foreground">
-                Reading these views does not enable reporting. Company policy
-                is separate from your consent. Device health does not establish
-                harness usage.
-              </p><HeartbeatDelivery key={context.id} context={context} help={help} disabled={contextLoading} /></>
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Reading these views does not enable reporting. Company policy
+                  is separate from your consent. Device health does not
+                  establish harness usage.
+                </p>
+                <HeartbeatDelivery
+                  key={context.id}
+                  context={context}
+                  help={help}
+                  disabled={contextLoading}
+                />
+              </>
             )}
             <button
               className="btn-primary"
@@ -466,8 +496,9 @@ export default function CorporatePage() {
               <RefreshCw size={15} aria-hidden="true" />
               {tab === "Assignments"
                 ? "Preview assignments"
-                : tab === "Heartbeat" ? `Read heartbeat ${heartbeatView}`
-                : `Read ${tab.toLowerCase()}`}
+                : tab === "Heartbeat"
+                  ? `Read heartbeat ${heartbeatView}`
+                  : `Read ${tab.toLowerCase()}`}
             </button>
           </form>
           {checkoutProject && checkoutSupported && (
@@ -504,21 +535,38 @@ export default function CorporatePage() {
                   {heartbeatView === "policy" ? (
                     <dl className="grid gap-2 text-sm">
                       <dt>Company reporting policy</dt>
-                      <dd>{data.enabled === true ? "Enabled by company" :
-                        data.enabled === false ? "Disabled by company" : "Not reported"}</dd>
-                      <dt>Policy version</dt><dd>{String(data.policy_version ?? "Not reported")}</dd>
-                      <dt>Reporting interval</dt><dd>{typeof data.interval_seconds === "number"
-                        ? `${data.interval_seconds} seconds` : "Not reported"}</dd>
+                      <dd>
+                        {data.enabled === true
+                          ? "Enabled by company"
+                          : data.enabled === false
+                            ? "Disabled by company"
+                            : "Not reported"}
+                      </dd>
+                      <dt>Policy version</dt>
+                      <dd>{String(data.policy_version ?? "Not reported")}</dd>
+                      <dt>Reporting interval</dt>
+                      <dd>
+                        {typeof data.interval_seconds === "number"
+                          ? `${data.interval_seconds} seconds`
+                          : "Not reported"}
+                      </dd>
                     </dl>
                   ) : (
                     <>
                       <dl className="grid gap-2 text-sm">
-                        <dt>Enrolled device</dt><dd className="break-all font-mono">{String(data.device_id ?? "Not reported")}</dd>
-                        <dt>Reported device health</dt><dd>{String(data.health_state ?? "Not reported")}</dd>
+                        <dt>Enrolled device</dt>
+                        <dd className="break-all font-mono">
+                          {String(data.device_id ?? "Not reported")}
+                        </dd>
+                        <dt>Reported device health</dt>
+                        <dd>{String(data.health_state ?? "Not reported")}</dd>
                       </dl>
-                      {data.heartbeat === null && <p className="text-sm text-muted-foreground">
-                        No heartbeat has been reported for this enrolled device.
-                      </p>}
+                      {data.heartbeat === null && (
+                        <p className="text-sm text-muted-foreground">
+                          No heartbeat has been reported for this enrolled
+                          device.
+                        </p>
+                      )}
                     </>
                   )}
                 </div>

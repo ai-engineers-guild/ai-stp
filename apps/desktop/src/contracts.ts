@@ -33,13 +33,19 @@ export interface PersonalTaskOwnership {
   native_account_id: string;
   native_device_id: string;
 }
-export function personalTaskOwnership(value: unknown): PersonalTaskOwnership | null {
+export function personalTaskOwnership(
+  value: unknown,
+): PersonalTaskOwnership | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const owner = value as Partial<PersonalTaskOwnership>;
-  return Object.keys(value).length === 3 && owner.kind === "personal" &&
-    typeof owner.native_account_id === "string" && /^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$/.test(owner.native_account_id) &&
-    typeof owner.native_device_id === "string" && /^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$/.test(owner.native_device_id)
-    ? owner as PersonalTaskOwnership : null;
+  return Object.keys(value).length === 3 &&
+    owner.kind === "personal" &&
+    typeof owner.native_account_id === "string" &&
+    /^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$/.test(owner.native_account_id) &&
+    typeof owner.native_device_id === "string" &&
+    /^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$/.test(owner.native_device_id)
+    ? (owner as PersonalTaskOwnership)
+    : null;
 }
 export interface TaskView {
   task_id: string;

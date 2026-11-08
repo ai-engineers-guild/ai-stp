@@ -27,6 +27,19 @@ receipts do not establish corporate installation inventory. Cached company reads
 and assignment previews grant no installation authority; unsupported platform
 operations refuse according to the engine's capabilities.
 
+Overview offers the next action for this device: initialize its credential store,
+create a context, or find a setup. Choose **Find a setup** in the sidebar, review
+and download a catalog version, then follow **My setups** to choose its folders.
+The system folder picker and full-path entry both select existing directories.
+Reviewing a setup writes no configuration files. Confirm its exact changes,
+prepare it, stop the original tool sessions, then apply and restart as instructed.
+Catalog coordinates stay available in a disclosure; replacement, adoption and
+trust are separate advanced controls. Recovery keeps the original operation.
+
+Discovery, Commands and Diagnostics are under **Advanced tools**. The main page
+shows device diagnostics on request. Pages load when opened; the initial view
+does not load every account, company and authoring screen.
+
 If a start or apply reply is uncertain, inspect its original retained operation
 in Activity before starting again. Identical interrupted task starts keep their
 retry identity while the app is running. Choosing a separate request does not
@@ -71,6 +84,10 @@ account codes and private task content. No automatic diagnostic upload occurs.
 - `src/transport.ts` is the IPC boundary; `store.ts` shares engine state and
   `taskStart.ts` retains a logical start's retry identity. Common components use
   shared theme roles, vendored IBM Plex fonts, visible focus and reduced motion.
+- `src/i18n.ts` and `src/locales/` own the new workspace and setup guidance.
+  Messages use ICU syntax and typed keys. The current English catalog is bundled
+  offline; migration of the remaining views and the full language set is tracked
+  in [#1372](https://github.com/ai-engineers-guild/ai-stp/issues/1372).
 
 ## Develop and verify
 
@@ -79,6 +96,7 @@ Tauri needs the native webview development packages. From `apps/desktop`,
 `bun run tauri dev` starts the app; frontend-only `bun run dev` has no native IPC.
 
 ```sh
+just desktop-source       # Types, formatting and message syntax; no compilation
 just desktop-gen          # Format Rust
 just desktop-check        # Frontend, Rust crates and actual optimized sidecar
 just desktop-bundle-test  # Verify an existing packaged CLI resource tree

@@ -16,7 +16,10 @@ vi.mock("../transport", () => ({
   cmdRunRead: vi.fn(),
 }));
 
-const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+const originalClipboard = Object.getOwnPropertyDescriptor(
+  navigator,
+  "clipboard",
+);
 
 afterEach(() => {
   cleanup();

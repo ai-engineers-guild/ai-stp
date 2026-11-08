@@ -9,11 +9,21 @@ export default function ForegroundHeartbeat() {
   const loading = useContexts((state) => state.loading || state.switching);
   useEffect(() => {
     let active = true;
-    const current = () => active && !loading && document.visibilityState === "visible" && document.hasFocus() &&
-      useContexts.getState().selected?.id === context?.id && !useContexts.getState().loading && !useContexts.getState().switching;
+    const current = () =>
+      active &&
+      !loading &&
+      document.visibilityState === "visible" &&
+      document.hasFocus() &&
+      useContexts.getState().selected?.id === context?.id &&
+      !useContexts.getState().loading &&
+      !useContexts.getState().switching;
     const tick = () => {
       if (inFlight || !current()) return;
-      inFlight = foregroundHeartbeat(context, current).catch(() => {}).finally(() => { inFlight = null; });
+      inFlight = foregroundHeartbeat(context, current)
+        .catch(() => {})
+        .finally(() => {
+          inFlight = null;
+        });
     };
     tick();
     const interval = window.setInterval(tick, 60000);

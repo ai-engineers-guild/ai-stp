@@ -625,17 +625,27 @@ it("retains an unconfirmed catalog start across navigation and retries its origi
     error_code: "AI_STP_TIMEOUT_UNCONFIRMED",
     error: "Inspect before retrying",
   });
-  const request = { intent: "install", input: { source: { stable_id: "setup_original" } } };
+  const request = {
+    intent: "install",
+    input: { source: { stable_id: "setup_original" } },
+  };
   await useTaskStart.getState().start(request);
   const key = useTaskStart.getState().key;
   mount(
     <InstallPage />,
     "/install?setup=setup_selected&version=1.0&digest=sha256:reviewed&harness=codex",
   );
-  fireEvent.click(await screen.findByRole("button", { name: "Retry the same request" }));
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Retry the same request" }),
+  );
   await waitFor(() => expect(transport.cmdTaskStart).toHaveBeenCalledTimes(2));
   await waitFor(() => expect(useTaskStart.getState().busy).toBe(false));
-  expect(transport.cmdTaskStart).toHaveBeenLastCalledWith("install", key, undefined, request.input);
+  expect(transport.cmdTaskStart).toHaveBeenLastCalledWith(
+    "install",
+    key,
+    undefined,
+    request.input,
+  );
   expect(useTaskStart.getState().key).toBe(key);
   expect(useTaskStart.getState().opened).toBe(false);
   expect(transport.cmdTaskStatus).not.toHaveBeenCalled();
@@ -662,13 +672,25 @@ it("does not apply a manual task read after leaving and returning to the same ta
   vi.mocked(transport.cmdTaskStatus).mockImplementation(async (id) => {
     if (id !== "task_retained") return ok({ ...task(2), task_id: id });
     reads++;
-    if (reads === 2) return new Promise((resolve) => { late = resolve; });
+    if (reads === 2)
+      return new Promise((resolve) => {
+        late = resolve;
+      });
     return ok(task(reads === 1 ? 1 : 9));
   });
   function Journey() {
     const navigate = useNavigate();
-    return <><button onClick={() => navigate("/install?task=task_other")}>Other task</button>
-      <button onClick={() => navigate("/install?task=task_retained")}>Original task</button><InstallPage /></>;
+    return (
+      <>
+        <button onClick={() => navigate("/install?task=task_other")}>
+          Other task
+        </button>
+        <button onClick={() => navigate("/install?task=task_retained")}>
+          Original task
+        </button>
+        <InstallPage />
+      </>
+    );
   }
   mount(<Journey />, "/install?task=task_retained");
   await screen.findByText("Revision 1");
@@ -687,20 +709,39 @@ it("does not let an old task mutation clear a later visit's pending read", async
   let finishAction!: (result: CmdResult) => void;
   let finishRead!: (result: CmdResult) => void;
   let reads = 0;
-  vi.mocked(transport.cmdTaskAnswer).mockReturnValue(new Promise((resolve) => { finishAction = resolve; }));
+  vi.mocked(transport.cmdTaskAnswer).mockReturnValue(
+    new Promise((resolve) => {
+      finishAction = resolve;
+    }),
+  );
   vi.mocked(transport.cmdTaskStatus).mockImplementation(async (id) => {
     if (id !== "task_retained") return ok({ ...task(2), task_id: id });
     reads++;
-    if (reads === 2) return new Promise((resolve) => { finishRead = resolve; });
+    if (reads === 2)
+      return new Promise((resolve) => {
+        finishRead = resolve;
+      });
     return ok(task(reads === 1 ? 1 : 9));
   });
   function Journey() {
     const navigate = useNavigate();
-    return <><button onClick={() => navigate("/install?task=task_other")}>Other task</button>
-      <button onClick={() => navigate("/install?task=task_retained")}>Original task</button><InstallPage /></>;
+    return (
+      <>
+        <button onClick={() => navigate("/install?task=task_other")}>
+          Other task
+        </button>
+        <button onClick={() => navigate("/install?task=task_retained")}>
+          Original task
+        </button>
+        <InstallPage />
+      </>
+    );
   }
   mount(<Journey />, "/install?task=task_retained");
-  fireEvent.change(await screen.findByRole("textbox", { name: "Component name" }), { target: { value: "Original answer" } });
+  fireEvent.change(
+    await screen.findByRole("textbox", { name: "Component name" }),
+    { target: { value: "Original answer" } },
+  );
   fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
   await waitFor(() => expect(transport.cmdTaskAnswer).toHaveBeenCalledTimes(1));
   fireEvent.click(screen.getByRole("button", { name: "Other task" }));
@@ -720,19 +761,37 @@ it("does not let an old task mutation clear a later visit's pending read", async
 
 it.each([
   { ...task(1), task_id: "task_unrequested" },
-  { ...task(1), ownership: { kind: "corporate", organization_id: "untrusted" } },
-  { ...task(1), ownership: { kind: "personal", native_account_id: "invalid", native_device_id: "invalid" } },
+  {
+    ...task(1),
+    ownership: { kind: "corporate", organization_id: "untrusted" },
+  },
+  {
+    ...task(1),
+    ownership: {
+      kind: "personal",
+      native_account_id: "invalid",
+      native_device_id: "invalid",
+    },
+  },
 ])("refuses a mismatched or unsupported native task reply", async (value) => {
   vi.mocked(transport.cmdTaskStatus).mockResolvedValue(ok(value));
   mount(<InstallPage />, "/install?task=task_retained");
-  await screen.findByText("The engine reply does not describe the requested task and supported ownership.");
+  await screen.findByText(
+    "The engine reply does not describe the requested task and supported ownership.",
+  );
   expect(screen.queryByRole("button", { name: "Submit answer" })).toBeNull();
   expect(transport.cmdTaskAnswer).not.toHaveBeenCalled();
 });
 
 it("shows the original personal task owner reported by the native journal", async () => {
-  const ownership = { kind: "personal", native_account_id: "account_01ARZ3NDEKTSV4RRFFQ69G5FAV", native_device_id: "device_01ARZ3NDEKTSV4RRFFQ69G5FAW" };
-  vi.mocked(transport.cmdTaskStatus).mockResolvedValue(ok({ ...task(7), ownership }));
+  const ownership = {
+    kind: "personal",
+    native_account_id: "account_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    native_device_id: "device_01ARZ3NDEKTSV4RRFFQ69G5FAW",
+  };
+  vi.mocked(transport.cmdTaskStatus).mockResolvedValue(
+    ok({ ...task(7), ownership }),
+  );
   mount(<InstallPage />, "/install?task=task_retained");
   await screen.findByText("Personal task · retained local owner");
   expect(screen.getByText(ownership.native_account_id)).toBeTruthy();
@@ -740,12 +799,17 @@ it("shows the original personal task owner reported by the native journal", asyn
 });
 
 it("removes old task controls when a refresh returns unsupported ownership", async () => {
-  vi.mocked(transport.cmdTaskStatus).mockResolvedValueOnce(ok(task(7)))
-    .mockResolvedValueOnce(ok({ ...task(8), ownership: { kind: "corporate" } }));
+  vi.mocked(transport.cmdTaskStatus)
+    .mockResolvedValueOnce(ok(task(7)))
+    .mockResolvedValueOnce(
+      ok({ ...task(8), ownership: { kind: "corporate" } }),
+    );
   mount(<InstallPage />, "/install?task=task_retained");
   await screen.findByRole("button", { name: "Submit answer" });
   fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
-  await screen.findByText("The engine reply does not describe the requested task and supported ownership.");
+  await screen.findByText(
+    "The engine reply does not describe the requested task and supported ownership.",
+  );
   expect(screen.queryByRole("button", { name: "Submit answer" })).toBeNull();
   expect(transport.cmdTaskAnswer).not.toHaveBeenCalled();
 });
@@ -754,7 +818,10 @@ it.each([task(7), { ...task(7), task_id: "task_unrequested" }])(
   "does not admit a failed status reply's payload as an actionable task",
   async (data) => {
     vi.mocked(transport.cmdTaskStatus).mockResolvedValue({
-      ...ok(data), ok: false, error: "The task receipt is unavailable", error_code: "IPC_THROW",
+      ...ok(data),
+      ok: false,
+      error: "The task receipt is unavailable",
+      error_code: "IPC_THROW",
     });
     mount(<InstallPage />, "/install?task=task_retained");
     await screen.findByText("The task receipt is unavailable");
@@ -767,7 +834,12 @@ it.each([task(7), { ...task(7), task_id: "task_unrequested" }])(
 it("requires a fresh task read after a failed refresh before restoring task controls", async () => {
   vi.mocked(transport.cmdTaskStatus)
     .mockResolvedValueOnce(ok(task(7)))
-    .mockResolvedValueOnce({ ...ok(), ok: false, error: "The task receipt is unavailable", error_code: "IPC_THROW" })
+    .mockResolvedValueOnce({
+      ...ok(),
+      ok: false,
+      error: "The task receipt is unavailable",
+      error_code: "IPC_THROW",
+    })
     .mockResolvedValueOnce(ok(task(9)));
   mount(<InstallPage />, "/install?task=task_retained");
   await screen.findByText("Revision 7");
@@ -783,20 +855,38 @@ it("requires a fresh task read after a failed refresh before restoring task cont
 
 it("does not submit a task continuation after leaving and returning during command discovery", async () => {
   let finishHelp!: (result: CmdResult) => void;
-  vi.mocked(transport.cmdMachineHelp).mockReturnValue(new Promise((resolve) => { finishHelp = resolve; }));
+  vi.mocked(transport.cmdMachineHelp).mockReturnValue(
+    new Promise((resolve) => {
+      finishHelp = resolve;
+    }),
+  );
   vi.mocked(transport.cliApplyConfirmed).mockResolvedValue(ok());
   let reads = 0;
   vi.mocked(transport.cmdTaskStatus).mockImplementation(async (id) => ({
-    ...ok({ ...task(++reads), task_id: id }), continuations: [taskStep],
+    ...ok({ ...task(++reads), task_id: id }),
+    continuations: [taskStep],
   }));
   function Journey() {
     const navigate = useNavigate();
-    return <><button onClick={() => navigate("/install?task=task_other")}>Other task</button>
-      <button onClick={() => navigate("/install?task=task_retained")}>Original task</button><InstallPage /></>;
+    return (
+      <>
+        <button onClick={() => navigate("/install?task=task_other")}>
+          Other task
+        </button>
+        <button onClick={() => navigate("/install?task=task_retained")}>
+          Original task
+        </button>
+        <InstallPage />
+      </>
+    );
   }
   mount(<Journey />, "/install?task=task_retained");
-  fireEvent.click(await screen.findByRole("button", { name: "Approve and run this step" }));
-  await waitFor(() => expect(transport.cmdMachineHelp).toHaveBeenCalledTimes(1));
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Approve and run this step" }),
+  );
+  await waitFor(() =>
+    expect(transport.cmdMachineHelp).toHaveBeenCalledTimes(1),
+  );
   fireEvent.click(screen.getByRole("button", { name: "Other task" }));
   await screen.findByText("Revision 2");
   fireEvent.click(screen.getByRole("button", { name: "Original task" }));
@@ -811,45 +901,91 @@ it("submits a reviewed continuation from its unchanged task visit and reads its 
   vi.mocked(transport.cmdTaskStatus)
     .mockResolvedValueOnce({ ...ok(task(7)), continuations: [taskStep] })
     .mockResolvedValueOnce(ok(task(8)));
-  vi.mocked(transport.cliApplyConfirmed).mockResolvedValue(ok({ operation_id: "operation_original" }));
+  vi.mocked(transport.cliApplyConfirmed).mockResolvedValue(
+    ok({ operation_id: "operation_original" }),
+  );
   mount(<InstallPage />, "/install?task=task_retained");
-  fireEvent.click(await screen.findByRole("button", { name: "Approve and run this step" }));
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Approve and run this step" }),
+  );
   await screen.findByText("Revision 8");
   expect(transport.cliApplyConfirmed).toHaveBeenCalledTimes(1);
   expect(transport.cliApplyConfirmed).toHaveBeenCalledWith(
-    "local apply", { "plan-digest": "sha256:original" }, [], true, {},
+    "local apply",
+    { "plan-digest": "sha256:original" },
+    [],
+    true,
+    {},
   );
   expect(transport.cmdTaskStatus).toHaveBeenLastCalledWith("task_retained");
 });
 
 it("does not authorize a continuation from commands carried in a failed registry reply", async () => {
-  vi.mocked(transport.cmdTaskStatus).mockResolvedValue({ ...ok(task(7)), continuations: [taskStep] });
+  vi.mocked(transport.cmdTaskStatus).mockResolvedValue({
+    ...ok(task(7)),
+    continuations: [taskStep],
+  });
   vi.mocked(transport.cmdMachineHelp).mockResolvedValue({
-    ...help, ok: false, error: "The command registry is unavailable", error_code: "IPC_THROW",
+    ...help,
+    ok: false,
+    error: "The command registry is unavailable",
+    error_code: "IPC_THROW",
   });
   mount(<InstallPage />, "/install?task=task_retained");
-  fireEvent.click(await screen.findByRole("button", { name: "Approve and run this step" }));
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Approve and run this step" }),
+  );
   await screen.findByText("The command registry is unavailable");
   expect(transport.cliApplyConfirmed).not.toHaveBeenCalled();
 });
 
 it("keeps a refreshed Activity list when the initial read completes later", async () => {
   let initial!: (result: CmdResult) => void;
-  vi.mocked(transport.cmdTaskList).mockReturnValueOnce(new Promise((resolve) => { initial = resolve; }))
-    .mockResolvedValueOnce(ok({ tasks: [{ task_id: "task_new", intent: "author", state: "blocked" }] }));
+  vi.mocked(transport.cmdTaskList)
+    .mockReturnValueOnce(
+      new Promise((resolve) => {
+        initial = resolve;
+      }),
+    )
+    .mockResolvedValueOnce(
+      ok({
+        tasks: [{ task_id: "task_new", intent: "author", state: "blocked" }],
+      }),
+    );
   mount(<TasksPage />);
   fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
   await screen.findByText("task_new");
-  await act(async () => initial(ok({ tasks: [{ task_id: "task_old", intent: "author", state: "blocked" }] })));
+  await act(async () =>
+    initial(
+      ok({
+        tasks: [{ task_id: "task_old", intent: "author", state: "blocked" }],
+      }),
+    ),
+  );
   expect(screen.getByText("task_new")).toBeTruthy();
   expect(screen.queryByText("task_old")).toBeNull();
 });
 
 it("offers manual context review for the native historical-identity refusal without starting a mutation", () => {
-  mount(<ResultMeta r={{ ...ok(), ok: false, error_code: "AI_STP_PRECONDITION_FAILED",
-    error: "Review a fresh context using the existing sign-in.",
-    error_details: { reason: "historical_native_identity", next_action: "review_current_context" } }} />);
-  expect(screen.getByRole("link", { name: "Review current context" }).getAttribute("href")).toBe("/profiles");
+  mount(
+    <ResultMeta
+      r={{
+        ...ok(),
+        ok: false,
+        error_code: "AI_STP_PRECONDITION_FAILED",
+        error: "Review a fresh context using the existing sign-in.",
+        error_details: {
+          reason: "historical_native_identity",
+          next_action: "review_current_context",
+        },
+      }}
+    />,
+  );
+  expect(
+    screen
+      .getByRole("link", { name: "Review current context" })
+      .getAttribute("href"),
+  ).toBe("/profiles");
   expect(transport.cliPlan).not.toHaveBeenCalled();
   expect(transport.cmdProfileApply).not.toHaveBeenCalled();
   expect(transport.cmdAuthLogin).not.toHaveBeenCalled();
@@ -859,10 +995,23 @@ it.each([
   ["AI_STP_PRECONDITION_FAILED", "changed_membership"],
   ["AI_STP_DEPENDENCY_UNAVAILABLE", "historical_native_identity"],
   ["AI_STP_PRECONDITION_FAILED", null],
-])("does not infer context recovery from unrelated failure %s/%s", (code, reason) => {
-  mount(<ResultMeta r={{ ...ok(), ok: false, error_code: code,
-    error: "historical_native_identity appears only in error prose",
-    error_details: { reason } }} />);
-  expect(screen.queryByRole("link", { name: "Review current context" })).toBeNull();
-  expect(transport.cmdProfileApply).not.toHaveBeenCalled();
-});
+])(
+  "does not infer context recovery from unrelated failure %s/%s",
+  (code, reason) => {
+    mount(
+      <ResultMeta
+        r={{
+          ...ok(),
+          ok: false,
+          error_code: code,
+          error: "historical_native_identity appears only in error prose",
+          error_details: { reason },
+        }}
+      />,
+    );
+    expect(
+      screen.queryByRole("link", { name: "Review current context" }),
+    ).toBeNull();
+    expect(transport.cmdProfileApply).not.toHaveBeenCalled();
+  },
+);
