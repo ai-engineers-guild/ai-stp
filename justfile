@@ -206,6 +206,22 @@ estate-validate path *args:
     {{ run }} python -m release_scripts.validate_estate_record "{{ path }}" {{ args }}
 
 # Build one estate record from local identities. Does not fetch.
+# Register accepted source analysis before the operator advances Main.
+[arg('source_run_id', help='successful push-to-Dev check run')]
+[doc('Prepare delivery from an existing successful Dev qualification')]
+[group('release')]
+delivery-prepare source_run_id:
+    gh workflow run deploy.yml --ref dev -f source_run_id={{ quote(source_run_id) }}
+
+# Use the existing Main administrator after CI has registered accepted source analysis.
+[arg('source_sha', help='exact fully qualified current Dev commit')]
+[arg('source_run_id', help='successful push-to-Dev check run')]
+[arg('source_attempt', help='current successful source attempt')]
+[doc('Promote qualified Dev with the existing operator and reconcile delivery')]
+[group('release')]
+delivery-promote source_sha source_run_id source_attempt:
+    REPOSITORY="$(gh repo view --json nameWithOwner --jq .nameWithOwner)" HEAD_SHA={{ quote(source_sha) }} SOURCE_RUN_ID={{ quote(source_run_id) }} SOURCE_ATTEMPT={{ quote(source_attempt) }} {{ run }} python -m release_scripts.source_promotion --advance-main
+
 [arg('tag', help='release tag')]
 [arg('commit', help='source commit')]
 [arg('output', help='record output path')]

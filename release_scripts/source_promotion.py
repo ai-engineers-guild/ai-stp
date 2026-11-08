@@ -1,4 +1,4 @@
-"""Advance Main and deployment only from the current fully qualified Dev source."""
+"""Prepare qualified delivery, explicitly advance Main, then reconcile deployment."""
 
 from __future__ import annotations
 
@@ -24,12 +24,24 @@ def read_back(api: GitHub, ref: str, head: str) -> None:
     raise PromotionRefused(f"{ref} did not retain the acknowledged source")
 
 
-def promote(api: GitHub, head: str, run_id: int, attempt: int, *, apply: bool) -> None:
+def promote(
+    api: GitHub, head: str, run_id: int, attempt: int, *, apply: bool, advance_main: bool = False
+) -> None:
+    require(not (apply and advance_main), "Choose one delivery authority")
     if apply:
         require(
             os.environ.get("GITHUB_ACTIONS") == "true"
             and os.environ.get("RUNNER_ENVIRONMENT") == "github-hosted",
-            "Reference promotion belongs to the hosted qualification owner",
+            "Deployment reconciliation belongs to the hosted qualification owner",
+        )
+    if advance_main:
+        require(
+            os.environ.get("GITHUB_ACTIONS") != "true",
+            "Main promotion uses the existing operator principal outside Actions",
+        )
+        require(
+            api.read("").get("permissions", {}).get("admin") is True,
+            "The existing Main administrator principal is required",
         )
     checkout = subprocess.run(
         ["git", "rev-parse", "HEAD"],
@@ -41,22 +53,40 @@ def promote(api: GitHub, head: str, run_id: int, attempt: int, *, apply: bool) -
     )
     require(checkout.stdout.strip() == head, "Promotion code must be the qualified source")
     source(api, head, run_id, attempt)
-    require_policy(api)
+    require_policy(api, require_actors=advance_main)
     previous = api.read("git/ref/heads/main")["object"]["sha"]
     comparison = api.read(f"compare/{previous}...{head}")
     require(
         comparison.get("status") in {"ahead", "identical"},
         "Main cannot fast-forward to this source",
     )
-    if not apply:
+    if not (apply or advance_main):
         print("Qualified Dev source and reviewed delivery policy admitted; no references changed.")
         return
     require_registered(api, head)
-    # Revalidate immediately before each authority change. A mechanical refusal
-    # ends this run; no alternate token, force update or administrator path exists.
+    # The operator path is explicit, never a fallback after an Actions refusal.
+    # A refused write ends the operation; no token replacement or force retry.
     source(api, head, run_id, attempt)
+    if advance_main:
+        if previous != head:
+            api.write("git/refs/heads/main", {"sha": head, "force": False})
+        read_back(api, "main", head)
+        source(api, head, run_id, attempt)
+        status, _ = api.request(
+            "actions/workflows/deploy.yml/dispatches",
+            method="POST",
+            body={"ref": "dev", "inputs": {"source_run_id": str(run_id)}},
+        )
+        require(status == 204, f"Delivery dispatch refused ({status}); Main is already advanced")
+        print(f"Main retained qualified Dev {head}; delivery reconciliation dispatched.")
+        return
     if previous != head:
-        api.write("git/refs/heads/main", {"sha": head, "force": False})
+        output_values(deployed=False)
+        print(
+            f"Qualified source {head} is ready for the existing Main operator; "
+            "no references changed and no deployment claimed."
+        )
+        return
     read_back(api, "main", head)
     source(api, head, run_id, attempt)
     require(
@@ -71,19 +101,30 @@ def promote(api: GitHub, head: str, run_id: int, attempt: int, *, apply: bool) -
     read_back(api, "deploy/prod", head)
     desktop_version = version(ROOT)
     publish_desktop = reconcile(api, head, desktop_version, run_id)
+    output_values(
+        deployed=True,
+        publish_desktop=str(publish_desktop).lower(),
+        desktop_version=desktop_version,
+    )
+    print(f"Promoted qualified Dev {head}; source run {run_id} attempt {attempt}.")
+
+
+def output_values(*, deployed: bool, **values: str) -> None:
     if output := os.environ.get("GITHUB_OUTPUT"):
         with Path(output).open("a", encoding="utf-8") as stream:
-            stream.write(
-                f"publish_desktop={str(publish_desktop).lower()}\n"
-                f"desktop_version={desktop_version}\n"
-            )
-    print(f"Promoted qualified Dev {head}; source run {run_id} attempt {attempt}.")
+            stream.write(f"deployed={str(deployed).lower()}\n")
+            for name, value in values.items():
+                stream.write(f"{name}={value}\n")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--apply", action="store_true", help="advance refs after all admission checks"
+    authority = parser.add_mutually_exclusive_group()
+    authority.add_argument(
+        "--apply", action="store_true", help="prepare delivery or reconcile already promoted Main"
+    )
+    authority.add_argument(
+        "--advance-main", action="store_true", help="use the existing Main operator and dispatch CI"
     )
     arguments = parser.parse_args()
     try:
@@ -93,6 +134,7 @@ def main() -> None:
             int(os.environ["SOURCE_RUN_ID"]),
             int(os.environ["SOURCE_ATTEMPT"]),
             apply=arguments.apply,
+            advance_main=arguments.advance_main,
         )
     except (PromotionRefused, KeyError, ValueError, OSError, subprocess.SubprocessError) as error:
         raise SystemExit(f"Promotion refused: {error}") from None

@@ -68,10 +68,15 @@ if method != "GET":
     elif method == "POST" and route == "code-scanning/sarifs":
         status = state.get("upload_status", 202)
         result = {"id": "accepted-payload"}
+    elif method == "POST" and route == "actions/workflows/deploy.yml/dispatches":
+        status = state.get("dispatch_status", 204)
     else:
         status, result = 500, {"unexpected_write": route}
 elif not route:
-    result = {"default_branch": state.get("default_branch", "dev")}
+    result = {
+        "default_branch": state.get("default_branch", "dev"),
+        "permissions": {"admin": state.get("operator_admin", True)},
+    }
 elif route.startswith("rulesets?"):
     result = [{"id": index, "name": item["name"]} for index, item in enumerate(state["policies"])]
 elif route.startswith("rulesets/"):
@@ -86,7 +91,9 @@ elif route == "actions/runs/41/attempts/1/jobs?per_page=100":
         "jobs": [{"name": "full-qualification", "status": "completed", "conclusion": "success"}],
     }
 elif route.startswith("code-scanning/alerts?"):
-    result = state.get("findings", [])
+    result = state.get(
+        "main_findings" if "heads%2Fmain" in route else "findings", []
+    )
 elif route.startswith("code-scanning/analyses?sarif_id="):
     language = route.split("=", 1)[1].removeprefix("original-")
     result = [
@@ -104,9 +111,9 @@ elif route.startswith("code-scanning/analyses?"):
         {
             "id": index,
             "category": "/language:" + language,
-            "commit_sha": head,
+            "commit_sha": state.get("main_analysis_head", head),
             "ref": "refs/heads/main",
-            "error": "",
+            "error": state.get("main_analysis_error", ""),
             "tool": {"name": "CodeQL"},
             "results_count": 2,
         }
@@ -247,16 +254,12 @@ def test_read_only_admission_never_mutates_refs(delivery: Delivery) -> None:
     assert delivery.writes() == []
 
 
-@pytest.mark.parametrize("change", [None, "source", "attempt"])
+@pytest.mark.parametrize("change", [None, "source"])
 def test_dispatcher_admits_only_its_own_qualified_sha_before_checkout(
     delivery: Delivery,
     change: str | None,
 ) -> None:
-    values = (
-        {"GITHUB_SHA": "c" * 40}
-        if change == "source"
-        else ({"OBSERVED_ATTEMPT": "2"} if change == "attempt" else {})
-    )
+    values = {"GITHUB_SHA": "c" * 40} if change == "source" else {}
     outcome = delivery.execute(["bash", "-c", script("deploy.yml", "promote")], **values)
     assert (outcome.returncode == 0) == (change is None), outcome.stderr
     output = delivery.directory / "outputs"
@@ -269,12 +272,19 @@ def test_dispatcher_admits_only_its_own_qualified_sha_before_checkout(
     assert delivery.writes() == []
 
 
-@pytest.mark.parametrize("failure", ["stale", "pr", "policy", "actors", "findings", "diverged"])
-def test_invalid_authority_cannot_reach_any_write(delivery: Delivery, failure: str) -> None:
+@pytest.mark.parametrize(
+    "failure", ["stale", "pr", "manual", "policy", "actors", "findings", "diverged"]
+)
+@pytest.mark.parametrize("operator", [False, True])
+def test_invalid_authority_cannot_reach_any_write(
+    delivery: Delivery, failure: str, operator: bool
+) -> None:
     if failure == "stale":
         delivery.state["dev"] = "c" * 40
     elif failure == "pr":
         delivery.state["run"]["event"] = "pull_request"
+    elif failure == "manual":
+        delivery.state["run"]["event"] = "workflow_dispatch"
     elif failure == "policy":
         delivery.state["default_branch"] = "main"
     elif failure == "actors":
@@ -285,14 +295,25 @@ def test_invalid_authority_cannot_reach_any_write(delivery: Delivery, failure: s
         delivery.state["findings"] = [{"number": 7}]
     else:
         delivery.state["comparison"] = "diverged"
-    outcome = delivery.run("source_promotion", "--apply")
+    outcome = delivery.execute(
+        [
+            sys.executable,
+            "-m",
+            "release_scripts.source_promotion",
+            "--advance-main" if operator else "--apply",
+        ],
+        GITHUB_ACTIONS="false" if operator else "true",
+    )
     assert outcome.returncode != 0
     assert delivery.writes() == []
 
 
 def test_ff_refusal_has_one_attempt_and_no_alternate_authority(delivery: Delivery) -> None:
     delivery.state["main_write_status"] = 403
-    outcome = delivery.run("source_promotion", "--apply")
+    outcome = delivery.execute(
+        [sys.executable, "-m", "release_scripts.source_promotion", "--advance-main"],
+        GITHUB_ACTIONS="false",
+    )
     assert outcome.returncode != 0
     assert [(item["method"], item["route"], item["body"]) for item in delivery.writes()] == [
         ("PATCH", "git/refs/heads/main", {"sha": delivery.state["head"], "force": False})
@@ -300,22 +321,90 @@ def test_ff_refusal_has_one_attempt_and_no_alternate_authority(delivery: Deliver
     assert delivery.state["deployment"] == "b" * 40
 
 
+def test_hosted_preparation_never_attempts_main_or_claims_deployment(delivery: Delivery) -> None:
+    delivery.state["main_write_status"] = 403
+    outcome = delivery.run("source_promotion", "--apply")
+    assert outcome.returncode == 0, outcome.stderr
+    assert delivery.writes() == []
+    assert (delivery.directory / "outputs").read_text() == "deployed=false\n"
+    assert delivery.state["main"] == delivery.state["deployment"] == "b" * 40
+
+
+@pytest.mark.parametrize("failure", ["stale-analysis", "processing-error", "main-findings"])
+def test_operator_requires_processed_clean_main_analysis_before_any_write(
+    delivery: Delivery, failure: str
+) -> None:
+    if failure == "stale-analysis":
+        delivery.state["main_analysis_head"] = "c" * 40
+    elif failure == "processing-error":
+        delivery.state["main_analysis_error"] = "Analysis was not processed"
+    else:
+        delivery.state["main_findings"] = [{"number": 8}]
+    outcome = delivery.execute(
+        [sys.executable, "-m", "release_scripts.source_promotion", "--advance-main"],
+        GITHUB_ACTIONS="false",
+    )
+    assert outcome.returncode != 0
+    assert delivery.writes() == []
+
+
+@pytest.mark.parametrize("failure", [None, "actions", "principal", "hidden-actors", "dispatch"])
+def test_explicit_operator_verifies_authority_advances_only_main_and_dispatches(
+    delivery: Delivery, failure: str | None
+) -> None:
+    if failure == "principal":
+        delivery.state["operator_admin"] = False
+    elif failure == "hidden-actors":
+        delivery.state["policies"][3].pop("bypass_actors")
+    elif failure == "dispatch":
+        delivery.state["dispatch_status"] = 403
+    outcome = delivery.execute(
+        [sys.executable, "-m", "release_scripts.source_promotion", "--advance-main"],
+        GITHUB_ACTIONS="true" if failure == "actions" else "false",
+    )
+    assert (outcome.returncode == 0) == (failure is None), outcome.stderr
+    if failure in {"actions", "principal", "hidden-actors"}:
+        assert delivery.writes() == []
+        return
+    assert [(item["method"], item["route"], item["body"]) for item in delivery.writes()] == [
+        ("PATCH", "git/refs/heads/main", {"sha": delivery.state["head"], "force": False}),
+        (
+            "POST",
+            "actions/workflows/deploy.yml/dispatches",
+            {"ref": "dev", "inputs": {"source_run_id": "41"}},
+        ),
+    ]
+    assert delivery.state["main"] == delivery.state["head"]
+    assert delivery.state["deployment"] == "b" * 40
+    assert not (delivery.directory / "outputs").exists()
+    # A repair reuses Main, dispatching reconciliation without another ref write.
+    delivery.state["dispatch_status"] = 204
+    again = delivery.execute(
+        [sys.executable, "-m", "release_scripts.source_promotion", "--advance-main"],
+        GITHUB_ACTIONS="false",
+    )
+    assert again.returncode == 0, again.stderr
+    assert sum(item["route"] == "git/refs/heads/main" for item in delivery.writes()) == 1
+
+
 @pytest.mark.parametrize("status", [200, 403, 404])
 def test_deployment_creation_requires_actual_missing_ref(delivery: Delivery, status: int) -> None:
+    delivery.state["main"] = delivery.state["head"]
     delivery.state["deployment_status"] = status
     outcome = delivery.run("source_promotion", "--apply")
     writes = delivery.writes()
-    assert writes[0]["body"]["force"] is False
     if status == 403:
         assert outcome.returncode != 0
-        assert len(writes) == 1
+        assert writes == []
     else:
         assert outcome.returncode == 0, outcome.stderr
-        assert writes[1]["method"] == ("POST" if status == 404 else "PATCH")
+        assert writes[0]["method"] == ("POST" if status == 404 else "PATCH")
+        if status == 200:
+            assert writes[0]["body"]["force"] is False
         assert delivery.state["main"] == delivery.state["deployment"] == delivery.state["head"]
         again = delivery.run("source_promotion", "--apply")
         assert again.returncode == 0, again.stderr
-        assert sum(item["route"] == "git/refs/heads/main" for item in delivery.writes()) == 1
+        assert all(item["route"] != "git/refs/heads/main" for item in delivery.writes())
 
 
 def retain(
@@ -383,7 +472,7 @@ def retain(
 
 
 def test_new_desktop_tag_is_annotated_immutable_and_repairable(delivery: Delivery) -> None:
-    delivery.state.update(tag_exists=False, release_status=404)
+    delivery.state.update(main=delivery.state["head"], tag_exists=False, release_status=404)
     outcome = delivery.run("source_promotion", "--apply")
     assert outcome.returncode == 0, outcome.stderr
     tagging = [item for item in delivery.writes() if item["route"] == "git/tags"]
@@ -405,6 +494,7 @@ def test_new_desktop_tag_is_annotated_immutable_and_repairable(delivery: Deliver
 
 
 def test_complete_desktop_release_needs_no_republication(delivery: Delivery) -> None:
+    delivery.state["main"] = delivery.state["head"]
     delivery.state["tagged_source"] = delivery.state["head"]
     outcome = delivery.run("source_promotion", "--apply")
     assert outcome.returncode == 0, outcome.stderr

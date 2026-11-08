@@ -18,7 +18,7 @@ ci-delivery-admit:
 ci-delivery-register-findings:
     python -m release_scripts.code_scanning register --directory source-analysis
 
-# Promote the qualified source after native release-reference scanning succeeds.
+# Prepare the operator admission, or deploy Main after its explicit promotion.
 [group('ci')]
 [private]
 ci-delivery-promote:

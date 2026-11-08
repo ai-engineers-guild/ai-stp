@@ -85,7 +85,7 @@ def policy_document(value: dict[str, Any]) -> dict[str, Any]:
     return document
 
 
-def require_policy(api: GitHub) -> None:
+def require_policy(api: GitHub, *, require_actors: bool = False) -> None:
     require(
         api.read("")["default_branch"] == "dev", "The reviewed Dev delivery policy is not active"
     )
@@ -105,11 +105,16 @@ def require_policy(api: GitHub) -> None:
         require(name in expected and name not in observed, "Unknown or duplicate repository policy")
         observed.add(name)
         document = api.read(f"rulesets/{summary['id']}")
+        require(
+            not require_actors or "bypass_actors" in document,
+            "The promotion principal must be able to verify complete rule actor lists",
+        )
         actual, intended = policy_document(document), policy_document(expected[name])
         if "bypass_actors" not in document:
             # GitHub withholds actor lists from tokens without ruleset-write
             # authority. GitHub still authorizes the actual ref update; this
-            # controller never receives administration or ruleset-write scope.
+            # hosted controller never receives ruleset-write scope. The existing
+            # administrative principal checks complete actor lists before Main.
             actual.pop("bypass_actors")
             intended.pop("bypass_actors")
         require(

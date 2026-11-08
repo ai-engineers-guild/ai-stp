@@ -67,7 +67,6 @@ class BranchPolicyTest(unittest.TestCase):
             updates["bypass_actors"],
             [
                 {"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always"},
-                {"actor_id": 15368, "actor_type": "Integration", "bypass_mode": "always"},
             ],
         )
 

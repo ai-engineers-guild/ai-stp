@@ -3,10 +3,6 @@
 name: deploy
 
 on:
-  workflow_run:
-    workflows: [check]
-    types: [completed]
-    branches: [dev]
   workflow_dispatch:
     inputs:
       source_run_id:
@@ -20,13 +16,7 @@ permissions:
 jobs:
   promote:
     name: promote
-    if: >-
-      (github.event_name == 'workflow_run'
-        && github.event.workflow_run.conclusion == 'success'
-        && github.event.workflow_run.event == 'push'
-        && github.event.workflow_run.head_branch == 'dev'
-        && github.event.workflow_run.head_repository.full_name == github.repository)
-      || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev')
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev'
     permissions:
       contents: write
       actions: read
@@ -40,6 +30,7 @@ jobs:
       head_sha: ${{ steps.source.outputs.head_sha }}
       source_run_id: ${{ steps.source.outputs.source_run_id }}
       source_attempt: ${{ steps.source.outputs.source_attempt }}
+      deployed: ${{ steps.promote.outputs.deployed }}
       publish_desktop: ${{ steps.promote.outputs.publish_desktop }}
       desktop_version: ${{ steps.promote.outputs.desktop_version }}
     steps:
@@ -48,8 +39,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.source_run_id }}
-          OBSERVED_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
         run: |
           set -euo pipefail
           [[ "${SOURCE_RUN_ID}" =~ ^[1-9][0-9]*$ ]]
@@ -58,9 +48,6 @@ jobs:
           head="$(jq -r .head_sha <<< "${source_run}")"
           attempt="$(jq -r .run_attempt <<< "${source_run}")"
           [[ "${head}" =~ ^[0-9a-f]{40}$ && "${attempt}" =~ ^[1-9][0-9]*$ ]]
-          if [[ -n "${OBSERVED_ATTEMPT}" ]]; then
-            test "${OBSERVED_ATTEMPT}" = "${attempt}"
-          fi
           jq -e --arg repo "${REPOSITORY}" --arg sha "${head}" \
             --argjson run "${SOURCE_RUN_ID}" --argjson attempt "${attempt}" '
             .id == $run and .repository.full_name == $repo and
@@ -193,7 +180,7 @@ jobs:
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
         with:
           recipe: ci-delivery-register-findings
-      - name: Fast-forward the qualified source and read back deployment
+      - name: Prepare Main admission or reconcile the promoted deployment
         id: promote
         env:
           GH_TOKEN: ${{ github.token }}
@@ -209,23 +196,11 @@ jobs:
   verify-public:
     name: verify-public
     needs: promote
-    # The same condition `promote` carries, and for the same reason it carries
-    # it twice: a static analyser cannot see that `needs` already settles this.
-    # CodeQL reports the checkout below as untrusted because a `workflow_run`
-    # can in general be raised by a fork's pull request — which this one cannot,
-    # since `promote` admits only an exact qualified Dev source and a
-    # skipped dependency skips its dependents. Saying so here makes the
-    # guarantee legible to the reader and to the scanner.
-    #
-    # The checkout is credential-free regardless: `persist-credentials: false`,
-    # and this job may only read.
+    # Preparation is successful without claiming a rollout. Only an acknowledged
+    # deployment reference enables public verification.
     if: >-
-      (github.event_name == 'workflow_run'
-        && github.event.workflow_run.conclusion == 'success'
-        && github.event.workflow_run.event == 'push'
-        && github.event.workflow_run.head_branch == 'dev'
-        && github.event.workflow_run.head_repository.full_name == github.repository)
-      || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev')
+      needs.promote.outputs.deployed == 'true' &&
+      github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev'
     permissions:
       contents: read
     runs-on: ubuntu-26.04

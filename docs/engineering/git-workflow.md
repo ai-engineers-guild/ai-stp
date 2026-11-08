@@ -47,7 +47,8 @@ Only successful push-to-Dev owners retain native dependency caches.
 2. Commit intended paths with the existing global Git identity. Do not override
    authors or invent attribution. Merge a green, current PR into `dev` with a
    merge commit.
-3. `check` qualifies that integrated commit once. `deploy` admits only the latest
+3. `check` qualifies that integrated commit once. Dispatch preparation with
+   `just delivery-prepare SOURCE_RUN_ID`. `deploy` admits only the latest
    successful push-to-Dev run and current attempt, its unique successful
    `full-qualification`, the current Dev head and the reviewed live rules.
 4. Delivery registers the three unchanged, accepted CodeQL SARIF payloads for
@@ -57,11 +58,18 @@ Only successful push-to-Dev owners retain native dependency caches.
    provenance, findings, fingerprints and dispositions remain unchanged.
    Processing errors and open findings
    refuse delivery. The native Main CodeQL rule remains enforced.
-5. The job fast-forwards Main with `force: false`, reads it back, rechecks source
-   authority and advances the monotonic `deploy/prod` ref. The target owns the
-   rollout; the workflow carries no host credential. Public verification checks
-   the exact source, schema and service health.
-6. A new Desktop version gets an immutable annotated tag and publication of the
+5. The first delivery run prepares Main admission without changing references.
+   Using the existing authorized Main administrator, run
+   `just delivery-promote SOURCE_SHA SOURCE_RUN_ID SOURCE_ATTEMPT` from that
+   qualified checkout. It independently rechecks source evidence, complete live
+   rule actor lists, current Dev and accepted Main analysis, fast-forwards Main
+   with `force: false`, reads it back and dispatches CI reconciliation. No new
+   credential or Actions bypass is required. A refused write ends the operation.
+6. CI only advances the monotonic `deploy/prod` ref once Main already equals the
+   qualified source. The target owns the rollout; the workflow carries no host
+   credential. Public verification checks the exact source, schema and service
+   health. A preparation run does not claim deployment or publish installers.
+7. A new Desktop version gets an immutable annotated tag and publication of the
    six installers from that successful source run. All manifests, source identity
    and SHA-256 hashes are verified before publication. The publisher executes no
    repository program, preserves existing assets and uploads only missing names
@@ -78,23 +86,29 @@ that disclosure; publication does not assert notarization or code signing.
 
 Rule sources live in `.github/*ruleset.json`; live GitHub rules enforce access.
 Dev requires PR integration. Main requires `full-qualification` and real CodeQL
-results, forbids deletion/non-fast-forward updates, and admits the delivery app
-only through its update restriction. That update exception does not bypass the
-qualification or code-scanning rules. Existing administrator authority does not
-replace evidence. A mechanical refusal ends the operation; there is no alternate
-credential, force update or administrative retry path in the controller.
+results, forbids deletion/non-fast-forward updates, and retains the existing
+administrator-only Main update restriction. The built-in GitHub Actions integration cannot be registered as a ruleset bypass
+actor. Hosted delivery therefore never attempts a Main write: the existing
+operator is an explicit, evidence-checked step, with no alternate-credential
+retry after a refusal. Existing administrator authority does not replace
+qualification or code-scanning evidence.
 
 Activating this delivery arrangement changes existing repository access and the
 default branch. It is a separate repository-administration decision after the
 candidate has qualified. Read back every rule, including complete actor lists,
-and the default branch. The controller has no ruleset-administration permission;
-GitHub may omit actor lists from its read-only response, while GitHub still
-authorizes the actual ref write. It refuses other visible policy drift. Until
+and the default branch. The hosted controller cannot change rulesets. GitHub
+may omit actor lists from its read-only response, while GitHub still
+authorizes deployment writes. The operator requires the complete actor lists.
+Both paths refuse other visible policy drift. Until
 the four reviewed rules and default Dev are active, it changes no references.
 
-For an interrupted delivery, dispatch `deploy` on Dev with the existing successful
-`source_run_id`. Admission is repeated against current GitHub state. Completed
-Main/ref/tag operations are reused; existing tags and release assets never move.
+When Main has not yet advanced, use `just delivery-promote` with the admitted
+source, run and attempt. For an interrupted deployment after Main advanced,
+dispatch `deploy` on Dev with the existing successful `source_run_id`. If the
+operator's dispatch failed after its Main update, rerunning the same command
+reuses Main and retries only reconciliation. Admission is repeated against
+current GitHub state. Completed Main/ref/tag operations are reused; existing tags
+and release assets never move.
 Do not rebuild to repair publication. Correct source mistakes through a new PR
 or a reviewed revert. Keep branches synchronized and remove only finished work
 owned by the task.

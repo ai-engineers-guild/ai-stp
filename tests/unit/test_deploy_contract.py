@@ -17,6 +17,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import pytest
+import yaml
 from deploy import verify_public
 
 #: Where the workflows this tree runs live.
@@ -48,30 +49,42 @@ def test_the_deploy_workflow_keeps_the_guarantees_it_inherited() -> None:
     assert "runs-on: ai-stp-prod" not in executable
     assert "self-hosted" not in executable
 
-    # The exact commit `check` proved, not whatever `main` points at now.
-    assert "HEAD_SHA: ${{ github.event.workflow_run.head_sha }}" in workflow
-    assert workflow.count("ref: ${{ github.event.workflow_run.head_sha }}") == 1
-    assert "github.event.workflow_run.conclusion == 'success'" in workflow
-    assert 'test "${EVENT}" = "push"' in workflow
-    assert 'test "${BRANCH}" = "main"' in workflow
+    # Execute only the dispatcher's own SHA after it matches the admitted source.
+    # A run-output/input SHA must not select privileged executable code.
+    jobs = yaml.safe_load(workflow)["jobs"]
+    for name in ("promote", "verify-public"):
+        checkout = next(
+            step
+            for step in jobs[name]["steps"]
+            if step.get("uses", "").startswith("actions/checkout@")
+        )
+        assert checkout["with"] == {"ref": "${{ github.sha }}", "persist-credentials": False}
+    assert 'test "${GITHUB_SHA}" = "${head}"' in workflow
+    assert "HEAD_SHA: ${{ steps.source.outputs.head_sha }}" in workflow
+    assert '.event == "push" and .head_branch == "dev"' in workflow
 
-    assert executable.count("persist-credentials: false") == 1
+    assert executable.count("persist-credentials: false") == 2
 
-    # Write is granted to the job that moves the ref and to nothing else. A
-    # workflow-wide write would hand it to the proof job, which only reads.
+    # Write is scoped to delivery and its publisher. A workflow-wide write
+    # would hand it to the public proof job, which only reads.
     assert "permissions:\n  contents: read" in workflow
     assert "permissions:\n      contents: write" in workflow
     assert "permissions:\n  contents: write" not in workflow
 
-    # The event and branch are conditions on the job, not only tests inside a
-    # `run`. A static analyser cannot see the shell, so an edit dropping the
-    # script checks would silently promote a pull-request run; as a job
-    # condition the same edit skips the job instead.
-    assert "github.event.workflow_run.event == 'push'" in workflow
-    assert "github.event.workflow_run.head_branch == 'main'" in workflow
+    # Delivery has no fork-triggerable event. Manual dispatch still requires
+    # the exact successful push-to-Dev source before privileged checkout.
+    assert set(yaml.safe_load(workflow)[True]) == {"workflow_dispatch"}
+    assert "github.event_name == 'workflow_dispatch'" in jobs["promote"]["if"]
+    assert "github.ref == 'refs/heads/dev'" in jobs["promote"]["if"]
 
-    assert "refs/heads/deploy/prod" in workflow
-    assert "-F force=false" in workflow
+    controller = Path("release_scripts/source_promotion.py").read_text()
+    assert "refs/heads/deploy/prod" in controller
+    assert '"force": False' in controller
+    assert '"force": True' not in controller
+    assert any(
+        step.get("with", {}).get("recipe") == "ci-delivery-promote"
+        for step in jobs["promote"]["steps"]
+    )
 
     # The public route is proved from somewhere that is not the host, and
     # against the one environment's real name (`ADR-0086`). A check that only
@@ -79,6 +92,7 @@ def test_the_deploy_workflow_keeps_the_guarantees_it_inherited() -> None:
     assert "deploy/verify_public.py" in workflow
     assert "--expected-environment prod" in workflow
     assert "needs: promote" in executable
+    assert "needs.promote.outputs.deployed == 'true'" in jobs["verify-public"]["if"]
 
     # The docs site is the third published service, on its own hostname. Its
     # origin is a repository variable like the main one, and the job fails on
@@ -121,13 +135,12 @@ def test_a_manually_requested_check_answers_but_does_not_ship() -> None:
     gate = (WORKFLOWS / "check.yml").read_text(encoding="utf-8")
 
     assert "workflow_dispatch:" in gate
-    # The deployment refuses anything whose source was not a push to `main`, so
-    # a dispatched check produces a verdict and nothing else.
-    assert 'test "${EVENT}" = "push"' in deploy
-    assert "EVENT: ${{ github.event.workflow_run.event }}" in deploy
-    assert "workflow_dispatch" not in "\n".join(
-        line for line in deploy.splitlines() if not line.lstrip().startswith("#")
-    )
+    # A manual check has no delivery authority. Manual repair names an existing
+    # push-to-Dev source run and goes through the same admission controller.
+    assert '.event == "push" and .head_branch == "dev"' in deploy
+    events = yaml.safe_load(deploy)[True]
+    assert set(events) == {"workflow_dispatch"}
+    assert set(events["workflow_dispatch"]["inputs"]) == {"source_run_id"}
 
 
 def test_target_side_deployer_preserves_the_host_state_and_monotonicity() -> None:
@@ -754,24 +767,12 @@ def test_deploy_verification_outlasts_its_own_wait() -> None:
 
 
 def test_both_deploy_jobs_state_the_condition_they_depend_on() -> None:
-    """`needs` is not visible to a static analyser, and one job checks out code.
-
-    `promote` already duplicates its event and branch condition in a job `if`,
-    with a comment saying why: a later edit that dropped the `test` inside `run`
-    would silently start promoting a pull-request run, while the same mistake
-    stated as a job condition merely skips.
-
-    `verify-public` checks out `workflow_run.head_sha`. It could never run on a
-    fork's pull request — `promote` refuses anything but a push to `main`, and a
-    skipped dependency skips its dependents — but CodeQL reported it as an
-    untrusted checkout because nothing said so where a scanner could read it.
-    Both jobs now state it.
-    """
-    workflow = _deploy_workflow()
-    guard = "github.event.workflow_run.event == 'push'"
-    branch = "github.event.workflow_run.head_branch == 'main'"
-    assert workflow.count(guard) >= 2, "a job that runs on workflow_run does not state its event"
-    assert workflow.count(branch) >= 2, "a job that runs on workflow_run does not state its branch"
+    """Dispatch executes only on Dev; preparation cannot claim public deployment."""
+    jobs = yaml.safe_load(_deploy_workflow())["jobs"]
+    for name in ("promote", "verify-public"):
+        assert "github.event_name == 'workflow_dispatch'" in jobs[name]["if"]
+        assert "github.ref == 'refs/heads/dev'" in jobs[name]["if"]
+    assert "needs.promote.outputs.deployed == 'true'" in jobs["verify-public"]["if"]
 
 
 def test_the_worker_apparmor_profile_allows_userns_and_is_loaded_before_compose() -> None:
