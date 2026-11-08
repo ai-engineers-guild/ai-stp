@@ -63,9 +63,8 @@ export function ResultMeta({ r }: { r: CmdResult }) {
               <p className="mt-2">{t("error.uncertainChange")}</p>
               <details className="technical-details mt-3">
                 <summary>{t("common.technical")}</summary>
-                <p className="break-words">
-                  {r.error_code}: {r.error}
-                </p>
+                <code>{r.error_code}</code>
+                <p className="break-words">{r.error}</p>
               </details>
             </>
           ) : (
