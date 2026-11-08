@@ -36,7 +36,9 @@ env:
 
 jobs:
   generate:
-    if: github.event_name != 'workflow_dispatch' || (!inputs.native_locks && !inputs.web_lock && !inputs.native_projections)
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      (!inputs.native_locks && !inputs.web_lock && !inputs.native_projections)
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
@@ -110,7 +112,9 @@ jobs:
           retention-days: 3
 
   native-locks:
-    if: github.event_name == 'workflow_dispatch' && inputs.native_locks && !inputs.web_lock && !inputs.native_projections
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.native_locks &&
+      !inputs.web_lock && !inputs.native_projections
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
