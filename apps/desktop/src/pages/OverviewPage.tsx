@@ -20,11 +20,13 @@ export default function OverviewPage() {
   } = useApp();
   const selected = useContexts((state) => state.selected);
   const contextsLoading = useContexts((state) => state.loading);
+  const contextsResult = useContexts((state) => state.result);
+  const refreshContexts = useContexts((state) => state.refresh);
   const [busy, setBusy] = useState(false);
   async function refresh() {
     setBusy(true);
     try {
-      await refreshCli();
+      await Promise.all([refreshCli(), refreshContexts(true)]);
     } finally {
       setBusy(false);
     }
@@ -62,19 +64,26 @@ export default function OverviewPage() {
             action: "home.initializeAction",
             to: "/settings",
           }
-        : !selected
+        : contextsResult?.ok === false
           ? {
-              title: "home.contextTitle",
-              help: "home.contextHelp",
-              action: "home.contextAction",
+              title: "home.contextUnavailableTitle",
+              help: "home.contextUnavailableHelp",
+              action: "home.contextUnavailableAction",
               to: "/profiles",
             }
-          : {
-              title: "home.browseTitle",
-              help: "home.browseHelp",
-              action: "home.browseAction",
-              to: "/catalog",
-            };
+          : !selected
+            ? {
+                title: "home.contextTitle",
+                help: "home.contextHelp",
+                action: "home.contextAction",
+                to: "/profiles",
+              }
+            : {
+                title: "home.browseTitle",
+                help: "home.browseHelp",
+                action: "home.browseAction",
+                to: "/catalog",
+              };
   return (
     <div className="page-stack">
       <PageHeader
@@ -161,6 +170,9 @@ export default function OverviewPage() {
       {busy && <Spinner label={t("home.refreshing")} />}
       {engineResult && !engineResult.ok && <ResultMeta r={engineResult} />}
       {doctor && !doctor.ok && <ResultMeta r={doctor} />}
+      {cliOk && doctor?.ok && contextsResult && !contextsResult.ok && (
+        <ResultMeta r={contextsResult} />
+      )}
       <section className="grid gap-4 lg:grid-cols-2">
         <ActionLink to="/targets" title={t("home.reviewTitle")}>
           {t("home.reviewHelp")}
