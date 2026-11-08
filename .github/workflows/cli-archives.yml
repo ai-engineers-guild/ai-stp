@@ -86,81 +86,36 @@ jobs:
           --package ai-stp-sources --no-default-groups
       # Build from source: cached build scripts can retain another image's SDK paths.
       - name: Build the native executable
-        working-directory: apps/cli
-        shell: bash
-        run: |
-          set -euo pipefail
-          binary="$(cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- cli-binary)"
-          printf 'CLI_SOURCE_BINARY=%s\n' "$binary" >> "${GITHUB_ENV}"
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-build-build-the-native-executable
       - name: Package and verify the extracted executable outside checkout
-        shell: bash
         env:
           RELEASE_TARGET: ${{ matrix.target }}
           RELEASE_BINARY: ${{ matrix.binary }}
           RELEASE_EXTENSION: ${{ matrix.extension }}
-        run: |
-          set -euo pipefail
-          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- package \
-            --binary "${CLI_SOURCE_BINARY}" \
-            --target "${RELEASE_TARGET}" --version "${RELEASE_VERSION}" \
-            --revision "${GITHUB_SHA}" --output release
-          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- package \
-            --binary "${CLI_SOURCE_BINARY}" \
-            --target "${RELEASE_TARGET}" --version "${RELEASE_VERSION}" \
-            --revision "${GITHUB_SHA}" --output release-repeat
-          stem="ai-stp-cli-${RELEASE_VERSION}-${RELEASE_TARGET}"
-          cmp "release/${stem}.${RELEASE_EXTENSION}" "release-repeat/${stem}.${RELEASE_EXTENSION}"
-          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- verify \
-            --archive "release/${stem}.${RELEASE_EXTENSION}" \
-            --target "${RELEASE_TARGET}" --version "${RELEASE_VERSION}" \
-            --revision "${GITHUB_SHA}" --install-directory "${RUNNER_TEMP}/ai-stp-rust-install"
-          uv run --no-sync python tests/native_contract/verify.py \
-            "${RUNNER_TEMP}/ai-stp-rust-install/${RELEASE_BINARY}"
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-build-package-and-verify-the-extracted-executable-outside-checkout
       - name: Package and qualify the native wheel
-        shell: bash
         env:
           RELEASE_TARGET: ${{ matrix.target }}
           RELEASE_BINARY: ${{ matrix.binary }}
           RELEASE_EXTENSION: ${{ matrix.extension }}
           UV_TOOL_DIR: ${{ runner.temp }}/native-wheel-tools
           UV_TOOL_BIN_DIR: ${{ runner.temp }}/native-wheel-bin
-        run: |
-          set -euo pipefail
-          stem="ai-stp-cli-${RELEASE_VERSION}-${RELEASE_TARGET}"
-          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- wheel \
-            --archive "release/${stem}.${RELEASE_EXTENSION}" \
-            --target "${RELEASE_TARGET}" --version "${RELEASE_VERSION}" \
-            --revision "${GITHUB_SHA}" --output wheels
-          wheel=$(find wheels -maxdepth 1 -name '*.whl' -type f)
-          test -n "${wheel}"
-          uv tool install --no-index "${wheel}"
-          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- probe \
-            --binary "${UV_TOOL_BIN_DIR}/${RELEASE_BINARY}" --version "${RELEASE_VERSION}"
-          python -m venv "${RUNNER_TEMP}/pip-native"
-          if [[ "${RUNNER_OS}" == Windows ]]; then
-            pip_python="${RUNNER_TEMP}/pip-native/Scripts/python.exe"
-            pip_binary="${RUNNER_TEMP}/pip-native/Scripts/${RELEASE_BINARY}"
-          else
-            pip_python="${RUNNER_TEMP}/pip-native/bin/python"
-            pip_binary="${RUNNER_TEMP}/pip-native/bin/${RELEASE_BINARY}"
-          fi
-          "${pip_python}" -m pip install --no-index --no-deps "${wheel}"
-          cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- probe \
-            --binary "${pip_binary}" --version "${RELEASE_VERSION}"
-          cp "${wheel}" release/
-          (cd release && sha256sum -- *.whl > "$(basename "${wheel}").sha256")
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-build-package-and-qualify-the-native-wheel
       - name: Qualify the standalone Cargo source package
         if: runner.os == 'Linux'
-        working-directory: apps/cli
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- resources --check
-          cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- \
-            build cargo package --locked
-          cp "target/package/ai-stp-cli-${RELEASE_VERSION}.crate" ../../release/
-          cd ../../release
-          sha256sum -- *.crate > "ai-stp-cli-${RELEASE_VERSION}.crate.sha256"
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-build-qualify-the-standalone-cargo-source-package
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: ai-stp-rust-${{ matrix.target }}-${{ github.sha }}

@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from coverage.results import should_fail_under
+from tests.contract.test_gate_split_covers_the_gate import workflow_text
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -64,7 +65,7 @@ def test_the_gate_does_not_fail_on_a_coverage_percentage() -> None:
     assert isinstance(addopts, str)
     assert "--cov-fail-under" not in addopts
 
-    workflow = (ROOT / ".github/workflows/check.yml").read_text(encoding="utf-8")
+    workflow = workflow_text()
     assert "coverage report --precision=2" in workflow
     assert "--fail-under" not in workflow
     assert "--cov-fail-under" not in workflow
