@@ -1,35 +1,13 @@
 # OSV-scanner exceptions for this crate's Cargo.lock only.
 #
-# Both findings sit in the GTK3 stack tauri 2 pins on Linux
-# (gtk/webkit2gtk-4.1 -> glib/glib-macros/gtk3-macros 0.18.x); none of them
-# is reachable inside the declared ranges, and ai-stp-desktop calls neither
-# affected API. Re-evaluate when tauri moves to GTK4, or on the ignoreUntil
-# date, whichever comes first.
+# The existing glib API disposition is limited to Tauri's GTK3 dependency
+# graph. Re-evaluate when Tauri moves to GTK4 or on the ignoreUntil date,
+# whichever comes first.
 [[IgnoredVulns]]
 id = "GHSA-wrw7-89jp-8q8g"
 ignoreUntil = 2027-01-03
 reason = "glib 0.18.x VariantStrIter unsoundness (RUSTSEC-2024-0429); fixed only in glib 0.20, which tauri 2's GTK3/webkit2gtk-4.1 Linux stack does not accept; ai-stp-desktop has no direct glib or VariantStrIter use; re-evaluate when tauri moves to GTK4"
 
-[[IgnoredVulns]]
-id = "RUSTSEC-2024-0370"
-ignoreUntil = 2027-01-03
-reason = "proc-macro-error 1.0.4 unmaintained; pulled only by glib-macros 0.18.5 and gtk3-macros 0.18.2 in the same tauri-pinned GTK3 stack, so it cannot move independently; re-evaluate when tauri moves to GTK4"
-
-# Informational advisories: these standalone crates moved into zbus 6.
-# Stable opener 2.7.2 and single-instance 2.5.4 still require zbus ^5.9.
-# Upstream: https://github.com/tauri-apps/plugins-workspace/issues/3716
-# Removal and supported-platform qualification: ai-stp issue #1066.
-[[IgnoredVulns]]
-id = "RUSTSEC-2026-0370"
-ignoreUntil = 2026-11-06
-reason = "Informational unmaintained standalone zvariant; stable Tauri plugins require zbus 5. No patched standalone version. Remove with stable zbus 6 plugin migration (#1066)."
-
-[[IgnoredVulns]]
-id = "RUSTSEC-2026-0371"
-ignoreUntil = 2026-11-06
-reason = "Informational unmaintained standalone zbus_names; stable Tauri plugins require zbus 5. No patched standalone version. Remove with stable zbus 6 plugin migration (#1066)."
-
-[[IgnoredVulns]]
-id = "RUSTSEC-2026-0372"
-ignoreUntil = 2026-11-06
-reason = "Informational unmaintained standalone zvariant_derive; stable Tauri plugins require zbus 5. No patched standalone version. Remove with stable zbus 6 plugin migration (#1066)."
+# Unmaintained RustSec notices remain visible in the dependency report. They
+# have no ignore entries; report_osv.py reads the advisory's informational type.
+# The Tauri/zbus migration and native qualification remain tracked in #1066.
