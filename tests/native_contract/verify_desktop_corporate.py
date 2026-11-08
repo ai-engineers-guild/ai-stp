@@ -1004,10 +1004,21 @@ def installed_journey(
         )
         driver.click(original_review_control)
         try:
+            refusal = driver.find(HISTORY + " [role=alert]")
+            # Technical errors are disclosed through a native details control.
+            # Inspect that control as a user before asserting the engine code.
+            disclosure = driver.read(
+                "return arguments[0].querySelector("
+                "'details.technical-details:not([open])>summary');",
+                refusal,
+            )
+            if disclosure:
+                driver.click(dict(disclosure))
             codes = driver.wait(
                 lambda: driver.read(
                     "return [...document.querySelectorAll(arguments[0]+' [role=alert]')]"
-                    ".flatMap(x=>x.textContent.match(/\\b(?:AI_STP_|DESKTOP_)[A-Z_]+|\\bCONTEXT_VIEW\\b/g)??[]);",
+                    ".flatMap(x=>x.textContent.match(/\\b(?:AI_STP_|DESKTOP_)[A-Z_]+|"
+                    "\\b(?:CONTEXT_VIEW|IPC_THROW)\\b/g)??[]);",
                     HISTORY,
                 ),
                 "same-display physical checkout refusal",
@@ -1039,7 +1050,7 @@ def installed_journey(
                     )
                 )
             raise
-        assert set(codes) == {"AI_STP_PRECONDITION_FAILED"}
+        assert set(codes) == {"AI_STP_PRECONDITION_FAILED"}, codes
         # Reinspect through the actual read control, clearing the refusal and
         # proving that the original byte-preserving root is prefilled again.
         driver.click(driver.button("Inspect " + confirmation["operation_id"], HISTORY))
