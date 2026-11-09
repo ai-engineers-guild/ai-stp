@@ -158,7 +158,10 @@ def example_controls(scanner: Path, temporary: Path) -> None:
             target = root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(original)
-            require(not scan(scanner, root, ["dir", "."]), "Reviewed source example was rejected")
+            require(
+                not scan(scanner, root, ["dir", "."]),
+                "Reviewed source example was rejected: " + relative,
+            )
             target.unlink()
             outside = Path("outside") / target.name
             (root / outside).parent.mkdir(exist_ok=True)

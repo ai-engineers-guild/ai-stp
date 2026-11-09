@@ -72,7 +72,7 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''^\.env\.dev\.example$''']
 regexes = [
-  '''^POSTGRES_PASSWORD=ai_stp_dev$''',
+  '''^\s*POSTGRES_PASSWORD=ai_stp_dev\s*$''',
 ]
 
 [[allowlists]]
@@ -82,7 +82,7 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''^\.env\.prod\.example$''']
 regexes = [
-  '''^POSTGRES_PASSWORD=CHANGE_ME$''',
+  '''^\s*POSTGRES_PASSWORD=CHANGE_ME\s*$''',
 ]
 
 [[allowlists]]
@@ -92,7 +92,7 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''^\.github/workflows/source\.yml$''']
 regexes = [
-  '''^\ \ \ \ \ \ \ \ \ \ POSTGRES_PASSWORD:\ ai_stp_dev$''',
+  '''^\s*POSTGRES_PASSWORD:\ ai_stp_dev\s*$''',
 ]
 
 [[allowlists]]
@@ -102,7 +102,7 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''^deploy/compose\.dev\.yml$''']
 regexes = [
-  '''^\ \ \ \ \ \ POSTGRES_PASSWORD:\ ai_stp_dev$''',
+  '''^\s*POSTGRES_PASSWORD:\ ai_stp_dev\s*$''',
 ]
 
 [[allowlists]]
@@ -112,7 +112,7 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''^apps/cli/tests/sources\.rs$''']
 regexes = [
-  '''^\ \ \ \ \ \ \ \ "https://user:token@github\.com/owner/repo",$''',
+  '''^\s*"https://user:token@github\.com/owner/repo",\s*$''',
 ]
 
 [[allowlists]]
@@ -122,8 +122,8 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''^apps/cli/tests/adoption\.rs$''']
 regexes = [
-  '''^\ \ \ \ \ \ \ \ \ \ \ \ r\#"\{"mcpServers":\{"review":\{"url":"https://user:synthetic\-sensitive\-value@example\.invalid/mcp"\}\}\}"\#,$''',
-  '''^\ \ \ \ \ \ \ \ \ \ \ \ r\#"\{"mcpServers":\{"review":\{"command":"server","env":\{"DATABASE_URL":"postgresql://user:synthetic\-sensitive\-value@example\.invalid/db"\}\}\}\}"\#,$''',
+  '''^\s*r\#"\{"mcpServers":\{"review":\{"url":"https://user:synthetic\-sensitive\-value@example\.invalid/mcp"\}\}\}"\#,\s*$''',
+  '''^\s*r\#"\{"mcpServers":\{"review":\{"command":"server","env":\{"DATABASE_URL":"postgresql://user:synthetic\-sensitive\-value@example\.invalid/db"\}\}\}\}"\#,\s*$''',
 ]
 
 [[allowlists]]
@@ -133,7 +133,7 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''^apps/cli/tests/projects/technology\.rs$''']
 regexes = [
-  '''^\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "\[project\]\\nrequires\-python\ =\ '>=3\.12'\\ndependencies\ =\ \['Django>=5',\ 'Private_Name\ @\ https://user:synthetic\-canary@example\.invalid/pkg'\]\\n",$''',
+  '''^\s*"\[project\]\\nrequires\-python\ =\ '>=3\.12'\\ndependencies\ =\ \['Django>=5',\ 'Private_Name\ @\ https://user:synthetic\-canary@example\.invalid/pkg'\]\\n",\s*$''',
 ]
 
 [[allowlists]]
@@ -143,7 +143,7 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''^apps/cli/src/sources/package/pypi\.rs$''']
 regexes = [
-  '''^\ \ \ \ \ \ \ \ \ \ \ \ "https://user:secret@files\.pythonhosted\.org/packages/demo\.whl",$''',
+  '''^\s*"https://user:secret@files\.pythonhosted\.org/packages/demo\.whl",\s*$''',
 ]
 
 [[allowlists]]
@@ -153,5 +153,5 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''^\.repo\-safety/templates/\.env\.example$''']
 regexes = [
-  '''^DATABASE_URL=postgresql://user:password@localhost:5432/app\ \ \#\ pragma:\ allowlist\ secret$''',
+  '''^\s*DATABASE_URL=postgresql://user:password@localhost:5432/app\ \ \#\ pragma:\ allowlist\ secret\s*$''',
 ]
