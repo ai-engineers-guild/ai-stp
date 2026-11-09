@@ -1,10 +1,10 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  // Resolve the app ignore file so Next-generated types and builds retain their producer ownership.
   "vcs": {
     "enabled": true,
     "clientKind": "git",
-    "useIgnoreFile": true,
-    "root": "../.."
+    "useIgnoreFile": true
   },
   "formatter": {
     "indentStyle": "space",
