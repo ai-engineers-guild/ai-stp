@@ -11,7 +11,8 @@ import {
 import { assertContentLocaleParity } from "./src/lib/content/source";
 
 const withNextIntl = createNextIntlPlugin("./src/lib/i18n/request.ts");
-const featureProfile = resolveFeatureProfile(process.cwd(), process.env);
+const webRoot = process.cwd();
+const featureProfile = resolveFeatureProfile(webRoot, process.env);
 const disabledPublicSurface = "./src/lib/features/disabled-public-surface.ts";
 if (featureProfile.features.content_hub) assertContentLocaleParity();
 
@@ -46,6 +47,8 @@ const nextConfig: NextConfig = {
   // one stub. Turbopack matches these specifiers exactly, as webpack's `$`
   // suffix did.
   turbopack: {
+    // Root source tools must not change the standalone application's layout.
+    root: webRoot,
     resolveAlias: disabledWebModuleAliases(featureProfile, disabledPublicSurface),
   },
   env: {

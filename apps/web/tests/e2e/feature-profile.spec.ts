@@ -5,6 +5,28 @@ const enabled = process.env["AI_STP_EXPECT_CONTENT_HUB"] !== "false";
 const saas = process.env["AI_STP_EXPECT_SAAS_PUBLIC_PAGES"] !== "false";
 const corporate = process.env["AI_STP_WEB_PROFILE"] === "corporate_hub";
 
+test("renders corporate login on a reserved localhost subdomain without a proxy loop", async ({
+  request,
+  baseURL,
+}) => {
+  test.skip(!corporate, "Shared corporate routes belong to the corporate artifact.");
+  if (!baseURL) throw new Error("The compiled server origin is required.");
+  const origin = new URL(baseURL);
+  expect(["localhost", "127.0.0.1"]).toContain(origin.hostname);
+  const host = `review.localhost${origin.port ? `:${origin.port}` : ""}`;
+  const headers = { host };
+  const query = "?returnTo=%2Fen%2Fcorporate%2Faccount";
+  const login = await request.get(`/en/corporate/login${query}`, { headers, maxRedirects: 0 });
+  expect(login.status()).toBe(200);
+  expect(await login.text()).toContain("Continue with GitHub");
+  const canonical = await request.get(`/en/login${query}`, { headers, maxRedirects: 0 });
+  expect(canonical.status()).toBe(307);
+  const destination = new URL(canonical.headers()["location"] ?? "");
+  expect(destination.host).toBe(host);
+  expect(destination.pathname).toBe("/en/corporate/login");
+  expect(destination.search).toBe(query);
+});
+
 test("contains reference-table scrolling within the corporate viewport", async ({ page }) => {
   test.skip(!corporate, "Reference administration belongs to the corporate artifact.");
   const directories = [
