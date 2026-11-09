@@ -88,6 +88,15 @@ ci-documentation-check-tools:
     tar -xzf "${RUNNER_TEMP}/ai-stp-documentation-tools/rumdl.tar.gz" -C "${RUNNER_TEMP}/ai-stp-documentation-tools/bin" rumdl
     printf '%s\n' "${RUNNER_TEMP}/ai-stp-documentation-tools/bin" >> "${GITHUB_PATH}"
 
+# Exercise actual acceptance and rule refusals before trusting source diagnostics.
+[group('ci')]
+[private]
+ci-documentation-checker-contracts:
+    printf 'proof: true\n' | ryl check --no-cache --strict --stdin-filename lint-proof.yml -
+    if printf 'duplicate: true\nduplicate: false\n' | ryl check --no-cache --strict --stdin-filename lint-proof.yml - > "${RUNNER_TEMP}/ai-stp-documentation-tools/yaml-refusal.log" 2>&1; then echo 'duplicate YAML key was accepted' >&2; exit 1; else test "$?" -eq 1 || exit 1; fi; grep -F '(key-duplicates)' "${RUNNER_TEMP}/ai-stp-documentation-tools/yaml-refusal.log"
+    printf '# Proof\n\nValid paragraph.\n' | rumdl check --no-cache --deny-config-warnings --stdin-filename lint-proof.md --stdin
+    if printf '# Proof\n\nhttps://example.invalid/\n' | rumdl check --no-cache --deny-config-warnings --stdin-filename lint-proof.md --stdin > "${RUNNER_TEMP}/ai-stp-documentation-tools/markdown-refusal.log" 2>&1; then echo 'bare Markdown URL was accepted' >&2; exit 1; else test "$?" -eq 1 || exit 1; fi; grep -F 'MD034' "${RUNNER_TEMP}/ai-stp-documentation-tools/markdown-refusal.log"
+
 # Integration web documentation markdown syntax.
 [group('ci')]
 [private]

@@ -135,6 +135,11 @@ jobs:
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
         with:
           recipe: ci-documentation-check-tools
+      - name: Verify actual checker acceptance and rule refusals
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-documentation-checker-contracts
       - name: Python source, contracts and units without server services
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
@@ -187,6 +192,11 @@ jobs:
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
         with:
           recipe: ci-documentation-check-tools
+      - name: Verify actual checker acceptance and rule refusals
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-documentation-checker-contracts
       - name: Documentation Markdown syntax
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
@@ -596,6 +606,11 @@ jobs:
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
         with:
           recipe: ci-documentation-check-tools
+      - name: Verify actual checker acceptance and rule refusals
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-documentation-checker-contracts
       - name: Prepare and check the documentation
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
