@@ -104,7 +104,9 @@ def controls(scanner: Path, temporary: Path) -> None:
                 target.write_bytes(original)
             outside = Path("outside") / target.name
             (root / outside).parent.mkdir(exist_ok=True)
-            (root / outside).write_bytes(original)
+            # Default detectors can recognize public fixture values as non-secrets.
+            # A credential-shaped addition must still be found at another path.
+            (root / outside).write_bytes(original + ('\napi_key = "' + CONTROL + '"\n').encode())
             try:
                 findings = scan(scanner, root, ["dir", "."])
                 require(
@@ -112,7 +114,7 @@ def controls(scanner: Path, temporary: Path) -> None:
                         item.rule == "generic-api-key" and item.path == outside.as_posix()
                         for item in findings
                     ),
-                    "A fixture exemption escaped its exact source path",
+                    "An outside-path fixture credential was hidden: " + relative,
                 )
             finally:
                 (root / outside).unlink()
