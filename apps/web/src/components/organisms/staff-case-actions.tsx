@@ -47,7 +47,7 @@ function LifecycleControls({
   onAction: (action: LifecycleAction) => void;
 }) {
   return (
-    <section className="border-border space-y-3 rounded-lg border p-4">
+    <section className="space-y-3 rounded-lg border border-border p-4">
       <h2 className="text-lg font-medium tracking-tight">{labels.lifecycle}</h2>
       <div className="flex flex-wrap gap-2">
         {(["block", "hide", "restore"] as const).map((action) => (
@@ -146,10 +146,10 @@ export function StaffCaseActions({
         />
       </div>
 
-      <section className="border-border space-y-3 rounded-lg border p-4">
+      <section className="space-y-3 rounded-lg border border-border p-4">
         <h2 className="text-lg font-medium tracking-tight">{labels.triage}</h2>
         <Select
-          className="border-input bg-background h-9 w-full rounded-sm border px-2 font-mono text-xs"
+          className="h-9 w-full rounded-sm border border-input bg-background px-2 font-mono text-xs"
           value={state}
           onChange={(event) => {
             setState(event.target.value as TriageState);
@@ -175,11 +175,11 @@ export function StaffCaseActions({
         <LifecycleControls labels={labels} pending={pending} onAction={lifecycle} />
       ) : null}
 
-      <p className="text-muted-foreground text-sm">{labels.operatorNote}</p>
+      <p className="text-sm text-muted-foreground">{labels.operatorNote}</p>
 
       <MutationReference label={labels.referenceId} operationId={operationId} />
       {error ? (
-        <p className="text-destructive text-sm" role="alert">
+        <p className="text-sm text-destructive" role="alert">
           {error}
         </p>
       ) : null}

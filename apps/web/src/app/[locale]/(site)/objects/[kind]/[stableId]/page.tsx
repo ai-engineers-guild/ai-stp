@@ -32,7 +32,7 @@ export default async function OwnerObjectDetailPage({ params }: PageProps) {
   const tCatalog = await getTranslations("catalog");
   const token = await sessionCookieValue();
 
-  let detail;
+  let detail: Awaited<ReturnType<typeof readOwnerObject>>;
   let allProducts: { schema_version: 1; items: ExternalProduct[] } = {
     schema_version: 1,
     items: [],
@@ -73,19 +73,19 @@ export default async function OwnerObjectDetailPage({ params }: PageProps) {
           publicLabel={tCatalog("public")}
           privateLabel={tCatalog("private")}
         />
-        <p className="text-muted-foreground font-mono text-xs tracking-wide uppercase">
+        <p className="font-mono text-xs tracking-wide text-muted-foreground uppercase">
           {detail.object_kind}
         </p>
         <h1 className="text-3xl font-medium tracking-tight">{detail.name}</h1>
-        <p className="text-muted-foreground font-mono text-xs">{detail.stable_id}</p>
+        <p className="font-mono text-xs text-muted-foreground">{detail.stable_id}</p>
       </div>
 
       {process.env.NEXT_PUBLIC_EXTERNAL_CATALOG_ENABLED !== "false" ? (
-        <details className="border-border rounded-lg border">
-          <summary className="hover:bg-muted/30 cursor-pointer px-4 py-4 text-lg font-medium transition-colors">
+        <details className="rounded-lg border border-border">
+          <summary className="cursor-pointer px-4 py-4 text-lg font-medium transition-colors hover:bg-muted/30">
             {t("integrations")}
           </summary>
-          <div className="border-border border-t p-4">
+          <div className="border-t border-border p-4">
             <ExternalProductManager
               locale={locale}
               objectKind={kind}
@@ -105,18 +105,18 @@ export default async function OwnerObjectDetailPage({ params }: PageProps) {
         {detail.versions.length === 0 ? (
           <StatePanel kind="empty" title={tc("empty")} description={t("noVersions")} />
         ) : (
-          <ul className="divide-border border-border divide-y rounded-lg border">
+          <ul className="divide-y divide-border rounded-lg border border-border">
             {detail.versions.map((version) => (
               <li key={version.version}>
                 <Link
                   href={`/objects/${detail.object_kind}/${detail.stable_id}/versions/${version.version}`}
-                  className="hover:bg-muted/40 flex flex-col gap-2 px-4 py-3 transition-colors sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-2 px-4 py-3 transition-colors hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between"
                   prefetch={false}
                 >
                   <div className="space-y-1">
                     <p className="font-mono text-sm font-medium">{version.version}</p>
                     {version.content_digest ? (
-                      <p className="text-muted-foreground max-w-xl truncate font-mono text-xs">
+                      <p className="max-w-xl truncate font-mono text-xs text-muted-foreground">
                         {version.content_digest}
                       </p>
                     ) : null}

@@ -62,7 +62,7 @@ function RoleAssignments({ rows }: { rows: readonly RoleAssignmentRow[] }) {
     <div className="overflow-x-auto">
       <table className="w-full min-w-96 text-sm">
         <thead>
-          <tr className="text-muted-foreground border-border border-b text-xs">
+          <tr className="border-b border-border text-xs text-muted-foreground">
             <th className="p-3 text-left">{t("employee")}</th>
             <th className="p-3 text-left">{t("scope")}</th>
             <th className="p-3 text-left">{c("origin")}</th>
@@ -70,7 +70,7 @@ function RoleAssignments({ rows }: { rows: readonly RoleAssignmentRow[] }) {
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.key} className="border-border border-b">
+            <tr key={row.key} className="border-b border-border">
               <td className="p-3">
                 {row.accountId ? (
                   <Link
@@ -87,7 +87,7 @@ function RoleAssignments({ rows }: { rows: readonly RoleAssignmentRow[] }) {
                 <p>
                   {t.has(`scopes.${row.scopeKind}`) ? t(`scopes.${row.scopeKind}`) : row.scopeKind}
                 </p>
-                <p className="text-muted-foreground text-xs">{row.scopeLabel}</p>
+                <p className="text-xs text-muted-foreground">{row.scopeLabel}</p>
               </td>
               <td className="p-3">
                 {row.origins.map((origin) => originLabel[origin]).join(" · ")}
@@ -98,7 +98,7 @@ function RoleAssignments({ rows }: { rows: readonly RoleAssignmentRow[] }) {
       </table>
     </div>
   ) : (
-    <p className="text-muted-foreground text-sm">{t("noAssignments")}</p>
+    <p className="text-sm text-muted-foreground">{t("noAssignments")}</p>
   );
 }
 
@@ -272,25 +272,25 @@ export function CorporateRolesWorkspace({
         ) : null}
       </div>
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(13rem,1fr)_minmax(0,3fr)]">
-        <nav className="border-border min-w-0 rounded-lg border" aria-label={c("roles")}>
-          <h2 className="border-border border-b px-4 py-3 font-medium">
+        <nav className="min-w-0 rounded-lg border border-border" aria-label={c("roles")}>
+          <h2 className="border-b border-border px-4 py-3 font-medium">
             {c("roles")} ({visibleRoles.length})
           </h2>
           {visibleRoles.map((role) => (
             <div
               key={role.name}
-              className={`border-border flex items-start border-b last:border-0 ${role.name === selected?.name ? "bg-primary/10" : "hover:bg-muted/20"}`}
+              className={`flex items-start border-b border-border last:border-0 ${role.name === selected?.name ? "bg-primary/10" : "hover:bg-muted/20"}`}
             >
               <button
                 type="button"
                 aria-current={role.name === selected?.name ? "true" : undefined}
-                className="focus-visible:ring-ring min-w-0 flex-1 rounded-sm p-4 text-left focus-visible:ring-2"
+                className="min-w-0 flex-1 rounded-sm p-4 text-left focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => {
                   selectRole(role);
                 }}
               >
                 <span className="block text-sm font-medium">{roleTitle(role.name, t)}</span>
-                <span className="text-muted-foreground mt-1 block text-xs">
+                <span className="mt-1 block text-xs text-muted-foreground">
                   {roleDescription(role)}
                 </span>
               </button>
@@ -306,16 +306,16 @@ export function CorporateRolesWorkspace({
         </nav>
         {selected ? (
           <section
-            className="border-border min-w-0 rounded-lg border"
+            className="min-w-0 rounded-lg border border-border"
             aria-label={roleTitle(selected.name, t)}
           >
             <header className="flex flex-wrap items-start justify-between gap-3 p-4">
               <div>
                 <h2 className="text-xl font-medium">{roleTitle(selected.name, t)}</h2>
-                <p className="text-muted-foreground mt-1 text-sm">{roleDescription(selected)}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{roleDescription(selected)}</p>
               </div>
             </header>
-            <div className="border-border flex overflow-x-auto border-b px-4">
+            <div className="flex overflow-x-auto border-b border-border px-4">
               {["permissions", "assignments"].map((value) => (
                 <Button
                   variant="ghost"
@@ -324,7 +324,7 @@ export function CorporateRolesWorkspace({
                   onClick={() => {
                     setTab(value);
                   }}
-                  className={`rounded-none ${tab === value ? "border-primary border-b-2" : ""}`}
+                  className={`rounded-none ${tab === value ? "border-b-2 border-primary" : ""}`}
                 >
                   {t(value)}
                   {value === "assignments" ? ` (${assignmentCount})` : ""}
@@ -339,7 +339,7 @@ export function CorporateRolesWorkspace({
                     permissions={[...rolePermissions(selected)]}
                   />
                   {selectedSystem ? (
-                    <p className="text-muted-foreground mt-3 text-xs">{t("immutableRole")}</p>
+                    <p className="mt-3 text-xs text-muted-foreground">{t("immutableRole")}</p>
                   ) : null}
                 </>
               ) : (
@@ -348,7 +348,7 @@ export function CorporateRolesWorkspace({
             </div>
           </section>
         ) : (
-          <p className="text-muted-foreground p-4">{t("noResults")}</p>
+          <p className="p-4 text-muted-foreground">{t("noResults")}</p>
         )}
       </div>
       <Dialog
@@ -552,7 +552,7 @@ export function CorporateRolesWorkspace({
                 </option>
               ))}
           </select>
-          <p className="text-muted-foreground text-xs">{c("replacementRoleBody")}</p>
+          <p className="text-xs text-muted-foreground">{c("replacementRoleBody")}</p>
         </div>
       </FormDialog>
     </div>

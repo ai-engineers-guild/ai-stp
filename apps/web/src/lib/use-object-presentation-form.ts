@@ -102,7 +102,7 @@ export function presentationMediaItemFromInitial(
 }
 
 function revokePreview(url: string | null | undefined) {
-  if (url && url.startsWith("blob:")) {
+  if (url?.startsWith("blob:")) {
     URL.revokeObjectURL(url);
   }
 }

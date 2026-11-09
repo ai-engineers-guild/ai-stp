@@ -85,9 +85,9 @@ export function CorporateOverviewTree({ graph }: { graph: CorporateOverview }) {
         }}
         fullyExpanded={fullyExpanded}
       />
-      <div className="border-border bg-card flex flex-wrap items-center gap-3 rounded-lg border p-3">
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3">
         <div className="relative w-full min-w-0 md:min-w-64 md:flex-1">
-          <Icon name="search" size="sm" className="text-muted-foreground absolute top-3.5 left-3" />
+          <Icon name="search" size="sm" className="absolute top-3.5 left-3 text-muted-foreground" />
           <Input
             aria-label={t(view === "organization" ? "searchStructure" : "searchUsage")}
             placeholder={t(view === "organization" ? "searchStructure" : "searchUsage")}
@@ -123,7 +123,7 @@ export function CorporateOverviewTree({ graph }: { graph: CorporateOverview }) {
           {t(view === "organization" ? "expandTo" : "sortBy")}
           <Select
             aria-label={t(view === "organization" ? "expandTo" : "sortBy")}
-            className="border-input bg-background focus-visible:ring-ring min-h-11 min-w-0 flex-1 rounded-sm border px-3 focus-visible:ring-2 md:flex-none"
+            className="min-h-11 min-w-0 flex-1 rounded-sm border border-input bg-background px-3 focus-visible:ring-2 focus-visible:ring-ring md:flex-none"
             value={view === "organization" ? depth : sort}
             onChange={(event) => {
               if (view === "organization") setDepth(Number(event.target.value));
@@ -213,7 +213,7 @@ function OrganizationTree({
       ))}
     </ul>
   ) : (
-    <p role="status" className="text-muted-foreground rounded-lg border p-6">
+    <p role="status" className="rounded-lg border p-6 text-muted-foreground">
       {graph.nodes.length ? t("noMatches") : t("empty")}
     </p>
   );
@@ -240,7 +240,7 @@ function OverviewHeading({
         <h2 id="corporate-structure-title" className="text-2xl font-medium tracking-tight">
           {t("structure")}
         </h2>
-        <p className="text-muted-foreground mt-1 text-sm">
+        <p className="mt-1 text-sm text-muted-foreground">
           {t(view === "organization" ? "organizationViewBody" : "usageViewBody")}
         </p>
       </div>
@@ -249,9 +249,8 @@ function OverviewHeading({
           <Icon name="list" size="sm" />
           {t(fullyExpanded ? "collapseAll" : "expandAll")}
         </Button>
-        <div
-          className="border-border inline-grid min-w-0 flex-1 grid-cols-2 rounded-sm border p-1 lg:w-auto lg:flex-none"
-          role="group"
+        <fieldset
+          className="inline-grid min-w-0 flex-1 grid-cols-2 rounded-sm border border-border p-1 lg:w-auto lg:flex-none"
           aria-label={t("overviewView")}
         >
           {["organization", "components"].map((value) => (
@@ -267,7 +266,7 @@ function OverviewHeading({
               {t(value === "organization" ? "byOrganization" : "byComponents")}
             </Button>
           ))}
-        </div>
+        </fieldset>
       </div>
     </div>
   );

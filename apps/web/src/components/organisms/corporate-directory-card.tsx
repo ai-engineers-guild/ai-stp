@@ -67,7 +67,7 @@ function relationHref(ref: DirectoryRef, returnFilters: string) {
 function EntityMark({ resource, item }: { resource: DirectoryResource; item: DirectoryItem }) {
   const icon = resource === "components" ? "component" : resourceIcons[resource];
   return (
-    <span className="bg-muted border-border text-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-md border">
+    <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-foreground">
       {resource === "components" && isComponentType(item.component_type) ? (
         <ComponentTypeIcon type={item.component_type} compact />
       ) : (
@@ -87,7 +87,7 @@ function ReferenceChip({
   return (
     <Link
       href={relationHref(reference, returnFilters)}
-      className="border-border hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex max-w-full items-center rounded-md border px-2 py-0.5 font-mono text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      className="inline-flex max-w-full items-center rounded-md border border-border px-2 py-0.5 font-mono text-xs transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
     >
       <span className="max-w-full truncate">{reference.name}</span>
     </Link>
@@ -105,12 +105,12 @@ function ComponentMetadata({ item, labels }: { item: DirectoryItem; labels: Labe
       ))}
       {item.version ? <Badge variant="outline">{item.version}</Badge> : null}
       {item.author_name ? (
-        <span className="text-muted-foreground text-sm">
+        <span className="text-sm text-muted-foreground">
           {labels.author}: <span className="text-foreground">{item.author_name}</span>
         </span>
       ) : null}
       {item.owner_name ? (
-        <span className="text-muted-foreground text-sm">
+        <span className="text-sm text-muted-foreground">
           {labels.owner}: <span className="text-foreground">{item.owner_name}</span>
         </span>
       ) : null}
@@ -137,8 +137,8 @@ function RelationColumn({
 }) {
   if (!references.length) return null;
   return (
-    <div className="border-border min-w-0 space-y-1 border-l pl-4 first:border-l-0 first:pl-0">
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+    <div className="min-w-0 space-y-1 border-l border-border pl-4 first:border-l-0 first:pl-0">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Icon name={icon} size="sm" />
         <span>{label}</span>
       </div>
@@ -183,10 +183,10 @@ function CardFooter({
   returnFilters: string;
 }) {
   const footer = footerReferences(resource, item);
-  if (!footer || !footer.refs.length) return null;
+  if (!footer?.refs.length) return null;
   return (
-    <div className="border-border mt-5 flex min-w-0 flex-wrap items-center justify-between gap-3 border-t pt-4">
-      <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
+    <div className="mt-5 flex min-w-0 flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+      <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
         <Icon name={footer.icon} size="sm" />
         <span>{labels[footer.label as keyof Labels]}</span>
       </div>
@@ -267,7 +267,7 @@ export function CorporateDirectoryCard({
   const references = primaryReferences(resource, item);
   const technologyRelations =
     resource === "technologies" ? (
-      <div className="border-border mt-5 grid min-w-0 gap-4 border-t pt-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-5 grid min-w-0 gap-4 border-t border-border pt-4 sm:grid-cols-2 lg:grid-cols-4">
         <RelationColumn
           icon="user"
           label={labels.operationalOwner}
@@ -298,8 +298,8 @@ export function CorporateDirectoryCard({
     <li className="min-w-0">
       <article
         className={cn(
-          "bg-background border-border group relative min-w-0 overflow-hidden rounded-lg border transition-colors",
-          "hover:bg-muted/20 focus-within:ring-ring focus-within:ring-2",
+          "group relative min-w-0 overflow-hidden rounded-lg border border-border bg-background transition-colors",
+          "focus-within:ring-2 focus-within:ring-ring hover:bg-muted/20",
           "p-4",
         )}
       >
@@ -310,7 +310,7 @@ export function CorporateDirectoryCard({
               <h3 className="min-w-0 text-lg leading-tight font-medium tracking-tight break-words">
                 <Link
                   href={href}
-                  className="hover:text-primary focus-visible:ring-ring rounded-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                  className="rounded-sm transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 >
                   {title}
                 </Link>
@@ -322,7 +322,7 @@ export function CorporateDirectoryCard({
               ) : null}
             </div>
             {resource === "members" && (item.job_title || item.role) ? (
-              <p className="text-muted-foreground mt-1 text-sm">
+              <p className="mt-1 text-sm text-muted-foreground">
                 {item.job_title?.name ?? item.role}
                 {item.job_title && item.role ? ` · ${item.role}` : ""}
               </p>
@@ -341,7 +341,7 @@ export function CorporateDirectoryCard({
               </div>
             ) : null}
             {resource === "components" && item.description ? (
-              <p className="text-muted-foreground mt-4 max-w-3xl text-sm leading-relaxed break-words">
+              <p className="mt-4 max-w-3xl text-sm leading-relaxed break-words text-muted-foreground">
                 {item.description}
               </p>
             ) : null}

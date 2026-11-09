@@ -69,23 +69,7 @@ it("keeps the latest requested language and its direction and preference", async
 });
 
 it("switches packaged catalogs without remounting entered text or the language control", async () => {
-  function Form() {
-    const text = useText();
-    const [value, setValue] = useState("");
-    return (
-      <>
-        <LanguageSelect />
-        <label>
-          {text("installInput.setupId")}
-          <input
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-          />
-        </label>
-      </>
-    );
-  }
-  render(<Form />);
+  render(<LanguageForm />);
   const input = screen.getByRole("textbox");
   const select = screen.getByRole("combobox");
   fireEvent.change(input, { target: { value: "setup_тест_بداية_测试" } });
@@ -121,3 +105,20 @@ it("changes the current language even when preference storage is denied", async 
   expect(formatNumber(1234)).toBe(new Intl.NumberFormat("ar").format(1234));
   expect(formatDateTime("not-a-date")).toBe("not-a-date");
 });
+
+function LanguageForm() {
+  const text = useText();
+  const [value, setValue] = useState("");
+  return (
+    <>
+      <LanguageSelect />
+      <label>
+        {text("installInput.setupId")}
+        <input
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+        />
+      </label>
+    </>
+  );
+}

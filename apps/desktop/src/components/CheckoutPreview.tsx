@@ -12,6 +12,7 @@ import {
 } from "../checkoutLinks";
 import { Link } from "react-router";
 import { Details, ResultMeta, Spinner } from "./Result";
+import { scalarText } from "../contracts";
 
 function refused(): CmdResult {
   return {
@@ -286,7 +287,7 @@ export default function CheckoutPreview({
       )}
       {result && <ResultMeta r={result} />}
       {result?.ok && (
-        <div
+        <section
           className="space-y-3"
           aria-label={msg("checkoutPreview.verifiedCheckoutObservation")}
         >
@@ -294,10 +295,10 @@ export default function CheckoutPreview({
             {msg("checkoutPreview.checkoutVerifiedForReview")}
           </h3>
           {typeof observedRoot === "string" && (
-            <p className="break-all text-sm">{observedRoot}</p>
+            <p className="text-sm break-all">{observedRoot}</p>
           )}
-          <p className="break-all font-mono text-xs text-muted-foreground">
-            {msg("checkoutPreview.commit")} {String(checkout.commit ?? "")}
+          <p className="font-mono text-xs break-all text-muted-foreground">
+            {msg("checkoutPreview.commit")} {scalarText(checkout.commit ?? "")}
           </p>
           <p className="text-sm text-muted-foreground">
             {msg(
@@ -310,6 +311,7 @@ export default function CheckoutPreview({
           />
           {linking && !review && phase !== "adopt" && (
             <button
+              type="button"
               className="btn-primary"
               disabled={busy || disabled}
               onClick={() =>
@@ -329,7 +331,7 @@ export default function CheckoutPreview({
                   : msg("checkoutPreview.reviewLinkRequest")}
             </button>
           )}
-        </div>
+        </section>
       )}
       {review && (
         <section
@@ -344,7 +346,7 @@ export default function CheckoutPreview({
               "checkoutPreview.thisOperationRetainsItsOriginalCompanyAndCheckoutIt",
             )}
           </p>
-          <p className="break-all font-mono text-xs">{review.digest}</p>
+          <p className="font-mono text-xs break-all">{review.digest}</p>
           <Details
             label={msg("checkoutPreview.exactCheckoutPlan")}
             value={review.plan}
@@ -361,6 +363,7 @@ export default function CheckoutPreview({
             )}
           </label>
           <button
+            type="button"
             className="btn-primary"
             disabled={busy || disabled || !confirmed}
             onClick={() => void applyLink()}
@@ -369,6 +372,7 @@ export default function CheckoutPreview({
           </button>
           {!request && (
             <button
+              type="button"
               className="btn-outline"
               disabled={busy}
               onClick={() => {
@@ -383,11 +387,11 @@ export default function CheckoutPreview({
       )}
       {operationResult && <ResultMeta r={operationResult} />}
       {request && (
-        <div
+        <section
           className="space-y-2"
           aria-label={msg("checkoutPreview.retainedCheckoutOperation")}
         >
-          <p className="break-all font-mono text-xs">
+          <p className="font-mono text-xs break-all">
             {msg("checkoutPreview.originalRequest")} {request}
           </p>
           {phase === "adopt" ? (
@@ -402,7 +406,7 @@ export default function CheckoutPreview({
           <Link className="text-sm text-primary" to="/tasks">
             {msg("checkoutPreview.openActivity")}
           </Link>
-        </div>
+        </section>
       )}
     </section>
   );

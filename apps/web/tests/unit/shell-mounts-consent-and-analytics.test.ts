@@ -38,6 +38,7 @@ describe("the site shell mounts consent and analytics", () => {
 
   it("points the banner at the privacy document for the current locale", () => {
     expect(shell).toContain('const saasPublicPages = isFeatureEnabled("saas_public_pages")');
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: This assertion compares literal source text and must not interpolate its placeholders.
     expect(shell).toContain("saasPublicPages ? { privacyHref: `/${locale}/legal/privacy` } : {}");
     expect(shell).not.toContain('privacyHref="/legal/privacy"');
   });

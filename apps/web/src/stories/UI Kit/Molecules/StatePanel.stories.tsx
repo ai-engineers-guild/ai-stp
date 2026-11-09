@@ -19,6 +19,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Empty: Story = {};
 
+// biome-ignore lint/suspicious/noShadowRestrictedNames: Keep the published Storybook error case ID.
 export const Error: Story = {
   args: {
     kind: "error",

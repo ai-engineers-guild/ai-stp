@@ -46,7 +46,9 @@ describe("locale layout dynamic boundary", () => {
   it("keeps mutation revalidatePath for public catalog convergence", () => {
     const presentation = readFileSync(path.join(webSrc, "actions/object-presentation.ts"), "utf8");
     const products = readFileSync(path.join(webSrc, "actions/external-products.ts"), "utf8");
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: This assertion compares literal source text and must not interpolate its placeholders.
     expect(presentation).toContain("revalidatePath(`/${parsed.data.locale}/catalog`)");
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: This assertion compares literal source text and must not interpolate its placeholders.
     expect(products).toContain("revalidatePath(`/${parsed.data.locale}/catalog`)");
   });
 

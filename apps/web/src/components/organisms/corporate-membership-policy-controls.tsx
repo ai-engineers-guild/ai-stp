@@ -92,9 +92,11 @@ export function CorporateMembershipPolicyControls({
   return (
     <form onSubmit={savePolicy} aria-busy={busy}>
       <SettingsSection icon="mail" title={t("domainPolicy")} description={t("domainPolicyBody")}>
-        <div className="lg:divide-border grid gap-6 lg:grid-cols-2 lg:divide-x">
-          <div className="space-y-3">
-            <Label>{t("domains")}</Label>
+        <div className="grid gap-6 lg:grid-cols-2 lg:divide-x lg:divide-border">
+          <fieldset className="min-w-0 space-y-3">
+            <legend className="text-sm leading-none font-medium text-foreground">
+              {t("domains")}
+            </legend>
             <div className="space-y-2">
               {domains.map((entry, index) => (
                 <div key={entry.key} className="flex items-center gap-2">
@@ -138,7 +140,7 @@ export function CorporateMembershipPolicyControls({
               <Icon name="plus" size="sm" aria-hidden />
               {t("addDomain")}
             </Button>
-          </div>
+          </fieldset>
           <div className="space-y-4 lg:pl-6">
             <h3 className="text-sm font-medium">{t("policySettings")}</h3>
             <SwitchRow
@@ -167,7 +169,7 @@ export function CorporateMembershipPolicyControls({
                 <option value="teammates">{t("peopleVisibilityTeammates")}</option>
                 <option value="admins">{t("peopleVisibilityAdmins")}</option>
               </select>
-              <p className="text-muted-foreground text-xs">{t("peopleVisibilityHint")}</p>
+              <p className="text-xs text-muted-foreground">{t("peopleVisibilityHint")}</p>
             </div>
           </div>
         </div>
@@ -177,7 +179,7 @@ export function CorporateMembershipPolicyControls({
           {message ? (
             <p
               className={
-                message.error ? "text-destructive text-sm" : "text-muted-foreground text-sm"
+                message.error ? "text-sm text-destructive" : "text-sm text-muted-foreground"
               }
             >
               {message.text}

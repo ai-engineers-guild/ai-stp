@@ -60,6 +60,7 @@ export function CookieConsent({ labels, privacyHref }: { labels: Labels; privacy
   }, []);
 
   function persist(value: Consent) {
+    // biome-ignore lint/suspicious/noDocumentCookie: Consent persistence and vendor-cookie removal must remain synchronous before optional analytics runs; see #1404.
     document.cookie = `${CONSENT_COOKIE}=${serializeConsent(value)}; Path=/; Max-Age=15552000; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
     setEdited(null);
     setDismissed(value);
@@ -70,12 +71,12 @@ export function CookieConsent({ labels, privacyHref }: { labels: Labels; privacy
     <section
       role="dialog"
       aria-labelledby="consent-title"
-      className="border-border bg-background fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 rounded-lg border p-4 shadow-xl sm:p-5"
+      className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 rounded-lg border border-border bg-background p-4 shadow-xl sm:p-5"
     >
       <h2 id="consent-title" className="text-lg font-semibold">
         {labels.title}
       </h2>
-      <p className="text-muted-foreground mt-2 text-sm">{labels.body}</p>
+      <p className="mt-2 text-sm text-muted-foreground">{labels.body}</p>
       {privacyHref && (
         <a className="mt-2 inline-block text-sm underline" href={privacyHref}>
           {labels.privacy}

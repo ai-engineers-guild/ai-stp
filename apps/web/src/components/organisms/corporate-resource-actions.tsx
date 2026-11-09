@@ -85,7 +85,7 @@ export function CorporateResourceDeleteMenuItem({
   return (
     <MenuItem
       disabled={busy}
-      className="focus:bg-muted text-destructive flex min-h-11 cursor-pointer items-center rounded-sm px-3 py-2 text-sm outline-none"
+      className="flex min-h-11 cursor-pointer items-center rounded-sm px-3 py-2 text-sm text-destructive outline-none focus:bg-muted"
       onSelect={(event) => {
         event.preventDefault();
         if (!window.confirm(confirmLabel)) return;
@@ -273,7 +273,7 @@ export function CorporateResourceActions({
                 onChange={(event) => {
                   setNextRole(event.target.value);
                 }}
-                className="border-input bg-background h-9 w-full rounded-sm border px-3 text-sm"
+                className="h-9 w-full rounded-sm border border-input bg-background px-3 text-sm"
               >
                 {roles.map((item) => (
                   <option key={item.name} value={item.name}>
@@ -315,7 +315,7 @@ export function CorporateResourceActions({
                 onChange={(event) => {
                   setNextState(event.target.value);
                 }}
-                className="border-border bg-background h-9 w-full rounded-sm border px-3 text-sm"
+                className="h-9 w-full rounded-sm border border-border bg-background px-3 text-sm"
               >
                 <option value="active">{labels.active}</option>
                 <option value={resource === "members" ? "suspended" : "archived"}>
@@ -341,7 +341,7 @@ export function CorporateResourceActions({
         </form>
       ) : null}
       {message ? (
-        <p className="text-muted-foreground text-sm" role="status" aria-live="polite">
+        <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
           {message}
         </p>
       ) : null}

@@ -175,39 +175,41 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
       });
     },
   },
-  ...["corporate", "corporate/overview"].map((pattern): MachineRoute => ({
-    pattern,
-    resolve: async () => {
-      const t = await getTranslations("corporate");
-      const graph = await readCorporateOverview((await sessionCookieValue()) ?? "");
-      if (!graph) return presentPage({ title: t("emptyTitle"), summary: t("emptyBody") });
-      const h = await getTranslations("hub");
-      return presentPage({
-        title: graph.organization.display_name,
-        summary: t("subtitle"),
-        links: graph.nodes.map((node) => [node.name, corporateNodeHref(node)] as const),
-        fields: graph.nodes.flatMap((node) => {
-          const children = graph.edges
-            .filter((edge) => edge.parent_id === node.id)
-            .map((edge) => graph.nodes.find((child) => child.id === edge.child_id)?.name)
-            .filter(Boolean)
-            .join(", ");
-          const assignments = node.assignments
-            .map((item) => `${item.display_name || h(item.object_kind)} ${item.version}`)
-            .join(", ");
-          return [
-            [node.name, children || "-"],
-            [
-              `${node.name}: ${h("catalogAssignments")}`,
-              node.assignments_readable
-                ? assignments || h("noAssignments")
-                : h("assignmentsRestricted"),
-            ],
-          ] as const;
-        }),
-      });
-    },
-  })),
+  ...["corporate", "corporate/overview"].map(
+    (pattern): MachineRoute => ({
+      pattern,
+      resolve: async () => {
+        const t = await getTranslations("corporate");
+        const graph = await readCorporateOverview((await sessionCookieValue()) ?? "");
+        if (!graph) return presentPage({ title: t("emptyTitle"), summary: t("emptyBody") });
+        const h = await getTranslations("hub");
+        return presentPage({
+          title: graph.organization.display_name,
+          summary: t("subtitle"),
+          links: graph.nodes.map((node) => [node.name, corporateNodeHref(node)] as const),
+          fields: graph.nodes.flatMap((node) => {
+            const children = graph.edges
+              .filter((edge) => edge.parent_id === node.id)
+              .map((edge) => graph.nodes.find((child) => child.id === edge.child_id)?.name)
+              .filter(Boolean)
+              .join(", ");
+            const assignments = node.assignments
+              .map((item) => `${item.display_name || h(item.object_kind)} ${item.version}`)
+              .join(", ");
+            return [
+              [node.name, children || "-"],
+              [
+                `${node.name}: ${h("catalogAssignments")}`,
+                node.assignments_readable
+                  ? assignments || h("noAssignments")
+                  : h("assignmentsRestricted"),
+              ],
+            ] as const;
+          }),
+        });
+      },
+    }),
+  ),
   {
     pattern: "corporate/dashboard",
     resolve: async () => presentPage({ title: (await getTranslations("hub"))("dashboard") }),

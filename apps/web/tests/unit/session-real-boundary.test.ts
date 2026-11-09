@@ -51,8 +51,9 @@ describe("real session boundary", () => {
     vi.stubEnv("AI_STP_MOCK_AUTH", "false");
 
     const { asAccountId } = await import("@/lib/brands");
-    const { createSessionToken, readSessionPresence, SESSION_COOKIE } =
-      await import("@/lib/auth/session");
+    const { createSessionToken, readSessionPresence, SESSION_COOKIE } = await import(
+      "@/lib/auth/session"
+    );
     const { ApiError } = await import("@/lib/api/errors");
     const { token } = createSessionToken(asAccountId("account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"));
     cookieStore.get.mockImplementation((name: string) =>

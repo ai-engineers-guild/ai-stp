@@ -111,8 +111,8 @@ export function ObjectTechnicalDetails({
 
 function Fact({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="bg-muted/30 min-w-0 rounded-sm p-3">
-      <dt className="text-muted-foreground text-sm">{label}</dt>
+    <div className="min-w-0 rounded-sm bg-muted/30 p-3">
+      <dt className="text-sm text-muted-foreground">{label}</dt>
       <dd className="mt-1 font-medium break-words">{value}</dd>
     </div>
   );
@@ -126,7 +126,7 @@ export function LicenseValue({ spdxId }: { spdxId: string }) {
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="focus-visible:ring-ring underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
+      className="underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
     >
       {spdxId}
     </a>

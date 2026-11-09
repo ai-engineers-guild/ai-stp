@@ -97,7 +97,7 @@ export function CorporateInvitationsPanel({
   return (
     <section
       aria-label={t("invitations")}
-      className="border-border min-w-0 rounded-lg border"
+      className="min-w-0 rounded-lg border border-border"
       data-ui="invitations-directory"
     >
       <InvitationToolbar
@@ -114,17 +114,17 @@ export function CorporateInvitationsPanel({
         }}
       />
       {unavailable ? (
-        <p role="alert" className="text-destructive px-4 pb-4 text-sm">
+        <p role="alert" className="px-4 pb-4 text-sm text-destructive">
           {t("invitationsUnavailable")}
         </p>
       ) : null}
       {message ? (
-        <p role="status" className="text-muted-foreground px-4 pb-3 text-sm">
+        <p role="status" className="px-4 pb-3 text-sm text-muted-foreground">
           {message}
         </p>
       ) : null}
       {chosen.length ? (
-        <div className="bg-muted mx-4 mb-3 flex items-center justify-between rounded-sm px-3 py-2 text-sm">
+        <div className="mx-4 mb-3 flex items-center justify-between rounded-sm bg-muted px-3 py-2 text-sm">
           <span>{t("selected", { count: chosen.length })}</span>
           <Button
             type="button"
@@ -138,7 +138,7 @@ export function CorporateInvitationsPanel({
           </Button>
         </div>
       ) : null}
-      <div className="border-border border-t px-4">
+      <div className="border-t border-border px-4">
         <InvitationTable
           rows={rows}
           context={context}
@@ -210,7 +210,7 @@ function InvitationsPager({
       page={page}
       totalPages={Math.max(1, Math.ceil(filtered.length / PEOPLE_PAGE_SIZE))}
       summary={
-        <p aria-live="polite" className="text-muted-foreground text-sm tabular-nums">
+        <p aria-live="polite" className="text-sm text-muted-foreground tabular-nums">
           {t("showingInvitations", {
             start: filtered.length ? (page - 1) * PEOPLE_PAGE_SIZE + 1 : 0,
             end: Math.min(page * PEOPLE_PAGE_SIZE, filtered.length),

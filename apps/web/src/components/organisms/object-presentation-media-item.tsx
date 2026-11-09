@@ -5,7 +5,7 @@
 import { useId, useRef, useState } from "react";
 
 import { Button } from "@/components/atoms/button";
-import { type PresentationMediaDraft } from "@/lib/use-object-presentation-form";
+import type { PresentationMediaDraft } from "@/lib/use-object-presentation-form";
 import {
   COMPONENT_MEDIA_ACCEPT,
   isExternalMediaUrl,
@@ -142,6 +142,7 @@ function MediaPreview(props: {
     }
     if (mode === "image") {
       return (
+        // biome-ignore lint/performance/noImgElement: Browser previews and account-provided asset URLs must not be fetched by an image proxy.
         <img
           src={previewSrc}
           alt={item.alt || ""}
@@ -163,7 +164,7 @@ function MediaPreview(props: {
     }
   }
   return (
-    <div className="text-muted-foreground flex flex-col items-center gap-2 p-4 text-center text-xs">
+    <div className="flex flex-col items-center gap-2 p-4 text-center text-xs text-muted-foreground">
       <Icon
         name={uploading ? "loader" : "camera"}
         size="md"
@@ -327,9 +328,9 @@ function MediaMetadataFields(props: {
               });
             }}
           />
-          <p className="text-muted-foreground text-xs">{labels.urlHint ?? labels.githubHint}</p>
+          <p className="text-xs text-muted-foreground">{labels.urlHint ?? labels.githubHint}</p>
           {urlError || itemError ? (
-            <p id={`${props.urlId}-error`} className="text-destructive text-xs" role="alert">
+            <p id={`${props.urlId}-error`} className="text-xs text-destructive" role="alert">
               {urlError ?? itemError}
             </p>
           ) : null}
@@ -351,9 +352,9 @@ function MediaMetadataFields(props: {
             onPatch({ alt: event.target.value });
           }}
         />
-        <p className="text-muted-foreground text-xs">{labels.altRequired}</p>
+        <p className="text-xs text-muted-foreground">{labels.altRequired}</p>
         {altError ? (
-          <p id={`${props.altId}-error`} className="text-destructive text-xs" role="alert">
+          <p id={`${props.altId}-error`} className="text-xs text-destructive" role="alert">
             {altError}
           </p>
         ) : null}
@@ -422,20 +423,20 @@ export function MediaItemEditor(props: {
 
   return (
     <article
-      className={`${errors?.url || errors?.alt || errors?.item ? "border-destructive" : "border-border"} bg-card grid gap-4 rounded-lg border p-4 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] md:gap-5`}
+      className={`${errors?.url || errors?.alt || errors?.item ? "border-destructive" : "border-border"} grid gap-4 rounded-lg border bg-card p-4 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] md:gap-5`}
       aria-labelledby={`${baseId}-status`}
     >
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
             {index + 1} / 5
           </p>
           <p id={`${baseId}-status`} className={statusTone} aria-live="polite">
             {statusLabel(item.uploadState, labels)}
           </p>
         </div>
-        <div
-          className="bg-muted relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-md"
+        <section
+          className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-md bg-muted"
           aria-label={labels.preview}
         >
           <MediaPreview
@@ -446,7 +447,7 @@ export function MediaItemEditor(props: {
             uploading={uploading}
             onPatch={onPatch}
           />
-        </div>
+        </section>
         {sourceMode === "upload" && !isYoutube ? (
           <UploadActions
             baseId={baseId}
@@ -462,12 +463,12 @@ export function MediaItemEditor(props: {
           />
         ) : null}
         {item.itemError ? (
-          <p className="text-destructive text-xs" role="alert">
+          <p className="text-xs text-destructive" role="alert">
             {item.itemError}
           </p>
         ) : null}
         {uploadedReady ? (
-          <p className="text-muted-foreground text-xs">{labels.uploadedReady}</p>
+          <p className="text-xs text-muted-foreground">{labels.uploadedReady}</p>
         ) : null}
       </div>
 

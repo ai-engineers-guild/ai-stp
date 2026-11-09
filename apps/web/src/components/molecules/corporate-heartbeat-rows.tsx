@@ -70,20 +70,20 @@ function deviceCells(
       <Td className="px-4 py-3">{row.device_name}</Td>
       {view === "history" && (
         <Td className="px-4 py-3">
-          <div className="flex min-w-52 gap-px" role="group" aria-label={t("heartbeatHistory")}>
-            {(row.buckets ?? []).map((bucket, index) => (
+          <fieldset className="flex min-w-52 gap-px" aria-label={t("heartbeatHistory")}>
+            {(row.buckets ?? []).map((bucket) => (
               <button
-                key={index}
+                key={bucket.start}
                 type="button"
-                className={`focus-visible:ring-ring h-3 min-w-0 flex-1 focus-visible:ring-2 ${BUCKET_COLORS[bucket.state]}`}
+                className={`h-3 min-w-0 flex-1 focus-visible:ring-2 focus-visible:ring-ring ${BUCKET_COLORS[bucket.state]}`}
                 title={`${utcDateTime(bucket.start)}–${utcDateTime(bucket.end)} · ${t("expected")}: ${bucket.expected} · ${t("received")}: ${bucket.received} · ${t("coveragePercent")}: ${bucket.expected ? Math.round((100 * Math.min(bucket.received, bucket.expected)) / bucket.expected) : 0}%`}
                 aria-label={`${t("expected")}: ${bucket.expected}, ${t("received")}: ${bucket.received}`}
               />
             ))}
-          </div>
+          </fieldset>
           <div
             aria-hidden="true"
-            className="text-muted-foreground mt-1 flex justify-between text-[10px]"
+            className="mt-1 flex justify-between text-[10px] text-muted-foreground"
           >
             {[0, 15, 30, 45, 59].map((index) => (
               <span key={index}>
@@ -110,7 +110,7 @@ function deviceCells(
           ) : (
             <span className="flex items-center gap-2">
               {row.coverage_percent}%
-              <span className="bg-muted h-1.5 w-20 rounded-sm">
+              <span className="h-1.5 w-20 rounded-sm bg-muted">
                 <span
                   className={`block h-full rounded-sm ${row.coverage_percent >= 90 ? "bg-success" : row.coverage_percent >= 60 ? "bg-warning" : "bg-destructive"}`}
                   style={{ width: `${row.coverage_percent}%` }}
@@ -154,7 +154,7 @@ export function HeartbeatEmployeeRows({
           {toggle}
           <Link
             href={`/corporate/employees/${row.account_id}`}
-            className="hover:text-primary underline"
+            className="underline hover:text-primary"
           >
             {row.employee_name}
           </Link>
@@ -164,7 +164,7 @@ export function HeartbeatEmployeeRows({
         {row.teams.map((team, index) => (
           <span key={team.id}>
             {index > 0 && ", "}
-            <Link href={`/corporate/teams/${team.id}`} className="hover:text-primary underline">
+            <Link href={`/corporate/teams/${team.id}`} className="underline hover:text-primary">
               {team.name}
             </Link>
           </span>
@@ -193,14 +193,14 @@ export function HeartbeatEmployeeRows({
             type="button"
             aria-expanded={expanded}
             aria-label={expanded ? t("collapseDevices") : t("expandDevices")}
-            className="focus-visible:ring-ring text-muted-foreground hover:text-foreground rounded-sm focus-visible:ring-2"
+            className="rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
             onClick={onToggle}
           >
             <Icon name={expanded ? "chevronDown" : "chevronRight"} size="sm" />
           </button>,
         )}
         <Td className="px-4 py-3">{t("devices", { count: rows.length })}</Td>
-        {view === "history" && <Td className="text-muted-foreground px-4 py-3">—</Td>}
+        {view === "history" && <Td className="px-4 py-3 text-muted-foreground">—</Td>}
         <Td
           className="px-4 py-3"
           title={latest.last_heartbeat_at ? utcDateTime(latest.last_heartbeat_at) : undefined}

@@ -55,7 +55,7 @@ export default async function SetupVersionPage({ params }: PageProps) {
   const setupId = tryAsSetupId(stableId);
   if (!setupId) notFound();
 
-  let response;
+  let response: Awaited<ReturnType<typeof readSetupVersion>>;
   try {
     response = await readSetupVersion(setupId, asVersionId(version));
   } catch (error) {
@@ -104,7 +104,7 @@ export default async function SetupVersionPage({ params }: PageProps) {
         publicLabel={t("public")}
         privateLabel={t("private")}
       />
-      <p className="text-muted-foreground break-words">{passport.description}</p>
+      <p className="break-words text-muted-foreground">{passport.description}</p>
       <div className="flex flex-wrap gap-2">
         <Badge>{response.trust.trust_lane}</Badge>
         <Badge variant="outline">
@@ -114,24 +114,24 @@ export default async function SetupVersionPage({ params }: PageProps) {
       <dl className="grid gap-3 sm:grid-cols-2">
         {response.lifecycle !== "active" ? (
           <div>
-            <dt className="text-muted-foreground text-sm">{t("lifecycle")}</dt>
+            <dt className="text-sm text-muted-foreground">{t("lifecycle")}</dt>
             <dd>{response.lifecycle}</dd>
           </div>
         ) : null}
         <div>
-          <dt className="text-muted-foreground text-sm">{t("publishedAt")}</dt>
+          <dt className="text-sm text-muted-foreground">{t("publishedAt")}</dt>
           <dd>{response.published_at}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-sm">{t("harness")}</dt>
+          <dt className="text-sm text-muted-foreground">{t("harness")}</dt>
           <dd>{harnesses.join(", ")}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-sm">{t("license")}</dt>
+          <dt className="text-sm text-muted-foreground">{t("license")}</dt>
           <dd>{passport.license.spdx_id}</dd>
         </div>
         <div className="sm:col-span-2">
-          <dt className="text-muted-foreground text-sm">{t("publisher")}</dt>
+          <dt className="text-sm text-muted-foreground">{t("publisher")}</dt>
           <dd>
             <Link href={`/publishers/${publisherId}`} className="font-mono text-sm underline">
               {publisherId}
@@ -139,7 +139,7 @@ export default async function SetupVersionPage({ params }: PageProps) {
           </dd>
         </div>
         <div className="sm:col-span-2">
-          <dt className="text-muted-foreground text-sm">{t("tags")}</dt>
+          <dt className="text-sm text-muted-foreground">{t("tags")}</dt>
           <dd className="flex flex-wrap gap-1">
             {passport.tags.map((tag) => (
               <Badge key={tag} variant="outline">
@@ -149,7 +149,7 @@ export default async function SetupVersionPage({ params }: PageProps) {
           </dd>
         </div>
         <div className="sm:col-span-2">
-          <dt className="text-muted-foreground text-sm">{t("passportDigest")}</dt>
+          <dt className="text-sm text-muted-foreground">{t("passportDigest")}</dt>
           <dd className="font-mono text-xs break-all">{response.passport_digest}</dd>
         </div>
       </dl>
@@ -201,9 +201,9 @@ export default async function SetupVersionPage({ params }: PageProps) {
         publicLabel={t("public")}
         privateLabel={t("private")}
       />
-      <section id="report" className="border-border space-y-2 rounded-lg border p-3">
+      <section id="report" className="space-y-2 rounded-lg border border-border p-3">
         <h2 className="text-lg font-medium tracking-tight">{t("reportSection")}</h2>
-        <p className="text-muted-foreground text-sm">{t("reportSectionBody")}</p>
+        <p className="text-sm text-muted-foreground">{t("reportSectionBody")}</p>
         <p className="font-mono text-xs break-all">{canonical.web_url}</p>
       </section>
       <SupportSummary support={response.support} labels={supportLabels(t)} />

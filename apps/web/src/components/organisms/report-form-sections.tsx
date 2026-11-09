@@ -83,7 +83,7 @@ export function ReportFormLayout({
 }) {
   return (
     <form
-      className="border-border mx-auto max-w-lg space-y-4 rounded-lg border p-4"
+      className="mx-auto max-w-lg space-y-4 rounded-lg border border-border p-4"
       onSubmit={onSubmit}
     >
       {children}
@@ -107,7 +107,7 @@ export function ReportTopicSelector({
       <Label htmlFor="report-topic">{labels.topic}</Label>
       <Select
         id="report-topic"
-        className="border-input bg-background w-full rounded-sm border px-2 py-1 text-sm"
+        className="w-full rounded-sm border border-input bg-background px-2 py-1 text-sm"
         value={topic}
         onChange={(event) => {
           onChange(event.target.value as ReportTopic);
@@ -137,7 +137,7 @@ export function ReportObjectSummary({
     [labels.digest, defaults.contentDigest],
   ];
   return (
-    <dl className="bg-muted/40 border-border space-y-2 rounded-md border p-3 font-mono text-xs">
+    <dl className="space-y-2 rounded-md border border-border bg-muted/40 p-3 font-mono text-xs">
       {fields.map(([label, value]) => (
         <div key={label}>
           <dt className="text-muted-foreground">{label}</dt>
@@ -233,7 +233,7 @@ export function ReportTopicFields({
           />
           <textarea
             aria-label={labels.descriptionRu}
-            className="border-input bg-background min-h-16 w-full rounded-sm border px-2 py-1 text-sm"
+            className="min-h-16 w-full rounded-sm border border-input bg-background px-2 py-1 text-sm"
             value={values.descriptionRu}
             onChange={(event) => {
               setters.descriptionRu(event.target.value);
@@ -242,7 +242,7 @@ export function ReportTopicFields({
           />
           <textarea
             aria-label={labels.descriptionEn}
-            className="border-input bg-background min-h-16 w-full rounded-sm border px-2 py-1 text-sm"
+            className="min-h-16 w-full rounded-sm border border-input bg-background px-2 py-1 text-sm"
             value={values.descriptionEn}
             onChange={(event) => {
               setters.descriptionEn(event.target.value);
@@ -316,7 +316,7 @@ export function ReportTextFields({
             <Label htmlFor="report-message">{labels.message}</Label>
             <textarea
               id="report-message"
-              className="border-input bg-background min-h-20 w-full rounded-sm border px-2 py-1 text-sm"
+              className="min-h-20 w-full rounded-sm border border-input bg-background px-2 py-1 text-sm"
               value={values.message}
               maxLength={2000}
               onChange={(event) => {
@@ -328,7 +328,7 @@ export function ReportTextFields({
             <Label htmlFor="report-evidence">{labels.evidence}</Label>
             <textarea
               id="report-evidence"
-              className="border-input bg-background min-h-16 w-full rounded-sm border px-2 py-1 text-sm"
+              className="min-h-16 w-full rounded-sm border border-input bg-background px-2 py-1 text-sm"
               value={values.evidence}
               maxLength={4000}
               onChange={(event) => {
@@ -356,14 +356,14 @@ export function ReportTextFields({
         <Label htmlFor="report-diagnostics">{labels.diagnostics}</Label>
         <textarea
           id="report-diagnostics"
-          className="border-input bg-background min-h-28 w-full rounded-sm border px-2 py-1 font-mono text-xs"
+          className="min-h-28 w-full rounded-sm border border-input bg-background px-2 py-1 font-mono text-xs"
           value={diagnostics}
           maxLength={4000}
           onChange={(event) => {
             onDiagnosticsChange(event.target.value);
           }}
         />
-        <p className="text-muted-foreground text-xs">{labels.previewHint}</p>
+        <p className="text-xs text-muted-foreground">{labels.previewHint}</p>
       </div>
     </>
   );
@@ -438,7 +438,7 @@ export function ReportFormActions({
       {done ? <p className="text-sm">{labels.created}</p> : null}
       <MutationReference label={labels.referenceId} operationId={operationId} />
       {error ? (
-        <p className="text-destructive text-sm" role="alert">
+        <p className="text-sm text-destructive" role="alert">
           {error}
         </p>
       ) : null}

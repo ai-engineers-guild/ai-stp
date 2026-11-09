@@ -191,7 +191,7 @@ export function CorporateRolePanel({
               defaultValue={mode === "edit" ? selected?.name : undefined}
             />
             {mode === "edit" ? (
-              <p className="text-muted-foreground text-xs">{labels.renameHint}</p>
+              <p className="text-xs text-muted-foreground">{labels.renameHint}</p>
             ) : null}
           </div>
         ) : null}
@@ -218,7 +218,7 @@ export function CorporateRolePanel({
       {message ? (
         <p
           className={
-            message.error ? "text-destructive text-sm font-medium" : "text-muted-foreground text-sm"
+            message.error ? "text-sm font-medium text-destructive" : "text-sm text-muted-foreground"
           }
           role="status"
           aria-live="polite"
@@ -227,7 +227,7 @@ export function CorporateRolePanel({
         </p>
       ) : null}
       {message?.fields?.length ? (
-        <ul className="text-destructive list-disc space-y-1 pl-5 text-sm">
+        <ul className="list-disc space-y-1 pl-5 text-sm text-destructive">
           {message.fields.map((item) => (
             <li key={item}>{item}</li>
           ))}

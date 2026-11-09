@@ -98,16 +98,17 @@ export function IdentityList({ identities, csrfToken, returnTo, providers }: Ide
           return (
             <li
               key={`${provider}-${identity.linked_at}`}
-              className="border-border bg-background text-card-foreground flex flex-wrap items-center gap-3 rounded-lg border p-3 sm:p-4"
+              className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-background p-3 text-card-foreground sm:p-4"
             >
-              <div className="bg-muted text-foreground grid size-11 shrink-0 place-items-center rounded-full">
+              <div className="grid size-11 shrink-0 place-items-center rounded-full bg-muted text-foreground">
                 {avatar ? (
+                  // biome-ignore lint/performance/noImgElement: Browser previews and account-provided asset URLs must not be fetched by an image proxy.
                   <img
                     src={avatar}
                     alt=""
                     width={44}
                     height={44}
-                    className="border-border size-11 rounded-full border object-cover"
+                    className="size-11 rounded-full border border-border object-cover"
                     referrerPolicy="no-referrer"
                   />
                 ) : (
@@ -121,10 +122,10 @@ export function IdentityList({ identities, csrfToken, returnTo, providers }: Ide
                     <span className="truncate text-sm font-medium">{displayName}</span>
                   ) : null}
                 </div>
-                <p className="text-muted-foreground mt-0.5 text-xs">{t("availableForSignIn")}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{t("availableForSignIn")}</p>
               </div>
-              <span className="text-success inline-flex items-center gap-2 text-sm">
-                <span aria-hidden="true" className="bg-success size-2 rounded-full" />
+              <span className="inline-flex items-center gap-2 text-sm text-success">
+                <span aria-hidden="true" className="size-2 rounded-full bg-success" />
                 <span>{t("connected")}</span>
               </span>
               <Button
@@ -142,7 +143,7 @@ export function IdentityList({ identities, csrfToken, returnTo, providers }: Ide
           );
         })}
       </ul>
-      {!canUnlink ? <p className="text-muted-foreground text-xs">{t("unlinkLastHint")}</p> : null}
+      {!canUnlink ? <p className="text-xs text-muted-foreground">{t("unlinkLastHint")}</p> : null}
       {missing.length > 0 ? (
         <div className="space-y-2">
           <h3 className="text-sm font-medium">{t("linkAnother")}</h3>
@@ -153,7 +154,7 @@ export function IdentityList({ identities, csrfToken, returnTo, providers }: Ide
               </Button>
             ))}
           </div>
-          <p className="text-muted-foreground text-xs">{t("linkAnotherHint")}</p>
+          <p className="text-xs text-muted-foreground">{t("linkAnotherHint")}</p>
         </div>
       ) : null}
     </div>

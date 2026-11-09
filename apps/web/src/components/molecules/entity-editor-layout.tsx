@@ -43,12 +43,12 @@ export function EntityEditorLayout({
       data-ui="entity-editor-layout"
       data-entity-kind={config.kind}
       data-hydrated={hydrationReady === undefined ? undefined : String(hydrationReady)}
-      className={`border-border bg-card w-full min-w-0 rounded-lg border p-5 shadow-sm sm:p-6 ${className}`}
+      className={`w-full min-w-0 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6 ${className}`}
     >
-      <header className="border-border space-y-1 border-b pb-5">
+      <header className="space-y-1 border-b border-border pb-5">
         <h2 className="text-xl font-medium tracking-tight">{title}</h2>
         {description ? (
-          <p className="text-muted-foreground max-w-[70ch] text-sm leading-relaxed">
+          <p className="max-w-[70ch] text-sm leading-relaxed text-muted-foreground">
             {description}
           </p>
         ) : null}
@@ -74,7 +74,7 @@ export function EntityEditorSection({
     <section data-ui="entity-editor-section" className={`min-w-0 space-y-3 ${className}`}>
       <header className="space-y-1">
         <h3 className="text-sm font-medium">{title}</h3>
-        {description ? <p className="text-muted-foreground text-xs">{description}</p> : null}
+        {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
       </header>
       {children}
     </section>
@@ -101,15 +101,15 @@ export function EntityEditorField({
       <label htmlFor={htmlFor} className="text-sm font-medium">
         {label}
         {required ? (
-          <span className="text-destructive ml-1 before:content-['*']" aria-hidden="true" />
+          <span className="ml-1 text-destructive before:content-['*']" aria-hidden="true" />
         ) : null}
       </label>
       {children}
-      {hint ? <p className="text-muted-foreground text-xs leading-relaxed">{hint}</p> : null}
+      {hint ? <p className="text-xs leading-relaxed text-muted-foreground">{hint}</p> : null}
       {error ? (
         <p
           id={htmlFor ? `${htmlFor}-error` : undefined}
-          className="text-destructive text-xs"
+          className="text-xs text-destructive"
           role="alert"
         >
           {error}
@@ -133,10 +133,10 @@ export function EntityEditorErrorSummary({
   const entries = Object.entries(fieldErrors);
   if (!error && !entries.length) return null;
   return (
-    <div className="border-destructive/50 bg-destructive/10 rounded-md border p-3" role="alert">
-      <p className="text-destructive text-sm font-medium">{error ?? summary}</p>
+    <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3" role="alert">
+      <p className="text-sm font-medium text-destructive">{error ?? summary}</p>
       {entries.length ? (
-        <ul className="text-destructive mt-2 list-disc space-y-1 pl-5 text-xs">
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-destructive">
           {entries.map(([path, message]) => (
             <li key={path}>
               <span className="font-medium">{fieldLabel(path)}</span>: {message}

@@ -24,6 +24,7 @@ import {
   type Descriptor,
   type TaskIntent,
   type TaskView,
+  scalarText,
 } from "../contracts";
 import { useTaskStart } from "../taskStart";
 import { useApp } from "../store";
@@ -88,8 +89,9 @@ export default function InstallPage() {
     };
   }, []);
   useEffect(() => {
-    if (!taskId && params.get("intent")) {
-      setIntent(params.get("intent")!);
+    const requestedIntent = params.get("intent");
+    if (!taskId && requestedIntent) {
+      setIntent(requestedIntent);
       setConfirmed(false);
     }
   }, [params, taskId]);
@@ -158,7 +160,6 @@ export default function InstallPage() {
     starter.result,
     starter.opened,
     starter.acknowledge,
-    params,
     setParams,
   ]);
 
@@ -327,12 +328,13 @@ export default function InstallPage() {
       />
       {!taskId && (
         <section className="card space-y-6 p-6">
-          <div
-            className="flex flex-wrap gap-2"
+          <fieldset
+            className="flex min-w-0 flex-wrap gap-2"
             aria-label={msg("install.taskIntent")}
           >
             {intents.map((item) => (
               <button
+                type="button"
                 key={item.name}
                 className={intent === item.name ? "btn-primary" : "btn-outline"}
                 aria-pressed={intent === item.name}
@@ -345,7 +347,7 @@ export default function InstallPage() {
                 {intentLabel(msg, item.name)}
               </button>
             ))}
-          </div>
+          </fieldset>
           {!intentResult && (
             <Spinner label={msg("install.readingAvailableFlows")} />
           )}
@@ -367,7 +369,7 @@ export default function InstallPage() {
             >
               {capabilities
                 ? msg("install.platformUnavailable", {
-                    platform: String(
+                    platform: scalarText(
                       capabilities.data?.os ?? msg("common.thisPlatform"),
                     ),
                   })
@@ -387,6 +389,7 @@ export default function InstallPage() {
               </p>
               <div className="flex flex-wrap gap-2">
                 <button
+                  type="button"
                   className="btn-outline"
                   onClick={() => {
                     if (starter.request) void starter.start(starter.request);
@@ -398,6 +401,7 @@ export default function InstallPage() {
                   {msg("install.inspectActivity")}
                 </Link>
                 <button
+                  type="button"
                   className="btn-outline"
                   onClick={() => {
                     starter.reset();
@@ -472,6 +476,7 @@ export default function InstallPage() {
               {msg("install.iAuthorizeThisRequestStartingOrAnsweringCanApply")}
             </label>
             <button
+              type="button"
               className="btn-primary"
               disabled={
                 !confirmed ||
@@ -517,7 +522,7 @@ export default function InstallPage() {
                   intent: intentLabel(msg, task.intent),
                 })}
               </h2>
-              <p className="mt-2 break-all font-mono text-xs text-muted-foreground">
+              <p className="mt-2 font-mono text-xs break-all text-muted-foreground">
                 {task.task_id}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -555,10 +560,14 @@ export default function InstallPage() {
                   );
                 }}
               >
-                <label className="field-label">
+                <label
+                  className="field-label"
+                  htmlFor={`task-question-${question.question_id}`}
+                >
                   {question.prompt}
                   {question.choices?.length ? (
                     <select
+                      id={`task-question-${question.question_id}`}
                       className="input"
                       disabled={locked}
                       value={
@@ -579,6 +588,7 @@ export default function InstallPage() {
                     </select>
                   ) : (
                     <input
+                      id={`task-question-${question.question_id}`}
                       className="input"
                       disabled={locked}
                       value={
@@ -596,6 +606,7 @@ export default function InstallPage() {
                 </label>
                 {question.why && <p className="field-help">{question.why}</p>}
                 <button
+                  type="submit"
                   className="btn-primary"
                   disabled={
                     locked ||
@@ -631,6 +642,7 @@ export default function InstallPage() {
             .filter((item) => item.path.join(" ") !== "task answer")
             .map((item, index) => (
               <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: Continuations are one immutable task reply; identical commands can appear more than once.
                 key={index}
                 className="space-y-2 rounded-md border border-border p-4"
               >
@@ -639,10 +651,11 @@ export default function InstallPage() {
                 item.argv.length > 0 &&
                 !item.missing.length ? (
                   <>
-                    <p className="break-all font-mono text-xs text-muted-foreground">
+                    <p className="font-mono text-xs break-all text-muted-foreground">
                       {item.argv.join(" ")}
                     </p>
                     <button
+                      type="button"
                       className="btn-outline"
                       disabled={locked || task.legacy_read_only}
                       onClick={() => void runContinuation(item)}
@@ -667,6 +680,7 @@ export default function InstallPage() {
             ))}
           <div className="flex flex-wrap gap-3 border-t border-border pt-5">
             <button
+              type="button"
               className="btn-outline"
               disabled={locked}
               onClick={() => {
@@ -679,6 +693,7 @@ export default function InstallPage() {
             {!settled(task) && !task.legacy_read_only && (
               <>
                 <button
+                  type="button"
                   className="btn-primary"
                   disabled={locked || !!task.questions.length}
                   onClick={() =>
@@ -691,6 +706,7 @@ export default function InstallPage() {
                   {msg("install.continueTask")}
                 </button>
                 <button
+                  type="button"
                   className="btn-outline"
                   disabled={locked}
                   onClick={() =>
@@ -705,6 +721,7 @@ export default function InstallPage() {
               </>
             )}
             <button
+              type="button"
               className="btn-outline"
               disabled={locked}
               onClick={closeTask}
@@ -725,10 +742,14 @@ export default function InstallPage() {
         )}
       {taskId && !task && !busy && (
         <div className="flex flex-wrap gap-3">
-          <button className="btn-outline" onClick={() => void refresh(taskId)}>
+          <button
+            type="button"
+            className="btn-outline"
+            onClick={() => void refresh(taskId)}
+          >
             {msg("install.readTaskAgain")}
           </button>
-          <button className="btn-outline" onClick={closeTask}>
+          <button type="button" className="btn-outline" onClick={closeTask}>
             {msg("install.backToSetups")}
           </button>
         </div>

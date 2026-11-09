@@ -584,8 +584,8 @@ describe("parseCatalogSearchParams", () => {
     expect(validateCatalogQuery("NAME:value)")).toContain("unexpected closing parenthesis");
     expect(validateCatalogQuery('NAME:"unterminated')).toContain("unterminated quoted value");
     expect(validateCatalogQuery("NAME:(((((((((value)))))))))")).toContain("nesting is too deep");
-    // eslint-disable-next-line no-useless-escape -- Keep the escaped quote visible as query syntax.
-    expect(validateCatalogQuery('NAME:"escaped\\\"quote"')).toBeNull();
+    // biome-ignore lint/suspicious/noUselessEscapeInString: Keep the escaped quote explicit in the catalog query syntax fixture.
+    expect(validateCatalogQuery('NAME:"escaped\\\"quote"')).toBeNull(); // eslint-disable-line no-useless-escape -- Keep the escaped quote visible as query syntax.
     expect(validateCatalogQuery('"UNKNOWN:value" AND NAME:tool')).toBeNull();
     expect(validateCatalogQuery('"OR"')).toBeNull();
   });

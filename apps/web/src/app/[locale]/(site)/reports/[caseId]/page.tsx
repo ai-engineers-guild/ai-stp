@@ -16,7 +16,7 @@ export default async function ReportCasePage({
   await requireSession(locale, `/${locale}/reports/${caseId}`);
   const t = await getTranslations("reports");
   const tc = await getTranslations("common");
-  let report;
+  let report: Awaited<ReturnType<typeof readOwnReport>>;
   try {
     report = await readOwnReport((await sessionCookieValue()) ?? "", caseId);
   } catch (error) {
@@ -39,16 +39,16 @@ export default async function ReportCasePage({
       <HistoryBackButton label={t("backToReports")} fallback="/reports" />
       <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
             {topic}
           </p>
           <Badge variant="outline">{state}</Badge>
         </div>
         <h1 className="text-3xl font-medium tracking-tight">{t("caseDetails")}</h1>
-        <p className="text-muted-foreground font-mono text-xs break-all">{report.case_id}</p>
+        <p className="font-mono text-xs break-all text-muted-foreground">{report.case_id}</p>
       </header>
       <section
-        className="border-border space-y-3 rounded-lg border p-4"
+        className="space-y-3 rounded-lg border border-border p-4"
         aria-labelledby="case-target"
       >
         <h2 id="case-target" className="text-lg font-medium">
@@ -78,7 +78,7 @@ export default async function ReportCasePage({
         </dl>
       </section>
       <section
-        className="border-primary/30 bg-primary/5 space-y-2 rounded-lg border p-4"
+        className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-4"
         aria-labelledby="case-response"
       >
         <h2 id="case-response" className="text-lg font-medium">
@@ -86,22 +86,22 @@ export default async function ReportCasePage({
         </h2>
         <p
           className={
-            publicResponse ? "text-sm whitespace-pre-wrap" : "text-muted-foreground text-sm"
+            publicResponse ? "text-sm whitespace-pre-wrap" : "text-sm text-muted-foreground"
           }
         >
           {publicResponse || t("responsePending")}
         </p>
       </section>
       <section
-        className="border-border space-y-3 rounded-lg border p-4"
+        className="space-y-3 rounded-lg border border-border p-4"
         aria-labelledby="case-status"
       >
         <h2 id="case-status" className="text-lg font-medium">
           {t("statusHistory")}
         </h2>
-        <p className="text-muted-foreground text-sm">{t("statusHistoryNote")}</p>
+        <p className="text-sm text-muted-foreground">{t("statusHistoryNote")}</p>
         <div className="flex items-center gap-3 text-sm">
-          <span className="bg-primary h-2 w-2 rounded-full" aria-hidden="true" />
+          <span className="h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
           {state}
         </div>
       </section>

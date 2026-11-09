@@ -34,7 +34,7 @@ export default async function TechnologyRegistryPage({
   };
   const pageValue = Number(filters.page);
   const pageSizeValue = Number(filters.page_size);
-  let registry;
+  let registry: Awaited<ReturnType<typeof readTechnologyDirectory>>;
   try {
     registry = await readTechnologyDirectory(session, {
       ...(query ? { query } : {}),

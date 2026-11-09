@@ -19,7 +19,7 @@ export default async function AccountProfileEditPage({
   const t = await getTranslations("account");
   const common = await getTranslations("common");
   const token = (await sessionCookieValue()) ?? "";
-  let initial;
+  let initial: Awaited<ReturnType<typeof readOwnerPublicProfile>>;
   try {
     initial = await readOwnerPublicProfile(token);
   } catch (error) {

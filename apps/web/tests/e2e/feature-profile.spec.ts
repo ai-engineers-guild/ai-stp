@@ -5,6 +5,34 @@ const enabled = process.env["AI_STP_EXPECT_CONTENT_HUB"] !== "false";
 const saas = process.env["AI_STP_EXPECT_SAAS_PUBLIC_PAGES"] !== "false";
 const corporate = process.env["AI_STP_WEB_PROFILE"] === "corporate_hub";
 
+test("contains reference-table scrolling within the corporate viewport", async ({ page }) => {
+  test.skip(!corporate, "Reference administration belongs to the corporate artifact.");
+  const directories = [
+    ["job-titles", "Job titles"],
+    ["tech-categories", "Technology categories"],
+  ] as const;
+  await page.setViewportSize({ width: 390, height: 844 });
+  const returnTo = "/en/corporate/admin/job-titles";
+  await page.goto(`/en/login?returnTo=${encodeURIComponent(returnTo)}`);
+  await page.getByRole("button", { name: /Continue with GitHub/i }).click();
+  await expect(page).toHaveURL((url) => url.pathname === returnTo);
+  for (const [directory, label] of directories) {
+    await page.goto(`/en/corporate/admin/${directory}`);
+    const table = page.getByRole("table", { name: label, exact: true });
+    const region = page.getByRole("region", { name: label, exact: true });
+    await expect(table.getByRole("columnheader", { name: "Actions", exact: true })).toHaveCount(1);
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+      .toBe(true);
+    await expect
+      .poll(() => region.evaluate((node) => node.scrollWidth > node.clientWidth))
+      .toBe(true);
+    await region.focus();
+    await region.press("ArrowRight");
+    await expect.poll(() => region.evaluate((node) => node.scrollLeft)).toBeGreaterThan(0);
+  }
+});
+
 test("shows linked services only outside the corporate presentation editor", async ({ page }) => {
   const path = `/en/${corporate ? "corporate/" : ""}objects/component/${FIXTURE_COMPONENT_ID}/edit`;
   await page.goto(`/en/login?returnTo=${encodeURIComponent(path)}`);

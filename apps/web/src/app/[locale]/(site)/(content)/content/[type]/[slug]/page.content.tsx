@@ -73,7 +73,7 @@ export default async function ContentDetail({ params }: Props) {
       <header className="grid gap-7 border-b pb-10 lg:grid-cols-[minmax(0,1fr)_12rem] lg:items-end">
         <Link
           href="/content"
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex min-h-11 items-center font-mono text-xs uppercase underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:outline-none"
+          className="inline-flex min-h-11 items-center font-mono text-xs text-muted-foreground uppercase underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           ← {t("title")}
         </Link>
@@ -87,7 +87,7 @@ export default async function ContentDetail({ params }: Props) {
         <h1 className="max-w-4xl text-4xl font-medium tracking-[-0.035em] text-balance sm:text-6xl lg:col-span-2 lg:text-7xl">
           {entry.title}
         </h1>
-        <p className="text-muted-foreground max-w-2xl text-lg leading-relaxed sm:text-xl lg:col-start-1">
+        <p className="max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl lg:col-start-1">
           {entry.description}
         </p>
         <ul
@@ -95,7 +95,7 @@ export default async function ContentDetail({ params }: Props) {
           aria-label={t("tagsLabel")}
         >
           {entry.tags.map((tag) => (
-            <li key={tag} className="bg-muted rounded-md px-2.5 py-1 font-mono text-xs">
+            <li key={tag} className="rounded-md bg-muted px-2.5 py-1 font-mono text-xs">
               {tag}
             </li>
           ))}

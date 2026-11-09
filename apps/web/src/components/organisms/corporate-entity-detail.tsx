@@ -276,10 +276,10 @@ function CorporateIdentityRail({
       {presentation ? (
         <>
           {resource !== "members" || subjects.length ? (
-            <section className="border-border bg-card rounded-lg border p-5">
+            <section className="rounded-lg border border-border bg-card p-5">
               <h2 className="text-sm font-medium">{subjectLabel}</h2>
               {subjects.length ? (
-                <ul className="divide-border mt-2 divide-y">
+                <ul className="mt-2 divide-y divide-border">
                   {subjects.map((ref) => (
                     <li key={`${ref.kind}:${ref.id}`}>
                       <Link
@@ -292,12 +292,12 @@ function CorporateIdentityRail({
                   ))}
                 </ul>
               ) : (
-                <p className="text-muted-foreground mt-2 text-sm">{emptyLabel}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{emptyLabel}</p>
               )}
             </section>
           ) : null}
           {presentation.links.length ? (
-            <ul className="border-border bg-card space-y-2 rounded-lg border p-5">
+            <ul className="space-y-2 rounded-lg border border-border bg-card p-5">
               {presentation.links.map((link) => (
                 <li key={link.url}>
                   <a

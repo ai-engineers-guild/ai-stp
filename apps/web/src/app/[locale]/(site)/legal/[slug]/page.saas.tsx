@@ -40,19 +40,19 @@ export default async function LegalPolicyPage({ params, searchParams }: PageProp
       <aside className="space-y-5 lg:sticky lg:top-28 lg:self-start">
         <Link
           href="/"
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex min-h-11 items-center font-mono text-xs uppercase underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:outline-none"
+          className="inline-flex min-h-11 items-center font-mono text-xs text-muted-foreground uppercase underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           ← {t("backHome")}
         </Link>
         <nav aria-label={t("policies")} className="border-t pt-5">
-          <p className="text-muted-foreground mb-3 font-mono text-xs uppercase">{t("policies")}</p>
+          <p className="mb-3 font-mono text-xs text-muted-foreground uppercase">{t("policies")}</p>
           <ul className="space-y-1">
             {POLICY_SLUGS.map((item) => (
               <li key={item}>
                 <Link
                   href={`/legal/${item}`}
                   aria-current={item === slug ? "page" : undefined}
-                  className={`focus-visible:ring-ring block rounded-sm px-2 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none ${
+                  className={`block rounded-sm px-2 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
                     item === slug
                       ? "bg-muted text-foreground"
                       : "text-muted-foreground hover:text-foreground"
@@ -70,16 +70,16 @@ export default async function LegalPolicyPage({ params, searchParams }: PageProp
           <h1 className="text-4xl font-medium tracking-[-0.04em] text-balance sm:text-6xl">
             {policy.title}
           </h1>
-          <p className="text-muted-foreground max-w-2xl text-sm leading-relaxed">
+          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
             {t("revisionNote")}
           </p>
           <dl className="grid gap-4 font-mono text-xs sm:grid-cols-3">
             <div>
-              <dt className="text-muted-foreground mb-1 uppercase">{t("version")}</dt>
+              <dt className="mb-1 text-muted-foreground uppercase">{t("version")}</dt>
               <dd>{policy.policy_version}</dd>
             </div>
             <div>
-              <dt className="text-muted-foreground mb-1 uppercase">{t("effective")}</dt>
+              <dt className="mb-1 text-muted-foreground uppercase">{t("effective")}</dt>
               <dd>
                 {policy.effective_at ? (
                   <time dateTime={policy.effective_at}>{policy.effective_at.slice(0, 10)}</time>
@@ -89,7 +89,7 @@ export default async function LegalPolicyPage({ params, searchParams }: PageProp
               </dd>
             </div>
             <div>
-              <dt className="text-muted-foreground mb-1 uppercase">{t("language")}</dt>
+              <dt className="mb-1 text-muted-foreground uppercase">{t("language")}</dt>
               <dd className="uppercase">{policy.locale}</dd>
             </div>
           </dl>
@@ -98,7 +98,7 @@ export default async function LegalPolicyPage({ params, searchParams }: PageProp
               href={sourceUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex min-h-11 items-center font-mono text-xs uppercase underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
+              className="inline-flex min-h-11 items-center font-mono text-xs text-muted-foreground uppercase underline underline-offset-4 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
               {t("sourceMarkdown")} ↗
             </a>
@@ -108,7 +108,10 @@ export default async function LegalPolicyPage({ params, searchParams }: PageProp
           className="prose prose-neutral dark:prose-invert max-w-none"
           aria-label={t("contents")}
         >
-          <div dangerouslySetInnerHTML={{ __html: policy.html }} />
+          <div
+            // biome-ignore lint/security/noDangerouslySetInnerHtml: Immutable legal HTML is produced by the API's strict safe-Markdown renderer.
+            dangerouslySetInnerHTML={{ __html: policy.html }}
+          />
         </section>
       </div>
     </article>

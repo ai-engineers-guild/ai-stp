@@ -34,10 +34,10 @@ export default async function LegalOnboardingPage({ params, searchParams }: Page
     <main className="mx-auto w-full max-w-xl space-y-6 py-8 sm:py-14">
       <header className="space-y-3">
         <h1 className="text-3xl font-medium tracking-tight">{t("title")}</h1>
-        <p className="text-muted-foreground leading-relaxed">{t("body")}</p>
+        <p className="leading-relaxed text-muted-foreground">{t("body")}</p>
       </header>
       {reason === "required" ? (
-        <p className="border-destructive text-destructive rounded-sm border p-3 text-sm">
+        <p className="rounded-sm border border-destructive p-3 text-sm text-destructive">
           {t("required")}
         </p>
       ) : null}
@@ -66,7 +66,7 @@ export default async function LegalOnboardingPage({ params, searchParams }: Page
           {t("continue")}
         </Button>
       </form>
-      <p className="text-muted-foreground text-xs">{t("evidence")}</p>
+      <p className="text-xs text-muted-foreground">{t("evidence")}</p>
     </main>
   );
 }

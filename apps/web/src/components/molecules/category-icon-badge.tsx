@@ -44,7 +44,7 @@ export function CategoryIconBadge({
     />
   );
   const frame = (
-    <span className={`bg-muted text-foreground grid shrink-0 place-items-center ${box}`}>
+    <span className={`grid shrink-0 place-items-center bg-muted text-foreground ${box}`}>
       {glyph}
     </span>
   );

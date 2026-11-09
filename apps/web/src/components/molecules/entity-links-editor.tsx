@@ -8,6 +8,25 @@ import {
 } from "@/components/molecules/entity-editor-layout";
 import type { EntityEditorLink } from "@/lib/entity-editor-contract";
 
+// UI row identity stays out of serialized links and follows an edited object.
+const rowKeys = new WeakMap<EntityEditorLink, string>();
+let nextRowKey = 0;
+
+function rowKey(link: EntityEditorLink): string {
+  let key = rowKeys.get(link);
+  if (key === undefined) {
+    key = `link-${nextRowKey++}`;
+    rowKeys.set(link, key);
+  }
+  return key;
+}
+
+function updatedLink(link: EntityEditorLink, patch: Partial<EntityEditorLink>): EntityEditorLink {
+  const updated = { ...link, ...patch };
+  rowKeys.set(updated, rowKey(link));
+  return updated;
+}
+
 export function EntityLinksEditor({
   links,
   max,
@@ -38,9 +57,9 @@ export function EntityLinksEditor({
     <EntityEditorSection title={`${labels.title} (up to ${max})`}>
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
         {links.length === 0 ? (
-          <p className="text-muted-foreground text-xs">{labels.empty}</p>
+          <p className="text-xs text-muted-foreground">{labels.empty}</p>
         ) : (
-          <span className="text-muted-foreground text-xs">
+          <span className="text-xs text-muted-foreground">
             {links.length}/{max}
           </span>
         )}
@@ -65,7 +84,7 @@ export function EntityLinksEditor({
           const urlError = fieldErrors[`links.${index}.url`] ?? fieldErrors[`links[${index}].url`];
           return (
             <div
-              key={`${idPrefix}-${index}`}
+              key={rowKey(link)}
               className="grid min-w-0 items-end gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]"
             >
               <EntityEditorField label={labels.label} htmlFor={labelId} required error={labelError}>
@@ -82,7 +101,9 @@ export function EntityLinksEditor({
                   onChange={(event) => {
                     onChange(
                       links.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, label: event.target.value } : item,
+                        itemIndex === index
+                          ? updatedLink(item, { label: event.target.value })
+                          : item,
                       ),
                     );
                   }}
@@ -103,7 +124,7 @@ export function EntityLinksEditor({
                   onChange={(event) => {
                     onChange(
                       links.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, url: event.target.value } : item,
+                        itemIndex === index ? updatedLink(item, { url: event.target.value }) : item,
                       ),
                     );
                   }}
@@ -125,7 +146,7 @@ export function EntityLinksEditor({
         })}
       </div>
       {(error ?? fieldErrors.links) ? (
-        <p className="text-destructive text-xs" role="alert">
+        <p className="text-xs text-destructive" role="alert">
           {error ?? fieldErrors.links}
         </p>
       ) : null}

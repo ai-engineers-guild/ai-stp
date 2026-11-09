@@ -5,7 +5,12 @@
  */
 
 export type InstallationHealthState =
-  "active" | "partial" | "stale" | "failing" | "disabled" | "unknown";
+  | "active"
+  | "partial"
+  | "stale"
+  | "failing"
+  | "disabled"
+  | "unknown";
 
 export interface InstallationHeartbeat {
   schema_version: 1;

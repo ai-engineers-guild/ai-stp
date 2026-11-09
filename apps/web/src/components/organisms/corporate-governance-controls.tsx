@@ -250,7 +250,7 @@ export function TechnologyActivityPolicy({
       }}
     >
       <h2 className="text-xl font-medium">{t("activityPolicy")}</h2>
-      <p className="text-muted-foreground text-sm">{t("activityPolicyDescription")}</p>
+      <p className="text-sm text-muted-foreground">{t("activityPolicyDescription")}</p>
       <Label htmlFor="policy-months">{t("inactivityMonths")}</Label>
       <Input
         id="policy-months"
@@ -327,7 +327,7 @@ export function ProjectActivityEditor({
       }}
     >
       <h2 className="text-xl font-medium">{t("projectActivity")}</h2>
-      <p className="text-muted-foreground text-sm">{t("activityOverrideDescription")}</p>
+      <p className="text-sm text-muted-foreground">{t("activityOverrideDescription")}</p>
       <fieldset disabled={mutation.busy} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="project-source-availability">{t("source_availability")}</Label>
@@ -335,7 +335,7 @@ export function ProjectActivityEditor({
             id="project-source-availability"
             name="source_availability"
             defaultValue={activity.source_availability ?? "unknown"}
-            className="border-input bg-background text-foreground focus-visible:ring-ring h-11 w-full rounded-sm border px-3 text-sm focus-visible:ring-2"
+            className="h-11 w-full rounded-sm border border-input bg-background px-3 text-sm text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             {["unknown", "available", "unavailable"].map((value) => (
               <option key={value} value={value}>
@@ -360,7 +360,7 @@ export function ProjectActivityEditor({
             id="project-activity-override"
             name="activity_override"
             defaultValue={activity.activity_override ?? ""}
-            className="border-input bg-background text-foreground focus-visible:ring-ring h-11 w-full rounded-sm border px-3 text-sm focus-visible:ring-2"
+            className="h-11 w-full rounded-sm border border-input bg-background px-3 text-sm text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             <option value="">{t("clearOverride")}</option>
             <option value="active">{t("values.active")}</option>
@@ -396,7 +396,7 @@ export function ProjectLifecycleControls({
   return (
     <section className="max-w-prose space-y-4" aria-busy={mutation.busy}>
       <h2 className="text-xl font-medium">{t("project_lifecycle")}</h2>
-      <p className="text-muted-foreground text-sm">{t("projectLifecycleDescription")}</p>
+      <p className="text-sm text-muted-foreground">{t("projectLifecycleDescription")}</p>
       <div className="flex flex-wrap gap-3">
         {targets.map((target) => (
           <Button

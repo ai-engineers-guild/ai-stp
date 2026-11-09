@@ -17,12 +17,12 @@ export function InfoNote({
   return (
     <div
       className={cn(
-        "border-border bg-muted/30 flex items-start gap-3 rounded-md border px-4 py-3",
+        "flex items-start gap-3 rounded-md border border-border bg-muted/30 px-4 py-3",
         className,
       )}
     >
-      <Icon name={icon} size="sm" className="text-muted-foreground mt-0.5 shrink-0" />
-      <div className="text-muted-foreground min-w-0 text-sm">{children}</div>
+      <Icon name={icon} size="sm" className="mt-0.5 shrink-0 text-muted-foreground" />
+      <div className="min-w-0 text-sm text-muted-foreground">{children}</div>
     </div>
   );
 }

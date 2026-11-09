@@ -35,13 +35,15 @@ export const CORPORATE_ROUTES: MachineRoute[] = [
       ["corporate/teams/new", "addTeam"],
       ["corporate/projects/new", "addProject"],
     ] as const
-  ).map(([pattern, titleKey]): MachineRoute => ({
-    pattern,
-    resolve: async () => {
-      const t = await getTranslations("hub");
-      return presentPage({ title: t(titleKey), links: [[t("organization"), "/corporate"]] });
-    },
-  })),
+  ).map(
+    ([pattern, titleKey]): MachineRoute => ({
+      pattern,
+      resolve: async () => {
+        const t = await getTranslations("hub");
+        return presentPage({ title: t(titleKey), links: [[t("organization"), "/corporate"]] });
+      },
+    }),
+  ),
   {
     pattern: "corporate/components",
     resolve: async () => {
@@ -73,13 +75,15 @@ export const CORPORATE_ROUTES: MachineRoute[] = [
       return presentPage({ title: t("title") });
     },
   },
-  ...(["corporate/installations", "corporate/usage"] as const).map((pattern): MachineRoute => ({
-    pattern,
-    resolve: async () => {
-      const t = await getTranslations("corporateReports");
-      return presentPage({ title: t("title"), links: [[t("title"), "/corporate/reports"]] });
-    },
-  })),
+  ...(["corporate/installations", "corporate/usage"] as const).map(
+    (pattern): MachineRoute => ({
+      pattern,
+      resolve: async () => {
+        const t = await getTranslations("corporateReports");
+        return presentPage({ title: t("title"), links: [[t("title"), "/corporate/reports"]] });
+      },
+    }),
+  ),
   {
     pattern: "corporate/admin/telemetry",
     resolve: async () => {

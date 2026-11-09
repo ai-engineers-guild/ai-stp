@@ -31,7 +31,7 @@ export default async function ContentIndex({ params }: { params: Promise<{ local
           <h1 className="text-5xl font-medium tracking-[-0.04em] text-balance sm:text-7xl">
             {t("title")}
           </h1>
-          <p className="text-muted-foreground max-w-2xl text-lg leading-relaxed sm:text-xl">
+          <p className="max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
             {t("description")}
           </p>
         </div>
@@ -50,7 +50,7 @@ export default async function ContentIndex({ params }: { params: Promise<{ local
           <div className="order-1 space-y-2 font-mono text-xs lg:row-start-1 lg:self-start">
             <p className="text-primary uppercase">{t("featured")}</p>
             <p>{t(featured.type)}</p>
-            <time className="text-muted-foreground block" dateTime={featured.published_at}>
+            <time className="block text-muted-foreground" dateTime={featured.published_at}>
               {featured.published_at}
             </time>
           </div>
@@ -76,10 +76,10 @@ export default async function ContentIndex({ params }: { params: Promise<{ local
                 {featured.title}
               </Link>
             </h2>
-            <p className="text-muted-foreground leading-relaxed">{featured.description}</p>
+            <p className="leading-relaxed text-muted-foreground">{featured.description}</p>
             <Link
               href={`/content/${featured.type}/${featured.slug}`}
-              className="focus-visible:ring-ring inline-flex min-h-11 items-center font-mono text-xs font-medium uppercase underline decoration-1 underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
+              className="inline-flex min-h-11 items-center font-mono text-xs font-medium uppercase underline decoration-1 underline-offset-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
               {t("read")} →
             </Link>
@@ -91,13 +91,13 @@ export default async function ContentIndex({ params }: { params: Promise<{ local
         <h2 id="latest-content" className="font-mono text-xs font-medium uppercase">
           {t("latest")}
         </h2>
-        <div className="divide-border divide-y border-y">
+        <div className="divide-y divide-border border-y">
           {latest.map((entry) => (
             <article
               key={`${entry.type}:${entry.slug}`}
               className="group grid gap-x-6 gap-y-4 py-6 md:grid-cols-[8rem_minmax(0,1fr)_12rem_auto] md:items-center"
             >
-              <div className="text-muted-foreground order-1 space-y-1 font-mono text-xs md:row-start-1">
+              <div className="order-1 space-y-1 font-mono text-xs text-muted-foreground md:row-start-1">
                 <p>{t(entry.type)}</p>
                 <time dateTime={entry.published_at}>{entry.published_at}</time>
               </div>
@@ -123,10 +123,10 @@ export default async function ContentIndex({ params }: { params: Promise<{ local
                     {entry.title}
                   </Link>
                 </h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">{entry.description}</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">{entry.description}</p>
               </div>
               <span
-                className="text-muted-foreground order-4 hidden text-xl transition-transform group-hover:translate-x-1 md:col-start-4 md:row-start-1 md:block"
+                className="order-4 hidden text-xl text-muted-foreground transition-transform group-hover:translate-x-1 md:col-start-4 md:row-start-1 md:block"
                 aria-hidden
               >
                 →

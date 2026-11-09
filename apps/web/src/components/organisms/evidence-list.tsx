@@ -36,7 +36,7 @@ export function EvidenceList({ items, labels }: EvidenceListProps) {
         <h2 id="evidence-heading" className="text-lg font-medium tracking-tight">
           {labels.title}
         </h2>
-        <p className="text-muted-foreground text-sm">{labels.empty}</p>
+        <p className="text-sm text-muted-foreground">{labels.empty}</p>
       </section>
     );
   }
@@ -46,14 +46,14 @@ export function EvidenceList({ items, labels }: EvidenceListProps) {
       <h2 id="evidence-heading" className="text-lg font-medium tracking-tight">
         {labels.title}
       </h2>
-      <ul className="divide-border border-border divide-y rounded-lg border">
+      <ul className="divide-y divide-border rounded-lg border border-border">
         {items.map((item) => (
           <li
             key={`${item.check_id}-${item.source}`}
             className="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="min-w-0 space-y-1">
-              <p className="text-muted-foreground font-mono text-xs">{labels.check}</p>
+              <p className="font-mono text-xs text-muted-foreground">{labels.check}</p>
               <p className="font-medium">{item.check_id}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -64,7 +64,7 @@ export function EvidenceList({ items, labels }: EvidenceListProps) {
                 {item.source}
               </Badge>
               {item.expires_at ? (
-                <span className="text-muted-foreground font-mono text-xs">
+                <span className="font-mono text-xs text-muted-foreground">
                   {labels.expires}: {item.expires_at}
                 </span>
               ) : null}

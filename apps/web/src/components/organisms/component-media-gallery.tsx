@@ -69,9 +69,8 @@ export function ComponentMediaGallery({
         {labels.gallery}
       </h2>
       <div className="relative">
-        <div
+        <section
           ref={carouselRef}
-          role="region"
           aria-roledescription="carousel"
           aria-label={labels.gallery}
           onScroll={() => {
@@ -89,26 +88,26 @@ export function ComponentMediaGallery({
                   setSelectedIndex(index);
                 }}
                 aria-label={`${labels.open}: ${item.alt}`}
-                className="bg-muted focus-visible:ring-ring relative aspect-video min-h-11 w-full overflow-hidden rounded-lg text-left focus-visible:ring-2 focus-visible:outline-none"
+                className="relative aspect-video min-h-11 w-full overflow-hidden rounded-lg bg-muted text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
                 <Media item={item} />
                 <MediaTypeBadge item={item} labels={labels} />
                 {item.caption ? (
-                  <span className="bg-background/80 text-foreground absolute inset-x-0 bottom-0 px-2 py-1 text-xs">
+                  <span className="absolute inset-x-0 bottom-0 bg-background/80 px-2 py-1 text-xs text-foreground">
                     {item.caption}
                   </span>
                 ) : null}
               </button>
             </div>
           ))}
-        </div>
+        </section>
         {localizedItems.length > 1 ? (
           <>
             <Button
               type="button"
               variant="outline"
               size="icon"
-              className="bg-background/90 absolute top-1/2 left-2 size-11 -translate-y-1/2"
+              className="absolute top-1/2 left-2 size-11 -translate-y-1/2 bg-background/90"
               disabled={carouselIndex === 0}
               aria-label={labels.previous ?? "Previous"}
               onClick={() => {
@@ -121,7 +120,7 @@ export function ComponentMediaGallery({
               type="button"
               variant="outline"
               size="icon"
-              className="bg-background/90 absolute top-1/2 right-2 size-11 -translate-y-1/2"
+              className="absolute top-1/2 right-2 size-11 -translate-y-1/2 bg-background/90"
               disabled={carouselIndex === localizedItems.length - 1}
               aria-label={labels.next ?? "Next"}
               onClick={() => {
@@ -221,7 +220,7 @@ function MediaLightbox({
           <DialogDescription>
             {labels.source}: {selected.source_label}. {selectedIndex + 1} / {items.length}
           </DialogDescription>
-          <div className="bg-muted relative overflow-hidden rounded-lg">
+          <div className="relative overflow-hidden rounded-lg bg-muted">
             {items.length > 1 ? (
               <>
                 <Button
@@ -303,6 +302,7 @@ function Media({
     };
   }, [expanded]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies(item.id): A different media item owns a different observed DOM node.
   useEffect(() => {
     if (!expanded || !frameRef.current) return;
     const node = frameRef.current;
@@ -321,6 +321,7 @@ function Media({
   const shouldAutoplay =
     expanded && active && visible && inView && pageVisible && !prefersReducedMotion();
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies(item.id): A different media item owns a different video element.
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -341,7 +342,7 @@ function Media({
       <div
         role="img"
         aria-label={item.alt}
-        className="bg-muted text-muted-foreground flex aspect-video h-full w-full flex-col items-center justify-center gap-2 p-6 text-center"
+        className="flex aspect-video h-full w-full flex-col items-center justify-center gap-2 bg-muted p-6 text-center text-muted-foreground"
       >
         <span className="font-medium">{item.alt}</span>
         <span className="text-xs">{item.source_label}</span>
@@ -373,6 +374,7 @@ function Media({
     const videoId = item.url;
     if (!expanded) {
       return (
+        // biome-ignore lint/performance/noImgElement: Published media supplies its own thumbnail and loads directly in the browser; do not proxy external assets.
         <img
           src={item.thumbnail_url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`}
           alt={item.alt}
@@ -402,6 +404,7 @@ function Media({
     );
   }
   return (
+    // biome-ignore lint/performance/noImgElement: Published media supplies its own thumbnail and loads directly in the browser; do not proxy external assets.
     <img
       src={expanded ? item.url : item.thumbnail_url || item.url}
       alt={item.alt}
@@ -434,7 +437,7 @@ function MediaTypeBadge({
   labels: { typeImage?: string; typeVideo?: string; typeYoutube?: string };
 }) {
   return (
-    <span className="bg-background/90 text-foreground absolute top-2 left-2 inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium shadow-sm">
+    <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded bg-background/90 px-2 py-1 text-xs font-medium text-foreground shadow-sm">
       <Icon name={item.kind === "image" ? "camera" : "play"} size="sm" aria-hidden="true" />
       {mediaTypeLabel(item, labels)}
     </span>

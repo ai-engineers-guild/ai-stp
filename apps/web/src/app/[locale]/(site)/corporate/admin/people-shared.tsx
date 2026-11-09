@@ -51,12 +51,12 @@ export function PeopleStats({
       {items.map((item) => (
         <div
           key={item.label}
-          className="border-border bg-card flex min-w-0 items-center gap-4 rounded-lg border px-5 py-4"
+          className="flex min-w-0 items-center gap-4 rounded-lg border border-border bg-card px-5 py-4"
         >
           <Icon name={item.icon} size="lg" className="shrink-0" />
           <div>
             <dd className="text-2xl leading-tight font-medium tabular-nums">{item.count ?? "—"}</dd>
-            <dt className="text-muted-foreground mt-1 text-sm">{item.label}</dt>
+            <dt className="mt-1 text-sm text-muted-foreground">{item.label}</dt>
           </div>
         </div>
       ))}
@@ -83,7 +83,7 @@ export async function PeopleHeader({
     <header className="space-y-3">
       <nav
         aria-label={t("breadcrumbs")}
-        className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs sm:text-sm"
+        className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground sm:text-sm"
       >
         <Link href="/corporate/overview" className="hover:text-foreground">
           {t("corporate")}
@@ -103,7 +103,7 @@ export async function PeopleHeader({
           {children}
         </div>
         {description ? (
-          <p className="text-muted-foreground text-sm sm:text-base">{description}</p>
+          <p className="text-sm text-muted-foreground sm:text-base">{description}</p>
         ) : null}
       </div>
     </header>

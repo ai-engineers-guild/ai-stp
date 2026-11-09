@@ -50,7 +50,7 @@ export default async function OwnerObjectsPage({ params, searchParams }: PagePro
   }
   const query = parsed.value;
 
-  let ownerObjects;
+  let ownerObjects: Awaited<ReturnType<typeof listOwnerObjects>>;
   try {
     ownerObjects = await listOwnerObjects(token, { page_size: 100 });
   } catch (error) {
@@ -101,7 +101,7 @@ export default async function OwnerObjectsPage({ params, searchParams }: PagePro
         <h1 className="text-2xl font-medium tracking-tight break-words sm:text-3xl">
           {t("title")}
         </h1>
-        <p className="text-muted-foreground max-w-2xl text-sm">{t("subtitle")}</p>
+        <p className="max-w-2xl text-sm text-muted-foreground">{t("subtitle")}</p>
         <CatalogFilters
           query={query}
           locale={locale}

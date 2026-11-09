@@ -50,7 +50,7 @@ export function CorporateCatalogUsage({
         );
       })}
       {truncated ? (
-        <p className="text-muted-foreground text-sm">{labels.truncated(items.length, total)}</p>
+        <p className="text-sm text-muted-foreground">{labels.truncated(items.length, total)}</p>
       ) : null}
     </>
   );

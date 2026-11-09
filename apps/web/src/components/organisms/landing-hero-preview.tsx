@@ -15,6 +15,8 @@ export function LandingHeroPreview() {
   const hero = landingHeroPreview(locale);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies(hero.webm): Changing a localized media source must reload the video element.
+  // biome-ignore lint/correctness/useExhaustiveDependencies(hero.mp4): Changing a localized media source must reload the video element.
   useEffect(() => {
     const video = videoRef.current;
     if (!video) {
@@ -45,11 +47,13 @@ export function LandingHeroPreview() {
         playsInline
         preload="metadata"
         poster={hero.poster}
+        tabIndex={-1}
         aria-hidden="true"
       >
         <source src={hero.webm} type="video/webm" />
         <source src={hero.mp4} type="video/mp4" />
       </video>
+      {/* biome-ignore lint/performance/noImgElement: The local video poster is also the reduced-motion fallback and keeps the same source. */}
       <img
         src={hero.poster}
         alt=""

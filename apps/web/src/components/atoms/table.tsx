@@ -34,7 +34,7 @@ TBody.displayName = "TBody";
 
 export const Tr = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTMLTableRowElement>>(
   ({ className, ...props }, ref) => (
-    <tr ref={ref} className={cn("border-border border-b last:border-0", className)} {...props} />
+    <tr ref={ref} className={cn("border-b border-border last:border-0", className)} {...props} />
   ),
 );
 Tr.displayName = "Tr";

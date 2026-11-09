@@ -49,7 +49,7 @@ export function ComponentTypeIcon({
     <span
       data-component-type={type}
       className={cn(
-        "bg-muted border-border text-foreground inline-flex shrink-0 items-center justify-center rounded-sm border",
+        "inline-flex shrink-0 items-center justify-center rounded-sm border border-border bg-muted text-foreground",
         compact ? "h-10 w-10" : "h-16 w-16",
         className,
       )}

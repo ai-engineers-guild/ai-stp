@@ -22,7 +22,7 @@ export default async function TechnologyAreasPage({
   const h = await getTranslations("hub");
   const c = await getTranslations("corporate");
   const common = await getTranslations("common");
-  let context;
+  let context: Awaited<ReturnType<typeof readCorporateContext>>;
   try {
     context = await readCorporateContext(session);
   } catch (error) {
@@ -34,7 +34,7 @@ export default async function TechnologyAreasPage({
   if (!context)
     return <StatePanel kind="empty" title={t("areas.title")} description={c("noOrganization")} />;
   const organizationId = context.organization.organization_id;
-  let directory;
+  let directory: Awaited<ReturnType<typeof readTechnologyAreaDirectory>>;
   try {
     directory = await readTechnologyAreaDirectory(session, organizationId);
   } catch (error) {
@@ -55,7 +55,7 @@ export default async function TechnologyAreasPage({
       <header className="space-y-3">
         <HistoryBackButton label={h("referenceData")} fallback="/corporate/admin" />
         <h1 className="text-3xl font-medium tracking-tight sm:text-4xl">{t("areas.title")}</h1>
-        <p className="text-muted-foreground max-w-prose">{t("areas.description")}</p>
+        <p className="max-w-prose text-muted-foreground">{t("areas.description")}</p>
       </header>
       <TaxonomyDirectory
         kind="area"

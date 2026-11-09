@@ -21,7 +21,7 @@ export default async function StaffReportDetailPage({ params }: PageProps) {
   const token = await sessionCookieValue();
   const csrf = await readCsrfToken();
 
-  let detail;
+  let detail: Awaited<ReturnType<typeof readStaffReport>>;
   try {
     detail = await readStaffReport(token ?? "", caseId);
   } catch (error) {
@@ -45,12 +45,12 @@ export default async function StaffReportDetailPage({ params }: PageProps) {
     <div className="space-y-8">
       <div className="space-y-2">
         <h1 className="text-3xl font-medium tracking-tight">{t("caseDetail")}</h1>
-        <p className="text-muted-foreground font-mono text-xs">{detail.case_id}</p>
+        <p className="font-mono text-xs text-muted-foreground">{detail.case_id}</p>
       </div>
 
-      <dl className="bg-muted/40 border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2">
+      <dl className="grid gap-3 rounded-lg border border-border bg-muted/40 p-4 sm:grid-cols-2">
         <div>
-          <dt className="text-muted-foreground font-mono text-xs">{t("state")}</dt>
+          <dt className="font-mono text-xs text-muted-foreground">{t("state")}</dt>
           <dd>
             <Badge variant="outline" className="font-mono text-xs">
               {detail.state}
@@ -58,28 +58,28 @@ export default async function StaffReportDetailPage({ params }: PageProps) {
           </dd>
         </div>
         <div>
-          <dt className="text-muted-foreground font-mono text-xs">{t("vulnerability")}</dt>
+          <dt className="font-mono text-xs text-muted-foreground">{t("vulnerability")}</dt>
           <dd className="font-mono text-sm">{detail.vulnerability ? tc("yes") : tc("no")}</dd>
         </div>
         <div className="sm:col-span-2">
-          <dt className="text-muted-foreground font-mono text-xs">{t("object")}</dt>
+          <dt className="font-mono text-xs text-muted-foreground">{t("object")}</dt>
           <dd className="font-mono text-xs">
             {detail.object_kind} / {detail.stable_id} / {detail.version}
           </dd>
         </div>
         <div className="sm:col-span-2">
-          <dt className="text-muted-foreground font-mono text-xs">{t("digest")}</dt>
+          <dt className="font-mono text-xs text-muted-foreground">{t("digest")}</dt>
           <dd className="font-mono text-xs break-all">{detail.content_digest ?? "—"}</dd>
         </div>
         {detail.error_code ? (
           <div>
-            <dt className="text-muted-foreground font-mono text-xs">{t("errorCode")}</dt>
+            <dt className="font-mono text-xs text-muted-foreground">{t("errorCode")}</dt>
             <dd className="font-mono text-xs">{detail.error_code}</dd>
           </div>
         ) : null}
         {detail.harness_id ? (
           <div>
-            <dt className="text-muted-foreground font-mono text-xs">{t("harnessId")}</dt>
+            <dt className="font-mono text-xs text-muted-foreground">{t("harnessId")}</dt>
             <dd className="font-mono text-xs">{detail.harness_id}</dd>
           </div>
         ) : null}

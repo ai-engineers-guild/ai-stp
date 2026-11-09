@@ -51,7 +51,7 @@ export function SetupComposition({
   return (
     <DetailAccordion title={t("composition")} summary={t("compositionDescription")}>
       {passport.components.length ? (
-        <ul className="divide-border border-border divide-y overflow-hidden rounded-lg border">
+        <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
           {passport.components.map(
             // One row resolves catalog identity, embedded provenance, and external source display.
             // eslint-disable-next-line complexity
@@ -82,7 +82,7 @@ export function SetupComposition({
                       href={`/catalog/components/${ref.stable_id}`}
                       prefetch={false}
                       aria-label={name}
-                      className="focus-visible:ring-ring absolute inset-0 z-10 rounded-lg focus-visible:ring-2 focus-visible:outline-none"
+                      className="absolute inset-0 z-10 rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                     >
                       <span className="sr-only">{name}</span>
                     </Link>
@@ -136,13 +136,13 @@ export function SetupComposition({
                         </div>
                       </div>
 
-                      <div className="text-muted-foreground mt-2 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                      <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
                         <span>
                           {embedded ? t("componentPublisher") : t("componentAuthor")}:{" "}
                           {identity.accountId ? (
                             <Link
                               href={`/publishers/${identity.accountId}`}
-                              className="text-foreground pointer-events-auto relative z-20 underline underline-offset-4"
+                              className="pointer-events-auto relative z-20 text-foreground underline underline-offset-4"
                             >
                               {identity.displayName || identity.accountId}
                             </Link>
@@ -155,7 +155,7 @@ export function SetupComposition({
                             href={sourceUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-foreground pointer-events-auto relative z-20 inline-flex min-w-0 items-center gap-1.5 underline underline-offset-4"
+                            className="pointer-events-auto relative z-20 inline-flex min-w-0 items-center gap-1.5 text-foreground underline underline-offset-4"
                           >
                             <Icon name={sourceIcon(sourceUrl)} size="sm" />
                             <span className="truncate">{sourceLabel(sourceUrl)}</span>

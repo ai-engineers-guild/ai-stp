@@ -28,7 +28,9 @@ export async function preparePreferences(io: PreferenceIo): Promise<void> {
   backend = io;
   const reply = await io.cmdPreferencesRead();
   const preferences = reply.data?.preferences as
-    UiPreferences | null | undefined;
+    | UiPreferences
+    | null
+    | undefined;
   const locale = browserPreference("ai-stp.locale");
   const theme = browserPreference("ai-stp.theme");
   native = preferences ?? {

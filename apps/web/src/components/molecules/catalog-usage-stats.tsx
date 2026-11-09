@@ -27,10 +27,11 @@ export function CatalogUsageStats({
     <div
       data-ui={UI.catalog.usage}
       className={cn(
-        "text-muted-foreground flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1",
+        "flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground",
         compact ? "text-xs" : "text-sm",
       )}
     >
+      {/* biome-ignore lint/a11y/useSemanticElements: This is a non-form metadata group; a fieldset would misrepresent its text and links. */}
       <span
         role="group"
         aria-label={`${viewsLabel}: ${views}`}
@@ -40,6 +41,7 @@ export function CatalogUsageStats({
         <span className="font-mono tabular-nums">{views}</span>
         {compact ? null : <span className="min-w-0 truncate">{viewsLabel}:</span>}
       </span>
+      {/* biome-ignore lint/a11y/useSemanticElements: This is a non-form metadata group; a fieldset would misrepresent its text and links. */}
       <span
         role="group"
         aria-label={`${downloadsLabel}: ${downloads}`}

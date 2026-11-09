@@ -11,6 +11,7 @@ export function SeoJsonLd({ jsonLd }: SeoJsonLdProps) {
       // a unicode escape first, so one cannot form. CodeQL cannot see the
       // total replaceAll.
       // codeql[js/xss]
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD is serialized as JSON and escapes every '<' before entering the script.
       dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replaceAll("<", "\\u003c") }}
     />
   );

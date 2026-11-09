@@ -132,7 +132,7 @@ export function SearchableMultiSelect({
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-label={multiple ? undefined : `${label}: ${triggerText}`}
-          className="border-input bg-background focus-visible:ring-ring flex min-h-11 w-full min-w-0 items-center justify-between gap-3 rounded-sm border px-3 py-2 text-left text-sm focus-visible:ring-2 focus-visible:outline-none"
+          className="flex min-h-11 w-full min-w-0 items-center justify-between gap-3 rounded-sm border border-input bg-background px-3 py-2 text-left text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           onClick={() => {
             const dialog = dialogRef.current;
             if (!dialog) return;
@@ -154,7 +154,7 @@ export function SearchableMultiSelect({
             setOpen(false);
             triggerRef.current?.focus();
           }}
-          className="border-border bg-popover text-popover-foreground m-auto max-h-[min(42rem,calc(100vh-2rem))] w-[min(34rem,calc(100vw-2rem))] min-w-0 rounded-lg border p-0 shadow-md backdrop:bg-black/60"
+          className="m-auto max-h-[min(42rem,calc(100vh-2rem))] w-[min(34rem,calc(100vw-2rem))] min-w-0 rounded-lg border border-border bg-popover p-0 text-popover-foreground shadow-md backdrop:bg-black/60"
         >
           <div className="space-y-4 p-4 sm:p-5">
             <div className="flex items-start justify-between gap-4">
@@ -162,14 +162,14 @@ export function SearchableMultiSelect({
                 <h2 id={titleId} className="text-lg font-medium">
                   {label}
                 </h2>
-                <p className="text-muted-foreground mt-1 text-xs">
+                <p className="mt-1 text-xs text-muted-foreground">
                   {checked.length ? `${checked.length} ${selectionSuffix}` : emptyHint}
                 </p>
               </div>
               <button
                 type="button"
                 aria-label={closeLabel}
-                className="text-muted-foreground hover:bg-muted focus-visible:ring-ring grid size-9 shrink-0 place-items-center rounded-sm focus-visible:ring-2 focus-visible:outline-none"
+                className="grid size-9 shrink-0 place-items-center rounded-sm text-muted-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 onClick={() => {
                   closeDialog();
                 }}
@@ -188,11 +188,10 @@ export function SearchableMultiSelect({
                 setSearch(event.target.value);
               }}
               placeholder={searchLabel}
-              className="border-input bg-background focus-visible:ring-ring h-11 w-full rounded-sm border px-3 text-base focus-visible:ring-2 focus-visible:outline-none sm:text-sm"
+              className="h-11 w-full rounded-sm border border-input bg-background px-3 text-base focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:text-sm"
             />
-            <div
-              className="max-h-[min(24rem,50vh)] space-y-1 overflow-y-auto"
-              role="group"
+            <fieldset
+              className="max-h-[min(24rem,50vh)] min-w-0 space-y-1 overflow-y-auto"
               aria-label={label}
             >
               {filtered.map((option) => {
@@ -201,7 +200,7 @@ export function SearchableMultiSelect({
                 return (
                   <label
                     key={value || text}
-                    className="hover:bg-muted flex min-h-12 min-w-0 items-center gap-3 rounded-sm px-3 py-2 text-sm"
+                    className="flex min-h-12 min-w-0 items-center gap-3 rounded-sm px-3 py-2 text-sm hover:bg-muted"
                   >
                     <input
                       type="checkbox"
@@ -218,7 +217,7 @@ export function SearchableMultiSelect({
                       height={32}
                       className="size-8 shrink-0 rounded-full object-cover"
                       fallback={
-                        <span className="bg-muted text-muted-foreground grid size-8 shrink-0 place-items-center rounded-full text-[10px] font-medium">
+                        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
                           {optionInitials(text)}
                         </span>
                       }
@@ -226,11 +225,11 @@ export function SearchableMultiSelect({
                   </label>
                 );
               })}
-            </div>
+            </fieldset>
             {createLabel && onCreate && (
               <button
                 type="button"
-                className="text-primary focus-visible:ring-ring hover:bg-muted flex min-h-11 w-full items-center gap-2 rounded-sm px-3 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none"
+                className="flex min-h-11 w-full items-center gap-2 rounded-sm px-3 text-sm font-medium text-primary hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 onClick={() => {
                   closeDialog();
                   onCreate();
@@ -258,18 +257,17 @@ export function SearchableMultiSelect({
             if (details !== event.currentTarget) details.open = false;
           });
       }}
-      className="border-border bg-background relative w-full min-w-0 rounded-sm border sm:w-auto sm:min-w-36"
+      className="relative w-full min-w-0 rounded-sm border border-border bg-background sm:w-auto sm:min-w-36"
     >
       <summary
-        aria-expanded={open}
         aria-label={multiple ? undefined : `${label}: ${triggerText}`}
-        className="focus-visible:ring-ring flex min-h-11 min-w-0 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm whitespace-nowrap marker:content-none focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden"
+        className="flex min-h-11 min-w-0 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm whitespace-nowrap marker:content-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden"
       >
         <span className="min-w-0 truncate">{triggerText}</span>
         <Icon name={open ? "chevronUp" : "chevronDown"} size="sm" />
       </summary>
       <div
-        className={`bg-popover border-border relative z-50 w-full min-w-0 space-y-2 rounded-sm border p-3 shadow-md ${inline ? "" : "md:absolute md:top-[calc(100%+0.375rem)] md:right-0 md:left-auto md:w-[min(20rem,calc(100vw-2rem))]"}`}
+        className={`relative z-50 w-full min-w-0 space-y-2 rounded-sm border border-border bg-popover p-3 shadow-md ${inline ? "" : "md:absolute md:top-[calc(100%+0.375rem)] md:right-0 md:left-auto md:w-[min(20rem,calc(100vw-2rem))]"}`}
       >
         <label htmlFor={id} className="sr-only">
           {searchLabel}
@@ -282,21 +280,21 @@ export function SearchableMultiSelect({
             setSearch(event.target.value);
           }}
           placeholder={searchLabel}
-          className="border-input bg-background h-11 w-full rounded-sm border px-3 text-base sm:text-sm"
+          className="h-11 w-full rounded-sm border border-input bg-background px-3 text-base sm:text-sm"
         />
         {checked
           .filter((value) => !filtered.some((option) => optionValue(option) === value))
           .map((value) => (
             <input key={`hidden:${value}`} type="hidden" form={form} name={name} value={value} />
           ))}
-        <div className="max-h-56 space-y-1 overflow-y-auto" role="group" aria-label={label}>
+        <fieldset className="max-h-56 min-w-0 space-y-1 overflow-y-auto" aria-label={label}>
           {filtered.map((option) => {
             const value = optionValue(option);
             const text = optionLabel(option);
             return (
               <label
                 key={value || text}
-                className="hover:bg-muted flex min-h-11 min-w-0 items-center gap-2 rounded-sm px-2 py-2 text-sm"
+                className="flex min-h-11 min-w-0 items-center gap-2 rounded-sm px-2 py-2 text-sm hover:bg-muted"
               >
                 <input
                   form={form}
@@ -320,7 +318,7 @@ export function SearchableMultiSelect({
               </label>
             );
           })}
-        </div>
+        </fieldset>
       </div>
     </details>
   );

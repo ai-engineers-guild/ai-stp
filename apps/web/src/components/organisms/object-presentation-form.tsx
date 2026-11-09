@@ -207,9 +207,8 @@ export function ObjectPresentationForm({
           ),
         }}
         afterBlocks={
-          <div
-            className="border-border bg-background/95 sticky bottom-0 z-10 -mx-1 space-y-3 border-t px-1 py-4 backdrop-blur-sm"
-            role="region"
+          <section
+            className="sticky bottom-0 z-10 -mx-1 space-y-3 border-t border-border bg-background/95 px-1 py-4 backdrop-blur-sm"
             aria-label={labels.save}
           >
             <EntityEditorErrorSummary
@@ -219,7 +218,7 @@ export function ObjectPresentationForm({
               fieldLabel={(path) => presentationFieldLabel(path, labels)}
             />
             {form.errorCode ? (
-              <code className="text-muted-foreground block text-xs">{form.errorCode}</code>
+              <code className="block text-xs text-muted-foreground">{form.errorCode}</code>
             ) : null}
             <div className="flex flex-wrap items-center gap-3">
               <Button
@@ -230,11 +229,11 @@ export function ObjectPresentationForm({
               >
                 {saveLabel}
               </Button>
-              <p role="status" className="text-muted-foreground text-sm" aria-live="polite">
+              <p role="status" className="text-sm text-muted-foreground" aria-live="polite">
                 {form.message}
               </p>
             </div>
-          </div>
+          </section>
         }
       />
     </form>

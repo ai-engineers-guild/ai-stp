@@ -46,7 +46,7 @@ export function ComponentUsageView({
         : (a.assignment.display_name ?? "").localeCompare(b.assignment.display_name ?? ""),
     );
   return rows.length ? (
-    <ul className="border-border bg-card divide-border divide-y overflow-hidden rounded-lg border">
+    <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
       {rows.map((row) => (
         <ComponentUsageRow
           key={`${row.assignment.stable_id}:${expandAll ? "open" : "closed"}`}
@@ -56,7 +56,7 @@ export function ComponentUsageView({
       ))}
     </ul>
   ) : (
-    <p role="status" className="border-border text-muted-foreground rounded-lg border p-6">
+    <p role="status" className="rounded-lg border border-border p-6 text-muted-foreground">
       {t("noMatches")}
     </p>
   );
@@ -88,14 +88,14 @@ function ComponentUsageRow({
         }}
         className="[&[open]>summary>svg]:rotate-180"
       >
-        <summary className="hover:bg-muted focus-visible:ring-ring flex cursor-pointer list-none flex-wrap items-start gap-4 p-4 focus-visible:ring-2 [&::-webkit-details-marker]:hidden">
-          <span className="bg-muted border-border grid size-11 shrink-0 place-items-center rounded-md border">
+        <summary className="flex cursor-pointer list-none flex-wrap items-start gap-4 p-4 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+          <span className="grid size-11 shrink-0 place-items-center rounded-md border border-border bg-muted">
             <Icon name={icons[row.assignment.object_kind] ?? "objects"} />
           </span>
           <div className="min-w-0 flex-1">
             <Link
               href={assignmentHref(row.assignment)}
-              className="hover:text-primary font-medium break-words hover:underline"
+              className="font-medium break-words hover:text-primary hover:underline"
             >
               {row.assignment.display_name || t(row.assignment.object_kind)}
             </Link>
@@ -106,10 +106,10 @@ function ComponentUsageRow({
               )}
             </div>
             {typeof row.assignment.description === "string" && (
-              <p className="text-muted-foreground mt-1 text-xs">{row.assignment.description}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{row.assignment.description}</p>
             )}
           </div>
-          <div className="text-muted-foreground w-full text-sm sm:w-auto">
+          <div className="w-full text-sm text-muted-foreground sm:w-auto">
             <p className="text-xs">
               {t("author")}: {authorName ?? t("authorUnavailable")}
             </p>
@@ -132,13 +132,13 @@ function ComponentUsageRow({
           </div>
           <Icon name="chevronDown" size="sm" />
         </summary>
-        <div className="bg-muted/30 mx-4 mb-4 space-y-3 rounded-md p-3">
+        <div className="mx-4 mb-4 space-y-3 rounded-md bg-muted/30 p-3">
           <div className="flex flex-wrap gap-2">
             {row.versions.map((item) => (
               <Link
                 key={item.version}
                 href={assignmentHref(item)}
-                className="border-border bg-background/40 hover:border-primary hover:bg-muted hover:text-primary rounded-md border px-2 py-1 text-xs transition-colors"
+                className="rounded-md border border-border bg-background/40 px-2 py-1 text-xs transition-colors hover:border-primary hover:bg-muted hover:text-primary"
               >
                 {t("exactVersion")} {item.version}
               </Link>
@@ -149,7 +149,7 @@ function ComponentUsageRow({
               <li key={node.id}>
                 <Link
                   href={corporateNodeHref(node)}
-                  className="border-border hover:border-primary hover:bg-muted hover:text-primary flex min-h-11 min-w-0 items-center gap-2 rounded-sm border px-3 py-2 text-sm transition-colors"
+                  className="flex min-h-11 min-w-0 items-center gap-2 rounded-sm border border-border px-3 py-2 text-sm transition-colors hover:border-primary hover:bg-muted hover:text-primary"
                 >
                   <Icon name={icons[node.kind] ?? "user"} size="sm" />
                   <span className="min-w-0 break-words">{node.name}</span>

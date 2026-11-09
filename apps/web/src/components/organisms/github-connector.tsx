@@ -102,7 +102,7 @@ export function GithubConnector({
             {connectionLabel}
           </span>
         </div>
-        <p className="text-muted-foreground max-w-2xl">{t("simpleIntro")}</p>
+        <p className="max-w-2xl text-muted-foreground">{t("simpleIntro")}</p>
       </header>
 
       {error ? (
@@ -112,17 +112,17 @@ export function GithubConnector({
       ) : null}
       {!status ? <ConnectorSkeleton label={t("loading")} /> : null}
       {status && !status.connections.some((item) => item.configured) ? (
-        <p className="text-muted-foreground max-w-2xl">{t("unavailable")}</p>
+        <p className="max-w-2xl text-muted-foreground">{t("unavailable")}</p>
       ) : null}
       {busy ? (
-        <div className="text-muted-foreground flex items-center gap-2 text-sm" role="status">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
           <Icon name="loader" size="sm" className="animate-spin" />
           {t("working")}
         </div>
       ) : null}
 
       {status && !connected && source?.configured ? (
-        <section className="border-border max-w-2xl space-y-4 rounded-lg border p-5">
+        <section className="max-w-2xl space-y-4 rounded-lg border border-border p-5">
           <h2 className="text-xl font-medium">{t("connectTitle")}</h2>
           <p className="text-muted-foreground">{t("connectHint")}</p>
           <div className="flex flex-wrap gap-3">
@@ -160,7 +160,7 @@ export function GithubConnector({
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="text-xl font-medium">{t("repositoriesTitle")}</h2>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-sm text-muted-foreground">
                 {t("repositoriesCount", { count: repositories.length })}
               </p>
             </div>
@@ -178,8 +178,8 @@ export function GithubConnector({
             </Button>
           </div>
           {admin?.state !== "connected" ? (
-            <div className="border-border flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4">
-              <p className="text-muted-foreground text-sm">{t("managementHint")}</p>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4">
+              <p className="text-sm text-muted-foreground">{t("managementHint")}</p>
               <Button
                 variant="outline"
                 disabled={busy}
@@ -197,7 +197,7 @@ export function GithubConnector({
               return (
                 <section
                   key={installation.installation_id}
-                  className="border-border overflow-hidden rounded-lg border"
+                  className="overflow-hidden rounded-lg border border-border"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3 p-4">
                     <button
@@ -219,7 +219,7 @@ export function GithubConnector({
                         <span className="block truncate font-medium">
                           {installation.account_login}
                         </span>
-                        <span className="text-muted-foreground block text-sm">
+                        <span className="block text-sm text-muted-foreground">
                           {installation.account_type === "Organization"
                             ? t("organization")
                             : t("personalProfile")}{" "}
@@ -238,7 +238,7 @@ export function GithubConnector({
                     </a>
                   </div>
                   {isOpen ? (
-                    <ul className="border-border divide-border divide-y border-t">
+                    <ul className="divide-y divide-border border-t border-border">
                       {installation.repositories.map((repository) => (
                         <RepositoryRow
                           key={repository.repository_id}
@@ -276,7 +276,7 @@ export function GithubConnector({
           {plan?.state === "planned" ? (
             <>
               <p className="font-medium">{plan.repository.full_name}</p>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-sm text-muted-foreground">
                 {t(
                   plan.action === "make_public"
                     ? "repository_and_history_public"
@@ -356,12 +356,12 @@ function RepositoryRow({
           href={repository.html_url}
           target="_blank"
           rel="noreferrer"
-          className="focus-visible:ring-ring block min-w-0 rounded-sm focus-visible:ring-2 focus-visible:outline-none"
+          className="block min-w-0 rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           <p className="truncate font-medium underline-offset-4 hover:underline">
             {repository.full_name}
           </p>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             {repository.private ? t("privateRepository") : t("publicRepository")}
           </p>
         </a>
@@ -371,7 +371,7 @@ function RepositoryRow({
               <Link
                 key={`${object.object_kind}:${object.stable_id}:${object.version}`}
                 href={`/objects/${object.object_kind}/${object.stable_id}`}
-                className="border-border bg-muted hover:bg-accent inline-flex items-center gap-2 rounded-sm border px-2 py-1 text-xs"
+                className="inline-flex items-center gap-2 rounded-sm border border-border bg-muted px-2 py-1 text-xs hover:bg-accent"
               >
                 <span>{object.name}</span>
                 <span className="text-muted-foreground">{object.visibility}</span>

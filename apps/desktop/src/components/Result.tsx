@@ -7,6 +7,7 @@ import { record } from "../contexts";
 export function Json({ v }: { v: unknown }) {
   return (
     <pre
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: The bounded JSON scroll container must be reachable by keyboard.
       tabIndex={0}
       className="max-h-96 overflow-auto rounded-lg bg-muted/50 p-4 font-mono text-xs leading-5 text-foreground"
     >
@@ -33,6 +34,7 @@ export function ResultMeta({ r }: { r: CmdResult }) {
       {r.warnings.length > 0 && (
         <div className="card border-warning/50 bg-warning/10 p-3 text-xs">
           {r.warnings.map((w, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: These stateless rows belong to one immutable native reply and may contain duplicate text.
             <p key={i}>⚠ {w}</p>
           ))}
         </div>
@@ -41,6 +43,7 @@ export function ResultMeta({ r }: { r: CmdResult }) {
         <div className="card border-primary/40 bg-primary/5 p-3 text-xs">
           <p className="mb-1 font-semibold">{t("result.nextActions")}</p>
           {r.continuations.map((c, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: These stateless rows belong to one immutable native reply and may contain duplicate text.
             <p key={i}>
               <span className="rounded bg-muted px-1">
                 {choiceLabel(t, c.actor ?? "human")}
@@ -58,6 +61,7 @@ export function ResultMeta({ r }: { r: CmdResult }) {
         <div className="card border-primary/40 bg-primary/5 p-3 text-xs">
           <p className="mb-1 font-semibold">{t("result.theEngineSuggests")}</p>
           {r.next_actions.map((a, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: These stateless rows belong to one immutable native reply and may contain duplicate text.
             <p key={i} className="font-mono">
               {typeof a === "string" ? a : JSON.stringify(a)}
             </p>

@@ -68,6 +68,7 @@ ci-integration-web-desktop-types-and-component-units:
     cd apps/desktop
     python ../../release_scripts/desktop_version.py --check
     bun install --frozen-lockfile
+    bun run lint
     bun run format:check
     bun run messages:check
     bun run lint:dependencies

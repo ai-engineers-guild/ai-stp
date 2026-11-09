@@ -1,6 +1,13 @@
 "use client";
 
-import { Fragment, useEffect, useState, useTransition, type ReactNode } from "react";
+import {
+  Fragment,
+  useEffect,
+  useEffectEvent,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { entityMenuContext, entityActionEditHref } from "@/lib/entity-action-subject";
 import { queryEntityActionMenu } from "@/lib/entity-action-query";
@@ -73,6 +80,8 @@ function LoadedEntityActionItems({
   const [attempt, setAttempt] = useState(0);
   const [reportOpen, setReportOpen] = useState(false);
   const key = JSON.stringify(subject);
+  const notifyLoaded = useEffectEvent(onLoaded ?? (() => undefined));
+  // biome-ignore lint/correctness/useExhaustiveDependencies(attempt): An explicit retry must read the same subject again.
   useEffect(() => {
     let current = true;
     void queryEntityActionMenu(JSON.parse(key) as EntityActionSubject)
@@ -80,7 +89,7 @@ function LoadedEntityActionItems({
         if (current) {
           setFailed(false);
           setResult({ menu, csrfToken });
-          onLoaded?.(menu, csrfToken);
+          notifyLoaded(menu, csrfToken);
         }
       })
       .catch(() => {
@@ -92,8 +101,6 @@ function LoadedEntityActionItems({
     return () => {
       current = false;
     };
-    // The subject controls loading; callbacks describe the current host only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, attempt]);
   if (failed)
     return (

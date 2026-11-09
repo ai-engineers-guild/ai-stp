@@ -80,7 +80,7 @@ function parseBool(data: FormData, name: string): boolean | null {
   return value === "true" ? true : value === "false" ? false : null;
 }
 
-function parseInt(data: FormData, name: string): number | null {
+function formInteger(data: FormData, name: string): number | null {
   const value = data.get(name);
   if (typeof value !== "string") return null;
   const parsed = Number(value);
@@ -92,10 +92,10 @@ function parseTabForm(tab: TelemetryPolicyTab, data: FormData): Partial<PolicyEf
   if (tab === "heartbeat") {
     const values = {
       heartbeat_enabled: parseBool(data, "heartbeat_enabled"),
-      heartbeat_interval_seconds: parseInt(data, "heartbeat_interval_seconds"),
-      heartbeat_retry_base_seconds: parseInt(data, "heartbeat_retry_base_seconds"),
-      heartbeat_retry_max_seconds: parseInt(data, "heartbeat_retry_max_seconds"),
-      heartbeat_stale_after_seconds: parseInt(data, "heartbeat_stale_after_seconds"),
+      heartbeat_interval_seconds: formInteger(data, "heartbeat_interval_seconds"),
+      heartbeat_retry_base_seconds: formInteger(data, "heartbeat_retry_base_seconds"),
+      heartbeat_retry_max_seconds: formInteger(data, "heartbeat_retry_max_seconds"),
+      heartbeat_stale_after_seconds: formInteger(data, "heartbeat_stale_after_seconds"),
     };
     return Object.values(values).includes(null) ? null : values;
   }
@@ -116,8 +116,8 @@ function parseTabForm(tab: TelemetryPolicyTab, data: FormData): Partial<PolicyEf
   const rawNotice = data.get("notice_text");
   const reportTimezone = data.get("report_timezone");
   const values = {
-    raw_retention_days: parseInt(data, "raw_retention_days"),
-    aggregate_retention_days: parseInt(data, "aggregate_retention_days"),
+    raw_retention_days: formInteger(data, "raw_retention_days"),
+    aggregate_retention_days: formInteger(data, "aggregate_retention_days"),
   };
   if (
     typeof legalBasis !== "string" ||
@@ -393,7 +393,7 @@ export function CorporateTelemetryPolicyControls({
         {canManage ? (
           <div className="flex items-center justify-end gap-4">
             {mutation.message && (
-              <p className="text-muted-foreground text-sm" role="status">
+              <p className="text-sm text-muted-foreground" role="status">
                 {mutation.message}
               </p>
             )}

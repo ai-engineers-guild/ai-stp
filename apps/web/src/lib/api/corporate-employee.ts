@@ -14,7 +14,8 @@ import type { CorporatePresentation } from "@/lib/corporate-detail";
 import type { CorporateMember, CorporateTeamView } from "@/lib/api/generated/types.gen";
 
 export type CorporateEmployeeReadState<T> =
-  { status: "data"; data: T } | { status: "empty" | "noaccess" | "error"; data: null };
+  | { status: "data"; data: T }
+  | { status: "empty" | "noaccess" | "error"; data: null };
 
 export type CorporateEmployeeCatalogItem = {
   id: string;

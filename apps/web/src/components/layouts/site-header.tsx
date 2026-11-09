@@ -81,7 +81,7 @@ export function SiteHeader({
     <header
       id="site-header"
       data-ui={UI.shell.header}
-      className="border-border bg-background sticky top-0 z-40 border-b"
+      className="sticky top-0 z-40 border-b border-border bg-background"
     >
       <KeyboardNavigation
         accountHref={isSignedIn ? "/account" : "/login"}
@@ -116,6 +116,7 @@ export function SiteHeader({
             prefetch={!corporate && isShellPrefetchHref("/")}
           >
             {/* Loop mark: abstract 5-node ring (club of five / human in the loop) */}
+            {/* biome-ignore lint/performance/noImgElement: This local mark is already sized for its display and needs no image transformation. */}
             <img
               src="/brand/logo-mark-64.png"
               alt=""
@@ -131,7 +132,7 @@ export function SiteHeader({
           {corporate && (
             <Link
               href="/corporate/overview"
-              className="text-primary hover:text-primary-hover inline-flex items-center text-sm font-bold tracking-tight no-underline transition-colors focus-visible:rounded-sm"
+              className="inline-flex items-center text-sm font-bold tracking-tight text-primary no-underline transition-colors hover:text-primary-hover focus-visible:rounded-sm"
               prefetch={false}
             >
               <span className="corporate-header-label">{t("corporateHub")}</span>
@@ -141,7 +142,7 @@ export function SiteHeader({
             id={UI.navigation.locale}
             data-ui={UI.navigation.locale}
             type="button"
-            className="hover:bg-muted focus-visible:ring-ring inline-flex size-11 items-center justify-center rounded-sm font-mono text-xs font-medium uppercase transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            className="inline-flex size-11 items-center justify-center rounded-sm font-mono text-xs font-medium uppercase transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             title={`${t("language")}: ${nextLocale.toUpperCase()}`}
             aria-label={`${t("language")}: ${nextLocale.toUpperCase()}`}
             onClick={() => {

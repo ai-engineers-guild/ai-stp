@@ -19,8 +19,8 @@ export default async function TechnologyReviewPage({
   await requireSession(locale, `/${locale}/corporate/technology-scans/${scanId}`);
   const session = (await sessionCookieValue()) ?? "",
     t = await getTranslations("technology");
-  let context;
-  let data;
+  let context: Awaited<ReturnType<typeof readCorporateContext>>;
+  let data: Awaited<ReturnType<typeof readTechnologyReviewWorkspace>> | undefined;
   try {
     context = await readCorporateContext(session);
 

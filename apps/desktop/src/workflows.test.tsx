@@ -141,18 +141,8 @@ it("keeps a named account reply and sign-in action fenced to its connection", as
     ok({ origin: values?.["api-url"], providers: ["github", "keycloak"] }),
   );
   vi.mocked(transport.cmdAuthLogin).mockResolvedValue(ok());
-  function Journey() {
-    const navigate = useNavigate();
-    return (
-      <>
-        <button onClick={() => navigate(`/auth?connection=${second}`)}>
-          Choose company session
-        </button>
-        <AuthPage />
-      </>
-    );
-  }
-  mount(<Journey />, `/auth?connection=${first}`);
+
+  mount(<AuthDiscoveryJourney second={second} />, `/auth?connection=${first}`);
   await waitFor(() =>
     expect(transport.cmdAuthStatus).toHaveBeenCalledWith(first),
   );
@@ -203,21 +193,11 @@ it("discards a previous account response even after returning to the same connec
       },
     });
   });
-  function Journey() {
-    const navigate = useNavigate();
-    return (
-      <>
-        <button onClick={() => navigate(`/auth?connection=${second}`)}>
-          Company view
-        </button>
-        <button onClick={() => navigate(`/auth?connection=${first}`)}>
-          Personal view
-        </button>
-        <AuthPage />
-      </>
-    );
-  }
-  mount(<Journey />, `/auth?connection=${first}`);
+
+  mount(
+    <AuthVisitJourney first={first} second={second} />,
+    `/auth?connection=${first}`,
+  );
   await waitFor(() =>
     expect(transport.cmdAuthStatus).toHaveBeenCalledWith(first),
   );
@@ -476,6 +456,25 @@ it("discards a catalog page when its filter changes while the request is in flig
   );
 });
 
+it("preserves command inputs when the same allowed route receives refreshed labels", async () => {
+  const mounted = render(
+    <MemoryRouter initialEntries={["/debug?command=local%20apply"]}>
+      <RegistryPage title="Advanced operations" prefixes={["local"]} />
+    </MemoryRouter>,
+  );
+  const digest = await screen.findByRole("textbox", { name: /plan-digest/ });
+  fireEvent.change(digest, { target: { value: "sha256:retained" } });
+  fireEvent.click(screen.getByRole("checkbox"));
+  mounted.rerender(
+    <MemoryRouter initialEntries={["/debug?command=local%20apply"]}>
+      <RegistryPage title="Updated operations" prefixes={["local"]} />
+    </MemoryRouter>,
+  );
+  expect(screen.getByRole("textbox", { name: /plan-digest/ })).toBe(digest);
+  expect((digest as HTMLTextAreaElement).value).toBe("sha256:retained");
+  expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
+});
+
 it("revokes apply confirmation when inputs change and sends the exact reviewed digest", async () => {
   vi.mocked(transport.cliApplyConfirmed).mockResolvedValue(ok());
   mount(<RegistryPage />);
@@ -678,21 +677,8 @@ it("does not apply a manual task read after leaving and returning to the same ta
       });
     return ok(task(reads === 1 ? 1 : 9));
   });
-  function Journey() {
-    const navigate = useNavigate();
-    return (
-      <>
-        <button onClick={() => navigate("/install?task=task_other")}>
-          Other task
-        </button>
-        <button onClick={() => navigate("/install?task=task_retained")}>
-          Original task
-        </button>
-        <InstallPage />
-      </>
-    );
-  }
-  mount(<Journey />, "/install?task=task_retained");
+
+  mount(<TaskJourney />, "/install?task=task_retained");
   await screen.findByText("Revision 1");
   fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
   await waitFor(() => expect(transport.cmdTaskStatus).toHaveBeenCalledTimes(2));
@@ -723,21 +709,8 @@ it("does not let an old task mutation clear a later visit's pending read", async
       });
     return ok(task(reads === 1 ? 1 : 9));
   });
-  function Journey() {
-    const navigate = useNavigate();
-    return (
-      <>
-        <button onClick={() => navigate("/install?task=task_other")}>
-          Other task
-        </button>
-        <button onClick={() => navigate("/install?task=task_retained")}>
-          Original task
-        </button>
-        <InstallPage />
-      </>
-    );
-  }
-  mount(<Journey />, "/install?task=task_retained");
+
+  mount(<TaskJourney />, "/install?task=task_retained");
   fireEvent.change(
     await screen.findByRole("textbox", { name: "Component name" }),
     { target: { value: "Original answer" } },
@@ -866,21 +839,8 @@ it("does not submit a task continuation after leaving and returning during comma
     ...ok({ ...task(++reads), task_id: id }),
     continuations: [taskStep],
   }));
-  function Journey() {
-    const navigate = useNavigate();
-    return (
-      <>
-        <button onClick={() => navigate("/install?task=task_other")}>
-          Other task
-        </button>
-        <button onClick={() => navigate("/install?task=task_retained")}>
-          Original task
-        </button>
-        <InstallPage />
-      </>
-    );
-  }
-  mount(<Journey />, "/install?task=task_retained");
+
+  mount(<TaskJourney />, "/install?task=task_retained");
   fireEvent.click(
     await screen.findByRole("button", { name: "Approve and run this step" }),
   );
@@ -1015,3 +975,66 @@ it.each([
     expect(transport.cmdProfileApply).not.toHaveBeenCalled();
   },
 );
+
+function AuthDiscoveryJourney({ second }: { second: string }) {
+  const navigate = useNavigate();
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => navigate(`/auth?connection=${second}`)}
+      >
+        Choose company session
+      </button>
+      <AuthPage />
+    </>
+  );
+}
+
+function AuthVisitJourney({
+  first,
+  second,
+}: {
+  first: string;
+  second: string;
+}) {
+  const navigate = useNavigate();
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => navigate(`/auth?connection=${second}`)}
+      >
+        Company view
+      </button>
+      <button
+        type="button"
+        onClick={() => navigate(`/auth?connection=${first}`)}
+      >
+        Personal view
+      </button>
+      <AuthPage />
+    </>
+  );
+}
+
+function TaskJourney() {
+  const navigate = useNavigate();
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => navigate("/install?task=task_other")}
+      >
+        Other task
+      </button>
+      <button
+        type="button"
+        onClick={() => navigate("/install?task=task_retained")}
+      >
+        Original task
+      </button>
+      <InstallPage />
+    </>
+  );
+}

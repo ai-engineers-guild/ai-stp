@@ -64,7 +64,7 @@ export function bindingRetirementAnchored(
 ): boolean {
   if ("kind" in plan) return false;
   const source = retainedCheckout(original);
-  if (!source || source.action !== "adopt" || original.state !== "completed")
+  if (source?.action !== "adopt" || original.state !== "completed")
     return false;
   const before = record(record(source.plan.change).snapshot),
     snapshot = record(plan.snapshot),

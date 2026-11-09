@@ -44,8 +44,9 @@ describe("private request helpers", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const { privateApiRequest, apiRequestBinary, apiRequestWithMeta } =
-      await import("@/lib/api/http");
+    const { privateApiRequest, apiRequestBinary, apiRequestWithMeta } = await import(
+      "@/lib/api/http"
+    );
     await privateApiRequest("/v1/account", { sessionToken: "session-a" });
     await privateApiRequest("/v1/account/privacy", {
       method: "PUT",

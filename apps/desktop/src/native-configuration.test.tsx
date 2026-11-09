@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { required } from "./test-values";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   act,
@@ -17,6 +18,7 @@ import type { CmdResult } from "./transport";
 import {
   confirmationCommand,
   nativeReview,
+  nativePending,
   nativeStatus,
 } from "./nativeConfiguration";
 vi.mock("./transport", () => ({
@@ -257,13 +259,58 @@ it("recovers a pending operation without a plan file or selected-context retarge
 it("copies the raw original state spelling rather than a normalized display path", () => {
   const operation = nativeReview(reviewed);
   expect(operation).not.toBeNull();
-  expect(confirmationCommand(operation!, "linux")).toContain(
+  expect(confirmationCommand(required(operation), "linux")).toContain(
     "'/original state'",
   );
-  expect(confirmationCommand(operation!, "linux")).not.toContain("normalized");
+  expect(confirmationCommand(required(operation), "linux")).not.toContain(
+    "normalized",
+  );
   expect(
     nativeReview(
       ok({ plan: { ...plan, operation_id: "other" }, plan_digest: DIGEST }),
+    ),
+  ).toBeNull();
+});
+
+it("refuses malformed JSON identities and phases without invoking object coercion", () => {
+  const malformed = JSON.parse('{"toString":"not callable"}') as unknown;
+  for (const field of ["operation_id", "plan_digest"]) {
+    expect(
+      nativeReview(
+        field === "operation_id"
+          ? ok({
+              plan: { ...plan, operation_id: malformed },
+              plan_digest: DIGEST,
+            })
+          : ok({ plan, plan_digest: malformed }),
+      ),
+    ).toBeNull();
+    expect(
+      nativePending(
+        ok({
+          pending: {
+            operation_id: OP,
+            plan_digest: DIGEST,
+            original_context: context,
+            harness_id: "codex",
+            custody: { state: "prepared" },
+            [field]: malformed,
+          },
+        }),
+      ),
+    ).toBeNull();
+  }
+  expect(
+    nativePending(
+      ok({
+        pending: {
+          operation_id: OP,
+          plan_digest: DIGEST,
+          original_context: context,
+          harness_id: "codex",
+          custody: { state: malformed },
+        },
+      }),
     ),
   ).toBeNull();
 });
@@ -283,10 +330,16 @@ it("opens the exact original status after restart and preserves the no-restart r
     state: "configured",
     receipt,
   });
+  const malformed = JSON.parse('{"toString":"not callable"}') as unknown;
+  for (const field of ["operation_id", "review_digest", "state"]) {
+    expect(
+      nativeStatus(ok({ ...response.data, [field]: malformed })),
+    ).toBeNull();
+  }
   const original = nativeStatus(response);
   expect(original?.context).toBe(A);
   expect(original?.restartRequired).toBe(false);
-  expect(confirmationCommand(original!, "linux")).toContain(
+  expect(confirmationCommand(required(original), "linux")).toContain(
     "'/original state'",
   );
   expect(

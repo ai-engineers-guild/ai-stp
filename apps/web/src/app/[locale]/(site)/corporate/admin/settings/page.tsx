@@ -89,12 +89,12 @@ function GitManagementSection({ capabilities }: { capabilities: readonly string[
     ),
   }));
   return (
-    <section className="border-border bg-card min-w-0 space-y-4 rounded-lg border p-5 shadow-sm sm:p-6">
+    <section className="min-w-0 space-y-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6">
       <div className="space-y-1">
         <h2 className="text-xl font-medium">{t("gitManagement")}</h2>
-        <p className="text-muted-foreground max-w-2xl text-sm">{t("gitManagementBody")}</p>
+        <p className="max-w-2xl text-sm text-muted-foreground">{t("gitManagementBody")}</p>
       </div>
-      <ul className="divide-border divide-y">
+      <ul className="divide-y divide-border">
         {providers.map((provider) => (
           <li
             key={provider.key}
@@ -102,7 +102,7 @@ function GitManagementSection({ capabilities }: { capabilities: readonly string[
           >
             <div className="min-w-0">
               <p className="font-medium">{provider.name}</p>
-              <p className="text-muted-foreground text-xs">
+              <p className="text-xs text-muted-foreground">
                 {provider.grants.map((grant) => `connector.${provider.key}.${grant}`).join(" · ") ||
                   t("gitNoGrants")}
               </p>
@@ -113,7 +113,7 @@ function GitManagementSection({ capabilities }: { capabilities: readonly string[
           </li>
         ))}
       </ul>
-      <p className="text-muted-foreground text-xs">
+      <p className="text-xs text-muted-foreground">
         {t("gitGrantsHint")}{" "}
         <Link href="/corporate/admin/roles" className="underline underline-offset-4">
           {t("gitGrantsLink")}

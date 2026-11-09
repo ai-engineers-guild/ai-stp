@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { required } from "../test-values";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   cleanup,
@@ -84,7 +85,9 @@ function open({
 }
 it("shows unsupported configuration as unavailable after a successful capability read", () => {
   open({ installation: false });
-  const status = screen.getByText("Setup configuration").parentElement!;
+  const status = required(
+    screen.getByText("Setup configuration").parentElement,
+  );
   expect(within(status).getByText("Unavailable")).toBeTruthy();
   expect(within(status).queryByText("Checking…")).toBeNull();
 });

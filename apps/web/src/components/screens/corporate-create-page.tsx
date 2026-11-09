@@ -27,7 +27,7 @@ export async function CorporateCreatePage({
   const title = t(
     resource === "members" ? "addEmployee" : resource === "teams" ? "addTeam" : "addProject",
   );
-  let data;
+  let data: Awaited<ReturnType<typeof readCorporateCreateOptions>>;
   try {
     data = await readCorporateCreateOptions(token);
   } catch (error) {
@@ -45,7 +45,7 @@ export async function CorporateCreatePage({
         <header className="space-y-2">
           <Link
             href={`/corporate/${routeResource}`}
-            className="text-primary text-sm underline underline-offset-4"
+            className="text-sm text-primary underline underline-offset-4"
           >
             {c("backToWorkspace")}
           </Link>

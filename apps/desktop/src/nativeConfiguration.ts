@@ -1,5 +1,6 @@
 import { record } from "./contexts";
 import type { CmdResult } from "./transport";
+
 export interface NativeOperation {
   operation: string;
   digest: string;
@@ -37,9 +38,11 @@ export function nativeReview(result: CmdResult): NativeOperation | null {
   );
   const context = record(native.context),
     target = record(native.target);
-  const operation = String(plan.operation_id ?? ""),
-    digest = String(result.data?.plan_digest ?? "");
+  const operation = plan.operation_id,
+    digest = result.data?.plan_digest;
   if (
+    typeof operation !== "string" ||
+    typeof digest !== "string" ||
     plan.format !== "ai-stp-native-custody-review/1" ||
     native.format !== "ai-stp-native-installation/1" ||
     native.operation_id !==
@@ -69,9 +72,13 @@ export function nativePending(result: CmdResult): NativeOperation | null {
   if (!result.ok) return null;
   const pending = record(result.data?.pending),
     context = record(pending.original_context);
-  const operation = String(pending.operation_id ?? ""),
-    digest = String(pending.plan_digest ?? "");
+  const operation = pending.operation_id,
+    digest = pending.plan_digest,
+    phase = record(pending.custody).state ?? "unknown";
   if (
+    typeof operation !== "string" ||
+    typeof digest !== "string" ||
+    typeof phase !== "string" ||
     !id.test(operation) ||
     !hash.test(digest) ||
     typeof context.context_id !== "string" ||
@@ -86,7 +93,7 @@ export function nativePending(result: CmdResult): NativeOperation | null {
     label: context.label,
     harness: pending.harness_id,
     plan: null,
-    phase: String(record(pending.custody).state ?? "unknown"),
+    phase,
     metadataOnly: pending.kind === "retire_missing",
     stateParent:
       pending.kind === "retire_missing"
@@ -100,9 +107,11 @@ export function nativeStatus(result: CmdResult): NativeOperation | null {
   const data = record(result.data),
     context = record(data.original_context);
   const receipt = record(data.receipt);
-  const operation = String(data.operation_id ?? ""),
-    digest = String(data.review_digest ?? "");
+  const operation = data.operation_id,
+    digest = data.review_digest;
   if (
+    typeof operation !== "string" ||
+    typeof digest !== "string" ||
     !id.test(operation) ||
     !hash.test(digest) ||
     receipt.operation_id !== operation ||
@@ -111,7 +120,7 @@ export function nativeStatus(result: CmdResult): NativeOperation | null {
     typeof context.context_id !== "string" ||
     typeof context.label !== "string" ||
     typeof receipt.harness_id !== "string" ||
-    !["configured", "confirmed"].includes(String(data.state)) ||
+    (data.state !== "configured" && data.state !== "confirmed") ||
     typeof receipt.restart_required !== "boolean"
   )
     return null;
@@ -121,7 +130,7 @@ export function nativeStatus(result: CmdResult): NativeOperation | null {
     context: context.context_id,
     label: context.label,
     harness: receipt.harness_id,
-    phase: String(data.state),
+    phase: data.state,
     plan: null,
     stateParent: originalState(context),
     restartRequired: receipt.restart_required,

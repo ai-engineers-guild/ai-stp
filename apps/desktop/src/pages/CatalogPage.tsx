@@ -15,6 +15,7 @@ import {
 import { Details, ResultMeta, Spinner } from "../components/Result";
 import { EmptyState, PageHeader } from "../components/Layout";
 import { record } from "../contexts";
+import { scalarText } from "../contracts";
 
 type Item = Record<string, unknown>;
 function ItemList({
@@ -33,6 +34,7 @@ function ItemList({
         return (
           <li key={id}>
             <button
+              type="button"
               onClick={() => onShow(id)}
               className="flex h-full w-full flex-col rounded-lg border border-border p-5 text-start hover:border-primary/50 hover:bg-card"
             >
@@ -42,17 +44,17 @@ function ItemList({
                   className="text-muted-foreground"
                 />
                 <span className="chip bg-muted text-muted-foreground">
-                  {String(item.latest_harness_id ?? "")}
+                  {scalarText(item.latest_harness_id ?? "")}
                 </span>
               </div>
               <h3 className="text-sm font-medium">
-                {String(item.latest_name ?? id)}
+                {scalarText(item.latest_name ?? id)}
                 <span className="ms-2 font-mono text-xs text-muted-foreground">
-                  {String(item.latest_version ?? "")}
+                  {scalarText(item.latest_version ?? "")}
                 </span>
               </h3>
               <p className="mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground">
-                {String(item.latest_description ?? "")}
+                {scalarText(item.latest_description ?? "")}
               </p>
               <div className="mt-auto flex flex-wrap gap-2 pt-5">
                 {trust.author_verified === true && (
@@ -67,7 +69,7 @@ function ItemList({
                 )}
                 {trust.trust_lane != null && (
                   <span className="chip bg-muted text-muted-foreground">
-                    {String(trust.trust_lane)}
+                    {scalarText(trust.trust_lane)}
                   </span>
                 )}
               </div>
@@ -196,8 +198,8 @@ export default function CatalogPage() {
     passport_digest: string;
   }) {
     const summary = record(detail?.data?.summary);
-    const id = String(summary.stable_id ?? ""),
-      harness = String(summary.latest_harness_id ?? "");
+    const id = scalarText(summary.stable_id ?? ""),
+      harness = scalarText(summary.latest_harness_id ?? "");
     if (!id || downloadBusy) return;
     setDownloadBusy(true);
     setDownloadApproved(false);
@@ -326,6 +328,7 @@ export default function CatalogPage() {
           />
         </label>
         <button
+          type="submit"
           className="btn-primary h-10"
           disabled={busy || !kinds.includes(kind)}
         >
@@ -364,10 +367,11 @@ export default function CatalogPage() {
                 {msg("catalog.detailsOfKind", { kind })}
               </p>
               <h2 className="mt-2 text-lg font-medium">
-                {String(summary?.latest_name ?? msg("catalog.unnamedItem"))}
+                {scalarText(summary?.latest_name ?? msg("catalog.unnamedItem"))}
               </h2>
             </div>
             <button
+              type="button"
               className="icon-button"
               aria-label={msg("catalog.closeDetails")}
               onClick={() => {
@@ -382,9 +386,9 @@ export default function CatalogPage() {
           {summary && (
             <>
               <p className="text-sm leading-6 text-muted-foreground">
-                {String(summary.latest_description ?? "")}
+                {scalarText(summary.latest_description ?? "")}
               </p>
-              <p className="break-all font-mono text-xs text-muted-foreground">
+              <p className="font-mono text-xs break-all text-muted-foreground">
                 {String(summary.stable_id)}
               </p>
             </>
@@ -403,13 +407,14 @@ export default function CatalogPage() {
                         {version.lifecycle}
                       </span>
                     </p>
-                    <p className="mt-1 break-all font-mono text-micro text-muted-foreground">
+                    <p className="mt-1 font-mono text-micro break-all text-muted-foreground">
                       {version.passport_digest}
                     </p>
                   </div>
                   {kind === "setup" && version.lifecycle === "active" && (
                     <div className="flex flex-wrap gap-3">
                       <button
+                        type="button"
                         className="btn-secondary"
                         disabled={downloadBusy}
                         onClick={() => void reviewDownload(version)}
@@ -418,7 +423,7 @@ export default function CatalogPage() {
                       </button>
                       <Link
                         className="btn-outline shrink-0"
-                        to={`/targets?${new URLSearchParams({ setup: String(summary?.stable_id ?? ""), version: version.version, digest: version.passport_digest, harness: String(summary?.latest_harness_id ?? "") })}`}
+                        to={`/targets?${new URLSearchParams({ setup: scalarText(summary?.stable_id ?? ""), version: version.version, digest: version.passport_digest, harness: scalarText(summary?.latest_harness_id ?? "") })}`}
                       >
                         {msg("catalog.reviewLocalInstallation")}
                         <ArrowRight style={iconSize.sm} />
@@ -443,10 +448,10 @@ export default function CatalogPage() {
           <p className="mt-2 text-sm">
             {msg("catalog.thisSavesTheReviewedGraphInItsOriginalLocal")}
           </p>
-          <p className="mt-3 break-all text-sm">
+          <p className="mt-3 text-sm break-all">
             {download.id} · {download.version}
           </p>
-          <p className="mt-1 break-all text-sm text-muted-foreground">
+          <p className="mt-1 text-sm break-all text-muted-foreground">
             {download.endpoint} · {download.components}{" "}
             {msg("catalog.components2")}
           </p>
@@ -471,6 +476,7 @@ export default function CatalogPage() {
                 {msg("catalog.downloadThisExactGraphToTheReviewedLocalLibrary")}
               </label>
               <button
+                type="button"
                 className="btn-primary mt-3"
                 disabled={downloadBusy || !downloadApproved}
                 onClick={() => void applyDownload()}
@@ -524,6 +530,7 @@ export default function CatalogPage() {
       )}
       {cursor && (
         <button
+          type="button"
           className="btn-outline"
           disabled={busy}
           onClick={() => void search(true)}

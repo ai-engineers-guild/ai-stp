@@ -31,9 +31,9 @@ export default async function CorporatePresentationEditContent({
   const common = await getTranslations("common");
   const corporate = await getTranslations("corporate");
   const hub = await getTranslations("hub");
-  let workspace;
-  let presentation;
-  let entityUpdate;
+  let workspace: Awaited<ReturnType<typeof readCorporateResource>>;
+  let presentation: Awaited<ReturnType<typeof readCorporatePresentation>>;
+  let entityUpdate: Parameters<typeof CorporateRichEditor>[0]["entityUpdate"];
   try {
     workspace = await readCorporateResource(
       session,

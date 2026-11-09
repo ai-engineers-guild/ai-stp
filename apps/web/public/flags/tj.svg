@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" role="img">
+  <title>TJ</title>
   <rect width="600" height="114.29" fill="#CC0000"/>
   <rect y="114.29" width="600" height="171.42" fill="#FFFFFF"/>
   <rect y="285.71" width="600" height="114.29" fill="#006600"/>

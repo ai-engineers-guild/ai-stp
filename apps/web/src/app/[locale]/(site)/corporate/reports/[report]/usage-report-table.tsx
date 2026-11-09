@@ -64,8 +64,8 @@ function ObjectTableRow({
 }) {
   if (entry.kind === "direct") {
     return (
-      <Tr key="direct-components" className="bg-muted/30 border-t border-b-0">
-        <Th colSpan={7} className="text-foreground font-medium">
+      <Tr key="direct-components" className="border-t border-b-0 bg-muted/30">
+        <Th colSpan={7} className="font-medium text-foreground">
           {t("directComponents")}
         </Th>
       </Tr>
@@ -83,7 +83,7 @@ function ObjectTableRow({
         </Link>
         {entry.row.object_kind === "setup" && !employeeId && (
           <Link
-            className="text-muted-foreground ml-2 text-xs hover:underline"
+            className="ml-2 text-xs text-muted-foreground hover:underline"
             href={expandHref(entry.row)}
           >
             {expanded === `${entry.row.stable_id}@${entry.row.version}`
@@ -96,7 +96,7 @@ function ObjectTableRow({
       <Td>
         {entry.row.installed_for}
         {employeeId && (
-          <span className="text-muted-foreground block text-xs">
+          <span className="block text-xs text-muted-foreground">
             {entry.row.installation_state ?? t("unknown")}
           </span>
         )}
@@ -140,7 +140,7 @@ function EmployeeTableRow({
       <Td>{row.team_ids.map((id) => teamNames.get(id) ?? id).join(", ") || "—"}</Td>
       <Td>
         {row.assigned_components} / {row.installed_components} / {row.used_components}
-        <span className="text-muted-foreground block text-xs">
+        <span className="block text-xs text-muted-foreground">
           {!inventoryScanEnabled ? t("scanOff") : (inventory?.coverage ?? t("notScanned"))}
         </span>
       </Td>
@@ -184,7 +184,7 @@ export async function UsageReportTable({
 
   return (
     <>
-      <div className="border-border overflow-x-auto rounded-lg border">
+      <div className="overflow-x-auto rounded-lg border border-border">
         <Table className="text-left">
           <THead className="bg-muted/40">
             <Tr className="border-b-0">
@@ -236,7 +236,7 @@ export async function UsageReportTable({
           </TBody>
         </Table>
         {totalItems === 0 && (
-          <p className="text-muted-foreground p-4 text-sm">{t("noMatchingResults")}</p>
+          <p className="p-4 text-sm text-muted-foreground">{t("noMatchingResults")}</p>
         )}
       </div>
       <nav aria-label={t("tablePages")} className="mt-3 flex items-center justify-between text-sm">

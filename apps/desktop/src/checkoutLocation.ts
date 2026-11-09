@@ -94,7 +94,7 @@ function anchored(
   original: Record<string, unknown>,
 ): boolean {
   const source = retainedCheckout(original);
-  if (!source || source.action !== "adopt" || original.state !== "completed")
+  if (source?.action !== "adopt" || original.state !== "completed")
     return false;
   const snapshot = record(record(source.plan.change).snapshot),
     binding = record(plan.binding),
@@ -130,8 +130,8 @@ function anchored(
     [source.plan.operation_id, record(binding.request).operation_id].includes(
       plan.operation_id,
     ) ||
-    ![57, 58, 59, 60, 61, 62].includes(Number(plan.registry_schema_before)) ||
     typeof plan.registry_schema_before !== "number" ||
+    ![57, 58, 59, 60, 61, 62].includes(plan.registry_schema_before) ||
     plan.registry_schema_after !==
       (plan.registry_schema_before === 62 ? 62 : 61) ||
     !timestamp(plan.created_at) ||
@@ -182,7 +182,8 @@ function anchored(
       organization.organization_id ||
     record(context.authority).kind !== "remote" ||
     remote.state !== "applied" ||
-    !["linked", "conflict"].includes(String(observed.state)) ||
+    typeof observed.state !== "string" ||
+    !["linked", "conflict"].includes(observed.state) ||
     !coordinates.every(
       (field) =>
         field in link &&
@@ -293,7 +294,8 @@ export function locationHistory(
       !operation(entry.operation_id) ||
       seen.has(entry.operation_id) ||
       !hash(entry.plan_digest) ||
-      !["anchor", "relocate"].includes(String(entry.action)) ||
+      typeof entry.action !== "string" ||
+      !["anchor", "relocate"].includes(entry.action) ||
       entry.state !== "verified" ||
       checkoutPath(entry.root) === null ||
       !timestamp(entry.created_at) ||

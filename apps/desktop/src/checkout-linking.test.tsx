@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { required } from "./test-values";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   act,
@@ -17,6 +18,7 @@ import type { CmdResult } from "./transport";
 import {
   checkoutPath,
   checkoutReview,
+  retainedCheckout,
   type CheckoutAction,
 } from "./checkoutLinks";
 
@@ -103,7 +105,7 @@ function receipt(
   action: CheckoutAction,
   state = "completed",
 ): Record<string, unknown> {
-  const value = proposal(action).data!;
+  const value = required(proposal(action).data);
   return {
     ...value,
     operation_id: record(value.plan).operation_id,
@@ -222,7 +224,7 @@ it("refuses equal-display roots with different native UTF-8 bytes", () => {
   const anchor = structuredClone(snapshot);
   anchor.local_project.root.path = wirePath("/private/cafe\u0301");
   const response = structuredClone(proposal("request"));
-  const plan = record(response.data!.plan);
+  const plan = record(required(response.data).plan);
   const current = record(record(plan.change).snapshot);
   record(current.local_project).root = {
     path: wirePath("/private/café"),
@@ -254,8 +256,8 @@ it("separately reviews and authorizes request, confirmation and local binding th
       ),
     );
     expect(transport.cmdCheckoutApply).toHaveBeenLastCalledWith(
-      proposal(action).data!.plan,
-      proposal(action).data!.plan_digest,
+      required(proposal(action).data).plan,
+      required(proposal(action).data).plan_digest,
       true,
       context.id,
       undefined,
@@ -300,7 +302,7 @@ it.each(["context", "account", "project", "physical", "request"])(
   "refuses mismatched %s plan coordinates before displaying private content",
   async (field) => {
     const bad = JSON.parse(JSON.stringify(proposal("request"))) as CmdResult;
-    const plan = record(bad.data!.plan),
+    const plan = record(required(bad.data).plan),
       change = record(plan.change),
       data = record(change.snapshot);
     if (field === "context") record(data.context).context_id = "context_other";
@@ -379,8 +381,8 @@ it("loads original unknown intent after remount and reconciles through the match
   );
   await waitFor(() =>
     expect(transport.cmdCheckoutApply).toHaveBeenCalledWith(
-      proposal("confirm").data!.plan,
-      proposal("confirm").data!.plan_digest,
+      required(proposal("confirm").data).plan,
+      required(proposal("confirm").data).plan_digest,
       true,
       context.id,
     ),
@@ -466,8 +468,8 @@ it("continues a retained completed request through separately reviewed confirmat
       ).toBe(null),
     );
     expect(transport.cmdCheckoutApply).toHaveBeenLastCalledWith(
-      proposal(action).data!.plan,
-      proposal(action).data!.plan_digest,
+      required(proposal(action).data).plan,
+      required(proposal(action).data).plan_digest,
       true,
       context.id,
       undefined,
@@ -475,4 +477,14 @@ it("continues a retained completed request through separately reviewed confirmat
   }
   await screen.findByText("Original corporate project binding receipt saved.");
   expect(transport.cmdCheckoutApply).toHaveBeenCalledTimes(2);
+});
+
+it("refuses malformed retained checkout phases without object coercion", () => {
+  const malformed = JSON.parse('{"toString":"not callable"}') as unknown;
+  const held = receipt("request");
+  expect(retainedCheckout(held)).not.toBeNull();
+  expect(retainedCheckout({ ...held, state: malformed })).toBeNull();
+  const changed = structuredClone(held);
+  record(record(changed.plan).change).action = malformed;
+  expect(retainedCheckout(changed)).toBeNull();
 });

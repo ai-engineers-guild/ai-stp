@@ -54,11 +54,11 @@ export function CorporateDetailDrawer({
           returnFocus.current?.focus();
         }}
       >
-        <div className="border-border bg-background sticky -top-5 z-10 -mx-5 -mt-5 mb-5 flex items-start justify-between gap-3 border-b px-5 py-4">
+        <div className="sticky -top-5 z-10 -mx-5 -mt-5 mb-5 flex items-start justify-between gap-3 border-b border-border bg-background px-5 py-4">
           <div className="min-w-0">
             <SheetTitle className="truncate text-lg font-medium">{title}</SheetTitle>
             <SheetDescription
-              className={description ? "text-muted-foreground mt-1 truncate text-sm" : "sr-only"}
+              className={description ? "mt-1 truncate text-sm text-muted-foreground" : "sr-only"}
             >
               {description ?? title}
             </SheetDescription>
@@ -102,20 +102,19 @@ export function PeopleTable({
   children: ReactNode;
 }) {
   return (
-    <div
-      role="region"
+    <section
       aria-label={label}
       // Keyboard access is required for scrolling the table on narrow viewports.
-      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-      tabIndex={0}
-      className={`focus-visible:ring-ring min-w-0 overflow-x-auto focus-visible:ring-2 focus-visible:outline-none ${
-        framed ? "border-border rounded-lg border" : ""
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: The named table scroll region must remain reachable by keyboard.
+      tabIndex={0} // eslint-disable-line jsx-a11y/no-noninteractive-tabindex
+      className={`relative min-w-0 overflow-x-auto focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
+        framed ? "rounded-lg border border-border" : ""
       }`}
     >
       <table aria-label={label} className={`w-full border-collapse ${minWidth ?? ""}`}>
         {children}
       </table>
-    </div>
+    </section>
   );
 }
 
@@ -146,7 +145,7 @@ export function PeopleSearch({
       <Icon
         name="search"
         size="sm"
-        className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2"
+        className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
       />
       <Input
         type="search"
@@ -217,7 +216,7 @@ export function PeopleCheckbox({
         aria-label={label}
         aria-checked={mixed ? "mixed" : checked}
         checked={checked}
-        className="accent-primary focus-visible:ring-ring size-4 cursor-pointer rounded-sm focus-visible:ring-2 focus-visible:ring-offset-2"
+        className="size-4 cursor-pointer rounded-sm accent-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         onChange={(event) => {
           onChange(event.target.checked);
         }}
@@ -247,7 +246,7 @@ export function PersonIdentity({
     <div className="flex min-w-0 items-center gap-3">
       <span
         aria-hidden
-        className="bg-muted text-foreground grid size-8 shrink-0 place-items-center rounded-full text-xs font-medium"
+        className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-xs font-medium text-foreground"
       >
         {initials}
       </span>
@@ -255,12 +254,12 @@ export function PersonIdentity({
         <div className="flex items-center gap-2">
           <span className="truncate">{name}</span>
           {you ? (
-            <span className="bg-muted text-muted-foreground rounded-md px-1.5 py-0.5 text-xs">
+            <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
               {t("you")}
             </span>
           ) : null}
         </div>
-        {email ? <p className="text-muted-foreground truncate text-xs">{email}</p> : null}
+        {email ? <p className="truncate text-xs text-muted-foreground">{email}</p> : null}
       </div>
     </div>
   );
@@ -283,8 +282,8 @@ export function PeoplePager({
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const visible = pageWindow(page, pages, 1);
   return (
-    <footer className="border-border flex flex-wrap items-center justify-between gap-3 border-t py-3">
-      <p aria-live="polite" className="text-muted-foreground text-sm tabular-nums">
+    <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border py-3">
+      <p aria-live="polite" className="text-sm text-muted-foreground tabular-nums">
         {t(
           kind === "members"
             ? "showingMembers"
@@ -313,7 +312,12 @@ export function PeoplePager({
         </Button>
         {visible.map((value, index) =>
           value === "gap" ? (
-            <span key={`gap-${index}`} aria-hidden className="text-muted-foreground px-1">
+            <span
+              // biome-ignore lint/suspicious/noArrayIndexKey: Decorative gap positions distinguish the two possible pagination ellipses.
+              key={`gap-${index}`}
+              aria-hidden
+              className="px-1 text-muted-foreground"
+            >
               &hellip;
             </span>
           ) : (
@@ -324,7 +328,7 @@ export function PeoplePager({
               size="icon"
               aria-current={value === page ? "page" : undefined}
               aria-label={t("page", { page: value })}
-              className={value === page ? "border-primary text-primary border" : ""}
+              className={value === page ? "border border-primary text-primary" : ""}
               onClick={() => {
                 onPage(value);
               }}
@@ -354,7 +358,7 @@ export function PeopleRole({ role }: { role: string }) {
   return (
     <Link
       href={`/corporate/admin/roles?role=${encodeURIComponent(role)}`}
-      className="focus-visible:ring-ring inline-block rounded-sm hover:underline focus-visible:ring-2 focus-visible:outline-none"
+      className="inline-block rounded-sm hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
     >
       <Badge variant="secondary" className="font-sans font-normal tracking-normal">
         {role}
@@ -408,7 +412,7 @@ export function ScopeField({
       name="scope"
       defaultValue={initialScope ?? `organization:${organizationId}`}
       onChange={(event) => onKindChange?.(event.target.value.split(":", 1)[0] ?? "organization")}
-      className="border-input bg-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
+      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
     >
       <option value={`organization:${organizationId}`}>{organizationLabel}</option>
       <optgroup label={a("entities.team.name")}>

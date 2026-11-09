@@ -102,15 +102,15 @@ export function SetupFamilyBlock({
     <section
       data-ui={UI.catalog.setupFamily}
       aria-labelledby="setup-family-heading"
-      className="border-border min-w-0 rounded-lg border"
+      className="min-w-0 rounded-lg border border-border"
     >
       <details className="group">
-        <summary className="focus-visible:ring-ring flex min-h-20 cursor-pointer list-none items-center gap-3 rounded-lg p-4 focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+        <summary className="flex min-h-20 cursor-pointer list-none items-center gap-3 rounded-lg p-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden">
           <div className="min-w-0 flex-1 space-y-1">
             <h2 id="setup-family-heading" className="font-semibold">
               {labels.heading}
             </h2>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm text-muted-foreground">
               {currentStableId === family.baseline.stable_id ? labels.parent : labels.recast}
               {" · "}
               {labels.members}: {family.members.length}
@@ -123,11 +123,11 @@ export function SetupFamilyBlock({
           />
         </summary>
         {portedFrom && parentName && parentHref ? (
-          <p className="border-border text-muted-foreground border-t px-4 py-3 text-sm">
+          <p className="border-t border-border px-4 py-3 text-sm text-muted-foreground">
             {labels.portedFrom}:{" "}
             <Link
               href={parentHref}
-              className="text-foreground font-medium underline-offset-4 hover:underline"
+              className="font-medium text-foreground underline-offset-4 hover:underline"
               prefetch={false}
             >
               {parentName}
@@ -135,7 +135,7 @@ export function SetupFamilyBlock({
             <span className="text-muted-foreground"> @{portedFrom.version}</span>
           </p>
         ) : null}
-        <ul className="divide-border border-border divide-y border-t">
+        <ul className="divide-y divide-border border-t border-border">
           {ordered.map((member) => {
             const current = member.stable_id === currentStableId;
             const name = member.name;
@@ -157,7 +157,7 @@ export function SetupFamilyBlock({
                     <Badge variant="outline">{labels.setup}</Badge>
                     <Badge variant="secondary">{member.harness_id}</Badge>
                     {member.latest_version ? (
-                      <span className="text-muted-foreground text-xs">
+                      <span className="text-xs text-muted-foreground">
                         {labels.version} {member.latest_version}
                       </span>
                     ) : null}
@@ -185,7 +185,7 @@ export function SetupFamilyBlock({
                   <Link
                     href={href}
                     aria-label={`${labels.browseFamily}: ${name}`}
-                    className="hover:bg-muted focus-visible:ring-ring inline-flex size-11 shrink-0 items-center justify-center rounded-sm focus-visible:ring-2 focus-visible:outline-none"
+                    className="inline-flex size-11 shrink-0 items-center justify-center rounded-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                     prefetch={false}
                   >
                     <Icon name="moreVertical" size="sm" />

@@ -104,14 +104,16 @@ export function ContextRail({
   ];
   const publicItems = siteNavigation({ signedIn: hydrated && signedIn, docsHref })
     .filter((item) => !personalIds.includes(item.ui))
-    .map((item): RailItem => ({
-      id: item.ui,
-      href: corporateHref(item.href),
-      label: nav(item.labelKey),
-      icon: siteIcons[item.labelKey] ?? "list",
-      active: isPrimaryNavigationActive({ ...item, href: corporateHref(item.href) }, pathname),
-      external: item.external,
-    }));
+    .map(
+      (item): RailItem => ({
+        id: item.ui,
+        href: corporateHref(item.href),
+        label: nav(item.labelKey),
+        icon: siteIcons[item.labelKey] ?? "list",
+        active: isPrimaryNavigationActive({ ...item, href: corporateHref(item.href) }, pathname),
+        external: item.external,
+      }),
+    );
   const allItems: RailItem[] = corporate
     ? corporateNav.entries.map((entry) => ({
         ...entry,
@@ -280,7 +282,7 @@ export function ContextSidebar({
           data-collapsed={collapsed}
           hidden={suppressAside}
           className={cn(
-            "border-border bg-background fixed top-14 left-0 z-30 h-[calc(100dvh-3.5rem)] flex-col border-r",
+            "fixed top-14 left-0 z-30 h-[calc(100dvh-3.5rem)] flex-col border-r border-border bg-background",
             suppressAside ? "hidden" : "hidden lg:flex",
             collapsed ? "w-16" : "w-64",
           )}

@@ -23,6 +23,8 @@ export default function FolderField({
   const [error, setError] = useState(false);
   const generation = useRef(0);
   // A late native dialog reply must not overwrite a typed path or a locked form.
+  // biome-ignore lint/correctness/useExhaustiveDependencies(value): Typing a path or locking the field invalidates a pending native dialog.
+  // biome-ignore lint/correctness/useExhaustiveDependencies(disabled): Typing a path or locking the field invalidates a pending native dialog.
   useEffect(() => {
     generation.current++;
   }, [value, disabled]);

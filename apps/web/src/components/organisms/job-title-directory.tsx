@@ -107,7 +107,7 @@ export function JobTitleDirectory({
           </Button>
         )}
       </div>
-      <p className="text-muted-foreground text-sm" aria-live="polite">
+      <p className="text-sm text-muted-foreground" aria-live="polite">
         {filtered.length} {c("jobTitles")}
       </p>
       {shown.length ? (
@@ -122,7 +122,7 @@ export function JobTitleDirectory({
           ))}
         </ul>
       ) : (
-        <p className="text-muted-foreground border-border rounded-lg border border-dashed p-8 text-center text-sm">
+        <p className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
           {jobTitles.length ? h("noMatches") : c("jobTitleNoItems")}
         </p>
       )}
@@ -140,7 +140,7 @@ export function JobTitleDirectory({
         />
       )}
       {message && (
-        <p role="status" className="text-muted-foreground text-sm" aria-live="polite">
+        <p role="status" className="text-sm text-muted-foreground" aria-live="polite">
           {message}
         </p>
       )}
@@ -171,9 +171,9 @@ function JobTitleCard({
   const h = useTranslations("hub");
   return (
     <li className="min-w-0">
-      <article className="border-border bg-card relative min-w-0 overflow-hidden rounded-lg border p-4">
+      <article className="relative min-w-0 overflow-hidden rounded-lg border border-border bg-card p-4">
         <div className="flex min-w-0 items-start gap-3 pr-11">
-          <span className="bg-muted border-border text-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-md border">
+          <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-foreground">
             <Icon name="user" size="sm" />
           </span>
           <div className="min-w-0 flex-1">
@@ -186,7 +186,7 @@ function JobTitleCard({
               </Badge>
             </div>
             {item.description ? (
-              <p className="text-muted-foreground mt-2 text-sm leading-relaxed break-words">
+              <p className="mt-2 text-sm leading-relaxed break-words text-muted-foreground">
                 {item.description}
               </p>
             ) : null}
@@ -377,7 +377,7 @@ function JobTitleDialog({
                 onChange={(event) => {
                   setDraft({ ...draft, state: event.target.value as JobTitleDraft["state"] });
                 }}
-                className="border-input bg-background h-11 w-full rounded-sm border px-3 text-sm"
+                className="h-11 w-full rounded-sm border border-input bg-background px-3 text-sm"
               >
                 <option value="current">{labels.current}</option>
                 <option value="retired">{labels.retired}</option>

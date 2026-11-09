@@ -65,11 +65,11 @@ export function NavPendingRegion({
     >
       {pending ? (
         <div
-          className="bg-muted absolute inset-x-0 top-0 z-30 h-0.5 overflow-hidden rounded-full"
+          className="absolute inset-x-0 top-0 z-30 h-0.5 overflow-hidden rounded-full bg-muted"
           role="status"
           aria-label={label}
         >
-          <div className="bg-primary h-full w-2/5 animate-pulse" />
+          <div className="h-full w-2/5 animate-pulse bg-primary" />
         </div>
       ) : null}
       {children}

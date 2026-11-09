@@ -89,7 +89,7 @@ export function CorporateProjectRepository({
 
   return (
     <section
-      className="border-border bg-card space-y-4 rounded-lg border p-5"
+      className="space-y-4 rounded-lg border border-border bg-card p-5"
       aria-label={t("title")}
     >
       <h2 className="text-sm font-medium">{t("title")}</h2>
@@ -102,7 +102,7 @@ export function CorporateProjectRepository({
           />
         ))
       ) : (
-        <p className="text-muted-foreground text-sm">{t("empty")}</p>
+        <p className="text-sm text-muted-foreground">{t("empty")}</p>
       )}
       {!repositories.length && canManage && !editing && (
         <Button
@@ -139,7 +139,7 @@ export function CorporateProjectRepository({
               setMessage(null);
             }}
           />
-          <p className="text-muted-foreground text-xs">{t("hint")}</p>
+          <p className="text-xs text-muted-foreground">{t("hint")}</p>
           {plan && (
             <div className="space-y-1 text-sm">
               <p className="font-medium">{plan.name}</p>
@@ -170,7 +170,7 @@ export function CorporateProjectRepository({
         </form>
       )}
       {message && (
-        <p role="alert" className="text-destructive text-sm">
+        <p role="alert" className="text-sm text-destructive">
           {message}
         </p>
       )}
@@ -202,9 +202,9 @@ function RepositorySource({
           ]}
         />
       </p>
-      <p className="text-muted-foreground font-mono text-xs">{repository.repository_url}</p>
+      <p className="font-mono text-xs text-muted-foreground">{repository.repository_url}</p>
       {repository.default_branch && (
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           {branchLabel}: <span className="font-mono">{repository.default_branch}</span>
         </p>
       )}

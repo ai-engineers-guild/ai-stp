@@ -101,24 +101,25 @@ export function ComponentTargetMatrix({
     <section
       data-ui={UI.catalog.targetMatrix}
       aria-labelledby="target-matrix-heading"
-      className="border-border min-w-0 rounded-lg border"
+      className="min-w-0 rounded-lg border border-border"
     >
       <details className="group">
-        <summary className="focus-visible:ring-ring flex min-h-20 cursor-pointer list-none items-center gap-3 rounded-lg p-4 focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+        <summary className="flex min-h-20 cursor-pointer list-none items-center gap-3 rounded-lg p-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden">
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex min-w-0 items-center gap-2">
               <h2 id="target-matrix-heading" className="font-semibold">
                 {labels.heading}
               </h2>
               <span
-                className="text-muted-foreground inline-flex size-7 shrink-0 items-center justify-center"
+                role="img"
+                className="inline-flex size-7 shrink-0 items-center justify-center text-muted-foreground"
                 title={labels.summary}
                 aria-label={labels.summary}
               >
                 <Icon name="help" size="sm" />
               </span>
             </div>
-            <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
               <Score score={score} />
               <span>
                 {score.passed} / {score.total} {labels.checksComplete}
@@ -134,7 +135,7 @@ export function ComponentTargetMatrix({
             className="shrink-0 transition-transform group-open:rotate-180"
           />
         </summary>
-        <div className="border-border border-t p-3">
+        <div className="border-t border-border p-3">
           <MatrixCards matrix={matrix} labels={labels} />
         </div>
       </details>
@@ -165,10 +166,10 @@ function ProjectionDetails({
   const score = checkScore(safetyChecks);
 
   return (
-    <details className="group/row border-border bg-card rounded-lg border shadow-sm">
-      <summary className="focus-visible:ring-ring flex min-h-14 min-w-0 cursor-pointer list-none items-center gap-3 rounded-lg p-3 focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+    <details className="group/row rounded-lg border border-border bg-card shadow-sm">
+      <summary className="flex min-h-14 min-w-0 cursor-pointer list-none items-center gap-3 rounded-lg p-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden">
         <span className="min-w-0 flex-1 font-medium break-words">{row.harness_id}</span>
-        <span className="text-muted-foreground hidden text-sm sm:inline">
+        <span className="hidden text-sm text-muted-foreground sm:inline">
           {score.passed} / {score.total} {labels.checksComplete}
         </span>
         <Score score={score} />
@@ -179,76 +180,76 @@ function ProjectionDetails({
         />
         <span className="sr-only">{labels.projectionDetails}</span>
       </summary>
-      <div className="border-border text-muted-foreground grid gap-3 border-t px-3 py-3 text-xs sm:grid-cols-2">
+      <div className="grid gap-3 border-t border-border px-3 py-3 text-xs text-muted-foreground sm:grid-cols-2">
         <div>
-          <span className="text-foreground font-medium">{labels.safetyCheck}</span>
+          <span className="font-medium text-foreground">{labels.safetyCheck}</span>
           <div>{assessmentLabel(row.assessment_state, labels)}</div>
         </div>
         <div>
-          <span className="text-foreground font-medium">{labels.recommendation}</span>
+          <span className="font-medium text-foreground">{labels.recommendation}</span>
           <div>{recommendationLabel(row.recommendation, labels)}</div>
         </div>
         <div>
-          <span className="text-foreground font-medium">{labels.scope}</span>
+          <span className="font-medium text-foreground">{labels.scope}</span>
           <div>{row.scope}</div>
         </div>
         <div>
-          <span className="text-foreground font-medium">{labels.projectionKind}</span>
+          <span className="font-medium text-foreground">{labels.projectionKind}</span>
           <div>{row.projection_kind}</div>
         </div>
         <div>
-          <span className="text-foreground font-medium">{labels.technicalSupport}</span>
+          <span className="font-medium text-foreground">{labels.technicalSupport}</span>
           <div>{supportLabel(row.technical_support, labels)}</div>
         </div>
         <div>
-          <span className="text-foreground font-medium">{labels.implementation}</span>
+          <span className="font-medium text-foreground">{labels.implementation}</span>
           <div>{row.implementation_mode}</div>
         </div>
         {row.technical_support_reason ? (
           <div className="sm:col-span-2">
-            <span className="text-foreground font-medium">{labels.supportReason}</span>
+            <span className="font-medium text-foreground">{labels.supportReason}</span>
             <div>{row.technical_support_reason}</div>
           </div>
         ) : null}
         {row.freshness ? (
           <div>
-            <span className="text-foreground font-medium">{labels.freshness}</span>
+            <span className="font-medium text-foreground">{labels.freshness}</span>
             <div>{row.freshness}</div>
           </div>
         ) : null}
         {row.supported_os.length ? (
           <div>
-            <span className="text-foreground font-medium">{labels.operatingSystems}</span>
+            <span className="font-medium text-foreground">{labels.operatingSystems}</span>
             <div>{row.supported_os.join(", ")}</div>
           </div>
         ) : null}
         {row.supported_arch.length ? (
           <div>
-            <span className="text-foreground font-medium">{labels.architectures}</span>
+            <span className="font-medium text-foreground">{labels.architectures}</span>
             <div>{row.supported_arch.join(", ")}</div>
           </div>
         ) : null}
         {row.permissions_summary.length ? (
           <div className="sm:col-span-2">
-            <span className="text-foreground font-medium">{labels.permissions}</span>
+            <span className="font-medium text-foreground">{labels.permissions}</span>
             <div>{row.permissions_summary.join(", ")}</div>
           </div>
         ) : null}
         {row.semantic_losses.length ? (
           <div className="sm:col-span-2">
-            <span className="text-foreground font-medium">{labels.semanticLosses}</span>
+            <span className="font-medium text-foreground">{labels.semanticLosses}</span>
             <div>{row.semantic_losses.join(", ")}</div>
           </div>
         ) : null}
         <div className="sm:col-span-2">
-          <span className="text-foreground font-medium">{labels.safetyCheck}</span>
+          <span className="font-medium text-foreground">{labels.safetyCheck}</span>
           {safetyChecks.length ? (
             <div>
               <ul className="mt-1 space-y-1" aria-label={labels.safetyCheck}>
                 {safetyChecks.map((check) => (
                   <li
                     key={check.check_id}
-                    className="border-border flex min-w-0 items-start gap-2 rounded-md border px-3 py-2"
+                    className="flex min-w-0 items-start gap-2 rounded-md border border-border px-3 py-2"
                   >
                     <Icon
                       name={checkResultIcon(check.result)}
@@ -263,7 +264,7 @@ function ProjectionDetails({
                         </Badge>
                       </span>
                       {check.reason ? (
-                        <span className="text-muted-foreground mt-1 block break-words">
+                        <span className="mt-1 block break-words text-muted-foreground">
                           {check.reason}
                         </span>
                       ) : null}
@@ -278,7 +279,7 @@ function ProjectionDetails({
         </div>
         {row.evidence_refs.length ? (
           <div className="sm:col-span-2">
-            <span className="text-foreground font-medium">{labels.evidence}</span>
+            <span className="font-medium text-foreground">{labels.evidence}</span>
             <div>
               <ul className="mt-1 space-y-1">
                 {row.evidence_refs.map((ref) => (

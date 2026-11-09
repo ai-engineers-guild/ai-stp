@@ -25,6 +25,7 @@ import {
 import { Details, ResultMeta, Spinner } from "../components/Result";
 import { PageHeader, StatusBadge } from "../components/Layout";
 import { useApp } from "../store";
+import { scalarText } from "../contracts";
 
 const PROVIDERS: Record<string, string> = {
   google: "Google",
@@ -138,6 +139,7 @@ export default function AuthPage() {
       clearInterval(clock);
     };
   }, [refreshAuth]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies(attempt): An explicit discovery retry must run again even when the server is unchanged.
   useEffect(() => {
     let current = true;
     if (connection && !authResult?.ok) return;
@@ -175,19 +177,20 @@ export default function AuthPage() {
   }, [origin, attempt, connection, authResult?.ok, auth?.provider]);
   const session = (auth?.session ?? {}) as Record<string, unknown>;
   const pending = auth?.pending_operation as
-    { plan?: { action?: string } } | undefined;
+    | { plan?: { action?: string } }
+    | undefined;
   const authorized = session.state === "authorized";
   const signedIn =
     authorized &&
     session.access_expired !== true &&
     (!session.access_expires_at ||
-      Date.parse(String(session.access_expires_at)) > now);
-  const expiresAt = Date.parse(String(session.expires_at ?? ""));
+      Date.parse(scalarText(session.access_expires_at)) > now);
+  const expiresAt = Date.parse(scalarText(session.expires_at ?? ""));
   const remaining = Number.isFinite(expiresAt)
     ? Math.max(0, Math.ceil((expiresAt - now) / 1000))
     : 0;
   const pendingCode = session.state === "pending" && remaining > 0;
-  const url = String(
+  const url = scalarText(
     session.verification_uri_complete ?? session.verification_uri ?? "",
   );
   async function action(run: () => Promise<CmdResult>) {
@@ -241,7 +244,7 @@ export default function AuthPage() {
       let nextSession = session;
       let failures = 0;
       while (current() && Date.now() < expiresAt) {
-        const next = Date.parse(String(nextSession.next_poll_at ?? ""));
+        const next = Date.parse(scalarText(nextSession.next_poll_at ?? ""));
         const delay = Number.isFinite(next)
           ? Math.max(0, next - Date.now())
           : Math.max(1, Number(nextSession.interval) || 5) * 1000;
@@ -297,6 +300,7 @@ export default function AuthPage() {
         )}
         action={
           <button
+            type="button"
             className="btn-outline"
             disabled={busy || waiting}
             onClick={() => void refreshAuth()}
@@ -343,8 +347,8 @@ export default function AuthPage() {
           {msg("auth.signInThroughYourBrowserTheCliKeepsCredentials")}
         </p>
         {signedIn && (
-          <p className="break-all font-mono text-xs text-muted-foreground">
-            {String(session.account_id ?? "")}
+          <p className="font-mono text-xs break-all text-muted-foreground">
+            {scalarText(session.account_id ?? "")}
           </p>
         )}
         {authResult && !authResult.ok && (
@@ -365,6 +369,7 @@ export default function AuthPage() {
               pending.plan?.action ?? "",
             ) ? (
               <button
+                type="button"
                 className="btn-outline"
                 disabled={busy || waiting}
                 onClick={() => void action(() => cmdAuthResume(connection))}
@@ -395,6 +400,7 @@ export default function AuthPage() {
                 </p>
                 {!availability.ok && <ResultMeta r={availability} />}
                 <button
+                  type="button"
                   className="btn-outline"
                   onClick={() => setAttempt((value) => value + 1)}
                 >
@@ -405,6 +411,7 @@ export default function AuthPage() {
             <div className="flex gap-2">
               {providers.map((value) => (
                 <button
+                  type="button"
                   key={value}
                   disabled={busy}
                   aria-pressed={provider === value}
@@ -422,6 +429,7 @@ export default function AuthPage() {
               </p>
             )}
             <button
+              type="button"
               className="btn-primary"
               disabled={
                 busy ||
@@ -446,6 +454,7 @@ export default function AuthPage() {
           <div className="flex flex-wrap gap-3">
             {!signedIn && (
               <button
+                type="button"
                 className="btn-primary"
                 disabled={busy}
                 onClick={() => void action(() => cmdAuthRefresh(connection))}
@@ -454,6 +463,7 @@ export default function AuthPage() {
               </button>
             )}
             <button
+              type="button"
               className="btn-outline"
               disabled={busy}
               onClick={() => void action(() => cmdAuthLogout(connection))}
@@ -469,18 +479,19 @@ export default function AuthPage() {
         <section className="card space-y-5 p-6">
           <div>
             <p className="eyebrow">{msg("auth.deviceConfirmation")}</p>
-            <h2 className="mt-3 section-title">
+            <h2 className="section-title mt-3">
               {msg("auth.approveThisDeviceInYourBrowser")}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
               {msg("auth.useTheCodeBelowOnTheVerificationPage")}
             </p>
           </div>
-          <p className="select-all rounded-lg bg-muted/60 px-5 py-6 text-center font-mono text-3xl tracking-[0.25em]">
-            {String(session.user_code ?? "")}
+          <p className="rounded-lg bg-muted/60 px-5 py-6 text-center font-mono text-3xl tracking-[0.25em] select-all">
+            {scalarText(session.user_code ?? "")}
           </p>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <button
+              type="button"
               className="btn-primary"
               disabled={waiting || busy || !url || !!pending}
               onClick={() => void waitForLogin()}
@@ -497,7 +508,7 @@ export default function AuthPage() {
           {waiting && (
             <>
               <Spinner label={msg("auth.waitingForTheAccountService")} />
-              <button className="btn-outline" onClick={stop}>
+              <button type="button" className="btn-outline" onClick={stop}>
                 {msg("auth.stopWaiting")}
               </button>
             </>
@@ -508,7 +519,7 @@ export default function AuthPage() {
             </p>
           )}
           {url && (
-            <p className="select-all break-all font-mono text-xs text-muted-foreground">
+            <p className="font-mono text-xs break-all text-muted-foreground select-all">
               {url}
             </p>
           )}

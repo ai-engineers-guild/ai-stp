@@ -36,12 +36,12 @@ function ProfileLinks({ links }: { links: ReadonlyArray<{ label: string; url: st
         <li key={`${link.label}-${link.url}`}>
           <a
             href={link.url}
-            className="border-border hover:bg-muted focus-visible:ring-ring inline-flex min-w-0 items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            className="inline-flex min-w-0 items-center gap-2 rounded-md border border-border px-3 py-2 text-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             rel="noopener noreferrer"
             target="_blank"
           >
             <span className="font-medium">{link.label}</span>
-            <span className="text-muted-foreground max-w-44 truncate font-mono text-xs">
+            <span className="max-w-44 truncate font-mono text-xs text-muted-foreground">
               {linkHost(link.url)}
             </span>
           </a>
@@ -78,7 +78,7 @@ export default async function PublisherPage({ params, searchParams }: PageProps)
     }
   })();
 
-  let profile;
+  let profile: Awaited<ReturnType<typeof readPublisherProfile>>;
   try {
     profile = await readPublisherProfile(accountId);
   } catch {
@@ -180,7 +180,8 @@ export default async function PublisherPage({ params, searchParams }: PageProps)
                 {profile.links.length > 0 ? <ProfileLinks links={profile.links} /> : null}
                 {profile.bio ? (
                   <div
-                    className="prose prose-sm text-muted-foreground max-w-prose text-sm leading-relaxed [&_a]:underline [&_code]:font-mono [&_pre]:overflow-x-auto [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto"
+                    className="prose prose-sm max-w-prose text-sm leading-relaxed text-muted-foreground [&_a]:underline [&_code]:font-mono [&_pre]:overflow-x-auto [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto"
+                    // biome-ignore lint/security/noDangerouslySetInnerHtml: Only output from the shared escaping Markdown renderer reaches this HTML boundary.
                     dangerouslySetInnerHTML={{ __html: renderMarkdownOnServer(profile.bio).html }}
                   />
                 ) : null}
@@ -191,9 +192,9 @@ export default async function PublisherPage({ params, searchParams }: PageProps)
           </div>
         }
         rail={
-          <section className="border-border bg-card space-y-4 rounded-lg border p-5">
+          <section className="space-y-4 rounded-lg border border-border bg-card p-5">
             <h2 className="text-sm font-medium">{t("publishedObjects")}</h2>
-            <p className="text-muted-foreground font-mono text-xs break-all">
+            <p className="font-mono text-xs break-all text-muted-foreground">
               {profile.account_id}
             </p>
           </section>
@@ -204,7 +205,7 @@ export default async function PublisherPage({ params, searchParams }: PageProps)
               <h2 id="published-objects-heading" className="text-xl font-medium tracking-tight">
                 {t("publishedObjects")}
               </h2>
-              <p className="text-muted-foreground mt-1 text-sm">
+              <p className="mt-1 text-sm text-muted-foreground">
                 {tCatalog("scopedFilterDescription")}
               </p>
             </div>

@@ -33,7 +33,7 @@ function SidebarStoryFrame({ children }: { children: React.ReactNode }) {
   const setCollapsed = useUiSlice((s) => s.setSidebarCollapsed);
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="border-border bg-background flex h-14 items-center gap-3 border-b px-4 pl-16 lg:pl-4">
+      <header className="flex h-14 items-center gap-3 border-b border-border bg-background px-4 pl-16 lg:pl-4">
         <Button
           type="button"
           variant="ghost"
@@ -46,6 +46,7 @@ function SidebarStoryFrame({ children }: { children: React.ReactNode }) {
         >
           <Icon name={collapsed ? "chevronRight" : "chevronLeft"} size="md" />
         </Button>
+        {/* biome-ignore lint/performance/noImgElement: This local mark is already sized for its display and needs no image transformation. */}
         <img src="/brand/logo-mark-64.png" alt="" width={28} height={28} />
         <span className="text-sm font-medium">ai_stp</span>
       </header>

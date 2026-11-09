@@ -44,9 +44,7 @@ export const readCorporateContext = cache(
   },
 );
 
-export async function readCorporateOverview(
-  sessionToken: string,
-): Promise<CorporateOverview | null> {
+export async function readCorporateOverview(sessionToken: string) {
   const organization = await readCorporateOrganization(sessionToken);
   if (!organization) return null;
   return apiRequest<CorporateOverview>(
@@ -75,7 +73,11 @@ export async function readCorporateDirectory(
 }
 
 export type CorporateDirectoryResource =
-  "projects" | "teams" | "members" | "employees" | "technologies";
+  | "projects"
+  | "teams"
+  | "members"
+  | "employees"
+  | "technologies";
 
 export type CorporateDirectoryPageOptions = Omit<
   CorporateDirectoryQuery,
@@ -298,7 +300,7 @@ export async function readCorporateMemberAccess(
   scope: { scope_kind?: string; scope_id?: string } = {},
 ) {
   const context = await readCorporateContext(sessionToken);
-  if (!context || !context.capabilities.includes("member.read")) return null;
+  if (!context?.capabilities.includes("member.read")) return null;
   const path = `/v1/corporate/organizations/${context.organization.organization_id}`;
   const [member, roles, access, delegation] = await Promise.all([
     apiRequest<CorporateMember>(`${path}/members/${accountId}`, {
@@ -431,14 +433,12 @@ export async function readCorporateCatalogScopeOptions(
     for (const search of [searchComponents, searchSetups]) {
       let cursor: string | null = null;
       do {
-        const page:
-          Awaited<ReturnType<typeof searchComponents>> | Awaited<ReturnType<typeof searchSetups>> =
-          await search({
-            sessionToken: session,
-            organization_id: organizationId,
-            page_size: 64,
-            ...(cursor ? { cursor: asCursorToken(cursor) } : {}),
-          });
+        const page: Awaited<ReturnType<typeof search>> = await search({
+          sessionToken: session,
+          organization_id: organizationId,
+          page_size: 64,
+          ...(cursor ? { cursor: asCursorToken(cursor) } : {}),
+        });
         options.push(
           ...[...page.items, ...page.experimental].map((item) => ({
             value: `catalog_object:${item.stable_id}`,

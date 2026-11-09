@@ -224,8 +224,8 @@ export function CorporateRelationSection({
           >
             <div className="grid min-w-0 items-start gap-5 md:grid-cols-2">
               {directoryFacets[resource].map((facet) => (
-                <label key={facet} className="min-w-0 space-y-2 text-sm">
-                  <span className="font-medium">{facetLabel(labels, facet)}</span>
+                <fieldset key={facet} className="min-w-0 space-y-2 text-sm">
+                  <legend className="font-medium">{facetLabel(labels, facet)}</legend>
                   <SearchableMultiSelect
                     name={directoryFacetParams[facet]}
                     label={facetLabel(labels, facet)}
@@ -238,7 +238,7 @@ export function CorporateRelationSection({
                       setDraftSelected((previous) => ({ ...previous, [facet]: values }));
                     }}
                   />
-                </label>
+                </fieldset>
               ))}
               {resource === "members" ? (
                 <label className="flex min-h-11 items-center gap-2 text-sm md:col-span-2">
@@ -253,7 +253,7 @@ export function CorporateRelationSection({
                 </label>
               ) : null}
             </div>
-            <div className="border-border bg-card sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t py-5">
+            <div className="sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-card py-5">
               <Button
                 type="button"
                 variant="ghost"
@@ -294,11 +294,11 @@ export function CorporateRelationSection({
             ))}
           </ul>
         ) : (
-          <p className="text-muted-foreground py-2 text-sm">{labels.noMatches}</p>
+          <p className="py-2 text-sm text-muted-foreground">{labels.noMatches}</p>
         )}
         {total > PAGE_SIZE ? (
           <nav
-            className="border-border mt-4 flex items-center justify-between gap-3 border-t pt-4"
+            className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-4"
             aria-label={title}
           >
             <Button
@@ -311,7 +311,7 @@ export function CorporateRelationSection({
             >
               {labels.previous}
             </Button>
-            <span className="text-muted-foreground text-sm">
+            <span className="text-sm text-muted-foreground">
               {labels.page} {currentPage + 1} / {pageCount}
             </span>
             <Button

@@ -1,0 +1,94 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  // Resolve the app ignore file so Next-generated types and builds retain their producer ownership.
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "trailingCommas": "all",
+      "semicolons": "always"
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "tailwind": {
+    "stylesheet": "src/app/globals.css"
+  },
+  "linter": {
+    "rules": {
+      "preset": "recommended",
+      "nursery": {
+        "useTailwindSortedClasses": "error"
+      },
+      "a11y": {
+        "noLabelWithoutControl": {
+          "level": "error",
+          "options": {
+            "inputComponents": ["Input", "Select", "Textarea"],
+            "labelComponents": ["Label"]
+          }
+        }
+      }
+    }
+  },
+  "assist": {
+    "enabled": false
+  },
+  "overrides": [
+    // Locator.innerText() is Playwright rendered-text evidence, not a DOM property read.
+    {
+      "includes": ["**/tests/e2e/**"],
+      "linter": {
+        "rules": {
+          "performance": {
+            "useDomNodeTextContent": "off"
+          }
+        }
+      }
+    },
+    // JSDOM consent fixtures use the same synchronous cookie API as the tested runtime.
+    {
+      "includes": [
+        "**/tests/component/consented-analytics.test.tsx",
+        "**/tests/component/cookie-consent.test.tsx",
+        "**/tests/unit/public-analytics.test.ts"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noDocumentCookie": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "**/src/lib/api/generated/**",
+        "**/src/lib/generated/cli-copy.ts",
+        "**/src/lib/generated/deep-link-corpus.ts",
+        "**/src/lib/generated/corporate-overview-fixture.ts"
+      ],
+      "formatter": {
+        "enabled": false
+      },
+      "linter": {
+        "enabled": false
+      },
+      "assist": {
+        "enabled": false
+      }
+    }
+  ]
+}

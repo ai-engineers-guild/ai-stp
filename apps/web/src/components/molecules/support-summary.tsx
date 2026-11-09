@@ -42,7 +42,7 @@ export function SupportSummary({ support, labels, embedded = false }: SupportSum
           {support.evidence.map((item) => (
             <li key={`${item.check_id}-${item.release_reference}`} className="break-words">
               <span className="font-mono">{item.check_id}</span> · {labels.result}: {item.result}
-              <span className="text-muted-foreground ml-2">
+              <span className="ml-2 text-muted-foreground">
                 {labels.observedAt}: {item.observed_at} · {labels.expiresAt}:{" "}
                 {item.expires_at ?? labels.noExpiry}
               </span>
@@ -56,7 +56,7 @@ export function SupportSummary({ support, labels, embedded = false }: SupportSum
   if (embedded) return evidence;
 
   return (
-    <div className="space-y-3" aria-labelledby="support-heading">
+    <section className="space-y-3" aria-labelledby="support-heading">
       <h2 id="support-heading" className="text-xl font-medium tracking-tight">
         {labels.evidence}
       </h2>
@@ -77,6 +77,6 @@ export function SupportSummary({ support, labels, embedded = false }: SupportSum
         </div>
       </dl>
       {evidence}
-    </div>
+    </section>
   );
 }

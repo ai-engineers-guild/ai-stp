@@ -57,8 +57,9 @@ export function ProfilePreview({ projection, copyLabel, copiedLabel }: ProfilePr
 
   return (
     <section className="flex flex-wrap items-start gap-5">
-      <div className="bg-muted border-border flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border text-sm font-medium">
+      <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-sm font-medium">
         {avatarUrl ? (
+          // biome-ignore lint/performance/noImgElement: Browser previews and account-provided asset URLs must not be fetched by an image proxy.
           <img src={avatarUrl} alt="" className="h-20 w-20 rounded-full object-cover" />
         ) : (
           displayName.slice(0, 2).toUpperCase()
@@ -78,7 +79,7 @@ export function ProfilePreview({ projection, copyLabel, copiedLabel }: ProfilePr
               <li key={link.url}>
                 <a
                   href={link.url}
-                  className="border-border bg-card hover:bg-muted inline-flex max-w-full items-center rounded-md border px-3 py-1.5 text-sm font-medium no-underline transition-colors"
+                  className="inline-flex max-w-full items-center rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium no-underline transition-colors hover:bg-muted"
                   rel="noopener noreferrer"
                   target="_blank"
                 >
@@ -90,7 +91,8 @@ export function ProfilePreview({ projection, copyLabel, copiedLabel }: ProfilePr
         ) : null}
         {bioHtml ? (
           <div
-            className="prose-sm text-muted-foreground max-w-prose overflow-x-auto text-sm leading-relaxed [&_a]:underline [&_a]:underline-offset-2 [&_code]:font-mono [&_ol]:list-decimal [&_ol]:pl-5 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:p-2 [&_th]:border [&_th]:p-2 [&_ul]:list-disc [&_ul]:pl-5"
+            className="prose-sm max-w-prose overflow-x-auto text-sm leading-relaxed text-muted-foreground [&_a]:underline [&_a]:underline-offset-2 [&_code]:font-mono [&_ol]:list-decimal [&_ol]:pl-5 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:p-2 [&_th]:border [&_th]:p-2 [&_ul]:list-disc [&_ul]:pl-5"
+            // biome-ignore lint/security/noDangerouslySetInnerHtml: Only output from the shared escaping Markdown renderer reaches this HTML boundary.
             dangerouslySetInnerHTML={{ __html: bioHtml }}
           />
         ) : null}

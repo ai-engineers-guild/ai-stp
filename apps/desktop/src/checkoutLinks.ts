@@ -137,10 +137,10 @@ export function retainedCheckout(value: unknown): CheckoutReview | null {
     data.operation_id !== plan.operation_id ||
     typeof data.plan_digest !== "string" ||
     !/^sha256:[0-9a-f]{64}$/.test(data.plan_digest) ||
-    !["request", "confirm", "adopt"].includes(String(action)) ||
-    !["applying", "interrupted", "completed", "retired"].includes(
-      String(data.state),
-    ) ||
+    typeof action !== "string" ||
+    !["request", "confirm", "adopt"].includes(action) ||
+    typeof data.state !== "string" ||
+    !["applying", "interrupted", "completed", "retired"].includes(data.state) ||
     data.installation_authority !== false ||
     checkoutPath(plan.checkout_root) === null
   )
@@ -162,8 +162,7 @@ export function checkoutReader(
   contexts: CmdResult | null,
   review: CheckoutReview,
 ): string | undefined {
-  if (!context || context.mode !== "corporate" || !contexts?.ok)
-    return undefined;
+  if (context?.mode !== "corporate" || !contexts?.ok) return undefined;
   const rows = contexts.data?.contexts;
   if (!Array.isArray(rows)) return undefined;
   const saved = record(

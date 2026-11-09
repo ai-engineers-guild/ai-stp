@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { required } from "./test-values";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   act,
@@ -216,7 +217,7 @@ it.each(["missing", "apply"])(
       name: "Read heartbeat policy",
     });
     expect(button.hasAttribute("disabled")).toBe(true);
-    fireEvent.submit(button.closest("form")!);
+    fireEvent.submit(required(button.closest("form")));
     expect(transport.cmdRunRead).not.toHaveBeenCalled();
   },
 );

@@ -62,9 +62,9 @@ export function CorporateCatalogOwnerEditor({
 }) {
   const h = useTranslations("hub");
   return (
-    <section className="border-border bg-card space-y-3 rounded-lg border p-4 shadow-sm">
+    <section className="space-y-3 rounded-lg border border-border bg-card p-4 shadow-sm">
       <div>
-        <p className="text-muted-foreground text-xs font-medium tracking-[0.14em] uppercase">
+        <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
           {h("operationalOwner")}
         </p>
         <p className="mt-1 font-medium">{ownership.owner_display_name ?? h("ownerUnassigned")}</p>
@@ -199,7 +199,7 @@ function OwnerEditForm({
         </fieldset>
       </div>
       {error ? (
-        <p role="alert" className="text-destructive text-sm">
+        <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       ) : null}

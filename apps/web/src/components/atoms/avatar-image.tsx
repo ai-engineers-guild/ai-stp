@@ -53,7 +53,7 @@ export function InitialsAvatar({ name, className }: { name: string; className?: 
     <span
       aria-hidden
       className={cn(
-        "bg-muted text-foreground grid size-8 shrink-0 place-items-center rounded-full text-xs font-medium",
+        "grid size-8 shrink-0 place-items-center rounded-full bg-muted text-xs font-medium text-foreground",
         className,
       )}
     >

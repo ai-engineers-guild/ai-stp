@@ -8,7 +8,7 @@ function IconGrid({ size }: { size: IconSize }) {
       {iconNames.map((name) => (
         <div
           key={name}
-          className="border-border flex flex-col items-center gap-2 rounded-lg border p-4"
+          className="flex flex-col items-center gap-2 rounded-lg border border-border p-4"
         >
           <Icon name={name} size={size} className="text-foreground" />
           <code className="font-mono text-xs">{name}</code>

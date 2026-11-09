@@ -38,7 +38,7 @@ export function ProjectionDockView({
         href={humanHref}
         aria-current={projection === "human" ? "true" : undefined}
         style={optionStyle(projection === "human")}
-        className="projection-dock__option focus-visible:ring-ring inline-flex h-7 min-w-16 items-center justify-center gap-2 rounded-sm px-2 font-mono text-xs font-medium uppercase transition-opacity focus-visible:ring-2 focus-visible:outline-none max-sm:h-11"
+        className="projection-dock__option inline-flex h-7 min-w-16 items-center justify-center gap-2 rounded-sm px-2 font-mono text-xs font-medium uppercase transition-opacity focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none max-sm:h-11"
       >
         <span
           aria-hidden
@@ -51,7 +51,7 @@ export function ProjectionDockView({
         href={machineHref}
         aria-current={projection === "machine" ? "true" : undefined}
         style={optionStyle(projection === "machine")}
-        className="projection-dock__option focus-visible:ring-ring inline-flex h-7 min-w-16 items-center justify-center gap-2 rounded-sm px-2 font-mono text-xs font-medium uppercase transition-opacity focus-visible:ring-2 focus-visible:outline-none max-sm:h-11"
+        className="projection-dock__option inline-flex h-7 min-w-16 items-center justify-center gap-2 rounded-sm px-2 font-mono text-xs font-medium uppercase transition-opacity focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none max-sm:h-11"
       >
         <span
           aria-hidden

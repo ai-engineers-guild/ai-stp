@@ -30,14 +30,14 @@ export function ObjectVersionHistory({
   return (
     <DetailAccordion title={title} summary={note}>
       {versions.length === 0 ? (
-        <p className="text-muted-foreground text-sm">{emptyLabel}</p>
+        <p className="text-sm text-muted-foreground">{emptyLabel}</p>
       ) : (
-        <ol className="border-border relative space-y-0 border-l pl-6">
+        <ol className="relative space-y-0 border-l border-border pl-6">
           {[...versions]
             .sort((left, right) => compareVersions(right.version, left.version))
             .map((entry) => (
               <li key={entry.version} className="relative pb-6 last:pb-0">
-                <span className="border-background bg-primary absolute top-1 -left-[1.85rem] h-3 w-3 rounded-full border-2" />
+                <span className="absolute top-1 -left-[1.85rem] h-3 w-3 rounded-full border-2 border-background bg-primary" />
                 <div className="flex flex-wrap items-center gap-2">
                   <Link
                     href={hrefFor(entry.version)}
@@ -48,7 +48,7 @@ export function ObjectVersionHistory({
                   </Link>
                   {entry.version === current ? <Badge>{currentLabel}</Badge> : null}
                 </div>
-                <p className="text-muted-foreground mt-1 text-sm">
+                <p className="mt-1 text-sm text-muted-foreground">
                   {[
                     entry.published_at,
                     entry.lifecycle,

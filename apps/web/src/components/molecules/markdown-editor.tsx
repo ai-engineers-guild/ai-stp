@@ -35,7 +35,7 @@ export function MarkdownEditor({
   const rendered = useMemo(() => renderMarkdownOnServer(value), [value]);
   return (
     <EntityEditorField label={label} htmlFor={id} hint={hint} error={error}>
-      <div className="flex flex-wrap justify-end gap-1" role="group">
+      <fieldset className="flex min-w-0 flex-wrap justify-end gap-1">
         <Button
           type="button"
           size="sm"
@@ -60,11 +60,12 @@ export function MarkdownEditor({
         >
           {labels.preview}
         </Button>
-      </div>
+      </fieldset>
       {mode === "preview" ? (
-        <div
-          className="border-input bg-background prose-sm min-h-36 w-full overflow-x-auto rounded-sm border px-3 py-2 text-sm leading-relaxed [&_a]:underline [&_code]:font-mono [&_ol]:list-decimal [&_ol]:pl-5 [&_table]:w-full [&_ul]:list-disc [&_ul]:pl-5"
+        <section
+          className="prose-sm min-h-36 w-full overflow-x-auto rounded-sm border border-input bg-background px-3 py-2 text-sm leading-relaxed [&_a]:underline [&_code]:font-mono [&_ol]:list-decimal [&_ol]:pl-5 [&_table]:w-full [&_ul]:list-disc [&_ul]:pl-5"
           aria-label={label}
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: Only output from the shared escaping Markdown renderer reaches this HTML boundary.
           dangerouslySetInnerHTML={{ __html: rendered.html || "<p></p>" }}
         />
       ) : (
@@ -81,7 +82,7 @@ export function MarkdownEditor({
           }}
         />
       )}
-      <p className="text-muted-foreground font-mono text-xs">
+      <p className="font-mono text-xs text-muted-foreground">
         {value.length}/{maxLength}
       </p>
     </EntityEditorField>

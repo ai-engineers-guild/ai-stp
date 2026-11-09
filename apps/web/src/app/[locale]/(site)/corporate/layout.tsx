@@ -27,7 +27,7 @@ export default async function CorporateHubLayout({ children }: { children: React
       {organizations.length > 1 && organization ? (
         <div
           data-ui={UI.corporate.organizationSwitcher}
-          className="border-border -mx-4 -mt-6 mb-6 border-b sm:-mx-6"
+          className="-mx-4 -mt-6 mb-6 border-b border-border sm:-mx-6"
         >
           <div className="mx-auto flex max-w-6xl items-center justify-end px-4 py-2 sm:px-6">
             <CorporateOrganizationSwitcher

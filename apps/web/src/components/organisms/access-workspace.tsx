@@ -135,13 +135,13 @@ function InviteForm({
   const scoped = Boolean(initialObjectKind && initialStableId);
 
   return (
-    <section className="border-border mx-auto max-w-lg space-y-3 rounded-lg border p-4">
+    <section className="mx-auto max-w-lg space-y-3 rounded-lg border border-border p-4">
       <h2 className="text-lg font-medium tracking-tight">{labels.create}</h2>
       <div className="space-y-2">
         <Label htmlFor="recipient-kind">{labels.recipientKind}</Label>
         <Select
           id="recipient-kind"
-          className="border-input bg-background h-9 w-full rounded-sm border px-2 text-sm"
+          className="h-9 w-full rounded-sm border border-input bg-background px-2 text-sm"
           value={recipientKind}
           onChange={(event) => {
             setRecipientKind(
@@ -173,7 +173,7 @@ function InviteForm({
           <Label htmlFor="invite-kind">{labels.kind}</Label>
           <Select
             id="invite-kind"
-            className="border-input bg-background h-9 w-full rounded-sm border px-2 text-sm"
+            className="h-9 w-full rounded-sm border border-input bg-background px-2 text-sm"
             value={kind}
             onChange={(event) => {
               setKind(event.target.value as "component" | "setup");
@@ -194,7 +194,7 @@ function InviteForm({
         />
       ) : null}
       {recipientKind === "github_username" ? (
-        <p className="text-muted-foreground text-xs">{labels.githubNote}</p>
+        <p className="text-xs text-muted-foreground">{labels.githubNote}</p>
       ) : null}
       <Button
         type="button"
@@ -235,7 +235,7 @@ function AccessUserRow({
   }
 
   return (
-    <li className="border-border flex items-center gap-3 border-b px-3 py-2 last:border-b-0">
+    <li className="flex items-center gap-3 border-b border-border px-3 py-2 last:border-b-0">
       <div className="min-w-0 flex-1">
         <CatalogAuthorLink
           accountId={user.accountId}
@@ -247,7 +247,7 @@ function AccessUserRow({
         {user.objectKind && user.stableId ? (
           <Link
             href={`/catalog/${user.objectKind === "component" ? "components" : "setups"}/${user.stableId}`}
-            className="text-muted-foreground block truncate font-mono text-xs hover:underline"
+            className="block truncate font-mono text-xs text-muted-foreground hover:underline"
           >
             {user.stableId}
             {user.major ? `@${user.major}.x` : ""}
@@ -404,9 +404,9 @@ export function AccessWorkspace({
           <section key={group.key} className="space-y-3">
             <h2 className="text-lg font-medium tracking-tight">{group.label}</h2>
             {group.entries.length === 0 ? (
-              <p className="text-muted-foreground text-sm">{labels.emptyPeople}</p>
+              <p className="text-sm text-muted-foreground">{labels.emptyPeople}</p>
             ) : (
-              <ul className="border-border rounded-lg border">
+              <ul className="rounded-lg border border-border">
                 {group.entries.map((user) => (
                   <AccessUserRow
                     key={user.grantId}
@@ -430,7 +430,7 @@ export function AccessWorkspace({
       <div className="mx-auto max-w-lg space-y-2">
         <MutationReference label={labels.referenceId} operationId={operationId} />
         {error ? (
-          <p className="text-destructive text-sm" role="alert">
+          <p className="text-sm text-destructive" role="alert">
             {error}
           </p>
         ) : null}

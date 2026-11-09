@@ -112,13 +112,13 @@ export function ContactForm({
           maxLength={4000}
           rows={8}
         />
-        <p className="text-muted-foreground text-xs">{t("privacyHint")}</p>
+        <p className="text-xs text-muted-foreground">{t("privacyHint")}</p>
       </div>
       <Button data-ui={UI.contact.submit} type="submit" disabled={pending || submitted}>
         {t("send")}
       </Button>
       {error ? (
-        <p role="alert" className="text-destructive text-sm">
+        <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       ) : null}

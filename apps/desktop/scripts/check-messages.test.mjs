@@ -49,6 +49,7 @@ it.each([
   ["visible JSX", "<div>Untranslated interface</div>"],
   ["accessible name", '<button aria-label="Untranslated action" />'],
   ["conditional text", '<div>{true ? "Untranslated state" : null}</div>'],
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: This fixture is source text parsed by the message guard.
   ["interpolated text", "<div>{`Untranslated ${42} items`}</div>"],
 ])("rejects %s outside the catalog", (_, source) => {
   const directory = fixture();

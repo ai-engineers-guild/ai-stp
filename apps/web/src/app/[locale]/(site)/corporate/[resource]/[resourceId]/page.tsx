@@ -59,7 +59,7 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
   const h = await getTranslations("hub");
   const session = (await sessionCookieValue()) ?? "";
 
-  let workspace;
+  let workspace: Awaited<ReturnType<typeof readCorporateResource>>;
   try {
     workspace = await readCorporateResource(session, resource, resourceId);
   } catch (error) {
@@ -319,7 +319,6 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
         resource={resource === "roles" ? "teams" : resource}
         resourceId={resourceId}
         title={detail.name}
-
         meta={
           member?.job_title_name ? <Badge variant="secondary">{member.job_title_name}</Badge> : null
         }

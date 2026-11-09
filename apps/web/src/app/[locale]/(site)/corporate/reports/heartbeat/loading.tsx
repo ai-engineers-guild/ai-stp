@@ -12,7 +12,7 @@ export default async function HeartbeatReportLoading() {
       <Skeleton className="h-4 w-48" />
       <Skeleton className="h-9 w-80" />
       <Skeleton className="h-24 w-full" />
-      <div className="border-border space-y-3 rounded-lg border p-4">
+      <div className="space-y-3 rounded-lg border border-border p-4">
         {[0, 1, 2, 3, 4].map((row) => (
           <Skeleton key={row} className="h-9 w-full" />
         ))}

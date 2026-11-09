@@ -32,6 +32,7 @@ export function ScoreMeter({
 }: ScoreMeterProps) {
   const clamped = Math.max(0, Math.min(100, percent));
   return (
+    // biome-ignore lint/a11y/useSemanticElements: The ARIA meter retains the custom token-gradient rendering and explicit numeric value.
     <span
       className={cn("inline-flex min-w-0 items-center gap-1.5", className)}
       role="meter"
@@ -44,7 +45,7 @@ export function ScoreMeter({
     >
       <span
         className={cn(
-          "bg-muted relative block h-1 overflow-hidden rounded-full",
+          "relative block h-1 overflow-hidden rounded-full bg-muted",
           compact ? "w-8" : "w-10",
         )}
         aria-hidden="true"

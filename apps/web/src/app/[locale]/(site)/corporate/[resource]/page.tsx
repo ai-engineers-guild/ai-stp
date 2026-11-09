@@ -32,7 +32,7 @@ export default async function CorporateDirectoryPage({
   await requireSession(locale, `/${locale}/corporate/${resource}`);
   const t = await getTranslations("hub");
   const c = await getTranslations("common");
-  let directory;
+  let directory: Awaited<ReturnType<typeof readCorporateDirectoryPage>>;
   try {
     const session = (await sessionCookieValue()) ?? "";
     const list = (key: string) => {
@@ -105,7 +105,7 @@ export default async function CorporateDirectoryPage({
 }
 
 async function teammatesFallback(title: string) {
-  let teammates;
+  let teammates: Awaited<ReturnType<typeof readCorporateTeammates>>;
   try {
     teammates = await readCorporateTeammates((await sessionCookieValue()) ?? "");
   } catch (error) {

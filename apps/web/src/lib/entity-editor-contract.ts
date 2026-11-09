@@ -1,8 +1,18 @@
 export type EntityEditorKind =
-  "profile" | "component" | "setup" | "project" | "team" | "technology";
+  | "profile"
+  | "component"
+  | "setup"
+  | "project"
+  | "team"
+  | "technology";
 
 export type EntityEditorBlock =
-  "avatar" | "displayName" | "description" | "links" | "media" | "regionalServices";
+  | "avatar"
+  | "displayName"
+  | "description"
+  | "links"
+  | "media"
+  | "regionalServices";
 
 export type EntityEditorConfig = {
   kind: EntityEditorKind;

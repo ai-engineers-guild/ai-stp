@@ -33,7 +33,7 @@ export default async function TechnologyDetailPage({
   if (!workspace || !/^technology_[0-9A-HJKMNP-TV-Z]{26}$/.test(technologyId))
     return <StatePanel kind="empty" title={t("registry")} description={t("notPermitted")} />;
   const organizationId = workspace.organization.organization_id;
-  let detail;
+  let detail: Awaited<ReturnType<typeof readTechnologyDetail>>;
   try {
     detail = await readTechnologyDetail(session, organizationId, technologyId);
   } catch {
@@ -85,7 +85,6 @@ export default async function TechnologyDetailPage({
         resource="technologies"
         resourceId={technologyId}
         title={technology.name}
-
         {...(technology.lifecycle === "active"
           ? {}
           : { state: t(`values.${technology.lifecycle}`) })}
@@ -234,7 +233,7 @@ function TechnologyProjectsPanel({
     />
   ) : (
     <DetailAccordion title={labels.title} summary="0">
-      <p className="text-muted-foreground text-sm">{labels.empty}</p>
+      <p className="text-sm text-muted-foreground">{labels.empty}</p>
     </DetailAccordion>
   );
 }

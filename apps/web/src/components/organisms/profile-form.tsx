@@ -43,18 +43,19 @@ function AvatarControls(props: {
     <section className="flex min-w-0 flex-col items-start gap-4 sm:flex-row sm:flex-wrap">
       <button
         type="button"
-        className={`group bg-muted border-border focus-visible:ring-ring hover:border-foreground/40 relative flex h-20 w-20 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border transition-[border-color,box-shadow] hover:shadow-sm focus-visible:ring-2 focus-visible:outline-none disabled:cursor-wait ${error ? "border-destructive focus-visible:ring-destructive" : ""}`}
+        className={`group relative flex h-20 w-20 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-border bg-muted transition-[border-color,box-shadow] hover:border-foreground/40 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-wait ${error ? "border-destructive focus-visible:ring-destructive" : ""}`}
         onClick={() => inputRef.current?.click()}
         disabled={pending}
         aria-label={t("profileUpload")}
         aria-describedby={error ? "profile-avatar-error" : undefined}
       >
         {avatarUrl ? (
+          // biome-ignore lint/performance/noImgElement: Browser previews and account-provided asset URLs must not be fetched by an image proxy.
           <img src={avatarUrl} alt="" className="h-20 w-20 object-cover" />
         ) : (
           <Icon name="user" size="lg" className="text-muted-foreground" />
         )}
-        <span className="bg-foreground/72 text-background absolute inset-0 flex items-center justify-center opacity-0 backdrop-blur-[1px] transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
+        <span className="absolute inset-0 flex items-center justify-center bg-foreground/72 text-background opacity-0 backdrop-blur-[1px] transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
           <Icon
             name={pending ? "loader" : "camera"}
             size="md"
@@ -75,10 +76,10 @@ function AvatarControls(props: {
         }}
       />
       <div className="min-w-0 flex-1 space-y-2 pt-0.5">
-        <p className="text-muted-foreground max-w-md text-xs leading-relaxed">
+        <p className="max-w-md text-xs leading-relaxed text-muted-foreground">
           {t("profileAvatarRequirements")}
         </p>
-        <p className="text-muted-foreground text-xs font-medium">{t("profileIdentitySources")}</p>
+        <p className="text-xs font-medium text-muted-foreground">{t("profileIdentitySources")}</p>
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"
@@ -111,7 +112,7 @@ function AvatarControls(props: {
           ) : null}
         </div>
         {error ? (
-          <p id="profile-avatar-error" className="text-destructive text-xs" role="alert">
+          <p id="profile-avatar-error" className="text-xs text-destructive" role="alert">
             {error}
           </p>
         ) : null}
@@ -145,7 +146,7 @@ export function ProfileForm({ initial, csrfToken }: ProfileFormProps) {
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">
             <Badge variant={statusVariant}>{statusLabel}</Badge>
-            <p className="text-muted-foreground text-xs">{form.t("profileStatusHint")}</p>
+            <p className="text-xs text-muted-foreground">{form.t("profileStatusHint")}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {initial.published ? (
@@ -256,14 +257,14 @@ export function ProfileForm({ initial, csrfToken }: ProfileFormProps) {
             fieldLabel={(path) => profileFieldLabel(path, form.t)}
           />
           {form.message ? (
-            <p className="text-muted-foreground text-sm" role="status" aria-live="polite">
+            <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
               {form.message}
             </p>
           ) : null}
 
-          <div className="border-border flex flex-col gap-3 border-t pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <div className="max-w-sm space-y-1">
-              <p className="text-muted-foreground text-xs">{form.t("profilePreviewHint")}</p>
+              <p className="text-xs text-muted-foreground">{form.t("profilePreviewHint")}</p>
               {form.canRestorePublished ? (
                 <button
                   type="button"

@@ -1,4 +1,4 @@
-import { type MachineDocument } from "@/lib/projection/machine-document";
+import type { MachineDocument } from "@/lib/projection/machine-document";
 import { corporateHref } from "@/lib/features/corporate-path";
 import { projectedHref } from "@/lib/projection/paths";
 import { UI } from "@/lib/ui-selectors";
@@ -20,20 +20,34 @@ export function MachineDocumentView({
           case "heading": {
             const prefix = "#".repeat(block.level) + " ";
             return (
-              <div key={i} className="font-bold">
+              <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: These stateless text blocks preserve the document's order and duplicate content.
+                key={i}
+                className="font-bold"
+              >
                 {prefix}
                 {block.text}
               </div>
             );
           }
           case "paragraph":
-            return <div key={i}>{block.text}</div>;
+            return (
+              <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: These stateless text blocks preserve the document's order and duplicate content.
+                key={i}
+              >
+                {block.text}
+              </div>
+            );
           case "link": {
             const href = block.href.startsWith("http")
               ? block.href
               : projectedHref(corporateHref(block.href), locale);
             return (
-              <div key={i}>
+              <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: These stateless text blocks preserve the document's order and duplicate content.
+                key={i}
+              >
                 [{block.text}](
                 <a href={href} className="underline">
                   {href}
@@ -44,21 +58,36 @@ export function MachineDocumentView({
           }
           case "field":
             return (
-              <div key={i}>
+              <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: These stateless text blocks preserve the document's order and duplicate content.
+                key={i}
+              >
                 - {block.name}: {block.value}
               </div>
             );
           case "list":
             return (
-              <div key={i} className="pl-4">
+              <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: These stateless text blocks preserve the document's order and duplicate content.
+                key={i}
+                className="pl-4"
+              >
                 {block.items.map((item, j) => (
-                  <div key={j}>* {item}</div>
+                  <div
+                    // biome-ignore lint/suspicious/noArrayIndexKey: These stateless text blocks preserve the document's order and duplicate content.
+                    key={j}
+                  >
+                    * {item}
+                  </div>
                 ))}
               </div>
             );
           case "code":
             return (
-              <div key={i}>
+              <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: These stateless text blocks preserve the document's order and duplicate content.
+                key={i}
+              >
                 <div>{`\`\`\`${block.language ?? ""}`}</div>
                 <div className="pl-2">{block.code}</div>
                 <div>{"```"}</div>

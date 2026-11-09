@@ -40,9 +40,9 @@ function DocsNavList({
                   {node.title}
                 </NavLink>
               ) : (
-                <p className="text-muted-foreground px-3 py-1.5 font-medium">{node.title}</p>
+                <p className="px-3 py-1.5 font-medium text-muted-foreground">{node.title}</p>
               )}
-              <div className="border-border ml-2 border-l pl-1">
+              <div className="ml-2 border-l border-border pl-1">
                 <DocsNavList nodes={node.children} currentHref={currentHref} />
               </div>
             </div>
@@ -74,7 +74,7 @@ function NavLink({
       href={href}
       aria-current={current ? "page" : undefined}
       className={cn(
-        "hover:bg-muted block rounded-sm px-3 py-1.5",
+        "block rounded-sm px-3 py-1.5 hover:bg-muted",
         current && "bg-muted font-medium",
         className,
       )}

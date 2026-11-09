@@ -275,7 +275,7 @@ export function projectSafeMarkdown(
     throw new MarkdownPolicyError("unsupported_renderer");
   }
   const { md, tokens } = parse(source);
-  md.renderer.rules.link_open = (linkTokens, index, options, env, self) => {
+  md.renderer.rules.link_open = (linkTokens, index, options, _env, self) => {
     const destination = linkTokens[index]?.attrGet("href");
     if (typeof destination === "string" && !destination.startsWith("#")) {
       linkTokens[index]?.attrSet("rel", "nofollow noopener noreferrer");

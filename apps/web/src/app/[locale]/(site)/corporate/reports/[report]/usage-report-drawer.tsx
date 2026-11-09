@@ -32,7 +32,7 @@ function FocusedObjectDetails({
   t: Translator;
 }) {
   return (
-    <dl className="border-border mb-5 grid grid-cols-3 gap-2 rounded-lg border p-3 text-sm">
+    <dl className="mb-5 grid grid-cols-3 gap-2 rounded-lg border border-border p-3 text-sm">
       <div>
         <dt className="text-muted-foreground">{t("detailAssignedTo")}</dt>
         <dd>{focusedObject.assigned_to}</dd>
@@ -73,7 +73,7 @@ function UsageEventCard({
   t: Translator;
 }) {
   return (
-    <article className="border-border rounded-lg border p-3 text-sm">
+    <article className="rounded-lg border border-border p-3 text-sm">
       <p className="font-medium">
         {event.component_stable_id}@{event.component_version}
       </p>
@@ -144,12 +144,12 @@ export async function UsageReportDrawer({
         <div className="mb-5 flex items-start justify-between gap-3">
           <div>
             <SheetTitle className="text-xl font-medium">{t("usageDetails")}</SheetTitle>
-            <p className="text-muted-foreground mt-1 text-sm">{subtitle}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
           </div>
           <SheetClose asChild>
             <Link
               href={`/corporate/reports/usage?${chartQuery}`}
-              className="text-muted-foreground text-sm hover:underline"
+              className="text-sm text-muted-foreground hover:underline"
             >
               {t("close")}
             </Link>

@@ -76,7 +76,7 @@ export function RailItems({
     if (!item.children?.length) {
       const node = link(item);
       return item.pinned ? (
-        <div key={item.id} className="border-border mt-auto space-y-1 border-t pt-2">
+        <div key={item.id} className="mt-auto space-y-1 border-t border-border pt-2">
           {node}
         </div>
       ) : (
@@ -117,7 +117,7 @@ export function RailItems({
               sideOffset={8}
               collisionPadding={12}
               aria-label={item.label}
-              className="border-border bg-popover text-popover-foreground z-[70] max-h-[var(--radix-dropdown-menu-content-available-height)] max-w-[calc(100vw-1.5rem)] min-w-52 overflow-y-auto rounded-lg border p-1 shadow-md"
+              className="z-[70] max-h-[var(--radix-dropdown-menu-content-available-height)] max-w-[calc(100vw-1.5rem)] min-w-52 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md"
             >
               {(item.href ? [item, ...item.children] : item.children).map((child) => (
                 <DropdownMenu.Item key={child.id} asChild>
@@ -129,7 +129,7 @@ export function RailItems({
                     className={cn(
                       railItemClass,
                       "focus:bg-muted",
-                      child.active && "text-primary font-medium",
+                      child.active && "font-medium text-primary",
                     )}
                     onClick={onNavigate}
                   >

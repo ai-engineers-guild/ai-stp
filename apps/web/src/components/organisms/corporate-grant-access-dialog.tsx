@@ -264,7 +264,7 @@ export function CorporateGrantAccessDialog({
             options={scopeOptions}
             onKindChange={setScopeKind}
           />
-          <p className="text-muted-foreground text-xs">{a("grantScopeHint")}</p>
+          <p className="text-xs text-muted-foreground">{a("grantScopeHint")}</p>
         </div>
       </fieldset>
     </FormDialog>

@@ -15,7 +15,7 @@ export default async function JobTitlesPage({ params }: { params: Promise<{ loca
   const t = await getTranslations("corporate");
   const people = await getTranslations("people");
   const common = await getTranslations("common");
-  let workspace;
+  let workspace: Awaited<ReturnType<typeof readCorporateWorkspace>>;
   try {
     workspace = await readCorporateWorkspace((await sessionCookieValue()) ?? "", false);
   } catch (error) {

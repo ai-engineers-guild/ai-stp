@@ -11,13 +11,17 @@ function EntityDetailExample() {
     <article className="mx-auto max-w-7xl space-y-8">
       <EntityDetailHeader
         icon={
-          <span className="border-border flex size-20 items-center justify-center rounded-lg border">
+          <span className="flex size-20 items-center justify-center rounded-lg border border-border">
             <Icon name="technology" size="lg" />
           </span>
         }
         title="TypeScript"
-        meta={<span className="text-muted-foreground text-sm">Technology · Adopt</span>}
-        menu={<button aria-label="More actions">•••</button>}
+        meta={<span className="text-sm text-muted-foreground">Technology · Adopt</span>}
+        menu={
+          <button type="button" aria-label="More actions">
+            •••
+          </button>
+        }
       />
       <ObjectDetailFrame
         description={
@@ -26,15 +30,15 @@ function EntityDetailExample() {
             <p className="text-muted-foreground">Shared Markdown and media composition.</p>
           </section>
         }
-        media={<div className="bg-muted aspect-video rounded-lg" aria-label="Media" />}
+        media={<div role="img" className="aspect-video rounded-lg bg-muted" aria-label="Media" />}
         main={
           <DetailAccordion title="Projects" summary="2" defaultOpen>
             <p>Web platform, Developer experience</p>
           </DetailAccordion>
         }
         rail={
-          <section className="border-border rounded-lg border p-5">
-            <p className="text-muted-foreground text-xs uppercase">Owner</p>
+          <section className="rounded-lg border border-border p-5">
+            <p className="text-xs text-muted-foreground uppercase">Owner</p>
             <p className="mt-2 font-medium">Ada Lovelace</p>
           </section>
         }

@@ -75,7 +75,7 @@ export function RefineSurface({
     <>
       <button
         type="button"
-        className="bg-foreground/40 fixed inset-0 z-[60]"
+        className="fixed inset-0 z-[60] bg-foreground/40"
         aria-label={labels.closeFilters}
         tabIndex={-1}
         onClick={onClose}
@@ -89,14 +89,14 @@ export function RefineSurface({
         tabIndex={-1}
         data-filter-surface="drawer"
         className={cn(
-          "border-border bg-card fixed z-[70] overflow-x-hidden overflow-y-auto border shadow-md",
+          "fixed z-[70] overflow-x-hidden overflow-y-auto border border-border bg-card shadow-md",
           "inset-x-0 bottom-0 max-h-[min(92dvh,calc(100vh-1rem))] w-full rounded-t-lg px-4",
           "pb-[max(1.25rem,env(safe-area-inset-bottom))]",
           "md:inset-auto md:top-1/2 md:left-1/2 md:max-h-[calc(100vh-2rem)] md:w-[calc(100vw-2rem)]",
           "md:max-w-3xl md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-lg md:px-6",
         )}
       >
-        <div className="border-border bg-card sticky top-0 z-10 mb-5 flex min-w-0 items-center justify-between gap-3 border-b py-4 sm:py-5">
+        <div className="sticky top-0 z-10 mb-5 flex min-w-0 items-center justify-between gap-3 border-b border-border bg-card py-4 sm:py-5">
           <h2 id={`${id}-title`} className="min-w-0 text-lg font-medium break-words">
             {title}
           </h2>

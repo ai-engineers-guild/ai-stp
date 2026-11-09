@@ -26,11 +26,11 @@ export function CorporateTeammatesList({ items }: { items: CorporateTeammate[] }
         : null;
   return (
     <section className="space-y-4">
-      <p className="text-muted-foreground text-sm">{h("teammatesBody")}</p>
-      <ul className="divide-border divide-y">
+      <p className="text-sm text-muted-foreground">{h("teammatesBody")}</p>
+      <ul className="divide-y divide-border">
         {items.map((item) => (
           <li key={item.account_id} className="flex flex-wrap items-center gap-3 py-3">
-            <span className="bg-muted grid size-9 shrink-0 place-items-center rounded-full">
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted">
               <Icon name="user" size="sm" />
             </span>
             <span className="min-w-0 flex-1 truncate text-sm font-medium">
@@ -50,7 +50,7 @@ export function CorporateTeammatesList({ items }: { items: CorporateTeammate[] }
           </li>
         ))}
       </ul>
-      {!items.length && <p className="text-muted-foreground text-sm">{h("teammatesEmpty")}</p>}
+      {!items.length && <p className="text-sm text-muted-foreground">{h("teammatesEmpty")}</p>}
     </section>
   );
 }

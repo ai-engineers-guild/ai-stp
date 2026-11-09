@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 
 import { TechnologyRegistryCreate } from "@/components/organisms/technology-registry-create";
 
-import { type TechnologyReviewState } from "@/lib/technology-review-state";
+import type { TechnologyReviewState } from "@/lib/technology-review-state";
 export function TechnologyReviewDialogs({ state }: { state: TechnologyReviewState }) {
   const {
     categories,
@@ -131,11 +131,15 @@ export function TechnologyReviewDialogs({ state }: { state: TechnologyReviewStat
           )}
           <dl className="space-y-3 text-sm">
             {evidence?.evidence.map((entry, index) => (
-              <div key={index} className="border-border space-y-1 border-b pb-3">
+              <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: These stateless evidence rows preserve duplicate observations from one immutable result.
+                key={index}
+                className="space-y-1 border-b border-border pb-3"
+              >
                 <dt className="font-medium break-all">
                   {entry.path ?? entry.reference ?? entry.source}
                 </dt>
-                <dd className="text-muted-foreground break-all">
+                <dd className="break-all text-muted-foreground">
                   {entry.reference} · {entry.source_revision?.slice(0, 12) ?? "—"}
                 </dd>
                 <dd>{w("confidence", { count: Math.round((entry.confidence ?? 0) * 100) })}</dd>

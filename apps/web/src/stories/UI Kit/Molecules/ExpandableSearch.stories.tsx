@@ -12,7 +12,7 @@ const meta = {
   decorators: [
     (Story) => (
       <NextIntlClientProvider locale="en" messages={en}>
-        <div className="bg-background text-foreground min-h-dvh p-5">
+        <div className="min-h-dvh bg-background p-5 text-foreground">
           <Story />
         </div>
       </NextIntlClientProvider>

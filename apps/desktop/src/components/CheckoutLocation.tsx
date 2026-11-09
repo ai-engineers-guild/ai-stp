@@ -50,6 +50,8 @@ export default function CheckoutLocation({
   const [busy, setBusy] = useState(false);
   const active = useRef(false),
     epoch = useRef(0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies(context?.id): Changing the context or receipt invalidates every pending native response.
+  // biome-ignore lint/correctness/useExhaustiveDependencies(binding): Changing the context or receipt invalidates every pending native response.
   useLayoutEffect(() => {
     active.current = true;
     epoch.current++;
@@ -125,6 +127,7 @@ export default function CheckoutLocation({
       finish(sequence);
     }
   }
+  // biome-ignore lint/correctness/useExhaustiveDependencies(load): Read this mounted receipt once; refresh and pagination explicitly own subsequent reads.
   useEffect(() => {
     void load();
   }, []);
@@ -239,7 +242,7 @@ export default function CheckoutLocation({
       <p className="text-sm">
         {msg("checkoutLocation.originalAdoptionDirectory")}
       </p>
-      <p className="break-all font-mono text-xs">
+      <p className="font-mono text-xs break-all">
         {checkoutPath(record(original.plan).checkout_root)}
       </p>
       <p className="text-sm text-muted-foreground">
@@ -248,6 +251,7 @@ export default function CheckoutLocation({
         )}
       </p>
       <button
+        type="button"
         className="btn-outline"
         disabled={locked}
         onClick={() => void load()}
@@ -285,10 +289,11 @@ export default function CheckoutLocation({
                       : msg("checkoutLocation.reviewedRelocation")}{" "}
                     · {entry.completed_at}
                   </p>
-                  <p className="break-all font-mono text-xs">
+                  <p className="font-mono text-xs break-all">
                     {checkoutPath(entry.root)}
                   </p>
                   <button
+                    type="button"
                     className="btn-outline"
                     disabled={locked}
                     onClick={() =>
@@ -304,6 +309,7 @@ export default function CheckoutLocation({
           )}
           {cursor && (
             <button
+              type="button"
               className="btn-outline"
               disabled={locked}
               onClick={() => void load(cursor)}
@@ -312,7 +318,7 @@ export default function CheckoutLocation({
             </button>
           )}
           {receipt && (
-            <div
+            <section
               className="space-y-2"
               aria-label={msg("checkoutLocation.recordedLocationReceipt")}
             >
@@ -324,17 +330,17 @@ export default function CheckoutLocation({
               <p className="text-sm">
                 {msg("checkoutLocation.recordedDirectory")}
               </p>
-              <p className="break-all font-mono text-xs">
+              <p className="font-mono text-xs break-all">
                 {checkoutPath(receipt.plan.destination)}
               </p>
-              <p className="break-all font-mono text-xs">
+              <p className="font-mono text-xs break-all">
                 {String(receipt.plan.operation_id)} · {receipt.digest}
               </p>
               <Details
                 label={msg("checkoutLocation.originalLocationReceiptPlan")}
                 value={receipt.plan}
               />
-            </div>
+            </section>
           )}
           {original.binding_retirement == null && (
             <>
@@ -362,6 +368,7 @@ export default function CheckoutLocation({
                 />
               </label>
               <button
+                type="button"
                 className="btn-outline"
                 disabled={locked || !reader || !!review}
                 onClick={() => void prepare("anchor")}
@@ -378,6 +385,7 @@ export default function CheckoutLocation({
                 />
               </label>
               <button
+                type="button"
                 className="btn-outline"
                 disabled={locked || !reader || !!review || !destination.trim()}
                 onClick={() => void prepare("relocate")}
@@ -399,16 +407,16 @@ export default function CheckoutLocation({
               <p className="text-sm">
                 {msg("checkoutLocation.previouslyRegisteredDirectory")}
               </p>
-              <p className="break-all font-mono text-xs">
+              <p className="font-mono text-xs break-all">
                 {checkoutPath(record(review.plan.binding).checkout_root)}
               </p>
               <p className="text-sm">
                 {msg("checkoutLocation.reviewedDestination")}
               </p>
-              <p className="break-all font-mono text-xs">
+              <p className="font-mono text-xs break-all">
                 {checkoutPath(review.plan.destination)}
               </p>
-              <p className="break-all font-mono text-xs">
+              <p className="font-mono text-xs break-all">
                 {String(review.plan.operation_id)} · {review.digest}
               </p>
               <Details
@@ -427,6 +435,7 @@ export default function CheckoutLocation({
                 )}
               </label>
               <button
+                type="button"
                 className="btn-primary"
                 disabled={locked || !reader || !confirmed}
                 onClick={() => void apply()}
@@ -434,6 +443,7 @@ export default function CheckoutLocation({
                 {msg("checkoutLocation.applyReviewedCheckoutLocation")}
               </button>
               <button
+                type="button"
                 className="btn-outline"
                 disabled={locked}
                 onClick={() =>
@@ -443,6 +453,7 @@ export default function CheckoutLocation({
                 {msg("checkoutLocation.readThisLocationOutcome")}
               </button>
               <button
+                type="button"
                 className="btn-outline"
                 disabled={locked}
                 onClick={() => {

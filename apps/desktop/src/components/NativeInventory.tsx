@@ -1,5 +1,5 @@
 import { useText } from "../i18n";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { record, type ContextView } from "../contexts";
 import {
   cliApplyConfirmed,
@@ -32,16 +32,16 @@ export default function NativeInventory({ context }: { context: ContextView }) {
       alive.current = false;
     };
   }, []);
-  async function refresh(id: string) {
+  const refresh = useCallback(async (id: string) => {
     const response = await cmdRunRead("corporate inventory status", {
       context: id,
     });
     if (alive.current && current.current === id) setStatus(response);
-  }
+  }, []);
   useEffect(() => {
     setStatus(null);
     void refresh(context.id);
-  }, [context.id]);
+  }, [context.id, refresh]);
   async function disclose() {
     const id = context.id;
     setBusy(true);
@@ -136,6 +136,7 @@ export default function NativeInventory({ context }: { context: ContextView }) {
       )}
       <div className="mt-4 flex flex-wrap gap-3">
         <button
+          type="button"
           className="btn-secondary"
           disabled={busy}
           onClick={() => void refresh(context.id)}
@@ -144,6 +145,7 @@ export default function NativeInventory({ context }: { context: ContextView }) {
         </button>
         {!enabled && (
           <button
+            type="button"
             className="btn-primary"
             disabled={busy}
             onClick={() => void disclose()}
@@ -154,6 +156,7 @@ export default function NativeInventory({ context }: { context: ContextView }) {
         {enabled && (
           <>
             <button
+              type="button"
               className="btn-secondary"
               disabled={busy}
               onClick={() => void run("scan")}
@@ -161,6 +164,7 @@ export default function NativeInventory({ context }: { context: ContextView }) {
               {msg("nativeInventory.collectOwnedInventory")}
             </button>
             <button
+              type="button"
               className="btn-secondary"
               disabled={busy || !status?.data?.pending_digest}
               onClick={() => void run("flush")}
@@ -168,6 +172,7 @@ export default function NativeInventory({ context }: { context: ContextView }) {
               {msg("nativeInventory.deliverPendingReport")}
             </button>
             <button
+              type="button"
               className="btn-secondary"
               disabled={busy}
               onClick={() => void run("disable")}
@@ -203,6 +208,7 @@ export default function NativeInventory({ context }: { context: ContextView }) {
             )}
           </label>
           <button
+            type="button"
             className="btn-primary mt-3"
             disabled={busy || !approved}
             onClick={() => void enable()}

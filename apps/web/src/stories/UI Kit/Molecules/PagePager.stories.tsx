@@ -34,7 +34,7 @@ export const Buttons: Story = {
     totalPages: 8,
     controls,
     onPage: () => {},
-    summary: <span className="text-muted-foreground text-sm">Showing 11–20 of 75</span>,
+    summary: <span className="text-sm text-muted-foreground">Showing 11–20 of 75</span>,
   },
 };
 

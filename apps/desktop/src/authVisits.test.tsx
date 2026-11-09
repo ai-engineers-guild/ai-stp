@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { required } from "./test-values";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   act,
@@ -53,10 +54,10 @@ function Journey() {
   const navigate = useNavigate();
   return (
     <>
-      <button onClick={() => navigate(`/auth?connection=${A}`)}>
+      <button type="button" onClick={() => navigate(`/auth?connection=${A}`)}>
         First account
       </button>
-      <button onClick={() => navigate(`/auth?connection=${B}`)}>
+      <button type="button" onClick={() => navigate(`/auth?connection=${B}`)}>
         Second account
       </button>
       <AuthPage />
@@ -78,7 +79,7 @@ beforeEach(() => {
     refreshAuth: vi.fn(async () => {}),
   });
   vi.mocked(transport.cmdAuthStatus).mockImplementation(async (connection) =>
-    pending(connection!),
+    pending(required(connection)),
   );
   vi.mocked(transport.cmdAuthComplete).mockResolvedValue(ok());
   vi.mocked(transport.cmdMachineHelp).mockResolvedValue(ok({ commands: [] }));

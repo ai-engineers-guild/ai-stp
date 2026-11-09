@@ -53,13 +53,13 @@ export function PresentationMediaEditor({
   return (
     <EntityEditorSection title={labels.media} description={labels.help}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-muted-foreground text-xs leading-relaxed">{labels.requirements}</p>
-        <p className="text-muted-foreground text-xs">
+        <p className="text-xs leading-relaxed text-muted-foreground">{labels.requirements}</p>
+        <p className="text-xs text-muted-foreground">
           {labels.mediaCount.replace("{count}", String(media.length)).replace("{max}", String(max))}
         </p>
       </div>
       {fieldErrors.media ? (
-        <p className="text-destructive text-xs" role="alert">
+        <p className="text-xs text-destructive" role="alert">
           {fieldErrors.media}
         </p>
       ) : null}

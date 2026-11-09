@@ -90,7 +90,7 @@ export function CorporateServicePrincipalsPanel({
   }
 
   return (
-    <section className="border-border bg-card space-y-6 rounded-lg border p-5 shadow-sm sm:p-6">
+    <section className="space-y-6 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6">
       <h2 className="text-xl font-medium">{labels.title}</h2>
       {can("service_principal.manage") ? (
         <form
@@ -172,7 +172,7 @@ export function CorporateServicePrincipalsPanel({
           {servicePrincipals.map((principal) => (
             <li
               key={principal.service_principal_id}
-              className="border-border flex flex-wrap items-center gap-2 rounded border p-3 text-sm"
+              className="flex flex-wrap items-center gap-2 rounded border border-border p-3 text-sm"
             >
               <span className="min-w-0 flex-1 truncate">{principal.name}</span>
               <Badge variant="outline">{principal.binding.role}</Badge>
@@ -229,14 +229,14 @@ export function CorporateServicePrincipalsPanel({
           ))}
         </ul>
       ) : can("service_principal.list") ? (
-        <p className="text-muted-foreground text-sm">{labels.noServicePrincipals}</p>
+        <p className="text-sm text-muted-foreground">{labels.noServicePrincipals}</p>
       ) : null}
       {message ? (
         <p
           role="status"
           aria-live="polite"
           className={
-            message.error ? "text-destructive text-sm font-medium" : "text-muted-foreground text-sm"
+            message.error ? "text-sm font-medium text-destructive" : "text-sm text-muted-foreground"
           }
         >
           {message.text}

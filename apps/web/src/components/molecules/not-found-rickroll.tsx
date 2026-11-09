@@ -2,7 +2,7 @@ const RICKROLL_ID = "dQw4w9WgXcQ";
 
 export function NotFoundRickroll({ label }: { label: string }) {
   return (
-    <div className="border-border bg-card aspect-video w-full overflow-hidden rounded-lg border">
+    <div className="aspect-video w-full overflow-hidden rounded-lg border border-border bg-card">
       <iframe
         suppressHydrationWarning
         src={`https://www.youtube-nocookie.com/embed/${RICKROLL_ID}?autoplay=1&mute=1&controls=1`}

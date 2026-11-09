@@ -31,19 +31,18 @@ export function TechnologyLandscapeTable({ state }: { state: LandscapeState }) {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-2xl font-medium">{w("summary")}</h2>
-          <p className="text-muted-foreground text-sm">{w("summaryDescription")}</p>
+          <p className="text-sm text-muted-foreground">{w("summaryDescription")}</p>
         </div>
-        <p className="text-muted-foreground text-xs">
+        <p className="text-xs text-muted-foreground">
           {w("shown", { count: shown.length, total: landscape.total })}
         </p>
       </div>
-      <div
+      <section
         className="technology-table-frame"
-        role="region"
         aria-label={w("summary")}
         // The scroll region must remain keyboard accessible on narrow screens.
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-        tabIndex={0}
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: The named table scroll region must remain reachable by keyboard.
+        tabIndex={0} // eslint-disable-line jsx-a11y/no-noninteractive-tabindex
       >
         <Table>
           <caption className="sr-only">{w("summary")}</caption>
@@ -134,9 +133,9 @@ export function TechnologyLandscapeTable({ state }: { state: LandscapeState }) {
             ))}
           </TBody>
         </Table>
-      </div>
+      </section>
       {!shown.length && (
-        <p role="status" className="text-muted-foreground p-6 text-sm">
+        <p role="status" className="p-6 text-sm text-muted-foreground">
           {t("empty")}
         </p>
       )}

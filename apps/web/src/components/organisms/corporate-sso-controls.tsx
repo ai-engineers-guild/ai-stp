@@ -42,7 +42,7 @@ function SsoProviderCard({
   const disabled = mutation.busy || !canManage;
   return (
     <form
-      className="border-border space-y-4 rounded-lg border p-4"
+      className="space-y-4 rounded-lg border border-border p-4"
       aria-busy={mutation.busy}
       onSubmit={(event) => {
         event.preventDefault();
@@ -68,7 +68,7 @@ function SsoProviderCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-medium">{c(`ssoProviders.${provider}.title`)}</p>
-          <p className="text-muted-foreground mt-0.5 text-sm">
+          <p className="mt-0.5 text-sm text-muted-foreground">
             {c(`ssoProviders.${provider}.description`)}
           </p>
         </div>
@@ -101,7 +101,7 @@ function SsoProviderCard({
                   defaultValue={view?.idp_metadata_url ?? ""}
                   placeholder={c("ssoMetadataPlaceholder")}
                 />
-                <p className="text-muted-foreground text-xs">{c("ssoIdpMetadataHint")}</p>
+                <p className="text-xs text-muted-foreground">{c("ssoIdpMetadataHint")}</p>
               </div>
             ) : (
               <>
@@ -129,9 +129,9 @@ function SsoProviderCard({
               </>
             )}
             <dl className="space-y-2 text-sm">
-              <dt className="text-muted-foreground text-xs">{c("ssoEntityId")}</dt>
+              <dt className="text-xs text-muted-foreground">{c("ssoEntityId")}</dt>
               <dd className="break-all">{`ai-stp:${organizationId}`}</dd>
-              <dt className="text-muted-foreground text-xs">
+              <dt className="text-xs text-muted-foreground">
                 {c(provider === "saml" ? "ssoAcsUrl" : "ssoRedirectUrl")}
               </dt>
               <dd className="break-all">
@@ -145,7 +145,7 @@ function SsoProviderCard({
       </fieldset>
       <div className="flex items-center justify-end gap-3">
         {mutation.message && (
-          <p className="text-muted-foreground text-sm" role="status">
+          <p className="text-sm text-muted-foreground" role="status">
             {mutation.message}
           </p>
         )}

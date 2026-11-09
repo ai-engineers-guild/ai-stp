@@ -1,3 +1,4 @@
+import { required } from "@/mocks/fixtures/required";
 import { entityMenuResult, publicActions } from "../entity-menu-fixture";
 import type { EntityActionSubject } from "@/lib/api/generated/types.gen";
 import { NextIntlClientProvider } from "next-intl";
@@ -32,7 +33,7 @@ if (!fixtureCase) throw new Error("Missing fixture");
 const base = `/v1/corporate/organizations/${fixtureCase.body.organization.organization_id}`;
 const context = corporateHandlers("GET", `${base}/context`, true, null)?.body as CorporateContext;
 const members = (
-  corporateHandlers("GET", `${base}/members`, true, null)?.body as CorporateMemberList
+  required(corporateHandlers("GET", `${base}/members`, true, null)).body as CorporateMemberList
 ).items;
 const props = {
   context,

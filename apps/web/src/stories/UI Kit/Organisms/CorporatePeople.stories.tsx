@@ -1,3 +1,4 @@
+import { required } from "@/mocks/fixtures/required";
 import { useState } from "react";
 import { NextIntlClientProvider } from "next-intl";
 import ru from "../../../../messages/ru.json";
@@ -15,16 +16,19 @@ import type {
 } from "@/lib/api/generated/types.gen";
 import fixture from "@/mocks/corporate-overview-fixture";
 
-const organizationId = fixture.cases[0]!.body.organization.organization_id;
+const organizationId = required(fixture.cases[0]).body.organization.organization_id;
 const base = `/v1/corporate/organizations/${organizationId}`;
-const context = corporateHandlers("GET", `${base}/context`, true, null)!.body as CorporateContext;
+const context = required(corporateHandlers("GET", `${base}/context`, true, null))
+  .body as CorporateContext;
 const members = (
-  corporateHandlers("GET", `${base}/members`, true, null)!.body as CorporateMemberList
+  required(corporateHandlers("GET", `${base}/members`, true, null)).body as CorporateMemberList
 ).items;
-const roles = (corporateHandlers("GET", `${base}/roles`, true, null)!.body as CorporateRoleList)
-  .items;
+const roles = (
+  required(corporateHandlers("GET", `${base}/roles`, true, null)).body as CorporateRoleList
+).items;
 const invitations = (
-  corporateHandlers("GET", `${base}/invitations`, true, null)!.body as CorporateInvitationList
+  required(corporateHandlers("GET", `${base}/invitations`, true, null))
+    .body as CorporateInvitationList
 ).items;
 const now = "2026-10-01T10:00:00Z";
 const meta = {
@@ -35,7 +39,7 @@ const meta = {
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
   decorators: [
     (Story) => (
-      <div className="bg-background text-foreground min-h-dvh p-4 sm:p-8">
+      <div className="min-h-dvh bg-background p-4 text-foreground sm:p-8">
         <Story />
       </div>
     ),
@@ -134,7 +138,9 @@ export const BulkImport: Story = {
 };
 
 function TableStory({ empty = false, checked = false }: { empty?: boolean; checked?: boolean }) {
-  const [selected, setSelected] = useState<string[]>(checked ? [members[0]!.account_id] : []);
+  const [selected, setSelected] = useState<string[]>(
+    checked ? [required(members[0]).account_id] : [],
+  );
   return (
     <CorporateMembersTable
       rows={empty ? [] : members.slice(0, 10)}

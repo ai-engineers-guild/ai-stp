@@ -90,13 +90,13 @@ export function AuditToolbar({
   onReset: () => void;
 }) {
   return (
-    <div className="border-border bg-card space-y-3 rounded-lg border p-4 shadow-sm">
+    <div className="space-y-3 rounded-lg border border-border bg-card p-4 shadow-sm">
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative min-w-0 flex-1 sm:min-w-60">
           <Icon
             name="search"
             size="sm"
-            className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2"
+            className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
           />
           <Input
             type="search"
@@ -210,11 +210,11 @@ function AuditRow({
   return (
     <tr
       data-selected={selected || undefined}
-      className={`border-border hover:bg-muted/20 border-t transition-colors last:border-0 ${
+      className={`border-t border-border transition-colors last:border-0 hover:bg-muted/20 ${
         selected ? "bg-muted/40" : ""
       }`}
     >
-      <td className={`${peopleCellClass} text-muted-foreground whitespace-nowrap tabular-nums`}>
+      <td className={`${peopleCellClass} whitespace-nowrap text-muted-foreground tabular-nums`}>
         <time dateTime={item.created_at}>
           {formatDate.dateTime(new Date(item.created_at), {
             dateStyle: "medium",
@@ -228,7 +228,7 @@ function AuditRow({
           onClick={() => {
             onSelect(item);
           }}
-          className="focus-visible:ring-ring rounded-sm text-left focus-visible:ring-2 focus-visible:outline-none"
+          className="rounded-sm text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           {item.actor_type === "user" && actor ? (
             <PersonIdentity
@@ -245,7 +245,7 @@ function AuditRow({
       </td>
       <td className={`${peopleCellClass} max-w-56`}>
         <span className="line-clamp-1">{targetLabel(item.target_table, t)}</span>
-        <span className="text-muted-foreground mt-0.5 block truncate font-mono text-xs">
+        <span className="mt-0.5 block truncate font-mono text-xs text-muted-foreground">
           {item.target_id}
         </span>
       </td>
@@ -254,7 +254,7 @@ function AuditRow({
           {t(`outcomes.${item.outcome}`)}
         </Badge>
       </td>
-      <td className={`${peopleCellClass} text-muted-foreground max-w-64`}>
+      <td className={`${peopleCellClass} max-w-64 text-muted-foreground`}>
         <span className="line-clamp-1">{item.reason ?? "—"}</span>
       </td>
       <td className="px-2 text-right">
@@ -293,7 +293,7 @@ export function AuditTableView({
   return (
     <PeopleTable label={t("auditTable")} minWidth="min-w-[60rem]">
       <thead>
-        <tr className="border-border border-b">
+        <tr className="border-b border-border">
           {[t("timestamp"), t("actor"), t("action"), t("target"), t("outcome"), t("details")].map(
             (label) => (
               <th key={label} scope="col" className={peopleHeadClass}>
@@ -320,7 +320,7 @@ export function AuditTableView({
         ))}
         {!audit.items.length ? (
           <tr>
-            <td colSpan={7} className="text-muted-foreground py-14 text-center text-sm">
+            <td colSpan={7} className="py-14 text-center text-sm text-muted-foreground">
               {noAudit}
             </td>
           </tr>
@@ -355,7 +355,7 @@ export function AuditExportControls({
         onChange={(event) => {
           onFormat(event.target.value as ExportFormat);
         }}
-        className="border-input bg-background h-11 rounded-sm border px-3 text-sm"
+        className="h-11 rounded-sm border border-input bg-background px-3 text-sm"
       >
         <option value="json">{labels.json}</option>
         <option value="csv">{labels.csv}</option>
@@ -366,7 +366,7 @@ export function AuditExportControls({
         onChange={(event) => {
           onRange(event.target.value as ExportRange);
         }}
-        className="border-input bg-background h-11 rounded-sm border px-3 text-sm"
+        className="h-11 rounded-sm border border-input bg-background px-3 text-sm"
       >
         <option value="current">{labels.currentFilters}</option>
         <option value="today">{labels.today}</option>

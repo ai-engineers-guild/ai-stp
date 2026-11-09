@@ -15,6 +15,7 @@ import {
   categories,
   areas,
   landscape,
+  jobTitles,
 } from "@/mocks/technology-workspace-fixture";
 const meta = {
   title: "UI Kit/Organisms/TechnologyWorkspace",
@@ -24,7 +25,7 @@ const meta = {
   decorators: [
     (Story) => (
       <NextIntlClientProvider locale="ru" messages={ru}>
-        <div className="technology-workspace bg-background text-foreground min-h-dvh p-5">
+        <div className="technology-workspace min-h-dvh bg-background p-5 text-foreground">
           <Story />
         </div>
       </NextIntlClientProvider>
@@ -39,6 +40,7 @@ export const Mapping: Story = { args: { mode: "mapping" } };
 export const ReadOnly: Story = { args: { canUpdate: false } };
 export const Empty: Story = { args: { scans: [] } };
 export const Dark: Story = { globals: { theme: "dark" } };
+// biome-ignore lint/suspicious/noShadowRestrictedNames: Keep the published Storybook map case ID.
 export const Map: Story = {
   render: () => (
     <TechnologyLandscapeResults
@@ -94,28 +96,7 @@ export const JobTitles: Story = {
       organizationId={authority.organizationId}
       authorizationRevision={authority.authorizationRevision}
       permissions={["job_title.list", "job_title.create", "job_title.update"]}
-      jobTitles={[
-        {
-          schema_version: 1,
-          job_title_id: "job_title_01JQZK7B8N4M6P2R9T5V0X3Y11",
-          organization_id: authority.organizationId,
-          name: "Platform engineer",
-          normalized_name: "platform engineer",
-          description: "Builds and operates the internal developer platform.",
-          state: "current",
-          revision: 1,
-        },
-        {
-          schema_version: 1,
-          job_title_id: "job_title_01JQZK7B8N4M6P2R9T5V0X3Y22",
-          organization_id: authority.organizationId,
-          name: "Legacy maintainer",
-          normalized_name: "legacy maintainer",
-          description: "Kept the retired services alive.",
-          state: "retired",
-          revision: 2,
-        },
-      ]}
+      jobTitles={jobTitles}
     />
   ),
 };

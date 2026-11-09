@@ -19,7 +19,7 @@ export function ThemeToggle() {
     <button
       data-ui={UI.theme.toggle}
       type="button"
-      className="border-input bg-background hover:bg-muted focus-visible:ring-ring inline-flex size-10 items-center justify-center rounded-sm border transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      className="inline-flex size-10 items-center justify-center rounded-sm border border-input bg-background transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       aria-label={isDark ? t("switchLight") : t("switchDark")}
       title={isDark ? t("switchLight") : t("switchDark")}
       onClick={() => {

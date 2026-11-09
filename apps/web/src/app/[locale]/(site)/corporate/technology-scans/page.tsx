@@ -24,8 +24,8 @@ export default async function TechnologyScansPage({
     t = await getTranslations("technology"),
     s = await getTranslations("technology.scans"),
     w = await getTranslations("technology.workspace");
-  let context;
-  let journal;
+  let context: Awaited<ReturnType<typeof readCorporateContext>>;
+  let journal: Awaited<ReturnType<typeof readTechnologyScanJournal>> | undefined;
   try {
     context = await readCorporateContext(session);
 
@@ -70,7 +70,7 @@ export default async function TechnologyScansPage({
       </div>
       <header className="space-y-2">
         <h1>{s("title")}</h1>
-        <p className="text-muted-foreground text-sm">{w("journalDescription")}</p>
+        <p className="text-sm text-muted-foreground">{w("journalDescription")}</p>
       </header>
       <TechnologyScanJournal
         items={journal.scans.items}

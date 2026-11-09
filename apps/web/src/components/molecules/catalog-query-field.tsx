@@ -55,7 +55,7 @@ export function CatalogQueryField({
           <Icon
             name="search"
             size="sm"
-            className="text-muted-foreground pointer-events-none absolute top-3 left-3"
+            className="pointer-events-none absolute top-3 left-3 text-muted-foreground"
           />
           <Input
             id="catalog-search"
@@ -98,13 +98,13 @@ export function CatalogQueryField({
             aria-describedby="catalog-query-assist"
           />
           {suggestions.length ? (
-            <ul
+            <div
               id={listId}
               role="listbox"
-              className="border-border bg-popover absolute z-10 mt-1 w-full rounded-sm border py-1 shadow-sm"
+              className="absolute z-10 mt-1 w-full rounded-sm border border-border bg-popover py-1 shadow-sm"
             >
               {suggestions.map((word, index) => (
-                <li key={word} role="presentation">
+                <div key={word} role="presentation">
                   <button
                     id={`${listId}-${word}`}
                     type="button"
@@ -122,14 +122,14 @@ export function CatalogQueryField({
                       <span className="font-medium">{word}</span>
                       {/* Unrendered between flex items, but it keeps the option's
                           accessible name two words where no layout blockifies them. */}{" "}
-                      <span className="text-muted-foreground font-sans text-xs">
+                      <span className="font-sans text-xs text-muted-foreground">
                         {catalogQlWordKind(word) === "field" ? fieldsLabel : operatorsLabel}
                       </span>
                     </span>
                   </button>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           ) : null}
         </div>
         <Button type="submit" className="min-h-11 w-full sm:w-auto">
@@ -149,7 +149,7 @@ export function CatalogQueryField({
             onClick={() => {
               setValue(correction);
             }}
-            className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-4"
+            className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
           >
             {correctionLabel}: <span className="font-mono">{correction}</span>
           </button>
@@ -163,16 +163,17 @@ function CatalogQueryPreview({ segments }: { segments: ReturnType<typeof highlig
   return (
     <div
       aria-hidden="true"
-      className="border-border bg-muted/40 min-w-0 overflow-x-auto rounded-sm border px-3 py-2 font-mono text-sm whitespace-pre"
+      className="min-w-0 overflow-x-auto rounded-sm border border-border bg-muted/40 px-3 py-2 font-mono text-sm whitespace-pre"
     >
       {segments.map((segment, index) => (
         <span
+          // biome-ignore lint/suspicious/noArrayIndexKey: A stateless token's source position distinguishes repeated syntax.
           key={`${index}-${segment.text}`}
           className={
             segment.kind === "field"
-              ? "text-primary font-medium"
+              ? "font-medium text-primary"
               : segment.kind === "operator"
-                ? "text-foreground decoration-primary/60 font-semibold underline underline-offset-4"
+                ? "font-semibold text-foreground underline decoration-primary/60 underline-offset-4"
                 : segment.kind === "syntax"
                   ? "text-primary"
                   : segment.kind === "quoted"
@@ -197,7 +198,7 @@ function CatalogQlReference({
   literalHint: string;
 }) {
   return (
-    <div className="text-muted-foreground flex min-w-0 flex-wrap gap-x-5 gap-y-2 text-xs">
+    <div className="flex min-w-0 flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
       <QlTokenGroup label={fieldsLabel} tokens={CATALOG_QL_FIELDS} accent />
       <QlTokenGroup
         label={operatorsLabel}
@@ -223,7 +224,7 @@ function QlTokenGroup({
       {tokens.map((token) => (
         <code
           key={token}
-          className={`bg-muted rounded-sm px-1.5 py-0.5 ${accent ? "text-primary" : "text-foreground"}`}
+          className={`rounded-sm bg-muted px-1.5 py-0.5 ${accent ? "text-primary" : "text-foreground"}`}
         >
           {token}
         </code>

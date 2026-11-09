@@ -106,7 +106,7 @@ export function RegionalServicesExplorer({
 
       <section
         data-ui={UI.services.filters}
-        className="border-border bg-card rounded-lg border p-3 sm:p-4"
+        className="rounded-lg border border-border bg-card p-3 sm:p-4"
       >
         <div className="grid gap-4 lg:grid-cols-2">
           <fieldset>
@@ -165,7 +165,7 @@ export function RegionalServicesExplorer({
                 >
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium">{service.name}</span>
-                    <span className="text-muted-foreground block truncate font-mono text-[10px]">
+                    <span className="block truncate font-mono text-[10px] text-muted-foreground">
                       {service.canonical_domain}
                     </span>
                   </span>
@@ -182,7 +182,7 @@ export function RegionalServicesExplorer({
             <h2 id="service-grid-title" className="text-2xl font-medium">
               {labels.available}
             </h2>
-            <p className="text-muted-foreground mt-1 text-sm">
+            <p className="mt-1 text-sm text-muted-foreground">
               {visible.length} {visible.length === 1 ? labels.result : labels.results}
             </p>
           </div>
@@ -205,7 +205,7 @@ export function RegionalServicesExplorer({
             ))}
           </div>
         ) : (
-          <div className="border-border text-muted-foreground rounded-lg border border-dashed p-10 text-center text-sm">
+          <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
             {labels.empty}
           </div>
         )}
@@ -230,9 +230,9 @@ function Hero({
   return (
     <section
       data-ui={UI.services.hero}
-      className="dark border-border relative overflow-hidden rounded-xl border"
+      className="dark relative overflow-hidden rounded-xl border border-border"
     >
-      <div className="bg-primary absolute inset-x-0 top-0 z-20 h-0.5" aria-hidden="true" />
+      <div className="absolute inset-x-0 top-0 z-20 h-0.5 bg-primary" aria-hidden="true" />
       <picture>
         <source srcSet="/brand/regional-services-atlas.webp" type="image/webp" />
         <img
@@ -246,11 +246,11 @@ function Hero({
         />
       </picture>
       <div
-        className="from-background via-background/80 to-background/20 absolute inset-0 bg-gradient-to-r"
+        className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-background/20"
         aria-hidden="true"
       />
       <div
-        className="from-background/70 absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t to-transparent"
+        className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background/70 to-transparent"
         aria-hidden="true"
       />
       <div className="relative z-10 grid items-center gap-8 px-5 py-8 sm:px-8 sm:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)] lg:gap-10">
@@ -262,13 +262,14 @@ function Hero({
             {labels.subtitle}
           </p>
         </header>
-        <div className="cis-constellation" role="group" aria-label={labels.cisRegion}>
+        <fieldset className="cis-constellation min-w-0" aria-label={labels.cisRegion}>
           <div className="cis-constellation__orbit" aria-hidden="true" />
           <div
             className="cis-constellation__orbit cis-constellation__orbit--inner"
             aria-hidden="true"
           />
           <div className="cis-constellation__hub" aria-hidden="true">
+            {/* biome-ignore lint/performance/noImgElement: This local mark is already sized for its display and needs no image transformation. */}
             <img
               src="/brand/logo-mark.png"
               alt=""
@@ -290,7 +291,7 @@ function Hero({
                   />
                   <span
                     aria-hidden="true"
-                    className="text-muted-foreground mt-1 block text-center font-mono text-[10px] tracking-wide"
+                    className="mt-1 block text-center font-mono text-[10px] tracking-wide text-muted-foreground"
                   >
                     {node.code}
                   </span>
@@ -312,7 +313,7 @@ function Hero({
                         onToggle(node.code);
                       }}
                       className={cn(
-                        "focus-visible:ring-ring rounded-sm border text-left focus-visible:ring-2 focus-visible:outline-none",
+                        "rounded-sm border text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
                         selected ? "border-primary" : "border-transparent",
                       )}
                     >
@@ -325,7 +326,7 @@ function Hero({
               );
             })}
           </div>
-        </div>
+        </fieldset>
       </div>
     </section>
   );
@@ -352,8 +353,8 @@ function FilterChip({
       title={title}
       onClick={onClick}
       className={cn(
-        "focus-visible:ring-ring inline-flex min-h-9 max-w-full items-center gap-2 rounded-sm border px-2.5 py-1.5 text-left text-sm focus-visible:ring-2 focus-visible:outline-none",
-        pressed ? "border-primary bg-primary/15 ring-ring ring-1" : "border-border hover:bg-muted",
+        "inline-flex min-h-9 max-w-full items-center gap-2 rounded-sm border px-2.5 py-1.5 text-left text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+        pressed ? "border-primary bg-primary/15 ring-1 ring-ring" : "border-border hover:bg-muted",
       )}
     >
       {children}
@@ -372,21 +373,21 @@ function ServiceTile({
 }) {
   const codes = service.country_codes;
   return (
-    <article className="border-border bg-card overflow-hidden rounded-lg border">
+    <article className="overflow-hidden rounded-lg border border-border bg-card">
       <Link
         href={`/services/${service.canonical_domain}`}
-        className="group focus-visible:ring-ring flex min-h-44 flex-col p-5 focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
+        className="group flex min-h-44 flex-col p-5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="text-lg font-medium group-hover:underline group-hover:underline-offset-4">
               {service.name}
             </h3>
-            <p className="text-muted-foreground font-mono text-xs">{service.canonical_domain}</p>
+            <p className="font-mono text-xs text-muted-foreground">{service.canonical_domain}</p>
           </div>
-          <Icon name="chevronRight" size="sm" className="text-primary mt-1 shrink-0" />
+          <Icon name="chevronRight" size="sm" className="mt-1 shrink-0 text-primary" />
         </div>
-        <div className="text-muted-foreground mb-5 flex flex-wrap items-center gap-2 text-xs">
+        <div className="mb-5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           {codes.length ? (
             codes.map((code) => <CountryFlag key={code} code={code} compact />)
           ) : (
@@ -398,15 +399,15 @@ function ServiceTile({
               : labels.unspecified}
           </span>
         </div>
-        <span className="text-muted-foreground mt-auto text-sm underline underline-offset-4">
+        <span className="mt-auto text-sm text-muted-foreground underline underline-offset-4">
           {labels.details}
         </span>
       </Link>
-      <div className="border-border border-t px-5 py-3">
+      <div className="border-t border-border px-5 py-3">
         <Link
           href={catalogResultsHref([], [service.canonical_domain])}
           prefetch={false}
-          className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-4"
+          className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
         >
           {labels.automations}
         </Link>

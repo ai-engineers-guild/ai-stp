@@ -22,8 +22,8 @@ export default async function TechnologyReviewPage({
   const query = await searchParams;
   const scanFrom = typeof query.scan_from === "string" ? query.scan_from : "";
   const scanTo = typeof query.scan_to === "string" ? query.scan_to : "";
-  let context;
-  let data;
+  let context: Awaited<ReturnType<typeof readCorporateContext>>;
+  let data: Awaited<ReturnType<typeof readTechnologyReviewWorkspace>> | undefined;
   try {
     context = await readCorporateContext(session);
 

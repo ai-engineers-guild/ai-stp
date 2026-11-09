@@ -43,7 +43,7 @@ export function PrivacyPreferencesForm({
   }
 
   return (
-    <div className="border-border bg-card min-w-0 space-y-5 rounded-lg border p-5 shadow-sm sm:p-6">
+    <div className="min-w-0 space-y-5 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6">
       <label className="flex min-h-11 cursor-pointer items-center justify-between gap-4">
         <span className="min-w-0 text-sm">{labels.showProfilePublicly}</span>
         <input
@@ -52,7 +52,7 @@ export function PrivacyPreferencesForm({
           onChange={(event) => {
             setShowProfilePublicly(event.target.checked);
           }}
-          className="accent-primary h-5 w-5 shrink-0"
+          className="h-5 w-5 shrink-0 accent-primary"
         />
       </label>
       <label className="flex min-h-11 cursor-pointer items-center justify-between gap-4">
@@ -63,7 +63,7 @@ export function PrivacyPreferencesForm({
           onChange={(event) => {
             setAllowPublisherListing(event.target.checked);
           }}
-          className="accent-primary h-5 w-5 shrink-0"
+          className="h-5 w-5 shrink-0 accent-primary"
         />
       </label>
       <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap sm:items-center">
@@ -76,7 +76,7 @@ export function PrivacyPreferencesForm({
           {isPending ? labels.saving : labels.save}
         </Button>
         {message ? (
-          <p className="text-muted-foreground text-sm" role="status" aria-live="polite">
+          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
             {message}
           </p>
         ) : null}

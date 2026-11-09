@@ -299,8 +299,8 @@ describe("CatalogFilters", () => {
     expect(
       Boolean(
         search &&
-        filters &&
-        search.compareDocumentPosition(filters) & Node.DOCUMENT_POSITION_FOLLOWING,
+          filters &&
+          search.compareDocumentPosition(filters) & Node.DOCUMENT_POSITION_FOLLOWING,
       ),
     ).toBe(true);
     expect(screen.getByRole("button", { name: "Search", expanded: true })).toHaveAttribute(

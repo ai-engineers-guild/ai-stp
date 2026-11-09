@@ -19,7 +19,7 @@ export default async function StaffReportsPage({ params }: PageProps) {
   const tc = await getTranslations("common");
   const token = await sessionCookieValue();
 
-  let list;
+  let list: Awaited<ReturnType<typeof listStaffReports>>;
   try {
     list = await listStaffReports(token ?? "");
   } catch (error) {
@@ -36,23 +36,23 @@ export default async function StaffReportsPage({ params }: PageProps) {
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="text-3xl font-medium tracking-tight">{t("title")}</h1>
-        <p className="text-muted-foreground max-w-2xl text-sm">{t("subtitle")}</p>
+        <p className="max-w-2xl text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
 
       {list.items.length === 0 ? (
         <StatePanel kind="empty" title={tc("empty")} description={t("empty")} />
       ) : (
-        <ul className="divide-border border-border divide-y rounded-lg border">
+        <ul className="divide-y divide-border rounded-lg border border-border">
           {list.items.map((item) => (
             <li key={item.case_id}>
               <Link
                 href={`/staff/reports/${item.case_id}`}
-                className="hover:bg-muted/40 flex flex-col gap-2 px-4 py-3 transition-colors sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-2 px-4 py-3 transition-colors hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between"
                 prefetch={false}
               >
                 <div className="min-w-0 space-y-1">
                   <p className="font-mono text-xs">{item.case_id}</p>
-                  <p className="text-muted-foreground font-mono text-xs">
+                  <p className="font-mono text-xs text-muted-foreground">
                     {item.object_kind} / {item.stable_id} / {item.version}
                   </p>
                 </div>

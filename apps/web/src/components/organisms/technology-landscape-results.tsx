@@ -39,7 +39,7 @@ export function TechnologyLandscapeMap({ state }: { state: LandscapeState }) {
   return (
     <section>
       <h2 className="text-xl font-medium">{w("landscapeHeading")}</h2>
-      <p className="text-muted-foreground mb-3 text-sm">{w("landscapeDescription")}</p>
+      <p className="mb-3 text-sm text-muted-foreground">{w("landscapeDescription")}</p>
       <div className="technology-map-grid">
         {groups.map((group) => (
           <LandscapeAreaCard
@@ -118,13 +118,13 @@ function LandscapeAreaCard({
         ) : null}
       </header>
       {!group.categories.length && (
-        <p className="text-muted-foreground text-xs">{w("emptyArea")}</p>
+        <p className="text-xs text-muted-foreground">{w("emptyArea")}</p>
       )}
       {visible.map((category) => (
         <div key={category.key} className="space-y-1">
           <button
             type="button"
-            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring flex min-h-6 w-full items-center gap-1.5 rounded-sm text-left text-xs focus-visible:ring-2 focus-visible:outline-none"
+            className="flex min-h-6 w-full items-center gap-1.5 rounded-sm text-left text-xs text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             aria-expanded={open.has(category.key)}
             onClick={() => {
               toggleCategory(category.key);
@@ -231,7 +231,7 @@ export function TechnologyLandscapeDialog({ state }: { state: LandscapeState }) 
             <p className="text-sm">
               {w("versions")}: {versions(active)}
             </p>
-            <ul className="divide-border divide-y">
+            <ul className="divide-y divide-border">
               {active.projects.map((project) => (
                 <li key={project.project_id} className="space-y-2 py-3">
                   <Link
@@ -241,14 +241,23 @@ export function TechnologyLandscapeDialog({ state }: { state: LandscapeState }) 
                     {project.name}
                   </Link>
                   {project.usage.facts.map((fact, index) => (
-                    <div key={index} className="text-sm">
+                    <div
+                      // biome-ignore lint/suspicious/noArrayIndexKey: These stateless evidence rows preserve duplicate observations from one immutable result.
+                      key={index}
+                      className="text-sm"
+                    >
                       <span>
                         {t(`values.${fact.context}`)} · {fact.version || "—"} ·{" "}
                         {t(`values.${fact.review}`)}
                       </span>
-                      <ul className="text-muted-foreground text-xs">
+                      <ul className="text-xs text-muted-foreground">
                         {fact.evidence.map((e, i) => (
-                          <li key={i}>{e.path ?? e.reference ?? e.source}</li>
+                          <li
+                            // biome-ignore lint/suspicious/noArrayIndexKey: These stateless evidence rows preserve duplicate observations from one immutable result.
+                            key={i}
+                          >
+                            {e.path ?? e.reference ?? e.source}
+                          </li>
                         ))}
                       </ul>
                     </div>

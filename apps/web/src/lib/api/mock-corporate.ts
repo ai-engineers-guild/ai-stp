@@ -1,5 +1,6 @@
-/* eslint-disable max-lines, max-lines-per-function, complexity, @typescript-eslint/no-non-null-assertion, @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unused-vars */
+/* eslint-disable max-lines, max-lines-per-function, complexity, @typescript-eslint/no-unnecessary-type-assertion */
 /** Offline fixtures only. Dispatch exclusively from the existing mock transport. */
+import { required } from "@/mocks/fixtures/required";
 import { z } from "zod";
 import { errorBody } from "@/mocks/fixtures";
 import fixtureData from "@/mocks/corporate-overview-fixture";
@@ -97,7 +98,7 @@ const memberStore = globalThis as typeof globalThis & {
   __aiStpCorporateTestMembers?: CorporateMember[];
   __aiStpCorporateTestMemberIndex?: Map<string, CorporateMember>;
 };
-const members = (memberStore.__aiStpCorporateTestMembers ??= employeeNodes.map((item, index) => ({
+memberStore.__aiStpCorporateTestMembers ??= employeeNodes.map((item, index) => ({
   schema_version: 1,
   account_id: item.id,
   display_name: item.name,
@@ -110,7 +111,8 @@ const members = (memberStore.__aiStpCorporateTestMembers ??= employeeNodes.map((
   last_activity_at: new Date(Date.now() - (index + 1) * 3_600_000).toISOString(),
   revision: 1,
   available_actions: [],
-})));
+}));
+const members = memberStore.__aiStpCorporateTestMembers;
 const memberDescriptions = [
   "Corporate team lead for the shared Core platform.",
   "Project lead coordinating product delivery and growth experiments.",
@@ -127,15 +129,16 @@ const memberDescriptions = [
   "Platform engineer maintaining shared runtime services.",
   "Data engineer maintaining analytics pipelines and storage.",
 ];
-members.forEach((item, index) =>
+members.forEach((item, index) => {
   descriptions.set(
     item.display_name ?? "",
     memberDescriptions[index] ?? "Corporate engineering team member.",
-  ),
-);
-const memberById = (memberStore.__aiStpCorporateTestMemberIndex ??= new Map(
+  );
+});
+memberStore.__aiStpCorporateTestMemberIndex ??= new Map(
   members.map((item) => [item.account_id, item]),
-));
+);
+const memberById = memberStore.__aiStpCorporateTestMemberIndex;
 // Standalone bundles this module into two module realms (page render and
 // /api routes). Mutable mock state must live on globalThis or a mutation in
 // one realm stays invisible to a read in the other.
@@ -288,7 +291,7 @@ const initMockState = () => ({
     heartbeat_retry_max_seconds: 3600,
     heartbeat_stale_after_seconds: 86400,
     updated_at: new Date(Date.now() - 30 * 3_600_000).toISOString(),
-    updated_by_account_id: members[0]!.account_id,
+    updated_by_account_id: required(members[0]).account_id,
   } as CorporateTelemetryPolicyView,
   sso: {
     providers: [
@@ -316,7 +319,7 @@ const initMockState = () => ({
     {
       schema_version: 1,
       binding_id: "binding_0000000000000000001",
-      account_id: members[0]!.account_id,
+      account_id: required(members[0]).account_id,
       service_principal_id: null,
       principal_type: "user",
       role: "superadmin",
@@ -367,7 +370,7 @@ const initMockState = () => ({
       scope_kind: "technology",
       scope_id: technologies[0]?.technology_id ?? "technology_unknown",
       state: "active",
-      issuer_account_id: members[0]!.account_id,
+      issuer_account_id: required(members[0]).account_id,
       revision: 1,
     },
   ] as CorporatePermissionGrant[],
@@ -427,7 +430,7 @@ function makeMockAudit(): CorporateAuditEntry[] {
   return specs.flatMap((spec, round) =>
     Array.from({ length: 4 }, (_, index) => {
       const serial = round * 4 + index + 1;
-      const actor = members[(serial - 1) % members.length]!;
+      const actor = required(members[(serial - 1) % members.length]);
       const [action, targetTable, reason, outcome] = spec;
       return {
         schema_version: 1,
@@ -500,7 +503,7 @@ const projectViews: CorporateProjectView[] = projectNodes.map((item, index) => (
       : [],
   available_actions: [],
 }));
-const member = members[0]!;
+const member = required(members[0]);
 const technologySpecs = [
   ["technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "Offline technology", "Runtime"],
   ["technology_01JQZK7B8N4M6P2R9T5V0X3Y1A", "Python", "Language"],
@@ -562,8 +565,10 @@ const technologies: TechnologyView[] = technologySpecs.map(([id, name, category]
   available_actions: [],
 }));
 
-const mockState = ((globalThis as Record<string, unknown>).__aiStpCorporateMock ??=
-  initMockState()) as ReturnType<typeof initMockState>;
+(globalThis as Record<string, unknown>).__aiStpCorporateMock ??= initMockState();
+const mockState = (globalThis as Record<string, unknown>).__aiStpCorporateMock as ReturnType<
+  typeof initMockState
+>;
 const mockInvitations = mockState.invitations;
 const mockPolicy = mockState.policy;
 const mockRoles = mockState.roles;
@@ -578,13 +583,13 @@ const sharedMockState = globalThis as {
   __aiStpMockUnmapped?: TechnologyUnmappedEntry[];
   __aiStpMockMappings?: TechnologyMappingView[];
 };
-const unmappedCoordinates: TechnologyUnmappedEntry[] = (sharedMockState.__aiStpMockUnmapped ??= [
+sharedMockState.__aiStpMockUnmapped ??= [
   {
     kind: "package",
     coordinate: "package:github.com/jackc/pgx/v5",
     candidate_technology_id: "technology_01JQZK7B8N4M6P2R9T5V0X3Y2B",
     resolved_technology_id: null,
-    project_ids: [projectViews[0]!.project_id],
+    project_ids: [required(projectViews[0]).project_id],
     state: "open",
   },
   {
@@ -592,7 +597,7 @@ const unmappedCoordinates: TechnologyUnmappedEntry[] = (sharedMockState.__aiStpM
     coordinate: "package:github.com/pressly/goose/v3",
     candidate_technology_id: null,
     resolved_technology_id: null,
-    project_ids: [projectViews[0]!.project_id, projectViews[1]!.project_id],
+    project_ids: [required(projectViews[0]).project_id, required(projectViews[1]).project_id],
     state: "open",
   },
   {
@@ -600,7 +605,7 @@ const unmappedCoordinates: TechnologyUnmappedEntry[] = (sharedMockState.__aiStpM
     coordinate: "image:harbor.internal/goose-migrations:v3.24",
     candidate_technology_id: null,
     resolved_technology_id: null,
-    project_ids: [projectViews[0]!.project_id],
+    project_ids: [required(projectViews[0]).project_id],
     state: "open",
   },
   {
@@ -608,11 +613,12 @@ const unmappedCoordinates: TechnologyUnmappedEntry[] = (sharedMockState.__aiStpM
     coordinate: "package:github.com/ogen-go/ogen",
     candidate_technology_id: null,
     resolved_technology_id: "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-    project_ids: [projectViews[2]!.project_id],
+    project_ids: [required(projectViews[2]).project_id],
     state: "resolved",
   },
-]);
-const mappingSnapshots: TechnologyMappingView[] = (sharedMockState.__aiStpMockMappings ??= [
+];
+const unmappedCoordinates: TechnologyUnmappedEntry[] = sharedMockState.__aiStpMockUnmapped;
+sharedMockState.__aiStpMockMappings ??= [
   {
     digest: "sha256:fixture-mapping-v1",
     entries: [
@@ -626,13 +632,14 @@ const mappingSnapshots: TechnologyMappingView[] = (sharedMockState.__aiStpMockMa
     organization_id: organization.organization_id,
     version: "mapping-fixture-1",
   },
-]);
+];
+const mappingSnapshots: TechnologyMappingView[] = sharedMockState.__aiStpMockMappings;
 const projectTeamPairs = [
-  [projectViews[0]!.project_id, teamViews[0]!.team_id, "owner"],
-  [projectViews[1]!.project_id, teamViews[1]!.team_id, "owner"],
-  [projectViews[1]!.project_id, teamViews[4]!.team_id, "contributor"],
-  [projectViews[2]!.project_id, teamViews[3]!.team_id, "owner"],
-  [projectViews[2]!.project_id, teamViews[2]!.team_id, "contributor"],
+  [required(projectViews[0]).project_id, required(teamViews[0]).team_id, "owner"],
+  [required(projectViews[1]).project_id, required(teamViews[1]).team_id, "owner"],
+  [required(projectViews[1]).project_id, required(teamViews[4]).team_id, "contributor"],
+  [required(projectViews[2]).project_id, required(teamViews[3]).team_id, "owner"],
+  [required(projectViews[2]).project_id, required(teamViews[2]).team_id, "contributor"],
 ] as const;
 const projectTeamRelations: ProjectTeamView[] = projectTeamPairs.flatMap(
   ([projectId, teamId, role]) => [
@@ -648,16 +655,16 @@ const projectTeamRelations: ProjectTeamView[] = projectTeamPairs.flatMap(
   ],
 );
 const projectTechPairs = [
-  [projectViews[0]!.project_id, technologySpecs[0]![0]],
-  [projectViews[1]!.project_id, technologySpecs[1]![0]],
-  [projectViews[1]!.project_id, technologySpecs[2]![0]],
-  [projectViews[2]!.project_id, technologySpecs[3]![0]],
-  [projectViews[2]!.project_id, technologySpecs[4]![0]],
-  [projectViews[2]!.project_id, technologySpecs[5]![0]],
-  [projectViews[2]!.project_id, technologySpecs[6]![0]],
-  [projectViews[1]!.project_id, technologySpecs[7]![0]],
-  [projectViews[2]!.project_id, technologySpecs[8]![0]],
-  [projectViews[2]!.project_id, technologySpecs[9]![0]],
+  [required(projectViews[0]).project_id, required(technologySpecs[0])[0]],
+  [required(projectViews[1]).project_id, required(technologySpecs[1])[0]],
+  [required(projectViews[1]).project_id, required(technologySpecs[2])[0]],
+  [required(projectViews[2]).project_id, required(technologySpecs[3])[0]],
+  [required(projectViews[2]).project_id, required(technologySpecs[4])[0]],
+  [required(projectViews[2]).project_id, required(technologySpecs[5])[0]],
+  [required(projectViews[2]).project_id, required(technologySpecs[6])[0]],
+  [required(projectViews[1]).project_id, required(technologySpecs[7])[0]],
+  [required(projectViews[2]).project_id, required(technologySpecs[8])[0]],
+  [required(projectViews[2]).project_id, required(technologySpecs[9])[0]],
 ] as const;
 const projectTechnologyRelations: ProjectTechnologyView[] = projectTechPairs.flatMap(
   ([projectId, technologyId]) => [
@@ -683,40 +690,40 @@ const projectTechnologyRelations: ProjectTechnologyView[] = projectTechPairs.fla
 );
 const employeeTechnologyRelations: EmployeeTechnologyView[] = [
   {
-    account_id: members[1]!.account_id,
+    account_id: required(members[1]).account_id,
     organization_id: organization.organization_id,
-    relation_id: `${members[1]!.account_id}:technology:${technologySpecs[1]![0]}`,
+    relation_id: `${required(members[1]).account_id}:technology:${required(technologySpecs[1])[0]}`,
     revision: 1,
     schema_version: 1,
     state: "current",
-    technology_id: technologySpecs[1]![0],
+    technology_id: required(technologySpecs[1])[0],
   },
   {
-    account_id: members[2]!.account_id,
+    account_id: required(members[2]).account_id,
     organization_id: organization.organization_id,
-    relation_id: `${members[2]!.account_id}:technology:${technologySpecs[1]![0]}`,
+    relation_id: `${required(members[2]).account_id}:technology:${required(technologySpecs[1])[0]}`,
     revision: 1,
     schema_version: 1,
     state: "current",
-    technology_id: technologySpecs[1]![0],
+    technology_id: required(technologySpecs[1])[0],
   },
   {
-    account_id: members[3]!.account_id,
+    account_id: required(members[3]).account_id,
     organization_id: organization.organization_id,
-    relation_id: `${members[3]!.account_id}:technology:${technologySpecs[2]![0]}`,
+    relation_id: `${required(members[3]).account_id}:technology:${required(technologySpecs[2])[0]}`,
     revision: 1,
     schema_version: 1,
     state: "current",
-    technology_id: technologySpecs[2]![0],
+    technology_id: required(technologySpecs[2])[0],
   },
   {
-    account_id: members[4]!.account_id,
+    account_id: required(members[4]).account_id,
     organization_id: organization.organization_id,
-    relation_id: `${members[4]!.account_id}:technology:${technologySpecs[0]![0]}`,
+    relation_id: `${required(members[4]).account_id}:technology:${required(technologySpecs[0])[0]}`,
     revision: 1,
     schema_version: 1,
     state: "current",
-    technology_id: technologySpecs[0]![0],
+    technology_id: required(technologySpecs[0])[0],
   },
 ];
 const overviewGraph: CorporateOverview = {
@@ -836,7 +843,7 @@ const resourceStore = globalThis as typeof globalThis & {
     CorporateResource[]
   >;
 };
-const resources = (resourceStore.__aiStpCorporateTestResources ??= {
+resourceStore.__aiStpCorporateTestResources ??= {
   teams: teamViews.map((detail) => ({
     id: detail.team_id,
     name: detail.name,
@@ -861,13 +868,11 @@ const resources = (resourceStore.__aiStpCorporateTestResources ??= {
     kind: "technology",
     detail,
   })),
-});
+};
+const resources = resourceStore.__aiStpCorporateTestResources;
 const resourceEntries = () =>
   Object.entries(resources) as [keyof typeof resources, CorporateResource[]][];
-const resourceFor = (kind: CorporateResource["kind"], id: string) =>
-  resourceEntries()
-    .flatMap(([, items]) => items)
-    .find((item) => item.kind === kind && item.id === id);
+
 type Profile = z.infer<typeof entityProfileViewSchema>;
 type CorporateUploadReceipt = {
   schema_version: 1;
@@ -892,11 +897,15 @@ const store = globalThis as typeof globalThis & {
     { effect: string; result: CorporateUploadReceipt }
   >;
 };
-const profiles = (store.__aiStpCorporateTestProfiles ??= new Map());
-const receipts = (store.__aiStpCorporateTestReceipts ??= new Map());
+store.__aiStpCorporateTestProfiles ??= new Map();
+const profiles = store.__aiStpCorporateTestProfiles;
+store.__aiStpCorporateTestReceipts ??= new Map();
+const receipts = store.__aiStpCorporateTestReceipts;
 // Synthetic offline fixtures only; live persisted assets remain API-owned.
-const uploads = (store.__aiStpCorporateTestUploads ??= new Map());
-const uploadReceipts = (store.__aiStpCorporateTestUploadReceipts ??= new Map());
+store.__aiStpCorporateTestUploads ??= new Map();
+const uploads = store.__aiStpCorporateTestUploads;
+store.__aiStpCorporateTestUploadReceipts ??= new Map();
+const uploadReceipts = store.__aiStpCorporateTestUploadReceipts;
 
 function readHeader(headers: HeadersInit | undefined, name: string): string | null {
   if (headers instanceof Headers) return headers.get(name);
@@ -1442,7 +1451,7 @@ export function corporateHandlers(
   if (!path.startsWith(`${base}/`)) return error(404, "AI_STP_NOT_FOUND");
   const suffix = path.slice(base.length + 1);
   if (suffix === "telemetry/heartbeat-report" && method === "GET") {
-    const team = teamViews[0]!;
+    const team = required(teamViews[0]);
     const employee = team.members[0] ?? member;
     const teamOption = { id: team.team_id, name: team.name };
     const heartbeat = {

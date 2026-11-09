@@ -126,7 +126,7 @@ export function TechnologyScanLaunch({
                 <input
                   id={`scan-project-${project.project_id}`}
                   type="checkbox"
-                  className="accent-primary mt-1 h-4 w-4"
+                  className="mt-1 h-4 w-4 accent-primary"
                   disabled={!linked}
                   checked={selected.includes(project.project_id)}
                   onChange={(event) => {
@@ -139,20 +139,20 @@ export function TechnologyScanLaunch({
                 />
                 <Label htmlFor={`scan-project-${project.project_id}`} className="min-w-0">
                   <span className="block font-medium">{project.name}</span>
-                  <span className="text-muted-foreground block font-mono text-xs break-all">
+                  <span className="block font-mono text-xs break-all text-muted-foreground">
                     {repositoryUrl
                       ? `${repositoryUrl}${repository.default_branch ? ` · ${repository.default_branch}` : ""}`
                       : scans("launchNoRepository")}
                   </span>
                   {active && (
-                    <span className="text-warning block text-sm">{scans("launchActive")}</span>
+                    <span className="block text-sm text-warning">{scans("launchActive")}</span>
                   )}
                 </Label>
               </div>
             );
           })}
           {!projects.length && (
-            <p className="text-muted-foreground text-sm">{scans("launchEmpty")}</p>
+            <p className="text-sm text-muted-foreground">{scans("launchEmpty")}</p>
           )}
         </fieldset>
         <div className="flex flex-wrap gap-3">
@@ -166,7 +166,7 @@ export function TechnologyScanLaunch({
           </p>
         )}
         {result && (
-          <ul className="divide-border divide-y text-sm" aria-label={scans("launchResults")}>
+          <ul className="divide-y divide-border text-sm" aria-label={scans("launchResults")}>
             {result.items.map((item) => (
               <li
                 key={item.project_id}
@@ -177,7 +177,7 @@ export function TechnologyScanLaunch({
                   {scans(`launchState.${item.state}`)}
                 </Badge>
                 {item.detail && (
-                  <span className="text-muted-foreground text-xs">{item.detail}</span>
+                  <span className="text-xs text-muted-foreground">{item.detail}</span>
                 )}
               </li>
             ))}

@@ -24,7 +24,7 @@ export default async function TechCategoriesPage({
   const people = await getTranslations("people");
   const common = await getTranslations("common");
   const session = (await sessionCookieValue()) ?? "";
-  let context;
+  let context: Awaited<ReturnType<typeof readCorporateContext>>;
   try {
     context = await readCorporateContext(session);
   } catch (error) {
@@ -41,7 +41,7 @@ export default async function TechCategoriesPage({
   if (!allowed)
     return <StatePanel kind="empty" title={t("title")} description={common("accessDenied")} />;
   const organizationId = context.organization.organization_id;
-  let registry;
+  let registry: Awaited<ReturnType<typeof readTechnologyRegistry>>;
   let technologies: TechnologyView[] | null = null;
   try {
     registry = await readTechnologyRegistry(session, organizationId);

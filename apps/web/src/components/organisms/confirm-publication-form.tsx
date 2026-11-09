@@ -31,7 +31,7 @@ export function ConfirmPublicationForm({
 
   return (
     <div className="space-y-3">
-      <p className="text-muted-foreground text-sm">{labels.warning}</p>
+      <p className="text-sm text-muted-foreground">{labels.warning}</p>
       <Button
         type="button"
         disabled={pending}
@@ -56,7 +56,7 @@ export function ConfirmPublicationForm({
       </Button>
       <MutationReference label="Reference id" operationId={operationId} />
       {error ? (
-        <p className="text-destructive text-sm" role="alert">
+        <p className="text-sm text-destructive" role="alert">
           {error}
         </p>
       ) : null}

@@ -199,7 +199,7 @@ function ConfirmationSentView({
         </Button>
       ) : null}
       {error ? (
-        <p className="text-destructive text-sm" role="alert">
+        <p className="text-sm text-destructive" role="alert">
           {error}
         </p>
       ) : null}
@@ -360,7 +360,7 @@ export function AcceptInvitation({
 
   if (!canSubmit && !consumed) {
     return (
-      <p className="text-muted-foreground text-sm" role="status">
+      <p className="text-sm text-muted-foreground" role="status">
         {labels.missingToken}
       </p>
     );
@@ -380,7 +380,7 @@ export function AcceptInvitation({
         </Button>
       ) : null}
       {error ? (
-        <p className="text-destructive text-sm" role="alert">
+        <p className="text-sm text-destructive" role="alert">
           {error}
         </p>
       ) : null}

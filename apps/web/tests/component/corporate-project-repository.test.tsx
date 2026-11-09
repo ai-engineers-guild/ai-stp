@@ -1,3 +1,4 @@
+import { required } from "@/mocks/fixtures/required";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
@@ -57,11 +58,13 @@ it("requires an explicit check and confirmation; never launches a scan", async (
   await user.click(screen.getByRole("button", { name: "Check repository" }));
   expect(await screen.findByRole("button", { name: "Link repository" })).toBeVisible();
   expect(mutation).toHaveBeenCalledTimes(1);
-  expect((mutation.mock.calls[0]?.[0] as { path: string }).path).toMatch(/repository-plan$/);
+  expect((required(mutation.mock.calls[0])[0] as { path: string }).path).toMatch(
+    /repository-plan$/,
+  );
   mutation.mockResolvedValueOnce({ ok: true, data: project });
   await user.click(screen.getByRole("button", { name: "Link repository" }));
   expect(mutation).toHaveBeenCalledTimes(2);
-  expect((mutation.mock.calls[1]?.[0] as { path: string }).path).toMatch(/repository$/);
+  expect((required(mutation.mock.calls[1])[0] as { path: string }).path).toMatch(/repository$/);
 });
 it("shows the linked provider, URL and branch without a write control", () => {
   view({

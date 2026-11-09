@@ -42,8 +42,9 @@ export function CorporatePermissionTable({
     .filter(([, items]) => items.length > 0);
   function mark(definition: CorporatePermissionDefinition, label = false) {
     const granted = permissions.includes(definition.name);
+    const Mark = editable ? "label" : "div";
     return (
-      <label
+      <Mark
         key={definition.name}
         className="flex min-h-9 items-center gap-2 text-xs"
         title={`${definition.name} — ${definition.scopes.join(", ")}`}
@@ -55,7 +56,7 @@ export function CorporatePermissionTable({
             value={definition.name}
             defaultChecked={granted}
             aria-label={definition.name}
-            className="accent-primary focus-visible:ring-ring size-4 focus-visible:ring-2"
+            className="size-4 accent-primary focus-visible:ring-2 focus-visible:ring-ring"
           />
         ) : (
           <span
@@ -67,7 +68,7 @@ export function CorporatePermissionTable({
           </span>
         )}
         {label ? <span>{permissionLabel(definition, t)}</span> : null}
-      </label>
+      </Mark>
     );
   }
   return (
@@ -83,7 +84,7 @@ export function CorporatePermissionTable({
         className="max-w-xs"
       />
       <div
-        className="border-border min-w-0 overflow-x-auto rounded-lg border"
+        className="min-w-0 overflow-x-auto rounded-lg border border-border"
         data-ui="permission-matrix"
       >
         <table
@@ -91,7 +92,7 @@ export function CorporatePermissionTable({
           aria-label={t("permissions")}
         >
           <thead>
-            <tr className="bg-muted/30 text-muted-foreground text-xs uppercase">
+            <tr className="bg-muted/30 text-xs text-muted-foreground uppercase">
               <th className="px-3 py-3 text-left font-medium">{t("entityAction")}</th>
               {ROLE_COLUMNS.map((action) => (
                 <th key={action} className="px-3 py-3 text-center font-medium">
@@ -103,13 +104,13 @@ export function CorporatePermissionTable({
           </thead>
           <tbody>
             {rows.map(([resource, items]) => (
-              <tr key={resource} className="border-border border-t">
+              <tr key={resource} className="border-t border-border">
                 <th scope="row" className="min-w-52 px-3 py-3 text-left">
                   <span className="flex items-center gap-3">
                     <Icon name={entityMeta(resource).icon} />
                     <span>
                       <span className="block font-medium">{t(`entities.${resource}.name`)}</span>
-                      <span className="text-muted-foreground block text-xs font-normal">
+                      <span className="block text-xs font-normal text-muted-foreground">
                         {t(`entities.${resource}.description`)}
                       </span>
                     </span>

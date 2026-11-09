@@ -23,8 +23,8 @@ export async function ObjectPresentationEditorPage({
   const t = await getTranslations("objects");
   const tc = await getTranslations("common");
   const token = (await sessionCookieValue()) ?? "";
-  let presentation;
-  let object;
+  let presentation: Awaited<ReturnType<typeof readOwnerPresentation>>;
+  let object: Awaited<ReturnType<typeof readOwnerObject>>;
   let allProducts: { schema_version: 1; items: ExternalProduct[] } = {
     schema_version: 1,
     items: [],

@@ -117,7 +117,7 @@ export function CorporateHeartbeatReport({
     <button
       type="button"
       aria-label={label}
-      className="focus-visible:ring-ring inline-flex items-center gap-1 text-left hover:underline focus-visible:ring-2"
+      className="inline-flex items-center gap-1 text-left hover:underline focus-visible:ring-2 focus-visible:ring-ring"
       onClick={() => {
         change({ sort: key, order: sort === key && order === "asc" ? "desc" : "asc" });
       }}
@@ -127,7 +127,7 @@ export function CorporateHeartbeatReport({
   );
   return (
     <>
-      <div className="border-border bg-card grid items-end gap-4 rounded-lg border p-4 md:grid-cols-[repeat(3,minmax(0,1fr))_auto]">
+      <div className="grid items-end gap-4 rounded-lg border border-border bg-card p-4 md:grid-cols-[repeat(3,minmax(0,1fr))_auto]">
         <SearchableMultiSelect
           name="team"
           label={selection.teams.length ? t("team") : t("allTeams")}
@@ -164,10 +164,10 @@ export function CorporateHeartbeatReport({
         />
         <div className="grid items-end gap-2 sm:grid-cols-2 md:grid-cols-1 xl:grid-cols-2">
           {view === "history" && (
-            <label className="text-muted-foreground text-xs">
+            <label className="text-xs text-muted-foreground">
               {t("period")}
               <Select
-                className="border-border bg-background text-foreground mt-1 block h-11 w-full rounded-sm border px-2 text-sm"
+                className="mt-1 block h-11 w-full rounded-sm border border-border bg-background px-2 text-sm text-foreground"
                 value={period}
                 onChange={(event) => {
                   if (event.target.value === "custom") {
@@ -188,7 +188,7 @@ export function CorporateHeartbeatReport({
           )}
           {view === "history" && period === "custom" && (
             <div className="flex gap-2">
-              <label className="text-muted-foreground text-xs">
+              <label className="text-xs text-muted-foreground">
                 {t("fromDate")}
                 <input
                   type="date"
@@ -197,10 +197,10 @@ export function CorporateHeartbeatReport({
                   onChange={(event) => {
                     change({ from_date: event.target.value });
                   }}
-                  className="border-border bg-background text-foreground mt-1 block h-11 w-full rounded-sm border px-2 text-sm"
+                  className="mt-1 block h-11 w-full rounded-sm border border-border bg-background px-2 text-sm text-foreground"
                 />
               </label>
-              <label className="text-muted-foreground text-xs">
+              <label className="text-xs text-muted-foreground">
                 {t("toDate")}
                 <input
                   type="date"
@@ -209,7 +209,7 @@ export function CorporateHeartbeatReport({
                   onChange={(event) => {
                     change({ to_date: event.target.value });
                   }}
-                  className="border-border bg-background text-foreground mt-1 block h-11 w-full rounded-sm border px-2 text-sm"
+                  className="mt-1 block h-11 w-full rounded-sm border border-border bg-background px-2 text-sm text-foreground"
                 />
               </label>
             </div>
@@ -227,17 +227,16 @@ export function CorporateHeartbeatReport({
             closeLabel={t("close")}
           />
         </div>
-        <div
-          role="group"
+        <fieldset
           aria-label={t("heartbeat")}
-          className="border-border flex rounded-sm border"
+          className="flex min-w-0 rounded-sm border border-border"
         >
           {(["current", "history"] as const).map((option) => (
             <button
               key={option}
               type="button"
               aria-pressed={view === option}
-              className={`focus-visible:ring-ring min-h-11 px-4 text-sm focus-visible:ring-2 ${view === option ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+              className={`min-h-11 px-4 text-sm focus-visible:ring-2 focus-visible:ring-ring ${view === option ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
               onClick={() => {
                 change({ view: option });
               }}
@@ -245,10 +244,10 @@ export function CorporateHeartbeatReport({
               {t(option)}
             </button>
           ))}
-        </div>
+        </fieldset>
       </div>
       {view === "history" && (
-        <p className="text-muted-foreground mt-3 text-xs">
+        <p className="mt-3 text-xs text-muted-foreground">
           {t("policy", {
             interval: `${Math.round(report.interval_seconds / 60)} min`,
             stale: `${Math.round(report.stale_after_seconds / 60)} min`,
@@ -258,14 +257,14 @@ export function CorporateHeartbeatReport({
       <div className="mt-8 flex flex-wrap items-center justify-between gap-3 text-sm">
         <span className="text-muted-foreground">{t("devices", { count: report.total })}</span>
         <div className="flex items-center gap-3">
-          <label className="text-muted-foreground flex items-center gap-2">
+          <label className="flex items-center gap-2 text-muted-foreground">
             {t("perPage")}
             <Select
               value={report.page_size}
               onChange={(event) => {
                 change({ page_size: event.target.value });
               }}
-              className="border-border bg-background text-foreground h-9 rounded-sm border px-2"
+              className="h-9 rounded-sm border border-border bg-background px-2 text-foreground"
             >
               {[10, 25, 50].map((size) => (
                 <option key={size} value={size}>
@@ -301,9 +300,9 @@ export function CorporateHeartbeatReport({
           </Button>
         </div>
       </div>
-      <div className="border-border mt-4 overflow-x-auto rounded-lg border">
+      <div className="mt-4 overflow-x-auto rounded-lg border border-border">
         <Table className="min-w-[900px] text-left">
-          <THead className="bg-card text-muted-foreground border-border border-b">
+          <THead className="border-b border-border bg-card text-muted-foreground">
             <Tr className="border-b-0">
               <Th className="px-4 py-3">{sortable("employee", t("employee"))}</Th>
               <Th className="px-4 py-3">{sortable("team", t("team"))}</Th>
@@ -338,7 +337,7 @@ export function CorporateHeartbeatReport({
               <Tr>
                 <Td colSpan={view === "history" ? 6 : 5} className="px-4 py-12 text-center">
                   <p>{t("empty")}</p>
-                  <p className="text-muted-foreground mt-2">{t("emptyHint")}</p>
+                  <p className="mt-2 text-muted-foreground">{t("emptyHint")}</p>
                 </Td>
               </Tr>
             )}

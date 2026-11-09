@@ -129,7 +129,7 @@ export function PresetCadenceField({
           }}
         />
       )}
-      {hint ? <p className="text-muted-foreground text-xs">{hint}</p> : null}
+      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }
@@ -196,7 +196,7 @@ export function PresetDaysField({
           }}
         />
       )}
-      {hint ? <p className="text-muted-foreground text-xs">{hint}</p> : null}
+      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }
@@ -241,7 +241,7 @@ export function UnitSecondsField({
           setValue(Number(event.target.value));
         }}
       />
-      {hint ? <p className="text-muted-foreground text-xs">{hint}</p> : null}
+      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }
@@ -254,8 +254,8 @@ export function AdvancedDisclosure({
   children: React.ReactNode;
 }) {
   return (
-    <details className="border-border rounded-md border px-4 py-3">
-      <summary className="text-muted-foreground cursor-pointer text-sm font-medium">
+    <details className="rounded-md border border-border px-4 py-3">
+      <summary className="cursor-pointer text-sm font-medium text-muted-foreground">
         {title}
       </summary>
       <div className="mt-4 space-y-4">{children}</div>
@@ -307,7 +307,7 @@ export function TelemetryRetentionTab({
               <option value="contract">{t("telemetryBasisContract")}</option>
               <option value="legitimate_interest">{t("telemetryBasisLegitimateInterest")}</option>
             </select>
-            <p className="text-muted-foreground text-xs">{t("telemetryLegalBasisCaption")}</p>
+            <p className="text-xs text-muted-foreground">{t("telemetryLegalBasisCaption")}</p>
           </div>
           <PresetDaysField
             id="telemetry-raw-retention"
@@ -354,7 +354,7 @@ export function TelemetryRetentionTab({
                   </option>
                 ))}
               </select>
-              <p className="text-muted-foreground text-xs">{t("reportTimezoneCaption")}</p>
+              <p className="text-xs text-muted-foreground">{t("reportTimezoneCaption")}</p>
             </div>
           </div>
           <div className="space-y-2">
@@ -367,7 +367,7 @@ export function TelemetryRetentionTab({
               disabled={disabled}
               className="min-h-24"
             />
-            <p className="text-muted-foreground text-xs">{t("telemetryNoticeCaption")}</p>
+            <p className="text-xs text-muted-foreground">{t("telemetryNoticeCaption")}</p>
           </div>
         </div>
         <InfoNote className="mt-4">{t("telemetryScopeNote")}</InfoNote>

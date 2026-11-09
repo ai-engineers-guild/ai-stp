@@ -21,7 +21,7 @@ export default async function PublicationPlanPage({ params }: PageProps) {
   const token = await sessionCookieValue();
   const csrf = await readCsrfToken();
 
-  let plan;
+  let plan: Awaited<ReturnType<typeof readPublicationPlan>>;
   try {
     plan = await readPublicationPlan(token ?? "", planId);
   } catch (error) {
@@ -40,12 +40,12 @@ export default async function PublicationPlanPage({ params }: PageProps) {
     <div className="mx-auto max-w-xl space-y-6">
       <div className="space-y-2">
         <h1 className="text-3xl font-medium tracking-tight">{t("title")}</h1>
-        <p className="text-muted-foreground text-sm">{t("subtitle")}</p>
+        <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
 
-      <dl className="bg-muted/40 border-border space-y-3 rounded-lg border p-4 text-sm">
+      <dl className="space-y-3 rounded-lg border border-border bg-muted/40 p-4 text-sm">
         <div>
-          <dt className="text-muted-foreground font-mono text-xs">{t("state")}</dt>
+          <dt className="font-mono text-xs text-muted-foreground">{t("state")}</dt>
           <dd>
             <Badge variant="outline" className="font-mono text-xs">
               {plan.state}
@@ -53,35 +53,35 @@ export default async function PublicationPlanPage({ params }: PageProps) {
           </dd>
         </div>
         <div>
-          <dt className="text-muted-foreground font-mono text-xs">{t("object")}</dt>
+          <dt className="font-mono text-xs text-muted-foreground">{t("object")}</dt>
           <dd className="font-mono text-xs">
             {plan.object_kind} / {plan.stable_id} / {plan.version}
           </dd>
         </div>
         <div>
-          <dt className="text-muted-foreground font-mono text-xs">{t("digest")}</dt>
+          <dt className="font-mono text-xs text-muted-foreground">{t("digest")}</dt>
           <dd className="font-mono text-xs break-all">{plan.content_digest}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground font-mono text-xs">{t("planHash")}</dt>
+          <dt className="font-mono text-xs text-muted-foreground">{t("planHash")}</dt>
           <dd className="font-mono text-xs break-all">{plan.plan_hash}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground font-mono text-xs">{t("policy")}</dt>
+          <dt className="font-mono text-xs text-muted-foreground">{t("policy")}</dt>
           <dd className="font-mono text-xs">{plan.policy_version}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground font-mono text-xs">{t("expires")}</dt>
+          <dt className="font-mono text-xs text-muted-foreground">{t("expires")}</dt>
           <dd className="font-mono text-xs">{plan.expires_at}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground font-mono text-xs">{t("effects")}</dt>
+          <dt className="font-mono text-xs text-muted-foreground">{t("effects")}</dt>
           <dd className="font-mono text-xs">{plan.effects.join(", ") || "—"}</dd>
         </div>
       </dl>
 
       {plan.evidence.length > 0 ? (
-        <ul className="divide-border border-border divide-y rounded-lg border">
+        <ul className="divide-y divide-border rounded-lg border border-border">
           {plan.evidence.map((row) => (
             <li
               key={`${row.check_id}-${row.source}`}
@@ -108,7 +108,7 @@ export default async function PublicationPlanPage({ params }: PageProps) {
           }}
         />
       ) : (
-        <p className="text-muted-foreground text-sm" role="status">
+        <p className="text-sm text-muted-foreground" role="status">
           {t("statusOnly", { state: plan.state })}
         </p>
       )}

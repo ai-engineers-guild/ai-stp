@@ -8,6 +8,7 @@ import {
   cmdVersion,
   type CmdResult,
 } from "./transport";
+import { scalarText } from "./contracts";
 
 export interface IpcEntry {
   id: number;
@@ -95,10 +96,10 @@ export const useApp = create<AppState>((set) => ({
       set({
         cliOk: version.ok && capabilities?.ok === true,
         cliVersion: version.ok
-          ? String(version.data?.version ?? version.data?.cli_version ?? "")
+          ? scalarText(version.data?.version ?? version.data?.cli_version ?? "")
           : null,
         registryDigest: capabilities?.ok
-          ? String(capabilities.data?.registry_digest ?? "") || null
+          ? scalarText(capabilities.data?.registry_digest ?? "") || null
           : null,
         capabilities,
         doctor,

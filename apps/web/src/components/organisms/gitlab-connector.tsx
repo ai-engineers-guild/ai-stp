@@ -153,7 +153,7 @@ export function GitLabConnector({
             {connectionLabel}
           </span>
         </div>
-        <p className="text-muted-foreground max-w-2xl">{t("simpleIntro")}</p>
+        <p className="max-w-2xl text-muted-foreground">{t("simpleIntro")}</p>
       </header>
 
       {error ? (
@@ -163,17 +163,17 @@ export function GitLabConnector({
       ) : null}
       {!status ? <ConnectorSkeleton label={t("loading")} /> : null}
       {status && !status.connections.some((item) => item.configured) ? (
-        <p className="text-muted-foreground max-w-2xl">{t("unavailable")}</p>
+        <p className="max-w-2xl text-muted-foreground">{t("unavailable")}</p>
       ) : null}
       {busy ? (
-        <div className="text-muted-foreground flex items-center gap-2 text-sm" role="status">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
           <Icon name="loader" size="sm" className="animate-spin" />
           {t("working")}
         </div>
       ) : null}
 
       {status && !connected && source?.configured ? (
-        <section className="border-border max-w-2xl space-y-4 rounded-lg border p-5">
+        <section className="max-w-2xl space-y-4 rounded-lg border border-border p-5">
           <h2 className="text-xl font-medium">{t("connectTitle")}</h2>
           <p className="text-muted-foreground">{t("connectHint")}</p>
           <div className="flex flex-wrap gap-3">
@@ -200,7 +200,7 @@ export function GitLabConnector({
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="text-xl font-medium">{t("projectsTitle")}</h2>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-sm text-muted-foreground">
                 {t("projectsCount", { count: repositories.length })}
               </p>
             </div>
@@ -238,8 +238,8 @@ export function GitLabConnector({
             </div>
           </div>
           {admin?.state !== "connected" && admin?.configured ? (
-            <div className="border-border flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4">
-              <p className="text-muted-foreground text-sm">{t("managementHint")}</p>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4">
+              <p className="text-sm text-muted-foreground">{t("managementHint")}</p>
               <Button
                 variant="outline"
                 disabled={busy}
@@ -251,7 +251,7 @@ export function GitLabConnector({
               </Button>
             </div>
           ) : null}
-          <ul className="border-border divide-border divide-y rounded-lg border">
+          <ul className="divide-y divide-border rounded-lg border border-border">
             {repositories.map((repository) => (
               <RepositoryRow
                 key={repository.project_id}
@@ -301,7 +301,7 @@ export function GitLabConnector({
                 <label className="block space-y-2 text-sm">
                   {t("accessLevel")}
                   <Select
-                    className="border-border bg-background block w-full rounded-md border px-3 py-2"
+                    className="block w-full rounded-md border border-border bg-background px-3 py-2"
                     value={accessLevel}
                     onChange={(event) => {
                       setAccessLevel(event.target.value as (typeof ACCESS_LEVELS)[number]);
@@ -342,7 +342,7 @@ export function GitLabConnector({
               <label className="block space-y-2 text-sm">
                 {t("targetVisibility")}
                 <Select
-                  className="border-border bg-background block w-full rounded-md border px-3 py-2"
+                  className="block w-full rounded-md border border-border bg-background px-3 py-2"
                   value={repoVisibility}
                   onChange={(event) => {
                     setRepoVisibility(event.target.value as "private" | "internal" | "public");
@@ -400,7 +400,7 @@ export function GitLabConnector({
           {plan?.state === "planned" ? (
             <>
               <p className="font-medium">{plan.path_with_namespace ?? plan.path ?? plan.name}</p>
-              <p className="text-muted-foreground text-sm">{warningLabels[plan.warning]}</p>
+              <p className="text-sm text-muted-foreground">{warningLabels[plan.warning]}</p>
               {plan.action === "make_public" || plan.action === "make_private" ? (
                 <label className="block space-y-2 text-sm">
                   {t("typeName")}
@@ -495,12 +495,12 @@ function RepositoryRow({
           href={repository.repository_url}
           target="_blank"
           rel="noreferrer"
-          className="focus-visible:ring-ring block min-w-0 rounded-sm focus-visible:ring-2 focus-visible:outline-none"
+          className="block min-w-0 rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           <p className="truncate font-medium underline-offset-4 hover:underline">
             {repository.path_with_namespace}
           </p>
-          <p className="text-muted-foreground text-sm">{visibilityLabel}</p>
+          <p className="text-sm text-muted-foreground">{visibilityLabel}</p>
         </a>
         {repository.platform_objects.length > 0 ? (
           <div className="mt-3 flex flex-wrap gap-2">
@@ -508,7 +508,7 @@ function RepositoryRow({
               <Link
                 key={`${object.object_kind}:${object.stable_id}:${object.version}`}
                 href={`/objects/${object.object_kind}/${object.stable_id}`}
-                className="border-border bg-muted hover:bg-accent inline-flex items-center gap-2 rounded-sm border px-2 py-1 text-xs"
+                className="inline-flex items-center gap-2 rounded-sm border border-border bg-muted px-2 py-1 text-xs hover:bg-accent"
               >
                 <span>{object.name}</span>
                 <span className="text-muted-foreground">{object.visibility}</span>

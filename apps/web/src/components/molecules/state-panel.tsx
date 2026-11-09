@@ -23,16 +23,16 @@ export function StatePanel({ kind, title, description, className, action }: Stat
       aria-live={kind === "loading" ? "polite" : "assertive"}
       data-kind={kind}
       className={cn(
-        "border-border bg-card text-card-foreground rounded-lg border p-6 shadow-sm",
+        "rounded-lg border border-border bg-card p-6 text-card-foreground shadow-sm",
         className,
       )}
     >
-      <p className="text-muted-foreground mb-2 font-mono text-[11px] font-medium tracking-wide uppercase">
+      <p className="mb-2 font-mono text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
         {kind}
       </p>
       <p className="text-base font-medium">{title}</p>
       {description ? (
-        <p className="text-muted-foreground mt-2 text-sm leading-relaxed">{description}</p>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
       ) : null}
       {action ? <div className="mt-4">{action}</div> : null}
     </div>

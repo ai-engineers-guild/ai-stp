@@ -13,6 +13,7 @@ export default function ContextSwitcher() {
     useContexts();
   const location = useLocation();
   const [error, setError] = useState<CmdResult | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies(location.pathname): Navigation refreshes the selected native context.
   useEffect(() => {
     void refresh();
   }, [refresh, location.pathname]);
@@ -69,7 +70,7 @@ export default function ContextSwitcher() {
         </select>
       </label>
       {selected?.organization && (
-        <p className="break-words text-xs text-muted-foreground">
+        <p className="text-xs break-words text-muted-foreground">
           {selected.organization} {msg("contextSwitcher.savedView")}
         </p>
       )}

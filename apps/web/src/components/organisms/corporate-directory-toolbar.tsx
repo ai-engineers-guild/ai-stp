@@ -151,7 +151,7 @@ export function CorporateDirectoryToolbar({
         >
           <Icon name="controls" size="sm" />
         </Button>
-        <div className="flex shrink-0 gap-2" aria-label={catalog("viewLabel")}>
+        <fieldset className="flex min-w-0 shrink-0 gap-2" aria-label={catalog("viewLabel")}>
           {(["list", "cards"] as const).map((mode) => (
             <Button
               key={mode}
@@ -167,7 +167,7 @@ export function CorporateDirectoryToolbar({
               <Icon name={mode} size="sm" />
             </Button>
           ))}
-        </div>
+        </fieldset>
         <Button
           type="button"
           variant="outline"
@@ -209,8 +209,10 @@ export function CorporateDirectoryToolbar({
           {/* Shared catalog surface owns focus, scrolling, dismissal and responsive positioning. */}
           <div className="grid min-w-0 items-start gap-5 md:grid-cols-2">
             {directoryFacets[resource].map((facet) => (
-              <label key={facet} className="min-w-0 space-y-2 text-sm">
-                <span className="font-medium">{facet === "leads" ? t("teamLeads") : t(facet)}</span>
+              <fieldset key={facet} className="min-w-0 space-y-2 text-sm">
+                <legend className="font-medium">
+                  {facet === "leads" ? t("teamLeads") : t(facet)}
+                </legend>
                 <SearchableMultiSelect
                   key={facet}
                   name={directoryFacetParams[facet]}
@@ -224,7 +226,7 @@ export function CorporateDirectoryToolbar({
                     setDraftSelected((previous) => ({ ...previous, [facet]: values }));
                   }}
                 />
-              </label>
+              </fieldset>
             ))}
             {resource === "members" ? (
               <label className="flex min-h-11 items-center gap-2 text-sm sm:col-span-2">
@@ -239,12 +241,12 @@ export function CorporateDirectoryToolbar({
               </label>
             ) : null}
             {catalogFacets.length ? (
-              <div className="border-border bg-muted/30 min-w-0 space-y-4 rounded-lg border p-4 md:col-span-2">
+              <div className="min-w-0 space-y-4 rounded-lg border border-border bg-muted/30 p-4 md:col-span-2">
                 <h3 className="font-medium">{t("catalogGovernanceFilters")}</h3>
                 <div className="grid min-w-0 gap-5 md:grid-cols-2">
                   {catalogFacets.map((facet) => (
-                    <label key={facet.key} className="min-w-0 space-y-2 text-sm">
-                      <span className="font-medium">{facet.label}</span>
+                    <fieldset key={facet.key} className="min-w-0 space-y-2 text-sm">
+                      <legend className="font-medium">{facet.label}</legend>
                       <SearchableMultiSelect
                         name={facet.key}
                         label={facet.label}
@@ -261,7 +263,7 @@ export function CorporateDirectoryToolbar({
                           }));
                         }}
                       />
-                    </label>
+                    </fieldset>
                   ))}
                 </div>
               </div>
@@ -273,14 +275,14 @@ export function CorporateDirectoryToolbar({
                 onChange={(event) => {
                   setDraftSort(event.target.value as "name" | "name_desc");
                 }}
-                className="border-input bg-background focus-visible:ring-ring h-11 w-full rounded-sm border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
+                className="h-11 w-full rounded-sm border border-input bg-background px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
                 <option value="name">{t("sortName")}</option>
                 <option value="name_desc">{catalog("sortDescending")}</option>
               </Select>
             </label>
           </div>
-          <div className="border-border bg-card sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t py-5">
+          <div className="sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-card py-5">
             <Button
               type="button"
               variant="ghost"

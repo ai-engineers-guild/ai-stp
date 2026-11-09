@@ -25,7 +25,7 @@ export default async function CategoryDetailPage({
   const t = await getTranslations("technology");
   const c = await getTranslations("corporate");
   const common = await getTranslations("common");
-  let context;
+  let context: Awaited<ReturnType<typeof readCorporateContext>>;
   try {
     context = await readCorporateContext(session);
   } catch (error) {
@@ -36,7 +36,7 @@ export default async function CategoryDetailPage({
   }
   if (!context)
     return <StatePanel kind="empty" title={h("categories")} description={c("noOrganization")} />;
-  let detail;
+  let detail: Awaited<ReturnType<typeof readCategoryDetail>>;
   try {
     detail = await readCategoryDetail(session, context.organization.organization_id, categoryId);
   } catch (error) {
@@ -77,12 +77,12 @@ export default async function CategoryDetailPage({
             </Badge>
           )}
         </h1>
-        <p className="text-muted-foreground max-w-prose">{detail.category.description}</p>
+        <p className="max-w-prose text-muted-foreground">{detail.category.description}</p>
       </header>
       {detail.technologies && (
         <section className="space-y-3">
           <h2 className="text-xl font-medium">{h("technologies")}</h2>
-          <ul className="divide-border divide-y">
+          <ul className="divide-y divide-border">
             {detail.technologies.items.map((item) => (
               <li key={item.technology_id} className="py-3">
                 <Link
@@ -95,7 +95,7 @@ export default async function CategoryDetailPage({
             ))}
           </ul>
           {!detail.technologies.items.length && (
-            <p className="text-muted-foreground text-sm">{h("empty")}</p>
+            <p className="text-sm text-muted-foreground">{h("empty")}</p>
           )}
         </section>
       )}

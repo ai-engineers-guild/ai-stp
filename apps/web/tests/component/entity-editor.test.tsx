@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
+import { useState } from "react";
+import { required } from "@/mocks/fixtures/required";
 
 import { EntityEditorLayout } from "@/components/molecules/entity-editor-layout";
 import { EntityLinksEditor } from "@/components/molecules/entity-links-editor";
@@ -14,6 +16,27 @@ const labels = {
   url: "URL (HTTPS)",
   remove: "Remove",
 };
+
+function LinksFixture() {
+  const [links, setLinks] = useState([
+    { label: "First", url: "https://example.com/first" },
+    { label: "Second", url: "https://example.com/second" },
+  ]);
+  return <EntityLinksEditor links={links} max={5} labels={labels} onChange={setLinks} />;
+}
+
+it("keeps an edited link's fields when a preceding row is removed", async () => {
+  const user = userEvent.setup();
+  render(<LinksFixture />);
+  const secondLabel = screen.getByDisplayValue("Second");
+  const secondUrl = screen.getByDisplayValue("https://example.com/second");
+  await user.type(secondLabel, " edited");
+  expect(screen.getByDisplayValue("Second edited")).toBe(secondLabel);
+  await user.click(required(screen.getAllByRole("button", { name: "Remove" })[0]));
+  expect(screen.getByDisplayValue("Second edited")).toBe(secondLabel);
+  expect(screen.getByRole("textbox", { name: "URL (HTTPS)" })).toBe(secondUrl);
+  expect(screen.getByRole("textbox", { name: "Label" })).toBe(secondLabel);
+});
 
 it("keeps the shared layout identifiable and caps links at five", async () => {
   const user = userEvent.setup();

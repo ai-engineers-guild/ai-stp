@@ -177,8 +177,8 @@ export function CorporateAuditPanel({
         }}
       />
 
-      <div className="border-border bg-card rounded-lg border shadow-sm">
-        <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+      <div className="rounded-lg border border-border bg-card shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
           <p className="text-sm font-medium tabular-nums">{t("eventCount", { count: total })}</p>
           {canExport ? (
             <AuditExportControls
@@ -213,12 +213,12 @@ export function CorporateAuditPanel({
               push({ page: String(next) });
             }}
           />
-          <label className="text-muted-foreground flex items-center gap-2 text-sm">
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
             {t("rowsPerPage")}
             <select
               value={pageSize}
               aria-label={t("rowsPerPage")}
-              className="border-input bg-background h-11 rounded-sm border px-2 text-sm"
+              className="h-11 rounded-sm border border-input bg-background px-2 text-sm"
               onChange={(event) => {
                 push({ size: event.target.value, page: "1" });
               }}
@@ -233,7 +233,7 @@ export function CorporateAuditPanel({
         </div>
       </div>
       {message ? (
-        <p className="text-muted-foreground text-sm" role="status" aria-live="polite">
+        <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
           {message}
         </p>
       ) : null}

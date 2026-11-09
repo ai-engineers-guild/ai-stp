@@ -169,12 +169,13 @@ function RequirementList({
   mono?: boolean;
 }) {
   return (
-    <div className="bg-muted/30 min-w-0 rounded-sm p-3">
+    <div className="min-w-0 rounded-sm bg-muted/30 p-3">
       <h3 className="text-sm font-semibold">{label}</h3>
       {values.length ? (
         <ul className="mt-1.5 space-y-1 text-sm leading-5">
           {values.map((value, index) => (
             <li
+              // biome-ignore lint/suspicious/noArrayIndexKey: These stateless requirement rows preserve duplicate values from one immutable result.
               key={`${value}-${index}`}
               className={mono ? "font-mono text-xs break-all" : "break-words"}
             >
@@ -183,7 +184,7 @@ function RequirementList({
           ))}
         </ul>
       ) : (
-        <p className="text-muted-foreground mt-1.5 text-sm">{empty}</p>
+        <p className="mt-1.5 text-sm text-muted-foreground">{empty}</p>
       )}
     </div>
   );

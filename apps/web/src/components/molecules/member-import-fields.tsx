@@ -52,7 +52,7 @@ export function MemberImportFields({
     <div className="min-w-0 space-y-3">
       <label
         htmlFor="import-file"
-        className={`border-border bg-muted/20 hover:bg-muted/40 focus-within:ring-ring relative flex min-h-36 flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-5 text-center focus-within:ring-2 ${dragging ? "border-primary bg-primary/5" : ""}`}
+        className={`relative flex min-h-36 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 p-5 text-center focus-within:ring-2 focus-within:ring-ring hover:bg-muted/40 ${dragging ? "border-primary bg-primary/5" : ""}`}
         onDragOver={(event) => {
           event.preventDefault();
           if (!busy) setDragging(true);
@@ -69,7 +69,7 @@ export function MemberImportFields({
       >
         <Icon name="upload" size="lg" className="text-muted-foreground" />
         <span className="font-medium">{t("dropImportFile")}</span>
-        <span className="text-muted-foreground max-w-full text-sm break-all">
+        <span className="max-w-full text-sm break-all text-muted-foreground">
           {filename || t("chooseImportFile")}
         </span>
         <input
@@ -87,11 +87,11 @@ export function MemberImportFields({
           }}
         />
       </label>
-      <p id="import-file-hint" className="text-muted-foreground text-sm leading-relaxed">
+      <p id="import-file-hint" className="text-sm leading-relaxed text-muted-foreground">
         {t("importFileHint")}
       </p>
       <details className="text-sm">
-        <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-2 font-medium focus-visible:ring-2">
+        <summary className="cursor-pointer rounded-sm py-2 font-medium focus-visible:ring-2 focus-visible:ring-ring">
           {t("pasteImport")}
         </summary>
         <Label htmlFor="import-text" className="sr-only">
@@ -117,11 +117,11 @@ export function MemberImportFields({
         />
       </details>
       {error ? (
-        <p role="alert" className="text-destructive text-sm">
+        <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       ) : null}
-      <p aria-live="polite" className="text-muted-foreground text-sm">
+      <p aria-live="polite" className="text-sm text-muted-foreground">
         {t("importCount", { count: valid })}
         {rows.length > valid ? ` · ${t("importSkipped", { count: rows.length - valid })}` : ""}
       </p>

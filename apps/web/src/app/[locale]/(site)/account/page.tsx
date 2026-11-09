@@ -35,8 +35,8 @@ export default async function AccountPage({ params }: PageProps) {
   const token = await sessionCookieValue();
   const csrfToken = (await readCsrfToken()) ?? "";
 
-  let profile;
-  let corporateOrganization;
+  let profile: Awaited<ReturnType<typeof readAccount>>;
+  let corporateOrganization: Awaited<ReturnType<typeof readCorporateOrganization>>;
   try {
     [profile, corporateOrganization] = await Promise.all([
       readAccount(token ?? ""),
@@ -66,15 +66,15 @@ export default async function AccountPage({ params }: PageProps) {
 
       <header className="space-y-2">
         <h1 className="text-3xl font-medium tracking-tight sm:text-4xl">{t("title")}</h1>
-        <p className="text-muted-foreground text-base">{t("subtitle")}</p>
+        <p className="text-base text-muted-foreground">{t("subtitle")}</p>
       </header>
 
       <div className="grid items-stretch gap-5 lg:grid-cols-[1.12fr_0.88fr]">
-        <section className="border-border bg-card flex min-w-0 flex-col gap-7 rounded-lg border p-5 shadow-sm sm:p-6">
+        <section className="flex min-w-0 flex-col gap-7 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-1">
               <h2 className="text-2xl font-medium tracking-tight">{t("profile")}</h2>
-              <p className="text-muted-foreground text-sm">{t("profileAccountHint")}</p>
+              <p className="text-sm text-muted-foreground">{t("profileAccountHint")}</p>
             </div>
             <Badge variant={profile.show_profile_publicly ? "success" : "secondary"}>
               <Icon name="globe" size="sm" />
@@ -87,9 +87,9 @@ export default async function AccountPage({ params }: PageProps) {
               src={avatarUrl}
               width={96}
               height={96}
-              className="border-primary bg-muted ring-primary/10 size-24 rounded-full border-2 object-cover ring-4"
+              className="size-24 rounded-full border-2 border-primary bg-muted object-cover ring-4 ring-primary/10"
               fallback={
-                <span className="border-primary bg-muted text-foreground ring-primary/10 grid size-24 place-items-center rounded-full border-2 text-xl font-medium uppercase ring-4">
+                <span className="grid size-24 place-items-center rounded-full border-2 border-primary bg-muted text-xl font-medium text-foreground uppercase ring-4 ring-primary/10">
                   {displayName.slice(0, 2)}
                 </span>
               }
@@ -100,10 +100,10 @@ export default async function AccountPage({ params }: PageProps) {
             </div>
           </div>
 
-          <div className="border-border border-t pt-5">
+          <div className="border-t border-border pt-5">
             <div className="space-y-2">
-              <p className="text-muted-foreground text-sm">{t("accountId")}</p>
-              <div className="border-input bg-background min-w-0 rounded-sm border px-3 py-1.5 [&>div]:w-full [&>div]:justify-between">
+              <p className="text-sm text-muted-foreground">{t("accountId")}</p>
+              <div className="min-w-0 rounded-sm border border-input bg-background px-3 py-1.5 [&>div]:w-full [&>div]:justify-between">
                 <CopyValue
                   value={profile.account_id}
                   label={t("copyAccountId")}
@@ -111,7 +111,7 @@ export default async function AccountPage({ params }: PageProps) {
                   failed={tc("error")}
                 />
               </div>
-              <p className="text-muted-foreground text-xs">{t("accountIdHint")}</p>
+              <p className="text-xs text-muted-foreground">{t("accountIdHint")}</p>
             </div>
           </div>
 
@@ -131,10 +131,10 @@ export default async function AccountPage({ params }: PageProps) {
         </section>
 
         <div className="flex min-w-0 flex-col gap-5">
-          <section className="border-border bg-card min-w-0 rounded-lg border p-5 shadow-sm sm:p-6">
+          <section className="min-w-0 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6">
             <div className="space-y-1">
               <h2 className="text-2xl font-medium tracking-tight">{t("signInMethods")}</h2>
-              <p className="text-muted-foreground text-sm">{t("signInMethodsHint")}</p>
+              <p className="text-sm text-muted-foreground">{t("signInMethodsHint")}</p>
             </div>
             <div className="mt-5">
               <IdentityList
@@ -159,13 +159,13 @@ export default async function AccountPage({ params }: PageProps) {
             />
           </section>
 
-          <section className="border-border bg-card min-w-0 rounded-lg border p-5 shadow-sm sm:p-6">
+          <section className="min-w-0 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6">
             <div className="space-y-1">
               <h2 className="text-2xl font-medium tracking-tight">{t("privacy")}</h2>
-              <p className="text-muted-foreground text-sm">{t("privacySubtitle")}</p>
+              <p className="text-sm text-muted-foreground">{t("privacySubtitle")}</p>
             </div>
-            <div className="border-border mt-5 flex min-w-0 items-center gap-3 rounded-lg border p-3">
-              <span className="bg-muted text-muted-foreground grid size-10 shrink-0 place-items-center rounded-full">
+            <div className="mt-5 flex min-w-0 items-center gap-3 rounded-lg border border-border p-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
                 <Icon name="lock" size="md" />
               </span>
               <p className="min-w-0 flex-1 text-sm font-medium">{t("editPrivacy")}</p>
@@ -177,10 +177,10 @@ export default async function AccountPage({ params }: PageProps) {
         </div>
       </div>
 
-      <section className="border-border bg-card flex flex-col gap-4 rounded-lg border p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-6">
+      <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="space-y-1">
           <h2 className="text-xl font-medium tracking-tight">{t("dangerZone")}</h2>
-          <p className="text-muted-foreground text-sm">{t("signOutHint")}</p>
+          <p className="text-sm text-muted-foreground">{t("signOutHint")}</p>
         </div>
         <form action={`/api/auth/logout?locale=${locale}`} method="post">
           <Button type="submit" variant="destructive" className="min-h-11 w-full sm:w-auto">
@@ -213,18 +213,18 @@ function ConnectionsSections({
   );
   return (
     <>
-      <div className="border-border mt-6 space-y-3 border-t pt-5">
+      <div className="mt-6 space-y-3 border-t border-border pt-5">
         <div className="space-y-1">
           <h3 className="font-medium">{githubTitle}</h3>
-          <p className="text-muted-foreground text-xs">{githubHint}</p>
+          <p className="text-xs text-muted-foreground">{githubHint}</p>
         </div>
         <GitHubConnectionLink csrfToken={csrfToken} compact />
       </div>
       {showGitLab && organizationId ? (
-        <div className="border-border mt-6 space-y-3 border-t pt-5">
+        <div className="mt-6 space-y-3 border-t border-border pt-5">
           <div className="space-y-1">
             <h3 className="font-medium">{gitlabTitle}</h3>
-            <p className="text-muted-foreground text-xs">{gitlabHint}</p>
+            <p className="text-xs text-muted-foreground">{gitlabHint}</p>
           </div>
           <GitLabConnectionLink csrfToken={csrfToken} organizationId={organizationId} compact />
         </div>

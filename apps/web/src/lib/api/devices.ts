@@ -71,7 +71,7 @@ function mapSummary(
 
 function mapPlatformDevice(row: Record<string, unknown>): DeviceRecord | null {
   const deviceId = asString(row["device_id"]) ?? asString(row["id"]);
-  if (!deviceId || !deviceId.startsWith("device_")) {
+  if (!deviceId?.startsWith("device_")) {
     return null;
   }
   const last = pickTimestamp(row, ["last_active_at", "last_seen_at"]);

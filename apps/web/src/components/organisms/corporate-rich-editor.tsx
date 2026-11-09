@@ -458,7 +458,7 @@ export function CorporateRichEditor({
                 summary={account("profileErrorFieldSummary")}
                 fieldLabel={(path) => formatCorporateFieldPath(path, fieldErrorMessages.labels)}
               />
-              <div className="border-border flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
+              <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
                 <Button
                   type="button"
                   variant="outline"

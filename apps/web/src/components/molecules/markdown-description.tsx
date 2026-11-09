@@ -45,13 +45,14 @@ export function MarkdownDescription({
         className={
           article
             ? "article-prose__body"
-            : "prose-sm text-muted-foreground [&_td]:border-border [&_th]:border-border [&_th]:bg-muted max-w-none space-y-3 overflow-x-auto text-sm leading-relaxed [&_a]:underline [&_code]:font-mono [&_pre]:overflow-x-auto [&_pre]:rounded-sm [&_pre]:border [&_pre]:p-3 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:p-2 [&_th]:border [&_th]:p-2 [&_th]:text-left"
+            : "prose-sm max-w-none space-y-3 overflow-x-auto text-sm leading-relaxed text-muted-foreground [&_a]:underline [&_code]:font-mono [&_pre]:overflow-x-auto [&_pre]:rounded-sm [&_pre]:border [&_pre]:p-3 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-2 [&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:p-2 [&_th]:text-left"
         }
         // Sanitized HTML only: the document renderer escapes every fragment via
         // escapeHtml, and the passport renderer rejects raw-HTML tokens before
         // markdown-it escapes all emitted content (SPEC-029 REQ-2905). CodeQL
         // cannot carry either guarantee through the renderer internals.
         // codeql[js/xss]
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: Only output from the shared escaping Markdown renderer reaches this HTML boundary.
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </section>

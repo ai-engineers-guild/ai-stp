@@ -127,11 +127,16 @@ export function EntityDetailMenu({
                   (choices ?? []).map((choice) => [
                     choice.actionId,
                     choice.href ? (
-                      <MenuLink href={choice.href} icon={choice.icon ?? "eye"}>
+                      <MenuLink
+                        key={choice.actionId}
+                        href={choice.href}
+                        icon={choice.icon ?? "eye"}
+                      >
                         {choice.label}
                       </MenuLink>
                     ) : (
                       <MenuAction
+                        key={choice.actionId}
                         icon={choice.icon ?? "eye"}
                         onSelect={choice.onSelect ?? (() => {})}
                       >

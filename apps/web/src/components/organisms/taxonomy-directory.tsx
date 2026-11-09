@@ -117,7 +117,7 @@ export function TaxonomyDirectory({
           <Select
             aria-label={a("field")}
             value={areaFilter}
-            className="border-input bg-background text-foreground h-11 rounded-sm border px-3 text-sm"
+            className="h-11 rounded-sm border border-input bg-background px-3 text-sm text-foreground"
             onChange={(event) => {
               setAreaFilter(event.target.value);
               setPage(1);
@@ -146,7 +146,7 @@ export function TaxonomyDirectory({
           </Button>
         )}
       </div>
-      <p className="text-muted-foreground text-sm" aria-live="polite">
+      <p className="text-sm text-muted-foreground" aria-live="polite">
         {t("entryCount", { count: filtered.length })}
       </p>
       {shown.length ? (
@@ -169,7 +169,7 @@ export function TaxonomyDirectory({
           ))}
         </ul>
       ) : (
-        <p className="text-muted-foreground border-border rounded-lg border border-dashed p-8 text-center text-sm">
+        <p className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
           {t("empty")}
         </p>
       )}
@@ -236,7 +236,7 @@ function TaxonomyCard({
   const title = detailBase ? (
     <Link
       href={`${detailBase}/${id}`}
-      className="hover:text-primary focus-visible:ring-ring rounded-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      className="rounded-sm transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
     >
       {item.name}
     </Link>
@@ -245,9 +245,9 @@ function TaxonomyCard({
   );
   return (
     <li className="min-w-0">
-      <article className="border-border bg-card relative min-w-0 overflow-hidden rounded-lg border p-4">
+      <article className="relative min-w-0 overflow-hidden rounded-lg border border-border bg-card p-4">
         <div className="flex min-w-0 items-start gap-3 pr-11">
-          <span className="bg-muted border-border text-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-md border">
+          <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-foreground">
             <Icon name={kind === "area" ? technologyAreaIcon(id) : "filter"} size="sm" />
           </span>
           <div className="min-w-0 flex-1">
@@ -263,7 +263,7 @@ function TaxonomyCard({
               {area && <Badge variant="outline">{area.name}</Badge>}
             </div>
             {item.description ? (
-              <p className="text-muted-foreground mt-2 max-w-3xl text-sm leading-relaxed break-words">
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed break-words text-muted-foreground">
                 {item.description}
               </p>
             ) : null}
@@ -366,7 +366,7 @@ function TaxonomyEntryActions({
         </MenuContent>
       </Menu>
       {mutation.message && (
-        <p role="status" className="text-muted-foreground absolute top-12 right-4 text-xs">
+        <p role="status" className="absolute top-12 right-4 text-xs text-muted-foreground">
           {mutation.message}
         </p>
       )}

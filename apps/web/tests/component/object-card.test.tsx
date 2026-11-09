@@ -1,4 +1,5 @@
 /* eslint-disable max-lines -- Object-card variants share one fixture and mock harness. */
+import { required } from "@/mocks/fixtures/required";
 import { render } from "../render-with-intl";
 import { screen } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -287,7 +288,7 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
     expect(fill).toHaveStyle({ width: "50%" });
     // This suite does not load theme CSS. jsdom now resolves missing custom
     // properties in computed styles, so assert the declared token gradient here.
-    expect((fill?.firstElementChild as HTMLElement).style.background).toBe(
+    expect((required(required(fill).firstElementChild) as HTMLElement).style.background).toBe(
       "linear-gradient(90deg, hsl(var(--destructive)), hsl(var(--warning)), hsl(var(--success)))",
     );
     expect(screen.queryByText("1 warning")).not.toBeInTheDocument();

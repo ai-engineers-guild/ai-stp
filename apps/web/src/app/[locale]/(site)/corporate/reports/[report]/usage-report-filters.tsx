@@ -44,7 +44,7 @@ export async function UsageReportFilters({
   const t = await getTranslations("corporateReports");
 
   return (
-    <form className="border-border bg-card mb-5 grid gap-3 rounded-lg border p-4 sm:grid-cols-5">
+    <form className="mb-5 grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-5">
       <SearchableMultiSelect
         name="team_id"
         label={t("filterTeam")}
@@ -68,7 +68,7 @@ export async function UsageReportFilters({
         <Select
           name="period"
           defaultValue={period}
-          className="border-input bg-background mt-1 w-full rounded-sm border px-2 py-1"
+          className="mt-1 w-full rounded-sm border border-input bg-background px-2 py-1"
         >
           <option value="7d">{t("period7days")}</option>
           <option value="30d">{t("period30days")}</option>
@@ -80,7 +80,7 @@ export async function UsageReportFilters({
         <Select
           name="usage_state"
           defaultValue={usageState}
-          className="border-input bg-background mt-1 w-full rounded-sm border px-2 py-1"
+          className="mt-1 w-full rounded-sm border border-input bg-background px-2 py-1"
         >
           <option value="all">{t("usageAll")}</option>
           <option value="recorded">{t("usageRecorded")}</option>
@@ -98,7 +98,7 @@ export async function UsageReportFilters({
             <Select
               name="outcome"
               defaultValue={selected("outcome")}
-              className="border-input bg-background mt-1 w-full rounded-sm border px-2 py-1"
+              className="mt-1 w-full rounded-sm border border-input bg-background px-2 py-1"
             >
               <option value="">{t("allOutcomes")}</option>
               <option value="succeeded">{t("outcomeSucceeded")}</option>
@@ -111,7 +111,7 @@ export async function UsageReportFilters({
             <Select
               name="collection_state"
               defaultValue={selected("collection_state")}
-              className="border-input bg-background mt-1 w-full rounded-sm border px-2 py-1"
+              className="mt-1 w-full rounded-sm border border-input bg-background px-2 py-1"
             >
               <option value="">{t("collectionAll")}</option>
               <option value="complete">{t("collectionComplete")}</option>

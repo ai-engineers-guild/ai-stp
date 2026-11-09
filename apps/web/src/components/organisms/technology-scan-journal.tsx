@@ -104,7 +104,7 @@ export function TechnologyScanJournal({
       />
       <TechnologyScanJournalTable items={visible} projects={projects} />
       {!visible.length && (
-        <p role="status" className="text-muted-foreground p-8 text-center text-sm">
+        <p role="status" className="p-8 text-center text-sm text-muted-foreground">
           {s("empty")}
         </p>
       )}
@@ -162,13 +162,12 @@ export function TechnologyScanJournalTable({
     languages: scanType("languages"),
   };
   return (
-    <div
+    <section
       className="technology-table-frame"
-      role="region"
       aria-label={s("title")}
       // The scroll region must remain keyboard accessible on narrow screens.
-      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-      tabIndex={0}
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: The named table scroll region must remain reachable by keyboard.
+      tabIndex={0} // eslint-disable-line jsx-a11y/no-noninteractive-tabindex
     >
       <Table className="technology-journal-table">
         <caption className="sr-only">{s("title")}</caption>
@@ -195,7 +194,7 @@ export function TechnologyScanJournalTable({
           {items.map((scan) => (
             <Tr
               key={scan.scan_id}
-              className="hover:bg-muted/50 cursor-pointer"
+              className="cursor-pointer hover:bg-muted/50"
               tabIndex={0}
               onClick={(event) => {
                 if (!(event.target as HTMLElement).closest("a,button,[role=menuitem]"))
@@ -226,7 +225,7 @@ export function TechnologyScanJournalTable({
                     scan.project_id}
                 </Link>
                 <span
-                  className="text-muted-foreground block max-w-80 truncate text-xs"
+                  className="block max-w-80 truncate text-xs text-muted-foreground"
                   title={scan.repository ?? undefined}
                 >
                   {scan.repository ?? "—"}
@@ -255,7 +254,7 @@ export function TechnologyScanJournalTable({
                   hour: "2-digit",
                   minute: "2-digit",
                 })}
-                <span className="text-muted-foreground block text-xs">
+                <span className="block text-xs text-muted-foreground">
                   {scan.duration_seconds == null
                     ? "—"
                     : w("seconds", { count: scan.duration_seconds })}
@@ -295,6 +294,6 @@ export function TechnologyScanJournalTable({
           ))}
         </TBody>
       </Table>
-    </div>
+    </section>
   );
 }

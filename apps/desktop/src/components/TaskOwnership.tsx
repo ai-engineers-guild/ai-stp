@@ -24,7 +24,7 @@ export default function TaskOwnership({
           <summary className="cursor-pointer">
             {msg("taskOwnership.originalTaskIdentity")}
           </summary>
-          <dl className="mt-2 space-y-1 break-all font-mono">
+          <dl className="mt-2 space-y-1 font-mono break-all">
             <dt>{msg("taskOwnership.localAccount")}</dt>
             <dd>{owner.native_account_id}</dd>
             <dt>{msg("taskOwnership.device")}</dt>

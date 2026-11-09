@@ -31,7 +31,7 @@ function Demo({ framed = false }: { framed?: boolean }) {
     <div className="p-6">
       <PeopleTable label="Members" minWidth="min-w-[36rem]" framed={framed}>
         <thead>
-          <tr className="border-border border-b">
+          <tr className="border-b border-border">
             <th scope="col" className={peopleHeadClass}>
               Name
             </th>
@@ -45,7 +45,7 @@ function Demo({ framed = false }: { framed?: boolean }) {
         </thead>
         <tbody>
           {rows.map(([name, email, team]) => (
-            <tr key={email} className="border-border hover:bg-muted/30 border-b last:border-0">
+            <tr key={email} className="border-b border-border last:border-0 hover:bg-muted/30">
               <td className={`${peopleCellClass} font-medium`}>{name}</td>
               <td className={`${peopleCellClass} text-muted-foreground`}>{email}</td>
               <td className={peopleCellClass}>{team}</td>
@@ -71,7 +71,7 @@ export const Empty: Story = {
       <PeopleTable label="Members" framed>
         <tbody>
           <tr>
-            <td className="text-muted-foreground py-14 text-center text-sm">
+            <td className="py-14 text-center text-sm text-muted-foreground">
               No members match your filters.
             </td>
           </tr>

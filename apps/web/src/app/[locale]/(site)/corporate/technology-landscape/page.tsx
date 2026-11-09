@@ -41,13 +41,13 @@ export default async function TechnologyLandscapePage({
     ...landscapeFilters(await searchParams),
     limit: "256",
   };
-  let context;
+  let context: Awaited<ReturnType<typeof readCorporateContext>>;
   let organizationId = "";
-  let permissions;
+  let permissions: Awaited<ReturnType<typeof readTechnologyCapabilities>> | undefined;
   let categories: CategoryList | null = null;
-  let areas;
-  let landscape;
-  let journal;
+  let areas: AreaList | null | undefined;
+  let landscape: Awaited<ReturnType<typeof readTechnologyLandscape>> | undefined;
+  let journal: Awaited<ReturnType<typeof readTechnologyScanJournal>> | undefined;
   try {
     context = await readCorporateContext(session);
 
@@ -112,7 +112,7 @@ export default async function TechnologyLandscapePage({
     <div className="technology-workspace technology-map-page space-y-2.5">
       <header className="space-y-1">
         <h1>{w("mapTitle")}</h1>
-        <p className="text-muted-foreground text-sm">{w("mapDescription")}</p>
+        <p className="text-sm text-muted-foreground">{w("mapDescription")}</p>
       </header>
       <TechnologyLandscapeFilters
         filters={filters}

@@ -15,7 +15,7 @@ import {
   CatalogShareMenuItem,
   ObjectMenuDialogs,
 } from "@/components/organisms/object-menu-privileged";
-import { type CorporateCatalogOwnerEdit } from "@/components/organisms/corporate-catalog-owner-editor";
+import type { CorporateCatalogOwnerEdit } from "@/components/organisms/corporate-catalog-owner-editor";
 import { useCatalogLike, type LikeState } from "@/lib/use-catalog-like";
 import { UI } from "@/lib/ui-selectors";
 import { Icon } from "@/theme/icons";
