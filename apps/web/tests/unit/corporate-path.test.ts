@@ -12,6 +12,7 @@ afterEach(() => {
 
 it("prefixes shared corporate links once and preserves query strings", async () => {
   vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
+  vi.stubEnv("__NEXT_NO_MIDDLEWARE_URL_NORMALIZE", "1");
   const { corporateHref, corporateSharedPath } = await import("@/lib/features/corporate-path");
   const { projectedHref } = await import("@/lib/projection/paths");
   for (const href of ["/catalog?q=skill", "/account/profile", "/likes", "/login?returnTo=x"]) {
@@ -52,6 +53,7 @@ it("preserves personal and packaged website URLs", async () => {
 
 it("rewrites corporate shared pages and retains private session gates", async () => {
   vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
+  vi.stubEnv("__NEXT_NO_MIDDLEWARE_URL_NORMALIZE", "1");
   const { NextRequest } = await import("next/server");
   const { SESSION_COOKIE } = await import("@/lib/auth/cookies");
   const { default: proxy } = await import("@/proxy");
@@ -110,7 +112,7 @@ it("rewrites corporate shared pages and retains private session gates", async ()
     "http://localhost/en/corporate/employees/account_01?tab=objects",
   );
 
-  const loopbackRequest = new NextRequest("http://localhost:6767/en/corporate/login", {
+  const loopbackRequest = new NextRequest("http://127.0.0.1:6767/en/corporate/login", {
     headers: { host: "127.0.0.1:6767" },
   });
   const rewrite = proxy(loopbackRequest);
@@ -133,23 +135,46 @@ it("rewrites corporate shared pages and retains private session gates", async ()
 });
 
 it.each(["review.localhost", "nested.review.localhost", "REVIEW.LOCALHOST"])(
-  "keeps the reserved local origin %s on corporate rewrites and redirects",
+  "keeps internal rewrites local and public redirects on %s",
   async (hostname) => {
     vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
+    vi.stubEnv("__NEXT_NO_MIDDLEWARE_URL_NORMALIZE", "1");
     const { NextRequest } = await import("next/server");
     const { default: proxy } = await import("@/proxy");
-    const origin = `http://${hostname.toLowerCase()}:6767`;
     const headers = { host: `${hostname}:6767` };
     const query = "?returnTo=%2Fen%2Fcorporate%2Faccount";
-    const rewrite = proxy(
-      new NextRequest(`http://127.0.0.1:6767/en/corporate/login${query}`, { headers }),
-    );
-    expect(rewrite.headers.get("x-middleware-rewrite")).toBe(`${origin}/en/login${query}`);
-    expect(rewrite.headers.get("location")).toBeNull();
-    const redirect = proxy(new NextRequest(`http://127.0.0.1:6767/en/login${query}`, { headers }));
-    expect(redirect.headers.get("location")).toBe(`${origin}/en/corporate/login${query}`);
+    for (const boundOrigin of [
+      "http://127.0.0.1:6767",
+      "http://localhost:6767",
+      "https://127.0.0.1:6767",
+    ]) {
+      const publicUrl = new URL(boundOrigin);
+      publicUrl.hostname = hostname.toLowerCase();
+      const rewrite = proxy(
+        new NextRequest(`${boundOrigin}/en/corporate/login${query}`, { headers }),
+      );
+      expect(rewrite.headers.get("x-middleware-rewrite")).toBe(`${boundOrigin}/en/login${query}`);
+      expect(rewrite.headers.get("location")).toBeNull();
+      const redirect = proxy(new NextRequest(`${boundOrigin}/en/login${query}`, { headers }));
+      expect(redirect.headers.get("location")).toBe(
+        `${publicUrl.origin}/en/corporate/login${query}`,
+      );
+    }
   },
 );
+
+it("preserves the default HTTPS port when restoring a local public origin", async () => {
+  vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
+  vi.stubEnv("__NEXT_NO_MIDDLEWARE_URL_NORMALIZE", "1");
+  const { NextRequest } = await import("next/server");
+  const { default: proxy } = await import("@/proxy");
+  const response = proxy(
+    new NextRequest("https://127.0.0.1/en/login", {
+      headers: { host: "review.localhost:443" },
+    }),
+  );
+  expect(response.headers.get("location")).toBe("https://review.localhost/en/corporate/login");
+});
 
 it.each([
   "review.localhost:6768",
@@ -162,19 +187,19 @@ it.each([
   "review.localhost:6767?query=value",
   "review.localhost:6767#fragment",
   "[malformed:6767",
-])("refuses an invalid or external local rewrite host %s", async (host) => {
+])("refuses an invalid or external public redirect host %s", async (host) => {
   vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
+  vi.stubEnv("__NEXT_NO_MIDDLEWARE_URL_NORMALIZE", "1");
   const { NextRequest } = await import("next/server");
   const { default: proxy } = await import("@/proxy");
-  const response = proxy(
-    new NextRequest("http://localhost:6767/en/corporate/login", { headers: { host } }),
-  );
-  expect(response.headers.get("x-middleware-rewrite")).toBe("http://localhost:6767/en/login");
-  expect(response.headers.get("location")).toBeNull();
+  const response = proxy(new NextRequest("http://localhost:6767/en/login", { headers: { host } }));
+  expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+  expect(response.headers.get("location")).toBe("http://localhost:6767/en/corporate/login");
 });
 
 it("keeps the validated non-loopback origin even with a local Host header", async () => {
   vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
+  vi.stubEnv("__NEXT_NO_MIDDLEWARE_URL_NORMALIZE", "1");
   const { NextRequest } = await import("next/server");
   const { default: proxy } = await import("@/proxy");
   const response = proxy(
@@ -184,6 +209,14 @@ it("keeps the validated non-loopback origin even with a local Host header", asyn
   );
   expect(response.headers.get("x-middleware-rewrite")).toBe(
     "https://corporate.example:6767/en/login",
+  );
+  const redirect = proxy(
+    new NextRequest("https://corporate.example:6767/en/login", {
+      headers: { host: "review.localhost:6767" },
+    }),
+  );
+  expect(redirect.headers.get("location")).toBe(
+    "https://corporate.example:6767/en/corporate/login",
   );
 });
 
@@ -198,6 +231,7 @@ it("keeps SaaS page URLs physical without corporate aliases", async () => {
 
 it("exposes configured SSO providers only in the corporate_hub build", async () => {
   vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
+  vi.stubEnv("__NEXT_NO_MIDDLEWARE_URL_NORMALIZE", "1");
   const { corporateSsoProviders } = await import("@/lib/features/corporate-path");
   expect(corporateSsoProviders(["authentik", "keycloak"])).toEqual(["authentik", "keycloak"]);
 });

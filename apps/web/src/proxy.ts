@@ -30,7 +30,7 @@ function requestOriginUrl(request: NextRequest) {
   const rawHost = request.headers.get("host");
   if (!rawHost || !isLoopbackHostname(url.hostname)) return url;
   try {
-    const candidate = new URL(`http://${rawHost}`);
+    const candidate = new URL(`${url.protocol}//${rawHost}`);
     if (
       !candidate.username &&
       !candidate.password &&
@@ -252,7 +252,9 @@ export default function proxy(request: NextRequest) {
   requestHeaders.set("x-ai-stp-request-pathname", pathname);
 
   if (sharedPath) {
-    const url = requestOriginUrl(request);
+    // Next.js compares rewrite origins with its own request URL. A public Host
+    // alias here would become an external proxy hop back through this gate.
+    const url = new URL(request.url);
     url.pathname = sharedPath;
     return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
   }
