@@ -333,7 +333,13 @@ def test_python_analysis_preserves_product_and_tooling_coverage() -> None:
     document = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     assert "pyright" not in document["tool"], "the superseded type configuration remains"
     config = document["tool"]["basedpyright"]
-    assert set(config["include"]) >= {"packages", "apps", "tests", "docs_scripts", "release_scripts"}
+    assert set(config["include"]) >= {
+        "packages",
+        "apps",
+        "tests",
+        "docs_scripts",
+        "release_scripts",
+    }
     assert config["typeCheckingMode"] in {"standard", "strict"}
     if config["typeCheckingMode"] != "strict":
         assert set(config["strict"]) >= {"packages", "apps", "tests"}
