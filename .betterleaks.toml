@@ -14,14 +14,7 @@ matchesAny(attributes["path"], [
 useDefault = true
 
 [[allowlists]]
-description = "Deterministic test fixtures, generated contracts, and documentation examples"
-paths = [
-  '''^schemas/v1/openapi\.json$''',
-  '''^packages/contracts/src/ai_stp_contracts/fixtures/v1/''',
-  '''^tests/''',
-  '''^\.serena/memories/quality-gates-and-commands\.md$''',
-  '''^\.serena/memories/current-work\.md$''',
-]
+description = "Public deterministic evidence marker"
 regexes = [
   '''^proposal-evidence-0001$''',
 ]

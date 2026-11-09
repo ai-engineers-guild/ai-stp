@@ -136,16 +136,25 @@ def controls(scanner: Path, temporary: Path) -> None:
     )
     with tempfile.TemporaryDirectory(prefix="ai-stp-lock-controls-", dir=temporary) as directory:
         root = Path(directory)
-        for relative in ("bun.lock", "apps/web/bun.lock", "docs_scripts/bun.lock"):
+        for relative in (
+            "bun.lock",
+            "apps/web/bun.lock",
+            "docs_scripts/bun.lock",
+            "tests/secret-control.py",
+            "schemas/v1/openapi.json",
+            "packages/contracts/src/ai_stp_contracts/fixtures/v1/secret-control.json",
+            ".serena/memories/quality-gates-and-commands.md",
+            ".serena/memories/current-work.md",
+        ):
             target = root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text('api_key = "' + CONTROL + '"\n')
             findings = scan(scanner, root, ["dir", "."])
             require(
                 any(item.rule == "generic-api-key" and item.path == relative for item in findings),
-                "A lockfile credential was hidden by scanner defaults",
+                "A source-root credential was hidden by scanner policy: " + relative,
             )
-    print("Secret controls: root and nested Bun lockfile findings")
+    print("Secret controls: Bun locks, root tests, generated contracts and documentation findings")
     example_controls(scanner, temporary)
 
 
