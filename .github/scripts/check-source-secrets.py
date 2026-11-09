@@ -30,6 +30,16 @@ EXAMPLES = {
     "apps/cli/tests/projects/technology.rs": "generic-credential-uri",
     "apps/cli/src/sources/package/pypi.rs": "generic-credential-uri",
     ".repo-safety/templates/.env.example": "generic-credential-uri",
+    "tests/unit/test_embedded_package_adapters.py": "generic-credential-uri",
+    "tests/unit/platform/test_publication_support.py": "generic-credential-uri",
+    "tests/api/platform/test_publication_grants_reports.py": "generic-api-key",
+    "tests/unit/test_embedded_source_contracts.py": "generic-credential-uri",
+    "tests/integration/platform/test_corporate_repository_binding.py": "generic-credential-uri",
+    "tests/integration/platform/test_structured_logging.py": "generic-password",
+    "tests/unit/platform/test_official_upstream.py": "generic-credential-uri",
+    "tests/unit/platform/test_github_metadata.py": "generic-credential-uri",
+    "tests/unit/platform/test_safety_cli_adapters.py": "generic-api-key",
+    "tests/unit/platform/test_safety_adapter_edges.py": "generic-password",
 }
 
 
@@ -187,11 +197,14 @@ def example_controls(scanner: Path, temporary: Path) -> None:
             (root / outside).unlink()
             for finding in findings:
                 lines = original.splitlines(keepends=True)
-                credential = (
-                    'password = "' + CONTROL + '"\n'
-                    if rule == "generic-password"
-                    else 'url = "postgresql://user:' + CONTROL + '@example.invalid/db"\n'
-                )
+                if rule == "generic-api-key":
+                    credential = 'api_key = "' + CONTROL + '"\n'
+                else:
+                    credential = (
+                        'password = "' + CONTROL + '"\n'
+                        if rule == "generic-password"
+                        else 'url = "postgresql://user:' + CONTROL + '@example.invalid/db"\n'
+                    )
                 lines[finding.line - 1] = credential
                 target.write_text("".join(lines))
                 require(
@@ -201,7 +214,9 @@ def example_controls(scanner: Path, temporary: Path) -> None:
                     ),
                     "A changed source example credential was hidden: " + relative,
                 )
-    print("Secret controls: ten exact source examples and their path/credential refusals")
+    print(
+        f"Secret controls: {len(EXAMPLES)} exact source examples and their path/credential refusals"
+    )
 
 
 def main() -> int:

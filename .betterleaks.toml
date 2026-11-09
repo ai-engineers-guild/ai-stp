@@ -156,3 +156,104 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''^\.github/scripts/check-source-secrets\.py$''']
 regexes = ['''^\s*'password\ =\ "'\ \+\ CONTROL\ \+\ '"\\n'\s*$''']
+
+[[allowlists]]
+description = "Public credential refusal or redaction test fixture; exact source line"
+targetRules = ["generic-credential-uri"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^tests/unit/test_embedded_package_adapters\.py$''']
+regexes = [
+  '''^\s*"tarball":\ "https://user:token@registry\.npmjs\.org/demo/\-/demo\-1\.0\.0\.tgz",\s*$''',
+]
+
+[[allowlists]]
+description = "Public credential refusal or redaction test fixture; exact source line"
+targetRules = ["generic-credential-uri"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^tests/unit/platform/test_publication_support\.py$''']
+regexes = [
+  '''^\s*"https://user:pw@api\.resend\.com",\s*$''',
+]
+
+[[allowlists]]
+description = "Public credential refusal or redaction test fixture; exact source line"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^tests/api/platform/test_publication_grants_reports\.py$''']
+regexes = [
+  '''^\s*"idempotency_key":\ "0123456789abcde2",\s*$''',
+]
+
+[[allowlists]]
+description = "Public credential refusal or redaction test fixture; exact source line"
+targetRules = ["generic-credential-uri"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^tests/unit/test_embedded_source_contracts\.py$''']
+regexes = [
+  '''^\s*repository_url="https://user:pass@github\.com/acme/tool",\s*$''',
+]
+
+[[allowlists]]
+description = "Public credential refusal or redaction test fixture; exact source line"
+targetRules = ["generic-credential-uri"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^tests/integration/platform/test_corporate_repository_binding\.py$''']
+regexes = [
+  '''^\s*"https://user:pass@github\.com/a/b",\s*$''',
+]
+
+[[allowlists]]
+description = "Public credential refusal or redaction test fixture; exact source line"
+targetRules = ["generic-password"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^tests/integration/platform/test_structured_logging\.py$''']
+regexes = [
+  '''^\s*email='private@example\.test',\ passport=\{'password':\ 'not\-for\-logs'\},\s*$''',
+]
+
+[[allowlists]]
+description = "Public credential refusal or redaction test fixture; exact source line"
+targetRules = ["generic-credential-uri"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^tests/unit/platform/test_official_upstream\.py$''']
+regexes = [
+  '''^\s*\{"repository_url":\ "https://user:pass@github\.com/acme/tool"\},\s*$''',
+]
+
+[[allowlists]]
+description = "Public credential refusal or redaction test fixture; exact source line"
+targetRules = ["generic-credential-uri"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^tests/unit/platform/test_github_metadata\.py$''']
+regexes = [
+  '''^\s*assert\ canonical_github_source\("https://user:pass@github\.com/acme/tool"\)\ is\ None\s*$''',
+  '''^\s*assert\ redirect_path\(fetch\("https://user:pass@api\.github\.com/repos/new/tool"\)\)\ is\ None\s*$''',
+]
+
+[[allowlists]]
+description = "Public credential refusal or redaction test fixture; exact source line"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^tests/unit/platform/test_safety_cli_adapters\.py$''']
+regexes = [
+  '''^\s*secret\ =\ "Zq7NxP2mK9wLd4Vt"\s*$''',
+]
+
+[[allowlists]]
+description = "Public credential refusal or redaction test fixture; exact source line"
+targetRules = ["generic-password"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^tests/unit/platform/test_safety_adapter_edges\.py$''']
+regexes = [
+  '''^\s*"password":\ "supersecret12",\s*$''',
+]
