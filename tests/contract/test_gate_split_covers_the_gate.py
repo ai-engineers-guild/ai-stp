@@ -27,11 +27,11 @@ WORKFLOW_DIR = WORKFLOW.parent
 #: The mapping is deliberately explicit: when a recipe body changes its
 #: command, updating this table is the review moment where drift is named.
 _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
-    "docs-static": ("docs_scripts/run_markdownlint.py",),
+    "docs-static": ("rumdl check --no-cache --deny-config-warnings .",),
     "docs-source": (
         "docs_scripts/docs_lint.py",
         "docs_scripts/contract_lint.py",
-        "-m yamllint -c docs_scripts/.yamllint.yml .",
+        "ryl check --no-cache --strict . .repo-safety",
     ),
     "docs-test": ("unittest discover -s docs_scripts/tests",),
     "docs-build": (

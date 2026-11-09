@@ -94,14 +94,31 @@ ci-integration-web-desktop-types-and-component-units:
     bun run type-check
     bun x vitest run
 
+# Prepare native documentation source checkers in the disposable job.
+[group('ci')]
+[private]
+ci-documentation-check-tools:
+    mkdir -p "${RUNNER_TEMP}/ai-stp-documentation-tools/bin"
+    tar -xzf "${RUNNER_TEMP}/ai-stp-documentation-tools/ryl.tar.gz" -C "${RUNNER_TEMP}/ai-stp-documentation-tools/bin" ryl
+    tar -xzf "${RUNNER_TEMP}/ai-stp-documentation-tools/rumdl.tar.gz" -C "${RUNNER_TEMP}/ai-stp-documentation-tools/bin" rumdl
+    printf '%s\n' "${RUNNER_TEMP}/ai-stp-documentation-tools/bin" >> "${GITHUB_PATH}"
+
+# Exercise actual acceptance and rule refusals before trusting source diagnostics.
+[group('ci')]
+[private]
+ci-documentation-checker-contracts:
+    printf 'proof: true\n' | ryl check --no-cache --strict --output-format parsable --stdin-filename lint-proof.yml -
+    if printf 'duplicate: true\nduplicate: false\n' | ryl check --no-cache --strict --output-format parsable --stdin-filename lint-proof.yml - > "${RUNNER_TEMP}/ai-stp-documentation-tools/yaml-refusal.log" 2>&1; then echo 'duplicate YAML key was accepted' >&2; exit 1; else checker_status=$?; cat "${RUNNER_TEMP}/ai-stp-documentation-tools/yaml-refusal.log"; test "${checker_status}" -eq 1 || exit 1; fi; grep -F '(key-duplicates)' "${RUNNER_TEMP}/ai-stp-documentation-tools/yaml-refusal.log"
+    printf '# Proof\n\nValid paragraph.\n' | rumdl check --no-cache --deny-config-warnings --output-format json --stdin-filename lint-proof.md --stdin
+    if printf '# Proof\n\nhttps://example.invalid/\n' | rumdl check --no-cache --deny-config-warnings --output-format json --stdin-filename lint-proof.md --stdin > "${RUNNER_TEMP}/ai-stp-documentation-tools/markdown-refusal.log" 2>&1; then echo 'bare Markdown URL was accepted' >&2; exit 1; else checker_status=$?; cat "${RUNNER_TEMP}/ai-stp-documentation-tools/markdown-refusal.log"; test "${checker_status}" -eq 1 || exit 1; fi; grep -F 'MD034' "${RUNNER_TEMP}/ai-stp-documentation-tools/markdown-refusal.log"
+
 # Integration web documentation markdown syntax.
 [group('ci')]
 [private]
 [script('bash')]
 ci-integration-web-documentation-markdown-syntax:
     set -euo pipefail
-    (cd docs_scripts && bun install --frozen-lockfile)
-    python docs_scripts/run_markdownlint.py
+    rumdl check --no-cache --deny-config-warnings .
 
 # Integration native native formatting all target analysis and library units.
 [group('ci')]

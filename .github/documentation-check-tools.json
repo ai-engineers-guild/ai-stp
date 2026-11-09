@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "assets": [
+    {
+      "repository": "owenlamont/ryl",
+      "asset": 697422488,
+      "size": 3825213,
+      "sha256": "e8e07f5d74e2dc98983f8962dfb749095c450c1f76d71c77c05e72234f23defe",
+      "file": "ryl.tar.gz"
+    },
+    {
+      "repository": "rvben/rumdl",
+      "asset": 685449350,
+      "size": 8312028,
+      "sha256": "395c4061041c5a25301c7b3564a93c4a661ed4df93427a77b6fc9e426ec8a13a",
+      "file": "rumdl.tar.gz"
+    }
+  ]
+}
