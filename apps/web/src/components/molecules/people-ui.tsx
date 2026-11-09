@@ -107,7 +107,7 @@ export function PeopleTable({
       // Keyboard access is required for scrolling the table on narrow viewports.
       // biome-ignore lint/a11y/noNoninteractiveTabindex: The named table scroll region must remain reachable by keyboard.
       tabIndex={0} // eslint-disable-line jsx-a11y/no-noninteractive-tabindex
-      className={`min-w-0 overflow-x-auto focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
+      className={`relative min-w-0 overflow-x-auto focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
         framed ? "rounded-lg border border-border" : ""
       }`}
     >
