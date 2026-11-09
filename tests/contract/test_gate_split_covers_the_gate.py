@@ -27,6 +27,12 @@ WORKFLOW_DIR = WORKFLOW.parent
 #: The mapping is deliberately explicit: when a recipe body changes its
 #: command, updating this table is the review moment where drift is named.
 _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
+    "infra-source": (
+        "actionlint",
+        "hadolint deploy/docker/Dockerfile.app deploy/docker/Dockerfile.web "
+        "deploy/docker/Dockerfile.docs",
+        "git ls-files -z -- '*.sh' | xargs -0 shellcheck -x -P SCRIPTDIR -S warning",
+    ),
     "docs-static": ("rumdl check --no-cache --deny-config-warnings .",),
     "docs-source": (
         "docs_scripts/docs_lint.py",
@@ -272,6 +278,7 @@ def test_the_parser_sees_the_shape_it_claims_to_see() -> None:
         "cli-source",
         "desktop-source",
         "web-source",
+        "infra-source",
         "just-fmt",
     )
     assert graph["verify"] == (

@@ -34,6 +34,11 @@ CI prepares their exact assets from `.github/documentation-check-tools.json`.
 `just docs-static` needs no Mermaid installation; rendering still uses
 `just setup-docs` and the frozen documentation lock.
 
+`just infra-source` checks GitHub workflows, Dockerfiles and all tracked shell
+scripts with Actionlint, Hadolint and ShellCheck. It runs in `just check` without
+Docker; CI prepares exact assets from `.github/infra-check-tools.json`.
+`just infra-static` adds every supported Docker Compose configuration.
+
 Native suites use cargo-nextest; doctests remain a separate Cargo step. Hosted CI
 prepares exact tool assets from `.github/nextest-*.json` and
 `.github/rust-check-tools.json`. Native workstations need those versions through

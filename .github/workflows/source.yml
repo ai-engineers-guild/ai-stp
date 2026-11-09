@@ -45,6 +45,22 @@ jobs:
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
         with:
           recipe: just-fmt
+      - name: Prepare the exact infrastructure source checkers
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+        with:
+          manifest: .github/infra-check-tools.json
+          directory: ${{ runner.temp }}/ai-stp-infra-tools
+      - name: Expose this job's infrastructure checkers
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-infra-check-tools
+      - name: Check workflow, Dockerfile and shell source
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: infra-source
       - name: Select only registered native experiment owners
         id: select
         env:

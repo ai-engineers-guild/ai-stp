@@ -141,7 +141,7 @@ gen: docs-gen back-gen web-gen cli-gen
 
 # Offline source validation. No test runner, compiler, bundler or installer.
 [group('gate')]
-check: docs-static back-static cli-source desktop-source web-source just-fmt
+check: docs-static back-static cli-source desktop-source web-source infra-source just-fmt
 
 [doc('Compile and run the repository test suites')]
 [group('gate')]
@@ -732,17 +732,19 @@ desktop-performance:
 [group('desktop')]
 desktop-check: desktop-source desktop-build desktop-static desktop-test desktop-regress
 
-# Docker and Compose surface. Not a dependency of `check`: hadolint, shellcheck
-# and the Compose CLI are infra tools, not gate prerequisites — a maintainer
-# touches infra files knowingly and runs this group explicitly. The deploy
-# chain's own checks live in tests/ (test_deploy_contract.py,
-# test_container_bases_are_pinned.py) and run under `back-test` in CI.
+# Source linters are part of `check`; Docker Compose stays on execution hosts.
 [doc('The infra aggregate')]
 [group('infra')]
 infra-check: infra-static
 
-# Dockerfile lint (hadolint, governed by .hadolint.yaml), deploy-script lint
-# (shellcheck), and `docker compose config` over every file and overlay
+[doc('Lint workflows, Dockerfiles and every tracked shell script without Docker')]
+[group('infra')]
+infra-source:
+    actionlint
+    hadolint deploy/docker/Dockerfile.app deploy/docker/Dockerfile.web deploy/docker/Dockerfile.docs
+    git ls-files -z -- '*.sh' | xargs -0 shellcheck -x -P SCRIPTDIR -S warning
+
+# `docker compose config` checks every file and overlay
 # combination that must render. `config -q` resolves interpolation and service
 # references without contacting the daemon — read-only, no build, no mutation.
 # The two overlays are invalid alone by design (they patch dev services), so
@@ -752,9 +754,7 @@ infra-check: infra-static
 # missing required value is the deploy preflight's refusal, not this one's.
 [doc('Lint Dockerfiles, deploy scripts and every valid compose combination')]
 [group('infra')]
-infra-static:
-    hadolint deploy/docker/Dockerfile.app deploy/docker/Dockerfile.web deploy/docker/Dockerfile.docs
-    shellcheck -x -S warning deploy/*.sh
+infra-static: infra-source
     docker compose -f deploy/compose.prod.yml config -q
     docker compose -f deploy/compose.dev.yml config -q
     docker compose -f deploy/compose.dev.yml -f deploy/compose.corporate-local.yml config -q

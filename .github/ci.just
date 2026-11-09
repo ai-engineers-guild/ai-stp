@@ -2,6 +2,16 @@
 
 [group('ci')]
 [private]
+ci-infra-check-tools:
+    mkdir -p "${RUNNER_TEMP}/ai-stp-infra-tools/bin"
+    tar -xzf "${RUNNER_TEMP}/ai-stp-infra-tools/actionlint.tar.gz" -C "${RUNNER_TEMP}/ai-stp-infra-tools/bin" actionlint
+    tar -xzf "${RUNNER_TEMP}/ai-stp-infra-tools/shellcheck.tar.gz" -C "${RUNNER_TEMP}/ai-stp-infra-tools/bin" --strip-components=1 shellcheck-v0.11.0/shellcheck
+    mv "${RUNNER_TEMP}/ai-stp-infra-tools/hadolint" "${RUNNER_TEMP}/ai-stp-infra-tools/bin/hadolint"
+    chmod +x "${RUNNER_TEMP}/ai-stp-infra-tools/bin/hadolint"
+    printf '%s\n' "${RUNNER_TEMP}/ai-stp-infra-tools/bin" >> "${GITHUB_PATH}"
+
+[group('ci')]
+[private]
 ci-native-test-tools:
     mkdir -p "${RUNNER_TEMP}/ai-stp-native-test-tools/bin"
     cd "${RUNNER_TEMP}/ai-stp-native-test-tools" && tar -xzf nextest.tar.gz -C bin
