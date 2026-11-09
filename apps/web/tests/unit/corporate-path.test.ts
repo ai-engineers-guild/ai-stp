@@ -132,6 +132,61 @@ it("rewrites corporate shared pages and retains private session gates", async ()
   );
 });
 
+it.each(["review.localhost", "nested.review.localhost", "REVIEW.LOCALHOST"])(
+  "keeps the reserved local origin %s on corporate rewrites and redirects",
+  async (hostname) => {
+    vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
+    const { NextRequest } = await import("next/server");
+    const { default: proxy } = await import("@/proxy");
+    const origin = `http://${hostname.toLowerCase()}:6767`;
+    const headers = { host: `${hostname}:6767` };
+    const query = "?returnTo=%2Fen%2Fcorporate%2Faccount";
+    const rewrite = proxy(
+      new NextRequest(`http://127.0.0.1:6767/en/corporate/login${query}`, { headers }),
+    );
+    expect(rewrite.headers.get("x-middleware-rewrite")).toBe(`${origin}/en/login${query}`);
+    expect(rewrite.headers.get("location")).toBeNull();
+    const redirect = proxy(new NextRequest(`http://127.0.0.1:6767/en/login${query}`, { headers }));
+    expect(redirect.headers.get("location")).toBe(`${origin}/en/corporate/login${query}`);
+  },
+);
+
+it.each([
+  "review.localhost:6768",
+  "review.localhost.example:6767",
+  "review-localhost:6767",
+  "example.com:6767",
+  "user@review.localhost:6767",
+  "user:password@review.localhost:6767",
+  "review.localhost:6767/path",
+  "review.localhost:6767?query=value",
+  "review.localhost:6767#fragment",
+  "[malformed:6767",
+])("refuses an invalid or external local rewrite host %s", async (host) => {
+  vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
+  const { NextRequest } = await import("next/server");
+  const { default: proxy } = await import("@/proxy");
+  const response = proxy(
+    new NextRequest("http://localhost:6767/en/corporate/login", { headers: { host } }),
+  );
+  expect(response.headers.get("x-middleware-rewrite")).toBe("http://localhost:6767/en/login");
+  expect(response.headers.get("location")).toBeNull();
+});
+
+it("keeps the validated non-loopback origin even with a local Host header", async () => {
+  vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
+  const { NextRequest } = await import("next/server");
+  const { default: proxy } = await import("@/proxy");
+  const response = proxy(
+    new NextRequest("https://corporate.example:6767/en/corporate/login", {
+      headers: { host: "review.localhost:6767" },
+    }),
+  );
+  expect(response.headers.get("x-middleware-rewrite")).toBe(
+    "https://corporate.example:6767/en/login",
+  );
+});
+
 it("keeps SaaS page URLs physical without corporate aliases", async () => {
   vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "public_saas");
   const { NextRequest } = await import("next/server");

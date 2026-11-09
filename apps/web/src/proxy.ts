@@ -17,10 +17,14 @@ import { parseProjectionRoute, projectionRequestHeaders } from "@/lib/projection
 const intlProxy = createMiddleware(routing);
 
 function isLoopbackHostname(hostname: string): boolean {
-  return ["localhost", "127.0.0.1", "[::1]", "::1"].includes(hostname.toLowerCase());
+  const normalized = hostname.toLowerCase();
+  return (
+    ["localhost", "127.0.0.1", "[::1]", "::1"].includes(normalized) ||
+    normalized.endsWith(".localhost")
+  );
 }
 
-/** Keep NextURL's loopback normalization from turning an internal rewrite into a proxy hop. */
+/** Preserve local request origins when Next.js supplies its server's loopback bind address. */
 function requestOriginUrl(request: NextRequest) {
   const url = request.nextUrl.clone();
   const rawHost = request.headers.get("host");
