@@ -882,7 +882,7 @@ a {
   flex: 1;
   font-weight: 500;
 }
-.technology-chip {
+.technology-workspace .technology-chip {
   min-height: 1.5rem;
   height: auto;
   padding: 0.125rem 0.625rem;
