@@ -1,4 +1,4 @@
-"""The host renderer must stop before nginx when its source root is unavailable."""
+"""Exercise host renderer boundaries without touching host configuration or nginx."""
 
 from __future__ import annotations
 
@@ -15,7 +15,11 @@ pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="Linux host rend
 
 
 def _render(
-    tmp_path: Path, *, unavailable_root: bool, values: dict[str, str] | None = None
+    tmp_path: Path,
+    *,
+    unavailable_root: bool,
+    values: dict[str, str] | None = None,
+    export_values: bool = False,
 ) -> tuple[subprocess.CompletedProcess[str], Path]:
     bash = shutil.which("bash")
     assert bash is not None, "the Linux deployment contract requires Bash"
@@ -29,7 +33,10 @@ def _render(
     nginx.chmod(0o700)
     environment_file = tmp_path / "empty.env"
     environment_file.write_text(
-        "".join(f"{name}={value}\n" for name, value in (values or {}).items()), encoding="utf-8"
+        ""
+        if export_values
+        else "".join(f"{name}={value}\n" for name, value in (values or {}).items()),
+        encoding="utf-8",
     )
     output = tmp_path / "output"
     output.mkdir()
@@ -39,6 +46,8 @@ def _render(
         "AI_STP_NGINX_CONF_DIR": str(output),
         "AI_STP_NGINX_TEST_LOG": str(calls),
     }
+    if export_values:
+        env.update(values or {})
     if unavailable_root:
         dirname = commands / "dirname"
         dirname.write_text(
@@ -89,6 +98,8 @@ def test_unavailable_source_root_refuses_before_nginx(tmp_path: Path) -> None:
         ("AI_STP_DOCS_BIND", "localhost:0"),
         ("AI_STP_TLS_LINEAGE", "../another-site"),
         ("AI_STP_DOCS_TLS_LINEAGE", "fixture;directive"),
+        ("AI_STP_API_BIND", "127.0.0.1:00000"),
+        ("AI_STP_TLS_LINEAGE", ".."),
     ],
 )
 def test_unsafe_template_values_refuse_before_service_or_file_changes(
@@ -105,4 +116,44 @@ def test_unsafe_template_values_refuse_before_service_or_file_changes(
     assert result.returncode == 2
     assert f"invalid {field}" in result.stderr
     assert not calls.exists()
+    assert not list((tmp_path / "output").iterdir())
+
+
+def test_multiline_host_environment_refuses_before_nginx(tmp_path: Path) -> None:
+    result, calls = _render(
+        tmp_path,
+        unavailable_root=False,
+        values={"AI_STP_PUBLIC_HOST": "example.invalid\nother.invalid"},
+        export_values=True,
+    )
+    assert result.returncode == 2
+    assert "invalid AI_STP_PUBLIC_HOST" in result.stderr
+    assert not calls.exists()
+    assert not list((tmp_path / "output").iterdir())
+
+
+@pytest.mark.parametrize(
+    ("hosts", "bind"),
+    [
+        ("  http://example.invalid\tHTTPS://www.example.invalid  ", "localhost:1"),
+        ("*.example.invalid .example.invalid _", "[::1]:65535"),
+        ("[2001:db8::1]", "127.0.0.1:05808"),
+    ],
+)
+def test_supported_host_and_upstream_shapes_reach_certificate_check(
+    tmp_path: Path, hosts: str, bind: str
+) -> None:
+    lineage = f"ai-stp-missing-test-{tmp_path.name}"
+    result, calls = _render(
+        tmp_path,
+        unavailable_root=False,
+        values={
+            "AI_STP_PUBLIC_HOST": hosts,
+            "AI_STP_TLS_LINEAGE": lineage,
+            "AI_STP_API_BIND": bind,
+        },
+    )
+    assert result.returncode == 1, result.stderr
+    assert f"no certificate under lineage '{lineage}'" in result.stderr
+    assert calls.read_text(encoding="utf-8").splitlines() == ["-t", "-s reload"]
     assert not list((tmp_path / "output").iterdir())

@@ -32,14 +32,46 @@ env_value() {
   LC_ALL=C grep -E "^${name}=" "${ENV_FILE}" | head -n1 | cut -d= -f2- || true
 }
 
+# Template inputs must remain literal nginx data and safe sed replacements.
+# Refuse before writing either site or invoking nginx; never print raw input.
+invalid() { echo "ERROR: invalid $1" >&2; exit 2; }
+
+normalize_hosts() {
+  local raw="$1" field="$2" name names=""
+  local -a hosts
+  [[ "${raw}" != *$'\n'* && "${raw}" != *$'\r'* ]] || invalid "${field}"
+  read -r -a hosts <<< "${raw}"
+  for name in "${hosts[@]}"; do
+    case "${name,,}" in http://*|https://*) name="${name#*://}" ;; esac
+    [[ "${name}" =~ ^(\*\.)?[A-Za-z0-9_.-]+$ || "${name}" =~ ^\[[A-Fa-f0-9:.]+\]$ ]] || invalid "${field}"
+    names+="${names:+ }${name}"
+  done
+  printf '%s' "${names}"
+}
+
+validate_bind() {
+  local value="$1" field="$2" port
+  [[ "${value}" =~ ^([A-Za-z0-9_.-]+|\[[A-Fa-f0-9:.]+\]):([0-9]{1,5})$ ]] || invalid "${field}"
+  port=$((10#${BASH_REMATCH[2]}))
+  ((port >= 1 && port <= 65535)) || invalid "${field}"
+}
+
+validate_lineage() {
+  local value="$1" field="$2"
+  [[ -z "${value}" ]] && return 0
+  [[ "${value}" =~ ^[A-Za-z0-9_.-]+$ && "${value}" != . && "${value}" != .. ]] || invalid "${field}"
+}
+
 # Host names carry no scheme here: they name a server, not an origin.
 # Both are optional: a host may serve only the site, only the documentation, or
 # neither during a local rehearsal, and `set -u` must not turn that into a crash.
-readonly MAIN_HOST="${AI_STP_PUBLIC_HOST:-$(env_value AI_STP_PUBLIC_HOST)}"
-readonly DOCS_HOST="${AI_STP_DOCS_HOST:-$(env_value AI_STP_DOCS_HOST)}"
+MAIN_HOST="$(normalize_hosts "${AI_STP_PUBLIC_HOST:-$(env_value AI_STP_PUBLIC_HOST)}" AI_STP_PUBLIC_HOST)"
+readonly MAIN_HOST
+DOCS_HOST="$(normalize_hosts "${AI_STP_DOCS_HOST:-$(env_value AI_STP_DOCS_HOST)}" AI_STP_DOCS_HOST)"
+readonly DOCS_HOST
 # The first name identifies the site: it names the file and, unless overridden,
 # the certificate lineage. The rest are aliases nginx answers to.
-primary() { local first="${1%%[ ]*}"; printf '%s' "${first#*://}"; }
+primary() { printf '%s' "${1%%[ ]*}"; }
 MAIN_PRIMARY="$(primary "${MAIN_HOST}")"
 readonly MAIN_PRIMARY
 DOCS_PRIMARY="$(primary "${DOCS_HOST}")"
@@ -54,18 +86,18 @@ TLS_LINEAGE="${AI_STP_TLS_LINEAGE:-$(env_value AI_STP_TLS_LINEAGE)}"
 readonly TLS_LINEAGE="${TLS_LINEAGE:-${MAIN_PRIMARY}}"
 DOCS_TLS_LINEAGE="${AI_STP_DOCS_TLS_LINEAGE:-$(env_value AI_STP_DOCS_TLS_LINEAGE)}"
 readonly DOCS_TLS_LINEAGE="${DOCS_TLS_LINEAGE:-${DOCS_PRIMARY}}"
+validate_bind "${API_BIND}" AI_STP_API_BIND
+validate_bind "${WEB_BIND}" AI_STP_WEB_BIND
+validate_bind "${DOCS_BIND}" AI_STP_DOCS_BIND
+validate_lineage "${TLS_LINEAGE}" AI_STP_TLS_LINEAGE
+validate_lineage "${DOCS_TLS_LINEAGE}" AI_STP_DOCS_TLS_LINEAGE
 
 render() {
-  local template="$1" raw="$2" lineage="$3" out="$4"
-  if [[ -z "${raw}" ]]; then
+  local template="$1" names="$2" lineage="$3" out="$4"
+  if [[ -z "${names}" ]]; then
     echo "skip ${template}: no host name configured"
     return 0
   fi
-  # An older .env.prod may still carry `http://` from when the proxy asked a CA
-  # for certificates; a server_name never takes one.
-  local names="" name
-  for name in ${raw}; do names+="${name#*://} "; done
-  names="${names% }"
   local host
   host="$(primary "${names}")"
   if [[ ! -s "/etc/letsencrypt/live/${lineage}/fullchain.pem" ]]; then
@@ -78,7 +110,7 @@ render() {
       -e "s|@@API_BIND@@|${API_BIND}|g" \
       -e "s|@@WEB_BIND@@|${WEB_BIND}|g" \
       -e "s|@@DOCS_BIND@@|${DOCS_BIND}|g" \
-      "${ROOT}/deploy/nginx/${template}" > "${TARGET}/${out}"
+      "${ROOT}/deploy/nginx/${template}" > "${TARGET}/${out}" || return 2
   echo "rendered ${TARGET}/${out} for ${names} (lineage ${lineage})"
 }
 
@@ -87,9 +119,9 @@ render() {
 # until the reload, and the reload only happens if the whole config still tests.
 missing=0
 render ai-stp.conf.template "${MAIN_HOST}" \
-  "${TLS_LINEAGE}" "zz-ai-stp-${MAIN_PRIMARY}.conf" || missing=1
+  "${TLS_LINEAGE}" "zz-ai-stp-${MAIN_PRIMARY}.conf" || { status=$?; ((status == 1)) || exit "${status}"; missing=1; }
 render ai-stp-docs.conf.template "${DOCS_HOST}" \
-  "${DOCS_TLS_LINEAGE}" "zz-ai-stp-docs-${DOCS_PRIMARY}.conf" || missing=1
+  "${DOCS_TLS_LINEAGE}" "zz-ai-stp-docs-${DOCS_PRIMARY}.conf" || { status=$?; ((status == 1)) || exit "${status}"; missing=1; }
 
 nginx -t
 nginx -s reload
