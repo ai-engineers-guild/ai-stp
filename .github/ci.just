@@ -238,7 +238,7 @@ ci-package-static-analysis-packaging-and-the-install-regression:
     set -euo pipefail
     source .github/scripts/provider-safe-path.sh
     ai_stp_use_provider_safe_path
-    uv sync --locked --group docs --group dev
+    just setup-python-source
     just back-static back-regress
 
 # Tests run a shard of the test suite.

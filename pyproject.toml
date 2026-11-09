@@ -24,7 +24,6 @@ dev = [
     "jsonschema>=4.23",
     "lxml-stubs>=0.5.1",
     "openapi-spec-validator>=0.7",
-    "pyright>=1.1.400",
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
     "pytest-cov>=5.0",
@@ -132,7 +131,7 @@ select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "PTH", "RUF"]
 # a `BaseModel` base it can see in the same module.
 "packages/contracts/src/ai_stp_contracts/**" = ["RUF012"]
 
-[tool.pyright]
+[tool.basedpyright]
 include = ["packages", "apps", "tests", "docs_scripts", "release_scripts"]
 # Frozen desktop resources and Rust build output contain copies of sources,
 # not additional Python modules owned by this workspace.
@@ -145,8 +144,8 @@ exclude = [
     "apps/desktop/src-tauri/sidecar",
 ]
 # Product code and its tests are strict; the documentation validators run at
-# basic level until their full typing lands.
-typeCheckingMode = "basic"
+# standard level until their full strict typing lands.
+typeCheckingMode = "standard"
 strict = ["packages", "apps", "tests"]
 pythonVersion = "3.12"
 # Resolve the interpreter from the prepared uv environment.

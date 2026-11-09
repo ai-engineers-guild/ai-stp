@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import tomllib
 from functools import cache
 from pathlib import Path
 from typing import Any, TypedDict, cast
@@ -42,7 +43,7 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
     "back-static": (
         "ruff format --check",
         "ruff check ",
-        "pyright",
+        "bun run type-check:python",
         "-m ai_stp_contracts.schemas --check schemas/v1",
         "-m ai_stp_contracts.inventory_record --check",
         "-m ai_stp_contracts.web_projections --check",
@@ -300,20 +301,48 @@ def test_published_execution_uses_pinned_declared_command_owners() -> None:
 
 
 def test_setup_is_split_and_each_job_prepares_only_its_own_part() -> None:
-    """The full preparation stays local while CI prepares one part per job."""
+    """Only source-analysis owners prepare the small root Node tool set."""
     graph = _dependencies()
-    assert graph["setup"] == ("setup-python", "setup-docs", "setup-web", "setup-desktop")
+    assert graph["setup"] == ("setup-python-source", "setup-docs", "setup-web", "setup-desktop")
+    assert graph["setup-python-source"] == ("setup-python", "setup-analysis")
     workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
-    # A job running the full preparation would bring back the Node and bun
-    # minutes exactly where only Python is needed.
-    python_only = {"package", "tests", "coverage"}
+    runtime_only = {"tests", "coverage"}
+    analysis_owners = {"package", "integration-python"}
     for name, job in workflow["jobs"].items():
         scripts = command_text(job)
-        if name in python_only:
+        if name in runtime_only | analysis_owners:
             assert "docs_scripts && bun install" not in scripts, (
                 f"{name} installs documentation Node tools"
             )
-            assert "bun install" not in scripts, f"{name} installs web dependencies"
+            assert "apps/web && bun install" not in scripts, f"{name} installs Web dependencies"
+            assert "apps/desktop && bun install" not in scripts, (
+                f"{name} installs Desktop dependencies"
+            )
+        if name in runtime_only:
+            assert "bun install" not in scripts, f"{name} installs source-analysis dependencies"
+            assert not any(
+                str(step.get("uses", "")).startswith("actions/setup-node@")
+                for step in job.get("steps", [])
+            ), f"{name} prepares a Node SDK"
+        if name in analysis_owners:
+            assert "bun install --frozen-lockfile" in scripts, f"{name} omits analysis preparation"
+            assert "bun run type-check:python" in scripts, f"{name} omits Python type analysis"
+
+
+def test_python_analysis_preserves_product_and_tooling_coverage() -> None:
+    document = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert "pyright" not in document["tool"], "the superseded type configuration remains"
+    config = document["tool"]["basedpyright"]
+    assert set(config["include"]) >= {
+        "packages",
+        "apps",
+        "tests",
+        "docs_scripts",
+        "release_scripts",
+    }
+    assert config["typeCheckingMode"] in {"standard", "strict"}
+    if config["typeCheckingMode"] != "strict":
+        assert set(config["strict"]) >= {"packages", "apps", "tests"}
 
 
 def test_cli_and_web_tests_run_on_three_os_and_backend_stays_on_linux() -> None:
