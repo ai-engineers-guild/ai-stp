@@ -20,6 +20,7 @@ FIXTURES = (
     "apps/web/tests/component/access-workspace.test.tsx",
 )
 EXAMPLES = {
+    ".github/scripts/check-source-secrets.py": "generic-password",
     ".env.dev.example": "generic-password",
     ".env.prod.example": "generic-password",
     ".github/workflows/source.yml": "generic-password",
@@ -191,7 +192,7 @@ def example_controls(scanner: Path, temporary: Path) -> None:
                     ),
                     "A changed source example credential was hidden: " + relative,
                 )
-    print("Secret controls: nine exact source examples and their path/credential refusals")
+    print("Secret controls: ten exact source examples and their path/credential refusals")
 
 
 def main() -> int:

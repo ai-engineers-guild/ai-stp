@@ -155,3 +155,11 @@ paths = ['''^\.repo\-safety/templates/\.env\.example$''']
 regexes = [
   '''^\s*DATABASE_URL=postgresql://user:password@localhost:5432/app\ \ \#\ pragma:\ allowlist\ secret\s*$''',
 ]
+
+[[allowlists]]
+description = "Synthetic credential constructor in scanner refusal controls; exact source line"
+targetRules = ["generic-password"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^\.github/scripts/check-source-secrets\.py$''']
+regexes = ['''^\s*'password\ =\ "'\ \+\ CONTROL\ \+\ '"\\n'\s*$''']
