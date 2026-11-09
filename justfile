@@ -565,7 +565,10 @@ rust-dependencies:
     cargo deny --frozen --config deny.toml --manifest-path apps/cli/xtask/Cargo.toml check bans sources
     cargo deny --frozen --config deny.toml --manifest-path apps/desktop/core/Cargo.toml check bans sources
     cargo deny --frozen --config deny.toml --manifest-path apps/desktop/src-tauri/Cargo.toml check bans sources
-    cargo shear --frozen --deny-warnings apps
+    cd apps/cli && cargo shear --frozen --deny-warnings
+    cd apps/cli/xtask && cargo shear --frozen --deny-warnings
+    cd apps/desktop/core && cargo shear --frozen --deny-warnings
+    cd apps/desktop/src-tauri && cargo shear --frozen --deny-warnings
 
 # Format native sources explicitly; checks never rewrite them
 [group('cli')]
