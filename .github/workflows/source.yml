@@ -89,16 +89,46 @@ jobs:
   integration-python:
     if: github.event_name == 'pull_request'
     needs: native-experiments
-    uses: >-
-      NDDev-Technocracy-OpenNetwork/nddev-ci/.github/workflows/recipe.yml@2141b5788e0dbd7518781a125618def620600f13
-    with:
-      runner: ubuntu-26.04
-      timeout-minutes: 15
-      fetch-depth: 0
-      python-version: ${{ needs.native-experiments.outputs.python }}
-      uv-version: ${{ needs.native-experiments.outputs.uv }}
-      prepare: setup-python
-      recipe: ci-integration-python-check-source-contracts-and-units-without-server-services
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    env:
+      UV_VERSION: ${{ needs.native-experiments.outputs.uv }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: ${{ needs.native-experiments.outputs.python }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Isolate this job's Python environment
+        run: |
+          set -euo pipefail
+          {
+            echo "UV_PYTHON=$(python -c 'import sys; print(sys.executable)')"
+            echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-integration-python"
+            echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
+          } >> "${GITHUB_ENV}"
+      - name: Install pinned source-analysis frontends
+        run: |
+          set -euo pipefail
+          bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
+          bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
+          echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
+          echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
+      - name: Prepare the declared Python and analysis dependencies
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: setup-python-source
+      - name: Python source, contracts and units without server services
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-integration-python-check-source-contracts-and-units-without-server-services
   integration-web:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-26.04
@@ -571,6 +601,9 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: ${{ env.NODE_VERSION }}
       - name: Isolate this job's Python environment
         run: |
           set -euo pipefail
@@ -595,11 +628,13 @@ jobs:
           path: ${{ runner.temp }}/uv-cache
           key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
           restore-keys: ${{ runner.os }}-uv-
-      - name: Install pinned uv
+      - name: Install pinned source-analysis frontends
         run: |
           set -euo pipefail
           bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
+          bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
           echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
+          echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
       - name: Static analysis, packaging and the install regression
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13

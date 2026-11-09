@@ -194,7 +194,11 @@ def test_every_bun_lockfile_is_readable_by_the_pinned_bun() -> None:
     #: overrides. The frozen native installs also validate the actual parser;
     #: an unknown format must not pass this source-level compatibility guard.
     readable = {2, 3}
-    lockfiles = sorted(ROOT.glob("*/bun.lock")) + sorted(ROOT.glob("*/*/bun.lock"))
+    lockfiles = (
+        sorted(ROOT.glob("bun.lock"))
+        + sorted(ROOT.glob("*/bun.lock"))
+        + sorted(ROOT.glob("*/*/bun.lock"))
+    )
     lockfiles = [path for path in lockfiles if "node_modules" not in path.parts]
     assert lockfiles, "no bun lockfile found"
     for path in lockfiles:

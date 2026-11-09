@@ -41,7 +41,51 @@ ci-integration-python-check-source-contracts-and-units-without-server-services:
     source .github/scripts/provider-safe-path.sh
     ai_stp_use_provider_safe_path
     just back-static docs-source docs-test
+    just ci-python-analysis-verify-correct-code-and-type-error-refusal
     uv run --locked pytest -n 8 --dist=load -m 'not pg' tests/unit tests/contract
+
+# Exercise the declared CLI, inherited configuration and real diagnostic exit.
+[group('ci')]
+[private]
+[script('bash')]
+ci-python-analysis-verify-correct-code-and-type-error-refusal:
+    set -euo pipefail
+    analysis_tmp="$(mktemp -d)"
+    trap 'rm -rf "${analysis_tmp}"' EXIT
+    node --input-type=module - "${analysis_tmp}" <<'JS'
+    import fs from "node:fs";
+    import path from "node:path";
+    const probe = process.argv[2];
+    fs.writeFileSync(path.join(probe, "pyrightconfig.json"), JSON.stringify({
+      extends: path.join(process.cwd(), "pyproject.toml"),
+      include: ["probe.py"],
+      strict: ["probe.py"],
+    }));
+    fs.writeFileSync(path.join(probe, "probe.py"), "def count(value: int) -> int:\n    return value\n\nassert count(1) == 1\n");
+    JS
+    uv run --offline --no-sync node node_modules/basedpyright/index.js \
+      --project "${analysis_tmp}" --warnings --outputjson > "${analysis_tmp}/accepted.json"
+    printf 'def count(value: int) -> int:\n    return value\n\nassert count("invalid") == 1\n' > "${analysis_tmp}/probe.py"
+    analysis_status=0
+    uv run --offline --no-sync node node_modules/basedpyright/index.js \
+      --project "${analysis_tmp}" --warnings --outputjson > "${analysis_tmp}/refused.json" || analysis_status=$?
+    test "${analysis_status}" -eq 1
+    node --input-type=module - "${analysis_tmp}" <<'JS'
+    import assert from "node:assert/strict";
+    import fs from "node:fs";
+    import path from "node:path";
+    const probe = process.argv[2];
+    const accepted = JSON.parse(fs.readFileSync(path.join(probe, "accepted.json"), "utf8"));
+    const refused = JSON.parse(fs.readFileSync(path.join(probe, "refused.json"), "utf8"));
+    const expected = JSON.parse(fs.readFileSync("package.json", "utf8")).devDependencies.basedpyright;
+    assert.equal(accepted.version, expected);
+    assert.equal(refused.version, expected);
+    assert.equal(accepted.summary.errorCount, 0);
+    assert.equal(accepted.summary.warningCount, 0);
+    assert.equal(refused.summary.errorCount, 1);
+    assert.equal(refused.generalDiagnostics[0]?.rule, "reportArgumentType");
+    console.log(`basedpyright ${expected}: correct code accepted; argument-type error refused`);
+    JS
 
 # Integration web web syntax types and units.
 [group('ci')]
@@ -238,8 +282,9 @@ ci-package-static-analysis-packaging-and-the-install-regression:
     set -euo pipefail
     source .github/scripts/provider-safe-path.sh
     ai_stp_use_provider_safe_path
-    uv sync --locked --group docs --group dev
+    just setup-python-source
     just back-static back-regress
+    just ci-python-analysis-verify-correct-code-and-type-error-refusal
 
 # Tests run a shard of the test suite.
 [group('ci')]

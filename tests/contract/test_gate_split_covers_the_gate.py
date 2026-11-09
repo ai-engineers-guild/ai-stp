@@ -42,7 +42,7 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
     "back-static": (
         "ruff format --check",
         "ruff check ",
-        "pyright",
+        "bun run type-check:python",
         "-m ai_stp_contracts.schemas --check schemas/v1",
         "-m ai_stp_contracts.inventory_record --check",
         "-m ai_stp_contracts.web_projections --check",

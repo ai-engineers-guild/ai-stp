@@ -69,6 +69,7 @@ export COVERAGE_CORE := env_var_or_default("AI_STP_TEST_COVERAGE_CORE", "sysmon"
 # `bun install` from another version silently rewrites `bun.lock` into
 # something the gate cannot read. The error then surfaces in CI, not here.
 bunreq := 'test "$(bun --version)" = "$(cat .bun-version)" || { echo "bun $(cat .bun-version) required, found $(bun --version 2>/dev/null || echo none)" >&2; exit 1; }'
+nodereq := 'test "$(node --version)" = "v$(cat .node-version)" || { echo "node $(cat .node-version) required, found $(node --version 2>/dev/null || echo none)" >&2; exit 1; }'
 
 # The same for uv, but for a different reason and only on the builder. uv
 # stamps its own version into `dist-info/WHEEL`, so a candidate built by a
@@ -85,24 +86,31 @@ export PYTHONUTF8 := "1"
 default:
     @just --list --unsorted
 
-# Lockfile drift is caught here as well: all three install strictly by theirs.
+# Every dependency owner prepares strictly from its committed lockfile.
 
 # Prepares the whole environment. Kept as an aggregate because that is exactly
 # what is needed locally: one call before `just check` that prepares all.
 #
-# Split into three parts not for taste. In CI the gate executes as several
-# jobs, and a job needing only Python used to install Node, bun and the web
-# dependencies — a measured 1 m 35 s on `setup-node` and 1 m 55 s on the bun
-# cache, wasted every time (`ADR-0105`, unpublished; `ADR-0116` publishes the
-# job split).
+# Runtime-only Python jobs use setup-python. Source-analysis owners also
+# prepare the small root Node tool set without installing Web or Mermaid.
 [doc('Prepare Python, documentation, web and Desktop dependencies')]
 [group('gate')]
-setup: setup-python setup-docs setup-web setup-desktop
+setup: setup-python-source setup-docs setup-web setup-desktop
 
 # The Python environment: everything `uv run` executes.
 [group('gate')]
 setup-python:
     uv sync --locked --group docs --group dev
+
+# Python source analysis uses the official Node CLI without a bundled interpreter.
+[group('gate')]
+setup-python-source: setup-python setup-analysis
+
+[group('gate')]
+setup-analysis:
+    {{ bunreq }}
+    {{ nodereq }}
+    bun install --frozen-lockfile
 
 # The documentation Node tools: markdownlint and the Mermaid engine.
 [group('gate')]
@@ -379,7 +387,9 @@ back-gen:
 back-static:
     {{ run }} ruff format --check .
     {{ run }} ruff check .
-    {{ run }} python -m pyright
+    {{ bunreq }}
+    {{ nodereq }}
+    {{ run }} bun run type-check:python
     {{ run }} python -m ai_stp_contracts.schemas --check schemas/v1
     {{ run }} python -m ai_stp_contracts.inventory_record --check
     {{ run }} python -m ai_stp_contracts.web_projections --check
