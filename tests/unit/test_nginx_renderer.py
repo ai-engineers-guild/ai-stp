@@ -15,7 +15,7 @@ pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="Linux host rend
 
 
 def _render(
-    tmp_path: Path, *, unavailable_root: bool
+    tmp_path: Path, *, unavailable_root: bool, values: dict[str, str] | None = None
 ) -> tuple[subprocess.CompletedProcess[str], Path]:
     bash = shutil.which("bash")
     assert bash is not None, "the Linux deployment contract requires Bash"
@@ -28,7 +28,9 @@ def _render(
     )
     nginx.chmod(0o700)
     environment_file = tmp_path / "empty.env"
-    environment_file.write_text("", encoding="utf-8")
+    environment_file.write_text(
+        "".join(f"{name}={value}\n" for name, value in (values or {}).items()), encoding="utf-8"
+    )
     output = tmp_path / "output"
     output.mkdir()
     env = {
@@ -74,3 +76,33 @@ def test_unavailable_source_root_refuses_before_nginx(tmp_path: Path) -> None:
     assert "missing-root" in result.stderr
     assert result.returncode != 0
     assert not calls.exists()
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("AI_STP_PUBLIC_HOST", "example.invalid;return"),
+        ("AI_STP_PUBLIC_HOST", "https://example.invalid/path"),
+        ("AI_STP_DOCS_HOST", "docs.example.invalid|replacement"),
+        ("AI_STP_API_BIND", "127.0.0.1:58082|replacement"),
+        ("AI_STP_WEB_BIND", "localhost:70000"),
+        ("AI_STP_DOCS_BIND", "localhost:0"),
+        ("AI_STP_TLS_LINEAGE", "../another-site"),
+        ("AI_STP_DOCS_TLS_LINEAGE", "fixture;directive"),
+    ],
+)
+def test_unsafe_template_values_refuse_before_service_or_file_changes(
+    tmp_path: Path, field: str, value: str
+) -> None:
+    values = {
+        "AI_STP_PUBLIC_HOST": "example.invalid",
+        "AI_STP_DOCS_HOST": "docs.example.invalid",
+        "AI_STP_TLS_LINEAGE": "fixture",
+        "AI_STP_DOCS_TLS_LINEAGE": "fixture",
+        field: value,
+    }
+    result, calls = _render(tmp_path, unavailable_root=False, values=values)
+    assert result.returncode == 2
+    assert f"invalid {field}" in result.stderr
+    assert not calls.exists()
+    assert not list((tmp_path / "output").iterdir())
