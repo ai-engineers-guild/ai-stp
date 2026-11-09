@@ -61,7 +61,7 @@ fn verify_glibc_versions(output: &str) -> Result<()> {
     )
 }
 
-pub fn contents(
+pub(crate) fn contents(
     files: &Files,
     version: &str,
     revision: &str,
@@ -100,7 +100,7 @@ pub fn contents(
     Ok((binary, wheel))
 }
 
-pub fn package(args: &[OsString]) -> Result<()> {
+pub(crate) fn package(args: &[OsString]) -> Result<()> {
     let opts = options(
         args,
         &[

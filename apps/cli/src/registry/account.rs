@@ -46,7 +46,7 @@ pub(super) fn warnings(result: &Result<Value>) -> Vec<String> {
 }
 
 impl Handler {
-    pub fn mutability(self) -> &'static str {
+    pub(crate) fn mutability(self) -> &'static str {
         match self {
             Self::Plan | Self::ConnectionPlan | Self::EnrollmentRecoveryPlan => "plan",
             Self::Apply | Self::ConnectionApply | Self::EnrollmentRecoveryApply => "apply",

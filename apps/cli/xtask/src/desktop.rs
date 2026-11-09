@@ -21,7 +21,7 @@ fn resources() -> PathBuf {
     root().join("apps/desktop/src-tauri/sidecar/cli")
 }
 
-pub fn stub() -> Result<()> {
+pub(crate) fn stub() -> Result<()> {
     let resource = resources();
     if resource.join(name()).exists() {
         return Ok(());
@@ -36,7 +36,7 @@ pub fn stub() -> Result<()> {
     Ok(())
 }
 
-pub fn build() -> Result<()> {
+pub(crate) fn build() -> Result<()> {
     let mut stage = "native CLI build";
     let result: Result<()> = (|| {
         let source = build::cli_binary()?;
@@ -126,7 +126,7 @@ fn validate(binary: &Path) -> Result<()> {
     )
 }
 
-pub fn probe(path: Option<&Path>) -> Result<()> {
+pub(crate) fn probe(path: Option<&Path>) -> Result<()> {
     let binary = match path {
         Some(path) => path.to_path_buf(),
         None => std::env::var_os("AI_STP_SIDECAR_EXE")
@@ -174,7 +174,7 @@ fn only(mut paths: Vec<PathBuf>) -> Result<PathBuf> {
     paths.pop().ok_or_else(|| "OS package missing".into())
 }
 
-pub fn packaged() -> Result<()> {
+pub(crate) fn packaged() -> Result<()> {
     let bundles = root().join("apps/desktop/src-tauri/target/release/bundle");
     let temporary = tempfile::tempdir()?;
     let binary = if cfg!(target_os = "macos") {

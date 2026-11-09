@@ -117,7 +117,7 @@ impl Run {
         Ok(plan)
     }
 
-    pub fn load(connection: &Connection, plan: &Plan) -> Result<Option<Self>> {
+    pub(crate) fn load(connection: &Connection, plan: &Plan) -> Result<Option<Self>> {
         let hash = plan.digest()?;
         let Some(state) = journal::state(connection, &plan.operation_id, KIND, &hash)? else {
             return Ok(None);
@@ -191,7 +191,7 @@ impl Run {
         }))
     }
 
-    pub fn prepare(
+    pub(crate) fn prepare(
         connection: &Connection,
         plan: &Plan,
         scope: &Scope,
@@ -216,7 +216,7 @@ impl Run {
         Ok(None)
     }
 
-    pub fn admit(t: &Transaction<'_>, plan: &Plan, scope: &Scope, at: &str) -> Result<Self> {
+    pub(crate) fn admit(t: &Transaction<'_>, plan: &Plan, scope: &Scope, at: &str) -> Result<Self> {
         if let Some(run) = Self::prepare(t, plan, scope, at)? {
             return Ok(run);
         }
@@ -235,7 +235,7 @@ impl Run {
         })
     }
 
-    pub fn check(&self, connection: &Connection, scope: &Scope) -> Result<()> {
+    pub(crate) fn check(&self, connection: &Connection, scope: &Scope) -> Result<()> {
         if self.result.is_some()
             || frontier(connection, scope, self.entity.as_deref())? != self.frontier
         {
@@ -248,7 +248,7 @@ impl Run {
     }
 
     /// Call inside the same transaction as retention, receipt, or page mutation.
-    pub fn save(
+    pub(crate) fn save(
         &mut self,
         t: &Transaction<'_>,
         scope: &Scope,
@@ -289,7 +289,7 @@ impl Run {
         Ok(())
     }
 
-    pub fn output(&self, plan: &Plan) -> Result<Value> {
+    pub(crate) fn output(&self, plan: &Plan) -> Result<Value> {
         let result = self.result.as_ref().ok_or_else(invalid)?;
         Ok(
             json!({"schema_version":1,"operation_id":self.id,"plan_digest":self.hash,

@@ -7,7 +7,7 @@ use std::{
     process::Command,
 };
 
-pub const LIMIT: usize = 4 * 1024 * 1024;
+pub(crate) const LIMIT: usize = 4 * 1024 * 1024;
 const REGISTRY: &str = "registry+https://github.com/rust-lang/crates.io-index";
 
 fn string<'a>(value: &'a Value, key: &str) -> Result<&'a str> {
@@ -21,7 +21,7 @@ fn array<'a>(value: &'a Value, key: &str) -> Result<&'a Vec<Value>> {
         .ok_or_else(|| format!("Cargo metadata has no {key}").into())
 }
 
-pub fn inventory(
+pub(crate) fn inventory(
     metadata: &Value,
     lock: &str,
     version: &str,
@@ -146,7 +146,12 @@ pub fn inventory(
     Ok(result)
 }
 
-pub fn build(version: &str, revision: &str, target: &str, binary_digest: &str) -> Result<Vec<u8>> {
+pub(crate) fn build(
+    version: &str,
+    revision: &str,
+    target: &str,
+    binary_digest: &str,
+) -> Result<Vec<u8>> {
     let cli = root().join("apps/cli");
     let metadata: Value = serde_json::from_str(&text(
         Command::new("cargo")

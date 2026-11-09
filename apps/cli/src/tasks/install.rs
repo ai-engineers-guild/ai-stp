@@ -75,7 +75,7 @@ pub(super) struct Input {
     pub access: access::Request,
 }
 impl Input {
-    pub fn parse(value: Value) -> Result<Self> {
+    pub(crate) fn parse(value: Value) -> Result<Self> {
         if canonical::bytes(&value)?.len() > 16 * 1024 {
             return Err(invalid());
         }
@@ -88,7 +88,7 @@ impl Input {
         input.validate()?;
         Ok(input)
     }
-    pub fn validate(&self) -> Result<()> {
+    pub(crate) fn validate(&self) -> Result<()> {
         harnesses::definition(&self.harness_id)?;
         if self.schema_version != 1
             || self.harness_id == "undefined"
@@ -124,7 +124,7 @@ impl Input {
         managed::version(self.provider_version.as_deref())?;
         self.access.validate()
     }
-    pub fn scope(&self) -> &str {
+    pub(crate) fn scope(&self) -> &str {
         if self.targets.len() == 1 {
             self.targets
                 .keys()
@@ -175,16 +175,16 @@ pub(super) struct Checkpoint {
     phase: String,
 }
 impl Checkpoint {
-    pub fn digest(&self) -> Result<String> {
+    pub(crate) fn digest(&self) -> Result<String> {
         digest::canonical("ai-stp:plan:v1", &encode(self)?)
     }
-    pub fn children(&self) -> Vec<String> {
+    pub(crate) fn children(&self) -> Vec<String> {
         self.configuration
             .iter()
             .filter_map(|held| held.plan["operation_id"].as_str().map(str::to_owned))
             .collect()
     }
-    pub fn validate(&self, input: &Input, identity: &Identity) -> Result<()> {
+    pub(crate) fn validate(&self, input: &Input, identity: &Identity) -> Result<()> {
         if self.schema_version != 1
             || self.action != "task.install"
             || &self.identity != identity
@@ -249,7 +249,7 @@ impl Checkpoint {
         }
         Ok(())
     }
-    pub fn outcome(&self) -> Result<Value> {
+    pub(crate) fn outcome(&self) -> Result<Value> {
         let held = self.configuration.as_ref().ok_or_else(invalid)?;
         let plan = set::Plan::parse(
             &serde_json::to_vec(&held.plan).map_err(|_| invalid())?,
@@ -262,7 +262,7 @@ impl Checkpoint {
             "state":"verified","verified":true,"operation":first.operation()?,"root_count":plan.children.len()}),
         )
     }
-    pub fn handoff(&self) -> Option<Value> {
+    pub(crate) fn handoff(&self) -> Option<Value> {
         let action = match self.phase.as_str() {
             "awaiting_exit" => {
                 "Finish sessions using the staged roots, then continue from an external shell before starting the harness."

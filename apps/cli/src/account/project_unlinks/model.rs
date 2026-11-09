@@ -63,12 +63,12 @@ pub(super) struct Snapshot {
 }
 
 impl Snapshot {
-    pub fn organization_id(&self) -> Result<&str> {
+    pub(crate) fn organization_id(&self) -> Result<&str> {
         self.organization["organization_id"]
             .as_str()
             .ok_or_else(invalid)
     }
-    pub fn validate(&self) -> Result<()> {
+    pub(crate) fn validate(&self) -> Result<()> {
         self.validate_state(false)
     }
     pub(super) fn validate_unlinked(&self) -> Result<()> {
@@ -183,7 +183,7 @@ impl Snapshot {
         }
         Ok(())
     }
-    pub fn unchanged(&self, other: &Self) -> Result<()> {
+    pub(crate) fn unchanged(&self, other: &Self) -> Result<()> {
         self.unchanged_state(other, false)
     }
     pub(super) fn unchanged_unlinked(&self, other: &Self) -> Result<()> {
@@ -204,7 +204,7 @@ impl Snapshot {
         }
         Ok(())
     }
-    pub fn same_binding(&self, other: &Self) -> Result<()> {
+    pub(crate) fn same_binding(&self, other: &Self) -> Result<()> {
         if self.binding.source.operation_id != other.binding.source.operation_id
             || self.binding.source.plan_digest != other.binding.source.plan_digest
             || self.binding.request.operation_id != other.binding.request.operation_id
@@ -242,13 +242,13 @@ pub(super) struct ServerPlan {
 }
 
 impl ServerPlan {
-    pub fn read(value: &Value, snapshot: &Snapshot) -> Result<Self> {
+    pub(crate) fn read(value: &Value, snapshot: &Snapshot) -> Result<Self> {
         let plan: Self =
             serde_json::from_value(corporate::unlink_plan(value)?).map_err(|_| invalid())?;
         plan.verify(snapshot)?;
         Ok(plan)
     }
-    pub fn verify(&self, snapshot: &Snapshot) -> Result<()> {
+    pub(crate) fn verify(&self, snapshot: &Snapshot) -> Result<()> {
         snapshot.validate()?;
         let projected =
             corporate::unlink_plan(&serde_json::to_value(self).map_err(|_| invalid())?)?;
@@ -279,7 +279,7 @@ impl ServerPlan {
         }
         Ok(())
     }
-    pub fn verify_link(&self, link: &Value, snapshot: &Snapshot) -> Result<()> {
+    pub(crate) fn verify_link(&self, link: &Value, snapshot: &Snapshot) -> Result<()> {
         self.verify(snapshot)?;
         if (corporate::Request::LinkCurrent {
             link_id: self.link_id.clone(),
@@ -434,7 +434,7 @@ pub(super) enum Effect {
 }
 
 impl Effect {
-    pub fn validate(&self, plan: &Plan) -> Result<()> {
+    pub(crate) fn validate(&self, plan: &Plan) -> Result<()> {
         let reader = match (self, &plan.change) {
             (Self::Retired { retirement }, _) => return retirement.validate_source(plan),
             (

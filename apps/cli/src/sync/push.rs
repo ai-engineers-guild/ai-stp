@@ -214,7 +214,7 @@ pub(super) struct History {
 }
 
 impl History {
-    pub fn load(connection: &Connection, scope: &Scope, id: &str) -> Result<Self> {
+    pub(crate) fn load(connection: &Connection, scope: &Scope, id: &str) -> Result<Self> {
         let rows = ledger::history(connection, scope, id)?;
         let head=connection.query_row("SELECT remote_revision_id FROM sync_remote_head WHERE account_id=? AND entity_id=?",
             params![scope.account(),id],|r|r.get(0)).optional().map_err(database)?;
@@ -258,7 +258,7 @@ impl History {
         Ok(())
     }
 
-    pub fn update(&mut self, stored: Pending, head: Option<String>) -> Result<()> {
+    pub(crate) fn update(&mut self, stored: Pending, head: Option<String>) -> Result<()> {
         self.head = head;
         let id = stored.request["event_id"].as_str().ok_or_else(invalid)?;
         if let Some(entry) = self.entries.iter_mut().find(|e| e.event.event_id == id) {
@@ -269,7 +269,7 @@ impl History {
         Ok(())
     }
 
-    pub fn pending(&self) -> Option<&Entry> {
+    pub(crate) fn pending(&self) -> Option<&Entry> {
         self.entries.iter().find(|e| e.stored.state == "pending")
     }
 
@@ -295,7 +295,7 @@ impl History {
         choose(true).or_else(|| choose(false))
     }
 
-    pub fn known(&self, step: &Step, exact: bool) -> Option<&Entry> {
+    pub(crate) fn known(&self, step: &Step, exact: bool) -> Option<&Entry> {
         if let Some(local) = &step.local_revision {
             self.mapping(local, exact.then_some(&step.payload))
         } else {
@@ -308,7 +308,12 @@ impl History {
         }
     }
 
-    pub fn request(&self, capture: &Capture, step: &Step, identity: &Identity) -> Result<Value> {
+    pub(crate) fn request(
+        &self,
+        capture: &Capture,
+        step: &Step,
+        identity: &Identity,
+    ) -> Result<Value> {
         if let Some(pending) = self.pending() {
             return Ok(pending.stored.request.clone());
         }

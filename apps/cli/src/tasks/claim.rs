@@ -13,7 +13,7 @@ pub(super) struct Claim {
     output: PathBuf,
 }
 impl Claim {
-    pub fn open(parent: &Path, owner: &Owner, key: &str) -> Result<Self> {
+    pub(crate) fn open(parent: &Path, owner: &Owner, key: &str) -> Result<Self> {
         let invalid = || Failure::precondition("the native task lease or state parent changed");
         let name = digest::sha256(key.as_bytes());
         let name = name.strip_prefix("sha256:").ok_or_else(invalid)?;
@@ -37,7 +37,7 @@ impl Claim {
         drop(namespace);
         Ok(Self { held, output })
     }
-    pub fn output(&self) -> Result<&Path> {
+    pub(crate) fn output(&self) -> Result<&Path> {
         self.held.validate_lock()?;
         Ok(&self.output)
     }

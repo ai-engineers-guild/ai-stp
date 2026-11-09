@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "tool": "cargo-nextest",
+  "version": "0.9.151",
+  "source": "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.151/cargo-nextest-0.9.151-x86_64-unknown-linux-musl.tar.gz",
+  "assets": [
+    {
+      "repository": "nextest-rs/nextest",
+      "asset": 703602745,
+      "size": 9792418,
+      "sha256": "6b284d6fde9670dfb6ee10ea9d9abbc85f95643d3f592472d420d82e257b3a6c",
+      "file": "nextest.tar.gz"
+    }
+  ]
+}

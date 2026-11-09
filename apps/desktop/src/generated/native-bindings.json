@@ -6,7 +6,7 @@
   ],
   "inputs": {
     "core/Cargo.lock": "231c5a902701c0f8947ae8ef8f4ac020e067d35b11b416cf29b030192dd53f4a",
-    "core/Cargo.toml": "f62ca83f9deb628f72e939a09c3679cf342fd603c3a4b412d67e90e4eee82414",
+    "core/Cargo.toml": "728a674c2b26a9dd22c6044f4213ee60f241b8c8c0c95c661a533283dab87b68",
     "core/src/bindings.rs": "af32d4011760a1b7ca1ec49b2c86bcfe5a487871544d80b8394fefd0bf50fe35",
     "core/src/bridge.rs": "ff1e24a48372d53f899ccee83f1337b44e5a9ad7e1702aa7580a4e68236a7ec2",
     "core/src/envelope.rs": "fd8592a589353e72fac23ff9539a4f97d97557003f8af1d7670eab42da802f56",

@@ -44,10 +44,10 @@ fn invalid() -> Failure {
 }
 
 impl Capture {
-    pub fn entity(&self) -> Option<&str> {
+    pub(crate) fn entity(&self) -> Option<&str> {
         self.request["entity_id"].as_str()
     }
-    pub fn outcome(&self) -> Value {
+    pub(crate) fn outcome(&self) -> Value {
         json!({"schema_version":1,"state":"retired_device","remote_outcome":"unknown",
             "event_id":self.request["event_id"],"entity_id":self.request["entity_id"],
             "retired_device_id":self.request["device_id"],"replacement_device_id":self.replacement_device_id})

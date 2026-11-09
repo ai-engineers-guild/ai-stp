@@ -34,6 +34,14 @@ CI prepares their exact assets from `.github/documentation-check-tools.json`.
 `just docs-static` needs no Mermaid installation; rendering still uses
 `just setup-docs` and the frozen documentation lock.
 
+Native suites use cargo-nextest; doctests remain a separate Cargo step. Hosted CI
+prepares exact tool assets from `.github/nextest-*.json` and
+`.github/rust-check-tools.json`. Native workstations need those versions through
+their existing SDK provider. `just setup-rust-analysis` prepares locked crate
+sources before the offline `just rust-dependencies` checks. This separate recipe
+checks dependency use, version constraints and sources; the all-lock security
+scan and distribution-license review keep their existing owners.
+
 ## Validation and integration
 
 Run affected checks listed in AGENTS.md. `just --list` describes recipes and

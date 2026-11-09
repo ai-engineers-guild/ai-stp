@@ -181,12 +181,12 @@ pub(crate) struct Vault<'a> {
 }
 
 impl<'a> Vault<'a> {
-    pub fn new(directory: &'a OwnedDirectory, storage: Storage) -> Result<Self> {
+    pub(crate) fn new(directory: &'a OwnedDirectory, storage: Storage) -> Result<Self> {
         storage.validate()?;
         Ok(Self { directory, storage })
     }
 
-    pub fn read(&self, name: &str, max: usize) -> Result<Option<Zeroizing<Vec<u8>>>> {
+    pub(crate) fn read(&self, name: &str, max: usize) -> Result<Option<Zeroizing<Vec<u8>>>> {
         if name.is_empty()
             || name.len() > 256
             || !name
@@ -233,7 +233,7 @@ impl<'a> Vault<'a> {
         Ok(value)
     }
 
-    pub fn read_key(&self, id: &str) -> Result<Option<SigningKey>> {
+    pub(crate) fn read_key(&self, id: &str) -> Result<Option<SigningKey>> {
         let encoded = self.read(&format!("device-key.{id}"), 64)?;
         let Some(encoded) = encoded else {
             return Ok(None);
@@ -253,7 +253,7 @@ impl<'a> Vault<'a> {
     }
 
     /// Only an admitted replacement retires these exact owned credential slots.
-    pub fn retire(&self, name: &str) -> Result<()> {
+    pub(crate) fn retire(&self, name: &str) -> Result<()> {
         let id = name
             .strip_prefix("device-key.")
             .or_else(|| name.strip_prefix("account-"))
@@ -280,7 +280,7 @@ impl<'a> Vault<'a> {
         Ok(())
     }
 
-    pub fn create_key(&self, id: &str, key: &SigningKey) -> Result<()> {
+    pub(crate) fn create_key(&self, id: &str, key: &SigningKey) -> Result<()> {
         if self.read_key(id)?.is_some() {
             return Err(super::invalid());
         }
@@ -297,7 +297,7 @@ impl<'a> Vault<'a> {
         }
         Ok(())
     }
-    pub fn write_account(&self, name: &str, value: &str) -> Result<()> {
+    pub(crate) fn write_account(&self, name: &str, value: &str) -> Result<()> {
         if !name.starts_with("account-") || value.is_empty() || value.len() > 64 * 1024 {
             return Err(super::invalid());
         }

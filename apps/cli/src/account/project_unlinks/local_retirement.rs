@@ -13,7 +13,7 @@ pub(super) enum Kind {
 }
 
 impl Kind {
-    pub const fn value(self) -> &'static str {
+    pub(crate) const fn value(self) -> &'static str {
         match self {
             Self::Present => super::binding_retirement::KIND,
             Self::Missing => super::missing_checkout::KIND,

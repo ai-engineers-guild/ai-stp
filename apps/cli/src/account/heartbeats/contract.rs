@@ -89,7 +89,7 @@ pub(super) struct Pending {
 }
 
 impl Pending {
-    pub fn request(&self) -> Result<Value> {
+    pub(crate) fn request(&self) -> Result<Value> {
         if self.body.len() > 4096 || self.sha256 != digest::sha256(self.body.as_bytes()) {
             return Err(invalid());
         }
@@ -112,7 +112,7 @@ impl Pending {
         Ok(body)
     }
 
-    pub fn ready(&self, now: &str) -> Result<bool> {
+    pub(crate) fn ready(&self, now: &str) -> Result<bool> {
         self.request()?;
         let now = time(now)?;
         Ok(now >= time(&self.next_attempt_at)?
@@ -121,7 +121,7 @@ impl Pending {
             && self.attempts < 8)
     }
 
-    pub fn attempted(&mut self, now: &str, base: u64, maximum: u64) -> Result<()> {
+    pub(crate) fn attempted(&mut self, now: &str, base: u64, maximum: u64) -> Result<()> {
         if !self.ready(now)? || base == 0 || maximum < base {
             return Err(invalid());
         }
@@ -135,7 +135,7 @@ impl Pending {
         Ok(())
     }
 
-    pub fn acknowledge(&self, organization: &str, response: &Value) -> Result<&'static str> {
+    pub(crate) fn acknowledge(&self, organization: &str, response: &Value) -> Result<&'static str> {
         let request = self.request()?;
         RESPONSE.validate(response).map_err(|_| invalid())?;
         if response["organization_id"] != organization

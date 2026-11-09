@@ -70,7 +70,7 @@ struct ErrorEnvelope {
 }
 
 impl Api {
-    pub fn project_unlink(
+    pub(crate) fn project_unlink(
         &self,
         organization: &str,
         link: &str,
@@ -113,7 +113,7 @@ impl Api {
         }
     }
 
-    pub fn project_link(
+    pub(crate) fn project_link(
         &self,
         organization: &str,
         confirm: bool,
@@ -148,7 +148,7 @@ impl Api {
         }
     }
 
-    pub fn context_read(
+    pub(crate) fn context_read(
         &self,
         route: &str,
         organization: Option<&str>,
@@ -181,7 +181,7 @@ impl Api {
         }
     }
 
-    pub fn providers(&self) -> Result<Reply<super::providers::Providers>> {
+    pub(crate) fn providers(&self) -> Result<Reply<super::providers::Providers>> {
         let agent = self.agent.borrow();
         let response = agent
             .get(format!("{}/v1/auth/providers", self.origin))
@@ -194,7 +194,7 @@ impl Api {
         self.read(response)
     }
 
-    pub fn corporate(
+    pub(crate) fn corporate(
         &self,
         request: &super::corporate::Request,
         organization: &str,
@@ -236,7 +236,7 @@ impl Api {
         }
     }
 
-    pub fn installation_inventory(
+    pub(crate) fn installation_inventory(
         &self,
         organization: &str,
         body: &[u8],
@@ -268,7 +268,7 @@ impl Api {
         }
     }
 
-    pub fn heartbeat(
+    pub(crate) fn heartbeat(
         &self,
         organization: &str,
         body: &[u8],
@@ -304,7 +304,7 @@ impl Api {
         }
     }
 
-    pub fn reports(
+    pub(crate) fn reports(
         &self,
         id: Option<&str>,
         cursor: Option<&str>,
@@ -359,7 +359,7 @@ impl Api {
         }
     }
 
-    pub fn me(&self, credential: &Secret) -> Result<Reply<Account>> {
+    pub(crate) fn me(&self, credential: &Secret) -> Result<Reply<Account>> {
         let authorization = Zeroizing::new(format!("Bearer {}", credential.0.as_str()));
         let agent = self.agent.borrow();
         let response = agent
@@ -374,14 +374,14 @@ impl Api {
         self.read(response)
     }
 
-    pub fn new(value: &str) -> Result<Self> {
+    pub(crate) fn new(value: &str) -> Result<Self> {
         Ok(Self {
             origin: origin(value)?,
             agent: RefCell::new(http::anonymous_agent()),
         })
     }
 
-    pub fn post<T: DeserializeOwned>(
+    pub(crate) fn post<T: DeserializeOwned>(
         &self,
         route: &str,
         body: &[u8],
@@ -426,7 +426,7 @@ impl Api {
         }
     }
 
-    pub fn grants(
+    pub(crate) fn grants(
         &self,
         route: &str,
         body: Option<&[u8]>,
@@ -487,7 +487,7 @@ impl Api {
         }
     }
 
-    pub fn visibility(
+    pub(crate) fn visibility(
         &self,
         route: &str,
         body: Option<&[u8]>,
@@ -547,7 +547,7 @@ impl Api {
         }
     }
 
-    pub fn github(
+    pub(crate) fn github(
         &self,
         body: Option<&[u8]>,
         credential: &Secret,
@@ -596,7 +596,7 @@ impl Api {
         }
     }
 
-    pub fn sync(
+    pub(crate) fn sync(
         &self,
         request: &crate::sync::network::Request<'_>,
         credential: &Secret,
@@ -650,7 +650,7 @@ impl Api {
         }
     }
 
-    pub fn publication(
+    pub(crate) fn publication(
         &self,
         request: &crate::publication::client::Request<'_>,
         credential: &Secret,

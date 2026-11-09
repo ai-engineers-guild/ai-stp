@@ -56,14 +56,14 @@ fn overlap_owner<'a>(
 }
 
 impl Composition {
-    pub fn new(harness: &str) -> Self {
+    pub(crate) fn new(harness: &str) -> Self {
         Self {
             harness: harness.into(),
             ..Self::default()
         }
     }
 
-    pub fn for_report(harness: &str) -> Self {
+    pub(crate) fn for_report(harness: &str) -> Self {
         Self {
             conflicts: Some(Vec::new()),
             ..Self::new(harness)
@@ -95,7 +95,7 @@ impl Composition {
         }
     }
 
-    pub fn claim(&mut self, owner: &str, path: &str) -> Result<()> {
+    pub(crate) fn claim(&mut self, owner: &str, path: &str) -> Result<()> {
         if !crate::artifacts::safe_path(path) {
             return Err(invalid(
                 "a component path escapes the portable bundle surface",
@@ -117,11 +117,16 @@ impl Composition {
         Ok(())
     }
 
-    pub fn include(&mut self, document: &Value, scope: &Value, assessment: &Value) -> Result<()> {
+    pub(crate) fn include(
+        &mut self,
+        document: &Value,
+        scope: &Value,
+        assessment: &Value,
+    ) -> Result<()> {
         self.include_at(document, scope, assessment, None)
     }
 
-    pub fn include_constraints(
+    pub(crate) fn include_constraints(
         &mut self,
         document: &Value,
         scope: &Value,
@@ -233,7 +238,7 @@ impl Composition {
         Ok(())
     }
 
-    pub fn include_at(
+    pub(crate) fn include_at(
         &mut self,
         document: &Value,
         scope: &Value,
@@ -282,7 +287,7 @@ impl Composition {
 
     /// Check after collecting every selected component, so neither graph order
     /// nor the side that declares an exclusion can hide a contradiction.
-    pub fn validate(&mut self, files: &[super::File]) -> Result<()> {
+    pub(crate) fn validate(&mut self, files: &[super::File]) -> Result<()> {
         let kinds: &[&str] = match self.harness.as_str() {
             "codex" => &["skill"],
             "antigravity" | "cursor" => &["agent", "skill"],
@@ -329,7 +334,7 @@ impl Composition {
         self.validate_declared_conflicts()
     }
 
-    pub fn validate_declared_conflicts(&mut self) -> Result<()> {
+    pub(crate) fn validate_declared_conflicts(&mut self) -> Result<()> {
         for index in 0..self.exclusions.len() {
             let exclusion = &self.exclusions[index];
             let other = if exclusion.family == "paths" {
@@ -373,7 +378,7 @@ impl Composition {
         Ok(())
     }
 
-    pub fn reports(mut self) -> (Value, Value) {
+    pub(crate) fn reports(mut self) -> (Value, Value) {
         self.chosen
             .sort_by(|a, b| a["stable_id"].as_str().cmp(&b["stable_id"].as_str()));
         self.converted

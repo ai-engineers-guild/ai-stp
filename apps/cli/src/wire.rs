@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use crate::error::{ErrorKind, Failure, Result};
 
-pub struct Schema {
+pub(crate) struct Schema {
     source: &'static str,
     reader_defaults: bool,
     definition: Option<&'static str>,
@@ -14,7 +14,7 @@ pub struct Schema {
 }
 
 impl Schema {
-    pub const fn new(source: &'static str) -> Self {
+    pub(crate) const fn new(source: &'static str) -> Self {
         Self {
             source,
             reader_defaults: false,
@@ -25,7 +25,7 @@ impl Schema {
 
     /// Historical readers accept omitted fields with explicit schema defaults.
     /// The original document is never filled or reserialized for its identity.
-    pub const fn reader(source: &'static str) -> Self {
+    pub(crate) const fn reader(source: &'static str) -> Self {
         Self {
             source,
             reader_defaults: true,
@@ -34,7 +34,7 @@ impl Schema {
         }
     }
 
-    pub const fn definition(source: &'static str, definition: &'static str) -> Self {
+    pub(crate) const fn definition(source: &'static str, definition: &'static str) -> Self {
         Self {
             source,
             reader_defaults: false,
@@ -43,7 +43,7 @@ impl Schema {
         }
     }
 
-    pub fn validate(&self, document: &Value) -> Result<()> {
+    pub(crate) fn validate(&self, document: &Value) -> Result<()> {
         let validator = self
             .compiled
             .get_or_init(|| {
@@ -125,7 +125,7 @@ pub(crate) fn allow_explicit_defaults(schema: &mut Value) {
 }
 
 /// Check canonical representability and duplicate keys, preserving wire strings.
-pub fn parse(bytes: &[u8]) -> Result<Value> {
+pub(crate) fn parse(bytes: &[u8]) -> Result<Value> {
     crate::canonical::parse(bytes).map_err(|_| Failure::precondition("wire JSON is invalid"))?;
     serde_json::from_slice(bytes).map_err(|_| Failure::precondition("wire JSON is invalid"))
 }

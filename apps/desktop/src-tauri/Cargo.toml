@@ -4,6 +4,8 @@ version = "0.5.1"
 edition = "2024"
 description = "ai-stp desktop application"
 license = "AGPL-3.0-or-later"
+# The application is distributed through its native installers.
+publish = false
 
 [lib]
 name = "ai_stp_desktop_lib"
@@ -18,6 +20,12 @@ tauri = { version = "=2.12.5", features = [] }
 tauri-plugin-single-instance = "=2.5.5"
 tauri-plugin-window-state = "=2.5.0"
 tauri-plugin-opener = "=2.7.2"
-serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.154"
 tauri-plugin-dialog = "=2.8.4"
+
+[lints.rust]
+unsafe_code = "forbid"
+unreachable_pub = "warn"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }

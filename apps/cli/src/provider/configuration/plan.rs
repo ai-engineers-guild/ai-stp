@@ -56,7 +56,7 @@ fn path(value: &str) -> bool {
 }
 
 impl Plan {
-    pub fn parse(bytes: &[u8], expected: &str) -> Result<Self> {
+    pub(crate) fn parse(bytes: &[u8], expected: &str) -> Result<Self> {
         if bytes.len() > LIMIT || !hash(expected) {
             return Err(invalid());
         }
@@ -150,21 +150,21 @@ impl Plan {
         Ok(plan)
     }
 
-    pub fn operation(&self) -> Result<&str> {
+    pub(crate) fn operation(&self) -> Result<&str> {
         self.action
             .strip_prefix("configuration.")
             .filter(|value| matches!(*value, "install" | "replace" | "remove"))
             .ok_or_else(invalid)
     }
 
-    pub fn request(&self, at: Timestamp) -> Result<Request> {
+    pub(crate) fn request(&self, at: Timestamp) -> Result<Request> {
         Request::parse(&serde_json::to_vec(&json!({
             "operation":self.operation()?,"operation_id":self.operation_id,"expires_at":self.expires_at,
             "bundle":self.provider_plan["plan"]["bundle"],"recovery_mode":"forward",
         })).map_err(|_| invalid())?, at)
     }
 
-    pub fn value(&self) -> Result<Value> {
+    pub(crate) fn value(&self) -> Result<Value> {
         serde_json::to_value(self).map_err(|_| invalid())
     }
 }

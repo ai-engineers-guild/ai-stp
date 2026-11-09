@@ -16,7 +16,7 @@ pub(crate) struct Reader {
 }
 
 impl Reader {
-    pub fn unchanged(&self, fresh: &Self) -> Result<()> {
+    pub(crate) fn unchanged(&self, fresh: &Self) -> Result<()> {
         if self.context != fresh.context
             || self.account != fresh.account
             || corporate::authority(&self.organization, &self.observation)
@@ -27,12 +27,15 @@ impl Reader {
         Ok(())
     }
 
-    pub fn validate(&self, source: &model::Plan) -> Result<()> {
+    pub(crate) fn validate(&self, source: &model::Plan) -> Result<()> {
         workflow::reader_matches(&self.context, source.snapshot())?;
         self.validate_authority()
     }
 
-    pub fn matches_binding(context: &Context, binding: &super::binding::Snapshot) -> Result<()> {
+    pub(crate) fn matches_binding(
+        context: &Context,
+        binding: &super::binding::Snapshot,
+    ) -> Result<()> {
         let contexts::Authority::Remote {
             account,
             organization,
@@ -53,7 +56,7 @@ impl Reader {
         Ok(())
     }
 
-    pub fn validate_binding(&self, binding: &super::binding::Snapshot) -> Result<()> {
+    pub(crate) fn validate_binding(&self, binding: &super::binding::Snapshot) -> Result<()> {
         Self::matches_binding(&self.context, binding)?;
         self.validate_authority()
     }

@@ -153,7 +153,7 @@ build: docs-build back-build cli-build web-build web-storybook desktop-build
 
 [doc('Complete source, runtime, package and security qualification')]
 [group('gate')]
-verify: check docs-check back-check cli-check web-check desktop-check security
+verify: check docs-check back-check cli-check web-check desktop-check rust-dependencies security
 
 [doc('Apply the owning source formatters')]
 [group('gate')]
@@ -550,6 +550,26 @@ web-check: web-build web-storybook web-static web-test web-regress web-feature-p
 
 # --- cli ----------------------------------------------------------------
 
+[doc('Prepare locked native dependency sources without compiling them')]
+[group('cli')]
+setup-rust-analysis:
+    cargo fetch --locked --manifest-path apps/cli/Cargo.toml
+    cargo fetch --locked --manifest-path apps/cli/xtask/Cargo.toml
+    cargo fetch --locked --manifest-path apps/desktop/core/Cargo.toml
+    cargo fetch --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
+
+[doc('Offline native dependency use, version constraints and source checks')]
+[group('cli')]
+rust-dependencies:
+    cargo deny --frozen --config deny.toml --manifest-path apps/cli/Cargo.toml check bans sources
+    cargo deny --frozen --config deny.toml --manifest-path apps/cli/xtask/Cargo.toml check bans sources
+    cargo deny --frozen --config deny.toml --manifest-path apps/desktop/core/Cargo.toml check bans sources
+    cargo deny --frozen --config deny.toml --manifest-path apps/desktop/src-tauri/Cargo.toml check bans sources
+    cd apps/cli && cargo shear --frozen --deny-warnings
+    cd apps/cli/xtask && cargo shear --frozen --deny-warnings
+    cd apps/desktop/core && cargo shear --frozen --deny-warnings
+    cd apps/desktop/src-tauri && cargo shear --frozen --deny-warnings
+
 # Format native sources explicitly; checks never rewrite them
 [group('cli')]
 cli-gen:
@@ -573,8 +593,9 @@ cli-static: cli-source
 # Canonical vectors, real binary behavior and adversarial signed provenance
 [group('cli')]
 cli-test:
-    cd apps/cli && cargo test --locked --manifest-path xtask/Cargo.toml
-    {{ native }} build cargo test --locked
+    cd apps/cli && cargo nextest run --locked --manifest-path xtask/Cargo.toml
+    {{ native }} build cargo nextest run --locked
+    {{ native }} build cargo test --locked --doc
 
 # Optimized native executable and explicit provider evidence runner
 [group('cli')]
@@ -670,12 +691,14 @@ desktop-ui-test:
 [doc('Native Desktop core tests without building a webview')]
 [group('desktop')]
 desktop-core-test:
-    cd apps/desktop/core && cargo test --locked
+    cd apps/desktop/core && cargo nextest run --locked
+    cd apps/desktop/core && cargo test --locked --doc
 
 [doc('Frontend and both Rust crates')]
 [group('desktop')]
 desktop-test: desktop-build desktop-ui-test desktop-core-test
-    cd apps/desktop/src-tauri && cargo test --locked
+    cd apps/desktop/src-tauri && cargo nextest run --locked
+    cd apps/desktop/src-tauri && cargo test --locked --doc
 
 [doc('Compile native IPC declarations on an execution host, then project TypeScript')]
 [group('desktop')]

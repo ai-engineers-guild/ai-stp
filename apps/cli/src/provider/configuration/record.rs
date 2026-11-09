@@ -18,7 +18,7 @@ pub(crate) struct Record {
 }
 
 impl Record {
-    pub fn parse(detail: &str, kind: &str, state: &str) -> Result<(Self, Plan)> {
+    pub(crate) fn parse(detail: &str, kind: &str, state: &str) -> Result<(Self, Plan)> {
         if detail.len() > LIMIT {
             return Err(invalid());
         }

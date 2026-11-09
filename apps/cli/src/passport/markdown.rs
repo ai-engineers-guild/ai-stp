@@ -23,7 +23,7 @@ fn link(destination: &str) -> bool {
     })
 }
 
-pub fn validate(source: &str) -> Result<()> {
+pub(crate) fn validate(source: &str) -> Result<()> {
     if source.trim().is_empty()
         || source.len() > 16 * 1024
         || source.bytes().filter(|b| *b == b'\n').count() >= 256

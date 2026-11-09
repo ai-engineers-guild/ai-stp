@@ -1,0 +1,22 @@
+[graph]
+all-features = true
+targets = [
+    { triple = "x86_64-unknown-linux-gnu" },
+    { triple = "aarch64-apple-darwin" },
+    { triple = "x86_64-pc-windows-msvc" },
+]
+
+[bans]
+# Qualified native API cohorts can require different transitive versions.
+multiple-versions = "allow"
+wildcards = "deny"
+# The Desktop core is a local path dependency pinned by the source commit.
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+
+# The all-lock OSV owner retains advisory findings and their bounded assessments.
+# Distribution/use licensing review remains separate under #1394.

@@ -40,7 +40,7 @@ pub(super) struct Address {
 }
 
 impl Address {
-    pub fn new(
+    pub(crate) fn new(
         harness_id: &str,
         component_type: &str,
         path: &Path,

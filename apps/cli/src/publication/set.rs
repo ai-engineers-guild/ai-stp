@@ -92,7 +92,7 @@ impl Terminal {
 }
 
 impl Run {
-    pub fn unoccupied(connection: &Connection, target: &super::Snapshot) -> Result<()> {
+    pub(crate) fn unoccupied(connection: &Connection, target: &super::Snapshot) -> Result<()> {
         let mut query=connection.prepare("SELECT operation_id FROM operation WHERE kind='publication.set' AND finished_at IS NULL ORDER BY operation_id LIMIT 129").map_err(database)?;
         let ids = query
             .query_map([], |r| r.get::<_, String>(0))
@@ -117,7 +117,7 @@ impl Run {
         Ok(())
     }
 
-    pub fn intent(connection: &Connection, id: &str) -> Result<Intent> {
+    pub(crate) fn intent(connection: &Connection, id: &str) -> Result<Intent> {
         if !passport::stable_id(id, "operation") {
             return Err(invalid());
         }
@@ -137,7 +137,7 @@ impl Run {
         Ok(plan.intent)
     }
 
-    pub fn load(connection: &Connection, intent: &Intent) -> Result<Option<Self>> {
+    pub(crate) fn load(connection: &Connection, intent: &Intent) -> Result<Option<Self>> {
         let Some(state) =
             journal::state(connection, &intent.operation_id, KIND, &intent.digest()?)?
         else {
@@ -222,7 +222,7 @@ impl Run {
         }))
     }
 
-    pub fn position(connection: &Connection, intent: &Intent) -> Result<String> {
+    pub(crate) fn position(connection: &Connection, intent: &Intent) -> Result<String> {
         let parent = Self::load(connection, intent)?
             .map(|r| interruption::progress_digest(connection, &intent.operation_id, r.sequence))
             .transpose()?;
@@ -238,7 +238,7 @@ impl Run {
         )
     }
 
-    pub fn confirm(t: &Transaction<'_>, plan: &Plan, at: &str) -> Result<Self> {
+    pub(crate) fn confirm(t: &Transaction<'_>, plan: &Plan, at: &str) -> Result<Self> {
         plan.digest()?;
         let intent = &plan.intent;
         if Self::position(t, intent)? != plan.position {
@@ -271,7 +271,12 @@ impl Run {
         })
     }
 
-    pub fn finish(&mut self, t: &Transaction<'_>, intent: &Intent, result: Terminal) -> Result<()> {
+    pub(crate) fn finish(
+        &mut self,
+        t: &Transaction<'_>,
+        intent: &Intent,
+        result: Terminal,
+    ) -> Result<()> {
         result.validate(t, intent)?;
         let held = Self::load(t, intent)?.ok_or_else(invalid)?;
         if held.sequence != self.sequence || held.terminal.is_some() {
@@ -294,7 +299,11 @@ impl Run {
         Ok(())
     }
 
-    pub fn checkpoint(&self, connection: &Connection, intent: &Intent) -> Result<Checkpoint> {
+    pub(crate) fn checkpoint(
+        &self,
+        connection: &Connection,
+        intent: &Intent,
+    ) -> Result<Checkpoint> {
         if self.terminal.is_some() {
             return Err(invalid());
         }
@@ -310,7 +319,7 @@ impl Run {
         })
     }
 
-    pub fn interrupt(
+    pub(crate) fn interrupt(
         &mut self,
         t: &Transaction<'_>,
         intent: &Intent,
@@ -335,7 +344,7 @@ impl Run {
         )
     }
 
-    pub fn view(&self, intent: &Intent) -> Result<Value> {
+    pub(crate) fn view(&self, intent: &Intent) -> Result<Value> {
         let terminal = self.terminal.as_ref().ok_or_else(invalid)?;
         let state = match terminal {
             Terminal::Published { .. } => "published",

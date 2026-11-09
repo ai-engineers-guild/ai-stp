@@ -22,7 +22,7 @@ use unicode_normalization::UnicodeNormalization;
 
 use crate::error::{ErrorKind, Failure, Result};
 
-pub fn read(path: &Path, limit: u64) -> Result<Vec<u8>> {
+pub(crate) fn read(path: &Path, limit: u64) -> Result<Vec<u8>> {
     let metadata = path
         .symlink_metadata()
         .map_err(|_| Failure::new(ErrorKind::NotFound, "input file is not accessible"))?;
@@ -63,7 +63,7 @@ pub fn read(path: &Path, limit: u64) -> Result<Vec<u8>> {
 
 /// Open relative to an already held directory, without following a final link
 /// or blocking on a substituted FIFO. Metadata is checked on the actual handle.
-pub fn open_regular(directory: &Dir, path: &Path) -> std::io::Result<File> {
+pub(crate) fn open_regular(directory: &Dir, path: &Path) -> std::io::Result<File> {
     let mut options = OpenOptions::new();
     options.read(true).follow(FollowSymlinks::No).nonblock(true);
     let file = directory.open_with(path, &options)?;
@@ -73,14 +73,14 @@ pub fn open_regular(directory: &Dir, path: &Path) -> std::io::Result<File> {
     Ok(file)
 }
 
-pub fn home() -> Option<PathBuf> {
+pub(crate) fn home() -> Option<PathBuf> {
     std::env::var_os("HOME")
         .filter(|v| !v.is_empty())
         .or_else(|| std::env::var_os("USERPROFILE").filter(|v| !v.is_empty()))
         .map(PathBuf::from)
 }
 
-pub fn display(path: &Path) -> String {
+pub(crate) fn display(path: &Path) -> String {
     if let Some(home) = home().filter(|p| p.is_absolute())
         && let Ok(relative) = path.strip_prefix(home)
     {

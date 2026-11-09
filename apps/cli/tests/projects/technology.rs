@@ -16,7 +16,7 @@ fn finding<'a>(
         .ok_or_else(|| format!("missing {kind}:{name}:{context}").into())
 }
 
-pub fn prove() -> Result<(), Box<dyn Error>> {
+pub(crate) fn prove() -> Result<(), Box<dyn Error>> {
     let root = tempfile::tempdir()?;
     let fixtures = [
         (

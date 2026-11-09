@@ -97,7 +97,7 @@ pub(super) fn encode(value: &impl Serialize) -> Result<String> {
 }
 
 impl Intent {
-    pub fn digest(&self) -> Result<String> {
+    pub(crate) fn digest(&self) -> Result<String> {
         self.account.validate()?;
         if !passport::stable_id(&self.operation_id, "operation")
             || !self.state_parent.is_absolute()
