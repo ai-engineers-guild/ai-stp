@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "type-check": "node ./node_modules/typescript7/lib/tsc.js --noEmit -p tsconfig.json",
-    "build": "tsc --noEmit && vite build",
+    "build": "bun run type-check && vite build",
     "test": "vitest run",
     "tauri": "tauri",
     "lint:dependencies": "knip",
