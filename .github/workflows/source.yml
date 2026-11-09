@@ -161,6 +161,22 @@ jobs:
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
         with:
           recipe: setup-python-source
+      - name: Prepare the exact documentation source checkers
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+        with:
+          manifest: .github/documentation-check-tools.json
+          directory: ${{ runner.temp }}/ai-stp-documentation-tools
+      - name: Expose this job's documentation checkers
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-documentation-check-tools
+      - name: Verify actual checker acceptance and rule refusals
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-documentation-checker-contracts
       - name: Python source, contracts and units without server services
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
@@ -202,6 +218,22 @@ jobs:
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
         with:
           recipe: ci-integration-web-desktop-types-and-component-units
+      - name: Prepare the exact documentation source checkers
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+        with:
+          manifest: .github/documentation-check-tools.json
+          directory: ${{ runner.temp }}/ai-stp-documentation-tools
+      - name: Expose this job's documentation checkers
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-documentation-check-tools
+      - name: Verify actual checker acceptance and rule refusals
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-documentation-checker-contracts
       - name: Documentation Markdown syntax
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
@@ -624,6 +656,22 @@ jobs:
           set -euo pipefail
           bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
           echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
+      - name: Prepare the exact documentation source checkers
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+        with:
+          manifest: .github/documentation-check-tools.json
+          directory: ${{ runner.temp }}/ai-stp-documentation-tools
+      - name: Expose this job's documentation checkers
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-documentation-check-tools
+      - name: Verify actual checker acceptance and rule refusals
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-documentation-checker-contracts
       - name: Prepare and check the documentation
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13

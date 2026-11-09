@@ -80,12 +80,6 @@ updates:
         update-types: [minor, patch]
     commit-message:
       prefix: "chore(docs)"
-    # Its published parents pin vulnerable re2js 2.8.6; keep the qualified
-    # graph until a fixed parent release passes the full scan (#1269).
-    # Review by 2026-11-06. No advisory filter is added.
-    ignore:
-      - dependency-name: markdownlint-cli2
-        versions: ["0.24.0"]
     # A version published minutes ago has been reviewed by nobody. The
     # cooldown is the cheapest defence against a compromised release being
     # pulled in before anyone has looked at it.

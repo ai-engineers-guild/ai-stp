@@ -81,7 +81,6 @@ docs = [
     "urllib3==2.8.0",
     "watchdog==6.0.0",
     "wcmatch==11.2",
-    "yamllint==1.38.0",
 ]
 
 [tool.uv]

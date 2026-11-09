@@ -1,0 +1,37 @@
+# Markdown structure; semantic documentation checks run separately.
+[global]
+include = ["**/*.md"]
+respect-gitignore = false
+exclude = [
+  "node_modules/**",
+  "**/node_modules/**",
+  ".site/**",
+  "public/**",
+  ".venv/**",
+  ".venv-check/**",
+  "research_sources/**",
+  "tests/fixtures/safety-corpus/**",
+  ".git/**",
+  ".work/**",
+  ".tmp/**",
+  ".serena/**",
+  "plans/**",
+  "apps/web/test-results/**",
+  "apps/web/playwright-report/**",
+  "apps/web/blob-report/**",
+  "apps/desktop/src-tauri/sidecar/**",
+  "apps/desktop/**/target/**"
+]
+disable = ["MD013", "MD060", "MD046", "MD041", "MD033"]
+
+[MD024]
+siblings-only = true
+
+[MD025]
+front-matter-title = ""
+
+[MD026]
+punctuation = ".,;:!"
+
+[MD029]
+style = "ordered"
