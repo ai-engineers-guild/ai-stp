@@ -234,6 +234,16 @@ def test_the_local_and_gate_bun_pins_are_the_same_version() -> None:
     assert ".bun-version" in recipes, "no recipe checks the developer's bun against the pin"
 
 
+def test_the_local_and_gate_node_pins_are_the_same_version() -> None:
+    declared = (ROOT / ".node-version").read_text(encoding="utf-8").strip()
+    workflow = ROOT / ".github" / "workflows" / "source.yml"
+    pinned = re.search(r'NODE_VERSION:\s*"([0-9][^"]*)"', workflow.read_text(encoding="utf-8"))
+    assert pinned, "the gate no longer pins a Node version"
+    assert declared == pinned.group(1), "local Node and the source-analysis runtime differ"
+    recipes = (ROOT / "justfile").read_text(encoding="utf-8")
+    assert ".node-version" in recipes, "no recipe verifies the selected Node runtime"
+
+
 def test_the_local_and_gate_uv_pins_are_the_same_version() -> None:
     """`.uv-version` and `UV_VERSION` name one version, or the candidate drifts.
 
