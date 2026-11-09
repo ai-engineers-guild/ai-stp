@@ -249,12 +249,12 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Generate native IPC projections from the compiled owner
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: desktop-native-gen
       - name: Generate native CLI resources from canonical sources
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: cli-gen
       - name: Retain the exact native projection patch for review

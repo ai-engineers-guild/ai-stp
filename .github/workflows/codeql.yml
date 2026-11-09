@@ -66,7 +66,7 @@ jobs:
           SOURCE_LANGUAGE: ${{ matrix.language }}
           ORIGINAL_SARIF_ID: ${{ steps.analysis.outputs.sarif-id }}
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-codeql-retain-analysis
       - name: Retain source analysis without granting it release authority

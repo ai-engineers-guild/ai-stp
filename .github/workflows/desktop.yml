@@ -63,13 +63,13 @@ jobs:
           apps/cli/rust-toolchain.toml clippy rustfmt
       - name: Prepare the exact native test runner
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@52d8302d2272967a21fd8e3ae594205588648777
         with:
           manifest: .github/nextest-${{ runner.os }}.json
           directory: ${{ runner.temp }}/ai-stp-native-test-tools
       - name: Expose this job's prepared native test runner
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-native-test-tools
       - name: Install pinned bun
@@ -115,20 +115,20 @@ jobs:
           bun install --frozen-lockfile
       - name: Qualify Desktop through the shared project commands
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: desktop-check
       - name: Prepare the exact Linux packaging tools
         if: runner.os == 'Linux'
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@52d8302d2272967a21fd8e3ae594205588648777
         with:
           manifest: .github/tauri-tools.json
           directory: ${{ runner.temp }}/ai-stp-tauri-cache/tauri
       - name: Prepare the exact Windows packaging assets
         if: runner.os == 'Windows'
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@52d8302d2272967a21fd8e3ae594205588648777
         with:
           manifest: .github/tauri-tools-windows.json
           directory: ${{ runner.temp }}/ai-stp-tauri-windows
@@ -142,18 +142,18 @@ jobs:
         env:
           XDG_CACHE_HOME: ${{ runner.temp }}/ai-stp-tauri-cache
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-desktop-tauri-build
       - name: Verify the macOS disk image
         if: runner.os == 'macOS'
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-desktop-verify-the-macos-disk-image
       - name: Probe the packaged CLI resource tree
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-desktop-probe-the-packaged-cli-resource-tree
       - name: Retain built Linux bytes before installed diagnosis
@@ -184,7 +184,7 @@ jobs:
       - name: Three installed Linux Desktop journeys with bundled CLI and native vault
         if: runner.os == 'Linux' && !inputs.packages_only
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: >-
             ci-desktop-three-installed-linux-desktop-journeys-with-bundled-cli-and-native-vault
@@ -205,7 +205,7 @@ jobs:
         env:
           AI_STP_TEST_DB_URL: postgresql+asyncpg://ai_stp:ai_stp_dev@127.0.0.1:15434/ai_stp
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-desktop-installed-corporate-onboarding-lost-reply-and-original-binding-recovery
       - name: Retain the public installed corporate checkout result
@@ -227,14 +227,14 @@ jobs:
       - name: Prepare the exact installed performance baseline
         if: runner.os == 'Linux' && !inputs.packages_only
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@52d8302d2272967a21fd8e3ae594205588648777
         with:
           manifest: .github/desktop-performance-baseline.json
           directory: ${{ runner.temp }}/desktop-performance-baseline
       - name: Compare installed startup and repeated navigation on the same worker
         if: runner.os == 'Linux' && !inputs.packages_only
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: desktop-performance
       - name: Retain the exact same-worker performance observations

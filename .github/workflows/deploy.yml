@@ -81,7 +81,7 @@ jobs:
           SOURCE_RUN_ID: ${{ steps.source.outputs.source_run_id }}
           SOURCE_ATTEMPT: ${{ steps.source.outputs.source_attempt }}
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-delivery-admit
       - name: Download actual source analysis without executing its contents
@@ -100,7 +100,7 @@ jobs:
           SOURCE_RUN_ID: ${{ steps.source.outputs.source_run_id }}
           SOURCE_ATTEMPT: ${{ steps.source.outputs.source_attempt }}
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-delivery-register-findings
       - name: Prepare Main admission or reconcile the promoted deployment
@@ -112,7 +112,7 @@ jobs:
           SOURCE_RUN_ID: ${{ steps.source.outputs.source_run_id }}
           SOURCE_ATTEMPT: ${{ steps.source.outputs.source_attempt }}
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-delivery-promote
 

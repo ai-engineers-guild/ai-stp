@@ -87,7 +87,7 @@ jobs:
       # Build from source: cached build scripts can retain another image's SDK paths.
       - name: Build the native executable
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-build-build-the-native-executable
       - name: Package and verify the extracted executable outside checkout
@@ -96,7 +96,7 @@ jobs:
           RELEASE_BINARY: ${{ matrix.binary }}
           RELEASE_EXTENSION: ${{ matrix.extension }}
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-build-package-and-verify-the-extracted-executable-outside-checkout
       - name: Package and qualify the native wheel
@@ -107,13 +107,13 @@ jobs:
           UV_TOOL_DIR: ${{ runner.temp }}/native-wheel-tools
           UV_TOOL_BIN_DIR: ${{ runner.temp }}/native-wheel-bin
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-build-package-and-qualify-the-native-wheel
       - name: Qualify the standalone Cargo source package
         if: runner.os == 'Linux'
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-build-qualify-the-standalone-cargo-source-package
       - name: Seal the qualified native payload without rebuilding

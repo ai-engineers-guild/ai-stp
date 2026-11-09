@@ -42,7 +42,7 @@ jobs:
           echo "uv=${UV_VERSION}" >> "${GITHUB_OUTPUT}"
       - name: Check the project command grammar and formatting
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: just-fmt
       - name: Select only registered native experiment owners
@@ -83,7 +83,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-secrets-verify-the-scanner-and-inspect-the-selected-source
   rust-dependencies:
@@ -103,23 +103,23 @@ jobs:
           apps/cli/rust-toolchain.toml rustfmt
       - name: Prepare the exact native dependency checkers
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@52d8302d2272967a21fd8e3ae594205588648777
         with:
           manifest: .github/rust-check-tools.json
           directory: ${{ runner.temp }}/ai-stp-native-check-tools
       - name: Expose this job's prepared checkers
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-native-check-tools
       - name: Prepare the locked crate sources without compiling them
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: setup-rust-analysis
       - name: Offline dependency use, version constraints and sources
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: rust-dependencies
 
@@ -158,28 +158,28 @@ jobs:
           echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
       - name: Prepare the declared Python and analysis dependencies
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: setup-python-source
       - name: Prepare the exact documentation source checkers
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@52d8302d2272967a21fd8e3ae594205588648777
         with:
           manifest: .github/documentation-check-tools.json
           directory: ${{ runner.temp }}/ai-stp-documentation-tools
       - name: Expose this job's documentation checkers
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-documentation-check-tools
       - name: Verify actual checker acceptance and rule refusals
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-documentation-checker-contracts
       - name: Python source, contracts and units without server services
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-integration-python-check-source-contracts-and-units-without-server-services
   integration-web:
@@ -210,33 +210,33 @@ jobs:
           restore-keys: ${{ runner.os }}-bun-
       - name: Web syntax, types and units
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-integration-web-web-syntax-types-and-units
       - name: Desktop types and component units
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-integration-web-desktop-types-and-component-units
       - name: Prepare the exact documentation source checkers
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@52d8302d2272967a21fd8e3ae594205588648777
         with:
           manifest: .github/documentation-check-tools.json
           directory: ${{ runner.temp }}/ai-stp-documentation-tools
       - name: Expose this job's documentation checkers
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-documentation-check-tools
       - name: Verify actual checker acceptance and rule refusals
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-documentation-checker-contracts
       - name: Documentation Markdown syntax
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-integration-web-documentation-markdown-syntax
   integration-native:
@@ -274,13 +274,13 @@ jobs:
           apps/cli/rust-toolchain.toml clippy rustfmt
       - name: Prepare the exact native test runner
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@52d8302d2272967a21fd8e3ae594205588648777
         with:
           manifest: .github/nextest-${{ runner.os }}.json
           directory: ${{ runner.temp }}/ai-stp-native-test-tools
       - name: Expose this job's prepared native test runner
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-native-test-tools
       - name: Restore native dependencies shared with successful Dev
@@ -295,19 +295,19 @@ jobs:
           save-if: 'false'
       - name: Native formatting, all-target analysis and library units
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-integration-native-native-formatting-all-target-analysis-and-library-units
       - name: Existing native vault and independent CLI processes
         if: runner.os != 'Linux'
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-integration-native-existing-native-vault-and-independent-cli-processes
       - name: Public native configuration across independent CLI processes
         if: runner.os != 'Linux'
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-integration-native-public-native-configuration-across-independent-cli-processes
       - name: Install the isolated Linux credential fixture
@@ -322,7 +322,7 @@ jobs:
         env:
           AI_STP_NATIVE_VAULT_ROUNDS: '10'
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-integration-native-fresh-concurrent-linux-clients-and-independent-cli-processes
 
@@ -483,13 +483,13 @@ jobs:
           apps/cli/rust-toolchain.toml clippy rustfmt
       - name: Prepare the exact native test runner
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@52d8302d2272967a21fd8e3ae594205588648777
         with:
           manifest: .github/nextest-${{ runner.os }}.json
           directory: ${{ runner.temp }}/ai-stp-native-test-tools
       - name: Expose this job's prepared native test runner
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-native-test-tools
       - name: Restore and retain only successful Dev's native dependencies
@@ -522,13 +522,13 @@ jobs:
             '.github/scripts/previous-native-cache.py') }}
       - name: Native boundary checks
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-cli-native-boundary-checks
       - name: Public native configuration across independent CLI processes
         if: runner.os != 'Linux'
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-integration-native-public-native-configuration-across-independent-cli-processes
       - name: Install the isolated Linux credential fixture
@@ -543,24 +543,24 @@ jobs:
         env:
           AI_STP_NATIVE_VAULT_ROUNDS: ${{ inputs.native_vault_rounds || '100' }}
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-integration-native-fresh-concurrent-linux-clients-and-independent-cli-processes
       - name: Existing consumers and real SQLite backup
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-cli-existing-consumers-and-real-sqlite-backup
       - name: Build the immutable previous schema58 native writer
         if: runner.os == 'Linux'
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-cli-build-the-immutable-previous-schema58-native-writer
       - name: Build the qualified previous schema59 binding writer
         if: runner.os == 'Linux'
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-cli-build-the-qualified-previous-schema59-binding-writer
       - name: Verify the immutable released schema60 native writer
@@ -568,7 +568,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-cli-verify-the-immutable-released-schema60-native-writer
       - name: Verify the immutable released schema61 native writer
@@ -576,7 +576,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-cli-verify-the-immutable-released-schema61-native-writer
       - name: Ownership and corporate journeys through the native HTTP client
@@ -584,7 +584,7 @@ jobs:
         env:
           AI_STP_TEST_DB_URL: postgresql+asyncpg://ai_stp:ai_stp_dev@127.0.0.1:15432/ai_stp
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-cli-ownership-and-corporate-journeys-through-the-native-http-client
       - name: Cache previous native builds after API acceptance
@@ -658,35 +658,35 @@ jobs:
           echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
       - name: Prepare the exact documentation source checkers
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@52d8302d2272967a21fd8e3ae594205588648777
         with:
           manifest: .github/documentation-check-tools.json
           directory: ${{ runner.temp }}/ai-stp-documentation-tools
       - name: Expose this job's documentation checkers
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-documentation-check-tools
       - name: Verify actual checker acceptance and rule refusals
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-documentation-checker-contracts
       - name: Prepare and check the documentation
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-docs-prepare-and-check-the-documentation
       - name: Build the pinned production docs image
         timeout-minutes: 15
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-docs-build-the-pinned-production-docs-image
       - name: Qualify the actual unprivileged docs process and both languages
         timeout-minutes: 3
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-docs-qualify-the-actual-unprivileged-docs-process-and-both-languages
       - name: Retain the public docs runtime result
@@ -746,7 +746,7 @@ jobs:
           echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
       - name: Static analysis, packaging and the install regression
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-package-static-analysis-packaging-and-the-install-regression
   tests:
@@ -852,7 +852,7 @@ jobs:
           COVERAGE_FILE: .coverage.${{ matrix.shard }}
           COVERAGE_CORE: sysmon
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-tests-run-a-shard-of-the-test-suite
           arguments: ${{ toJSON(matrix.arguments) }}
@@ -908,7 +908,7 @@ jobs:
           merge-multiple: true
       - name: Combine shard coverage and report
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-coverage-combine-shard-coverage-and-report
   # Lint, types, production build, audit and Storybook are Linux-only: they
@@ -959,7 +959,7 @@ jobs:
             ${{ runner.os }}-next-
       - name: Build, static-check, audit and Storybook
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-web-static-build-static-check-audit-and-storybook
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
@@ -967,7 +967,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Dependency advisory scan with bounded source assessments
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-web-static-dependency-advisory-scan-with-bounded-source-assessments
 
@@ -1025,7 +1025,7 @@ jobs:
           restore-keys: ${{ runner.os }}-bun-
       - name: Unit and component tests
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-web-unit-unit-and-component-tests
   web-e2e:
@@ -1066,7 +1066,7 @@ jobs:
           restore-keys: ${{ runner.os }}-bun-
       - name: Ensure a Google Chrome is present
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-web-e2e-ensure-a-google-chrome-is-present
       - name: Cache the Next.js build
@@ -1084,7 +1084,7 @@ jobs:
             ${{ runner.os }}-next-
       - name: Build and run the browser scenarios
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-web-e2e-build-and-run-the-browser-scenarios
           arguments: ${{ format('["{0}"]', matrix.shard) }}
@@ -1140,7 +1140,7 @@ jobs:
           restore-keys: ${{ runner.os }}-bun-
       - name: Ensure a Google Chrome is present
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-web-e2e-ensure-a-google-chrome-is-present
       - name: Cache the Next.js build
@@ -1158,6 +1158,6 @@ jobs:
             ${{ runner.os }}-next-
       - name: Feature profile builds
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@52d8302d2272967a21fd8e3ae594205588648777
         with:
           recipe: ci-web-profiles-feature-profile-builds
