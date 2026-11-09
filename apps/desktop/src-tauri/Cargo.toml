@@ -4,6 +4,8 @@ version = "0.5.1"
 edition = "2024"
 description = "ai-stp desktop application"
 license = "AGPL-3.0-or-later"
+# The application is distributed through its native installers.
+publish = false
 
 [lib]
 name = "ai_stp_desktop_lib"

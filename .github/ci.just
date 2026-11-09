@@ -4,7 +4,7 @@
 [private]
 ci-native-test-tools:
     mkdir -p "${RUNNER_TEMP}/ai-stp-native-test-tools/bin"
-    tar -xzf "${RUNNER_TEMP}/ai-stp-native-test-tools/nextest.tar.gz" -C "${RUNNER_TEMP}/ai-stp-native-test-tools/bin"
+    cd "${RUNNER_TEMP}/ai-stp-native-test-tools" && tar -xzf nextest.tar.gz -C bin
     printf '%s\n' "${RUNNER_TEMP}/ai-stp-native-test-tools/bin" >> "${GITHUB_PATH}"
 
 [group('ci')]
