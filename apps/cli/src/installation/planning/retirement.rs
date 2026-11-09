@@ -162,7 +162,7 @@ fn capture(
     let scopes = record.missing.keys().copied().collect::<BTreeSet<_>>();
     custody.review_missing(operation, source, &scopes, value(&record)?)
 }
-pub fn plan(
+pub(crate) fn plan(
     root: &Path,
     custody: &Custody,
     source: &str,
@@ -199,7 +199,7 @@ fn outcome(review: &Review, data: &Record) -> Result<Value> {
         "configuration_changed":false,"restart_required":false,"load_state":"not_observed"}),
     )
 }
-pub fn prepare(
+pub(crate) fn prepare(
     root: &Path,
     custody: &mut Custody,
     review: &Review,
@@ -250,7 +250,7 @@ pub fn prepare(
         json!({"operation_id":review.operation_id(),"review_digest":expected,"state":"prepared","metadata_only":true,"configuration_changed":false}),
     )
 }
-pub fn apply(root: &Path, custody: &mut Custody, review: &Review) -> Result<Value> {
+pub(crate) fn apply(root: &Path, custody: &mut Custody, review: &Review) -> Result<Value> {
     let data = record(root, review)?;
     let status = custody.status(review)?;
     if status["state"] == "completed" {
@@ -266,7 +266,7 @@ pub fn apply(root: &Path, custody: &mut Custody, review: &Review) -> Result<Valu
     custody.complete_with_result(review, &result)?;
     Ok(result)
 }
-pub fn status(root: &Path, custody: &Custody, review: &Review) -> Result<Value> {
+pub(crate) fn status(root: &Path, custody: &Custody, review: &Review) -> Result<Value> {
     let data = record(root, review)?;
     let original = data.original()?;
     let held = custody.status(review)?;
@@ -277,7 +277,7 @@ pub fn status(root: &Path, custody: &Custody, review: &Review) -> Result<Value> 
         "receipt":held["result"]["native_result"],"custody":held,"metadata_only":true}),
     )
 }
-pub fn cancel(root: &Path, custody: &mut Custody, review: &Review) -> Result<Value> {
+pub(crate) fn cancel(root: &Path, custody: &mut Custody, review: &Review) -> Result<Value> {
     record(root, review)?;
     custody.cancel(review)
 }
@@ -293,6 +293,6 @@ pub(crate) fn pending(root: &Path, custody: &Custody, review: &Review) -> Result
         "controller":value(&data.controller)?,"custody":custody.status(review)?},"other_state_pending":false}),
     )
 }
-pub fn read(path: &Path, expected: &str) -> Result<Review> {
+pub(crate) fn read(path: &Path, expected: &str) -> Result<Review> {
     Review::parse(&files::read(path, 8 * 1024 * 1024)?, expected)
 }

@@ -42,7 +42,7 @@ fn current_parent(path: &Path) -> Result<Dir> {
 
 impl Parent {
     /// Retained receipt validation must remain possible after this path is gone.
-    pub fn validate(&self, checkout: &Path) -> Result<()> {
+    pub(crate) fn validate(&self, checkout: &Path) -> Result<()> {
         self.physical.validate()?;
         if !self.path.is_absolute()
             || !checkout.is_absolute()
@@ -61,7 +61,7 @@ impl Parent {
         Ok(())
     }
 
-    pub fn observe(checkout: &Path) -> Result<Observation> {
+    pub(crate) fn observe(checkout: &Path) -> Result<Observation> {
         let path = checkout.parent().ok_or_else(invalid)?.to_path_buf();
         let directory = current_parent(&path)?;
         let observed = Observation {
@@ -76,7 +76,7 @@ impl Parent {
         Ok(observed)
     }
 
-    pub fn open(&self, checkout: &Path) -> Result<Observation> {
+    pub(crate) fn open(&self, checkout: &Path) -> Result<Observation> {
         self.validate(checkout)?;
         let observed = Observation {
             parent: self.clone(),
@@ -89,7 +89,7 @@ impl Parent {
 }
 
 impl Observation {
-    pub fn revalidate(&self, checkout: &Path) -> Result<()> {
+    pub(crate) fn revalidate(&self, checkout: &Path) -> Result<()> {
         self.parent.validate(checkout)?;
         if self.checkout.as_os_str() != checkout.as_os_str()
             || DirectoryIdentity::capture(&self.directory)? != self.parent.physical

@@ -13,11 +13,11 @@ use std::{path::Path, time::SystemTime};
 const OWNER: &[u8] = b"ai-stp-cli-v2 public catalog cache v1\n";
 const MAX_CACHE: u64 = 64 * 1024 * 1024;
 const MAX_ENTRIES: usize = 64;
-pub struct Cache {
+pub(crate) struct Cache {
     storage: files::OwnedDirectory,
     scope: Vec<u8>,
 }
-pub struct Entry {
+pub(crate) struct Entry {
     pub document: Value,
     pub checked_at: String,
 }
@@ -26,7 +26,7 @@ fn invalid() -> Failure {
 }
 
 impl Cache {
-    pub fn open(root: &Path, create: bool) -> Result<Option<Self>> {
+    pub(crate) fn open(root: &Path, create: bool) -> Result<Option<Self>> {
         files::OwnedDirectory::open(root, "ai-stp-v2-catalog", OWNER, create).map(|owned| {
             owned.map(|storage| Self {
                 storage,
@@ -55,7 +55,7 @@ impl Cache {
         }
     }
 
-    pub fn load(&self, url: &str) -> Result<Option<Entry>> {
+    pub(crate) fn load(&self, url: &str) -> Result<Option<Entry>> {
         let key = self.key(url);
         let filename = format!("{}.json", &key[7..]);
         let Some(bytes) = self.storage.read_file(&filename, MAX_BODY + 4096)? else {
@@ -79,7 +79,7 @@ impl Cache {
         }))
     }
 
-    pub fn store(&self, url: &str, document: &Value, checked_at: &str) -> Result<()> {
+    pub(crate) fn store(&self, url: &str, document: &Value, checked_at: &str) -> Result<()> {
         let key = self.key(url);
         let name = format!("{}.json", &key[7..]);
         let bytes = serde_json::to_vec(&json!({"schema_version": 1, "url": url, "key": key,

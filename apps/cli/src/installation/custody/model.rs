@@ -302,7 +302,7 @@ pub(super) struct Snapshot {
     pub entries: Vec<Entry>,
 }
 impl Snapshot {
-    pub fn empty(root: Identity) -> Self {
+    pub(crate) fn empty(root: Identity) -> Self {
         Self {
             schema_version: 1,
             format: "ai-stp-native-custody/1".into(),
@@ -311,7 +311,7 @@ impl Snapshot {
             entries: Vec::new(),
         }
     }
-    pub fn validate(&self, root: Identity) -> Result<()> {
+    pub(crate) fn validate(&self, root: Identity) -> Result<()> {
         if self.schema_version != 1
             || self.format != "ai-stp-native-custody/1"
             || self.metadata_root != root

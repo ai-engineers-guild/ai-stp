@@ -336,7 +336,7 @@ pub(crate) struct Replacement {
 }
 
 impl Replacement {
-    pub fn open(plan: &account::Plan) -> Result<Self> {
+    pub(crate) fn open(plan: &account::Plan) -> Result<Self> {
         let (path, physical) = super::root(&plan.root)?;
         if path != plan.root || physical != plan.root_identity {
             return Err(invalid());
@@ -363,7 +363,7 @@ impl Replacement {
         })
     }
 
-    pub fn validate(&self, plan: &account::Plan) -> Result<()> {
+    pub(crate) fn validate(&self, plan: &account::Plan) -> Result<()> {
         let intent = plan.recovery.as_ref().ok_or_else(invalid)?;
         if let Some(entry) = self.history.entry(plan)? {
             if self.history.entries.last().map(|e| &e.plan) != Some(&entry.plan) {
@@ -401,7 +401,7 @@ impl Replacement {
         Ok(())
     }
 
-    pub fn knows_original(&self, identity: &authoring::Identity) -> bool {
+    pub(crate) fn knows_original(&self, identity: &authoring::Identity) -> bool {
         identity.account_id == self.initial.plan.account_id
             && (identity.device_id == self.initial.plan.device_id
                 || self.history.entries.iter().any(|e| {
@@ -412,7 +412,7 @@ impl Replacement {
                 }))
     }
 
-    pub fn admit(&self, plan: &account::Plan) -> Result<()> {
+    pub(crate) fn admit(&self, plan: &account::Plan) -> Result<()> {
         self.validate(plan)?;
         if let Some(held) = pending(&self.directory)? {
             if held != *plan {
@@ -428,7 +428,7 @@ impl Replacement {
         Ok(())
     }
 
-    pub fn replace(&mut self, plan: &account::Plan, at: &str) -> Result<Entry> {
+    pub(crate) fn replace(&mut self, plan: &account::Plan, at: &str) -> Result<Entry> {
         self.validate(plan)?;
         if pending(&self.directory)?.as_ref() != Some(plan) {
             return Err(invalid());
@@ -466,7 +466,7 @@ impl Replacement {
         Ok(entry.clone())
     }
 
-    pub fn finish(&self, plan: &account::Plan) -> Result<()> {
+    pub(crate) fn finish(&self, plan: &account::Plan) -> Result<()> {
         if let Some(held) = pending(&self.directory)? {
             if held != *plan {
                 return Err(invalid());
@@ -480,7 +480,7 @@ impl Replacement {
         Ok(())
     }
 
-    pub fn completed(&mut self, plan: &account::Plan, at: &str) -> Result<Entry> {
+    pub(crate) fn completed(&mut self, plan: &account::Plan, at: &str) -> Result<Entry> {
         let entry = self.history.entries.last_mut().ok_or_else(invalid)?;
         if entry.plan != *plan || at < entry.completed_at.as_str() {
             return Err(invalid());

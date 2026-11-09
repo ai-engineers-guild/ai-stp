@@ -21,7 +21,9 @@ zip = { version = "=9.4.0", default-features = false, features = ["deflate-flate
 
 [lints.rust]
 unsafe_code = "forbid"
+unreachable_pub = "warn"
 
 [lints.clippy]
+all = { level = "deny", priority = -1 }
 unwrap_used = "deny"
 expect_used = "deny"

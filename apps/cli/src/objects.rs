@@ -46,7 +46,7 @@ impl Snapshot {
 }
 
 impl Objects<'_> {
-    pub fn require_active(&self, id: &str) -> Result<()> {
+    pub(crate) fn require_active(&self, id: &str) -> Result<()> {
         let forgotten: bool = self
             .connection
             .query_row(
@@ -62,7 +62,12 @@ impl Objects<'_> {
         Ok(())
     }
 
-    pub fn exact_version(&self, id: &str, version: &str, expected: Option<&str>) -> Result<Value> {
+    pub(crate) fn exact_version(
+        &self,
+        id: &str,
+        version: &str,
+        expected: Option<&str>,
+    ) -> Result<Value> {
         let document = self.version_metadata(id, version, expected)?;
         if document["version"] != version {
             return Err(Failure::precondition(
@@ -108,7 +113,7 @@ impl Objects<'_> {
         Ok(document)
     }
 
-    pub fn passport(&self, kind: &str, id: Option<&str>) -> Result<Value> {
+    pub(crate) fn passport(&self, kind: &str, id: Option<&str>) -> Result<Value> {
         let id = match id {
             Some(value) => value.to_owned(),
             None => {
@@ -135,7 +140,7 @@ impl Objects<'_> {
         Ok(passport::view(&self.head(kind, &id)?))
     }
 
-    pub fn head(&self, kind: &str, id: &str) -> Result<Value> {
+    pub(crate) fn head(&self, kind: &str, id: &str) -> Result<Value> {
         if !passport::stable_id(id, kind) {
             return Err(Failure::input(
                 "passport identifier must match the requested kind",
@@ -165,7 +170,7 @@ impl Objects<'_> {
         Ok(document)
     }
 
-    pub fn revision(&self, id: &str) -> Result<Value> {
+    pub(crate) fn revision(&self, id: &str) -> Result<Value> {
         let row: Option<(String, String, String, String)> = self.connection.query_row(
             "SELECT r.content, r.stable_id, r.created_at, e.kind FROM revision r JOIN entity e ON e.stable_id = r.stable_id WHERE r.revision_id = ?",
             [id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
@@ -203,7 +208,7 @@ impl Objects<'_> {
         Ok(document)
     }
 
-    pub fn versions(&self, id: &str) -> Result<Value> {
+    pub(crate) fn versions(&self, id: &str) -> Result<Value> {
         if !passport::stable_id(id, "component") && !passport::stable_id(id, "setup") {
             return Err(Failure::input(
                 "version history requires a component or setup identifier",

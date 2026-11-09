@@ -36,7 +36,7 @@ pub(super) struct Journal {
 }
 
 impl Journal {
-    pub fn open(id: &identity::Identity, create: bool) -> Result<Option<Self>> {
+    pub(crate) fn open(id: &identity::Identity, create: bool) -> Result<Option<Self>> {
         Self::at(
             id.root_directory(),
             id.storage(),
@@ -45,7 +45,7 @@ impl Journal {
         )
     }
 
-    pub fn at(
+    pub(crate) fn at(
         parent: &cap_std::fs::Dir,
         storage: identity::Storage,
         device: &str,
@@ -54,7 +54,7 @@ impl Journal {
         Self::at_name(parent, NAME, storage, device, None, create)
     }
 
-    pub fn for_connection(
+    pub(crate) fn for_connection(
         identity: &identity::Identity,
         connection: Option<&super::connections::Enrollment>,
         create: bool,
@@ -119,7 +119,7 @@ impl Journal {
         Ok(())
     }
 
-    pub fn fence(&self) -> Result<()> {
+    pub(crate) fn fence(&self) -> Result<()> {
         self.fence_to(RECOVERED)
     }
 
@@ -138,7 +138,7 @@ impl Journal {
         self.fence_to(ENROLLMENT_RECOVERY)
     }
 
-    pub fn retire(&self) -> Result<()> {
+    pub(crate) fn retire(&self) -> Result<()> {
         self.vault()?.retire(&self.name)
     }
 
@@ -147,7 +147,7 @@ impl Journal {
         Vault::new(&self.directory, self.storage)
     }
 
-    pub fn state(&self) -> Result<Option<State>> {
+    pub(crate) fn state(&self) -> Result<Option<State>> {
         self.vault()?
             .read(&self.name, 65536)?
             .map(|bytes| {
@@ -166,7 +166,7 @@ impl Journal {
             .transpose()
     }
 
-    pub fn write(&self, state: &State) -> Result<()> {
+    pub(crate) fn write(&self, state: &State) -> Result<()> {
         if state.plan.connection != self.connection || state.plan.credential_store != self.storage {
             return Err(super::invalid());
         }
@@ -181,7 +181,7 @@ impl Journal {
         self.vault()?.write_account(&self.name, &serialized)
     }
 
-    pub fn pending(&self) -> Result<Option<Pending>> {
+    pub(crate) fn pending(&self) -> Result<Option<Pending>> {
         self.validate()?;
         self.directory
             .read_file("pending.json", 65536)?
@@ -202,7 +202,7 @@ impl Journal {
             .transpose()
     }
 
-    pub fn admit(&self, pending: &Pending) -> Result<()> {
+    pub(crate) fn admit(&self, pending: &Pending) -> Result<()> {
         self.validate()?;
         if pending.plan.connection != self.connection
             || pending.plan.credential_store != self.storage
@@ -215,7 +215,7 @@ impl Journal {
         )
     }
 
-    pub fn receipt(&self, plan: &Plan) -> Result<Option<Receipt>> {
+    pub(crate) fn receipt(&self, plan: &Plan) -> Result<Option<Receipt>> {
         let receipt = self.receipt_id(&plan.operation_id)?;
         if receipt.as_ref().is_some_and(|held| held.plan != *plan) {
             return Err(super::invalid());
@@ -223,7 +223,7 @@ impl Journal {
         Ok(receipt)
     }
 
-    pub fn receipt_id(&self, id: &str) -> Result<Option<Receipt>> {
+    pub(crate) fn receipt_id(&self, id: &str) -> Result<Option<Receipt>> {
         self.validate()?;
         if !crate::passport::stable_id(id, "operation") {
             return Err(super::invalid());
@@ -245,13 +245,13 @@ impl Journal {
             .transpose()
     }
 
-    pub fn complete(&self, state: &State) -> Result<Receipt> {
+    pub(crate) fn complete(&self, state: &State) -> Result<Receipt> {
         let receipt = state.receipt()?;
         self.complete_receipt(&receipt)?;
         Ok(receipt)
     }
 
-    pub fn complete_receipt(&self, receipt: &Receipt) -> Result<()> {
+    pub(crate) fn complete_receipt(&self, receipt: &Receipt) -> Result<()> {
         self.validate()?;
         if receipt.plan.connection != self.connection {
             return Err(super::invalid());
@@ -265,7 +265,7 @@ impl Journal {
         Ok(())
     }
 
-    pub fn clear_pending(&self, plan: &Plan) -> Result<()> {
+    pub(crate) fn clear_pending(&self, plan: &Plan) -> Result<()> {
         if let Some(pending) = self.pending()? {
             if pending.plan != *plan {
                 return Err(super::invalid());

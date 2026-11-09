@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "assets": [
+    {
+      "repository": "EmbarkStudios/cargo-deny",
+      "asset": 471598214,
+      "size": 4936832,
+      "sha256": "9f12ed4c49936e09b48bf862b595cde2fe64fcbd9d74dfacac6131ca824c8d5f",
+      "file": "deny.tar.gz"
+    },
+    {
+      "repository": "Boshen/cargo-shear",
+      "asset": 580851857,
+      "size": 1587250,
+      "sha256": "9004df4eb031a456026c4326ae0d0ce545321527a67be90f4524c1be729dc40e",
+      "file": "shear.tar.gz"
+    }
+  ]
+}

@@ -21,13 +21,13 @@ pub(super) struct Receipt {
 }
 
 impl Receipt {
-    pub fn matches(&self, plan: &Plan) -> Result<()> {
+    pub(crate) fn matches(&self, plan: &Plan) -> Result<()> {
         if self.plan.digest()? != plan.digest()? {
             return Err(invalid());
         }
         Ok(())
     }
-    pub fn report(&self) -> Result<Value> {
+    pub(crate) fn report(&self) -> Result<Value> {
         Ok(
             json!({"schema_version":1,"operation_id":self.plan.operation_id,
             "plan_digest":self.plan.digest()?,"attestation_digest":contract::hash(&self.record)?,

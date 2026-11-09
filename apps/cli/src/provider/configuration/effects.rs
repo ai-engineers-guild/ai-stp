@@ -17,7 +17,7 @@ pub(crate) struct Fingerprint {
 }
 
 impl Fingerprint {
-    pub fn validate(&self) -> Result<()> {
+    pub(crate) fn validate(&self) -> Result<()> {
         if !crate::provider::plan::hash(&self.digest)
             || self.byte_length > 4 * 1024 * 1024
             || self.mode & !0o777 != 0

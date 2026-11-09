@@ -13,10 +13,10 @@ use std::{
     process::Command,
 };
 
-pub const MAX_ARCHIVE: usize = 256 * 1024 * 1024;
-pub const SBOM: &str = "ai-stp-cli.cdx.json";
+pub(crate) const MAX_ARCHIVE: usize = 256 * 1024 * 1024;
+pub(crate) const SBOM: &str = "ai-stp-cli.cdx.json";
 
-pub fn version() -> Result<String> {
+pub(crate) fn version() -> Result<String> {
     let document: toml_edit::DocumentMut =
         fs::read_to_string(root().join("apps/cli/Cargo.toml"))?.parse()?;
     Ok(document["package"]["version"]
@@ -25,7 +25,7 @@ pub fn version() -> Result<String> {
         .into())
 }
 
-pub fn binary(target: &str) -> Result<&'static str> {
+pub(crate) fn binary(target: &str) -> Result<&'static str> {
     match target {
         "x86_64-unknown-linux-gnu" | "aarch64-apple-darwin" => Ok("ai-stp"),
         "x86_64-pc-windows-msvc" => Ok("ai-stp.exe"),
@@ -33,7 +33,7 @@ pub fn binary(target: &str) -> Result<&'static str> {
     }
 }
 
-pub fn identity(version: &str, revision: &str, target: &str) -> Result<()> {
+pub(crate) fn identity(version: &str, revision: &str, target: &str) -> Result<()> {
     let parts = version.split('.').collect::<Vec<_>>();
     require(
         parts.len() == 3
@@ -53,7 +53,7 @@ pub fn identity(version: &str, revision: &str, target: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn probe(path: &Path, version: &str) -> Result<()> {
+pub(crate) fn probe(path: &Path, version: &str) -> Result<()> {
     let result = isolated(path, &["version"])?;
     require(
         result["runtime"] == "rust"
@@ -89,7 +89,7 @@ fn native(bytes: &[u8], target: &str) -> Result<()> {
     )
 }
 
-pub fn zip_bytes(files: &Files, executable: &str) -> Result<Vec<u8>> {
+pub(crate) fn zip_bytes(files: &Files, executable: &str) -> Result<Vec<u8>> {
     let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
     for (name, bytes) in files {
         let options = zip::write::SimpleFileOptions::default()
@@ -102,7 +102,7 @@ pub fn zip_bytes(files: &Files, executable: &str) -> Result<Vec<u8>> {
     Ok(archive.finish()?.into_inner())
 }
 
-pub fn archive_bytes(files: &Files, binary: &str, windows: bool) -> Result<Vec<u8>> {
+pub(crate) fn archive_bytes(files: &Files, binary: &str, windows: bool) -> Result<Vec<u8>> {
     if windows {
         return zip_bytes(files, binary);
     }
@@ -124,7 +124,7 @@ pub fn archive_bytes(files: &Files, binary: &str, windows: bool) -> Result<Vec<u
     Ok(archive.into_inner()?.finish()?)
 }
 
-pub fn read_archive(path: &Path, binary: &str) -> Result<Files> {
+pub(crate) fn read_archive(path: &Path, binary: &str) -> Result<Files> {
     require(
         fs::metadata(path)?.len() <= MAX_ARCHIVE as u64,
         "archive exceeds its bound",
@@ -198,7 +198,7 @@ pub fn read_archive(path: &Path, binary: &str) -> Result<Files> {
     Ok(files)
 }
 
-pub fn validate(files: &Files, version: &str, revision: &str, target: &str) -> Result<()> {
+pub(crate) fn validate(files: &Files, version: &str, revision: &str, target: &str) -> Result<()> {
     identity(version, revision, target)?;
     let binary = binary(target)?;
     for name in [binary, "LICENSE", "release.json", SBOM] {
@@ -234,7 +234,7 @@ fn manifest_for(files: &Files, version: &str, revision: &str, target: &str) -> R
     )
 }
 
-pub fn package(args: &[OsString]) -> Result<()> {
+pub(crate) fn package(args: &[OsString]) -> Result<()> {
     let opts = options(
         args,
         &[
@@ -308,7 +308,7 @@ pub fn package(args: &[OsString]) -> Result<()> {
     Ok(())
 }
 
-pub fn verify(args: &[OsString]) -> Result<()> {
+pub(crate) fn verify(args: &[OsString]) -> Result<()> {
     let opts = options(
         args,
         &[

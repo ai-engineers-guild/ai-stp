@@ -75,7 +75,7 @@ impl Request {
         Ok(request)
     }
 
-    pub fn read(path: Option<&Path>) -> Result<Self> {
+    pub(crate) fn read(path: Option<&Path>) -> Result<Self> {
         let request = path
             .map(|path| {
                 serde_json::from_value(wire::parse(&files::read(path, 64 * 1024)?)?)
@@ -87,7 +87,7 @@ impl Request {
         Ok(request)
     }
 
-    pub fn validate(&self) -> Result<()> {
+    pub(crate) fn validate(&self) -> Result<()> {
         if self.trust_pins.len() > 512
             || self
                 .connection
@@ -107,7 +107,7 @@ impl Request {
         Ok(())
     }
 
-    pub fn is_empty(&self) -> bool {
+    pub(crate) fn is_empty(&self) -> bool {
         self.trust_pins.is_empty() && !self.account
     }
 
@@ -153,7 +153,7 @@ pub(super) struct Observed {
 }
 
 impl Observed {
-    pub fn capture(
+    pub(crate) fn capture(
         parent: &Path,
         owner: &Owner,
         groups: &[Vec<Value>],
@@ -290,12 +290,12 @@ impl Observed {
         }
     }
 
-    pub fn revalidate(&self) -> Result<()> {
+    pub(crate) fn revalidate(&self) -> Result<()> {
         self.account.as_ref().map(Access::revalidate).transpose()?;
         Ok(())
     }
 
-    pub fn plan(&self) -> Result<Option<Plan>> {
+    pub(crate) fn plan(&self) -> Result<Option<Plan>> {
         self.revalidate()?;
         Ok((!self.request.is_empty()).then(|| Plan {
             request: self.request.clone(),
@@ -306,7 +306,7 @@ impl Observed {
         }))
     }
 
-    pub fn apply(&self, inputs: &mut Inputs) -> Result<()> {
+    pub(crate) fn apply(&self, inputs: &mut Inputs) -> Result<()> {
         self.revalidate()?;
         if self.request.is_empty() {
             return Ok(());
@@ -331,7 +331,7 @@ impl Observed {
         inputs.target.validate()
     }
 
-    pub fn report(&self) -> Result<Option<Value>> {
+    pub(crate) fn report(&self) -> Result<Option<Value>> {
         self.revalidate()?;
         Ok((!self.request.is_empty()).then(|| {
             json!({

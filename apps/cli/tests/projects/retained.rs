@@ -34,7 +34,7 @@ fn row(store: &mut Store) -> Result<Value, Box<dyn Error>> {
     ).map_err(|_| Failure::precondition("proof row failed")))?)
 }
 
-pub fn prove() -> Result<(), Box<dyn Error>> {
+pub(crate) fn prove() -> Result<(), Box<dyn Error>> {
     let temporary = tempfile::tempdir()?;
     let state = temporary.path().join("state");
     let root = temporary.path().join("project-cafe\u{301}");

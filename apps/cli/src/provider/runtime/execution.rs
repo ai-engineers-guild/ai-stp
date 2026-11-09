@@ -23,7 +23,7 @@ pub(super) enum Mode {
 }
 
 impl Configuration<'_> {
-    pub fn mount(
+    pub(crate) fn mount(
         &self,
         arguments: &mut Vec<OsString>,
         handles: &mut Vec<(usize, OwnedFd)>,
@@ -37,7 +37,7 @@ impl Configuration<'_> {
         )
     }
 
-    pub fn command(&self, component: &[u8], target: &Target) -> Result<Vec<OsString>> {
+    pub(crate) fn command(&self, component: &[u8], target: &Target) -> Result<Vec<OsString>> {
         let mut command = vec![
             "apply-operation".into(),
             "--json".into(),

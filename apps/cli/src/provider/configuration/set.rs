@@ -24,7 +24,7 @@ pub(crate) struct Child {
 }
 
 impl Child {
-    pub fn parsed(&self) -> Result<plan::Plan> {
+    pub(crate) fn parsed(&self) -> Result<plan::Plan> {
         plan::Plan::parse(
             &serde_json::to_vec(&self.plan).map_err(|_| invalid())?,
             &self.plan_digest,
@@ -68,15 +68,15 @@ pub(crate) fn fingerprint(value: &Value) -> Result<String> {
 }
 
 impl Plan {
-    pub fn value(&self) -> Result<Value> {
+    pub(crate) fn value(&self) -> Result<Value> {
         serde_json::to_value(self).map_err(|_| invalid())
     }
 
-    pub fn first(&self) -> Result<plan::Plan> {
+    pub(crate) fn first(&self) -> Result<plan::Plan> {
         self.children.first().ok_or_else(invalid)?.parsed()
     }
 
-    pub fn parse(bytes: &[u8], expected: &str) -> Result<Self> {
+    pub(crate) fn parse(bytes: &[u8], expected: &str) -> Result<Self> {
         if bytes.len() > LIMIT || !super::super::plan::hash(expected) {
             return Err(invalid());
         }
@@ -211,7 +211,7 @@ pub(crate) struct Record {
 }
 
 impl Record {
-    pub fn state(&self) -> &str {
+    pub(crate) fn state(&self) -> &str {
         match self.phase.as_str() {
             "verified" => "verified",
             "cancelled" => "cancelled",
@@ -219,7 +219,7 @@ impl Record {
         }
     }
 
-    pub fn parse(detail: &str, state: &str) -> Result<(Self, Plan)> {
+    pub(crate) fn parse(detail: &str, state: &str) -> Result<(Self, Plan)> {
         if detail.len() > RECORD_LIMIT {
             return Err(invalid());
         }
@@ -299,7 +299,7 @@ impl Record {
     }
 
     #[cfg(target_os = "linux")]
-    pub fn result(&self, plan: &Plan) -> Result<Value> {
+    pub(crate) fn result(&self, plan: &Plan) -> Result<Value> {
         let first = plan.first()?;
         Ok(
             json!({"operation_id":plan.operation_id,"plan_digest":self.plan_digest,

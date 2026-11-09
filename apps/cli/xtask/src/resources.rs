@@ -28,7 +28,7 @@ fn files(path: &Path) -> Result<Vec<PathBuf>> {
     Ok(result)
 }
 
-pub fn sync(check: bool) -> Result<()> {
+pub(crate) fn sync(check: bool) -> Result<()> {
     let repo = root();
     let cli = repo.join("apps/cli");
     let output = cli.join("resources");

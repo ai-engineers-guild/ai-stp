@@ -22,7 +22,7 @@ pub(crate) struct Binding {
 }
 
 impl Binding {
-    pub fn validate(&self, plan: &Plan) -> Result<()> {
+    pub(crate) fn validate(&self, plan: &Plan) -> Result<()> {
         self.identity.validate()?;
         if plan.target_scope != Scope::Project
             || !passport::stable_id(&self.project_id, "project")

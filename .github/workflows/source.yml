@@ -86,6 +86,43 @@ jobs:
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
         with:
           recipe: ci-secrets-verify-the-scanner-and-inspect-the-selected-source
+  rust-dependencies:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Select the native metadata toolchain
+        shell: bash
+        run: >-
+          bash .github/scripts/install-rust-toolchain.sh
+          apps/cli/rust-toolchain.toml rustfmt
+      - name: Prepare the exact native dependency checkers
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+        with:
+          manifest: .github/rust-check-tools.json
+          directory: ${{ runner.temp }}/ai-stp-native-check-tools
+      - name: Expose this job's prepared checkers
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-native-check-tools
+      - name: Prepare the locked crate sources without compiling them
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: setup-rust-analysis
+      - name: Offline dependency use, version constraints and sources
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: rust-dependencies
+
   integration-python:
     if: github.event_name == 'pull_request'
     needs: native-experiments
@@ -203,6 +240,17 @@ jobs:
         run: >-
           bash .github/scripts/install-rust-toolchain.sh
           apps/cli/rust-toolchain.toml clippy rustfmt
+      - name: Prepare the exact native test runner
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+        with:
+          manifest: .github/nextest-${{ runner.os }}.json
+          directory: ${{ runner.temp }}/ai-stp-native-test-tools
+      - name: Expose this job's prepared native test runner
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-native-test-tools
       - name: Restore native dependencies shared with successful Dev
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         continue-on-error: true
@@ -266,6 +314,7 @@ jobs:
     if: always()
     needs:
       - native-experiments
+      - rust-dependencies
       - wasi-confinement
       - secrets
       - integration-python
@@ -301,14 +350,15 @@ jobs:
           printf 'Qualification phase: %s\n' "${PHASE}"
           jq -e --argjson private "${PRIVATE_REPOSITORY}" --arg phase "${PHASE}" \
             --arg wasi "${WASI_SELECTED}" '
-            type == "object" and length == 18 and
+            type == "object" and length == 19 and
             ($phase == "integration" or $phase == "full") and
             ($wasi == "true" or $wasi == "false") and
             ($phase != "full" or $wasi == "true") and
             all(to_entries[];
               if .key == "analysis" then
                 .value.result == (if $private then "skipped" else "success" end)
-              elif .key == "secrets" or .key == "native-experiments" then
+              elif (.key == "secrets" or .key == "native-experiments"
+                    or .key == "rust-dependencies") then
                 .value.result == "success"
               elif .key == "wasi-confinement" then
                 .value.result == (if $wasi == "true" then "success" else "skipped" end)
@@ -399,6 +449,17 @@ jobs:
         run: >-
           bash .github/scripts/install-rust-toolchain.sh
           apps/cli/rust-toolchain.toml clippy rustfmt
+      - name: Prepare the exact native test runner
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+        with:
+          manifest: .github/nextest-${{ runner.os }}.json
+          directory: ${{ runner.temp }}/ai-stp-native-test-tools
+      - name: Expose this job's prepared native test runner
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-native-test-tools
       - name: Restore and retain only successful Dev's native dependencies
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         continue-on-error: true

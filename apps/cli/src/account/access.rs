@@ -95,15 +95,15 @@ impl Access {
         }
     }
 
-    pub fn load(root: &Path, origin: &str, offline: bool) -> Result<Self> {
+    pub(crate) fn load(root: &Path, origin: &str, offline: bool) -> Result<Self> {
         Self::load_at(root, Some(origin), offline, None)
     }
 
-    pub fn for_account(root: &Path, origin: Option<&str>) -> Result<Self> {
+    pub(crate) fn for_account(root: &Path, origin: Option<&str>) -> Result<Self> {
         Self::load_at(root, origin, false, None)
     }
 
-    pub fn for_connection(
+    pub(crate) fn for_connection(
         root: &Path,
         origin: Option<&str>,
         connection: Option<&str>,
@@ -112,7 +112,7 @@ impl Access {
         Self::load_at(root, origin, offline, connection)
     }
 
-    pub fn for_binding(root: &Path, binding: &Binding, offline: bool) -> Result<Self> {
+    pub(crate) fn for_binding(root: &Path, binding: &Binding, offline: bool) -> Result<Self> {
         binding.validate()?;
         let held = Self::load_at(
             root,
@@ -191,7 +191,7 @@ impl Access {
         Ok(access)
     }
 
-    pub fn binding(&self) -> &Binding {
+    pub(crate) fn binding(&self) -> &Binding {
         &self.binding
     }
 
@@ -206,7 +206,7 @@ impl Access {
         Ok(())
     }
 
-    pub fn revalidate(&self) -> Result<()> {
+    pub(crate) fn revalidate(&self) -> Result<()> {
         super::check_binding(
             &super::identity_at(&self.state.plan.root)?,
             &self.state.plan,
@@ -222,7 +222,7 @@ impl Access {
 
     /// Prove the credential's account and device before any private graph read.
     /// Cached offline observations never pass this online authorization gate.
-    pub fn verify(&mut self) -> Result<()> {
+    pub(crate) fn verify(&mut self) -> Result<()> {
         self.revalidate()?;
         if self.offline {
             return Err(refused("offline_observation_only"));
@@ -249,7 +249,7 @@ impl Access {
         Ok(())
     }
 
-    pub fn read(
+    pub(crate) fn read(
         &self,
         endpoint: &Endpoint,
         url: &Url,
@@ -273,7 +273,7 @@ impl Access {
         Ok(bytes)
     }
 
-    pub fn cache(&self, create: bool) -> Result<Option<OwnedDirectory>> {
+    pub(crate) fn cache(&self, create: bool) -> Result<Option<OwnedDirectory>> {
         self.revalidate()?;
         OwnedDirectory::open_at(
             self.identity.root_directory(),

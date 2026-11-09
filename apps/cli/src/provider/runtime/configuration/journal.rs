@@ -50,7 +50,7 @@ pub(super) fn read(connection: &Connection, plan: &Plan, digest: &str) -> Result
 }
 
 impl Journal {
-    pub fn history(parent: &Path, plan: &Plan, digest: &str) -> Result<Option<Record>> {
+    pub(crate) fn history(parent: &Path, plan: &Plan, digest: &str) -> Result<Option<Record>> {
         let state = context(parent, plan)?;
         let store = Store::planning(state.path())?;
         let record = read(&store.connection, plan, digest)?;
@@ -58,11 +58,11 @@ impl Journal {
         Ok(record)
     }
 
-    pub fn open(parent: &Path, plan: &Plan, digest: &str) -> Result<Self> {
+    pub(crate) fn open(parent: &Path, plan: &Plan, digest: &str) -> Result<Self> {
         Self::open_namespace(parent, plan, digest, true)
     }
 
-    pub fn cleanup_history(parent: &Path, plan: &Plan, digest: &str) -> Result<()> {
+    pub(crate) fn cleanup_history(parent: &Path, plan: &Plan, digest: &str) -> Result<()> {
         // Historical replay cannot depend on other unfinished targets or
         // migrate a live writer namespace. Only this operation's private
         // retained payload is retired, under the original target/operation locks.
@@ -82,7 +82,7 @@ impl Journal {
         Ok(journal)
     }
 
-    pub fn open_shared(
+    pub(crate) fn open_shared(
         parent: &Path,
         plan: &Plan,
         digest: &str,
@@ -131,7 +131,7 @@ impl Journal {
         Store::open(self.state.path(), create)
     }
 
-    pub fn read(&self, plan: &Plan, digest: &str) -> Result<Option<Record>> {
+    pub(crate) fn read(&self, plan: &Plan, digest: &str) -> Result<Option<Record>> {
         let store = match self.store(false) {
             Err(error) if matches!(error.kind, ErrorKind::NotFound) => return Ok(None),
             result => result?,
@@ -141,7 +141,12 @@ impl Journal {
         Ok(record)
     }
 
-    pub fn payload(&self, plan: &Plan, supplied: Option<&[u8]>, admitted: bool) -> Result<Vec<u8>> {
+    pub(crate) fn payload(
+        &self,
+        plan: &Plan,
+        supplied: Option<&[u8]>,
+        admitted: bool,
+    ) -> Result<Vec<u8>> {
         self.state.revalidate()?;
         self.operation.validate_lock()?;
         let created = plan.created_at.parse().map_err(|_| invalid())?;
@@ -172,7 +177,7 @@ impl Journal {
         Ok(bytes)
     }
 
-    pub fn admit(&self, plan: &Plan, digest: &str) -> Result<()> {
+    pub(crate) fn admit(&self, plan: &Plan, digest: &str) -> Result<()> {
         self.namespace
             .as_ref()
             .ok_or_else(invalid)?
@@ -183,7 +188,7 @@ impl Journal {
     /// Release short admission serialization only after durable reservation.
     /// Unrelated roots can then execute concurrently; overlapping roots cannot
     /// enter until the existing operation has a verified terminal receipt.
-    pub fn resume(&mut self, plan: &Plan, digest: &str) -> Result<()> {
+    pub(crate) fn resume(&mut self, plan: &Plan, digest: &str) -> Result<()> {
         self.namespace
             .as_ref()
             .ok_or_else(invalid)?
@@ -200,13 +205,13 @@ impl Journal {
         Ok(())
     }
 
-    pub fn complete(&self, plan: &Plan, digest: &str, result: &Value) -> Result<()> {
+    pub(crate) fn complete(&self, plan: &Plan, digest: &str, result: &Value) -> Result<()> {
         outcome::validate(result, plan, digest)?;
         self.write(plan, digest, "verified", Some(result))?;
         self.cleanup()
     }
 
-    pub fn cancel(&self, plan: &Plan, digest: &str, result: &Value) -> Result<()> {
+    pub(crate) fn cancel(&self, plan: &Plan, digest: &str, result: &Value) -> Result<()> {
         outcome::validate_cancellation(result, plan, digest)?;
         self.write(plan, digest, "cancelled", Some(result))?;
         self.cleanup()
@@ -218,7 +223,7 @@ impl Journal {
         self.state.revalidate()
     }
 
-    pub fn admit_at(
+    pub(crate) fn admit_at(
         &self,
         connection: &Connection,
         namespace: &OwnedDirectory,
@@ -232,7 +237,7 @@ impl Journal {
         write_record(connection, plan, digest, "applying", None)
     }
 
-    pub fn cleanup(&self) -> Result<()> {
+    pub(crate) fn cleanup(&self) -> Result<()> {
         self.state.revalidate()?;
         self.operation.validate_lock()?;
         for entry in self.operation.directory.entries().map_err(|_| invalid())? {

@@ -24,7 +24,7 @@ pub(super) enum Handler {
 }
 
 impl Handler {
-    pub fn mutability(self) -> &'static str {
+    pub(crate) fn mutability(self) -> &'static str {
         match self {
             Self::Intents | Self::InputSchema | Self::Status | Self::List => "read",
             _ => "apply",

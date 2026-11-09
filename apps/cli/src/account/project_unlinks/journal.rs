@@ -79,7 +79,7 @@ impl Record {
         }
     }
 
-    pub fn load(connection: &Connection, id: &str) -> Result<Option<Self>> {
+    pub(crate) fn load(connection: &Connection, id: &str) -> Result<Option<Self>> {
         if !passport::stable_id(id, "operation") {
             return Err(invalid());
         }
@@ -174,7 +174,7 @@ impl Record {
         Ok(Some(held))
     }
 
-    pub fn checkpoint(&self) -> Result<Checkpoint> {
+    pub(crate) fn checkpoint(&self) -> Result<Checkpoint> {
         let checkpoint = Checkpoint {
             operation_id: self.plan.operation_id.clone(),
             plan_digest: self.plan.digest()?,
@@ -184,7 +184,7 @@ impl Record {
         Ok(checkpoint)
     }
 
-    pub fn admit(t: &Transaction<'_>, plan: &Plan, at: &str) -> Result<Self> {
+    pub(crate) fn admit(t: &Transaction<'_>, plan: &Plan, at: &str) -> Result<Self> {
         let hash = plan.digest()?;
         if Self::load(t, &plan.operation_id)?.is_some() {
             return Err(Failure::precondition(
@@ -207,7 +207,7 @@ impl Record {
         Self::load(t, &plan.operation_id)?.ok_or_else(invalid)
     }
 
-    pub fn save(&mut self, t: &Transaction<'_>, effect: Effect, at: &str) -> Result<()> {
+    pub(crate) fn save(&mut self, t: &Transaction<'_>, effect: Effect, at: &str) -> Result<()> {
         let after = self.after(&effect)?;
         if self.sequence >= 1024 || !passport::timestamp(at) || at < self.at.as_str() {
             return Err(invalid());
@@ -232,7 +232,7 @@ impl Record {
         Ok(())
     }
 
-    pub fn output(&self) -> Result<Value> {
+    pub(crate) fn output(&self) -> Result<Value> {
         Ok(
             json!({"schema_version":1,"operation_id":self.plan.operation_id,"plan_digest":self.plan.digest()?,"kind":KIND,
             "state":self.state,"plan":self.plan,"effect":self.effect,"original_interruption":self.interruption,

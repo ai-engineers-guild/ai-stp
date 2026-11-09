@@ -71,13 +71,23 @@ impl OwnedDirectory {
         Ok(())
     }
 
-    pub fn open(root: &Path, name: &str, owner: &[u8], create: bool) -> Result<Option<Self>> {
+    pub(crate) fn open(
+        root: &Path,
+        name: &str,
+        owner: &[u8],
+        create: bool,
+    ) -> Result<Option<Self>> {
         let parent = Dir::open_ambient_dir(root, cap_std::ambient_authority())
             .map_err(|error| io_failure("parent_open", error))?;
         Self::open_at(&parent, name, owner, create)
     }
 
-    pub fn open_at(parent: &Dir, name: &str, owner: &[u8], create: bool) -> Result<Option<Self>> {
+    pub(crate) fn open_at(
+        parent: &Dir,
+        name: &str,
+        owner: &[u8],
+        create: bool,
+    ) -> Result<Option<Self>> {
         Self::open_compatible(parent, name, owner, &[], create)
     }
 
@@ -261,7 +271,7 @@ impl OwnedDirectory {
         Ok(Some(owned))
     }
 
-    pub fn read_file(&self, name: &str, max: u64) -> Result<Option<Vec<u8>>> {
+    pub(crate) fn read_file(&self, name: &str, max: u64) -> Result<Option<Vec<u8>>> {
         let file = match files::open_regular(&self.directory, Path::new(name)) {
             Ok(file) => file,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -277,7 +287,7 @@ impl OwnedDirectory {
         Ok(Some(bytes))
     }
 
-    pub fn atomic(&self, name: &str, bytes: &[u8]) -> Result<()> {
+    pub(crate) fn atomic(&self, name: &str, bytes: &[u8]) -> Result<()> {
         self.atomic_checked(name, bytes, |_| Ok(()))
     }
 
@@ -310,7 +320,7 @@ impl OwnedDirectory {
         result
     }
 
-    pub fn sync(&self) -> Result<()> {
+    pub(crate) fn sync(&self) -> Result<()> {
         #[cfg(unix)]
         self.directory
             .open(".")

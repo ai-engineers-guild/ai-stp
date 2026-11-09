@@ -17,7 +17,7 @@ pub(super) enum Handler {
     Apply,
 }
 impl Handler {
-    pub fn mutability(self) -> &'static str {
+    pub(crate) fn mutability(self) -> &'static str {
         if matches!(self, Self::Apply) {
             "apply"
         } else {

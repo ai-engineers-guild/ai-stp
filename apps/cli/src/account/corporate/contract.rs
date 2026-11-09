@@ -20,7 +20,7 @@ fn invalid() -> Failure {
 }
 
 impl Contract {
-    pub const fn new(source: &'static str) -> Self {
+    pub(crate) const fn new(source: &'static str) -> Self {
         Self {
             source,
             schema: wire::Schema::reader(source),
@@ -28,7 +28,7 @@ impl Contract {
         }
     }
 
-    pub fn project(&self, value: &Value) -> Result<Value> {
+    pub(crate) fn project(&self, value: &Value) -> Result<Value> {
         self.schema.validate(value)?;
         let root = self.document.get_or_init(|| {
             let mut value = serde_json::from_str(self.source).unwrap_or(Value::Null);
