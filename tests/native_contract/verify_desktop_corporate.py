@@ -855,7 +855,7 @@ def installed_journey(
         )
         assert_no_heartbeat_reports()
         driver.click(driver.button("Review heartbeat consent"))
-        consent_scope = 'div[aria-label="Review heartbeat consent"]'
+        consent_scope = 'section[aria-label="Review heartbeat consent"]'
         consent = public_plan(driver, consent_scope)
         assert consent["context"]["context_id"] == company
         assert consent["account"]["account_id"] == account
