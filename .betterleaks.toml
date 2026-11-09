@@ -1,7 +1,7 @@
 betterleaksMinVersion = "v1.10.0"
 
 # Keep text and lockfiles in scope, including bun.lock, which upstream skips.
-# Binary assets and dependency/install directories retain their prior exclusions.
+# Skip repository metadata, npm install directories and binary asset formats.
 prefilter = '''
 matchesAny(attributes["path"], [
   `(?:^|/)\.git(?:/|$)`,
