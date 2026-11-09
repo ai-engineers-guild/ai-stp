@@ -23,7 +23,7 @@ pub(super) enum Handler {
     Pending,
 }
 impl Handler {
-    pub fn mutability(self) -> &'static str {
+    pub(crate) fn mutability(self) -> &'static str {
         match self {
             Self::Plan | Self::RemovePlan | Self::RetirePlan => "plan",
             Self::Status | Self::Effective | Self::Pending | Self::Custody => "read",

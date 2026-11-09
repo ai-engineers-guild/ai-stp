@@ -41,7 +41,7 @@ fn boot(value: &str) -> bool {
 }
 
 impl Handoff {
-    pub fn validate(&self) -> Result<()> {
+    pub(crate) fn validate(&self) -> Result<()> {
         if self.sessions.len() > 256
             || self
                 .sessions

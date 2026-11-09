@@ -90,7 +90,7 @@ pub(super) struct Snapshot {
 }
 
 impl Snapshot {
-    pub fn from_preview(value: &Value) -> Result<Self> {
+    pub(crate) fn from_preview(value: &Value) -> Result<Self> {
         let value = &value["preview"];
         let snapshot = Self {
             context: serde_json::from_value(value["context"].clone()).map_err(|_| invalid())?,
@@ -109,19 +109,19 @@ impl Snapshot {
         Ok(snapshot)
     }
 
-    pub fn organization_id(&self) -> Result<&str> {
+    pub(crate) fn organization_id(&self) -> Result<&str> {
         self.organization["organization_id"]
             .as_str()
             .ok_or_else(invalid)
     }
 
-    pub fn project_id(&self) -> Result<&str> {
+    pub(crate) fn project_id(&self) -> Result<&str> {
         self.local_project["local_project_id"]
             .as_str()
             .ok_or_else(invalid)
     }
 
-    pub fn physical_root(&self) -> Result<[String; 2]> {
+    pub(crate) fn physical_root(&self) -> Result<[String; 2]> {
         let value: [String; 2] =
             serde_json::from_value(self.local_project["root"]["identity"].clone())
                 .map_err(|_| invalid())?;
@@ -134,7 +134,7 @@ impl Snapshot {
         Ok(value)
     }
 
-    pub fn validate(&self) -> Result<()> {
+    pub(crate) fn validate(&self) -> Result<()> {
         self.context.digest()?;
         self.account.validate()?;
         self.physical_root()?;
@@ -217,7 +217,7 @@ impl Snapshot {
         REQUEST.validate(&request)
     }
 
-    pub fn unchanged(&self, fresh: &Self) -> Result<()> {
+    pub(crate) fn unchanged(&self, fresh: &Self) -> Result<()> {
         self.validate()?;
         fresh.validate()?;
         if self.context != fresh.context
@@ -268,14 +268,14 @@ fn server_bytes(value: &Value) -> Result<Vec<u8>> {
 }
 
 impl ServerPlan {
-    pub fn read(value: &Value, original: &Snapshot) -> Result<Self> {
+    pub(crate) fn read(value: &Value, original: &Snapshot) -> Result<Self> {
         SERVER_PLAN.validate(value)?;
         let plan: Self = serde_json::from_value(value.clone()).map_err(|_| invalid())?;
         plan.verify(original)?;
         Ok(plan)
     }
 
-    pub fn verify(&self, original: &Snapshot) -> Result<()> {
+    pub(crate) fn verify(&self, original: &Snapshot) -> Result<()> {
         original.validate()?;
         let mut preimage = original.request_coordinates.clone();
         preimage
@@ -309,7 +309,7 @@ impl ServerPlan {
         Ok(())
     }
 
-    pub fn verify_link(&self, link: &Value) -> Result<()> {
+    pub(crate) fn verify_link(&self, link: &Value) -> Result<()> {
         if project_link(link)? != *link
             || link["plan_id"] != self.plan_id
             || link["plan_digest"] != self.plan_digest
@@ -352,7 +352,7 @@ pub(crate) struct Interruption {
 }
 
 impl Interruption {
-    pub fn validate(&self) -> Result<()> {
+    pub(crate) fn validate(&self) -> Result<()> {
         self.checkpoint.validate()?;
         if !passport::stable_id(&self.recovery_operation_id, "operation")
             || !passport::stable_id(&self.replacement_device_id, "device")
@@ -400,7 +400,7 @@ impl Effect {
         Ok(())
     }
 
-    pub fn validate(&self, plan: &Plan) -> Result<()> {
+    pub(crate) fn validate(&self, plan: &Plan) -> Result<()> {
         match (self, &plan.change) {
             (
                 Self::Requested {

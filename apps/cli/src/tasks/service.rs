@@ -22,53 +22,53 @@ impl From<input::Input> for Input {
 }
 
 impl Input {
-    pub fn stored(intent: &str, value: Value) -> Result<Self> {
+    pub(crate) fn stored(intent: &str, value: Value) -> Result<Self> {
         match intent {
             "author" => input::Input::stored(value).map(Self::Author),
             "install" => install::Input::parse(value).map(Self::Install),
             _ => Err(Failure::input("this native task intent is unavailable")),
         }
     }
-    pub fn intent(&self) -> &'static str {
+    pub(crate) fn intent(&self) -> &'static str {
         match self {
             Self::Author(_) => "author",
             Self::Install(_) => "install",
         }
     }
-    pub fn value(&self) -> Result<Value> {
+    pub(crate) fn value(&self) -> Result<Value> {
         serde_json::to_value(self).map_err(|_| Failure::input("task input cannot be encoded"))
     }
-    pub fn admit(&self) -> Result<()> {
+    pub(crate) fn admit(&self) -> Result<()> {
         match self {
             Self::Author(input) => input.admit(),
             Self::Install(input) => input.validate(),
         }
     }
-    pub fn harness(&self) -> &str {
+    pub(crate) fn harness(&self) -> &str {
         match self {
             Self::Author(input) => input.harness(),
             Self::Install(input) => &input.harness_id,
         }
     }
-    pub fn project(&self) -> &str {
+    pub(crate) fn project(&self) -> &str {
         match self {
             Self::Author(_) => "",
             Self::Install(input) => input.project_root.as_deref().unwrap_or(""),
         }
     }
-    pub fn scope(&self) -> &str {
+    pub(crate) fn scope(&self) -> &str {
         match self {
             Self::Author(_) => "global",
             Self::Install(input) => input.scope(),
         }
     }
-    pub fn question(&self) -> Result<Option<Value>> {
+    pub(crate) fn question(&self) -> Result<Option<Value>> {
         match self {
             Self::Author(input) => input.question(),
             Self::Install(_) => Ok(None),
         }
     }
-    pub fn answer(&self, question: &str, value: &str) -> Result<Self> {
+    pub(crate) fn answer(&self, question: &str, value: &str) -> Result<Self> {
         match self {
             Self::Author(input) => input.answer(question, value).map(Self::Author),
             Self::Install(_) => Err(Failure::input(
@@ -76,7 +76,7 @@ impl Input {
             )),
         }
     }
-    pub fn request(&self) -> Result<embedded::Request> {
+    pub(crate) fn request(&self) -> Result<embedded::Request> {
         match self {
             Self::Author(input) => input.request(),
             Self::Install(_) => Err(Failure::precondition(
@@ -94,19 +94,19 @@ pub(super) enum Plan {
 }
 
 impl Plan {
-    pub fn handoff(&self) -> Option<Value> {
+    pub(crate) fn handoff(&self) -> Option<Value> {
         match self {
             Self::Install(plan) => plan.handoff(),
             Self::Author(_) => None,
         }
     }
-    pub fn digest(&self) -> Result<String> {
+    pub(crate) fn digest(&self) -> Result<String> {
         match self {
             Self::Author(plan) => plan.digest(),
             Self::Install(plan) => plan.digest(),
         }
     }
-    pub fn author(&self) -> Result<&embedded::Plan> {
+    pub(crate) fn author(&self) -> Result<&embedded::Plan> {
         match self {
             Self::Author(plan) => Ok(plan),
             Self::Install(_) => Err(Failure::precondition(
@@ -114,13 +114,13 @@ impl Plan {
             )),
         }
     }
-    pub fn children(&self) -> Vec<String> {
+    pub(crate) fn children(&self) -> Vec<String> {
         match self {
             Self::Author(plan) => vec![plan.operation_id.clone()],
             Self::Install(plan) => plan.children(),
         }
     }
-    pub fn validate(&self, input: &Input, identity: &Identity) -> Result<()> {
+    pub(crate) fn validate(&self, input: &Input, identity: &Identity) -> Result<()> {
         match (self, input) {
             (Self::Author(plan), Input::Author(input)) => {
                 if &plan.identity != identity
@@ -139,7 +139,7 @@ impl Plan {
             )),
         }
     }
-    pub fn outcome(&self) -> Result<Value> {
+    pub(crate) fn outcome(&self) -> Result<Value> {
         match self {
             Self::Author(plan) => Ok(embedded::outcome(plan)),
             Self::Install(plan) => plan.outcome(),

@@ -219,7 +219,7 @@ pub(super) enum Outcome {
 }
 
 impl State {
-    pub fn public(&self, at: &str) -> Value {
+    pub(crate) fn public(&self, at: &str) -> Value {
         let session = match &self.session {
             Session::Pending {
                 user_code,
@@ -244,7 +244,7 @@ impl State {
         json!({"schema_version":1,"revision":self.revision,"origin":self.plan.origin,"provider":self.plan.provider,"device_id":self.plan.device_id(),"local_owner_id":self.plan.identity.account_id,"owner_attached":false,"online_verified":false,"session":session})
     }
 
-    pub fn receipt(&self) -> Result<Receipt> {
+    pub(crate) fn receipt(&self) -> Result<Receipt> {
         Ok(Receipt {
             plan: self.plan.clone(),
             plan_digest: self.plan.digest()?,
@@ -270,7 +270,7 @@ pub(super) struct Receipt {
 }
 
 impl Receipt {
-    pub fn validate(&self) -> Result<()> {
+    pub(crate) fn validate(&self) -> Result<()> {
         self.plan.validate()?;
         if self.plan.digest()? != self.plan_digest
             || !passport::timestamp(&self.completed_at)
@@ -284,7 +284,7 @@ impl Receipt {
         }
         Ok(())
     }
-    pub fn public(&self) -> Value {
+    pub(crate) fn public(&self) -> Value {
         let mut value = json!({"schema_version":1,"operation_id":self.plan.operation_id,"plan_digest":self.plan_digest,"action":self.plan.action,"outcome":self.outcome,"completed_at":self.completed_at,"account_id":self.account_id,"owner_attached":false,"warnings":if self.outcome==Outcome::LogoutUnconfirmed {vec!["remote_logout_unconfirmed"]} else {vec![]}});
         if let Some(connection) = &self.plan.connection {
             value["connection_id"] = connection.connection_id.clone().into();

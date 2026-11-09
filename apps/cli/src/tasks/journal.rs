@@ -59,12 +59,17 @@ pub(super) fn encode(value: &impl Serialize) -> Result<String> {
 impl Row {
     /// Version-one native tasks retain only local authoring authority. A saved
     /// company view cannot turn that identity into corporate installation ownership.
-    pub fn ownership(&self) -> Value {
+    pub(crate) fn ownership(&self) -> Value {
         json!({"kind":"personal", "native_account_id":self.payload.identity.account_id,
             "native_device_id":self.payload.identity.device_id})
     }
 
-    pub fn new(input: impl Into<Input>, identity: Identity, key: &str, at: &str) -> Result<Self> {
+    pub(crate) fn new(
+        input: impl Into<Input>,
+        identity: Identity,
+        key: &str,
+        at: &str,
+    ) -> Result<Self> {
         let input = input.into();
         let original = encode(&input.value()?)?;
         Ok(Self {
@@ -85,20 +90,20 @@ impl Row {
             updated: at.into(),
         })
     }
-    pub fn settled(&self) -> bool {
+    pub(crate) fn settled(&self) -> bool {
         matches!(self.state.as_str(), "completed" | "cancelled" | "failed")
     }
-    pub fn children(&self) -> Vec<String> {
+    pub(crate) fn children(&self) -> Vec<String> {
         self.payload.plan.iter().flat_map(Plan::children).collect()
     }
-    pub fn questions(&self) -> Result<Vec<Value>> {
+    pub(crate) fn questions(&self) -> Result<Vec<Value>> {
         if self.state == "blocked" {
             Ok(self.payload.input.question()?.into_iter().collect())
         } else {
             Ok(Vec::new())
         }
     }
-    pub fn view(&self) -> Result<Value> {
+    pub(crate) fn view(&self) -> Result<Value> {
         let mut view = json!({"schema_version":1,"task_id":self.id,"revision":self.revision,"intent":self.payload.input.intent(), "state":self.state,
             "goal_satisfied":self.state=="completed","questions":self.questions()?,"outcome":self.outcome,"child_operation_ids":self.children(),"ownership":self.ownership()});
         if let Some(handoff) = self.payload.plan.as_ref().and_then(Plan::handoff) {
@@ -107,7 +112,7 @@ impl Row {
         VIEW.validate(&view)?;
         Ok(view)
     }
-    pub fn advance(&mut self, state: &str, at: &str) -> Result<()> {
+    pub(crate) fn advance(&mut self, state: &str, at: &str) -> Result<()> {
         self.revision = self.revision.checked_add(1).ok_or_else(invalid)?;
         self.state = state.into();
         self.updated = at.into();

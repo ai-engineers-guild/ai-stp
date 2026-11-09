@@ -14,14 +14,14 @@ use std::{cell::RefCell, net::IpAddr, path::Path, time::Duration};
 use url::Url;
 use zeroize::Zeroizing;
 
-pub const MAX_BODY: u64 = 8 * 1024 * 1024;
-pub struct Endpoint {
+pub(crate) const MAX_BODY: u64 = 8 * 1024 * 1024;
+pub(crate) struct Endpoint {
     pub base: Url,
     agent: RefCell<ureq::Agent>,
 }
 
 impl Endpoint {
-    pub fn configured(path: Option<&Path>) -> Result<Self> {
+    pub(crate) fn configured(path: Option<&Path>) -> Result<Self> {
         let report = config::show(path, &[])?;
         let fields = report["values"]
             .as_array()
@@ -43,7 +43,7 @@ impl Endpoint {
         Self::new(text)
     }
 
-    pub fn new(text: &str) -> Result<Self> {
+    pub(crate) fn new(text: &str) -> Result<Self> {
         let text = text.trim();
         let invalid = || {
             Failure::input(
@@ -92,7 +92,7 @@ impl Endpoint {
         })
     }
 
-    pub fn route(&self, segments: &[&str], query: &[(&str, &str)]) -> Result<Url> {
+    pub(crate) fn route(&self, segments: &[&str], query: &[(&str, &str)]) -> Result<Url> {
         let mut url = self.base.clone();
         url.path_segments_mut()
             .map_err(|_| Failure::input("catalog URL cannot contain paths"))?
@@ -105,7 +105,7 @@ impl Endpoint {
         Ok(url)
     }
 
-    pub fn get(&self, url: &Url) -> Result<Value> {
+    pub(crate) fn get(&self, url: &Url) -> Result<Value> {
         wire::parse(&self.read(url, "application/json", MAX_BODY, Duration::from_secs(30))?)
     }
 
@@ -212,7 +212,7 @@ impl Endpoint {
     }
 }
 
-pub fn unavailable() -> Failure {
+pub(crate) fn unavailable() -> Failure {
     Failure::new(
         ErrorKind::Unavailable,
         "the catalog is temporarily unavailable; retry the read or use an explicit cache",

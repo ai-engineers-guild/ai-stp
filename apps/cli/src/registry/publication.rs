@@ -21,7 +21,7 @@ pub(super) enum Handler {
 }
 
 impl Handler {
-    pub fn mutability(self) -> &'static str {
+    pub(crate) fn mutability(self) -> &'static str {
         match self {
             Self::Plan | Self::Resume => "plan",
             Self::Apply => "apply",

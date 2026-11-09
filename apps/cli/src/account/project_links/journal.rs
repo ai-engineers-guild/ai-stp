@@ -68,7 +68,7 @@ pub(super) struct Record {
 }
 
 impl Record {
-    pub fn load(connection: &Connection, id: &str) -> Result<Option<Self>> {
+    pub(crate) fn load(connection: &Connection, id: &str) -> Result<Option<Self>> {
         if !passport::stable_id(id, "operation") {
             return Err(invalid());
         }
@@ -181,7 +181,7 @@ impl Record {
         Ok(Some(held))
     }
 
-    pub fn checkpoint(&self) -> Result<Checkpoint> {
+    pub(crate) fn checkpoint(&self) -> Result<Checkpoint> {
         let checkpoint = Checkpoint {
             operation_id: self.plan.operation_id.clone(),
             plan_digest: self.plan.digest()?,
@@ -191,7 +191,7 @@ impl Record {
         Ok(checkpoint)
     }
 
-    pub fn admit(t: &Transaction<'_>, plan: &Plan, at: &str) -> Result<Self> {
+    pub(crate) fn admit(t: &Transaction<'_>, plan: &Plan, at: &str) -> Result<Self> {
         let hash = plan.digest()?;
         if Self::load(t, &plan.operation_id)?.is_some() {
             return Err(Failure::precondition(
@@ -214,7 +214,7 @@ impl Record {
         Self::load(t, &plan.operation_id)?.ok_or_else(invalid)
     }
 
-    pub fn save(&mut self, t: &Transaction<'_>, effect: Effect, at: &str) -> Result<()> {
+    pub(crate) fn save(&mut self, t: &Transaction<'_>, effect: Effect, at: &str) -> Result<()> {
         effect.validate(&self.plan)?;
         if matches!(self.state.as_str(), "completed" | "retired")
             || !passport::timestamp(at)
@@ -272,7 +272,7 @@ impl Record {
         Ok(())
     }
 
-    pub fn output(&self) -> Result<Value> {
+    pub(crate) fn output(&self) -> Result<Value> {
         Ok(
             json!({"schema_version":1,"operation_id":self.plan.operation_id,"plan_digest":self.plan.digest()?,
             "plan":self.plan,"state":self.state,"effect":self.effect,"interrupted":self.interruption.is_some(),
