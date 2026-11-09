@@ -19,6 +19,17 @@ FIXTURES = (
     "apps/cli/tests/fixtures/legacy-state.json",
     "apps/web/tests/component/access-workspace.test.tsx",
 )
+EXAMPLES = {
+    ".env.dev.example": "generic-password",
+    ".env.prod.example": "generic-password",
+    ".github/workflows/source.yml": "generic-password",
+    "deploy/compose.dev.yml": "generic-password",
+    "apps/cli/tests/sources.rs": "generic-credential-uri",
+    "apps/cli/tests/adoption.rs": "generic-credential-uri",
+    "apps/cli/tests/projects/technology.rs": "generic-credential-uri",
+    "apps/cli/src/sources/package/pypi.rs": "generic-credential-uri",
+    ".repo-safety/templates/.env.example": "generic-credential-uri",
+}
 
 
 @dataclass(frozen=True)
@@ -134,6 +145,50 @@ def controls(scanner: Path, temporary: Path) -> None:
                 "A lockfile credential was hidden by scanner defaults",
             )
     print("Secret controls: root and nested Bun lockfile findings")
+    example_controls(scanner, temporary)
+
+
+def example_controls(scanner: Path, temporary: Path) -> None:
+    for relative, rule in EXAMPLES.items():
+        original = (ROOT / relative).read_text()
+        with tempfile.TemporaryDirectory(
+            prefix="ai-stp-example-controls-", dir=temporary
+        ) as directory:
+            root = Path(directory)
+            target = root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(original)
+            require(not scan(scanner, root, ["dir", "."]), "Reviewed source example was rejected")
+            target.unlink()
+            outside = Path("outside") / target.name
+            (root / outside).parent.mkdir(exist_ok=True)
+            (root / outside).write_text(original)
+            findings = [
+                item
+                for item in scan(scanner, root, ["dir", "."])
+                if item.rule == rule and item.path == outside.as_posix()
+            ]
+            require(
+                bool(findings), "A source example exemption escaped its exact path: " + relative
+            )
+            (root / outside).unlink()
+            for finding in findings:
+                lines = original.splitlines(keepends=True)
+                credential = (
+                    'password = "' + CONTROL + '"\n'
+                    if rule == "generic-password"
+                    else 'url = "postgresql://user:' + CONTROL + '@example.invalid/db"\n'
+                )
+                lines[finding.line - 1] = credential
+                target.write_text("".join(lines))
+                require(
+                    any(
+                        item.rule == rule and item.path == relative
+                        for item in scan(scanner, root, ["dir", "."])
+                    ),
+                    "A changed source example credential was hidden: " + relative,
+                )
+    print("Secret controls: nine exact source examples and their path/credential refusals")
 
 
 def main() -> int:
