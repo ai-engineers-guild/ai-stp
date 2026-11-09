@@ -19,6 +19,10 @@ if (!existsSync(standalone)) {
   process.exit(1);
 }
 
+if (!existsSync(path.join(standalone, "server.js"))) {
+  throw new Error("standalone-assets: the application-local standalone/server.js is missing");
+}
+
 const staticSrc = path.join(root, distDir, "static");
 if (!existsSync(staticSrc)) {
   console.error(`standalone-assets: ${distDir}/static is missing — the build did not complete`);

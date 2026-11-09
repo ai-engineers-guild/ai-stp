@@ -17,16 +17,20 @@ import { parseProjectionRoute, projectionRequestHeaders } from "@/lib/projection
 const intlProxy = createMiddleware(routing);
 
 function isLoopbackHostname(hostname: string): boolean {
-  return ["localhost", "127.0.0.1", "[::1]", "::1"].includes(hostname.toLowerCase());
+  const normalized = hostname.toLowerCase();
+  return (
+    ["localhost", "127.0.0.1", "[::1]", "::1"].includes(normalized) ||
+    normalized.endsWith(".localhost")
+  );
 }
 
-/** Keep NextURL's loopback normalization from turning an internal rewrite into a proxy hop. */
+/** Preserve local request origins when Next.js supplies its server's loopback bind address. */
 function requestOriginUrl(request: NextRequest) {
   const url = request.nextUrl.clone();
   const rawHost = request.headers.get("host");
   if (!rawHost || !isLoopbackHostname(url.hostname)) return url;
   try {
-    const candidate = new URL(`http://${rawHost}`);
+    const candidate = new URL(`${url.protocol}//${rawHost}`);
     if (
       !candidate.username &&
       !candidate.password &&
@@ -248,7 +252,9 @@ export default function proxy(request: NextRequest) {
   requestHeaders.set("x-ai-stp-request-pathname", pathname);
 
   if (sharedPath) {
-    const url = requestOriginUrl(request);
+    // Next.js compares rewrite origins with its own request URL. A public Host
+    // alias here would become an external proxy hop back through this gate.
+    const url = new URL(request.url);
     url.pathname = sharedPath;
     return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
   }
