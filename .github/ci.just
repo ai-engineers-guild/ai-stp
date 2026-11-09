@@ -79,14 +79,22 @@ ci-integration-web-desktop-types-and-component-units:
     bun run type-check
     bun x vitest run
 
+# Prepare native documentation source checkers in the disposable job.
+[group('ci')]
+[private]
+ci-documentation-check-tools:
+    mkdir -p "${RUNNER_TEMP}/ai-stp-documentation-tools/bin"
+    tar -xzf "${RUNNER_TEMP}/ai-stp-documentation-tools/ryl.tar.gz" -C "${RUNNER_TEMP}/ai-stp-documentation-tools/bin"
+    tar -xzf "${RUNNER_TEMP}/ai-stp-documentation-tools/rumdl.tar.gz" -C "${RUNNER_TEMP}/ai-stp-documentation-tools/bin"
+    printf '%s\n' "${RUNNER_TEMP}/ai-stp-documentation-tools/bin" >> "${GITHUB_PATH}"
+
 # Integration web documentation markdown syntax.
 [group('ci')]
 [private]
 [script('bash')]
 ci-integration-web-documentation-markdown-syntax:
     set -euo pipefail
-    (cd docs_scripts && bun install --frozen-lockfile)
-    python docs_scripts/run_markdownlint.py
+    rumdl check --no-cache --deny-config-warnings .
 
 # Integration native native formatting all target analysis and library units.
 [group('ci')]

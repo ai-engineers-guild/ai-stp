@@ -112,7 +112,7 @@ setup-analysis:
     {{ nodereq }}
     bun install --frozen-lockfile
 
-# The documentation Node tools: markdownlint and the Mermaid engine.
+# The documentation rendering engine; source linters are host-managed tools.
 [group('gate')]
 setup-docs:
     {{ bunreq }}
@@ -314,13 +314,13 @@ docs-gen:
 # Static documentation checks in one pass.
 [group('docs')]
 docs-static: docs-source
-    {{ py }} {{ scripts }}/run_markdownlint.py
+    rumdl check --no-cache --deny-config-warnings .
 
 [group('docs')]
 docs-source:
     {{ py }} {{ scripts }}/docs_lint.py
     {{ py }} {{ scripts }}/contract_lint.py
-    {{ py }} -m yamllint -c {{ scripts }}/.yamllint.yml .
+    ryl check --no-cache --strict . .repo-safety
 
 # Unit tests of the documentation validators themselves.
 [group('docs')]
