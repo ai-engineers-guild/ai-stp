@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+import tomllib
 import subprocess
 from functools import cache
 from pathlib import Path
@@ -326,7 +327,16 @@ def test_setup_is_split_and_each_job_prepares_only_its_own_part() -> None:
         if name in analysis_owners:
             assert "bun install --frozen-lockfile" in scripts, f"{name} omits analysis preparation"
             assert "bun run type-check:python" in scripts, f"{name} omits Python type analysis"
-            assert "argument-type error refused" in scripts, f"{name} omits compiler refusal"
+
+
+def test_python_analysis_preserves_product_and_tooling_coverage() -> None:
+    document = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert "pyright" not in document["tool"], "the superseded type configuration remains"
+    config = document["tool"]["basedpyright"]
+    assert set(config["include"]) >= {"packages", "apps", "tests", "docs_scripts", "release_scripts"}
+    assert config["typeCheckingMode"] in {"standard", "strict"}
+    if config["typeCheckingMode"] != "strict":
+        assert set(config["strict"]) >= {"packages", "apps", "tests"}
 
 
 def test_cli_and_web_tests_run_on_three_os_and_backend_stays_on_linux() -> None:
