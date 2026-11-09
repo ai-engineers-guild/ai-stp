@@ -64,3 +64,94 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''^apps/web/tests/component/access\-workspace\.test\.tsx$''']
 regexes = ['''^\s*const\ idempotencyKey\ =\ "88abdcde\-5013\-40ae\-a319\-bcd11b0a07fb";\s*$''']
+
+[[allowlists]]
+description = "Public local seed or credential-rejection fixture; exact path and source line"
+targetRules = ["generic-password"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^\.env\.dev\.example$''']
+regexes = [
+  '''^POSTGRES_PASSWORD=ai_stp_dev$''',
+]
+
+[[allowlists]]
+description = "Public local seed or credential-rejection fixture; exact path and source line"
+targetRules = ["generic-password"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^\.env\.prod\.example$''']
+regexes = [
+  '''^POSTGRES_PASSWORD=CHANGE_ME$''',
+]
+
+[[allowlists]]
+description = "Public local seed or credential-rejection fixture; exact path and source line"
+targetRules = ["generic-password"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^\.github/workflows/source\.yml$''']
+regexes = [
+  '''^\ \ \ \ \ \ \ \ \ \ POSTGRES_PASSWORD:\ ai_stp_dev$''',
+]
+
+[[allowlists]]
+description = "Public local seed or credential-rejection fixture; exact path and source line"
+targetRules = ["generic-password"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^deploy/compose\.dev\.yml$''']
+regexes = [
+  '''^\ \ \ \ \ \ POSTGRES_PASSWORD:\ ai_stp_dev$''',
+]
+
+[[allowlists]]
+description = "Public local seed or credential-rejection fixture; exact path and source line"
+targetRules = ["generic-credential-uri"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^apps/cli/tests/sources\.rs$''']
+regexes = [
+  '''^\ \ \ \ \ \ \ \ "https://user:token@github\.com/owner/repo",$''',
+]
+
+[[allowlists]]
+description = "Public local seed or credential-rejection fixture; exact path and source line"
+targetRules = ["generic-credential-uri"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^apps/cli/tests/adoption\.rs$''']
+regexes = [
+  '''^\ \ \ \ \ \ \ \ \ \ \ \ r\#"\{"mcpServers":\{"review":\{"url":"https://user:synthetic\-sensitive\-value@example\.invalid/mcp"\}\}\}"\#,$''',
+  '''^\ \ \ \ \ \ \ \ \ \ \ \ r\#"\{"mcpServers":\{"review":\{"command":"server","env":\{"DATABASE_URL":"postgresql://user:synthetic\-sensitive\-value@example\.invalid/db"\}\}\}\}"\#,$''',
+]
+
+[[allowlists]]
+description = "Public local seed or credential-rejection fixture; exact path and source line"
+targetRules = ["generic-credential-uri"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^apps/cli/tests/projects/technology\.rs$''']
+regexes = [
+  '''^\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "\[project\]\\nrequires\-python\ =\ '>=3\.12'\\ndependencies\ =\ \['Django>=5',\ 'Private_Name\ @\ https://user:synthetic\-canary@example\.invalid/pkg'\]\\n",$''',
+]
+
+[[allowlists]]
+description = "Public local seed or credential-rejection fixture; exact path and source line"
+targetRules = ["generic-credential-uri"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^apps/cli/src/sources/package/pypi\.rs$''']
+regexes = [
+  '''^\ \ \ \ \ \ \ \ \ \ \ \ "https://user:secret@files\.pythonhosted\.org/packages/demo\.whl",$''',
+]
+
+[[allowlists]]
+description = "Public local seed or credential-rejection fixture; exact path and source line"
+targetRules = ["generic-credential-uri"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^\.repo\-safety/templates/\.env\.example$''']
+regexes = [
+  '''^DATABASE_URL=postgresql://user:password@localhost:5432/app\ \ \#\ pragma:\ allowlist\ secret$''',
+]
