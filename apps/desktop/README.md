@@ -125,6 +125,13 @@ just desktop-check        # Frontend, Rust crates and actual optimized sidecar
 just desktop-bundle-test  # Verify an existing packaged CLI resource tree
 ```
 
+For hosted generation, dispatch `contract-generation` on the source branch with
+only `native_projections` enabled. It compiles the native IPC owner, regenerates
+the Desktop declarations and CLI resources, and returns a patch bound to that
+source commit and tree. Review the patch before committing it. This workflow
+does not qualify or publish the application; the regular checks compare the
+committed projections without rewriting them.
+
 Hosted Linux acceptance also runs `just desktop-performance` inside a disposable
 vault fixture. It alternates the checksum-pinned baseline and current installed
 packages on one worker, using fresh application profiles and the same native
