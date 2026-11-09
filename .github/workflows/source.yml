@@ -357,7 +357,8 @@ jobs:
             all(to_entries[];
               if .key == "analysis" then
                 .value.result == (if $private then "skipped" else "success" end)
-              elif .key == "secrets" or .key == "native-experiments" or .key == "rust-dependencies" then
+              elif (.key == "secrets" or .key == "native-experiments"
+                    or .key == "rust-dependencies") then
                 .value.result == "success"
               elif .key == "wasi-confinement" then
                 .value.result == (if $wasi == "true" then "success" else "skipped" end)
