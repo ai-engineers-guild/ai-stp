@@ -58,7 +58,7 @@ chmod +x "${tmp}/osv-scanner"
 
 cd "${REPO_ROOT}"
 scanner="${tmp}/osv-scanner"
-# Every committed lockfile is weighed: Python, the web app, docs tooling,
+# Every committed lockfile is weighed: Python, source analysis, the web app, docs tooling,
 # the desktop app and both of its Rust crates, the native CLI, the vendored
 # worker-safety venv. Every scan runs even
 # when one trips -- set -e would otherwise hide every later file behind
@@ -67,6 +67,7 @@ scanner="${tmp}/osv-scanner"
 # `requirements.txt:` name override.
 for lockfile in \
   uv.lock \
+  bun.lock \
   apps/web/bun.lock \
   docs_scripts/bun.lock \
   apps/desktop/bun.lock \

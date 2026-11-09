@@ -2,6 +2,21 @@
 # Native and browser CI still run their complete platform matrices for every PR.
 version: 2
 updates:
+  - package-ecosystem: bun
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    groups:
+      dependencies:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    commit-message:
+      prefix: "chore(tools)"
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
   - package-ecosystem: cargo
     directory: /apps/cli
     target-branch: dev

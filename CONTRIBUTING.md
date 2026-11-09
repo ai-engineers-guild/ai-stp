@@ -15,14 +15,19 @@ just setup-python
 just cli-check
 ```
 
-Use tool versions from `.uv-version`, `.bun-version`, the native
-`rust-toolchain.toml` and `.github/workflows/check.yml`. The native guide lists
+Use tool versions from `.uv-version`, `.node-version`, `.bun-version`, the native
+`rust-toolchain.toml` and `.github/workflows/source.yml`. The native guide lists
 C compiler/libclang prerequisites. `docs_scripts/bootstrap_just.py` installs the
 pinned task runner into a user-owned `JUST_INSTALL_DIR` on PATH.
 
 `just setup` also prepares documentation and web dependencies. Regenerate caches
 and environments locally; do not copy them from another workstation. Existing
 account state is not a development fixture: sign in normally on a new device.
+
+`just setup-python-source` prepares Python and the small root Bun tool set for
+source analysis. The official basedpyright CLI runs on the selected Node SDK;
+runtime-only Python jobs use `just setup-python`. Checks consume prepared
+dependencies and never install them.
 
 ## Validation and integration
 

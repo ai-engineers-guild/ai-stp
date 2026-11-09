@@ -109,7 +109,7 @@ def expand_component_artifact(payload: bytes, content_format: str) -> tuple[Comp
     if content_format == PROJECTION_FORMAT:
         try:
             with zipfile.ZipFile(io.BytesIO(payload), "r") as archive:
-                answer: list[ComponentFile] = []
+                projection_files: list[ComponentFile] = []
                 names = archive.namelist()
                 if len(names) != len(set(names)) or len(names) > MAX_PROJECTION_FILES:
                     raise ValueError("projection members are repeated or excessive")
@@ -125,10 +125,10 @@ def expand_component_artifact(payload: bytes, content_format: str) -> tuple[Comp
                         continue
                     if info.compress_type != zipfile.ZIP_STORED or not stat.S_ISREG(mode):
                         raise ValueError("projection member metadata is unsafe")
-                    answer.append(
+                    projection_files.append(
                         ComponentFile(info.filename, archive.read(info), stat.S_IMODE(mode))
                     )
-                return tuple(answer)
+                return tuple(projection_files)
         except (OSError, ValueError, zipfile.BadZipFile) as error:
             raise ComponentArtifactError(
                 "AI_STP_CONFLICT", "the stored projection is corrupt"

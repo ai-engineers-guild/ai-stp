@@ -1,0 +1,10 @@
+{
+  "name": "@ai-stp/source-tools",
+  "private": true,
+  "scripts": {
+    "type-check:python": "node node_modules/basedpyright/index.js --project . --warnings"
+  },
+  "devDependencies": {
+    "basedpyright": "1.40.2"
+  }
+}
