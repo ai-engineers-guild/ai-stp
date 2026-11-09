@@ -84,8 +84,8 @@ ci-integration-web-desktop-types-and-component-units:
 [private]
 ci-documentation-check-tools:
     mkdir -p "${RUNNER_TEMP}/ai-stp-documentation-tools/bin"
-    tar -xzf "${RUNNER_TEMP}/ai-stp-documentation-tools/ryl.tar.gz" -C "${RUNNER_TEMP}/ai-stp-documentation-tools/bin"
-    tar -xzf "${RUNNER_TEMP}/ai-stp-documentation-tools/rumdl.tar.gz" -C "${RUNNER_TEMP}/ai-stp-documentation-tools/bin"
+    tar -xzf "${RUNNER_TEMP}/ai-stp-documentation-tools/ryl.tar.gz" -C "${RUNNER_TEMP}/ai-stp-documentation-tools/bin" ryl
+    tar -xzf "${RUNNER_TEMP}/ai-stp-documentation-tools/rumdl.tar.gz" -C "${RUNNER_TEMP}/ai-stp-documentation-tools/bin" rumdl
     printf '%s\n' "${RUNNER_TEMP}/ai-stp-documentation-tools/bin" >> "${GITHUB_PATH}"
 
 # Integration web documentation markdown syntax.

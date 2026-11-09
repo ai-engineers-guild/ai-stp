@@ -29,6 +29,11 @@ source analysis. The official basedpyright CLI runs on the selected Node SDK;
 runtime-only Python jobs use `just setup-python`. Checks consume prepared
 dependencies and never install them.
 
+Markdown and YAML source checks use native Rumdl and Ryl from the workstation SDK.
+CI prepares their exact assets from `.github/documentation-check-tools.json`.
+`just docs-static` needs no Mermaid installation; rendering still uses
+`just setup-docs` and the frozen documentation lock.
+
 ## Validation and integration
 
 Run affected checks listed in AGENTS.md. `just --list` describes recipes and
