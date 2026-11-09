@@ -2,6 +2,11 @@
 
 [group('ci')]
 [private]
+ci-source-secret-tools:
+    tar -xzf "${RUNNER_TEMP}/ai-stp-integration-secrets/betterleaks.tar.gz" -C "${RUNNER_TEMP}/ai-stp-integration-secrets" betterleaks
+
+[group('ci')]
+[private]
 ci-infra-check-tools:
     mkdir -p "${RUNNER_TEMP}/ai-stp-infra-tools/bin"
     tar -xzf "${RUNNER_TEMP}/ai-stp-infra-tools/actionlint.tar.gz" -C "${RUNNER_TEMP}/ai-stp-infra-tools/bin" actionlint

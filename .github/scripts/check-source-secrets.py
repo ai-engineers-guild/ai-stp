@@ -38,7 +38,8 @@ def scan(scanner: Path, cwd: Path, arguments: list[str], data: str | None = None
         [
             str(scanner),
             *arguments,
-            "--config=" + str(ROOT / ".gitleaks.toml"),
+            "--config=" + str(ROOT / ".betterleaks.toml"),
+            "--validation=false",
             "--redact=100",
             "--no-banner",
             "--report-format=json",
@@ -119,6 +120,18 @@ def controls(scanner: Path, temporary: Path) -> None:
         "Secret controls: benign/finding, four exact fixtures, "
         "four changed-line and four outside-path refusals"
     )
+    with tempfile.TemporaryDirectory(prefix="ai-stp-lock-controls-", dir=temporary) as directory:
+        root = Path(directory)
+        for relative in ("bun.lock", "apps/web/bun.lock", "docs_scripts/bun.lock"):
+            target = root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text('api_key = "' + CONTROL + '"\n')
+            findings = scan(scanner, root, ["dir", "."])
+            require(
+                any(item.rule == "generic-api-key" and item.path == relative for item in findings),
+                "A lockfile credential was hidden by scanner defaults",
+            )
+    print("Secret controls: root and nested Bun lockfile findings")
 
 
 def main() -> int:
@@ -129,15 +142,11 @@ def main() -> int:
     require(Path(os.environ["GITHUB_WORKSPACE"]).resolve() == ROOT, "Unexpected source checkout")
     temporary = Path(os.environ["RUNNER_TEMP"])
     require(temporary.is_dir(), "CI temporary directory is missing")
-    scanner = Path(os.environ["SAFETY_BIN_PREFIX"]) / "gitleaks"
-    pin = [
-        line.split("=", 1)[1]
-        for line in (ROOT / "scripts/safety/versions.env").read_text().splitlines()
-        if line.startswith("GITLEAKS_VERSION=")
-    ]
-    require(len(pin) == 1, "Secret scanner pin is ambiguous")
+    scanner = Path(os.environ["SOURCE_SECRET_SCANNER"])
+    pin = os.environ["SOURCE_SECRET_SCANNER_VERSION"]
+    require(re.fullmatch(r"\d+\.\d+\.\d+", pin) is not None, "Secret scanner pin is invalid")
     version = subprocess.check_output([str(scanner), "version"], text=True, timeout=10).strip()
-    require(version == pin[0], "Secret scanner differs from the declared pin")
+    require(version == pin, "Secret scanner differs from the declared pin")
     controls(scanner, temporary)
     event = os.environ["EVENT"]
     require(event in ("pull_request", "push", "workflow_dispatch"), "Unexpected source event")
