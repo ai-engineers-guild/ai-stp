@@ -17,7 +17,8 @@
 # reissue lands in `example.com-0001` while the site is still `example.com`.
 set -euo pipefail
 
-readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+readonly ROOT
 readonly ENV_FILE="${AI_STP_ENV_FILE:-${ROOT}/.env.prod}"
 readonly TARGET="${AI_STP_NGINX_CONF_DIR:-/etc/nginx/conf.d}"
 
@@ -39,17 +40,19 @@ readonly DOCS_HOST="${AI_STP_DOCS_HOST:-$(env_value AI_STP_DOCS_HOST)}"
 # The first name identifies the site: it names the file and, unless overridden,
 # the certificate lineage. The rest are aliases nginx answers to.
 primary() { local first="${1%%[ ]*}"; printf '%s' "${first#*://}"; }
-readonly MAIN_PRIMARY="$(primary "${MAIN_HOST}")"
-readonly DOCS_PRIMARY="$(primary "${DOCS_HOST}")"
-readonly API_BIND="${AI_STP_API_BIND:-$(env_value AI_STP_API_BIND)}"
+MAIN_PRIMARY="$(primary "${MAIN_HOST}")"
+readonly MAIN_PRIMARY
+DOCS_PRIMARY="$(primary "${DOCS_HOST}")"
+readonly DOCS_PRIMARY
+API_BIND="${AI_STP_API_BIND:-$(env_value AI_STP_API_BIND)}"
 readonly API_BIND="${API_BIND:-127.0.0.1:58082}"
-readonly WEB_BIND="${AI_STP_WEB_BIND:-$(env_value AI_STP_WEB_BIND)}"
+WEB_BIND="${AI_STP_WEB_BIND:-$(env_value AI_STP_WEB_BIND)}"
 readonly WEB_BIND="${WEB_BIND:-127.0.0.1:58081}"
-readonly DOCS_BIND="${AI_STP_DOCS_BIND:-$(env_value AI_STP_DOCS_BIND)}"
+DOCS_BIND="${AI_STP_DOCS_BIND:-$(env_value AI_STP_DOCS_BIND)}"
 readonly DOCS_BIND="${DOCS_BIND:-127.0.0.1:58083}"
-readonly TLS_LINEAGE="${AI_STP_TLS_LINEAGE:-$(env_value AI_STP_TLS_LINEAGE)}"
+TLS_LINEAGE="${AI_STP_TLS_LINEAGE:-$(env_value AI_STP_TLS_LINEAGE)}"
 readonly TLS_LINEAGE="${TLS_LINEAGE:-${MAIN_PRIMARY}}"
-readonly DOCS_TLS_LINEAGE="${AI_STP_DOCS_TLS_LINEAGE:-$(env_value AI_STP_DOCS_TLS_LINEAGE)}"
+DOCS_TLS_LINEAGE="${AI_STP_DOCS_TLS_LINEAGE:-$(env_value AI_STP_DOCS_TLS_LINEAGE)}"
 readonly DOCS_TLS_LINEAGE="${DOCS_TLS_LINEAGE:-${DOCS_PRIMARY}}"
 
 render() {
