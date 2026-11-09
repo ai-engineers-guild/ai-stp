@@ -21,7 +21,7 @@ def _render(
     assert bash is not None, "the Linux deployment contract requires Bash"
     commands = tmp_path / "commands"
     commands.mkdir()
-    calls = tmp_path / "nginx-calls"
+    calls = tmp_path / "downstream-calls"
     nginx = commands / "nginx"
     nginx.write_text(
         '#!/bin/sh\nprintf "%s\\n" "$*" >> "$AI_STP_NGINX_TEST_LOG"\n', encoding="utf-8"
@@ -44,6 +44,12 @@ def _render(
         )
         dirname.chmod(0o700)
         env["AI_STP_NGINX_TEST_MISSING_ROOT"] = str(tmp_path / "missing-root" / "deep" / "leaf")
+        grep = commands / "grep"
+        grep.write_text(
+            '#!/bin/sh\nprintf "environment-read\\n" >> "$AI_STP_NGINX_TEST_LOG"\nexit 1\n',
+            encoding="utf-8",
+        )
+        grep.chmod(0o700)
     result = subprocess.run(
         [bash, str(ROOT / "deploy/nginx/render.sh")],
         cwd=tmp_path,
