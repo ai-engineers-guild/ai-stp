@@ -1,5 +1,20 @@
 # Execution commands; SDKs, services, permissions and artifacts stay in workflows.
 
+[group('ci')]
+[private]
+ci-native-test-tools:
+    mkdir -p "${RUNNER_TEMP}/ai-stp-native-test-tools/bin"
+    tar -xzf "${RUNNER_TEMP}/ai-stp-native-test-tools/nextest.tar.gz" -C "${RUNNER_TEMP}/ai-stp-native-test-tools/bin"
+    printf '%s\n' "${RUNNER_TEMP}/ai-stp-native-test-tools/bin" >> "${GITHUB_PATH}"
+
+[group('ci')]
+[private]
+ci-native-check-tools:
+    mkdir -p "${RUNNER_TEMP}/ai-stp-native-check-tools/bin"
+    tar -xzf "${RUNNER_TEMP}/ai-stp-native-check-tools/deny.tar.gz" -C "${RUNNER_TEMP}/ai-stp-native-check-tools/bin" --strip-components=1 "cargo-deny-0.20.2-x86_64-unknown-linux-musl/cargo-deny"
+    tar -xzf "${RUNNER_TEMP}/ai-stp-native-check-tools/shear.tar.gz" -C "${RUNNER_TEMP}/ai-stp-native-check-tools/bin"
+    printf '%s\n' "${RUNNER_TEMP}/ai-stp-native-check-tools/bin" >> "${GITHUB_PATH}"
+
 # Seal the exact processed CodeQL payload and its original source provenance.
 [group('ci')]
 [private]
@@ -99,15 +114,16 @@ ci-integration-native-native-formatting-all-target-analysis-and-library-units:
     cargo fmt --manifest-path apps/cli/xtask/Cargo.toml --check
     cargo clippy --locked --manifest-path apps/cli/xtask/Cargo.toml \
       --all-targets -- -D warnings
-    cargo test --locked --manifest-path apps/cli/xtask/Cargo.toml
+    cargo nextest run --locked --manifest-path apps/cli/xtask/Cargo.toml
     cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- build \
       cargo clippy --locked --all-targets -- -D warnings
     cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- build \
-      cargo test --locked --lib
+      cargo nextest run --locked --lib
     cargo fmt --manifest-path apps/desktop/core/Cargo.toml --check
     cargo clippy --locked --manifest-path apps/desktop/core/Cargo.toml \
       --all-targets -- -D warnings
-    cargo test --locked --manifest-path apps/desktop/core/Cargo.toml
+    cargo nextest run --locked --manifest-path apps/desktop/core/Cargo.toml
+    cargo test --locked --manifest-path apps/desktop/core/Cargo.toml --doc
 
 # Integration native existing native vault and independent cli processes.
 [group('ci')]
@@ -144,10 +160,11 @@ ci-cli-native-boundary-checks:
     cargo fmt --check
     cargo fmt --manifest-path xtask/Cargo.toml --check
     cargo clippy --locked --manifest-path xtask/Cargo.toml --all-targets -- -D warnings
-    cargo test --locked --manifest-path xtask/Cargo.toml
+    cargo nextest run --locked --manifest-path xtask/Cargo.toml
     cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
       cargo clippy --locked --all-targets -- -D warnings
-    cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build cargo test --locked
+    cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build cargo nextest run --locked
+    cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build cargo test --locked --doc
     cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- build \
       cargo build --locked --release --bins --examples
 

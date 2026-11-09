@@ -61,6 +61,17 @@ jobs:
         run: >-
           bash .github/scripts/install-rust-toolchain.sh
           apps/cli/rust-toolchain.toml clippy rustfmt
+      - name: Prepare the exact native test runner
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6906120bd7ee190750ec62d1fa9a5daf9d823ae4
+        with:
+          manifest: .github/nextest-${{ runner.os }}.json
+          directory: ${{ runner.temp }}/ai-stp-native-test-tools
+      - name: Expose this job's prepared native test runner
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+        with:
+          recipe: ci-native-test-tools
       - name: Install pinned bun
         shell: bash
         run: |

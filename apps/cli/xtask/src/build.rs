@@ -40,7 +40,7 @@ fn flags(command: &mut Command, values: &[&str]) {
     command.env("BINDGEN_EXTRA_CLANG_ARGS", value);
 }
 
-pub fn invoke(arguments: &[OsString]) -> Result<()> {
+pub(crate) fn invoke(arguments: &[OsString]) -> Result<()> {
     let program = arguments.first().ok_or("build requires a command")?;
     let mut command = Command::new(program);
     command
@@ -51,7 +51,7 @@ pub fn invoke(arguments: &[OsString]) -> Result<()> {
 }
 
 /// Obtain the executable from Cargo itself, including redirected and nested caches.
-pub fn cli_binary() -> Result<PathBuf> {
+pub(crate) fn cli_binary() -> Result<PathBuf> {
     let mut command = Command::new("cargo");
     command.current_dir(root().join("apps/cli")).args([
         "build",

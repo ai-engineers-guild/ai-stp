@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "tool": "cargo-nextest",
+  "version": "0.9.151",
+  "source": "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.151/cargo-nextest-0.9.151-universal-apple-darwin.tar.gz",
+  "assets": [
+    {
+      "repository": "nextest-rs/nextest",
+      "asset": 703616437,
+      "size": 16809298,
+      "sha256": "d1d7d025d4bfc9fb154cd76aea3949bd78534829a0589abefa6e5dd4edb135dd",
+      "file": "nextest.tar.gz"
+    }
+  ]
+}

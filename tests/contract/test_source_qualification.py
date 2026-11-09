@@ -46,7 +46,14 @@ class QualificationTests(unittest.TestCase):
         return {
             name: {
                 "result": "success"
-                if name in {"analysis", "secrets", "native-experiments", "wasi-confinement"}
+                if name
+                in {
+                    "analysis",
+                    "secrets",
+                    "native-experiments",
+                    "rust-dependencies",
+                    "wasi-confinement",
+                }
                 or name.startswith("integration-") == (phase == "integration")
                 else "skipped"
             }
@@ -109,7 +116,7 @@ class QualificationTests(unittest.TestCase):
         for name, job in source["jobs"].items():
             if name in {"analysis", "qualification", "secrets"}:
                 continue
-            if name == "native-experiments":
+            if name in {"native-experiments", "rust-dependencies"}:
                 self.assertNotIn("if", job)
                 continue
             if name == "wasi-confinement":

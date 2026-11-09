@@ -62,7 +62,7 @@ def test_real_gate_refuses_each_wrong_result_and_missing_owner(
 ) -> None:
     expected: dict[str, dict[str, str]] = {}
     for name in workflow()["jobs"]["qualification"]["needs"]:
-        if name in {"secrets", "native-experiments"}:
+        if name in {"secrets", "native-experiments", "rust-dependencies"}:
             result = "success"
         elif name == "analysis":
             result = "skipped" if private else "success"
