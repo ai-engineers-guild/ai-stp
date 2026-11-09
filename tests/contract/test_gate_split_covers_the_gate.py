@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import json
 import re
-import tomllib
 import subprocess
+import tomllib
 from functools import cache
 from pathlib import Path
 from typing import Any, TypedDict, cast
