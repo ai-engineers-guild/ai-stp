@@ -70,9 +70,11 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+      - name: Prepare the declared hosted SDKs
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
-          python-version: "3.15.2"
+          python-version: '3.15.2'
       - name: Check the qualified source and reviewed live delivery rules
         env:
           GH_TOKEN: ${{ github.token }}
@@ -81,7 +83,7 @@ jobs:
           SOURCE_RUN_ID: ${{ steps.source.outputs.source_run_id }}
           SOURCE_ATTEMPT: ${{ steps.source.outputs.source_attempt }}
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
           recipe: ci-delivery-admit
       - name: Download actual source analysis without executing its contents
@@ -100,7 +102,7 @@ jobs:
           SOURCE_RUN_ID: ${{ steps.source.outputs.source_run_id }}
           SOURCE_ATTEMPT: ${{ steps.source.outputs.source_attempt }}
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
           recipe: ci-delivery-register-findings
       - name: Prepare Main admission or reconcile the promoted deployment
@@ -112,7 +114,7 @@ jobs:
           SOURCE_RUN_ID: ${{ steps.source.outputs.source_run_id }}
           SOURCE_ATTEMPT: ${{ steps.source.outputs.source_attempt }}
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
           recipe: ci-delivery-promote
 
@@ -145,9 +147,11 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+      - name: Prepare the declared hosted SDKs
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
-          python-version: "3.15.2"
+          python-version: '3.15.2'
       # Promotion and deployment are separate events, so an immediate check
       # would measure whether the target had already deployed a commit promoted
       # seconds earlier — it never has. Waiting a bounded time is what makes a

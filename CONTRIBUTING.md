@@ -34,6 +34,19 @@ CI prepares their exact assets from `.github/documentation-check-tools.json`.
 `just docs-static` needs no Mermaid installation; rendering still uses
 `just setup-docs` and the frozen documentation lock.
 
+`just infra-source` checks GitHub workflows, Dockerfiles and all tracked shell
+scripts with Actionlint, Hadolint and ShellCheck. It runs in `just check` without
+Docker; CI prepares exact assets from `.github/infra-check-tools.json`.
+`just infra-static` adds every supported Docker Compose configuration.
+
+The disposable CI source-secret owner uses a pinned Betterleaks executable with
+explicit `.betterleaks.toml`, redacted reports and live credential validation
+disabled. Its fixtures verify exact exemptions, changed-line/path refusal and
+Bun lockfile coverage before scanning the source tree and PR commits.
+Tests and generated contracts stay in scope. Public examples use exact rule,
+path and line conditions, verified with changed-credential and outside-path
+controls.
+
 Native suites use cargo-nextest; doctests remain a separate Cargo step. Hosted CI
 prepares exact tool assets from `.github/nextest-*.json` and
 `.github/rust-check-tools.json`. Native workstations need those versions through

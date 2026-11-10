@@ -45,12 +45,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+      - name: Prepare the declared hosted SDKs
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
-        with:
           node-version: ${{ env.NODE_VERSION }}
+          uv-version: ${{ env.UV_VERSION }}
+          bun-version: ${{ env.BUN_VERSION }}
       - name: Isolate generator tools and native package caches
         run: |
           set -euo pipefail
@@ -59,10 +61,6 @@ jobs:
             echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-contract-generation"
             echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
           } >> "${GITHUB_ENV}"
-          bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
-          bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
-          echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
-          echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ${{ runner.temp }}/uv-cache
@@ -85,8 +83,7 @@ jobs:
           bun install --frozen-lockfile
           bun run api:generate
           bun run format
-      - name: Install the pinned native resource generator toolchain
-        run: bash .github/scripts/install-rust-toolchain.sh apps/cli/rust-toolchain.toml
+      - uses: ./.github/actions/project-rust
       - name: Generate embedded native resources from the canonical sources
         run: cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- resources
       - name: Retain an exact source patch for review
@@ -121,8 +118,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Install the pinned native CLI toolchain
-        run: bash .github/scripts/install-rust-toolchain.sh apps/cli/rust-toolchain.toml
+      - uses: ./.github/actions/project-rust
       - name: Regenerate only changed native dependency resolutions
         run: |
           set -euo pipefail
@@ -170,12 +166,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Install only the pinned package manager
+      - name: Prepare the declared hosted SDKs
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: Isolate the package environment
         run: |
           set -euo pipefail
           test "$(cat .bun-version)" = "${BUN_VERSION}"
-          bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
-          echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
           echo "BUN_INSTALL_CACHE_DIR=${RUNNER_TEMP}/ai-stp-web-lock-cache" >> "${GITHUB_ENV}"
       - name: Resolve only the committed web dependency graph
         run: |
@@ -221,15 +220,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+      - name: Prepare the declared hosted SDKs
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: Install the pinned native projection tools
-        run: |
-          set -euo pipefail
-          bash .github/scripts/install-rust-toolchain.sh apps/cli/rust-toolchain.toml rustfmt
-          bash .github/scripts/install-bun.sh "${BUN_VERSION}" "${RUNNER_TEMP}/bun"
-          echo "${RUNNER_TEMP}/bun" >> "${GITHUB_PATH}"
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: ./.github/actions/project-rust
+        with:
+          components: rustfmt
       - name: Restore successful Dev's native dependencies without retaining generator outputs
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         continue-on-error: true
@@ -249,12 +248,12 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Generate native IPC projections from the compiled owner
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
           recipe: desktop-native-gen
       - name: Generate native CLI resources from canonical sources
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
           recipe: cli-gen
       - name: Retain the exact native projection patch for review

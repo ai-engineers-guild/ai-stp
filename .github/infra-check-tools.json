@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "assets": [
+    {
+      "repository": "rhysd/actionlint",
+      "asset": 384924896,
+      "size": 2353908,
+      "sha256": "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8",
+      "file": "actionlint.tar.gz"
+    },
+    {
+      "repository": "hadolint/hadolint",
+      "asset": 496546506,
+      "size": 55661096,
+      "sha256": "c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507",
+      "file": "hadolint"
+    },
+    {
+      "repository": "koalaman/shellcheck",
+      "asset": 336391469,
+      "size": 3773312,
+      "sha256": "b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6",
+      "file": "shellcheck.tar.gz"
+    }
+  ]
+}

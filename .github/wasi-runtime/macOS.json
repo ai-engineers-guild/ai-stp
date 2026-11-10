@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "assets": [
+    {
+      "repository": "bytecodealliance/wasmtime",
+      "asset": 659840121,
+      "size": 9452176,
+      "sha256": "323dc098dc0455d60f396c404627e967b7033ffcfa29abfffb243126cf82c9d6",
+      "file": "wasmtime.tar.xz"
+    }
+  ]
+}

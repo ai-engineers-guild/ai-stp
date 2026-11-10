@@ -17,25 +17,14 @@ import tarfile
 import tempfile
 import time
 import tomllib
-import urllib.request
 import zipfile
 from pathlib import Path
 
 VERSION = "50.0.0"
-# Official v50.0.0 GitHub release asset digests, not mutable latest URLs.
-RUNTIMES = {
-    ("Linux", "x86_64"): (
-        "x86_64-linux.tar.xz",
-        "77c19ee0437991f9ac7837b9c269d9c7076744f85dad263fea5214cc2723c7ff",
-    ),
-    ("Darwin", "arm64"): (
-        "aarch64-macos.tar.xz",
-        "323dc098dc0455d60f396c404627e967b7033ffcfa29abfffb243126cf82c9d6",
-    ),
-    ("Windows", "amd64"): (
-        "x86_64-windows.zip",
-        "cea9ccc700aaccb2b5507e96ac990ba60104bd7ab39284fb2e67cb64d58efcc4",
-    ),
+RUNTIME_TARGETS = {
+    ("Linux", "x86_64"): "Linux",
+    ("Darwin", "arm64"): "macOS",
+    ("Windows", "amd64"): "Windows",
 }
 
 
@@ -114,16 +103,22 @@ def build(workspace: Path, output: Path) -> None:
     print(json.dumps({"producer": manifest}), flush=True)
 
 
-def install_runtime(root: Path) -> tuple[Path, str]:
-    suffix, expected = RUNTIMES[(platform.system(), platform.machine().lower())]
-    name = f"wasmtime-v{VERSION}-{suffix}"
-    url = f"https://github.com/bytecodealliance/wasmtime/releases/download/v{VERSION}/{name}"
-    with urllib.request.urlopen(url, timeout=60) as response:
-        archive = response.read(32 * 1024 * 1024 + 1)
-    if len(archive) > 32 * 1024 * 1024 or digest(archive) != expected:
+def install_runtime(workspace: Path, temporary: Path, root: Path) -> tuple[Path, str]:
+    target = RUNTIME_TARGETS[(platform.system(), platform.machine().lower())]
+    manifest = json.loads((workspace / ".github/wasi-runtime" / f"{target}.json").read_bytes())
+    (asset,) = manifest["assets"]
+    expected = asset["sha256"]
+    name = asset["file"]
+    with (temporary / "wasi-runtime-asset" / name).open("rb") as prepared:
+        archive = prepared.read(32 * 1024 * 1024 + 1)
+    if (
+        len(archive) > 32 * 1024 * 1024
+        or len(archive) != asset["size"]
+        or digest(archive) != expected
+    ):
         raise RuntimeError("Pinned official runtime asset digest mismatch")
     executable = "wasmtime.exe" if platform.system() == "Windows" else "wasmtime"
-    if suffix.endswith(".zip"):
+    if name.endswith(".zip"):
         with zipfile.ZipFile(io.BytesIO(archive)) as bundle:
             matches = [p for p in bundle.infolist() if Path(p.filename).name == executable]
             if len(matches) != 1 or matches[0].file_size > 64 * 1024 * 1024:
@@ -205,7 +200,7 @@ def exercise(workspace: Path, temporary: Path, artifact: Path) -> None:
     started = time.monotonic()
     with tempfile.TemporaryDirectory(prefix="ai-stp-wasi-", dir=temporary) as owned:
         root = Path(owned).resolve(strict=True)
-        binary, runtime_digest = install_runtime(root)
+        binary, runtime_digest = install_runtime(workspace, temporary, root)
         target, outside = root / "target", root / "outside"
         target.mkdir()
         outside.mkdir()

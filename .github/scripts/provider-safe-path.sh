@@ -41,12 +41,10 @@ ai_stp_use_provider_safe_path() {
         echo "provider-safe PATH still selects the setup-python interpreter" >&2
         return 1
     }
-    for entry in uv; do
-        command -v "${entry}" >/dev/null || {
-            echo "provider-safe PATH has no ${entry}" >&2
-            return 1
-        }
-    done
+    command -v uv >/dev/null || {
+        echo "provider-safe PATH has no uv" >&2
+        return 1
+    }
     # `uv run` prepends its project environment again. Pytest's repository-wide
     # isolation fixture restores this captured value before any provider spawn.
     export AI_STP_TEST_PROVIDER_PATH="${PATH}"
