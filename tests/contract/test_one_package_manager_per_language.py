@@ -36,7 +36,11 @@ WATCHED = ("npm", "npx", "pip", "pipx", "pnpm", "poetry", "yarn")
 def _toolchain(root: Path = ROOT) -> dict[str, str]:
     paths: list[Path] = [root / "justfile"]
     paths.extend(sorted((root / ".github").glob("*.just")))
-    for directory in (root / ".github" / "workflows", root / ".github" / "scripts"):
+    for directory in (
+        root / ".github" / "actions",
+        root / ".github" / "workflows",
+        root / ".github" / "scripts",
+    ):
         if directory.is_dir():
             paths.extend(sorted(directory.rglob("*")))
     paths.extend(sorted((root / "release_scripts").glob("*.sh")))
@@ -139,37 +143,24 @@ def test_the_toolchain_invokes_only_uv_and_bun() -> None:
     assert not offences, "the toolchain invokes a forbidden package manager: " + repr(offences)
 
 
-def test_both_managers_are_installed_from_a_pinned_verified_archive() -> None:
-    """`remote_stream_to_shell` is forbidden, and a pinned version is required.
-
-    Which rules out both shapes the vendors' own instructions suggest: piping
-    an installer into a shell, and asking a package manager for "latest".
-    """
-    for name in ("install-uv.sh", "install-bun.sh"):
-        script = (ROOT / ".github" / "scripts" / name).read_text(encoding="utf-8")
-        commands = _commands(script, ".sh")
-        assert "sha256" in commands.lower(), f"{name} does not verify a checksum"
-        assert not re.search(r"curl[^\n|]*\|\s*(?:ba)?sh", commands), f"{name} pipes to a shell"
-        assert '"${1:?' in script or "version=" in commands, f"{name} takes no pinned version"
-
-
-def test_windows_arm_bootstraps_the_native_uv_binary() -> None:
-    """The six-platform evidence matrix must not prove x64 emulation on ARM.
-
-    uv publishes an ``aarch64-pc-windows-msvc`` asset for the pinned version.
-    The bootstrap used to overwrite the architecture detected by ``uname``
-    with ``x86_64`` for every Windows runner, so a green Windows ARM job would
-    still have executed the x64 toolchain. The archive suffix differs by OS;
-    the machine selected above it must survive unchanged.
-    """
-    script = (ROOT / ".github" / "scripts" / "install-uv.sh").read_text(encoding="utf-8")
-    assert 'machine_name="${RUNNER_ARCH:-$(uname -m)}"' in script
-    assert "ARM64 | arm64 | aarch64" in script
-    windows = script.split('if [ "${system}" = "pc-windows-msvc" ]; then', maxsplit=1)[1].split(
-        "else", maxsplit=1
-    )[0]
-    assert 'machine="x86_64"' not in windows
-    assert 'archive="uv-${machine}-${system}.zip"' in windows
+def test_ci_sdk_preparation_uses_one_immutable_library_revision() -> None:
+    library = r"NDDev-Technocracy-OpenNetwork/nddev-ci/"
+    toolchain = _toolchain()
+    declarations = [
+        _commands(text, Path(name).suffix)
+        for name, text in toolchain.items()
+        if name.startswith((".github/actions/", ".github/workflows/"))
+    ]
+    ci = "\n".join(declarations)
+    pins = re.findall(rf"{library}[\w./-]+@([^\s]+)", ci)
+    assert pins and all(re.fullmatch(r"[0-9a-f]{40}", pin) for pin in pins)
+    assert len(set(pins)) == 1, f"CI uses several versions of nddev-ci: {set(pins)}"
+    assert "std-0004" not in ci
+    assert not re.search(
+        r"actions/setup-(?:node|python)@|install-(?:uv|bun|rust-toolchain)\.sh", ci
+    )
+    assert f"{library}actions/hosted-sdk@" in ci
+    assert "uv-version:" in ci and "bun-version:" in ci
 
 
 def test_every_bun_lockfile_is_readable_by_the_pinned_bun() -> None:

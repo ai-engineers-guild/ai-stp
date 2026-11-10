@@ -52,12 +52,13 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Install the native CLI toolchain
-        shell: bash
-        run: bash .github/scripts/install-rust-toolchain.sh apps/cli/rust-toolchain.toml
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+      - uses: ./.github/actions/project-rust
+      - name: Prepare the declared hosted SDKs
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
-          python-version: "3.15.2"
+          python-version: '3.15.2'
+          uv-version: '0.13.7'
       - name: Bind version and prepare wire-contract validators
         shell: bash
         env:
@@ -77,8 +78,6 @@ jobs:
             echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-rust-release-contracts"
             echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
           } >> "${GITHUB_ENV}"
-          bash .github/scripts/install-uv.sh "0.13.7" "${RUNNER_TEMP}/uv"
-          echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
       - name: Install shared wire-contract validators
         shell: bash
         run: >-
@@ -87,7 +86,7 @@ jobs:
       # Build from source: cached build scripts can retain another image's SDK paths.
       - name: Build the native executable
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
           recipe: ci-build-build-the-native-executable
       - name: Package and verify the extracted executable outside checkout
@@ -96,7 +95,7 @@ jobs:
           RELEASE_BINARY: ${{ matrix.binary }}
           RELEASE_EXTENSION: ${{ matrix.extension }}
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
           recipe: ci-build-package-and-verify-the-extracted-executable-outside-checkout
       - name: Package and qualify the native wheel
@@ -107,13 +106,13 @@ jobs:
           UV_TOOL_DIR: ${{ runner.temp }}/native-wheel-tools
           UV_TOOL_BIN_DIR: ${{ runner.temp }}/native-wheel-bin
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
           recipe: ci-build-package-and-qualify-the-native-wheel
       - name: Qualify the standalone Cargo source package
         if: runner.os == 'Linux'
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@2141b5788e0dbd7518781a125618def620600f13
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
           recipe: ci-build-qualify-the-standalone-cargo-source-package
       - name: Seal the qualified native payload without rebuilding

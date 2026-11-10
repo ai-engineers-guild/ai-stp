@@ -77,7 +77,7 @@ nodereq := 'test "$(node --version)" = "v$(cat .node-version)" || { echo "node $
 # modules. Once this already cost an investigation: ten mismatched digests
 # turned out to be a single `Generator:` line, and the version read as byte
 # substitution.
-uvreq := 'have=$(uv --version 2>/dev/null | cut -d" " -f2); want=$(cat .uv-version); test "$have" = "$want" || { echo "uv $want required, found ${have:-none}; get it with: bash .github/scripts/install-uv.sh $want <dir> && export PATH=<dir>:\$PATH" >&2; exit 1; }'
+uvreq := 'have=$(uv --version 2>/dev/null | cut -d" " -f2); want=$(cat .uv-version); test "$have" = "$want" || { echo "uv $want required, found ${have:-none}; prepare the managed toolchain" >&2; exit 1; }'
 
 export PYTHONUTF8 := "1"
 

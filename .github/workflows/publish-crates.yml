@@ -74,15 +74,21 @@ jobs:
         with:
           name: native-crate-${{ github.sha }}
           path: attested
+      - name: Read the pinned publication toolchain
+        id: toolchain
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^channel = "\(.*\)"$/\1/p' apps/cli/rust-toolchain.toml)"
+          printf 'version=%s\n' "${version}" >> "${GITHUB_OUTPUT}"
+      - uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+        with:
+          rust-version: ${{ steps.toolchain.outputs.version }}
       - name: Reproduce the verified crate before acquiring publishing credentials
         env:
           VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          toolchain="$(sed -n 's/^channel = "\(.*\)"/\1/p' apps/cli/rust-toolchain.toml)"
-          test -n "${toolchain}"
-          rustup toolchain install "${toolchain}" --profile minimal
-          echo "RUSTUP_TOOLCHAIN=${toolchain}" >> "${GITHUB_ENV}"
           cd apps/cli
           cargo package --locked --no-verify
           cmp "target/package/ai-stp-cli-${VERSION}.crate" \

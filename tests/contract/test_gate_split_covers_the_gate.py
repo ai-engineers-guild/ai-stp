@@ -340,8 +340,7 @@ def test_setup_is_split_and_each_job_prepares_only_its_own_part() -> None:
         if name in runtime_only:
             assert "bun install" not in scripts, f"{name} installs source-analysis dependencies"
             assert not any(
-                str(step.get("uses", "")).startswith("actions/setup-node@")
-                for step in job.get("steps", [])
+                "node-version" in step.get("with", {}) for step in job.get("steps", [])
             ), f"{name} prepares a Node SDK"
         if name in analysis_owners:
             assert "bun install --frozen-lockfile" in scripts, f"{name} omits analysis preparation"

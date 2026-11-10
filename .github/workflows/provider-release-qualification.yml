@@ -30,9 +30,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+      - name: Prepare the declared hosted SDKs
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
-          python-version: "3.15.2"
+          python-version: '3.15.2'
       - name: Prepare the disposable Linux confinement host
         run: |
           set -euo pipefail
@@ -45,8 +47,7 @@ jobs:
         run: |
           echo "CARGO_TARGET_DIR=${RUNNER_TEMP}/ai-stp-provider-proof-target" >> "${GITHUB_ENV}"
           echo "CARGO_BUILD_BUILD_DIR=${RUNNER_TEMP}/ai-stp-provider-proof-build" >> "${GITHUB_ENV}"
-      - name: Install the existing native compiler pin
-        run: bash .github/scripts/install-rust-toolchain.sh apps/cli/rust-toolchain.toml
+      - uses: ./.github/actions/project-rust
       - name: Check out the qualified previous consumer in disposable CI state
         if: inputs.lifecycle
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
