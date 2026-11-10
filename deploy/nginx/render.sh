@@ -92,7 +92,7 @@ validate_bind "${DOCS_BIND}" AI_STP_DOCS_BIND
 validate_lineage "${TLS_LINEAGE}" AI_STP_TLS_LINEAGE
 validate_lineage "${DOCS_TLS_LINEAGE}" AI_STP_DOCS_TLS_LINEAGE
 
-render() {
+render() (
   local template="$1" names="$2" lineage="$3" out="$4"
   if [[ -z "${names}" ]]; then
     echo "skip ${template}: no host name configured"
@@ -104,15 +104,36 @@ render() {
     echo "skip ${host}: no certificate under lineage '${lineage}'; run certbot first" >&2
     return 1
   fi
+
+  local lock staged destination="${TARGET}/${out}" existing=false
+  exec {lock}<"${TARGET}" && flock -x "${lock}" || return 2
+  if [[ -e "${destination}" || -L "${destination}" ]]; then
+    if [[ -L "${destination}" || ! -f "${destination}" ||
+      "$(stat -c '%h' -- "${destination}")" != 1 ]]; then
+      echo "ERROR: route target must be a regular file with one link: ${destination}" >&2
+      return 2
+    fi
+    existing=true
+  fi
+
+  staged="$(mktemp -- "${TARGET}/.${out}.XXXXXX")" || return 2
+  trap 'rm -f -- "${staged}"' EXIT
   sed -e "s|@@MAIN_HOST@@|${names}|g" \
       -e "s|@@DOCS_HOST@@|${names}|g" \
       -e "s|@@LINEAGE@@|${lineage}|g" \
       -e "s|@@API_BIND@@|${API_BIND}|g" \
       -e "s|@@WEB_BIND@@|${WEB_BIND}|g" \
       -e "s|@@DOCS_BIND@@|${DOCS_BIND}|g" \
-      "${ROOT}/deploy/nginx/${template}" > "${TARGET}/${out}" || return 2
-  echo "rendered ${TARGET}/${out} for ${names} (lineage ${lineage})"
-}
+      "${ROOT}/deploy/nginx/${template}" > "${staged}" || return 2
+  if "${existing}"; then
+    cp --attributes-only --preserve=mode,ownership,xattr -- "${destination}" "${staged}" ||
+      return 2
+  else
+    chmod '=rw' -- "${staged}" || return 2
+  fi
+  sync -- "${staged}" && mv --no-copy -fT -- "${staged}" "${destination}" || return 2
+  echo "rendered ${destination} for ${names} (lineage ${lineage})"
+)
 
 # One site missing its certificate must not strand the other half-installed, so
 # the failure is remembered rather than raised. A rendered file changes nothing

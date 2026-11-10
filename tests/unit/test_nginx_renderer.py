@@ -20,6 +20,8 @@ def _render(
     unavailable_root: bool,
     values: dict[str, str] | None = None,
     export_values: bool = False,
+    certificate: bool = False,
+    fail: str | None = None,
 ) -> tuple[subprocess.CompletedProcess[str], Path]:
     bash = shutil.which("bash")
     assert bash is not None, "the Linux deployment contract requires Bash"
@@ -39,7 +41,7 @@ def _render(
         encoding="utf-8",
     )
     output = tmp_path / "output"
-    output.mkdir()
+    output.mkdir(exist_ok=True)
     env = {
         "PATH": f"{commands}{os.pathsep}{os.environ['PATH']}",
         "AI_STP_ENV_FILE": str(environment_file),
@@ -61,8 +63,29 @@ def _render(
             encoding="utf-8",
         )
         grep.chmod(0o700)
+    script = ROOT / "deploy/nginx/render.sh"
+    if certificate:
+        # The shell still checks a real file. Redirect only its system certificate directory.
+        fixture = tmp_path / "checkout/deploy/nginx"
+        fixture.mkdir(parents=True)
+        for template in script.parent.glob("*.conf.template"):
+            shutil.copyfile(template, fixture / template.name)
+        certificates = tmp_path / "certificates"
+        chain = certificates / "example.invalid/fullchain.pem"
+        chain.parent.mkdir(parents=True)
+        chain.write_text("fixture certificate\n", encoding="utf-8")
+        source = script.read_text(encoding="utf-8")
+        assert source.count("/etc/letsencrypt/live/") == 1
+        script = fixture / script.name
+        script.write_text(
+            source.replace("/etc/letsencrypt/live/", f"{certificates}/"), encoding="utf-8"
+        )
+    if fail:
+        command = commands / fail
+        command.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+        command.chmod(0o700)
     result = subprocess.run(
-        [bash, str(ROOT / "deploy/nginx/render.sh")],
+        [bash, str(script)],
         cwd=tmp_path,
         env=env,
         text=True,
@@ -157,3 +180,101 @@ def test_supported_host_and_upstream_shapes_reach_certificate_check(
     assert f"no certificate under lineage '{lineage}'" in result.stderr
     assert calls.read_text(encoding="utf-8").splitlines() == ["-t", "-s reload"]
     assert not list((tmp_path / "output").iterdir())
+
+
+def _existing_route(tmp_path: Path) -> Path:
+    target = tmp_path / "output/zz-ai-stp-example.invalid.conf"
+    target.parent.mkdir()
+    target.write_bytes(b"previous route\n")
+    target.chmod(0o640)
+    os.setxattr(target, "user.ai_stp_test", b"retained")
+    return target
+
+
+@pytest.mark.parametrize("failure", ["mktemp", "sed", "cp", "sync", "mv"])
+def test_existing_route_survives_install_failure(tmp_path: Path, failure: str) -> None:
+    target = _existing_route(tmp_path)
+    original = target.stat()
+    result, calls = _render(
+        tmp_path,
+        unavailable_root=False,
+        values={"AI_STP_PUBLIC_HOST": "example.invalid"},
+        certificate=True,
+        fail=failure,
+    )
+    assert result.returncode == 2, result.stderr
+    assert target.read_bytes() == b"previous route\n"
+    assert target.stat().st_ino == original.st_ino
+    assert target.stat().st_mode == original.st_mode
+    assert os.getxattr(target, "user.ai_stp_test") == b"retained"
+    assert list(target.parent.iterdir()) == [target]
+    assert not calls.exists()
+
+
+def test_existing_route_is_replaced_with_its_attributes(tmp_path: Path) -> None:
+    target = _existing_route(tmp_path)
+    original = target.stat()
+    result, calls = _render(
+        tmp_path,
+        unavailable_root=False,
+        values={
+            "AI_STP_PUBLIC_HOST": "example.invalid",
+            "AI_STP_DOCS_HOST": "docs.example.invalid",
+        },
+        certificate=True,
+    )
+    assert result.returncode == 1, result.stderr
+    assert "no certificate" in result.stderr
+    assert "server_name example.invalid;" in target.read_text(encoding="utf-8")
+    replacement = target.stat()
+    assert replacement.st_ino != original.st_ino
+    assert (replacement.st_uid, replacement.st_gid, replacement.st_mode) == (
+        original.st_uid,
+        original.st_gid,
+        original.st_mode,
+    )
+    assert os.getxattr(target, "user.ai_stp_test") == b"retained"
+    assert list(target.parent.iterdir()) == [target]
+    assert calls.read_text(encoding="utf-8").splitlines() == ["-t", "-s reload"]
+
+
+@pytest.mark.parametrize("link", ["symbolic", "hard"])
+def test_route_links_refuse_before_any_replacement(tmp_path: Path, link: str) -> None:
+    target = _existing_route(tmp_path)
+    other = target.with_name("other.conf")
+    target.rename(other)
+    if link == "symbolic":
+        target.symlink_to(other)
+    else:
+        target.hardlink_to(other)
+    result, calls = _render(
+        tmp_path,
+        unavailable_root=False,
+        values={"AI_STP_PUBLIC_HOST": "example.invalid"},
+        certificate=True,
+    )
+    assert result.returncode == 2, result.stderr
+    assert "regular file with one link" in result.stderr
+    assert target.samefile(other)
+    assert other.read_bytes() == b"previous route\n"
+    assert not calls.exists()
+
+
+@pytest.mark.skipif(
+    not shutil.which("setfacl") or not shutil.which("getfacl"),
+    reason="requires the native ACL tools",
+)
+def test_replacing_a_route_preserves_its_access_list(tmp_path: Path) -> None:
+    target = _existing_route(tmp_path)
+    subprocess.run(["setfacl", "-m", "u:65534:r--", str(target)], check=True, capture_output=True)
+    command = ["getfacl", "-cp", str(target)]
+    expected = subprocess.check_output(command)
+    result, _ = _render(
+        tmp_path,
+        unavailable_root=False,
+        values={"AI_STP_PUBLIC_HOST": "example.invalid"},
+        certificate=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert b"user:nobody:r--" in expected or b"user:65534:r--" in expected
+    assert subprocess.check_output(command) == expected
