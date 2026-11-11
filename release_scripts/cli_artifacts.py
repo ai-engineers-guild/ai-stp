@@ -101,6 +101,19 @@ def digest(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
+def check_checksum_files(directory: Path, files: dict[str, str]) -> None:
+    for payload, expected in files.items():
+        if payload.endswith(".sha256"):
+            continue
+        checksum = (directory / (payload + ".sha256")).read_bytes()
+        # GNU sha256sum marks Windows binary input with an asterisk.
+        line = checksum.removesuffix(b"\n").removesuffix(b"\r")
+        require(
+            line in {f"{expected}  {payload}".encode(), f"{expected} *{payload}".encode()},
+            f"CLI checksum differs from its qualified payload: {payload}",
+        )
+
+
 def seal(directory: Path, head: str, version: str, target: str) -> None:
     require(bool(re.fullmatch(r"[0-9a-f]{40}", head)), "Exact qualified source required")
     expected = names(version, target)
@@ -108,12 +121,14 @@ def seal(directory: Path, head: str, version: str, target: str) -> None:
         {path.name for path in directory.iterdir()} == expected,
         "CLI source payload inventory differs",
     )
+    files = {name: digest(directory / name) for name in sorted(expected)}
+    check_checksum_files(directory, files)
     proof = {
         "schema_version": 1,
         "source_sha": head,
         "version": version,
         "target": target,
-        "files": {name: digest(directory / name) for name in sorted(expected)},
+        "files": files,
     }
     with (directory / f"qualification-{target}.json").open("x") as stream:
         json.dump(proof, stream, sort_keys=True)
@@ -148,13 +163,7 @@ def verify(directory: Path, output: Path, head: str, version: str) -> None:
         )
         for name, expected_digest in files.items():
             require(digest(directory / name) == expected_digest, "Qualified CLI bytes changed")
-            if name.endswith(".sha256"):
-                payload = name.removesuffix(".sha256")
-                checksum = (directory / name).read_text().strip()
-                require(
-                    checksum == f"{files[payload]}  {payload}",
-                    "CLI checksum differs from its qualified payload",
-                )
+        check_checksum_files(directory, files)
     require(not output.exists(), "Publication staging directory must be new")
     output.mkdir(parents=True, mode=0o700)
     for name in sorted(expected):

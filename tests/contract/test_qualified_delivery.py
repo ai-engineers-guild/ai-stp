@@ -687,12 +687,12 @@ def test_cli_publication_stages_identical_complete_payloads_only(
             if not name.endswith(".sha256"):
                 data = f"Qualified payload {name}\n".encode()
                 (platform / name).write_bytes(data)
-                (platform / (name + ".sha256")).write_text(
-                    f"{hashlib.sha256(data).hexdigest()}  {name}\n"
+                marker = (
+                    "*" if target == "x86_64-pc-windows-msvc" and name.endswith(".whl") else " "
                 )
-        if failure == "checksum":
-            checksum = next(platform.glob("*.sha256"))
-            checksum.write_text("0" * 64 + "  " + checksum.name.removesuffix(".sha256") + "\n")
+                (platform / (name + ".sha256")).write_text(
+                    f"{hashlib.sha256(data).hexdigest()} {marker}{name}\n"
+                )
         seal_cli(platform, "a" * 40, "0.3.0", target)
         for path in platform.iterdir():
             (directory / path.name).write_bytes(path.read_bytes())
@@ -708,6 +708,19 @@ def test_cli_publication_stages_identical_complete_payloads_only(
         path.write_text(json.dumps(proof))
     elif failure == "missing":
         next(directory.glob("*.crate")).unlink()
+    elif failure == "checksum":
+        target = "x86_64-pc-windows-msvc"
+        path = directory / f"qualification-{target}.json"
+        proof = json.loads(path.read_bytes())
+        checksum = next(directory.glob("*-win_amd64.whl.sha256"))
+        bad = ("0" * 64 + " *" + checksum.name.removesuffix(".sha256") + "\n").encode()
+        checksum.write_bytes(bad)
+        proof["files"][checksum.name] = hashlib.sha256(bad).hexdigest()
+        path.write_text(json.dumps(proof))
+        (tmp_path / target / checksum.name).write_bytes(bad)
+        (tmp_path / target / path.name).unlink()
+        with pytest.raises(PromotionRefused, match="CLI checksum differs"):
+            seal_cli(tmp_path / target, "a" * 40, "0.3.0", target)
     if failure:
         with pytest.raises(PromotionRefused):
             verify_cli(directory, output, "a" * 40, "0.3.0")

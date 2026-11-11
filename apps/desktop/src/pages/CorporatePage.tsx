@@ -37,34 +37,64 @@ const tabMessages: Record<Tab, MessageKey> = {
   Heartbeat: "corporate.tabHeartbeat",
 };
 
+interface CompanyView {
+  tab: Tab;
+  harness: string;
+  kind: string;
+  query: string;
+  membershipOnly: boolean;
+  project: string;
+  technology: string;
+  heartbeatView: "policy" | "status";
+}
+
+const DEFAULT_VIEW: CompanyView = {
+  tab: "Projects",
+  harness: "",
+  kind: "setup",
+  query: "",
+  membershipOnly: true,
+  project: "",
+  technology: "",
+  heartbeatView: "policy",
+};
+
 export default function CorporatePage() {
   const msg = useText();
   const context = useContexts((state) => state.selected);
   const contextLoading = useContexts(
     (state) => state.loading || state.switching,
   );
-  const [tab, setTab] = useState<Tab>("Projects");
+  const contextId = context?.mode === "corporate" ? context.id : null;
+  const [views, setViews] = useState(() => new Map<string, CompanyView>());
+  const viewSettings = (contextId && views.get(contextId)) || DEFAULT_VIEW;
+  const { tab, kind, query, membershipOnly, heartbeatView } = viewSettings;
   const [result, setResult] = useState<CmdResult | null>(null);
   const [help, setHelp] = useState<CmdResult | null>(null);
   const [harnesses, setHarnesses] = useState<string[]>([]);
-  const [harness, setHarness] = useState("");
-  const [kind, setKind] = useState("setup");
-  const [query, setQuery] = useState("");
-  const [membershipOnly, setMembershipOnly] = useState(true);
+  const harness = harnesses.includes(viewSettings.harness)
+    ? viewSettings.harness
+    : (harnesses[0] ?? "");
   const [projects, setProjects] = useState<Record<string, unknown>[]>([]);
   const [technologies, setTechnologies] = useState<Record<string, unknown>[]>(
     [],
   );
-  const [project, setProject] = useState("");
-  const [technology, setTechnology] = useState("");
+  // A saved filter becomes selectable after a fresh read confirms its identity.
+  const project = projects.some(
+    (item) => item.project_id === viewSettings.project,
+  )
+    ? viewSettings.project
+    : "";
+  const technology = technologies.some(
+    (item) => item.technology_id === viewSettings.technology,
+  )
+    ? viewSettings.technology
+    : "";
   const [checkoutProject, setCheckoutProject] = useState<{
     id: string;
     name: string;
   } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [heartbeatView, setHeartbeatView] = useState<"policy" | "status">(
-    "policy",
-  );
   const heartbeatPath = `corporate heartbeat ${heartbeatView}`;
   const heartbeatSupported =
     help?.ok === true &&
@@ -84,13 +114,9 @@ export default function CorporatePage() {
     request.current++;
     setResult(null);
     setBusy(false);
-    setQuery("");
-    setProject("");
-    setTechnology("");
     setProjects([]);
     setTechnologies([]);
     setCheckoutProject(null);
-    setHeartbeatView("policy");
     return () => {
       active.current = false;
       epoch.current++;
@@ -109,12 +135,21 @@ export default function CorporatePage() {
           "harness",
         ) ?? [];
       setHarnesses(choices);
-      setHarness(choices[0] ?? "");
     });
     return () => {
       mounted = false;
     };
   }, []);
+  function updateView(patch: Partial<CompanyView>) {
+    if (!contextId) return;
+    invalidate();
+    setViews((previous) =>
+      new Map(previous).set(contextId, {
+        ...(previous.get(contextId) ?? DEFAULT_VIEW),
+        ...patch,
+      }),
+    );
+  }
   function invalidate() {
     request.current++;
     setResult(null);
@@ -311,9 +346,7 @@ export default function CorporatePage() {
                 key={value}
                 aria-pressed={tab === value}
                 onClick={() => {
-                  invalidate();
-                  setTab(value);
-                  setQuery("");
+                  updateView({ tab: value, query: "" });
                   setCheckoutProject(null);
                 }}
               >
@@ -347,10 +380,10 @@ export default function CorporatePage() {
                     className="input"
                     value={heartbeatView}
                     onChange={(event) => {
-                      invalidate();
-                      setHeartbeatView(
-                        event.target.value as "policy" | "status",
-                      );
+                      updateView({
+                        heartbeatView:
+                          event.target.value === "status" ? "status" : "policy",
+                      });
                     }}
                   >
                     <option value="policy">
@@ -368,8 +401,7 @@ export default function CorporatePage() {
                     type="checkbox"
                     checked={membershipOnly}
                     onChange={(event) => {
-                      invalidate();
-                      setMembershipOnly(event.target.checked);
+                      updateView({ membershipOnly: event.target.checked });
                     }}
                   />
                   {msg("corporate.onlyProjectsIBelongTo")}
@@ -383,8 +415,7 @@ export default function CorporatePage() {
                     maxLength={200}
                     value={query}
                     onChange={(event) => {
-                      invalidate();
-                      setQuery(event.target.value);
+                      updateView({ query: event.target.value });
                     }}
                   />
                 </label>
@@ -396,8 +427,7 @@ export default function CorporatePage() {
                     className="input"
                     value={kind}
                     onChange={(event) => {
-                      invalidate();
-                      setKind(event.target.value);
+                      updateView({ kind: event.target.value });
                     }}
                   >
                     <option value="setup">{msg("corporate.setups")}</option>
@@ -415,8 +445,7 @@ export default function CorporatePage() {
                     value={harness}
                     disabled={!harnesses.length}
                     onChange={(event) => {
-                      invalidate();
-                      setHarness(event.target.value);
+                      updateView({ harness: event.target.value });
                     }}
                   >
                     {!harnesses.length && (
@@ -440,8 +469,7 @@ export default function CorporatePage() {
                       className="input"
                       value={project}
                       onChange={(event) => {
-                        invalidate();
-                        setProject(event.target.value);
+                        updateView({ project: event.target.value });
                       }}
                     >
                       <option value="">
@@ -463,8 +491,7 @@ export default function CorporatePage() {
                       className="input"
                       value={technology}
                       onChange={(event) => {
-                        invalidate();
-                        setTechnology(event.target.value);
+                        updateView({ technology: event.target.value });
                       }}
                     >
                       <option value="">
@@ -691,10 +718,11 @@ export default function CorporatePage() {
                             type="button"
                             className="btn-outline"
                             onClick={() => {
-                              invalidate();
-                              setProject(String(item.project_id));
                               setCheckoutProject(null);
-                              setTab("Assignments");
+                              updateView({
+                                project: String(item.project_id),
+                                tab: "Assignments",
+                              });
                             }}
                           >
                             {msg("corporate.previewThisProjectSAssignments")}

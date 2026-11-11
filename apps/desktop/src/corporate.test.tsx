@@ -245,6 +245,7 @@ it("discards private heartbeat policy from a previous company after switching vi
   fireEvent.click(button);
   await waitFor(() => expect(transport.cmdRunRead).toHaveBeenCalledTimes(1));
   act(() => useContexts.setState({ selected: B }));
+  fireEvent.click(screen.getByRole("button", { name: "Heartbeat" }));
   fireEvent.click(
     screen.getByRole("button", { name: "Read heartbeat policy" }),
   );
@@ -442,4 +443,72 @@ it("reads the next organization catalog page with its original search and harnes
     [],
   );
   expect(screen.queryByRole("button", { name: "Read next page" })).toBe(null);
+});
+
+it("restores each company view while fencing earlier directory replies", async () => {
+  let finish!: (result: CmdResult) => void;
+  vi.mocked(transport.cmdRunRead).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  mount();
+  await ready();
+
+  fireEvent.click(screen.getByRole("button", { name: "Catalog" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Search" }), {
+    target: { value: "first-company filter" },
+  });
+  fireEvent.change(screen.getByRole("combobox", { name: "Harness" }), {
+    target: { value: "pi" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Read catalog" }));
+  expect(transport.cmdRunRead).toHaveBeenCalledWith(
+    "corporate catalog search",
+    {
+      context: A.id,
+      kind: "setup",
+      query: "first-company filter",
+      harness: "pi",
+    },
+    [],
+  );
+
+  act(() => useContexts.setState({ selected: B }));
+  expect(
+    screen
+      .getByRole("button", { name: "Projects" })
+      .getAttribute("aria-pressed"),
+  ).toBe("true");
+  fireEvent.click(screen.getByRole("button", { name: "Catalog" }));
+  const secondSearch = screen.getByRole<HTMLInputElement>("textbox", {
+    name: "Search",
+  });
+  expect(secondSearch.value).toBe("");
+  expect(
+    screen.getByRole<HTMLSelectElement>("combobox", { name: "Harness" }).value,
+  ).toBe("codex");
+  fireEvent.change(secondSearch, {
+    target: { value: "second-company filter" },
+  });
+
+  await act(async () => finish(reply(A.id, "Earlier company response")));
+  expect(screen.queryByText("Earlier company response")).toBeNull();
+  expect(secondSearch.value).toBe("second-company filter");
+
+  act(() => useContexts.setState({ selected: A }));
+  expect(
+    screen
+      .getByRole("button", { name: "Catalog" })
+      .getAttribute("aria-pressed"),
+  ).toBe("true");
+  expect(
+    screen.getByRole<HTMLInputElement>("textbox", { name: "Search" }).value,
+  ).toBe("first-company filter");
+  expect(
+    screen.getByRole<HTMLSelectElement>("combobox", { name: "Harness" }).value,
+  ).toBe("pi");
+  expect(screen.queryByText("Earlier company response")).toBeNull();
+  expect(transport.cmdRunRead).toHaveBeenCalledTimes(1);
 });
