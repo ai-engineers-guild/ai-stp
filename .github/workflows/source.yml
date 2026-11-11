@@ -337,6 +337,10 @@ jobs:
           workspaces: ${{ env.NATIVE_CACHE_WORKSPACE }}
           cache-bin: 'false'
           save-if: 'false'
+      - name: Observe Linux package networking before native checks
+        if: runner.os == 'Linux'
+        shell: bash
+        run: bash .github/scripts/observe-native-package-network.sh before-native
       - name: Native formatting, all-target analysis and library units
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
@@ -358,6 +362,7 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
+          bash .github/scripts/observe-native-package-network.sh before-index
           sudo apt-get update --error-on=any -qq
           sudo apt-get install --yes --no-install-recommends \
             dbus-daemon gnome-keyring libglib2.0-bin
@@ -560,6 +565,10 @@ jobs:
             hashFiles('apps/cli/rust-toolchain.toml',
             '.github/scripts/build-previous-native-cli.sh',
             '.github/scripts/previous-native-cache.py') }}
+      - name: Observe Linux package networking before native checks
+        if: runner.os == 'Linux'
+        shell: bash
+        run: bash .github/scripts/observe-native-package-network.sh before-native
       - name: Native boundary checks
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
@@ -575,6 +584,7 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
+          bash .github/scripts/observe-native-package-network.sh before-index
           sudo apt-get update --error-on=any -qq
           sudo apt-get install --yes --no-install-recommends \
             dbus-daemon gnome-keyring libglib2.0-bin
