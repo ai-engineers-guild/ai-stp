@@ -19,7 +19,7 @@ runs:
         [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
         printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
     - uses: >-
-        NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+        NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@ca07bd07d12c91f103ce481372100cab6c83d72f
       with:
         rust-version: ${{ steps.pin.outputs.version }}
         rust-components: ${{ inputs.components }}

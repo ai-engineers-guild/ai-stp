@@ -30,10 +30,27 @@ if args[0] == "api":
     route = next(arg for arg in args if arg.startswith("repos/"))
     if route.endswith("git/ref/heads/main"):
         result = {"object": {"sha": "a" * 40}}
+    elif route == "repos/example/project/git/ref/tags/desktop-v0.5.0":
+        status = 404 if state.get("missing_tag") else 200
+        result = {"object": {"type": "tag", "sha": "b" * 40}}
+    elif route == "repos/example/project/git/tags/" + "b" * 40:
+        result = {"tag": "desktop-v0.5.0", "object": {"type": "commit", "sha": "a" * 40}}
+    elif route == "repos/example/project/releases":
+        assert args[args.index("--method") + 1] == "POST" and "--input" in args
+        assert not state["exists"]
+        payload = json.load(sys.stdin)
+        assert payload["tag_name"] == "desktop-v0.5.0"
+        assert payload["target_commitish"] == "a" * 40
+        assert payload["draft"] is True and payload["prerelease"] is False
+        assert payload["make_latest"] == "false" and payload["body"]
+        state["exists"] = True
+        result = state["release"]
+        if state.pop("lose_create_reply", False):
+            status = 503
     elif route == "repos/example/project/releases?per_page=100":
         assert "--paginate" in args and "--slurp" in args
         status = state.get("read_status", 200)
-        releases = [state["release"]] if state["exists"] else []
+        releases = [state["release"]] if state["exists"] and not state.get("list_lag") else []
         if state.get("duplicate"):
             releases = releases + releases
         result = [releases]
@@ -45,9 +62,6 @@ if args[0] == "api":
         result = state["release"]
     else:
         raise SystemExit("Unexpected GitHub API route")
-elif args[:2] == ["release", "create"]:
-    assert not state["exists"] and "--draft" in args and "--verify-tag" in args
-    state["exists"] = True
 elif args[:2] == ["release", "upload"]:
     assert state["release"]["draft"] and "--clobber" not in args
     for name in args[args.index("--") + 1 :]:
@@ -125,7 +139,7 @@ class Publisher:
         return result
 
     def mutations(self) -> list[list[str]]:
-        return [args for args in self.state["trace"] if args[0] == "release"]
+        return [args for args in self.state["trace"] if args[0] == "release" or "--method" in args]
 
 
 @pytest.fixture
@@ -171,7 +185,7 @@ def test_first_publication_and_repeated_delivery_preserve_every_asset(publisher:
         for asset in assets
     )
     assert [args[:2] for args in publisher.mutations()] == [
-        ["release", "create"],
+        ["api", "--method"],
         ["release", "upload"],
         ["release", "edit"],
     ]
@@ -194,7 +208,7 @@ def test_partial_upload_can_finish_without_duplicate_or_replaced_assets(
     assert resumed.returncode == 0, resumed.stderr
     assert len(publisher.state["release"]["assets"]) == 7
     assert publisher.state["release"]["assets"][:1] == original
-    assert sum(args[:2] == ["release", "create"] for args in publisher.mutations()) == 1
+    assert sum("--method" in args for args in publisher.mutations()) == 1
     assert all("--clobber" not in args for args in publisher.mutations())
 
 
@@ -233,3 +247,40 @@ def test_existing_draft_is_found_before_creating_a_release(publisher: Publisher)
         ["release", "upload"],
         ["release", "edit"],
     ]
+
+
+def test_creation_acknowledgement_does_not_depend_on_release_list_visibility(
+    publisher: Publisher,
+) -> None:
+    publisher.state["list_lag"] = True
+    result = publisher.run()
+    assert result.returncode == 0, result.stderr
+    assert publisher.state["release"]["draft"] is False
+    assert (
+        sum(
+            "repos/example/project/releases?per_page=100" in args
+            for args in publisher.state["trace"]
+        )
+        == 1
+    )
+
+
+def test_lost_creation_reply_resumes_the_acknowledged_draft_without_recreation(
+    publisher: Publisher,
+) -> None:
+    publisher.state["lose_create_reply"] = True
+    result = publisher.run()
+    assert result.returncode != 0
+    assert publisher.state["exists"] is True
+    assert publisher.state["release"]["assets"] == []
+    resumed = publisher.run()
+    assert resumed.returncode == 0, resumed.stderr
+    assert sum("--method" in args for args in publisher.mutations()) == 1
+    assert len(publisher.state["release"]["assets"]) == 7
+
+
+def test_missing_tag_refuses_before_release_creation(publisher: Publisher) -> None:
+    publisher.state["missing_tag"] = True
+    result = publisher.run()
+    assert result.returncode != 0
+    assert publisher.mutations() == []

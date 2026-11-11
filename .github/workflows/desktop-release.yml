@@ -66,7 +66,7 @@ jobs:
           persist-credentials: false
       - name: Prepare the declared hosted SDKs
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@ca07bd07d12c91f103ce481372100cab6c83d72f
         with:
           python-version: '3.15.2'
       - name: every desktop manifest must equal the tag
@@ -220,10 +220,21 @@ jobs:
           }
           release_id="$(find_release)"
           if [[ -z "${release_id}" ]]; then
-            gh release create "${tag}" --repo "${REPOSITORY}" --verify-tag --draft \
-              --title "ai-stp-desktop ${VERSION}" --latest=false \
-              --notes-file "${RUNNER_TEMP}/NOTES.md"
-            release_id="$(find_release)"
+            # Read the exact existing tag; release creation must not invent one.
+            reference="$(gh api "repos/${REPOSITORY}/git/ref/tags/${tag}")"
+            object="$(jq -er 'select(.object.type == "tag") | .object.sha' <<< "${reference}")"
+            [[ "${object}" =~ ^[0-9a-f]{40}$ ]]
+            gh api "repos/${REPOSITORY}/git/tags/${object}" |
+              jq -e --arg tag "${tag}" --arg source "${SOURCE_SHA}" '
+                .tag == $tag and .object.type == "commit" and .object.sha == $source
+              ' >/dev/null
+            # The creation response owns the ID; list visibility may lag.
+            created="$(jq -n --arg tag "${tag}" --arg source "${SOURCE_SHA}" \
+              --arg title "ai-stp-desktop ${VERSION}" --rawfile notes "${RUNNER_TEMP}/NOTES.md" '
+                {tag_name: $tag, target_commitish: $source, name: $title, body: $notes,
+                 draft: true, prerelease: false, make_latest: "false"}
+              ' | gh api --method POST "repos/${REPOSITORY}/releases" --input -)"
+            release_id="$(jq -er '.id' <<< "${created}")"
           fi
           [[ "${release_id}" =~ ^[1-9][0-9]*$ ]]
           release_path="repos/${REPOSITORY}/releases/${release_id}"

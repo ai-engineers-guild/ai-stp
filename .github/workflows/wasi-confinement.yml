@@ -21,7 +21,7 @@ jobs:
           persist-credentials: false
       - name: Prepare the declared hosted SDKs
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@ca07bd07d12c91f103ce481372100cab6c83d72f
         with:
           python-version: '3.15.2'
       - uses: ./.github/actions/project-rust
@@ -31,7 +31,7 @@ jobs:
         env:
           ARTIFACT: ${{ runner.temp }}/wasi-component
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@ca07bd07d12c91f103ce481372100cab6c83d72f
         with:
           recipe: ci-component-compile-one-portable-component-without-third-party-guest-dependencies
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -56,7 +56,7 @@ jobs:
           persist-credentials: false
       - name: Prepare the declared hosted SDKs
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@ca07bd07d12c91f103ce481372100cab6c83d72f
         with:
           python-version: '3.15.2'
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
@@ -65,7 +65,7 @@ jobs:
           path: ${{ runner.temp }}/wasi-component
       - name: Prepare the pinned native WASI runtime archive
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@ca07bd07d12c91f103ce481372100cab6c83d72f
         with:
           manifest: .github/wasi-runtime/${{ runner.os }}.json
           directory: ${{ runner.temp }}/wasi-runtime-asset
@@ -73,6 +73,6 @@ jobs:
         env:
           ARTIFACT: ${{ runner.temp }}/wasi-component
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@ca07bd07d12c91f103ce481372100cab6c83d72f
         with:
           recipe: ci-confinement-verify-runtime-digest-and-exercise-the-identical-guest-component
