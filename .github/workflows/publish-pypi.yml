@@ -82,3 +82,44 @@ jobs:
         with:
           attestations: true
           skip-existing: true
+
+
+  verify-public:
+    needs: [verify, publish]
+    if: >-
+      always() && needs.verify.result == 'success' &&
+      needs.publish.result == 'success'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: native-wheels-${{ github.sha }}
+          path: release
+          digest-mismatch: error
+      - name: Download and compare the actual public wheel bytes
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          curl --fail --silent --show-error --retry 3 --max-time 60 \
+            "https://pypi.org/pypi/ai-stp/${VERSION}/json" > published.json
+          jq -e '.urls | length == 3' published.json >/dev/null
+          test "$(find release -maxdepth 1 -name '*.whl' -type f | wc -l)" -eq 3
+          for wheel in release/*.whl; do
+            filename="${wheel##*/}"
+            entry="$(jq -ce --arg name "${filename}" '
+              [.urls[] | select(.filename == $name)] | select(length == 1) | .[0]
+            ' published.json)"
+            digest="$(jq -er '.digests.sha256' <<< "${entry}")"
+            url="$(jq -er '.url' <<< "${entry}")"
+            [[ "${digest}" =~ ^[0-9a-f]{64}$ ]]
+            [[ "${url}" = https://files.pythonhosted.org/* ]]
+            printf '%s  %s\n' "${digest}" "${wheel}" | sha256sum --check --strict
+            curl --fail --silent --show-error --retry 3 --max-time 120 \
+              --proto '=https' --max-filesize 268435456 "${url}" --output downloaded.whl
+            cmp "${wheel}" downloaded.whl
+          done

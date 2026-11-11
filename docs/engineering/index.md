@@ -9,7 +9,7 @@ last_verified: "2026-10-15"
 
 | Document | Description | Verified |
 | -------- | ----- | ------- |
-| [git-workflow.md](git-workflow.md) | Branch integration, exact-source qualification and artifact publication. | 2026-11-08 |
+| [git-workflow.md](git-workflow.md) | Branch integration, exact-source qualification and artifact publication. | 2026-11-11 |
 | [release-evidence.md](release-evidence.md) | Where native release and deployment evidence is produced and verified. | 2026-11-04 |
 
 <!-- END CONTENTS -->

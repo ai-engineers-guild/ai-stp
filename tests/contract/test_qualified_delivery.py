@@ -54,12 +54,20 @@ if method != "GET":
         result = {"object": {"sha": state["deployment"]}}
     elif method == "POST" and route == "git/tags":
         status = 201
-        state["tagged_source"] = body["object"]
-        result = {"sha": "annotated-desktop"}
+        if body["tag"].startswith("cli-v"):
+            state["cli_tag_source"] = body["object"]
+            result = {"sha": "annotated-cli"}
+        else:
+            state["tagged_source"] = body["object"]
+            result = {"sha": "annotated-desktop"}
     elif method == "POST" and route == "git/refs" and body["ref"].startswith("refs/tags/"):
         status = 201
-        state["tag_exists"] = True
-        result = {"object": {"sha": "annotated-desktop", "type": "tag"}}
+        if body["ref"].startswith("refs/tags/cli-v"):
+            state["cli_tag_exists"] = True
+            result = {"object": {"sha": "annotated-cli", "type": "tag"}}
+        else:
+            state["tag_exists"] = True
+            result = {"object": {"sha": "annotated-desktop", "type": "tag"}}
     elif method == "POST" and route == "git/refs":
         status = 201
         state["deployment"] = body["sha"]
@@ -69,7 +77,24 @@ if method != "GET":
         status = state.get("upload_status", 202)
         result = {"id": "accepted-payload"}
     elif method == "POST" and route == "actions/workflows/deploy.yml/dispatches":
+        default_status = 200 if "X-GitHub-Api-Version: 2026-03-10" in args else 204
+        status = state.get("dispatch_status", default_status)
+        result = {"workflow_run_id": 103} if status == 200 else None
+    elif method == "POST" and route == "actions/workflows/cli-release.yml/dispatches":
         status = state.get("dispatch_status", 204)
+        state["cli_runs"] = [{
+            "id": 101, "repository": {"full_name": "example/project"},
+            "head_repository": {"full_name": "example/project"},
+            "head_sha": head, "head_branch": body["ref"], "event": "workflow_dispatch",
+            "path": ".github/workflows/cli-release.yml", "status": "queued",
+            "conclusion": None,
+        }]
+        result = {"workflow_run_id": 101}
+    elif method == "POST" and route in {
+        "actions/workflows/publish-pypi.yml/dispatches",
+        "actions/workflows/publish-crates.yml/dispatches",
+    }:
+        result = {"workflow_run_id": 101 if "pypi" in route else 102}
     else:
         status, result = 500, {"unexpected_write": route}
 elif not route:
@@ -81,6 +106,19 @@ elif route.startswith("rulesets?"):
     result = [{"id": index, "name": item["name"]} for index, item in enumerate(state["policies"])]
 elif route.startswith("rulesets/"):
     result = state["policies"][int(route.split("/")[-1])]
+elif route.startswith("actions/workflows/cli-release.yml/runs?"):
+    runs = state.get("cli_runs", [])
+    result = {"total_count": state.get("cli_run_total", len(runs)), "workflow_runs": runs}
+elif route in {"actions/runs/101", "actions/runs/102"}:
+    workflow = "publish-pypi.yml" if route.endswith("101") else "publish-crates.yml"
+    result = {
+        "id": int(route.rsplit("/", 1)[1]), "head_sha": state.get("registry_head", head),
+        "head_branch": "cli-v" + state["cli_version"], "event": "workflow_dispatch",
+        "path": ".github/workflows/" + workflow,
+        "repository": {"full_name": "example/project"},
+        "head_repository": {"full_name": "example/project"},
+        "status": "completed", "conclusion": state.get("registry_conclusion", "success"),
+    }
 elif route == "actions/runs/41":
     result = state["run"]
 elif route.startswith("actions/runs?"):
@@ -160,11 +198,12 @@ elif route.startswith("releases/tags/cli-v"):
         "assets": assets,
     }
 elif route.startswith("git/ref/tags/cli-v"):
+    status = 200 if state.get("cli_tag_exists", True) else 404
     result = {"object": {"type": "tag", "sha": "annotated-cli"}}
 elif route == "git/tags/annotated-cli":
     result = {
         "tag": "cli-v" + state["cli_version"],
-        "object": {"type": "commit", "sha": "c" * 40},
+        "object": {"type": "commit", "sha": state.get("cli_tag_source", "c" * 40)},
     }
     if state.get("change_main_during_cli_admission"):
         state["main"] = "e" * 40
@@ -391,7 +430,6 @@ def test_operator_requires_processed_clean_main_analysis_before_any_write(
 def test_explicit_operator_verifies_authority_advances_only_main_and_dispatches(
     delivery: Delivery, failure: str | None
 ) -> None:
-    delivery.state["cli_release_status"] = 404
     if failure == "principal":
         delivery.state["operator_admin"] = False
     elif failure == "hidden-actors":
@@ -417,7 +455,7 @@ def test_explicit_operator_verifies_authority_advances_only_main_and_dispatches(
     assert delivery.state["main"] == delivery.state["head"]
     assert delivery.state["deployment"] == "b" * 40
     assert not (delivery.directory / "outputs").exists()
-    assert not any("cli-v" in item["route"] for item in delivery.state["trace"])
+    assert not any("cli-v" in item["route"] for item in delivery.writes())
     # A repair reuses Main, dispatching reconciliation without another ref write.
     delivery.state["dispatch_status"] = 204
     again = delivery.execute(
@@ -731,3 +769,157 @@ def test_cli_publication_stages_identical_complete_payloads_only(
         assert all(
             path.read_bytes() == (directory / path.name).read_bytes() for path in output.iterdir()
         )
+
+
+def test_operator_creates_exact_cli_tag_and_dispatches_publication_before_deployment(
+    delivery: Delivery,
+) -> None:
+    delivery.state["cli_tag_exists"] = False
+    delivery.state["cli_release_status"] = 404
+    outcome = delivery.execute(
+        [sys.executable, "-m", "release_scripts.source_promotion", "--advance-main"],
+        GITHUB_ACTIONS="false",
+    )
+    assert outcome.returncode == 0, outcome.stderr
+    writes = delivery.writes()
+    assert [item["route"] for item in writes] == [
+        "git/refs/heads/main",
+        "git/tags",
+        "git/refs",
+        "actions/workflows/cli-release.yml/dispatches",
+    ]
+    assert writes[1]["body"]["object"] == delivery.state["head"]
+    assert writes[3]["body"] == {
+        "ref": "cli-v" + delivery.state["cli_version"],
+        "inputs": {"version": delivery.state["cli_version"]},
+    }
+    assert delivery.state["deployment"] != delivery.state["head"]
+    again = delivery.execute(
+        [sys.executable, "-m", "release_scripts.source_promotion", "--advance-main"],
+        GITHUB_ACTIONS="false",
+    )
+    assert again.returncode == 0, again.stderr
+    assert delivery.writes() == writes
+
+
+def test_lost_cli_dispatch_reply_reconciles_the_running_owner_without_duplicate_dispatch(
+    delivery: Delivery,
+) -> None:
+    delivery.state.update(cli_tag_exists=False, cli_release_status=404, dispatch_status=503)
+    outcome = delivery.execute(
+        [sys.executable, "-m", "release_scripts.source_promotion", "--advance-main"],
+        GITHUB_ACTIONS="false",
+    )
+    assert outcome.returncode != 0
+    writes = delivery.writes()
+    delivery.state["dispatch_status"] = 204
+    again = delivery.execute(
+        [sys.executable, "-m", "release_scripts.source_promotion", "--advance-main"],
+        GITHUB_ACTIONS="false",
+    )
+    assert again.returncode == 0, again.stderr
+    assert delivery.writes() == writes
+    assert delivery.state["deployment"] != delivery.state["head"]
+
+
+@pytest.mark.parametrize("failure", ["foreign", "incomplete", "failed"])
+def test_cli_publication_inventory_cannot_supply_unqualified_completion(
+    delivery: Delivery,
+    failure: str,
+) -> None:
+    delivery.state.update(main=delivery.state["head"], cli_tag_source=delivery.state["head"])
+    candidate = delivery.state["run"] | {
+        "id": 101,
+        "head_branch": "cli-v" + delivery.state["cli_version"],
+        "event": "workflow_dispatch",
+        "path": ".github/workflows/cli-release.yml",
+    }
+    if failure == "foreign":
+        candidate["head_repository"] = {"full_name": "foreign/project"}
+    elif failure == "incomplete":
+        delivery.state["cli_run_total"] = 2
+    else:
+        candidate["conclusion"] = "failure"
+    delivery.state["cli_runs"] = [candidate]
+    outcome = delivery.execute(
+        [sys.executable, "-m", "release_scripts.source_promotion", "--advance-main"],
+        GITHUB_ACTIONS="false",
+    )
+    assert outcome.returncode != 0
+    assert delivery.writes() == []
+
+
+@pytest.mark.parametrize("failure", [None, "head", "registry", "main"])
+def test_registry_coordinator_requires_exact_success_before_deploy_dispatch(
+    delivery: Delivery,
+    failure: str | None,
+) -> None:
+    from tests.contract.test_source_qualification import workflow
+
+    delivery.state["main"] = delivery.state["head"]
+    if failure == "head":
+        delivery.state["registry_head"] = "f" * 40
+    elif failure == "registry":
+        delivery.state["registry_conclusion"] = "failure"
+    elif failure == "main":
+        delivery.state["main"] = "f" * 40
+    code = workflow("cli-release.yml")["jobs"]["registries"]["steps"][0]["run"]
+    outcome = delivery.execute(
+        ["bash", "-c", code],
+        VERSION=delivery.state["cli_version"],
+        GITHUB_REF="refs/tags/cli-v" + delivery.state["cli_version"],
+        SOURCE_SHA=delivery.state["head"],
+    )
+    assert (outcome.returncode == 0) == (failure is None), outcome.stderr
+    writes = delivery.writes()
+    if failure == "main":
+        assert writes == []
+    else:
+        assert [item["route"] for item in writes[:2]] == [
+            "actions/workflows/publish-pypi.yml/dispatches",
+            "actions/workflows/publish-crates.yml/dispatches",
+        ]
+        assert (len(writes) == 3) == (failure is None)
+        if failure is None:
+            assert writes[2]["route"] == "actions/workflows/deploy.yml/dispatches"
+
+
+@pytest.mark.parametrize("dispatch_status", [200, 204])
+def test_completed_cli_publication_reuses_exact_release_and_dispatches_only_delivery(
+    delivery: Delivery,
+    dispatch_status: int,
+) -> None:
+    delivery.state.update(
+        main=delivery.state["head"],
+        cli_tag_source=delivery.state["head"],
+        dispatch_status=dispatch_status,
+    )
+    delivery.state["cli_runs"] = [
+        delivery.state["run"]
+        | {
+            "id": 101,
+            "head_branch": "cli-v" + delivery.state["cli_version"],
+            "event": "workflow_dispatch",
+            "path": ".github/workflows/cli-release.yml",
+        }
+    ]
+    outcome = delivery.execute(
+        [sys.executable, "-m", "release_scripts.source_promotion", "--advance-main"],
+        GITHUB_ACTIONS="false",
+    )
+    assert outcome.returncode == 0, outcome.stderr
+    assert [item["route"] for item in delivery.writes()] == [
+        "actions/workflows/deploy.yml/dispatches",
+    ]
+
+
+def test_older_unpublished_cli_tag_cannot_be_claimed_by_a_new_source(
+    delivery: Delivery,
+) -> None:
+    delivery.state.update(main=delivery.state["head"], cli_release_status=404)
+    outcome = delivery.execute(
+        [sys.executable, "-m", "release_scripts.source_promotion", "--advance-main"],
+        GITHUB_ACTIONS="false",
+    )
+    assert outcome.returncode != 0
+    assert delivery.writes() == []

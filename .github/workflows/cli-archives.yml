@@ -55,7 +55,7 @@ jobs:
       - uses: ./.github/actions/project-rust
       - name: Prepare the declared hosted SDKs
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@ca07bd07d12c91f103ce481372100cab6c83d72f
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
           python-version: '3.15.2'
           uv-version: '0.13.7'
@@ -86,7 +86,7 @@ jobs:
       # Build from source: cached build scripts can retain another image's SDK paths.
       - name: Build the native executable
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@ca07bd07d12c91f103ce481372100cab6c83d72f
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
           recipe: ci-build-build-the-native-executable
       - name: Package and verify the extracted executable outside checkout
@@ -95,7 +95,7 @@ jobs:
           RELEASE_BINARY: ${{ matrix.binary }}
           RELEASE_EXTENSION: ${{ matrix.extension }}
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@ca07bd07d12c91f103ce481372100cab6c83d72f
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
           recipe: ci-build-package-and-verify-the-extracted-executable-outside-checkout
       - name: Package and qualify the native wheel
@@ -106,13 +106,13 @@ jobs:
           UV_TOOL_DIR: ${{ runner.temp }}/native-wheel-tools
           UV_TOOL_BIN_DIR: ${{ runner.temp }}/native-wheel-bin
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@ca07bd07d12c91f103ce481372100cab6c83d72f
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
           recipe: ci-build-package-and-qualify-the-native-wheel
       - name: Qualify the standalone Cargo source package
         if: runner.os == 'Linux'
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@ca07bd07d12c91f103ce481372100cab6c83d72f
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
           recipe: ci-build-qualify-the-standalone-cargo-source-package
       - name: Seal the qualified native payload without rebuilding

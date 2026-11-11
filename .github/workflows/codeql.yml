@@ -44,7 +44,7 @@ jobs:
           persist-credentials: false
       - name: Prepare the declared hosted SDKs
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@ca07bd07d12c91f103ce481372100cab6c83d72f
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
           python-version: '3.15.2'
       # Keep init and analyze on the same release and commit.
@@ -68,7 +68,7 @@ jobs:
           SOURCE_LANGUAGE: ${{ matrix.language }}
           ORIGINAL_SARIF_ID: ${{ steps.analysis.outputs.sarif-id }}
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@ca07bd07d12c91f103ce481372100cab6c83d72f
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
           recipe: ci-codeql-retain-analysis
       - name: Retain source analysis without granting it release authority

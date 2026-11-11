@@ -23,6 +23,8 @@ jobs:
     permissions:
       contents: read
       actions: read
+    outputs:
+      qualified_run_id: ${{ steps.source.outputs.qualified_run_id }}
     steps:
       - name: Dispatch must name its exact release tag
         env:
@@ -36,7 +38,7 @@ jobs:
           persist-credentials: false
       - name: Prepare the declared hosted SDKs
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@ca07bd07d12c91f103ce481372100cab6c83d72f
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
           python-version: '3.15.2'
       - name: Require the exact currently qualified Main source
@@ -90,3 +92,83 @@ jobs:
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
         with:
           subject-path: release/*
+
+
+  release:
+    needs: [guard, attest]
+    permissions:
+      contents: write
+    uses: ./.github/workflows/client-publication.yml
+    with:
+      kind: cli
+      version: ${{ inputs.version }}
+      source_run_id: ${{ needs.guard.outputs.qualified_run_id }}
+
+
+  registries:
+    name: publish-registries-and-reconcile
+    needs: [guard, release]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      # Keep the existing standalone Trusted Publisher workflow identities.
+      # No checkout, repository program or OIDC token executes here.
+      - name: Publish registries before reconciling the qualified deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          VERSION: ${{ inputs.version }}
+          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_RUN_ID: ${{ needs.guard.outputs.qualified_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "${VERSION}" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ && "${SOURCE_RUN_ID}" =~ ^[1-9][0-9]*$ ]]
+          tag="cli-v${VERSION}"
+          test "${GITHUB_REF}" = "refs/tags/${tag}"
+          require_current() {
+            for branch in dev main; do
+              current="$(gh api "repos/${REPOSITORY}/git/ref/heads/${branch}" --jq .object.sha)"
+              test "${current}" = "${SOURCE_SHA}"
+            done
+          }
+          require_current
+          runs=()
+          for workflow in publish-pypi.yml publish-crates.yml; do
+            response="$(jq -n --arg tag "${tag}" --arg version "${VERSION}" \
+              '{ref: $tag, inputs: {version: $version}}' |
+              gh api --method POST -H 'X-GitHub-Api-Version: 2026-03-10' \
+                "repos/${REPOSITORY}/actions/workflows/${workflow}/dispatches" --input -)"
+            id="$(jq -er '.workflow_run_id' <<< "${response}")"
+            [[ "${id}" =~ ^[1-9][0-9]*$ ]]
+            runs+=("${id}:${workflow}")
+            printf 'Registry publication %s: run %s\n' "${workflow}" "${id}"
+          done
+          deadline=$((SECONDS + 3000))
+          for item in "${runs[@]}"; do
+            id="${item%%:*}"
+            workflow="${item#*:}"
+            while :; do
+              run="$(gh api "repos/${REPOSITORY}/actions/runs/${id}")"
+              jq -e --arg repo "${REPOSITORY}" --arg sha "${SOURCE_SHA}" \
+                --arg tag "${tag}" --arg path ".github/workflows/${workflow}" --argjson id "${id}" '
+                .id == $id and .head_sha == $sha and .head_branch == $tag and
+                .path == $path and .event == "workflow_dispatch" and
+                .repository.full_name == $repo and .head_repository.full_name == $repo
+              ' <<< "${run}" >/dev/null
+              if [[ "$(jq -r .status <<< "${run}")" = completed ]]; then
+                jq -e '.conclusion == "success"' <<< "${run}" >/dev/null
+                break
+              fi
+              test "${SECONDS}" -lt "${deadline}"
+              sleep 10
+            done
+          done
+          require_current
+          jq -n --arg run "${SOURCE_RUN_ID}" '{ref: "dev", inputs: {source_run_id: $run}}' |
+            gh api --method POST -H 'X-GitHub-Api-Version: 2026-03-10' \
+              "repos/${REPOSITORY}/actions/workflows/deploy.yml/dispatches" --input - |
+            jq -e '.workflow_run_id | type == "number" and . > 0' >/dev/null
