@@ -10,8 +10,6 @@ from typing import Any
 # Default: treat DB as stale after 36 hours without a successful refresh stamp.
 DEFAULT_MAX_AGE_HOURS = 36.0
 _STAMP_NAMES = (".ai_stp_osv_refreshed_at", "STATUS.txt")
-# Files that do not count as vulnerability data (image placeholders).
-_IGNORE_NAMES = frozenset({"README", "README.md", ".gitkeep", ".keep"})
 
 
 def osv_offline_dir() -> Path | None:
@@ -45,24 +43,14 @@ def _stamp_mtime(directory: Path) -> float | None:
     return None
 
 
-def _data_file_count(directory: Path) -> int:
-    """Count real offline packs (ecosystem zip), not README/status placeholders."""
-    count = 0
+def offline_db_packs(directory: Path) -> tuple[Path, ...]:
+    """Packs in the exact layout consumed by the current OSV-Scalibr runtime."""
     try:
-        for path in directory.rglob("*"):
-            if not path.is_file():
-                continue
-            name = path.name
-            if name in _IGNORE_NAMES:
-                continue
-            if name in _STAMP_NAMES or name.startswith(".ai_stp"):
-                continue
-            # osv-scanner layout: …/{ecosystem}/all.zip or other .zip packs
-            if name == "all.zip" or name.endswith(".zip"):
-                count += 1
+        return tuple(
+            path for path in (directory / "osv-scalibr").glob("*/all.zip") if path.is_file()
+        )
     except OSError:
-        return 0
-    return count
+        return ()
 
 
 def osv_db_status() -> dict[str, Any]:
@@ -98,7 +86,7 @@ def osv_db_status() -> dict[str, Any]:
             "reason": "directory_missing",
         }
 
-    file_count = _data_file_count(directory)
+    file_count = len(offline_db_packs(directory))
     stamp = _stamp_mtime(directory)
     if stamp is None:
         # Placeholder README only, or data without refresh stamp → not fresh.

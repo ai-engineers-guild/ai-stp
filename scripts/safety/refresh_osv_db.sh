@@ -3,7 +3,7 @@
 #
 # osv-scanner loads packs from OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY only
 # (https://google.github.io/osv-scanner/usage/offline-mode/). Layout:
-#   {cache}/osv-scanner/{ecosystem}/all.zip
+#   {cache}/osv-scalibr/{ecosystem}/all.zip
 #
 # Primary path: HTTP download from osv-vulnerabilities.storage.googleapis.com
 # (official mirror). Optional secondary: osv-scanner --download-offline-databases.
@@ -26,17 +26,17 @@ export PATH="/opt/safety-bin:/opt/safety-venv/bin:/app/.venv/bin:${PATH}"
 log() { printf 'refresh_osv_db: %s\n' "$*" >&2; }
 
 count_packs() {
-  find "${1:-${DEST}}" -type f -name 'all.zip' 2>/dev/null | wc -l | tr -d ' '
+  find "${1:-${DEST}}/osv-scalibr" -type f -name 'all.zip' 2>/dev/null | wc -l | tr -d ' '
 }
 
-mkdir -p "${DEST}/osv-scanner"
+mkdir -p "${DEST}/osv-scalibr"
 log "cache=${OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY} packs_before=$(count_packs)"
 
 tmp="$(mktemp -d)"
 cleanup() { rm -rf "${tmp}"; }
 trap cleanup EXIT
 STAGE="${tmp}/snapshot"
-mkdir -p "${STAGE}/osv-scanner"
+mkdir -p "${STAGE}/osv-scalibr"
 
 download() {
   # download URL DEST
@@ -130,7 +130,7 @@ fi
 downloaded=0
 failed=0
 for eco in "${SELECTED[@]}"; do
-  target_dir="${STAGE}/osv-scanner/${eco}"
+  target_dir="${STAGE}/osv-scalibr/${eco}"
   mkdir -p "${target_dir}"
   target="${target_dir}/all.zip"
   partial="${target}.partial"
@@ -170,13 +170,13 @@ fi
 
 # Publish one complete snapshot. A failed refresh never mixes old and new
 # ecosystems and never advances the freshness marker.
-old="${DEST}/osv-scanner.previous"
+old="${DEST}/osv-scalibr.previous"
 rm -rf "${old}"
-if [[ -d "${DEST}/osv-scanner" ]]; then
-  mv "${DEST}/osv-scanner" "${old}"
+if [[ -d "${DEST}/osv-scalibr" ]]; then
+  mv "${DEST}/osv-scalibr" "${old}"
 fi
-if ! mv "${STAGE}/osv-scanner" "${DEST}/osv-scanner"; then
-  [[ -d "${old}" ]] && mv "${old}" "${DEST}/osv-scanner"
+if ! mv "${STAGE}/osv-scalibr" "${DEST}/osv-scalibr"; then
+  [[ -d "${old}" ]] && mv "${old}" "${DEST}/osv-scalibr"
   exit 1
 fi
 rm -rf "${old}"
