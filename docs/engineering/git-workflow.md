@@ -46,7 +46,7 @@ Index retrieval refuses partial failures before package installation.
 
 The vendor-discovery owner reads the vendor's local configuration API with an
 isolated profile and integrity-pinned official distribution. The three native jobs share the
-Codex/Grok/Pi/Claude SDK preparation rather than allocating a job per vendor. Codex controls cover
+Codex/Grok/Pi/Claude/OpenCode SDK preparation rather than allocating a job per vendor. Codex controls cover
 scope discovery, distinct same-name skills, reload, malformed-input refusal and
 configuration precedence. Grok controls cover project trust, scope and instruction
 discovery, skill precedence, removal and MCP configuration fallback. Grok packages
@@ -64,6 +64,12 @@ prompt. Claude qualification requires a disposable hosted user even for metadata
 because initialization executes configured hooks. Source paths are not inferred
 from its name/description-only API. Hook dispatch has its own proof kind; skill
 invocation and product usage ingestion remain separate.
+OpenCode 2.x uses a private loopback server with a stdin ownership lease and
+read-only plugin/skill endpoints. Its skills use path identifiers; declared names
+are display metadata. The fixture refuses inherited managed/ancestor sources,
+qualifies global/user/project discovery and removal fallback, then recovers the
+original engine removal after the owned server exits. This does not qualify 1.x
+identity rules or runtime invocation.
 Proof kind is vendor_configuration_read; installation
 effects, runtime invocation and current authority retain their respective owners.
 On Windows, the Codex user-skill fixture owns one temporary child of the disposable
