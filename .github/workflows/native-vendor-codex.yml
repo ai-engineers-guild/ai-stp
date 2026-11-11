@@ -1,0 +1,63 @@
+name: native-vendor-codex
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/native-vendor-codex.yml
+      - .github/workflows/source.yml
+      - .github/ci.just
+      - .github/codex-*.json
+      - tests/native_vendor/codex.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-vendor-codex-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  discovery:
+    name: codex-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-26.04, macos-15, windows-2025]
+    env:
+      AI_STP_NATIVE_VENDOR_SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Prepare the declared hosted SDK
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          python-version: '3.15.2'
+      - name: Prepare the exact official vendor distribution
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          manifest: .github/codex-${{ runner.os }}.json
+          directory: ${{ runner.temp }}/ai-stp-codex-distribution
+      - name: Read actual vendor configuration and refusal controls
+        env:
+          AI_STP_CODEX_MANIFEST: .github/codex-${{ runner.os }}.json
+          AI_STP_CODEX_TOOLS: ${{ runner.temp }}/ai-stp-codex-distribution
+          AI_STP_CODEX_PROOF: ${{ runner.temp }}/codex-loading-proof.json
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          recipe: ci-native-vendor-codex
+      - name: Retain content-free vendor discovery proof
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: codex-loading-${{ runner.os }}
+          path: ${{ runner.temp }}/codex-loading-proof.json
+          if-no-files-found: error
+          retention-days: 7
