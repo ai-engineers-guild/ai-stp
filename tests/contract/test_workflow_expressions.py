@@ -18,7 +18,9 @@ because the rule that actually bit is asserted unconditionally above it.
 
 from __future__ import annotations
 
+import json
 import re
+import shlex
 import shutil
 import subprocess
 from pathlib import Path
@@ -77,3 +79,29 @@ def test_codeql_steps_use_the_same_revision() -> None:
             re.findall(r"uses: github/codeql-action/[^@\s]+@([^\s]+)", workflow.read_text())
         )
         assert len(revisions) <= 1, f"{workflow.name}: incompatible CodeQL steps: {revisions}"
+
+
+def test_shared_recipe_steps_resolve_project_commands() -> None:
+    """Resolve workflow callers against Just's actual imported command namespace."""
+    result = subprocess.run(
+        ["just", "--dump", "--dump-format", "json"],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=15,
+    )
+    commands = json.loads(result.stdout)
+    names = set(commands["recipes"]) | set(commands["aliases"])
+    calls = 0
+    for workflow in _files():
+        document = yaml.safe_load(workflow.read_text(encoding="utf-8"))
+        for job in document["jobs"].values():
+            for step in job.get("steps", []):
+                if "/nddev-ci/actions/recipe@" not in step.get("uses", ""):
+                    continue
+                recipe = step["with"]["recipe"]
+                assert "$" + "{{" not in recipe, f"{workflow.name}: unresolved recipe {recipe!r}"
+                command = shlex.split(recipe)[0]
+                assert command in names, f"{workflow.name}: unknown Just recipe {command!r}"
+                calls += 1
+    assert calls > 0
