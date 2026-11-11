@@ -118,8 +118,9 @@ def qualify(executable: Path, root: Path, native_user_root: Path | None = None) 
     for scope in ["config", "user"]:
         observed_skill(refreshed, PREFIX + scope, unique[scope])
     remaining_shadow = skill_paths(refreshed, PREFIX + "shadow")
-    assert len(remaining_shadow) == 1
-    assert any(remaining_shadow[0].samefile(shadow[scope]) for scope in ["config", "user"])
+    assert len(remaining_shadow) == 2
+    for scope in ["config", "user"]:
+        assert sum(path.samefile(shadow[scope]) for path in remaining_shadow) == 1
     controls["fresh_read_removes_only_absent_project_skills"] = True
     assert mcp_target(refreshed) == "__ai_stp_fixture_global__"
     controls["removed_project_mcp_falls_back_to_global"] = True

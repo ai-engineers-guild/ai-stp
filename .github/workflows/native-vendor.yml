@@ -54,7 +54,7 @@ jobs:
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
-          recipe: ci-native-vendor
+          recipe: ci-native-vendor-codex
       - name: Read actual Grok configuration and refusal controls
         env:
           AI_STP_GROK_PROOF: ${{ runner.temp }}/grok-loading-proof.json
