@@ -108,3 +108,47 @@ pub fn doctor(root: &Path) -> Value {
          "detail":if cfg!(target_os="linux") {"Linux isolated provider execution available; each operation verifies its runtime"} else {"Provider execution is not available on this operating system"}}
     ]})
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{error::Error, ffi::OsString};
+
+    #[test]
+    fn doctor_reports_native_support_without_initializing_state() -> Result<(), Box<dyn Error>> {
+        let root = tempfile::tempdir()?;
+        let state = root.path().join("uninitialized");
+        let capabilities =
+            crate::invoke(["ai-stp", "capabilities", "--json"].map(OsString::from)).result?;
+        let available = capabilities["native_configuration"]["available"]
+            .as_bool()
+            .ok_or("native configuration capability is missing")?;
+        let report = crate::invoke(vec![
+            "ai-stp".into(),
+            "doctor".into(),
+            "--state-dir".into(),
+            state.as_os_str().to_owned(),
+            "--json".into(),
+        ])
+        .result?;
+        let installation = report["checks"]
+            .as_array()
+            .and_then(|checks| {
+                checks
+                    .iter()
+                    .find(|check| check["name"] == "configuration_installation")
+            })
+            .ok_or("configuration installation diagnostic is missing")?;
+        assert_eq!(
+            installation["state"],
+            if available {
+                "ready"
+            } else {
+                "needs_user_action"
+            },
+            "doctor disagrees with first-party native configuration capability"
+        );
+        assert_eq!(report["state"], "needs_user_action");
+        assert!(!state.exists(), "diagnostic initialized state");
+        Ok(())
+    }
+}
