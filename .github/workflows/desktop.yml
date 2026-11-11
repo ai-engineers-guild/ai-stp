@@ -15,13 +15,14 @@ on:
         description: Build diagnostic packages without application acceptance or release permission
         type: boolean
         default: false
-      windows_gui_source_run:
-        description: Diagnose the installed Windows MSI from a successful Dev run
+      gui_source_run:
+        description: Diagnose the installed bundle from a successful Dev run
         type: string
-      macos_gui_capability:
-        description: Observe native macOS accessibility authorization on a disposable runner
-        type: boolean
-        default: false
+      gui_platform:
+        description: Native OS for the installed GUI diagnostic
+        type: choice
+        options: [macos-15, windows-2025]
+        default: macos-15
 
 permissions:
   contents: read
@@ -37,9 +38,7 @@ env:
 
 jobs:
   desktop:
-    if: >-
-      github.event_name != 'workflow_dispatch' ||
-      (inputs.windows_gui_source_run == '' && !inputs.macos_gui_capability)
+    if: github.event_name != 'workflow_dispatch' || inputs.gui_source_run == ''
     name: desktop-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
@@ -309,9 +308,9 @@ jobs:
           path: ${{ runner.temp }}/desktop-preflight.json
           if-no-files-found: error
 
-  windows-gui:
-    if: github.event_name == 'workflow_dispatch' && inputs.windows_gui_source_run != ''
-    runs-on: windows-2025
+  installed-gui:
+    if: github.event_name == 'workflow_dispatch' && inputs.gui_source_run != ''
+    runs-on: ${{ inputs.gui_platform }}
     timeout-minutes: 12
     permissions:
       actions: read
@@ -325,7 +324,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          SOURCE_RUN: ${{ inputs.windows_gui_source_run }}
+          SOURCE_RUN: ${{ inputs.gui_source_run }}
         run: |
           set -euo pipefail
           [[ "${SOURCE_RUN}" =~ ^[1-9][0-9]*$ ]]
@@ -342,30 +341,31 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           github-token: ${{ github.token }}
-          run-id: ${{ inputs.windows_gui_source_run }}
-          name: ai-stp-desktop-windows-2025
-          path: ${{ runner.temp }}/windows-desktop-bundle
+          run-id: ${{ inputs.gui_source_run }}
+          name: ai-stp-desktop-${{ inputs.gui_platform }}
+          path: ${{ runner.temp }}/installed-desktop-bundle
           digest-mismatch: error
       - name: Exercise the installed MSI through Windows UI Automation
+        if: runner.os == 'Windows'
         shell: powershell
         env:
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
         run: >-
           .\.github\scripts\qualify-installed-windows-desktop.ps1
-          -Bundle "$env:RUNNER_TEMP\windows-desktop-bundle"
-          -Source $env:SOURCE_SHA -Output "$env:RUNNER_TEMP\installed-windows-gui.json"
+          -Bundle "$env:RUNNER_TEMP\installed-desktop-bundle"
+          -Source $env:SOURCE_SHA -Output "$env:RUNNER_TEMP\installed-desktop-gui.json"
+      - name: Exercise the installed DMG through macOS accessibility
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: >-
+          bash .github/scripts/qualify-installed-macos-desktop.sh
+          "${RUNNER_TEMP}/installed-desktop-bundle" "${SOURCE_SHA}"
+          "${RUNNER_TEMP}/installed-desktop-gui.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: desktop-windows-gui-diagnostic
-          path: ${{ runner.temp }}/installed-windows-gui.json
+          name: desktop-gui-diagnostic-${{ inputs.gui_platform }}
+          path: ${{ runner.temp }}/installed-desktop-gui.json
           if-no-files-found: error
           retention-days: 7
-
-  macos-gui-capability:
-    if: github.event_name == 'workflow_dispatch' && inputs.macos_gui_capability
-    runs-on: macos-15
-    timeout-minutes: 5
-    steps:
-      - name: Observe access without changing system permissions
-        run: |
-          swift -e 'import ApplicationServices; print("Accessibility client trusted: \(AXIsProcessTrusted())")'
