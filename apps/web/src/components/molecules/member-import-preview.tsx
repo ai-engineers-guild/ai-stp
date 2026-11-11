@@ -21,7 +21,7 @@ export function MemberImportPreview({
       className="max-h-64 min-w-0 overflow-auto rounded-sm border border-border focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       // The region provides keyboard scrolling for long previews.
       // biome-ignore lint/a11y/noNoninteractiveTabindex: The named table scroll region must remain reachable by keyboard.
-      tabIndex={0}
+      tabIndex={0} // oxlint-disable-line jsx-a11y/no-noninteractive-tabindex -- The named scroll region must remain reachable by keyboard.
     >
       <Table>
         <caption className="sr-only">{t("importPreview")}</caption>

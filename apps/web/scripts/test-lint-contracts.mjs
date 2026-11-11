@@ -147,7 +147,14 @@ try {
   await checkOxlint("export const Invalid = () => <div tabIndex={0} />;", [
     "jsx-a11y(no-noninteractive-tabindex)",
   ]);
-  await checkOxlint("export const Row = () => <tr tabIndex={0} />;", []);
+  await checkOxlint(
+    "export const Region = ({ label }: { label: string }) => <section aria-label={label} tabIndex={0} />;",
+    ["jsx-a11y(no-noninteractive-tabindex)"],
+  );
+  await checkOxlint(
+    "export const Region = ({ label }: { label: string }) => <section aria-label={label}\n tabIndex={0} // oxlint-disable-line jsx-a11y/no-noninteractive-tabindex -- The named scroll region must remain reachable by keyboard.\n />;",
+    [],
+  );
 } finally {
   for (const directory of directories.toReversed()) {
     await rm(directory, { recursive: true, force: true });
