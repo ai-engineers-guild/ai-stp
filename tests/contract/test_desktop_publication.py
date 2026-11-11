@@ -30,13 +30,26 @@ if args[0] == "api":
     route = next(arg for arg in args if arg.startswith("repos/"))
     if route.endswith("git/ref/heads/main"):
         result = {"object": {"sha": "a" * 40}}
-    else:
+    elif route == "repos/example/project/releases?per_page=100":
+        assert "--paginate" in args and "--slurp" in args
+        status = state.get("read_status", 200)
+        releases = [state["release"]] if state["exists"] else []
+        if state.get("duplicate"):
+            releases = releases + releases
+        result = [releases]
+    elif route == "repos/example/project/releases/42":
         status = state.get("read_status", 200 if state["exists"] else 404)
         result = state["release"]
+    elif route == "repos/example/project/releases/tags/desktop-v0.5.0":
+        status = 200 if state["exists"] and not state["release"]["draft"] else 404
+        result = state["release"]
+    else:
+        raise SystemExit("Unexpected GitHub API route")
 elif args[:2] == ["release", "create"]:
     assert not state["exists"] and "--draft" in args and "--verify-tag" in args
     state["exists"] = True
 elif args[:2] == ["release", "upload"]:
+    assert state["release"]["draft"] and "--clobber" not in args
     for name in args[args.index("--") + 1 :]:
         assert not any(asset["name"] == name for asset in state["release"]["assets"])
         data = Path(name).read_bytes()
@@ -136,6 +149,7 @@ def publisher(tmp_path: Path) -> Publisher:
             "exists": False,
             "trace": [],
             "release": {
+                "id": 42,
                 "tag_name": "desktop-v0.5.0",
                 "draft": True,
                 "prerelease": False,
@@ -184,13 +198,19 @@ def test_partial_upload_can_finish_without_duplicate_or_replaced_assets(
     assert all("--clobber" not in args for args in publisher.mutations())
 
 
-@pytest.mark.parametrize("failure", ["digest", "extra", "escape", "denied"])
+@pytest.mark.parametrize(
+    "failure", ["digest", "extra", "escape", "denied", "duplicate", "published_incomplete"]
+)
 def test_existing_release_conflicts_refuse_before_publication_writes(
     publisher: Publisher, failure: str
 ) -> None:
     publisher.state["exists"] = True
     if failure == "denied":
         publisher.state["read_status"] = 403
+    elif failure == "duplicate":
+        publisher.state["duplicate"] = True
+    elif failure == "published_incomplete":
+        publisher.state["release"].update(draft=False, published_at="2026-11-11T00:00:00Z")
     else:
         name = (
             "SHA256SUMS"
@@ -203,3 +223,13 @@ def test_existing_release_conflicts_refuse_before_publication_writes(
     result = publisher.run()
     assert result.returncode != 0
     assert publisher.mutations() == []
+
+
+def test_existing_draft_is_found_before_creating_a_release(publisher: Publisher) -> None:
+    publisher.state["exists"] = True
+    result = publisher.run()
+    assert result.returncode == 0, result.stderr
+    assert [args[:2] for args in publisher.mutations()] == [
+        ["release", "upload"],
+        ["release", "edit"],
+    ]
