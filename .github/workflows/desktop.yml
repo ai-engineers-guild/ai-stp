@@ -18,6 +18,10 @@ on:
       windows_gui_source_run:
         description: Diagnose the installed Windows MSI from a successful Dev run
         type: string
+      macos_gui_capability:
+        description: Observe native macOS accessibility authorization on a disposable runner
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -33,7 +37,9 @@ env:
 
 jobs:
   desktop:
-    if: github.event_name != 'workflow_dispatch' || inputs.windows_gui_source_run == ''
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      (inputs.windows_gui_source_run == '' && !inputs.macos_gui_capability)
     name: desktop-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
@@ -354,3 +360,12 @@ jobs:
           path: ${{ runner.temp }}/installed-windows-gui.json
           if-no-files-found: error
           retention-days: 7
+
+  macos-gui-capability:
+    if: github.event_name == 'workflow_dispatch' && inputs.macos_gui_capability
+    runs-on: macos-15
+    timeout-minutes: 5
+    steps:
+      - name: Observe access without changing system permissions
+        run: |
+          swift -e 'import ApplicationServices; print("Accessibility client trusted: \(AXIsProcessTrusted())")'
