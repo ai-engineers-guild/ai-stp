@@ -4,10 +4,12 @@ version = "0.0.16"
 description = "Background worker: custom PostgreSQL job queue runner with bounded polling and graceful drain."
 requires-python = ">=3.12"
 dependencies = [
-    "ai-stp-foundation",
-    "ai-stp-platform",
-    "pydantic-settings>=2.16.1",
-    "structlog>=24.4",
+  "ai-stp-contracts",
+  "ai-stp-platform",
+  "httpx>=0.28",
+  "pydantic>=2.14.1",
+  "pydantic-settings>=2.16.1",
+  "sqlalchemy[asyncio]>=2.1.6",
 ]
 
 [project.scripts]

@@ -4,21 +4,35 @@ version = "0.0.16"
 description = "Shared server runtime: async database access, the custom job queue and readiness probes."
 requires-python = ">=3.12"
 dependencies = [
-    "ai-stp-foundation",
-    "ai-stp-passports",
-    "ai-stp-contracts",
-    "ai-stp-assurance",
-    "ai-stp-sources",
-    "cryptography>=44.0.0",
-    "sqlalchemy[asyncio]>=2.1.6",
-    "asyncpg>=0.30",
-    "alembic>=1.13",
-    "pydantic-settings>=2.16.1",
-    "httpx>=0.28",
-    "structlog>=24.4",
-    "aiobotocore>=3.9.0",
-    "tzdata>=2025.1; sys_platform == 'win32'",
+  "ai-stp-assurance",
+  "ai-stp-contracts",
+  "ai-stp-foundation",
+  "ai-stp-passports",
+  "ai-stp-sources",
+  "aiobotocore>=3.9.0",
+  "alembic>=1.13",
+  "asyncpg>=0.30",
+  "botocore>=1.43.106",
+  "cryptography>=44.0.0",
+  "httpx>=0.28",
+  "pydantic>=2.14.1",
+  "pydantic-settings>=2.16.1",
+  "sqlalchemy[asyncio]>=2.1.6",
+  "structlog>=24.4",
+  "tzdata>=2025.1; sys_platform == 'win32'",
 ]
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14"]
+build-backend = "uv_build"
+
+[tool.deptry.per_rule_ignores]
+# SQLAlchemy selects asyncpg by URL; zoneinfo loads tzdata on Windows.
+DEP002 = ["asyncpg", "tzdata"]
+
+[tool.deptry.package_module_name_map]
+# The conditional Windows data package is absent on Unix analysis hosts.
+tzdata = ["tzdata"]
 
 [tool.uv.sources]
 ai-stp-foundation = { workspace = true }
@@ -26,10 +40,6 @@ ai-stp-passports = { workspace = true }
 ai-stp-contracts = { workspace = true }
 ai-stp-assurance = { workspace = true }
 ai-stp-sources = { workspace = true }
-
-[build-system]
-requires = ["uv_build>=0.13.5,<0.14"]
-build-backend = "uv_build"
 
 # Include non-Python safety policy assets (opengrep yml, yara rules).
 [tool.uv.build-backend]
