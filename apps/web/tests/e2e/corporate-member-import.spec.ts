@@ -18,7 +18,7 @@ test("file picker, drop, preview validation, localized help and main navigation"
   await page.waitForURL(`**${root}`);
   const main = page.locator("#main-content");
   const table = main.getByRole("table");
-  const role = table.locator('a[href*="/organization/roles?role="]').first();
+  const role = table.locator('a[href*="/corporate/admin/roles?role="]').first();
   await expect(role).toHaveAttribute("href", /\/roles\?role=/);
   await expect(table.locator('a[href*="/corporate/teams/"]').first()).toBeVisible();
   const menuTrigger = table.getByRole("button", { name: /Actions for/ }).first();
