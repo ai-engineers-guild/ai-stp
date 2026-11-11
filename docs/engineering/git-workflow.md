@@ -46,24 +46,29 @@ Index retrieval refuses partial failures before package installation.
 
 The vendor-discovery owner reads the vendor's local configuration API with an
 isolated profile and integrity-pinned official distribution. The three native jobs share the
-Codex/Grok SDK preparation rather than allocating a job per vendor. Codex controls cover
+Codex/Grok/Pi SDK preparation rather than allocating a job per vendor. Codex controls cover
 scope discovery, distinct same-name skills, reload, malformed-input refusal and
 configuration precedence. Grok controls cover project trust, scope and instruction
 discovery, skill precedence, removal and MCP configuration fallback. Grok packages
 use a separate frozen Bun lock with installation scripts disabled; only the native
-payload is decompressed. Both readers verify unchanged binary bytes.
+payload is decompressed. Pi uses its separate frozen official npm distribution,
+without installation scripts, and the declared Node runtime. Its metadata RPC
+checks untrusted project exclusion, trusted scopes, project shadowing, removal,
+malformed skills and empty ephemeral sessions. Only the new fixture project may
+receive the vendor's per-process approval flag. Codex and Grok verify unchanged
+binary bytes; Pi verifies its unchanged JavaScript entry and records its lock digest.
 Proof kind is vendor_configuration_read; installation
 effects, runtime invocation and current authority retain their respective owners.
 On Windows, the Codex user-skill fixture owns one temporary child of the disposable
 runner native profile and verifies the vendor-reported file identity. Existing
-profile files are preserved. Grok uses its redirected fixture home on every OS.
+profile files are preserved. Grok and Pi use redirected fixture homes on every OS.
 
 Full source qualification makes this owner depend on the same-run CLI archives.
 Each reader verifies its platform inventory, checksum files and source-bound archive
 manifest before executing the extracted engine. Installed controls use only a
 disposable hosted OS user; HOME/XDG redirection does not isolate native custody.
 The public engine authors, plans, prepares, applies and removes a controlled setup
-while another context is selected. Codex verifies refusal with an active reader,
+while another context is selected. Codex and Pi verify refusal with an active reader,
 then resumes the original operation after reader exit. Grok verifies instruction
 metadata before and after removal. The nested proof kind is
 native_engine_vendor_configuration_read. Runtime invocation remains not_observed.

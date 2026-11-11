@@ -13,53 +13,27 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
-import threading
 import time
 from collections.abc import Generator
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urlparse
 
 from . import installation
 from .common import binary_digest, environment, write_skill
+from .rpc import Pipe
 
 PREFIX = "ai-stp-qualification-"
 
 
-class Rpc:
-    """Bounded line RPC over native pipes, including Windows pipes."""
+class Rpc(Pipe):
+    """Codex JSON-RPC methods over owned bounded native pipes."""
 
     def __init__(self, process: subprocess.Popen[bytes]) -> None:
-        assert process.stdin is not None and process.stdout is not None
-        self.process = process
-        self.input = process.stdin
-        self.output = process.stdout
-        self.messages: queue.Queue[bytes | Exception] = queue.Queue(maxsize=32)
-        self.stopped = threading.Event()
+        super().__init__(process)
         self.requests: list[str] = []
         self.identifier = 0
-        self.reader = threading.Thread(target=self._read, daemon=True)
-        self.reader.start()
-
-    def _read(self) -> None:
-        try:
-            while not self.stopped.is_set():
-                line = self.output.readline(2 * 1024 * 1024 + 1)
-                if not line:
-                    raise EOFError("Codex closed its local RPC output")
-                if len(line) > 2 * 1024 * 1024 or not line.endswith(b"\n"):
-                    raise ValueError("Codex RPC line exceeds the declared bound")
-                while not self.stopped.is_set():
-                    try:
-                        self.messages.put(line, timeout=0.5)
-                        break
-                    except queue.Full:
-                        continue
-        except (OSError, ValueError, EOFError) as error:
-            if not self.stopped.is_set():
-                with suppress(queue.Full):
-                    self.messages.put_nowait(error)
 
     def request(self, method: str, parameters: dict[str, Any]) -> dict[str, Any]:
         assert method in {"initialize", "skills/list", "config/read"}
@@ -102,22 +76,6 @@ class Rpc:
         self.input.write(b'{"method":"initialized"}\n')
         self.input.flush()
         self.requests.append("initialized")
-
-    def close(self) -> None:
-        self.stopped.set()
-        self.input.close()
-        try:
-            self.process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            self.process.terminate()
-            try:
-                self.process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self.process.kill()
-                self.process.wait(timeout=5)
-        self.reader.join(timeout=5)
-        assert not self.reader.is_alive(), "Owned RPC reader did not stop"
-        self.output.close()
 
 
 @contextmanager

@@ -575,3 +575,8 @@ ci-native-vendor-codex:
 [private]
 ci-native-vendor-grok:
     python -m tests.native_vendor.grok --distribution tests/native_vendor/grok-distribution --proof "${AI_STP_GROK_PROOF}"
+
+[group('ci')]
+[private]
+ci-native-vendor-pi:
+    python -m tests.native_vendor.pi --distribution tests/native_vendor/pi-distribution --proof "${AI_STP_PI_PROOF}"

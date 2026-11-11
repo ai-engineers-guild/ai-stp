@@ -48,6 +48,7 @@ jobs:
         with:
           python-version: '3.15.2'
           bun-version: '1.4.4'
+          node-version: '26.13.0'
       - name: Read the same-run qualified native CLI archive
         if: inputs.installed_engine
         id: engine
@@ -87,6 +88,17 @@ jobs:
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           recipe: ci-native-vendor-grok
+      - name: Read actual Pi configuration and refusal controls
+        env:
+          AI_STP_NATIVE_ENGINE_SOURCE: ${{ inputs.engine_source }}
+          AI_STP_NATIVE_ENGINE_SOURCE_RUN: ${{ inputs.source_run_id }}
+          AI_STP_REQUIRE_ENGINE: ${{ inputs.installed_engine && 'true' || 'false' }}
+          AI_STP_NATIVE_ENGINE_ARCHIVES: ${{ steps.engine.outputs.download-path }}
+          AI_STP_PI_PROOF: ${{ runner.temp }}/pi-loading-proof.json
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          recipe: ci-native-vendor-pi
       - name: Retain content-free vendor discovery proof
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
@@ -94,5 +106,6 @@ jobs:
           path: |
             ${{ runner.temp }}/codex-loading-proof.json
             ${{ runner.temp }}/grok-loading-proof.json
+            ${{ runner.temp }}/pi-loading-proof.json
           if-no-files-found: error
           retention-days: 7
