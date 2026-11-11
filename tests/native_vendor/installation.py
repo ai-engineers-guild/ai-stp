@@ -108,10 +108,10 @@ def passport_digest(document: dict[str, Any]) -> str:
         if isinstance(value, dict):
             return all(
                 isinstance(key, str) and key.isascii() and supported(child)
-                for key, child in value.items()
+                for key, child in cast(dict[object, object], value).items()
             )
         if isinstance(value, list):
-            return all(supported(child) for child in value)
+            return all(supported(child) for child in cast(list[object], value))
         if isinstance(value, str):
             return value.isascii()
         return value is None or type(value) is bool or (type(value) is int and abs(value) < 2**53)
@@ -157,10 +157,12 @@ class Installation:
             ]
         )
         self.enact(initial, ["device", "initialize", "apply"])
-        contexts = []
+        contexts: list[str] = []
         for label in ["Original vendor fixture", "Another fixture view"]:
             review = self.run(["context", "create", "plan", "--label", label])
-            contexts.append(review["plan"]["change"]["context"]["context_id"])
+            identifier = review["plan"]["change"]["context"]["context_id"]
+            assert isinstance(identifier, str)
+            contexts.append(identifier)
             self.enact(review, ["context", "apply"])
         self.context, self.other = contexts
 
@@ -233,9 +235,10 @@ class Installation:
 
         def passport(value: Any) -> dict[str, Any] | None:
             if isinstance(value, dict):
-                if value.get("kind") == "setup" and value.get("stable_id") == setup:
-                    return cast(dict[str, Any], value)
-                for child in value.values():
+                mapping = cast(dict[str, Any], value)
+                if mapping.get("kind") == "setup" and mapping.get("stable_id") == setup:
+                    return mapping
+                for child in mapping.values():
                     if (found := passport(child)) is not None:
                         return found
             return None
