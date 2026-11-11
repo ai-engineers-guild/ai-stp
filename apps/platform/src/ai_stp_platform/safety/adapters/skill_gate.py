@@ -54,7 +54,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
     reported: list[str] = []
     engines_missing = 0
 
-    # Both engines load a *skill package*, so they are pointed at the directory
+    # The scanner loads a *skill package*, so it is pointed at the directory
     # holding a `SKILL.md` rather than at the artefact root. Handed the root of
     # a tree whose skill sits one level down, `skill-scanner` answers
     # `Error loading skill: SKILL.md not found`, exit 1, nothing on stdout —
@@ -62,8 +62,8 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
     # That refused ninety-six components of a hundred and three for content the
     # scanner never read, and blocked every setup pinning one.
     #
-    # The owned static pass below already knew where the packages are. This is
-    # the same walk, applied to the engines.
+    # The owned static pass below already knew where the packages are. The
+    # scanner uses the same walk.
     packages = _packages(tree)
     timed_out: list[str] = []
     no_report: list[str] = []
@@ -145,9 +145,9 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
     #
     # That is not hypothetical: two security-review skills in the first-party
     # corpus were refused as `critical` for naming the risk they exist to find,
-    # while both real engines read the same file and returned `is_safe: true`.
-    # A regex overruling two purpose-built analysers that examined the same
-    # bytes is the fallback outranking the thing it stands in for.
+    # while the external scanner read the same file and returned `is_safe: true`.
+    # A regex overruling the external analyser that examined the same bytes
+    # is the fallback outranking the thing it stands in for.
     #
     # So when an engine actually reported, the owned findings are advisory: they
     # stay in the record, visible on the object, at a severity that does not by
@@ -266,7 +266,7 @@ def _scan_packages(
 def _report(stdout: str) -> str | None:
     """The tool's own report, or nothing to read.
 
-    Both engines are invoked with `--format json`, so a run that reached a
+    The scanner is invoked with `--format json`, so a run that reached a
     verdict leaves JSON on stdout. Anything else — empty, a usage message, a
     traceback — is the tool not having produced a verdict, whatever it exited
     with.

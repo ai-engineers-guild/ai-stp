@@ -1836,8 +1836,8 @@ def test_a_scanner_that_actually_reports_something_still_fails(
 def test_the_skill_gate_has_room_to_finish(tmp_path: Path) -> None:
     """A limit smaller than the work is a limit that refuses correct content.
 
-    Measured rather than chosen: one `skillspector` pass over a real component
-    tree takes about nine seconds on an idle worker.
+    The historical scanner measurement was about nine seconds for a real
+    component tree on an idle worker.
     """
     from ai_stp_platform.safety.policy import CHECK_REGISTRY
 
@@ -2126,7 +2126,7 @@ def test_a_scanner_that_could_not_start_is_not_a_finding_about_the_object(
 
     _package(tmp_path)
     monkeypatch.setattr(skill_gate, "which", lambda name: f"/usr/bin/{name}")
-    monkeypatch.setattr(skill_gate, "run_cli", _ran(2, "usage: skillspector scan [-h]"))
+    monkeypatch.setattr(skill_gate, "run_cli", _ran(2, "usage: skill-scanner scan [-h]"))
 
     outcome = skill_gate.run(tmp_path, ArtifactManifest(component_type="skill"), _skill_spec())
 
@@ -2326,9 +2326,9 @@ def test_a_check_that_did_not_pass_says_why_on_the_wire() -> None:
         check_id="skill_static_gate",
         family="skill_static",
         result="degraded",
-        detail={"timed_out": ["skillspector"], "timeout_seconds": 60},
+        detail={"timed_out": ["skill-scanner"], "timeout_seconds": 60},
     )
-    assert timed_out.as_binding()["reason"] == "did not finish within 60s: skillspector"
+    assert timed_out.as_binding()["reason"] == "did not finish within 60s: skill-scanner"
 
     # The same check without a recorded limit. Interpolating the missing value
     # produced "did not finish within Nones", which reads as a defect in the
