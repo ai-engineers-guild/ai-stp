@@ -1,0 +1,7 @@
+{
+  "name": "ai-stp-opencode-qualification",
+  "private": true,
+  "dependencies": {
+    "@opencode/cli": "2.2.7"
+  }
+}

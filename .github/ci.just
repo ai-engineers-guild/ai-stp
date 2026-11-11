@@ -585,3 +585,10 @@ ci-native-vendor-pi:
 [private]
 ci-native-vendor-claude:
     python -m tests.native_vendor.claude --distribution tests/native_vendor/claude-distribution --proof "${AI_STP_CLAUDE_PROOF}"
+
+# Native OpenCode read-only skills and original installed removal recovery.
+[group('ci')]
+[private]
+[script('bash')]
+ci-native-vendor-opencode:
+    python -m tests.native_vendor.opencode --distribution tests/native_vendor/opencode-distribution --proof "${AI_STP_OPENCODE_PROOF}"
