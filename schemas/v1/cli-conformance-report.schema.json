@@ -62,7 +62,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-conformance-report",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "Whether one provider conforms to the frozen protocol (`SPEC-008` REQ-802).\n\n`reported_version` is kept beside `protocol_version` rather than compared\naway: a provider announcing a version this build does not speak is a\ndifferent situation from one that speaks it and fails a case, and the two\nare fixed by different people.",
+  "description": "Whether one provider conforms to the frozen protocol.\n\n`reported_version` is kept beside `protocol_version` rather than compared\naway: a provider announcing a version this build does not speak is a\ndifferent situation from one that speaks it and fails a case, and the two\nare fixed by different people.",
   "properties": {
     "cases": {
       "default": [],

@@ -2,7 +2,7 @@
   "$defs": {
     "RecordedVersion": {
       "additionalProperties": true,
-      "description": "One immutable `X.Y` version (`SPEC-005` REQ-503, REQ-504).\n\nThe number and the digest travel together because that pairing is the whole\nguarantee: one number stands for one hash, and an exact reference means\nsomething only while that holds.",
+      "description": "One immutable `X.Y` version.\n\nThe number and the digest travel together because that pairing is the whole\nguarantee: one number stands for one hash, and an exact reference means\nsomething only while that holds.",
       "properties": {
         "created_at": {
           "minLength": 1,
@@ -45,7 +45,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-version-line",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "Every recorded version of one object, and what comes next.\n\n`next_minor` is computed from what is stored rather than remembered, so two\nmachines with the same history propose the same number. There is no\n`next_major`: `REQ-507` makes that a decision, and a field offering it would\nread as a suggestion to take it.",
+  "description": "Recorded versions and the next minor number, derived from stored history.\n\nA major version change remains an explicit decision.",
   "properties": {
     "forked_from": {
       "anyOf": [

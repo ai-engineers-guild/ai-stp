@@ -74,16 +74,11 @@ export type CommandParameter = {
 /**
  * CommandParameterRule
  *
- * A cross-parameter invocation rule that consumers must not parse from prose.
+ * A machine-readable cross-parameter rule.
  *
- * `exactly_one` of the named parameters must be present; `at_most_one`
- * allows none but refuses two; `required_when` makes the named parameters
- * required; `forbidden_when` refuses the named parameters while its
- * condition holds. A rule carrying `when_parameter` and `when_values`
- * applies only while that parameter takes one of those values —
- * `install plan`'s source rule holds for `install`, `update` and `remove`,
- * and on `backup` and `rollback` the same pair relaxes to `at_most_one`,
- * because those actions bind to a target, not to a graph (`REQ-1207`).
+ * The named parameters follow exactly_one, at_most_one, required_when or
+ * forbidden_when. A conditional rule applies only when when_parameter has
+ * one of when_values; consumers do not infer these rules from prose.
  */
 export type CommandParameterRule = {
   /**
@@ -388,18 +383,10 @@ export type PublicationSetMemberView = {
 /**
  * PublicationSetView
  *
- * Every plan one setup's publication needs, as a single decision.
+ * The exact plans needed to publish one setup and its pinned components.
  *
- * A setup cannot be published before the components it pins are, so a person
- * publishing one had to publish each component first and confirm each hash
- * separately. Locally the two are already one act — `setup import register`
- * commits the component passports and the setup graph together or not at all —
- * and this carries that same rule across the publication boundary
- * (`ADR-0114`).
- *
- * The guarantee that survives is the one that matters: publication still takes
- * an explicit confirmation of an exact hash. `set_digest` covers every plan in
- * order, so confirming it is confirming all of them and nothing else.
+ * Components are confirmed before the setup. Explicit confirmation covers the
+ * ordered plans through set_digest; published members are retained on resume.
  */
 export type PublicationSetView = {
   expires_at: Timestamp | null;

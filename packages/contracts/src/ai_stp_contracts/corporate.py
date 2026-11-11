@@ -1,4 +1,4 @@
-"""Corporate bootstrap, RBAC, project, and audit wire contracts (SPEC-079)."""
+"""Corporate bootstrap, RBAC, project, and audit wire contracts."""
 
 import re
 from typing import Annotated, Literal, Self
@@ -47,9 +47,9 @@ ScopeKind = Literal[
     "telemetry",
 ]
 # Participation role on a project — separate from the organization role and
-# from the access binding it materializes to (ADR-0230).
+# from the access binding it materializes to.
 ProjectParticipationRole = Literal["owner", "lead", "contributor", "staff"]
-# How broadly members see each other (ADR-0230).
+# How broadly members see each other.
 PeopleVisibility = Literal["members", "teammates", "admins"]
 
 
@@ -362,13 +362,12 @@ class CorporatePlanMaterializedItem(ContractModel):
 
 
 class CorporateAssignmentPlanRequest(ContractModel):
-    """Evaluate the deterministic install/update plan for one context (ADR-0197).
+    """Evaluate the deterministic install/update plan for one context.
 
     The request names the authenticated employee context, the optional project
     and technology coordinates, the target harness, and the exact coordinates
     the caller reports as materialized. It never mutates assignments,
-    distribution rows, or provider-owned state.
-    """
+    distribution rows, or provider-owned state."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
@@ -409,12 +408,11 @@ class CorporateAssignmentPlanItem(ContractModel):
 
 
 class CorporateAssignmentPlan(ContractModel):
-    """The deterministic install/update plan for one context (ADR-0197).
+    """The deterministic install/update plan for one context.
 
     Items are sorted by object kind and stable identity; the response carries
     no wall-clock field so identical policy and materialized inputs produce an
-    identical plan.
-    """
+    identical plan."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
@@ -1161,7 +1159,7 @@ class CorporateInvitationAcceptRequest(ContractModel):
 
 class CorporateMembershipPolicy(ContractModel):
     """Email-domain allowlist for joining the organization, plus the people
-    visibility policy (ADR-0230)."""
+    visibility policy."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1

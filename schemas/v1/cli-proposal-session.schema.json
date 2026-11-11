@@ -14,7 +14,7 @@
     },
     "ProposalMember": {
       "additionalProperties": true,
-      "description": "One exact reference inside a proposal, and why it was allowed in.\n\nThe lane travels with the member rather than being recomputed when the\nproposal is confirmed. `REQ-616` wants the trace to record the lane of each\ncandidate, and a lane derived later could differ from the one the user was\nactually shown.",
+      "description": "An exact proposal member with the trust lane shown during review.\n\nConfirmation retains that observation rather than recomputing its explanation.",
       "properties": {
         "consent_source": {
           "default": "",
@@ -77,7 +77,7 @@
     },
     "ProposalView": {
       "additionalProperties": true,
-      "description": "One short-lived composition proposal (`ADR-0027`).\n\nShowing this creates nothing. `state` distinguishes the four situations a\ncaller must act on differently — still open, already confirmed, cancelled,\nor expired — because \"not open\" would leave all three failures looking the\nsame.",
+      "description": "One short-lived composition proposal.\n\nShowing this creates nothing. `state` distinguishes the four situations a\ncaller must act on differently — still open, already confirmed, cancelled,\nor expired — because \"not open\" would leave all three failures looking the\nsame.",
       "properties": {
         "confirmed_stable_id": {
           "anyOf": [

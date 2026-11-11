@@ -2,7 +2,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-imported-setup",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "A registered import and the backup it was taken alongside.\n\nTwo identifiers because they are two objects (`REQ-814`). A backup says\nwhere the old bytes are; a setup says what was made from them. Deleting the\nfirst must not delete the identity of the second.",
+  "description": "A registered import and the backup it was taken alongside.\n\nTwo identifiers because they are two objects. A backup says\nwhere the old bytes are; a setup says what was made from them. Deleting the\nfirst must not delete the identity of the second.",
   "properties": {
     "backup_id": {
       "minLength": 1,

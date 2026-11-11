@@ -12,7 +12,7 @@ from ai_stp_passports.versions import ComponentType
 
 
 class ProjectCandidate(ContractModel):
-    """One directory that could be registered as a project (`SPEC-004`)."""
+    """One directory that could be registered as a project."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -23,11 +23,11 @@ class ProjectCandidate(ContractModel):
 
     #: `project`, or `nested_repository` for a repository inside another one.
     #: A nested repository is reported so the user can see it and registered only
-    #: on an explicit choice (REQ-410).
+    #: on an explicit choice.
     kind: Literal["project", "nested_repository"]
 
     #: `new` covers an empty folder, an empty repository and a folder holding
-    #: only documentation — none of them has anything to index yet (REQ-402).
+    #: only documentation — none of them has anything to index yet.
     state: Literal["new", "established"]
 
     #: What identified it: manifest file names, `git`, or nothing.
@@ -90,12 +90,11 @@ class ExcludedPath(ContractModel):
 
 
 class ProjectIndex(ContractModel):
-    """The bounded second-level index of one project root (`SPEC-004`).
+    """The bounded second-level index of one project root.
 
     `state` is `partial` when a size, depth, entry or time bound was reached.
     Saying so is the point: a short answer that looks complete is worse than a
-    complete answer that says where it stopped.
-    """
+    complete answer that says where it stopped."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -117,9 +116,7 @@ class ImportedFile(ContractModel):
     byte_length: Annotated[int, Field(ge=0)]
     digest: str = ""
 
-    #: Key names whose value was removed. Names only: `SPEC-008` REQ-815 allows
-    #: the name of a mandatory variable into a passport and nothing else, and a
-    #: list of what was redacted would be a list of secrets.
+    #: Redacted key names only. Values, including credentials, never enter this list.
     redacted_keys: list[str] = []
 
     #: Why the file was not read, when it was not. Kept apart from "no secrets
@@ -134,13 +131,12 @@ class ImportedFile(ContractModel):
 
 
 class ImportInspection(ContractModel):
-    """What one native configuration holds, read and nothing more (`REQ-813`).
+    """What one native configuration holds, read and nothing more.
 
     `detection_rule` says how secrets were looked for. A report that will not
     say how it looked cannot be told apart from one that looked properly, and
     this one is deliberately partial — it matches key names, so a credential
-    stored under a name that says nothing is not found.
-    """
+    stored under a name that says nothing is not found."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -191,10 +187,9 @@ class SetupImportPlan(ContractModel):
 class ImportedSetup(ContractModel):
     """A registered import and the backup it was taken alongside.
 
-    Two identifiers because they are two objects (`REQ-814`). A backup says
+    Two identifiers because they are two objects. A backup says
     where the old bytes are; a setup says what was made from them. Deleting the
-    first must not delete the identity of the second.
-    """
+    first must not delete the identity of the second."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -208,23 +203,21 @@ class ImportedSetup(ContractModel):
 
 
 class LanguageOutline(ContractModel):
-    """What one language contributes to a project (`SPEC-004` REQ-404).
+    """What one language contributes to a project.
 
     `method` carries the strength of the answer, and it is not decoration.
     `syntax_tree` means a real parser read the file; `line_scan` means the words
     were recognised line by line and a string containing them would be
     indistinguishable from a declaration. Reporting both as plain symbol counts
     would hide that difference exactly where a caller decides how far to trust
-    them.
-    """
+    them."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
     language: Annotated[str, Field(min_length=1)]
 
-    #: `REQ-412`: a language with no adapter is `not_available` with a reason,
-    #: never a partial index presented as a whole one.
+    #: A language without an adapter is not_available with an explicit reason.
     state: Literal["available", "not_available"]
     method: Literal["syntax_tree", "line_scan"] | None = None
     reason: str | None = None
@@ -235,12 +228,11 @@ class LanguageOutline(ContractModel):
 
 
 class ProjectSymbols(ContractModel):
-    """The table of contents of one project, and nothing deeper (`REQ-411`).
+    """The table of contents of one project, and nothing deeper.
 
     No call graph, no vector representations, no symbol bodies. `state` is
     `partial` when the file budget was reached, for the same reason the index
-    says so: a short answer that looks complete is the worse failure.
-    """
+    says so: a short answer that looks complete is the worse failure."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 

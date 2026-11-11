@@ -2,7 +2,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-provider-bound-release",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "Closed release manifest bound from attested OpenNetwork bytes (`SPEC-008` REQ-847).\n\nThe JSON is a local binding record, not a second trust anchor. Trust remains\nthe pinned `build_attestations` rule plus GitHub attestation of exact bytes.",
+  "description": "Closed release manifest bound from attested OpenNetwork bytes.\n\nThe JSON is a local binding record, not a second trust anchor. Trust remains\nthe pinned `build_attestations` rule plus GitHub attestation of exact bytes.",
   "properties": {
     "artifact": {
       "minLength": 1,

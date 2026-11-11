@@ -2,7 +2,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-component-promotion-plan",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "Ordinary publication plan produced from one embedded component (REQ-5714).",
+  "description": "Ordinary publication plan produced from one embedded component.",
   "properties": {
     "catalog_stable_id": {
       "minLength": 1,

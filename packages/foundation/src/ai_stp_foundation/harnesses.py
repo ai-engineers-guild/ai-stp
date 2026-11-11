@@ -1,9 +1,7 @@
-"""Closed harness identifiers (ADR-0003, ADR-0033, ADR-0120, SPEC-001 REQ-105).
+"""Closed identifiers for the seven supported harnesses.
 
-Seven supported harnesses form the complete MVP set; ``undefined`` marks an
-observed unknown harness and never appears in managed objects (SPEC-011
-REQ-1109). Expanding the enum requires a new ADR and a schema version.
-"""
+undefined represents an observed unknown harness and cannot identify a managed
+object. Extending the supported set changes the versioned contract."""
 
 from typing import Final, Literal, get_args
 
@@ -32,21 +30,9 @@ UNDEFINED_HARNESS: Final[str] = "undefined"
 
 type SupportTier = Literal["primary", "beta"]
 
-#: The declared product support tier of each harness (SPEC-033).
-#:
-#: This is a product decision, not a claim about evidence. SPEC-033 keeps the
-#: two apart on purpose: `REQ-3306` says evidence never raises a tier, and
-#: `REQ-3307` says a line without a recorded run is reported honestly as
-#: `not_verified` without blocking a release.
-#:
-#: Open beta ships every harness as `beta`. `primary` remains a valid later
-#: generally-available label; it currently has no members. Evidence state
-#: (`verified` / `not_verified` / `missing` / `stale`) is the other axis.
-#:
-#: It lives here, next to `HarnessId`, because it was previously written twice —
-#: in the platform catalog projection and in the CLI harness catalog. The copies
-#: agreed while nobody changed them, which is the only state in which duplicated
-#: facts ever agree.
+#: Declared product support and observed evidence are independent.
+#: Evidence never raises a support tier; an unmeasured run remains not_verified.
+#: The shared declaration keeps catalog and CLI projections consistent.
 SUPPORT_TIERS: Final[dict[HarnessId, SupportTier]] = {
     "claude-code": "beta",
     "codex": "beta",

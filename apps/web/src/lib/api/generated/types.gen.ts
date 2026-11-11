@@ -825,7 +825,7 @@ export type CatalogSupport = {
 /**
  * CatalogSupportEvidence
  *
- * Safe public summary of one provider support check (SPEC-033, ADR-0072).
+ * Safe public summary of one provider support check.
  */
 export type CatalogSupportEvidence = {
   architecture: SupportArchitecture;
@@ -868,12 +868,9 @@ export type CatalogSupportEvidence = {
 /**
  * CatalogTrust
  *
- * Why a published version may appear in results, and on whose evidence.
+ * The independent author and component verification observations.
  *
- * The two verification flags are independent axes (ADR-0016) and neither may
- * be computed from the other. `authoritative` additionally requires both, and
- * that implication is enforced below — enforcing it is not the same as
- * deriving one axis from the other, and a client must still read the flags.
+ * authoritative requires both flags; neither flag is derived from the other.
  */
 export type CatalogTrust = {
   /**
@@ -1169,7 +1166,7 @@ export type ComponentArtifactQuery = {
 /**
  * ComponentContextBudget
  *
- * Context estimate of one visible exact component (SPEC-049).
+ * Context estimate of one visible exact component.
  */
 export type ComponentContextBudget = {
   /**
@@ -1270,7 +1267,7 @@ export type ComponentListResponse = {
 /**
  * ComponentMediaItem
  *
- * Safe public component media projection (SPEC-035).
+ * Safe public component media projection.
  */
 export type ComponentMediaItem = {
   /**
@@ -1450,14 +1447,10 @@ export type ComponentSearchRequest = {
 /**
  * ComponentSummary
  *
- * Search-result card for a component.
+ * A component object with facts from its latest offered version.
  *
- * Naming is mechanical rather than a judgement call: a field without a prefix
- * identifies the **object**, and every `latest_` field is a fact of its latest
- * offered **version**, copied from that version's passport. There is no
- * object-level passport (ADR-0012), so a card cannot carry an object-level
- * `name` or `tags` however stable they look in practice — and a test ties
- * every `latest_` field back to a real passport field so the rule cannot rot.
+ * Unprefixed fields identify the object; latest_ fields come from that version's
+ * passport. Objects have no separate passport, name or tags.
  */
 export type ComponentSummary = {
   /**
@@ -1675,11 +1668,9 @@ export type ComponentVersionPassport = {
 /**
  * ComponentVersionResponse
  *
- * Exact read of one immutable component version.
+ * An exact immutable component version and its passport digest.
  *
- * The passport is the description of the version (ADR-0012): there is no
- * separate manifest entity. `passport_digest` is served alongside it so the
- * client can verify the bytes it cached independently of the transport.
+ * The passport is the version description; the digest permits independent byte verification.
  */
 export type ComponentVersionResponse = {
   checks: SafetyChecksSummary | null;
@@ -2058,7 +2049,7 @@ export type ContinuationActor = (typeof ContinuationActor)[keyof typeof Continua
 /**
  * CorporateAssignmentPlan
  *
- * The deterministic install/update plan for one context (ADR-0197).
+ * The deterministic install/update plan for one context.
  *
  * Items are sorted by object kind and stable identity; the response carries
  * no wall-clock field so identical policy and materialized inputs produce an
@@ -2171,7 +2162,7 @@ export type CorporateAssignmentPlanItem = {
 /**
  * CorporateAssignmentPlanRequest
  *
- * Evaluate the deterministic install/update plan for one context (ADR-0197).
+ * Evaluate the deterministic install/update plan for one context.
  *
  * The request names the authenticated employee context, the optional project
  * and technology coordinates, the target harness, and the exact coordinates
@@ -4807,7 +4798,7 @@ export type CorporateMembershipAssignmentRequest = {
  * CorporateMembershipPolicy
  *
  * Email-domain allowlist for joining the organization, plus the people
- * visibility policy (ADR-0230).
+ * visibility policy.
  */
 export type CorporateMembershipPolicy = {
   /**
@@ -8381,7 +8372,7 @@ export type GitHubInstallation = {
 /**
  * GitHubMetadata
  *
- * Best-effort on-demand stars and archive state (SPEC-049).
+ * Best-effort on-demand stars and archive state.
  */
 export type GitHubMetadata = {
   /**
@@ -13899,7 +13890,7 @@ export type SetupCompositionMember = {
 /**
  * SetupContextBudget
  *
- * Absolute context estimate of one visible exact setup (SPEC-049).
+ * Absolute context estimate of one visible exact setup.
  */
 export type SetupContextBudget = {
   /**
@@ -14308,11 +14299,9 @@ export type SetupSearchRequest = {
 /**
  * SetupSummary
  *
- * Search-result card for a setup. A setup has no variant axis (ADR-0014).
+ * A setup object with facts from its latest offered version.
  *
- * `latest_harness_id` keeps the prefix even though a setup belongs to one
- * harness from creation: the value is still read out of the version passport,
- * and one rule with no exceptions is cheaper to verify than a rule with one.
+ * Setups have no variant axis. latest_harness_id comes from the version passport.
  */
 export type SetupSummary = {
   family_id: FamilyId | null;

@@ -81,7 +81,7 @@
     },
     "CatalogSupportEvidence": {
       "additionalProperties": true,
-      "description": "Safe public summary of one provider support check (SPEC-033, ADR-0072).",
+      "description": "Safe public summary of one provider support check.",
       "properties": {
         "architecture": {
           "$ref": "#/$defs/SupportArchitecture"
@@ -170,7 +170,7 @@
     },
     "CatalogTrust": {
       "additionalProperties": true,
-      "description": "Why a published version may appear in results, and on whose evidence.\n\nThe two verification flags are independent axes (ADR-0016) and neither may\nbe computed from the other. `authoritative` additionally requires both, and\nthat implication is enforced below — enforcing it is not the same as\nderiving one axis from the other, and a client must still read the flags.",
+      "description": "The independent author and component verification observations.\n\nauthoritative requires both flags; neither flag is derived from the other.",
       "properties": {
         "author_verified": {
           "title": "Author Verified",
@@ -1786,7 +1786,7 @@
   "$id": "urn:ai-stp:schema:v1:catalog-component-version",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "Exact read of one immutable component version.\n\nThe passport is the description of the version (ADR-0012): there is no\nseparate manifest entity. `passport_digest` is served alongside it so the\nclient can verify the bytes it cached independently of the transport.",
+  "description": "An exact immutable component version and its passport digest.\n\nThe passport is the version description; the digest permits independent byte verification.",
   "properties": {
     "checks": {
       "anyOf": [

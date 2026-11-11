@@ -24,7 +24,8 @@ import {
   Sun,
   Wrench,
 } from "lucide-react";
-import { useApp, useDebug } from "./store";
+import { useApp } from "./store";
+import { useDebug } from "./features/diagnostics/state";
 import { readPreference, usePreferences, writePreference } from "./preferences";
 import { useContexts } from "./contexts";
 import ContextSwitcher from "./components/ContextSwitcher";

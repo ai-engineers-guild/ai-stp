@@ -59,7 +59,7 @@
     },
     "PathInventoryObject": {
       "additionalProperties": true,
-      "description": "One logical object in an explicit-root inventory (`SPEC-005` REQ-534).",
+      "description": "One logical object in an explicit-root inventory.",
       "properties": {
         "component_type": {
           "anyOf": [
@@ -205,7 +205,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-path-inventory",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "Passport-first inventory of one explicit root. Observation only (`REQ-518`).",
+  "description": "Passport-first inventory of one explicit root. Observation only.",
   "properties": {
     "complete": {
       "title": "Complete",

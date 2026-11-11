@@ -51,7 +51,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-harness-program",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "The outcome of one program lifecycle operation (`ADR-0122`).\n\nThe subject is the harness program under `--prefix`, not the configuration\nin `--target`. `state` is what the provider reported after the effect, and\n`verified` is the only state that says the program is installed and its\nidentity confirmed.\n\n`operation_id` names the journal entry, which is the same journal a setup\ninstallation uses: the state machine, the backup and the plan digest do not\nchange with the subject.",
+  "description": "The outcome of one program lifecycle operation.\n\nThe subject is the harness program under `--prefix`, not the configuration\nin `--target`. `state` is what the provider reported after the effect, and\n`verified` is the only state that says the program is installed and its\nidentity confirmed.\n\n`operation_id` names the journal entry, which is the same journal a setup\ninstallation uses: the state machine, the backup and the plan digest do not\nchange with the subject.",
   "properties": {
     "artifacts": {
       "default": [],

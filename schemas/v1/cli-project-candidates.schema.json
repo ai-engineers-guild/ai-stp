@@ -42,7 +42,7 @@
     },
     "ProjectCandidate": {
       "additionalProperties": true,
-      "description": "One directory that could be registered as a project (`SPEC-004`).",
+      "description": "One directory that could be registered as a project.",
       "properties": {
         "kind": {
           "enum": [
