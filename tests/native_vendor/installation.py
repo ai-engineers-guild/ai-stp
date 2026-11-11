@@ -7,7 +7,9 @@ import json
 import os
 import platform
 import re
+import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 import zipfile
@@ -42,6 +44,15 @@ def prepare(root: Path, source: str) -> tuple[Path, dict[str, Any]] | None:
         return None
     disposable_runner()
     assert re.fullmatch(r"[0-9a-f]{40}", source)
+    producer = os.environ.get("AI_STP_NATIVE_ENGINE_SOURCE_RUN", "")
+    expected_source = os.environ.get("AI_STP_NATIVE_ENGINE_SOURCE", "")
+    diagnostic = bool(producer)
+    assert bool(expected_source) == diagnostic
+    if diagnostic:
+        assert producer.isdecimal() and os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
+        assert re.fullmatch(r"[0-9a-f]{40}", expected_source)
+    else:
+        expected_source = source
     directory = Path(location)
     target, executable_name, extension = {
         "Linux": ("x86_64-unknown-linux-gnu", "ai-stp", "tar.gz"),
@@ -52,7 +63,7 @@ def prepare(root: Path, source: str) -> tuple[Path, dict[str, Any]] | None:
     assert declaration.is_file() and not declaration.is_symlink()
     assert declaration.stat().st_size < 16 * 1024
     proof = json.loads(declaration.read_bytes())
-    assert proof["schema_version"] == 1 and proof["source_sha"] == source
+    assert proof["schema_version"] == 1 and proof["source_sha"] == expected_source
     assert proof["target"] == target
     version = proof["version"]
     expected = names(version, target)
@@ -80,7 +91,7 @@ def prepare(root: Path, source: str) -> tuple[Path, dict[str, Any]] | None:
                 with stream:
                     documents[name] = stream.read()
     manifest = json.loads(documents["release.json"])
-    assert manifest["schema_version"] == 2 and manifest["source_commit"] == source
+    assert manifest["schema_version"] == 2 and manifest["source_commit"] == expected_source
     assert manifest["target"] == target and manifest["version"] == version
     assert manifest["binary"] == executable_name
     for name, key in [
@@ -94,7 +105,9 @@ def prepare(root: Path, source: str) -> tuple[Path, dict[str, Any]] | None:
         destination.write(documents[executable_name])
     executable.chmod(0o700)
     return executable.resolve(), {
-        "source_sha": source,
+        "source_sha": expected_source,
+        "producer_run_id": producer or os.environ["GITHUB_RUN_ID"],
+        "diagnostic_only": diagnostic,
         "version": version,
         "binary_sha256": manifest["binary_sha256"],
         "target": target,
@@ -193,8 +206,52 @@ class Installation:
             assert result.returncode != 0 and envelope["ok"] is False
             assert envelope["error"]["code"] == "AI_STP_PRECONDITION_FAILED"
             return cast(dict[str, Any], envelope["error"])
+        if result.returncode != 0:
+            self.inspect_failure(arguments)
         assert result.returncode == 0 and envelope["ok"] is True, envelope
         return cast(dict[str, Any], envelope["data"])
+
+    def inspect_failure(self, arguments: list[str]) -> None:
+        if os.name != "nt":
+            return
+        executable = shutil.which("pwsh")
+        if executable is None:
+            print("Native fixture ACL inspection is unavailable", file=sys.stderr)
+            return
+        paths = {
+            "case": str(self.root),
+            "temporary": str(self.root.parent),
+            "state": str(self.state),
+            "vendor": str(self.vendor_home),
+            "control": str(self.vendor_home / ".ai-stp-native"),
+        }
+        try:
+            result = subprocess.run(
+                [
+                    executable,
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-File",
+                    str(Path(__file__).with_name("inspect-fixture.ps1")),
+                ],
+                env={**self.environment, "AI_STP_FIXTURE_DIRECTORIES": json.dumps(paths)},
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=15,
+            )
+            print(
+                json.dumps(
+                    {
+                        "fixture_command": arguments[:3],
+                        "directory_metadata": result.stdout[: 16 * 1024],
+                        "inspection_exit": result.returncode,
+                    }
+                ),
+                file=sys.stderr,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            print("Native fixture ACL inspection failed", file=sys.stderr)
 
     def enact(self, review: dict[str, Any], command: list[str]) -> dict[str, Any]:
         plan = self.root / (review["plan"]["operation_id"] + ".json")

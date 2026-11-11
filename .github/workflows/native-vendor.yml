@@ -1,16 +1,19 @@
 name: native-vendor
 
 on:
-  workflow_call:
-    inputs:
-      installed_engine:
-        description: Require the native CLI artifacts from this same source run
-        type: boolean
-        default: false
   workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Diagnostic CLI archive producer; empty runs metadata discovery only
+        type: string
+        default: ''
+      engine_source:
+        description: Exact source SHA of that diagnostic CLI archive
+        type: string
+        default: ''
   pull_request:
     paths:
-      - .github/workflows/native-vendor.yml
+      - .github/workflows/native-vendor*.yml
       - .github/workflows/source.yml
       - .github/ci.just
       - .github/codex-*.json
@@ -19,77 +22,21 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: native-vendor-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 jobs:
   discovery:
-    name: vendors-${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-26.04
-            target: x86_64-unknown-linux-gnu
-          - os: macos-15
-            target: aarch64-apple-darwin
-          - os: windows-2025
-            target: x86_64-pc-windows-msvc
-    env:
-      AI_STP_NATIVE_VENDOR_SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-      - name: Prepare the declared hosted SDK
-        uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
-        with:
-          python-version: '3.15.2'
-          bun-version: '1.4.4'
-      - name: Read the same-run qualified native CLI archive
-        if: inputs.installed_engine
-        id: engine
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        with:
-          name: ai-stp-rust-${{ matrix.target }}-${{ github.sha }}
-          path: ${{ runner.temp }}/ai-stp-engine-archives
-      - name: Prepare the exact official vendor distribution
-        uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
-        with:
-          manifest: .github/codex-${{ runner.os }}.json
-          directory: ${{ runner.temp }}/ai-stp-codex-distribution
-      - name: Read actual vendor configuration and refusal controls
-        env:
-          AI_STP_REQUIRE_ENGINE: ${{ inputs.installed_engine && 'true' || 'false' }}
-          AI_STP_NATIVE_ENGINE_ARCHIVES: ${{ steps.engine.outputs.download-path }}
-          AI_STP_CODEX_MANIFEST: .github/codex-${{ runner.os }}.json
-          AI_STP_CODEX_TOOLS: ${{ runner.temp }}/ai-stp-codex-distribution
-          AI_STP_CODEX_PROOF: ${{ runner.temp }}/codex-loading-proof.json
-        uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
-        with:
-          recipe: ci-native-vendor-codex
-      - name: Read actual Grok configuration and refusal controls
-        env:
-          AI_STP_REQUIRE_ENGINE: ${{ inputs.installed_engine && 'true' || 'false' }}
-          AI_STP_NATIVE_ENGINE_ARCHIVES: ${{ steps.engine.outputs.download-path }}
-          AI_STP_GROK_PROOF: ${{ runner.temp }}/grok-loading-proof.json
-        uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
-        with:
-          recipe: ci-native-vendor-grok
-      - name: Retain content-free vendor discovery proof
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: vendor-loading-${{ runner.os }}
-          path: |
-            ${{ runner.temp }}/codex-loading-proof.json
-            ${{ runner.temp }}/grok-loading-proof.json
-          if-no-files-found: error
-          retention-days: 7
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      (inputs.source_run_id == '' && inputs.engine_source == '')
+    uses: ./.github/workflows/native-vendor-checks.yml
+  diagnostic:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      (inputs.source_run_id != '' || inputs.engine_source != '')
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/native-vendor-checks.yml
+    with:
+      installed_engine: true
+      source_run_id: ${{ inputs.source_run_id }}
+      engine_source: ${{ inputs.engine_source }}

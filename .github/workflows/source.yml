@@ -77,7 +77,7 @@ jobs:
   vendor-discovery:
     needs: archives
     if: github.event_name != 'pull_request'
-    uses: ./.github/workflows/native-vendor.yml
+    uses: ./.github/workflows/native-vendor-checks.yml
     with:
       installed_engine: true
 
