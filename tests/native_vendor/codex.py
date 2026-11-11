@@ -15,7 +15,7 @@ import tarfile
 import tempfile
 import threading
 import time
-from contextlib import suppress
+from contextlib import ExitStack, suppress
 from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urlparse
@@ -145,14 +145,16 @@ def observed_paths(rows: list[dict[str, Any]], name: str, expected: list[Path]) 
         assert len(selected) == 1 and selected[0]["enabled"] is True
 
 
-def qualify(executable: Path, root: Path) -> dict[str, Any]:
+def qualify(executable: Path, root: Path, native_user_root: Path | None = None) -> dict[str, Any]:
     case_home, vendor_home, project = root / "h", root / "c", root / "p"
     for directory in [case_home, vendor_home, project, root / "t"]:
         directory.mkdir()
     subprocess.run(["git", "init", "--quiet", str(project)], check=True, timeout=10)
     roots = {
         "config": vendor_home / "skills",
-        "user": case_home / ".agents" / "skills",
+        "user": native_user_root
+        if native_user_root is not None
+        else case_home / ".agents" / "skills",
         "project": project / ".agents" / "skills",
     }
     unique = {
@@ -254,6 +256,9 @@ def qualify(executable: Path, root: Path) -> dict[str, Any]:
         "request_methods": requests,
         "evidence_kind": "vendor_configuration_read",
         "inference_turns_started": 0,
+        "user_scope_fixture": (
+            "native_disposable_runner_profile" if native_user_root is not None else "isolated_home"
+        ),
     }
 
 
@@ -296,12 +301,29 @@ def main() -> None:
     }[platform.system()]
     assert arguments.manifest.name == f"codex-{operating_system}.json"
     assert platform.machine().lower() == architecture
-    with tempfile.TemporaryDirectory(
-        prefix="stp-codex-", dir=os.environ.get("RUNNER_TEMP")
-    ) as temporary:
+    with (
+        tempfile.TemporaryDirectory(
+            prefix="stp-codex-", dir=os.environ.get("RUNNER_TEMP")
+        ) as temporary,
+        ExitStack() as owned_profile,
+    ):
         root = Path(temporary)
         executable, declaration = prepare(arguments.manifest, arguments.tools, root)
-        result = qualify(executable.resolve(), root)
+        native_user_root = None
+        if os.name == "nt":
+            assert os.environ.get("GITHUB_ACTIONS") == "true"
+            assert os.environ.get("RUNNER_OS") == "Windows"
+            profile_home = Path.home().resolve()
+            parent = profile_home / ".agents" / "skills"
+            assert parent.resolve().is_relative_to(profile_home)
+            parent.mkdir(parents=True, exist_ok=True)
+            assert parent.resolve().is_relative_to(profile_home)
+            native_user_root = Path(
+                owned_profile.enter_context(
+                    tempfile.TemporaryDirectory(prefix="stp-codex-", dir=parent)
+                )
+            )
+        result = qualify(executable.resolve(), root, native_user_root)
         with executable.open("rb") as stream:
             binary_digest = hashlib.file_digest(stream, "sha256").hexdigest()
     proof = {

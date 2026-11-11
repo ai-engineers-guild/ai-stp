@@ -49,6 +49,9 @@ isolated profile and checksum-pinned official distribution. Codex controls cover
 scope discovery, distinct same-name skills, reload, malformed-input refusal and
 configuration precedence. Proof kind is vendor_configuration_read; installation
 effects, runtime invocation and current authority retain their respective owners.
+On Windows, the user-skill fixture owns one temporary child of the disposable
+runner native profile and verifies the vendor-reported file identity. Existing
+profile files are preserved.
 
 ## Integration and delivery
 
