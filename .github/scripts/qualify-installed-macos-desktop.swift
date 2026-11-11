@@ -129,8 +129,7 @@ func prove() throws {
     try press(visible(process,
         "Initialize or resume this device using the selected credential storage.", role: kAXCheckBoxRole))
     try press(visible(process, "Initialize workspace", role: kAXButtonRole, enabled: true))
-    fputs("Invoked enabled workspace initialization\
-", stderr)
+    fputs("Invoked enabled workspace initialization\n", stderr)
     do {
         _ = try visible(process, "Initialized")
     } catch {
@@ -138,15 +137,13 @@ func prove() throws {
             let ready = checks.contains {
                 $0["name"] as? String == "local_identity" && $0["state"] as? String == "ready"
             }
-            fputs("Independent local identity ready: \\(ready)\
-", stderr)
+            fputs("Independent local identity ready: \(ready)\n", stderr)
         }
         throw error
     }
     let identity = try JSONSerialization.data(withJSONObject: native(cli, ["device", "show"]), options: [.sortedKeys])
     try close(process)
-    fputs("Restarting the initialized workspace\
-", stderr)
+    fputs("Restarting the initialized workspace\n", stderr)
     process = try launch(app)
     _ = try visible(process, "Engine \(cliVersion)")
     try settings(process)
