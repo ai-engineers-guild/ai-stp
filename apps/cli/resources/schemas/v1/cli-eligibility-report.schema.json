@@ -117,7 +117,7 @@
     },
     "EligibilityRefusal": {
       "additionalProperties": true,
-      "description": "One mechanical constraint a candidate failed (`docs/contracts/eligibility-constraints.md`).\n\n`code` is the machine identity and `summary` is for a person: the text may\nbe reworded, the code may not. A caller branching on the sentence would\nbreak the first time somebody improved the wording.",
+      "description": "One mechanical constraint a candidate failed.\n\n`code` is the machine identity and `summary` is for a person: the text may\nbe reworded, the code may not. A caller branching on the sentence would\nbreak the first time somebody improved the wording.",
       "properties": {
         "code": {
           "minLength": 1,
