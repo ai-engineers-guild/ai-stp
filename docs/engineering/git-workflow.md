@@ -44,6 +44,12 @@ with the distribution signing key. The project APT wrapper selects only its
 job-local source file; it leaves runner sources, resolver and trust unchanged.
 Index retrieval refuses partial failures before package installation.
 
+The vendor-discovery owner reads the vendor's local configuration API with an
+isolated profile and checksum-pinned official distribution. Codex controls cover
+scope discovery, distinct same-name skills, reload, malformed-input refusal and
+configuration precedence. Proof kind is vendor_configuration_read; installation
+effects, runtime invocation and current authority retain their respective owners.
+
 ## Integration and delivery
 
 1. Branch from current `dev`, implement, regenerate affected projections and run

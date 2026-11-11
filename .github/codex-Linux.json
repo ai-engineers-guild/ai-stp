@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "tool": "codex",
+  "version": "0.167.1",
+  "source": "https://github.com/openai/codex/releases/download/rust-v0.167.1/codex-x86_64-unknown-linux-musl.tar.gz",
+  "assets": [
+    {
+      "repository": "openai/codex",
+      "asset": 733024574,
+      "size": 122650782,
+      "sha256": "64bcc99c32e434b4bcb0508a97df9b7aeecdb97e956d976fb13661096ec4e3e2",
+      "file": "codex.tar.gz"
+    }
+  ]
+}

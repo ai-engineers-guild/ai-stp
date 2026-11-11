@@ -565,3 +565,8 @@ ci-safety-runtime-test:
     trap 'sudo apparmor_parser --remove deploy/apparmor/ai-stp-worker' EXIT
     just setup-python
     just back-test-fast tests/scenario/platform/test_safety_image_runtime.py
+
+[group('ci')]
+[private]
+ci-native-vendor-codex:
+    python tests/native_vendor/codex.py --manifest "${AI_STP_CODEX_MANIFEST}" --tools "${AI_STP_CODEX_TOOLS}" --proof "${AI_STP_CODEX_PROOF}"

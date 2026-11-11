@@ -74,6 +74,10 @@ jobs:
     if: github.event_name != 'pull_request'
     uses: ./.github/workflows/safety-runtime.yml
 
+  vendor-discovery:
+    if: github.event_name != 'pull_request'
+    uses: ./.github/workflows/native-vendor-codex.yml
+
   secrets:
     runs-on: ubuntu-26.04
     timeout-minutes: 10
@@ -403,6 +407,7 @@ jobs:
       - python-dependencies
       - wasi-confinement
       - safety-runtime
+      - vendor-discovery
       - secrets
       - integration-python
       - integration-web
@@ -437,7 +442,7 @@ jobs:
           printf 'Qualification phase: %s\n' "${PHASE}"
           jq -e --argjson private "${PRIVATE_REPOSITORY}" --arg phase "${PHASE}" \
             --arg wasi "${WASI_SELECTED}" '
-            type == "object" and length == 21 and
+            type == "object" and length == 22 and
             ($phase == "integration" or $phase == "full") and
             ($wasi == "true" or $wasi == "false") and
             ($phase != "full" or $wasi == "true") and
