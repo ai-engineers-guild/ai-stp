@@ -13,7 +13,7 @@ const cases = [];
 let checks = 0;
 
 async function ownDirectory(parent) {
-  const directory = await mkdtemp(path.join(parent, ".ai-stp-lint-contract-"));
+  const directory = await mkdtemp(path.join(parent, "ai-stp-lint-contract-"));
   directories.push(directory);
   return directory;
 }
