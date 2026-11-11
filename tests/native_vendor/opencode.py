@@ -71,7 +71,7 @@ def variables(root: Path, vendor_home: Path) -> dict[str, str]:
 
 
 class Server(Pipe):
-    def ready(self, project: Path, password: str) -> None:
+    def ready(self, project: Path, password: str, version: str) -> None:
         try:
             line = self.messages.get(timeout=30)
         except queue.Empty as error:
@@ -89,12 +89,19 @@ class Server(Pipe):
         self.project = project
         self.authorization = "Basic " + base64.b64encode(("opencode:" + password).encode()).decode()
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        identity = self.get("/api/info")
+        assert identity["version"] == version, identity["version"]
+        assert identity["pid"] == self.process.pid, "Server is not the owned child"
 
     def get(self, endpoint: str) -> Any:
-        assert endpoint in {"/api/skill", "/api/plugin"}
-        query = urllib.parse.urlencode({"location[directory]": str(self.project)})
+        assert endpoint in {"/api/info", "/api/skill", "/api/plugin"}
+        query = (
+            ""
+            if endpoint == "/api/info"
+            else "?" + urllib.parse.urlencode({"location[directory]": str(self.project)})
+        )
         request = urllib.request.Request(
-            self.url + endpoint + "?" + query,
+            self.url + endpoint + query,
             headers={"Authorization": self.authorization},
             method="GET",
         )
@@ -103,6 +110,8 @@ class Server(Pipe):
             data = response.read(2 * 1024 * 1024 + 1)
         assert len(data) <= 2 * 1024 * 1024, "OpenCode metadata response bound exceeded"
         result = json.loads(data)
+        if endpoint == "/api/info":
+            return result
         assert Path(result["location"]["directory"]).samefile(self.project)
         return result["data"]
 
@@ -123,7 +132,7 @@ class Server(Pipe):
 
 @contextmanager
 def reader(
-    executable: Path, project: Path, child_environment: dict[str, str], errors: Path
+    executable: Path, project: Path, child_environment: dict[str, str], errors: Path, version: str
 ) -> Generator[Server]:
     isolated_sources(project)
     password = secrets.token_urlsafe(32)
@@ -138,7 +147,7 @@ def reader(
         )
         server = Server(process)
         try:
-            server.ready(project, password)
+            server.ready(project, password, version)
             yield server
         finally:
             server.close()
@@ -173,19 +182,16 @@ def qualify(executable: Path, root: Path, version: str) -> dict[str, Any]:
     malformed.write_text("---\nname: 123\n---\nControlled malformed fixture.\n", encoding="utf-8")
     child_environment = variables(root, vendor_home)
     isolated_sources(project)
-    reported = subprocess.check_output(
-        [str(executable), "--version"], cwd=project, env=child_environment, text=True, timeout=15
-    )
-    assert reported.strip() == version
     controls: dict[str, bool] = {}
 
     def inspect(label: str, extra: dict[str, str] | None = None) -> list[dict[str, Any]]:
         with reader(
-            executable, project, {**child_environment, **(extra or {})}, root / label
+            executable, project, {**child_environment, **(extra or {})}, root / label, version
         ) as server:
             return server.skills()
 
     first = inspect("initial.log")
+    controls["exact_version_and_owned_server_pid"] = True
     for scope, path in unique.items():
         observed(first, PREFIX + scope, path)
         row = next(row for row in first if row["id"] == PREFIX + scope)
@@ -221,7 +227,7 @@ def qualify(executable: Path, root: Path, version: str) -> dict[str, Any]:
         "controls": controls,
         "evidence_kind": "vendor_configuration_read",
         "commands": ["serve --stdio --hostname 127.0.0.1 --port 0"],
-        "read_only_endpoints": ["/api/plugin", "/api/skill"],
+        "read_only_endpoints": ["/api/info", "/api/plugin", "/api/skill"],
         "user_scope_fixture": "disposable_hosted_user",
         "user_messages_sent": 0,
         "inference_turns_started": 0,
@@ -257,7 +263,7 @@ def prepare(distribution: Path, root: Path) -> tuple[Path, str]:
 
 
 def qualify_installed(
-    executable: Path, engine: Path, root: Path, engine_proof: dict[str, Any]
+    executable: Path, engine: Path, root: Path, engine_proof: dict[str, Any], version: str
 ) -> dict[str, Any]:
     case = installation.Installation(engine, root / "i", "OPENCODE_CONFIG_DIR")
     case.environment.update(variables(case.root, case.vendor_home))
@@ -270,13 +276,17 @@ def qualify_installed(
     receipt = case.install("opencode", "skill", name, "global")
     path = case.vendor_home / "skills" / name / "SKILL.md"
     expected = binary_digest(path)
-    with reader(executable, case.project, case.environment, case.root / "reader.log") as server:
+    with reader(
+        executable, case.project, case.environment, case.root / "reader.log", version
+    ) as server:
         observed(server.skills(), name, path)
         removal = case.remove(receipt)
         case.run(case.apply_arguments(removal), refused=True)
         assert binary_digest(path) == expected, "Active-reader refusal changed installed bytes"
     case.apply(removal)
-    with reader(executable, case.project, case.environment, case.root / "restarted.log") as server:
+    with reader(
+        executable, case.project, case.environment, case.root / "restarted.log", version
+    ) as server:
         observed(server.skills(), name, None)
     assert not path.exists()
     case.removed()
@@ -314,7 +324,7 @@ def main() -> None:
         result = qualify(executable.resolve(), root, version)
         engine = installation.prepare(root, source)
         result["installed_configuration"] = (
-            qualify_installed(executable.resolve(), engine[0], root, engine[1])
+            qualify_installed(executable.resolve(), engine[0], root, engine[1], version)
             if engine is not None
             else {"state": "not_selected"}
         )
