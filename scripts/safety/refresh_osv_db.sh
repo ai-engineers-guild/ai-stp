@@ -10,6 +10,7 @@
 # Stamp is written only when at least one all.zip pack is present.
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEST="${AI_STP_OSV_OFFLINE_DIR:-/var/lib/ai_stp/osv}"
 MAX_AGE_HOURS="${AI_STP_OSV_MAX_AGE_HOURS:-36}"
 MARKER="${DEST}/.ai_stp_osv_refreshed_at"
@@ -32,7 +33,13 @@ count_packs() {
 mkdir -p "${DEST}/osv-scalibr"
 log "cache=${OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY} packs_before=$(count_packs)"
 
-tmp="$(mktemp -d)"
+exec {refresh_lock}>"${DEST}/.refresh.lock"
+if ! flock -n "${refresh_lock}"; then
+  log "another refresh owns this database"
+  exit 1
+fi
+
+tmp="$(mktemp -d "${DEST}/.refresh.XXXXXX")"
 cleanup() { rm -rf "${tmp}"; }
 trap cleanup EXIT
 STAGE="${tmp}/snapshot"
@@ -168,18 +175,37 @@ if [[ "${after}" -eq 0 || "${failed}" -ne 0 || "${after}" -ne "${#SELECTED[@]}" 
   exit 1
 fi
 
-# Publish one complete snapshot. A failed refresh never mixes old and new
-# ecosystems and never advances the freshness marker.
-old="${DEST}/osv-scalibr.previous"
-rm -rf "${old}"
-if [[ -d "${DEST}/osv-scalibr" ]]; then
-  mv "${DEST}/osv-scalibr" "${old}"
-fi
-if ! mv "${STAGE}/osv-scalibr" "${DEST}/osv-scalibr"; then
-  [[ -d "${old}" ]] && mv "${old}" "${DEST}/osv-scalibr"
-  exit 1
-fi
-rm -rf "${old}"
+prefixes=(osv-scalibr)
+for eco in "${SELECTED[@]}"; do
+  if [[ "${eco}" == Go ]]; then
+    log "fetch native Go vulnerability database"
+    if ! download "${AI_STP_GOVULNDB_MIRROR:-https://vuln.go.dev}/vulndb.zip" "${tmp}/govulncheck.zip"; then
+      log "Go database download failed; keeping existing data"
+      exit 1
+    fi
+    python3 "${SCRIPT_DIR}/prepare_go_db.py" "${tmp}/govulncheck.zip" "${STAGE}/govulncheck" \
+      "${AI_STP_GOVULNDB_MAX_BYTES:-67108864}" "${AI_STP_GOVULNDB_MAX_FILES:-50000}"
+    prefixes+=(govulncheck)
+    break
+  fi
+done
+
+# Staging shares the destination filesystem; publication is a directory rename.
+# Each provider retains its own complete data and freshness marker on refusal.
+for prefix in "${prefixes[@]}"; do
+  old="${DEST}/${prefix}.previous"
+  rm -rf "${old}"
+  if [[ -d "${DEST}/${prefix}" ]]; then
+    mv "${DEST}/${prefix}" "${old}"
+  fi
+  if ! mv "${STAGE}/${prefix}" "${DEST}/${prefix}"; then
+    [[ -d "${old}" ]] && mv "${old}" "${DEST}/${prefix}"
+    exit 1
+  fi
+done
+for prefix in "${prefixes[@]}"; do
+  rm -rf "${DEST}/${prefix}.previous"
+done
 
 date -u +%Y-%m-%dT%H:%M:%SZ > "${MARKER}"
 {

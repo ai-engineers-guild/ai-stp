@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 from typing import Any, cast
@@ -26,6 +27,15 @@ class Finding:
     message: str = ""
     tool_name: str = ""
     fingerprint: str = ""
+
+
+def maximum_finding_severity(findings: Iterable[Finding]) -> str:
+    """Compute fresh analysis severity without changing retained historical values."""
+    return max(
+        (finding.severity for finding in findings if finding.severity in _SEVERITY_RANK),
+        key=lambda value: _SEVERITY_RANK[value],
+        default="info",
+    )
 
 
 @dataclass(slots=True)

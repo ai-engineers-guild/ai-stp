@@ -7,7 +7,12 @@ from pathlib import Path
 from ai_stp_platform.safety.adapters._cli import classify_cli_exit, manifest_roots, run_cli
 from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.policy import CheckSpec
-from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
+from ai_stp_platform.safety.types import (
+    ArtifactManifest,
+    CheckOutcome,
+    Finding,
+    maximum_finding_severity,
+)
 
 
 def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome:
@@ -79,4 +84,5 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         tool_name="cargo-audit",
         duration_ms=ms,
         findings=findings,
+        severity_max=maximum_finding_severity(findings),
     )

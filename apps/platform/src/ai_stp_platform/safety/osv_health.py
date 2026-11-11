@@ -43,6 +43,12 @@ def _stamp_mtime(directory: Path) -> float | None:
     return None
 
 
+def offline_db_age_hours(directory: Path) -> float | None:
+    """Age of the owning provider's successful refresh, independent of upstream data dates."""
+    stamp = _stamp_mtime(directory)
+    return None if stamp is None else max(0.0, (time.time() - stamp) / 3600.0)
+
+
 def offline_db_packs(directory: Path) -> tuple[Path, ...]:
     """Packs in the exact layout consumed by the current OSV-Scalibr runtime."""
     try:
@@ -87,8 +93,8 @@ def osv_db_status() -> dict[str, Any]:
         }
 
     file_count = len(offline_db_packs(directory))
-    stamp = _stamp_mtime(directory)
-    if stamp is None:
+    age_hours = offline_db_age_hours(directory)
+    if age_hours is None:
         # Placeholder README only, or data without refresh stamp → not fresh.
         return {
             "configured": True,
@@ -101,7 +107,6 @@ def osv_db_status() -> dict[str, Any]:
             "reason": "no_files" if file_count == 0 else "no_stamp",
         }
 
-    age_hours = max(0.0, (time.time() - stamp) / 3600.0)
     fresh = age_hours <= max_age and file_count > 0
     if file_count == 0:
         reason = "no_files"

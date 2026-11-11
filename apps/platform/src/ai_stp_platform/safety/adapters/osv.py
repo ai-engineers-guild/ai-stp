@@ -16,7 +16,12 @@ from ai_stp_platform.safety.adapters._cli import classify_cli_exit, run_cli, whi
 from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.osv_health import offline_db_packs, osv_db_status
 from ai_stp_platform.safety.policy import CheckSpec
-from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
+from ai_stp_platform.safety.types import (
+    ArtifactManifest,
+    CheckOutcome,
+    Finding,
+    maximum_finding_severity,
+)
 
 _DEFAULT_OFFLINE = Path("/var/lib/ai_stp/osv")
 _CACHE_ENV = "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY"
@@ -146,6 +151,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         tool_name="osv-scanner",
         duration_ms=ms,
         findings=findings,
+        severity_max=maximum_finding_severity(findings),
         detail={
             "offline": True,
             "database_age_hours": status["age_hours"],

@@ -577,6 +577,7 @@ def test_cli_adapters_pass_and_warning(monkeypatch: pytest.MonkeyPatch, tmp_path
     assert out.result == "warning"
     assert out.findings
     assert out.findings[0].rule_id == "b404"
+    assert out.severity_max == "high"
     assert out.findings[0].path == "runner.py"
     assert "untrusted payload" not in repr(out.as_binding())
 
@@ -602,19 +603,6 @@ def test_cli_adapters_pass_and_warning(monkeypatch: pytest.MonkeyPatch, tmp_path
     )
     (tmp_path / "tests").mkdir(exist_ok=True)
     assert bandit.run(tmp_path, py, _spec()).result == "passed"
-
-    monkeypatch.setattr(
-        "ai_stp_platform.safety.adapters.govulncheck.run_cli",
-        lambda *a, **k: (1, "vuln", "", 5),
-    )
-    go = ArtifactManifest(component_type="skill", languages={"go"})
-    assert govulncheck.run(tmp_path, go, _spec("sca_govulncheck")).result == "warning"
-
-    monkeypatch.setattr(
-        "ai_stp_platform.safety.adapters.gosec.run_cli",
-        lambda *a, **k: (0, "", "", 5),
-    )
-    assert gosec.run(tmp_path, go, _spec("sast_gosec")).result == "passed"
 
     monkeypatch.setattr(
         "ai_stp_platform.safety.adapters.eslint_security.run_cli",

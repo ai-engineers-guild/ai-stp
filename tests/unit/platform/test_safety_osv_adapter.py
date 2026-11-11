@@ -168,6 +168,7 @@ def test_offline_scan_failure_semantics_are_fail_closed(
     assert out.result == expected_result
     if expected_reason is None:
         assert out.findings and out.findings[0].rule_id == "osv"
+        assert out.severity_max == "medium"
     else:
         assert out.detail["reason"] == expected_reason
 
