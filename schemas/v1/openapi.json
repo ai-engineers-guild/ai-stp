@@ -1665,7 +1665,7 @@
       },
       "CatalogSupportEvidence": {
         "additionalProperties": true,
-        "description": "Safe public summary of one provider support check (SPEC-033, ADR-0072).",
+        "description": "Safe public summary of one provider support check.",
         "properties": {
           "architecture": {
             "$ref": "#/components/schemas/SupportArchitecture"
@@ -1754,7 +1754,7 @@
       },
       "CatalogTrust": {
         "additionalProperties": true,
-        "description": "Why a published version may appear in results, and on whose evidence.\n\nThe two verification flags are independent axes (ADR-0016) and neither may\nbe computed from the other. `authoritative` additionally requires both, and\nthat implication is enforced below — enforcing it is not the same as\nderiving one axis from the other, and a client must still read the flags.",
+        "description": "The independent author and component verification observations.\n\nauthoritative requires both flags; neither flag is derived from the other.",
         "properties": {
           "author_verified": {
             "title": "Author Verified",
@@ -2313,7 +2313,7 @@
       },
       "ComponentContextBudget": {
         "additionalProperties": true,
-        "description": "Context estimate of one visible exact component (SPEC-049).",
+        "description": "Context estimate of one visible exact component.",
         "properties": {
           "component_type": {
             "title": "Component Type",
@@ -2538,7 +2538,7 @@
       },
       "ComponentMediaItem": {
         "additionalProperties": true,
-        "description": "Safe public component media projection (SPEC-035).",
+        "description": "Safe public component media projection.",
         "properties": {
           "alt": {
             "maxLength": 240,
@@ -2987,7 +2987,7 @@
       },
       "ComponentSummary": {
         "additionalProperties": true,
-        "description": "Search-result card for a component.\n\nNaming is mechanical rather than a judgement call: a field without a prefix\nidentifies the **object**, and every `latest_` field is a fact of its latest\noffered **version**, copied from that version's passport. There is no\nobject-level passport (ADR-0012), so a card cannot carry an object-level\n`name` or `tags` however stable they look in practice — and a test ties\nevery `latest_` field back to a real passport field so the rule cannot rot.",
+        "description": "A component object with facts from its latest offered version.\n\nUnprefixed fields identify the object; latest_ fields come from that version's\npassport. Objects have no separate passport, name or tags.",
         "properties": {
           "canonical_name": {
             "default": "",
@@ -3485,7 +3485,7 @@
       },
       "ComponentVersionResponse": {
         "additionalProperties": true,
-        "description": "Exact read of one immutable component version.\n\nThe passport is the description of the version (ADR-0012): there is no\nseparate manifest entity. `passport_digest` is served alongside it so the\nclient can verify the bytes it cached independently of the transport.",
+        "description": "An exact immutable component version and its passport digest.\n\nThe passport is the version description; the digest permits independent byte verification.",
         "properties": {
           "checks": {
             "anyOf": [
@@ -4290,7 +4290,7 @@
       },
       "CorporateAssignmentPlan": {
         "additionalProperties": true,
-        "description": "The deterministic install/update plan for one context (ADR-0197).\n\nItems are sorted by object kind and stable identity; the response carries\nno wall-clock field so identical policy and materialized inputs produce an\nidentical plan.",
+        "description": "The deterministic install/update plan for one context.\n\nItems are sorted by object kind and stable identity; the response carries\nno wall-clock field so identical policy and materialized inputs produce an\nidentical plan.",
         "properties": {
           "account_id": {
             "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
@@ -4583,7 +4583,7 @@
       },
       "CorporateAssignmentPlanRequest": {
         "additionalProperties": false,
-        "description": "Evaluate the deterministic install/update plan for one context (ADR-0197).\n\nThe request names the authenticated employee context, the optional project\nand technology coordinates, the target harness, and the exact coordinates\nthe caller reports as materialized. It never mutates assignments,\ndistribution rows, or provider-owned state.",
+        "description": "Evaluate the deterministic install/update plan for one context.\n\nThe request names the authenticated employee context, the optional project\nand technology coordinates, the target harness, and the exact coordinates\nthe caller reports as materialized. It never mutates assignments,\ndistribution rows, or provider-owned state.",
         "properties": {
           "account_id": {
             "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
@@ -9851,7 +9851,7 @@
       },
       "CorporateMembershipPolicy": {
         "additionalProperties": true,
-        "description": "Email-domain allowlist for joining the organization, plus the people\nvisibility policy (ADR-0230).",
+        "description": "Email-domain allowlist for joining the organization, plus the people\nvisibility policy.",
         "properties": {
           "allowed_email_domains": {
             "default": [],
@@ -16848,7 +16848,7 @@
       },
       "GitHubMetadata": {
         "additionalProperties": true,
-        "description": "Best-effort on-demand stars and archive state (SPEC-049).",
+        "description": "Best-effort on-demand stars and archive state.",
         "properties": {
           "archived": {
             "anyOf": [
@@ -27692,7 +27692,7 @@
       },
       "SetupContextBudget": {
         "additionalProperties": true,
-        "description": "Absolute context estimate of one visible exact setup (SPEC-049).",
+        "description": "Absolute context estimate of one visible exact setup.",
         "properties": {
           "always_tokens": {
             "minimum": 0,
@@ -28682,7 +28682,7 @@
       },
       "SetupSummary": {
         "additionalProperties": true,
-        "description": "Search-result card for a setup. A setup has no variant axis (ADR-0014).\n\n`latest_harness_id` keeps the prefix even though a setup belongs to one\nharness from creation: the value is still read out of the version passport,\nand one rule with no exceptions is cheaper to verify than a rule with one.",
+        "description": "A setup object with facts from its latest offered version.\n\nSetups have no variant axis. latest_harness_id comes from the version passport.",
         "properties": {
           "family_id": {
             "anyOf": [

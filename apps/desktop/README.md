@@ -7,8 +7,8 @@ receives public JSON envelopes. Harness programs remain user/vendor managed.
 ## Use
 
 Choose the installer for your OS from [Desktop 0.5.2](https://github.com/ai-engineers-guild/ai-stp/releases/tag/desktop-v0.5.2)
-and verify it against `SHA256SUMS`. The app bundles CLI 0.3.0. The installed engine
-reports its platform capabilities in Overview.
+and verify it against `SHA256SUMS`. The app bundles the optimized native CLI. Overview reports the installed
+engine version and its platform capabilities.
 
 | View | Responsibility |
 | --- | --- |
@@ -90,7 +90,8 @@ account codes and private task content. No automatic diagnostic upload occurs.
 - `src-tauri/` owns async IPC, serialized mutations and private temporary plan/input
   files, removed after use. Bounds depend on the operation (native requests 128 KiB,
   full native reviews 8 MiB); the CLI validates every object and digest.
-- `src/transport.ts` is the IPC boundary; `store.ts` shares engine state and
+- `src/transport.ts` is the IPC boundary; `store.ts` shares engine state,
+  `src/features/diagnostics/state.ts` owns the bounded opt-in trace, and
   `taskStart.ts` retains a logical start's retry identity. Common components use
   shared theme roles, visible focus and reduced motion.
 - `src/generated/cli.ts` projects the canonical CLI JSON schemas. IPC declarations
@@ -127,6 +128,7 @@ just desktop-bundle-test  # Verify an existing packaged CLI resource tree
 
 Source checks use Biome for formatting and lint, Oxlint for type-aware rules,
 Knip for reachability and the native TypeScript compiler for strict types.
+Oxlint also rejects cyclic runtime imports between modules.
 Generated contracts and catalogs retain their producer-owned serialization.
 
 For hosted generation, dispatch `contract-generation` on the source branch with

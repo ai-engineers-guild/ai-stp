@@ -16,7 +16,7 @@
     },
     "NativeComponent": {
       "additionalProperties": true,
-      "description": "One native component found on this machine (`SPEC-005` REQ-517).\n\nReported without its content being read. `holds_secret` is decided from the\npath's *name*: opening a file to learn whether it holds a credential is the\nharm REQ-518 exists to prevent, so the flag says \"named as one\", never\n\"contains one\".",
+      "description": "One discovered native component, without reading its content.\n\nholds_secret classifies the path name, never the contents of a file.",
       "properties": {
         "byte_length": {
           "anyOf": [
@@ -342,7 +342,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-native-components",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "Everything discovery found, and nothing it changed (`REQ-518`).",
+  "description": "Everything discovery found, and nothing it changed.",
   "properties": {
     "complete": {
       "title": "Complete",

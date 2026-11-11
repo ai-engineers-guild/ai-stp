@@ -25,7 +25,7 @@ class EligibilityRefusal(ContractModel):
 
     schema_version: Literal[1] = 1
 
-    #: The six families of `SPEC-006` REQ-601, in that requirement's own order.
+    #: Independent mechanical refusal families, in contract order.
     family: Literal["compatibility", "access", "trust", "license", "entitlement", "provider"]
     code: Annotated[str, Field(min_length=1)]
     summary: Annotated[str, Field(min_length=1)]
@@ -37,13 +37,9 @@ class EligibilityRefusal(ContractModel):
 
 
 class EligibilityNote(ContractModel):
-    """One state worth saying that blocks nothing.
+    """An observation that does not block installation.
 
-    A separate model rather than a refusal with a flag. A missing mandatory
-    environment variable must not stop an install (`SPEC-001` REQ-111,
-    `SPEC-008` REQ-816), and the cheapest way to keep that true is to make a
-    note structurally incapable of being counted as a refusal.
-    """
+    A missing environment variable is a note, structurally distinct from a refusal."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -54,15 +50,10 @@ class EligibilityNote(ContractModel):
 
 
 class CandidateEligibility(ContractModel):
-    """What the mechanical stage decided about one candidate, and why.
+    """Mechanical admissibility and automatic-selection permission for one candidate.
 
-    Two booleans because there are two questions. `admissible` is "may this be
-    installed" and a trust lane never softens it; `auto_selectable` is "may this
-    be chosen without asking", and `experimental` answers no to that even with
-    consent (`SPEC-006` REQ-603). A single flag would have made a consented
-    unverified object silently installable, which is the failure `ADR-0016`
-    exists to prevent.
-    """
+    Trust never relaxes admissibility. Experimental candidates are never selected
+    automatically, even when the caller consents to viewing them."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -78,13 +69,9 @@ class CandidateEligibility(ContractModel):
 
 
 class EligibilityReport(ContractModel):
-    """Every candidate assessed against one target (`SPEC-006` REQ-601, REQ-621).
+    """Every candidate assessed against the echoed target.
 
-    The target is echoed back because a verdict without the facts it was reached
-    from cannot be checked. `no_candidate` is an honest state here rather than
-    an error: `SPEC-006` says so explicitly, and an empty admissible list with
-    the reasons beside it is what makes it honest.
-    """
+    no_candidate is a valid outcome with an empty admissible list and explicit reasons."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -137,13 +124,9 @@ class EligibilityMatrix(ContractModel):
 
 
 class ProposalMember(ContractModel):
-    """One exact reference inside a proposal, and why it was allowed in.
+    """An exact proposal member with the trust lane shown during review.
 
-    The lane travels with the member rather than being recomputed when the
-    proposal is confirmed. `REQ-616` wants the trace to record the lane of each
-    candidate, and a lane derived later could differ from the one the user was
-    actually shown.
-    """
+    Confirmation retains that observation rather than recomputing its explanation."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -154,22 +137,20 @@ class ProposalMember(ContractModel):
     lane: Literal["authoritative", "local_owner_or_pinned", "experimental"]
     lane_reason: Annotated[str, Field(min_length=1)]
 
-    #: How an unverified candidate was allowed in, when one was. Empty where no
-    #: consent was needed — `REQ-627` requires the source to reach the trace.
+    #: The source of consent admitting an unverified candidate, empty when no consent was needed.
     consent_source: str = ""
 
-    #: The bounded overlay's revision, when this member is derived (`REQ-605`).
+    #: The bounded overlay's revision, when this member is derived.
     overlay_revision_id: str = ""
 
 
 class ProposalView(ContractModel):
-    """One short-lived composition proposal (`ADR-0027`).
+    """One short-lived composition proposal.
 
     Showing this creates nothing. `state` distinguishes the four situations a
     caller must act on differently — still open, already confirmed, cancelled,
     or expired — because "not open" would leave all three failures looking the
-    same.
-    """
+    same."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -187,7 +168,7 @@ class ProposalView(ContractModel):
     expires_at: Annotated[str, Field(min_length=1)]
 
     #: Set once confirmed. Present so a repeat of a confirmation is visibly the
-    #: same version rather than a new one (`REQ-624`).
+    #: same version rather than a new one.
     confirmed_stable_id: str | None = None
     confirmed_version: str | None = None
 
@@ -219,12 +200,9 @@ class ProposalSession(ContractModel):
 
 
 class ConfirmationView(ContractModel):
-    """The single object a confirmation froze (`REQ-623`).
+    """The exact object frozen by confirmation.
 
-    `created` separates "this call made it" from "this call found it already
-    made". `REQ-624` makes a repeat a success rather than a conflict, and a
-    caller still has to be able to tell the two apart.
-    """
+    created distinguishes a new result from a successful replay of the same decision."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -235,7 +213,7 @@ class ConfirmationView(ContractModel):
     state: Literal["pending_install", "installed"]
     created: bool
 
-    #: The recorded reasons behind this version (`REQ-616`). Written in the same
+    #: The recorded reasons behind this version. Written in the same
     #: transaction as the version itself, so an answer that has one has both.
     trace: dict[str, JsonValue] = {}
 
@@ -289,13 +267,9 @@ class GraphRefusal(ContractModel):
 
 
 class SetupGraph(ContractModel):
-    """The exact dependency closure of a composition (`SPEC-006` REQ-605).
+    """The exact dependency closure of a composition.
 
-    `nodes` is empty whenever `resolved` is false, and that is deliberate:
-    `REQ-608` says an unresolved closure blocks, and returning the part that did
-    resolve would read as "almost composed". A composition missing a dependency
-    is not composed at all.
-    """
+    Unresolved closures have no nodes; a partial graph is not an installable composition."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -315,12 +289,9 @@ class SetupGraph(ContractModel):
 
 
 class CompositionConflict(ContractModel):
-    """One reason a composition cannot be built (`SPEC-006` REQ-606).
+    """A composition conflict requiring an explicit decision.
 
-    Nothing resolves it automatically. `REQ-626` forbids semantic merging,
-    equivalent selection and composition optimisation, so this is a statement
-    for a person to act on rather than a step in a repair.
-    """
+    No automatic semantic merging, equivalent selection or optimization resolves it."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -354,12 +325,7 @@ class CompositionRejection(ContractModel):
 
 
 class ConversionEntry(ContractModel):
-    """What one component becomes on the target harness, and what is lost.
-
-    `losses` names each one. A report that says something was lost without
-    saying what cannot be acted on, and `REQ-609` asks for a loss-aware report
-    rather than a loss-counting one.
-    """
+    """A component's target projection with each conversion loss named explicitly."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -379,27 +345,24 @@ class ConversionEntry(ContractModel):
 
 
 class CompositionReports(ContractModel):
-    """The composition and conversion reports a bundle must carry (`REQ-609`).
+    """The composition and conversion reports a bundle must carry.
 
     Both, always, and together: the first explains what is in the composition
     and the second what survives translation to the harness. A bundle carrying
-    one of them would answer half the question a person has before installing.
-    """
+    one of them would answer half the question a person has before installing."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
     harness_id: HarnessId
 
-    #: True when a conflict blocks. `REQ-608`: an unresolved conflict produces
-    #: no package, so this is the field a caller branches on before building.
+    #: A blocking conflict produces no package; inspect this before building.
     blocked: bool
     chosen: list[CompositionChoice] = []
     rejected: list[CompositionRejection] = []
     conflicts: list[CompositionConflict] = []
 
-    #: Only from the closed set `REQ-625` allows. Naming the whole set every
-    #: time would prove nothing about what actually happened.
+    #: The observed actions from the closed contract vocabulary.
     operations: list[str] = []
 
     conversion: list[ConversionEntry] = []
@@ -503,13 +466,12 @@ class ConformanceCase(ContractModel):
 
 
 class ConformanceReport(ContractModel):
-    """Whether one provider conforms to the frozen protocol (`SPEC-008` REQ-802).
+    """Whether one provider conforms to the frozen protocol.
 
     `reported_version` is kept beside `protocol_version` rather than compared
     away: a provider announcing a version this build does not speak is a
     different situation from one that speaks it and fails a case, and the two
-    are fixed by different people.
-    """
+    are fixed by different people."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -599,12 +561,11 @@ class PinnedRelease(ContractModel):
 
 
 class TrustedBuildAttestation(ContractModel):
-    """One repository whose attested builds this machine will bind (`ADR-0121`).
+    """One repository whose attested builds this machine will bind.
 
     Reported with the signer workflow, not just the repository: the rule is
     satisfied by an attestation naming that exact workflow, so a report giving
-    only the repository would describe a looser rule than the one enforced.
-    """
+    only the repository would describe a looser rule than the one enforced."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -615,7 +576,7 @@ class TrustedBuildAttestation(ContractModel):
 
 
 class TrustedIndexPublisher(ContractModel):
-    """One PyPI project whose PEP 740 publisher this machine will bind (`ADR-0141`)."""
+    """One PyPI project whose PEP 740 publisher this machine will bind."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -628,13 +589,12 @@ class TrustedIndexPublisher(ContractModel):
 
 
 class ProviderTrust(ContractModel):
-    """What this machine will accept from a provider, and why (`SPEC-008` REQ-811).
+    """What this machine will accept from a provider, and why.
 
     The policy is reported as it is pinned, not as a manifest describes itself.
     An empty `allowed_keys` accepts nothing and is the correct state before the
     owner pins a real signing key — an invented key would be a trust anchor
-    nobody chose.
-    """
+    nobody chose."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -675,11 +635,10 @@ class ProviderTrust(ContractModel):
 
 
 class ProviderBoundRelease(ContractModel):
-    """Closed release manifest bound from attested OpenNetwork bytes (`SPEC-008` REQ-847).
+    """Closed release manifest bound from attested OpenNetwork bytes.
 
     The JSON is a local binding record, not a second trust anchor. Trust remains
-    the pinned `build_attestations` rule plus GitHub attestation of exact bytes.
-    """
+    the pinned `build_attestations` rule plus GitHub attestation of exact bytes."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 

@@ -8,16 +8,12 @@ from ai_stp_contracts.auth import AccountId, DeviceId, OAuthProvider, PublicKey
 from ai_stp_contracts.http import Timestamp, open_wire_object
 from ai_stp_contracts.model import ContractModel
 
-#: Where a secret actually lives on this installation (`ADR-0058`). Reported
-#: rather than assumed: a caller that believes a refresh token is encrypted at
-#: rest when it is a file has been told something false, and the difference
-#: changes what it is safe to do on a shared machine.
+#: The actual credential backend, reported explicitly rather than assumed encrypted.
 type CredentialStore = Literal["os_keyring", "file"]
 
 
-#: Local view of one device identity. `revoked` is set locally by an explicit
-#: reset and by a server answer once #75 can ask; it stops future cloud work and
-#: leaves local reads alone (`SPEC-002` REQ-205).
+#: Local device identity state. Revocation prevents future cloud work while
+#: preserving local reads.
 type LocalDeviceState = Literal["active", "revoked"]
 
 
@@ -44,8 +40,7 @@ class DeviceIdentity(ContractModel):
     created_at: Timestamp
     state: LocalDeviceState
 
-    #: Where the private key is kept, and why that tier was chosen. Never
-    #: silent: `ADR-0058` makes the tier part of the answer.
+    #: The actual private-key backend and why that storage tier was selected.
     credential_store: CredentialStore
     credential_store_detail: Annotated[str, Field(min_length=1)]
 
@@ -55,11 +50,8 @@ class DeviceIdentity(ContractModel):
     retired_device_ids: list[DeviceId]
 
 
-#: What this installation's relationship with the platform actually is
-#: (`SPEC-011`, issue #75). Four values rather than a boolean, because the
-#: repairs differ: `expired` is fixed by signing in again, `revoked` needs a new
-#: device key as well (`SPEC-002` REQ-207), and `local_only` is not a problem at
-#: all — the whole local contour works without an account.
+#: Local platform relationship. Expired enrollment requires renewed sign-in;
+#: revocation also requires device-key recovery. Local operation needs no account.
 type SessionState = Literal["local_only", "authenticated", "expired", "revoked"]
 
 

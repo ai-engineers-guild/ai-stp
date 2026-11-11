@@ -69,7 +69,7 @@ it.each([
   "starts and toggles diagnostics when preference storage is unavailable: %j",
   async (storage) => {
     vi.stubGlobal("localStorage", storage);
-    const { useDebug } = await import("./store");
+    const { useDebug } = await import("./features/diagnostics/state");
     expect(useDebug.getState().debugMode).toBe(false);
     useDebug.getState().setDebugMode(true);
     expect(useDebug.getState().debugMode).toBe(true);
@@ -81,7 +81,7 @@ it.each([
 it("reads and retains an explicit diagnostic preference when storage works", async () => {
   const storage = { getItem: vi.fn(() => "1"), setItem: vi.fn() };
   vi.stubGlobal("localStorage", storage);
-  const { useDebug } = await import("./store");
+  const { useDebug } = await import("./features/diagnostics/state");
   expect(useDebug.getState().debugMode).toBe(true);
   useDebug.getState().setDebugMode(false);
   expect(storage.setItem).toHaveBeenCalledWith("ai-stp.debug", "0");

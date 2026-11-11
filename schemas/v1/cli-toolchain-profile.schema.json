@@ -61,7 +61,7 @@
     },
     "PinnedTool": {
       "additionalProperties": true,
-      "description": "One tool the managed profile pins (`SPEC-014` REQ-1403).",
+      "description": "One tool the managed profile pins.",
       "properties": {
         "digest": {
           "minLength": 1,
@@ -125,7 +125,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-toolchain-profile",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "The managed toolchain as it resolves on this machine (`SPEC-014`).\n\nPolicy, not project: `REQ-1402` makes an empty project and a documentation\nproject resolve to the same profile, because what a developer needs\ninstalled is not deducible from what they have written so far.",
+  "description": "The machine's managed toolchain policy, independent of project contents.",
   "properties": {
     "ecosystems": {
       "items": {

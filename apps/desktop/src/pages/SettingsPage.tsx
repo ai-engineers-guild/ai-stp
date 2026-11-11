@@ -3,7 +3,8 @@ import { useText } from "../i18n";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { ArrowRight, KeyRound } from "lucide-react";
-import { useApp, useDebug } from "../store";
+import { useApp } from "../store";
+import { useDebug } from "../features/diagnostics/state";
 import {
   cliApplyConfirmed,
   cmdMachineHelp,

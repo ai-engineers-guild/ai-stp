@@ -115,7 +115,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-project-index",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "The bounded second-level index of one project root (`SPEC-004`).\n\n`state` is `partial` when a size, depth, entry or time bound was reached.\nSaying so is the point: a short answer that looks complete is worse than a\ncomplete answer that says where it stopped.",
+  "description": "The bounded second-level index of one project root.\n\n`state` is `partial` when a size, depth, entry or time bound was reached.\nSaying so is the point: a short answer that looks complete is worse than a\ncomplete answer that says where it stopped.",
   "properties": {
     "excluded": {
       "items": {

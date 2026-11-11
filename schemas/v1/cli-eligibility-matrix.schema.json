@@ -2,7 +2,7 @@
   "$defs": {
     "CandidateEligibility": {
       "additionalProperties": true,
-      "description": "What the mechanical stage decided about one candidate, and why.\n\nTwo booleans because there are two questions. `admissible` is \"may this be\ninstalled\" and a trust lane never softens it; `auto_selectable` is \"may this\nbe chosen without asking\", and `experimental` answers no to that even with\nconsent (`SPEC-006` REQ-603). A single flag would have made a consented\nunverified object silently installable, which is the failure `ADR-0016`\nexists to prevent.",
+      "description": "Mechanical admissibility and automatic-selection permission for one candidate.\n\nTrust never relaxes admissibility. Experimental candidates are never selected\nautomatically, even when the caller consents to viewing them.",
       "properties": {
         "admissible": {
           "title": "Admissible",
@@ -75,7 +75,7 @@
     },
     "EligibilityNote": {
       "additionalProperties": true,
-      "description": "One state worth saying that blocks nothing.\n\nA separate model rather than a refusal with a flag. A missing mandatory\nenvironment variable must not stop an install (`SPEC-001` REQ-111,\n`SPEC-008` REQ-816), and the cheapest way to keep that true is to make a\nnote structurally incapable of being counted as a refusal.",
+      "description": "An observation that does not block installation.\n\nA missing environment variable is a note, structurally distinct from a refusal.",
       "properties": {
         "code": {
           "enum": [
@@ -168,7 +168,7 @@
     },
     "EligibilityReport": {
       "additionalProperties": true,
-      "description": "Every candidate assessed against one target (`SPEC-006` REQ-601, REQ-621).\n\nThe target is echoed back because a verdict without the facts it was reached\nfrom cannot be checked. `no_candidate` is an honest state here rather than\nan error: `SPEC-006` says so explicitly, and an empty admissible list with\nthe reasons beside it is what makes it honest.",
+      "description": "Every candidate assessed against the echoed target.\n\nno_candidate is a valid outcome with an empty admissible list and explicit reasons.",
       "properties": {
         "admissible_count": {
           "minimum": 0,

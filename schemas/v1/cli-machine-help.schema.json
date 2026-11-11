@@ -114,7 +114,7 @@
     },
     "CommandParameterRule": {
       "additionalProperties": false,
-      "description": "A cross-parameter invocation rule that consumers must not parse from prose.\n\n`exactly_one` of the named parameters must be present; `at_most_one`\nallows none but refuses two; `required_when` makes the named parameters\nrequired; `forbidden_when` refuses the named parameters while its\ncondition holds. A rule carrying `when_parameter` and `when_values`\napplies only while that parameter takes one of those values —\n`install plan`'s source rule holds for `install`, `update` and `remove`,\nand on `backup` and `rollback` the same pair relaxes to `at_most_one`,\nbecause those actions bind to a target, not to a graph (`REQ-1207`).",
+      "description": "A machine-readable cross-parameter rule.\n\nThe named parameters follow exactly_one, at_most_one, required_when or\nforbidden_when. A conditional rule applies only when when_parameter has\none of when_values; consumers do not infer these rules from prose.",
       "properties": {
         "kind": {
           "enum": [

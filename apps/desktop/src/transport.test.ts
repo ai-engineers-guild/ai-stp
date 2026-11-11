@@ -27,7 +27,7 @@ import {
   cmdSetupAcquisitionPlan,
   cmdSetupAcquisitionApply,
 } from "./transport";
-import { useDebug } from "./store";
+import { useDebug } from "./features/diagnostics/state";
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
   isTauri: () => false,
