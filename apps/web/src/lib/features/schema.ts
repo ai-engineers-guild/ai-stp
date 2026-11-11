@@ -7,7 +7,7 @@ const featureShape = Object.fromEntries(FEATURE_KEYS.map((key) => [key, z.boolea
   z.ZodBoolean
 >;
 
-export const featureSetSchema = z.object(featureShape).strict();
+const featureSetSchema = z.object(featureShape).strict();
 
 export const featureConfigSchema = z
   .object({
@@ -25,5 +25,3 @@ export const featureConfigSchema = z
       });
     }
   });
-
-export type FeatureConfig = z.infer<typeof featureConfigSchema>;

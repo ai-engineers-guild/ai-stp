@@ -7,7 +7,6 @@ import { hrefFromDocsSlugs } from "@/lib/docs-nav-path";
 
 export {
   canonicalDocsSlug,
-  docsMarkdownRedirectPath,
   hrefFromDocsSlugs,
 } from "@/lib/docs-nav-path";
 

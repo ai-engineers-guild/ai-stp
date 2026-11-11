@@ -26,7 +26,7 @@
     "storybook": "storybook dev -p 6006 --disable-telemetry",
     "build-storybook": "storybook build -o storybook-static --disable-telemetry",
     "check": "bun run lint && bun run type-check && bun run test && bun run build && bun run test:e2e",
-    "lint:dependencies": "knip --dependencies --files",
+    "lint:dependencies": "knip --dependencies --files --exports",
     "lint:biome": "biome lint --error-on-warnings --diagnostic-level=warn .",
     "lint:types": "oxlint --type-aware --deny-warnings src tests scripts"
   },

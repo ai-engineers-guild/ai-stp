@@ -9,7 +9,7 @@ import { Link } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";
 
 export type Row = HeartbeatReportData["items"][number];
-export type RowStatus = Row["status"];
+type RowStatus = Row["status"];
 type T = ReturnType<typeof useTranslations>;
 
 const BADGES = {

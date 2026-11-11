@@ -18,16 +18,6 @@ import {
 } from "./catalog-types";
 import { multiAuthorComponents, multiAuthorSetups } from "./catalog-seed";
 
-export type { ComponentSummaryFixture, SetupSummaryFixture } from "./catalog-types";
-export { makeComponentSummary, makeSetupSummary } from "./catalog-types";
-export {
-  codexComponentSummary,
-  piComponentSummary,
-  opencodeComponentSummary,
-  codexSetupSummary,
-  piSetupSummary,
-} from "./catalog-seed";
-
 // A digest per version, not one shared placeholder. With every row carrying the
 // same bytes, a projection pairing the newest version label with the oldest
 // row's digest looked correct in every test — which is how it reached the live
@@ -150,6 +140,11 @@ export const componentSummaryFixture = makeComponentSummary({
   },
 });
 
+/**
+ * Retained canonical fixture alias; preserve the same object identity.
+ * @public
+ * @alias
+ */
 export const componentSummary = componentSummaryFixture;
 
 const multiHarnessIds = [
@@ -209,7 +204,7 @@ const multiHarnessTargetMatrix: TargetMatrix = {
   })),
 };
 
-export const multiHarnessComponentSummary = makeComponentSummary({
+const multiHarnessComponentSummary = makeComponentSummary({
   stable_id: SEED_MULTI_HARNESS_COMPONENT_ID,
   latest_version: "1.3",
   latest_name: "workflow-herdr",
@@ -240,6 +235,11 @@ export const setupSummaryFixture = makeSetupSummary({
   composition: [pin(FIXTURE_COMPONENT_ID, "1.2")],
 });
 
+/**
+ * Retained canonical fixture alias; preserve the same object identity.
+ * @public
+ * @alias
+ */
 export const setupSummary = setupSummaryFixture;
 
 export const ALL_COMPONENT_SUMMARIES = [

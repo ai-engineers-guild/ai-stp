@@ -1,7 +1,6 @@
 import type { DeviceId, ETag } from "@/lib/brands";
 import { apiRequest, apiRequestWithMeta } from "@/lib/api/http";
 
-import { DEVICE_SUMMARY_FIELDS } from "./device-summary-fields";
 import type {
   DeviceListResponse,
   DeviceRecord,
@@ -9,8 +8,6 @@ import type {
   DeviceState,
   DeviceSummary,
 } from "./generated/types.gen";
-
-export { DEVICE_SUMMARY_FIELDS };
 
 function unwrapData(body: unknown): Record<string, unknown> {
   if (body !== null && typeof body === "object") {
@@ -95,7 +92,7 @@ function mapPlatformDevice(row: Record<string, unknown>): DeviceRecord | null {
  * Normalize platform GET /v1/devices (envelope + closed summary fields) or the
  * frozen OpenAPI DeviceListResponse into the shape the web UI consumes.
  */
-export function normalizeDeviceList(raw: unknown): DeviceListResponse {
+function normalizeDeviceList(raw: unknown): DeviceListResponse {
   if (raw !== null && typeof raw === "object" && "items" in raw) {
     return raw as DeviceListResponse;
   }

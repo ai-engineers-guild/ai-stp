@@ -10,7 +10,7 @@ export type MemberImportRow = ImportedMember & {
   rowNumber: number;
   error: "invalidEmail" | "nameTooLong" | "duplicateEmail" | null;
 };
-export const MEMBER_IMPORT_LIMIT = 500;
+const MEMBER_IMPORT_LIMIT = 500;
 
 const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
 const EMAIL_GLOBAL = new RegExp(EMAIL.source, "g");

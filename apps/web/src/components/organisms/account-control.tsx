@@ -52,7 +52,7 @@ export function AccountControl({ signedIn }: { signedIn: boolean }) {
   );
 }
 
-export function AccountMenu() {
+function AccountMenu() {
   const t = useTranslations("nav");
   const locale = useLocale();
   const logoutFormRef = useRef<HTMLFormElement>(null);

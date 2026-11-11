@@ -4,16 +4,7 @@ import { CORPORATE_NAV_PAGES } from "@/lib/corporate-navigation-pages";
 import type { CorporateNavContextId, CorporateNavPage } from "@/lib/corporate-navigation-pages";
 
 export { CORPORATE_NAV_PAGES };
-export type { CorporateNavContextId, CorporateNavPage };
-
-export const CORPORATE_NAV_CONTEXT_LABELS: Record<
-  Exclude<CorporateNavContextId, "root">,
-  string
-> = {
-  organization: "organization",
-  landscape: "landscape",
-  administration: "administration",
-};
+export type { CorporateNavPage };
 
 export type CorporateNavItem = {
   id: string;

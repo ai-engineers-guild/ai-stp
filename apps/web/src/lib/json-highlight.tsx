@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export type JsonTokenType = "key" | "string" | "number" | "literal" | "punctuation" | "whitespace";
+type JsonTokenType = "key" | "string" | "number" | "literal" | "punctuation" | "whitespace";
 
 export type JsonToken = {
   type: JsonTokenType;

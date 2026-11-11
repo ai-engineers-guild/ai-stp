@@ -143,7 +143,7 @@ export function TechnologyScanJournal({
   );
 }
 
-export function TechnologyScanJournalTable({
+function TechnologyScanJournalTable({
   items,
   projects,
 }: {

@@ -17,7 +17,6 @@ import {
   appliedFilterChips,
   catalogQueryToRecord,
   countAppliedFilters,
-  type CatalogResource,
   type ParsedCatalogQuery,
 } from "@/lib/catalog-query";
 import { defaultCatalogQuery } from "@/lib/catalog-query-defaults";
@@ -451,5 +450,3 @@ function DisclosureButton({
     </Button>
   );
 }
-
-export type { CatalogResource };

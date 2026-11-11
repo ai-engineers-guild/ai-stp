@@ -1,13 +1,4 @@
-/** Wire shapes for the corporate runtime usage surface (SPEC-088).
- *
- * Local until the generated contract client picks up `runtime_usage` at
- * integration; field names match the contract verbatim so the swap is a
- * type-only change.
- */
-
-export type UsageOutcome = "succeeded" | "failed" | "cancelled";
-
-export type UsageGroupBy =
+type UsageGroupBy =
   | "component"
   | "setup"
   | "employee"
@@ -16,7 +7,7 @@ export type UsageGroupBy =
   | "harness"
   | "outcome";
 
-export type UsageReportRow = {
+type UsageReportRow = {
   group_value: string;
   component_kind: string | null;
   component_stable_id: string | null;
@@ -33,7 +24,7 @@ export type UsageReportRow = {
   last_invoked_at: string;
 };
 
-export type UsageAssignedRow = {
+type UsageAssignedRow = {
   object_kind: "setup" | "component";
   stable_id: string;
   version: string | null;

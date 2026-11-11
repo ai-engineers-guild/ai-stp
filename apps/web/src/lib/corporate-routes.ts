@@ -37,11 +37,3 @@ export function safeCorporateQuery(
   const encoded = query.toString();
   return encoded ? `?${encoded}` : "";
 }
-
-export function corporateEmployeePath(id?: string): string {
-  return id ? `/corporate/employees/${encodeURIComponent(id)}` : "/corporate/employees";
-}
-
-export function corporateCatalogPath(): string {
-  return "/corporate/catalog";
-}

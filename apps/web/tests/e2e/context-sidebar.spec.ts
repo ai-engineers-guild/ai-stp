@@ -177,10 +177,9 @@ test("Storybook sidebar scenarios render and support keyboard interaction", asyn
     await expect(rail, `Storybook scenario ${story}`).toBeVisible({ timeout: 15_000 });
     if (story === "dark") {
       await expect(page.locator("html")).toHaveClass(/dark/);
-      await expect(rail.getByRole("button", { name: "Expand Security", exact: true })).toHaveCSS(
-        "color",
-        await rail.evaluate((node) => getComputedStyle(node).color),
-      );
+      await expect(
+        rail.getByRole("button", { name: "Expand Reference Data", exact: true }),
+      ).toHaveCSS("color", await rail.evaluate((node) => getComputedStyle(node).color));
     }
     await expect(rail).toHaveAttribute("data-collapsed", String(story.includes("collapsed")));
     if (story === "denied-administration") {

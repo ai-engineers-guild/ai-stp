@@ -46,8 +46,6 @@ export const seedPublicProfiles = {
   },
 } as const;
 
-export const seedPublicProfile = seedPublicProfiles[FIXTURE_ACCOUNT_ID];
-
 export const accountProfile = {
   schema_version: 1 as const,
   account_id: FIXTURE_ACCOUNT_ID,

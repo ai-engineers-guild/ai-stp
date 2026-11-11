@@ -1,4 +1,3 @@
-import type { CorporateDirectoryReference } from "./generated/types.gen";
 import { readCorporateContext, readCorporateDirectoryPage } from "./corporate";
 
 export async function readCorporateCreateOptions(sessionToken: string) {
@@ -22,5 +21,3 @@ export async function readCorporateCreateOptions(sessionToken: string) {
     roles: members?.roles?.items ?? [],
   };
 }
-
-export type CorporateCreateOption = Pick<CorporateDirectoryReference, "id" | "name">;

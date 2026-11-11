@@ -1,5 +1,5 @@
 /** Reserved catalog query-language tokens offered as autocomplete. */
-export const CATALOG_QL_WORDS = [
+const CATALOG_QL_WORDS = [
   "NAME",
   "TAGS",
   "HARNESS",
@@ -17,7 +17,7 @@ export const CATALOG_QL_OPERATORS = ["AND", "OR", "NOT", "IN"] as const;
 const FIELD_WORDS = CATALOG_QL_FIELDS;
 const OPERATOR_WORDS = CATALOG_QL_OPERATORS;
 
-export type CatalogQlTokenKind = "field" | "operator" | "syntax" | "text" | "quoted";
+type CatalogQlTokenKind = "field" | "operator" | "syntax" | "text" | "quoted";
 export type CatalogQlSegment = { text: string; kind: CatalogQlTokenKind };
 
 export function catalogQlWordKind(word: string): "field" | "operator" | "syntax" {

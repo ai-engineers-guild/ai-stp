@@ -29,7 +29,7 @@ export function versions(row: TechnologyLandscapeRow) {
   );
 }
 
-export type LandscapeCategoryGroup = {
+type LandscapeCategoryGroup = {
   key: string;
   name: string;
   rows: TechnologyLandscapeRow[];

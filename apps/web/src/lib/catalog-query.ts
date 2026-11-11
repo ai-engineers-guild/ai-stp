@@ -14,7 +14,7 @@ export const CATALOG_DEFAULT_PAGE_SIZE = 25;
 export { CATALOG_UNSPECIFIED_FILTER } from "@/lib/catalog-relation-filters";
 
 /** Keys the web catalog form may emit (includes web-only `resource`). */
-export const CATALOG_WEB_QUERY_KEYS = frozenset([
+const CATALOG_WEB_QUERY_KEYS = frozenset([
   "q",
   "cursor",
   "resource",
@@ -48,38 +48,6 @@ export const CATALOG_WEB_QUERY_KEYS = frozenset([
   "family_id",
   "family_alignment",
   "member_harness_id",
-  "team_ids",
-  "project_ids",
-  "technology_ids",
-  "category_ids",
-  "owner_ids",
-  "maintainer_ids",
-  "assignment",
-  "corporate_verified",
-]);
-
-/** Keys forwarded to the platform API search endpoints. */
-export const CATALOG_API_QUERY_KEYS = frozenset([
-  "q",
-  "cursor",
-  "include_experimental",
-  "tags",
-  "harness_id",
-  "component_type",
-  "support_tier",
-  "support_state",
-  "service_domain",
-  "country_code",
-  "service_domains",
-  "country_codes",
-  "updated_from",
-  "updated_to",
-  "page_size",
-  "schema_version",
-  "family_id",
-  "family_alignment",
-  "member_harness_id",
-  "organization_id",
   "team_ids",
   "project_ids",
   "technology_ids",
@@ -579,5 +547,4 @@ export function catalogHref(
 export {
   appliedFilterChips,
   countAppliedFilters,
-  type AppliedFilterChip,
 } from "@/lib/catalog-query-chips";

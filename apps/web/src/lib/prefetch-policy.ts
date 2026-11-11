@@ -15,7 +15,7 @@ export const SHELL_PREFETCH_HREFS = [
   "/login",
 ] as const;
 
-export function hrefPathname(href: string): string {
+function hrefPathname(href: string): string {
   const [path] = href.split("?");
   return path || "/";
 }

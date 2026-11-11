@@ -18,15 +18,6 @@ export type SourceMetadataLabels = {
   empty: string;
 };
 
-export function sourceMetadataLabels(t: (key: string) => string): SourceMetadataLabels {
-  return {
-    repository: t("sourceRepository"),
-    commit: t("sourceCommit"),
-    path: t("sourcePath"),
-    empty: t("noneListed"),
-  };
-}
-
 export function ObjectTechnicalDetails({
   title,
   summary,
@@ -118,7 +109,7 @@ function Fact({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-export function LicenseValue({ spdxId }: { spdxId: string }) {
+function LicenseValue({ spdxId }: { spdxId: string }) {
   const href = spdxLicenseUrl(spdxId);
   if (!href) return <span>{spdxId}</span>;
   return (

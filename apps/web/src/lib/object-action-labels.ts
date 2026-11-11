@@ -1,7 +1,4 @@
-import type {
-  ObjectActionLabels,
-  ObjectVisibilityEdit,
-} from "@/components/organisms/component-actions";
+import type { ObjectActionLabels } from "@/components/organisms/component-actions";
 
 type Translate = (key: string) => string;
 
@@ -36,24 +33,5 @@ export function objectActionLabels({
     delete: catalog("objectDelete"),
     confirmDelete: catalog("objectDeleteConfirm"),
     deleted: catalog("objectDeleted"),
-  };
-}
-
-/** Labels for the visibility toggle dialog, resolved for the current direction. */
-export function objectVisibilityLabels(
-  objects: Translate,
-  visibility: "public" | "private",
-): ObjectVisibilityEdit["labels"] {
-  const toPublic = visibility !== "public";
-  return {
-    goPublic: objects("makePublic"),
-    removeFromPublic: objects("makePrivate"),
-    title: objects(toPublic ? "makePublicTitle" : "makePrivateTitle"),
-    description: objects(toPublic ? "makePublicDescription" : "makePrivateDescription"),
-    ...(toPublic ? { typeObjectName: objects("typeObjectName") } : {}),
-    confirm: objects("confirmVisibility"),
-    cancel: objects("cancel"),
-    busy: objects("changingVisibility"),
-    failed: objects("visibilityFailed"),
   };
 }

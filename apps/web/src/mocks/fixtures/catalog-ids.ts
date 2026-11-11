@@ -34,10 +34,15 @@ export const SEED_COMPONENT_CURSOR_ID = "component_01JQZK7B8N4M6P2R9T5V0X3YBH";
 export const SEED_COMPONENT_ANTIGRAVITY_ID = "component_01JQZK7B8N4M6P2R9T5V0X3YBJ";
 
 // Backward-compatible aliases used by older tests.
+/** @alias Retained harness view of the canonical seed identity. */
 export const SEED_COMPONENT_CODEX_ID = SEED_A2_SKILL_CORE_ID;
+/** @alias Retained harness view of the canonical seed identity. */
 export const SEED_COMPONENT_PI_ID = SEED_A3_MCP_ID;
+/** @alias Retained harness view of the canonical seed identity. */
 export const SEED_COMPONENT_OPENCODE_ID = SEED_A1_HOOK_ID;
+/** @alias Retained harness view of the canonical seed identity. */
 export const SEED_SETUP_CODEX_ID = SEED_A2_SETUP_ID;
+/** @alias Retained harness view of the canonical seed identity. */
 export const SEED_SETUP_PI_ID = SEED_A3_SETUP_ID;
 
 export const ZERO_DIGEST = "sha256:" + "0".repeat(64);

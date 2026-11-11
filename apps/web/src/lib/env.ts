@@ -2,11 +2,9 @@ import { z } from "zod";
 
 /** Corporate SSO providers that may render an SSO button on the login page. */
 const SSO_PROVIDERS = ["authentik", "keycloak", "gitlab", "saml"] as const;
-export type SsoProvider = (typeof SSO_PROVIDERS)[number];
 
 /** Providers that may render a primary sign-in button on the login page. */
 const SIGN_IN_PROVIDERS = ["google", "github", "gitlab"] as const;
-export type SignInProvider = (typeof SIGN_IN_PROVIDERS)[number];
 
 const commaList = (value: string) =>
   value
@@ -98,13 +96,4 @@ export function getEnv(): AppEnv {
   }
   cached = parsed.data;
   return cached;
-}
-
-/** Client-safe public subset only. */
-export function getPublicEnv(): Pick<AppEnv, "NEXT_PUBLIC_APP_URL" | "AI_STP_USER_DOCS_URL"> {
-  const env = getEnv();
-  return {
-    NEXT_PUBLIC_APP_URL: env.NEXT_PUBLIC_APP_URL,
-    AI_STP_USER_DOCS_URL: env.AI_STP_USER_DOCS_URL,
-  };
 }

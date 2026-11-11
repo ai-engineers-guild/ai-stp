@@ -119,7 +119,7 @@ export function corporateAuditCursor(cursor: Record<string, string | string[] | 
     : {};
 }
 
-export function corporateAuditPage(params: Record<string, string | string[] | undefined>): {
+function corporateAuditPage(params: Record<string, string | string[] | undefined>): {
   page: number;
   size: number;
 } {

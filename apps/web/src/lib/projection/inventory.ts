@@ -6,8 +6,8 @@ export const COMPONENT_TYPES = COMPONENT_TYPE_FACETS;
 
 export type ComponentTypeId = (typeof COMPONENT_TYPES)[number];
 
-export type PageAccess = "public" | "session";
-export type PresenterKind = "domain" | "generic";
+type PageAccess = "public" | "session";
+type PresenterKind = "domain" | "generic";
 
 export type PageInventoryEntry = {
   pattern: string;

@@ -4,7 +4,7 @@ import { cn } from "@/lib/cn";
 import { Link } from "@/lib/i18n/navigation";
 import { UI } from "@/lib/ui-selectors";
 
-export type NavigationTab = {
+type NavigationTab = {
   key: string;
   href: string;
   label: ReactNode;

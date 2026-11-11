@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
  * The single owner of native `<select>` styling: tokens only, 44px hit area,
  * `rounded-sm` control radius, shared focus ring with Input.
  */
-export const selectClass =
+const selectClass =
   "border-input bg-background focus-visible:ring-ring h-11 w-full min-w-0 rounded-sm border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none";
 
 export type SelectProps = React.SelectHTMLAttributes<HTMLSelectElement>;

@@ -22,7 +22,6 @@ import type {
   CorporateAuditExport,
   CorporateDirectoryView,
   CorporateCatalogAssignmentList,
-  TechnologyMergePlanView,
   ProjectTechnologyView,
   SetupListResponse,
   ComponentListResponse,
@@ -162,36 +161,6 @@ export async function corporateProjectUsageAction(input: {
   }
 }
 
-export async function corporateTechnologyMergePlanAction(input: {
-  csrfToken: string;
-  organizationId: string;
-  sourceId: string;
-  targetId: string;
-}): Promise<{ ok: true; data: TechnologyMergePlanView } | { ok: false; message: string }> {
-  const common = await getTranslations("common");
-  if (
-    !/^organization_[A-Za-z0-9_-]{20,80}$/.test(input.organizationId) ||
-    ![input.sourceId, input.targetId].every((id) => /^technology_[0-9A-HJKMNP-TV-Z]{26}$/.test(id))
-  )
-    return { ok: false, message: common("invalidRequest") };
-  try {
-    assertCsrf(input.csrfToken, await readCsrfToken());
-    if (!(await readSession())) return { ok: false, message: common("notSignedIn") };
-    const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
-    if (!sessionToken) return { ok: false, message: common("notSignedIn") };
-    const data = await privateApiRequest<TechnologyMergePlanView>(
-      `/v1/corporate/organizations/${input.organizationId}/technologies/${input.sourceId}/merge-plan`,
-      { sessionToken, query: { target_id: input.targetId } },
-    );
-    return { ok: true, data };
-  } catch (error) {
-    return {
-      ok: false,
-      message: error instanceof ApiError ? error.message : common("requestFailed"),
-    };
-  }
-}
-
 export async function corporateAuditExportAction(
   organizationId: string,
   filters: CorporateAuditFilterValues = {},
@@ -217,7 +186,7 @@ export async function corporateAuditExportAction(
   }
 }
 
-export type CorporateAssignLabels = {
+type CorporateAssignLabels = {
   assign: string;
   dialogTitle: string;
   version: string;

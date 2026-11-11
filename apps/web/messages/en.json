@@ -407,7 +407,6 @@
       "open": "open",
       "resolved": "resolved"
     },
-    "categoryState": "Initial state",
     "createTechnology": "Create technology draft",
     "governance": "Adoption decision",
     "responsibilities": "Responsible teams",
@@ -1870,9 +1869,6 @@
         "description": "Joins exact component pins and their published check summaries."
       }
     },
-    "sourceRepository": "Repository",
-    "sourceCommit": "Commit",
-    "sourcePath": "Path",
     "supportedOs": "Supported OS",
     "supportedArch": "Supported architecture",
     "supportedHarnessVersions": "Supported harness versions",
@@ -2015,7 +2011,6 @@
     "privacy": "Privacy",
     "privacySaveFailed": "Could not save privacy settings.",
     "unlinkFailed": "Could not unlink this identity",
-    "profileWriteUnavailable": "Public profile write is not available on the frozen contract.",
     "accountId": "Account id",
     "createdAt": "Created",
     "signInMethods": "Sign-in methods",

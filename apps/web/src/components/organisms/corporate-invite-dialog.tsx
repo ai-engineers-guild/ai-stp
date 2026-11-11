@@ -59,6 +59,11 @@ export function CorporateInviteDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
+        // Dismiss help first so the invitation draft and its focus remain available.
+        if (!next && helpOpen) {
+          setHelpOpen(false);
+          return;
+        }
         if (!busy) onOpenChange(next);
       }}
     >

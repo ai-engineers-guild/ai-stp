@@ -74,27 +74,6 @@ export async function acceptGrantInvitation(
   return { body: result.data, operationId: result.operationId };
 }
 
-export async function revokeGrantInvitation(
-  sessionToken: string,
-  invitationId: string,
-  reason: string,
-  idempotencyKey: string,
-): Promise<{ body: GrantRevokeResponse; operationId: string | null }> {
-  const result = await apiRequestWithMeta<GrantRevokeResponse>(
-    `/v1/grants/invitations/${invitationId}/revoke`,
-    {
-      method: "POST",
-      sessionToken,
-      body: {
-        schema_version: 1,
-        reason,
-        idempotency_key: idempotencyKey,
-      },
-    },
-  );
-  return { body: result.data, operationId: result.operationId };
-}
-
 export async function revokeAccessGrant(
   sessionToken: string,
   grantId: string,

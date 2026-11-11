@@ -7,7 +7,7 @@ import {
 } from "@/theme/category-icons";
 
 /** Prefix the contract's TechnologyCategoryMetadata.icon uses for registry glyphs. */
-export const CATEGORY_LUCIDE_PREFIX = "lucide:";
+const CATEGORY_LUCIDE_PREFIX = "lucide:";
 
 export function categoryIconValue(name: CategoryIconName): string {
   return `${CATEGORY_LUCIDE_PREFIX}${name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`;

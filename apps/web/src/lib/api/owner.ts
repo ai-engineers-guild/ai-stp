@@ -46,7 +46,7 @@ export async function readOwnerObject(
   });
 }
 
-export async function readOwnerObjectCapabilities(
+async function readOwnerObjectCapabilities(
   sessionToken: string,
   objectKind: "component" | "setup",
   stableId: string,

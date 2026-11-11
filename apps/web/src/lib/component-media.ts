@@ -2,7 +2,7 @@
 
 export const COMPONENT_MEDIA_MAX_BYTES = 25 * 1024 * 1024;
 
-export const COMPONENT_MEDIA_ALLOWED_MIME = [
+const COMPONENT_MEDIA_ALLOWED_MIME = [
   "image/jpeg",
   "image/png",
   "image/webp",

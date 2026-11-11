@@ -64,7 +64,7 @@ type SearchParams = {
   corporate_verified?: boolean;
 };
 
-export type ExternalProductObject = {
+type ExternalProductObject = {
   object_kind: "component" | "setup";
   stable_id: string;
   name: string;

@@ -45,7 +45,6 @@ vi.mock("@/actions/grants", () => ({
   createDirectGrantAction: vi.fn(() => Promise.resolve({ operationId: "op_direct" })),
   createInvitationAction: vi.fn(() => Promise.resolve({ operationId: "op_invite" })),
   revokeGrantAction: vi.fn(() => Promise.resolve({ operationId: "op_revoke" })),
-  revokeInvitationAction: vi.fn(),
 }));
 
 vi.mock("@/components/organisms/contact-report-dialog", () => ({

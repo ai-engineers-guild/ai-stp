@@ -1,12 +1,11 @@
 import { isAppLocale } from "@/lib/i18n/routing";
 
+import type { ContentType } from "./generated/types.gen";
 import { ApiError } from "./errors";
 import { publicApiGet } from "./public-http";
 
-export const CONTENT_TYPES = ["article", "blog_post", "changelog", "release_notes"] as const;
-export type ContentType = (typeof CONTENT_TYPES)[number];
-export type ContentLocale = "ru" | "en";
-export type ContentSourceKind = "repository" | "staff";
+type ContentLocale = "ru" | "en";
+type ContentSourceKind = "repository" | "staff";
 
 export type ContentSummary = {
   schema_version: 1;
@@ -30,7 +29,7 @@ export type ContentDetail = ContentSummary & {
   source_path: string | null;
 };
 
-export type ContentListResponse = {
+type ContentListResponse = {
   schema_version: 1;
   etag: string;
   items: ContentSummary[];

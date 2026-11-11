@@ -37,7 +37,7 @@ test.describe("corporate directory interactions", () => {
       await expect(page.getByRole("dialog")).toHaveCount(0);
     }
     await page.goto("/en/corporate/employees");
-    for (const action of ["Manage access"]) {
+    for (const action of ["Grant access"]) {
       await page.locator('#main-content button[aria-label="More actions"]').first().click();
       await page.getByRole("menuitem", { name: action, exact: true }).click();
       await expect(page.getByRole("dialog")).toBeVisible();

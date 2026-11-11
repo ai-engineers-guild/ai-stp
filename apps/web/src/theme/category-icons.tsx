@@ -148,7 +148,7 @@ import {
 
 export type CategoryIconName = keyof typeof CATEGORY_ICON_REGISTRY;
 
-export const CATEGORY_ICON_REGISTRY = {
+const CATEGORY_ICON_REGISTRY = {
   activity: Activity,
   antenna: Antenna,
   appWindow: AppWindow,

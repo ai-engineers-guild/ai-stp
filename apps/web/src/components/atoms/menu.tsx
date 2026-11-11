@@ -21,7 +21,6 @@ export function Menu({ modal = false, ...props }: ComponentProps<typeof Dropdown
   return <DropdownMenu.Root modal={modal} {...props} />;
 }
 export const MenuTrigger = DropdownMenu.Trigger;
-export const MenuPortal = DropdownMenu.Portal;
 export const MenuSub = DropdownMenu.Sub;
 
 export function MenuSubTrigger({

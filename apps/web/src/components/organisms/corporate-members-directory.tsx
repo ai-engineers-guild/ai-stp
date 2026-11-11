@@ -49,7 +49,7 @@ type Props = {
   };
 };
 
-export function selectPeopleMembers(
+function selectPeopleMembers(
   members: readonly CorporateMember[],
   context: CorporateContext,
   filters: { query: string; team: string; role: string; status: string; sort: string },

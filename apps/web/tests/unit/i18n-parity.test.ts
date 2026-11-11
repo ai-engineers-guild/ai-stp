@@ -6,6 +6,12 @@ import { describe, expect, it } from "vitest";
 
 import en from "../../messages/en.json";
 import ru from "../../messages/ru.json";
+import {
+  AUDIT_ACTIONS,
+  AUDIT_ENTITIES,
+  AUDIT_OPERATIONS,
+  AUDIT_TARGETS,
+} from "../../src/lib/audit-labels";
 import { CORPORATE_NAV_PAGES } from "../../src/lib/corporate-navigation-pages";
 
 const SRC_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../src");
@@ -106,6 +112,25 @@ describe("i18n parity (REQ-2203, REQ-2311)", () => {
       return !source.includes(`"${leaf}"`) && !source.includes(`'${leaf}'`);
     });
     expect(missing).toEqual([]);
+  });
+
+  it("every declared dynamic audit code has a translation in both locales", () => {
+    const dynamicKeys = [
+      ...AUDIT_ACTIONS.map((code) => `actions.${code}`),
+      ...AUDIT_ENTITIES.map((code) => `entities.${code}`),
+      ...AUDIT_OPERATIONS.map((code) => `operations.${code}`),
+      ...AUDIT_TARGETS.map((code) => `targets.${code}`),
+    ];
+    for (const [locale, keys] of [
+      ["en", enKeys],
+      ["ru", ruKeys],
+    ] as const) {
+      const known = new Set(keys);
+      expect(
+        dynamicKeys.filter((key) => !known.has(`corporate.auditUi.${key}`)),
+        locale,
+      ).toEqual([]);
+    }
   });
 
   it("every literal key used through a bound translator exists", () => {

@@ -8,7 +8,7 @@ import type {
   TechnologyScanDetail,
   TechnologyView,
 } from "@/lib/api/generated/types.gen";
-export const organizationId = "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
+const organizationId = "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
 export const authority = {
   organizationId,
   authorizationRevision: 1,

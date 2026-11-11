@@ -1,4 +1,4 @@
-export const FEATURE_DEFINITIONS = {
+const FEATURE_DEFINITIONS = {
   content_hub: {
     owner: "apps/web",
     issue: 267,

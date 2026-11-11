@@ -1,11 +1,6 @@
 import type { CorporateBinding, CorporateMember } from "@/lib/api/generated/types.gen";
 
-export const BINDING_ORIGIN_ORDER = [
-  "membership",
-  "assignment",
-  "direct",
-  "service_principal",
-] as const;
+const BINDING_ORIGIN_ORDER = ["membership", "assignment", "direct", "service_principal"] as const;
 
 export type BindingOrigin = (typeof BINDING_ORIGIN_ORDER)[number];
 

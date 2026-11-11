@@ -14,26 +14,6 @@ import { ApiError } from "@/lib/api/errors";
 import { SESSION_COOKIE } from "@/lib/auth/cookies";
 import { assertCsrf, readCsrfToken, readSession } from "@/lib/auth/session";
 
-/**
- * Public profile write is not in frozen OpenAPI #71 (SPEC-023 REQ-2303).
- * Kept as an explicit failure so no UI path can invent a success or operation_id
- * (REQ-2309, REQ-2310). Remove when an additive contract route exists.
- */
-export async function updatePublicProfileAction(input: {
-  csrfToken: string;
-  data: unknown;
-}): Promise<never> {
-  void input;
-  // Satisfy require-await while remaining a Server Action (must be async).
-  await Promise.resolve();
-  const t = await getTranslations("account");
-  throw new ApiError({
-    code: "AI_STP_VALIDATION_ERROR",
-    message: t("profileWriteUnavailable"),
-    status: 400,
-  });
-}
-
 const unlinkSchema = z.object({
   provider: z.enum(["google", "github", "authentik", "keycloak", "gitlab"]),
   csrfToken: z.string().min(1),
