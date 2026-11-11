@@ -327,6 +327,11 @@ fn public_native_configuration_keeps_original_context_across_cli_restarts()
         initial["plan"]["device_id"].as_str().ok_or("device")?
     ))?;
     apply(&home, &["device", "initialize", "apply"], &initial, 0)?;
+    let diagnostic = run(&home, &["doctor", "--state-dir", state_path], 0)?;
+    assert_eq!(
+        diagnostic["state"], "ready",
+        "an initialized supported native configuration must not require platform repair"
+    );
     let execute = |arguments: &[&str]| -> Result<Value, Box<dyn Error>> {
         let mut env: Vec<(std::ffi::OsString, std::ffi::OsString)> =
             vec![("PATH".into(), "".into())];

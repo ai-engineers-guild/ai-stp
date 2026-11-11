@@ -93,19 +93,20 @@ pub fn initialize(root: &Path, storage: identity::Storage) -> Result<Value> {
 }
 
 pub fn doctor(root: &Path) -> Value {
+    let native_available = crate::platform::current().is_some();
     let ready = cap_std::fs::Dir::open_ambient_dir(root, cap_std::ambient_authority())
         .ok()
         .is_some_and(|directory| {
             crate::store::migration::ensure_ready(&directory).is_ok()
                 && directory.is_file("ai-stp-v2-identity/identity.json")
         });
-    json!({"schema_version":1,"state":if ready && cfg!(target_os="linux") {"ready"} else {"needs_user_action"},
+    json!({"schema_version":1,"state":if ready && native_available {"ready"} else {"needs_user_action"},
     "checks":[
         {"name":"runtime","state":"ready","detail":"Rust; no Python runtime required"},
         {"name":"local_identity","state":if ready {"ready"} else {"needs_user_action"},
          "detail":if ready {"Identity record present; use device show to verify its key"} else {"Run init for fresh state or state migrate plan for an existing Python installation"}},
-        {"name":"configuration_installation","state":if cfg!(target_os="linux") {"ready"} else {"needs_user_action"},
-         "detail":if cfg!(target_os="linux") {"Linux isolated provider execution available; each operation verifies its runtime"} else {"Provider execution is not available on this operating system"}}
+        {"name":"configuration_installation","state":if native_available {"ready"} else {"needs_user_action"},
+         "detail":if native_available {"First-party native configuration available; each operation verifies its targets and authority"} else {"First-party native configuration is not available on this platform"}}
     ]})
 }
 
