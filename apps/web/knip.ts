@@ -2,6 +2,8 @@ import type { KnipConfig } from "knip";
 
 const config: KnipConfig = {
   entry: [
+    // Invoked by the native browser check's Bash entry point.
+    "scripts/ensure-chrome.mjs",
     // The generated SDK is a complete schema projection, including unused endpoints.
     "src/lib/api/generated/index.ts",
     // Storybook's viteFinal and the feature-profile resolver select these at runtime.
