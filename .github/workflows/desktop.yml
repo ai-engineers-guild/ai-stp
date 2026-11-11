@@ -74,7 +74,7 @@ jobs:
       - name: Refresh the Linux package index
         if: runner.os == 'Linux'
         timeout-minutes: 5
-        run: sudo apt-get update
+        run: sudo apt-get update --error-on=any
       - name: Install WebKitGTK dependencies (Linux)
         if: runner.os == 'Linux'
         # A measured cold Azure mirror transfer took 28 min for 69.4 MB. Keep

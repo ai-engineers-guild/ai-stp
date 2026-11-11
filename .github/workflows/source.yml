@@ -358,7 +358,7 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          sudo apt-get update -qq
+          sudo apt-get update --error-on=any -qq
           sudo apt-get install --yes --no-install-recommends \
             dbus-daemon gnome-keyring libglib2.0-bin
       - name: Fresh concurrent Linux clients and independent CLI processes
@@ -575,7 +575,7 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          sudo apt-get update -qq
+          sudo apt-get update --error-on=any -qq
           sudo apt-get install --yes --no-install-recommends \
             dbus-daemon gnome-keyring libglib2.0-bin
       - name: Actual Linux Secret Service enrollment and recovery
