@@ -58,7 +58,7 @@
     },
     "GraphReference": {
       "additionalProperties": true,
-      "description": "One exact edge inside a closure (`docs/contracts/setup-graph.md`).\n\nAll three fields are required together. A digest without a version cannot be\nlooked up and a version without a digest cannot be verified, so either alone\nwould be half a statement the resolver could still act on.",
+      "description": "One exact edge inside a closure.\n\nAll three fields are required together. A digest without a version cannot be\nlooked up and a version without a digest cannot be verified, so either alone\nwould be half a statement the resolver could still act on.",
       "properties": {
         "passport_digest": {
           "pattern": "^sha256:[0-9a-f]{64}$",

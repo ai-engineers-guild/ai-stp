@@ -14,7 +14,7 @@ from ai_stp_foundation.harnesses import HarnessId
 
 
 class EligibilityRefusal(ContractModel):
-    """One mechanical constraint a candidate failed (`docs/contracts/eligibility-constraints.md`).
+    """One mechanical constraint a candidate failed.
 
     `code` is the machine identity and `summary` is for a person: the text may
     be reworded, the code may not. A caller branching on the sentence would
@@ -219,7 +219,7 @@ class ConfirmationView(ContractModel):
 
 
 class GraphReference(ContractModel):
-    """One exact edge inside a closure (`docs/contracts/setup-graph.md`).
+    """One exact edge inside a closure.
 
     All three fields are required together. A digest without a version cannot be
     looked up and a version without a digest cannot be verified, so either alone

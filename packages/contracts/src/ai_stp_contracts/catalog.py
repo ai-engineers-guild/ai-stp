@@ -1,34 +1,14 @@
-"""Anonymous public catalog payloads.
+"""Anonymous public catalog payloads for components and setups.
 
-Components and setups are separate resources — `/v1/catalog/components` and
-`/v1/catalog/setups` — rather than one polymorphic object route, because their
-passports differ enough that a wire-level union costs more than it saves. The
-consequence is deliberate and must be carried into the CLI: a cursor belongs to
-one kind, so a search targets one kind per call.
+Each search targets one object kind and its cursor belongs to that kind.
+Hidden objects and unreadable-result counts are absent from the public wire.
+Author and component verification are independent; authoritative requires both.
+A public passport belongs to a published version.
 
-Four properties here are safety rules, not style:
-
-- `hidden` is not representable on the public wire, so a hidden object cannot be
-  disclosed by a lifecycle value;
-- no response carries a count of objects, so the size of a result set the caller
-  may not fully read cannot be recovered by arithmetic;
-- `author_verified` and `component_verified` are separate fields, neither is
-  derived from the other, and `authoritative` may not be claimed
-  without both;
-- the passport served on a public route must itself be published.
-
-**What is deliberately *not* claimed:** public version numbers are not
-contiguous. Hiding a version does not free its number; the bytes remain immutable while lifecycle state changes, so `1.0, 1.2` is a legal answer and the gap at 1.1
-is not evidence of anything a caller may act on. Pagination would not close it
-and dropping `published_at` would cost real utility for one bit. The contract
-states the non-contiguity instead of pretending it enumerates a dense sequence.
-
-Search results are partitioned, not interleaved: experimental candidates to arrive in their own section and only on an
-explicit request-scoped consent. Both lanes share one cursor sequence, so paging
-still yields no duplicate and skips nothing.
-
-Ordering is total and stable within one cursor sequence. The order is the
-server's and the cursor carries the position — that is what makes it opaque."""
+Published version numbers need not be contiguous. Hiding changes lifecycle
+state while preserving immutable bytes and the occupied version number.
+Experimental candidates require request-scoped consent and occupy their own
+section. Both lanes share one stable, total cursor sequence."""
 
 import re
 from collections.abc import Sequence
