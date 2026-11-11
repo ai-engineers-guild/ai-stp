@@ -11,10 +11,8 @@ from ai_stp_contracts.model import ContractModel
 from ai_stp_contracts.standard import STANDARD_FAMILY
 from ai_stp_foundation.digests import DIGEST_PATTERN
 
-#: Primary setup state (`SPEC-011`, states section). `doctor` reports it in the
-#: body and still exits `0`: an installation that is merely not configured yet
-#: is a normal outcome, not a failure, and answering non-zero would make the
-#: first run after installation look broken and break `set -e`.
+#: Primary setup state. doctor reports configuration needs in its body and
+#: exits successfully for a normal unconfigured installation.
 type SetupState = Literal["ready", "needs_user_action", "partial", "failed"]
 
 
@@ -58,13 +56,10 @@ class VersionReport(ContractModel):
 
 
 class ConfigValue(ContractModel):
-    """One effective configuration value and where it came from.
+    """An effective configuration value with its authoritative source.
 
-    `SPEC-011` REQ-1116 requires the effective value **and** its source, because
-    "it is 20 because that is the default" and "it is 20 because you wrote 20"
-    lead to different next actions. No secret is representable: the config
-    carries none by contract (`docs/contracts/cli-config.md`).
-    """
+    The value and its source distinguish a default from an explicit choice.
+    The configuration contract represents no secrets."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -105,7 +100,7 @@ class TelemetryStatus(ContractModel):
 
     #: `not_asked`, `declined` or `accepted`. Observably identical on the
     #: network for the first two; they differ only in whether anything asks
-    #: again (`REQ-1316`).
+    #: again.
     state: Literal["not_asked", "declined", "accepted"]
 
     #: Whether a ping would actually be sent. Consent alone is not enough: the

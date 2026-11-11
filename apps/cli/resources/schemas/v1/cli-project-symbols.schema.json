@@ -2,7 +2,7 @@
   "$defs": {
     "LanguageOutline": {
       "additionalProperties": true,
-      "description": "What one language contributes to a project (`SPEC-004` REQ-404).\n\n`method` carries the strength of the answer, and it is not decoration.\n`syntax_tree` means a real parser read the file; `line_scan` means the words\nwere recognised line by line and a string containing them would be\nindistinguishable from a declaration. Reporting both as plain symbol counts\nwould hide that difference exactly where a caller decides how far to trust\nthem.",
+      "description": "What one language contributes to a project.\n\n`method` carries the strength of the answer, and it is not decoration.\n`syntax_tree` means a real parser read the file; `line_scan` means the words\nwere recognised line by line and a string containing them would be\nindistinguishable from a declaration. Reporting both as plain symbol counts\nwould hide that difference exactly where a caller decides how far to trust\nthem.",
       "properties": {
         "entry_points": {
           "default": [],
@@ -93,7 +93,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-project-symbols",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "The table of contents of one project, and nothing deeper (`REQ-411`).\n\nNo call graph, no vector representations, no symbol bodies. `state` is\n`partial` when the file budget was reached, for the same reason the index\nsays so: a short answer that looks complete is the worse failure.",
+  "description": "The table of contents of one project, and nothing deeper.\n\nNo call graph, no vector representations, no symbol bodies. `state` is\n`partial` when the file budget was reached, for the same reason the index\nsays so: a short answer that looks complete is the worse failure.",
   "properties": {
     "languages": {
       "items": {

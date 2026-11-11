@@ -2,7 +2,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-toolchain-installation",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "The outcome of one managed install (`SPEC-014` REQ-1405, REQ-1410, REQ-1411).\n\n`action` is what happened, not what was attempted. `needs_user_action` means\nsomething outside the managed directory would have to change, and the plan\nsays exactly what — `REQ-1410` forbids the agent obtaining a password to do\nit instead.",
+  "description": "The outcome of a managed installation.\n\nneeds_user_action reports the required change outside the managed directory;\nit grants no password, privilege or installation authority.",
   "properties": {
     "action": {
       "enum": [

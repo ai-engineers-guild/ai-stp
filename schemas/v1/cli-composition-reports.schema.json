@@ -47,7 +47,7 @@
     },
     "CompositionConflict": {
       "additionalProperties": true,
-      "description": "One reason a composition cannot be built (`SPEC-006` REQ-606).\n\nNothing resolves it automatically. `REQ-626` forbids semantic merging,\nequivalent selection and composition optimisation, so this is a statement\nfor a person to act on rather than a step in a repair.",
+      "description": "A composition conflict requiring an explicit decision.\n\nNo automatic semantic merging, equivalent selection or optimization resolves it.",
       "properties": {
         "code": {
           "minLength": 1,
@@ -120,7 +120,7 @@
     },
     "ConversionEntry": {
       "additionalProperties": true,
-      "description": "What one component becomes on the target harness, and what is lost.\n\n`losses` names each one. A report that says something was lost without\nsaying what cannot be acted on, and `REQ-609` asks for a loss-aware report\nrather than a loss-counting one.",
+      "description": "A component's target projection with each conversion loss named explicitly.",
       "properties": {
         "component_type": {
           "default": "",
@@ -200,7 +200,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-composition-reports",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "The composition and conversion reports a bundle must carry (`REQ-609`).\n\nBoth, always, and together: the first explains what is in the composition\nand the second what survives translation to the harness. A bundle carrying\none of them would answer half the question a person has before installing.",
+  "description": "The composition and conversion reports a bundle must carry.\n\nBoth, always, and together: the first explains what is in the composition\nand the second what survives translation to the harness. A bundle carrying\none of them would answer half the question a person has before installing.",
   "properties": {
     "blocked": {
       "title": "Blocked",

@@ -2,7 +2,7 @@
   "$defs": {
     "ConfigValue": {
       "additionalProperties": true,
-      "description": "One effective configuration value and where it came from.\n\n`SPEC-011` REQ-1116 requires the effective value **and** its source, because\n\"it is 20 because that is the default\" and \"it is 20 because you wrote 20\"\nlead to different next actions. No secret is representable: the config\ncarries none by contract (`docs/contracts/cli-config.md`).",
+      "description": "An effective configuration value with its authoritative source.\n\nThe value and its source distinguish a default from an explicit choice.\nThe configuration contract represents no secrets.",
       "properties": {
         "path": {
           "pattern": "^[a-z][a-z0-9_.-]*$",

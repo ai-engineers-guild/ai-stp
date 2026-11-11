@@ -5,7 +5,7 @@ import { ClipboardCopy, Play, Trash2 } from "lucide-react";
 import { cmdDebugInfo, cmdRunRead, type CmdResult } from "../transport";
 import { Json, ResultMeta } from "../components/Result";
 import { PageHeader } from "../components/Layout";
-import { useDebug } from "../store";
+import { useDebug } from "../features/diagnostics/state";
 
 /** Debug surface: every IPC call with latency and outcome, the resolved
  *  CLI binary, and a raw-envelope inspector. Nothing here writes — the

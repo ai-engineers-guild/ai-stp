@@ -534,3 +534,34 @@ ci-python-dependencies:
     set -euo pipefail
     just back-dependencies
     uv run --offline --no-sync pytest --no-cov -q tests/contract/test_python_dependencies.py
+
+# Actual scanner-image behavior belongs to disposable native Linux runners.
+[group('ci')]
+[private]
+[script('bash')]
+ci-safety-runtime-build:
+    set -euo pipefail
+    test -n "${AI_STP_SAFETY_RUNTIME_IMAGE}"
+    [[ "${AI_STP_SAFETY_RUNTIME_SOURCE}" =~ ^[0-9a-f]{40}$ ]]
+    case "${AI_STP_SAFETY_RUNTIME_ARCH}" in amd64|arm64) ;; *) exit 1 ;; esac
+    docker buildx build --load --progress=plain \
+      --platform "linux/${AI_STP_SAFETY_RUNTIME_ARCH}" \
+      --target worker-safety --file deploy/docker/Dockerfile.app \
+      --tag "${AI_STP_SAFETY_RUNTIME_IMAGE}" \
+      --label "org.opencontainers.image.revision=${AI_STP_SAFETY_RUNTIME_SOURCE}" \
+      --cache-from "type=gha,version=2,scope=ai-stp-safety-${AI_STP_SAFETY_RUNTIME_ARCH}" \
+      --cache-to "type=gha,version=2,scope=ai-stp-safety-${AI_STP_SAFETY_RUNTIME_ARCH},mode=max" .
+
+[group('ci')]
+[private]
+[script('bash')]
+ci-safety-runtime-test:
+    set -euo pipefail
+    test "${GITHUB_ACTIONS}" = true
+    test -n "${AI_STP_SAFETY_RUNTIME_IMAGE}"
+    test -n "${AI_STP_SAFETY_RUNTIME_PROOF_DIR}"
+    # This profile is loaded only in the disposable runner, never a contour host.
+    sudo apparmor_parser --skip-cache -r deploy/apparmor/ai-stp-worker
+    trap 'sudo apparmor_parser --remove deploy/apparmor/ai-stp-worker' EXIT
+    just setup-python
+    just back-test-fast tests/scenario/platform/test_safety_image_runtime.py

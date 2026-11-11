@@ -39,6 +39,10 @@ one when its source, compiler or automation changes. Missing or unknown owners
 refuse selection. The WASIp2 experiment executes one identical component on
 Linux, macOS and Windows; it does not enable a production provider backend.
 Only successful push-to-Dev owners retain native dependency caches.
+Linux package fixtures use the registered OSU Ubuntu archive mirror over HTTPS
+with the distribution signing key. The project APT wrapper selects only its
+job-local source file; it leaves runner sources, resolver and trust unchanged.
+Index retrieval refuses partial failures before package installation.
 
 ## Integration and delivery
 

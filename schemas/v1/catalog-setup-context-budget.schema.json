@@ -165,7 +165,7 @@
   "$id": "urn:ai-stp:schema:v1:catalog-setup-context-budget",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "Absolute context estimate of one visible exact setup (SPEC-049).",
+  "description": "Absolute context estimate of one visible exact setup.",
   "properties": {
     "always_tokens": {
       "minimum": 0,

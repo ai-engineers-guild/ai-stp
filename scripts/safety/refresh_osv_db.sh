@@ -3,13 +3,14 @@
 #
 # osv-scanner loads packs from OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY only
 # (https://google.github.io/osv-scanner/usage/offline-mode/). Layout:
-#   {cache}/osv-scanner/{ecosystem}/all.zip
+#   {cache}/osv-scalibr/{ecosystem}/all.zip
 #
 # Primary path: HTTP download from osv-vulnerabilities.storage.googleapis.com
 # (official mirror). Optional secondary: osv-scanner --download-offline-databases.
 # Stamp is written only when at least one all.zip pack is present.
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEST="${AI_STP_OSV_OFFLINE_DIR:-/var/lib/ai_stp/osv}"
 MAX_AGE_HOURS="${AI_STP_OSV_MAX_AGE_HOURS:-36}"
 MARKER="${DEST}/.ai_stp_osv_refreshed_at"
@@ -26,17 +27,23 @@ export PATH="/opt/safety-bin:/opt/safety-venv/bin:/app/.venv/bin:${PATH}"
 log() { printf 'refresh_osv_db: %s\n' "$*" >&2; }
 
 count_packs() {
-  find "${1:-${DEST}}" -type f -name 'all.zip' 2>/dev/null | wc -l | tr -d ' '
+  find "${1:-${DEST}}/osv-scalibr" -type f -name 'all.zip' 2>/dev/null | wc -l | tr -d ' '
 }
 
-mkdir -p "${DEST}/osv-scanner"
+mkdir -p "${DEST}/osv-scalibr"
 log "cache=${OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY} packs_before=$(count_packs)"
 
-tmp="$(mktemp -d)"
+exec {refresh_lock}>"${DEST}/.refresh.lock"
+if ! flock -n "${refresh_lock}"; then
+  log "another refresh owns this database"
+  exit 1
+fi
+
+tmp="$(mktemp -d "${DEST}/.refresh.XXXXXX")"
 cleanup() { rm -rf "${tmp}"; }
 trap cleanup EXIT
 STAGE="${tmp}/snapshot"
-mkdir -p "${STAGE}/osv-scanner"
+mkdir -p "${STAGE}/osv-scalibr"
 
 download() {
   # download URL DEST
@@ -130,7 +137,7 @@ fi
 downloaded=0
 failed=0
 for eco in "${SELECTED[@]}"; do
-  target_dir="${STAGE}/osv-scanner/${eco}"
+  target_dir="${STAGE}/osv-scalibr/${eco}"
   mkdir -p "${target_dir}"
   target="${target_dir}/all.zip"
   partial="${target}.partial"
@@ -168,18 +175,37 @@ if [[ "${after}" -eq 0 || "${failed}" -ne 0 || "${after}" -ne "${#SELECTED[@]}" 
   exit 1
 fi
 
-# Publish one complete snapshot. A failed refresh never mixes old and new
-# ecosystems and never advances the freshness marker.
-old="${DEST}/osv-scanner.previous"
-rm -rf "${old}"
-if [[ -d "${DEST}/osv-scanner" ]]; then
-  mv "${DEST}/osv-scanner" "${old}"
-fi
-if ! mv "${STAGE}/osv-scanner" "${DEST}/osv-scanner"; then
-  [[ -d "${old}" ]] && mv "${old}" "${DEST}/osv-scanner"
-  exit 1
-fi
-rm -rf "${old}"
+prefixes=(osv-scalibr)
+for eco in "${SELECTED[@]}"; do
+  if [[ "${eco}" == Go ]]; then
+    log "fetch native Go vulnerability database"
+    if ! download "${AI_STP_GOVULNDB_MIRROR:-https://vuln.go.dev}/vulndb.zip" "${tmp}/govulncheck.zip"; then
+      log "Go database download failed; keeping existing data"
+      exit 1
+    fi
+    python3 "${SCRIPT_DIR}/prepare_go_db.py" "${tmp}/govulncheck.zip" "${STAGE}/govulncheck" \
+      "${AI_STP_GOVULNDB_MAX_BYTES:-67108864}" "${AI_STP_GOVULNDB_MAX_FILES:-50000}"
+    prefixes+=(govulncheck)
+    break
+  fi
+done
+
+# Staging shares the destination filesystem; publication is a directory rename.
+# Each provider retains its own complete data and freshness marker on refusal.
+for prefix in "${prefixes[@]}"; do
+  old="${DEST}/${prefix}.previous"
+  rm -rf "${old}"
+  if [[ -d "${DEST}/${prefix}" ]]; then
+    mv "${DEST}/${prefix}" "${old}"
+  fi
+  if ! mv "${STAGE}/${prefix}" "${DEST}/${prefix}"; then
+    [[ -d "${old}" ]] && mv "${old}" "${DEST}/${prefix}"
+    exit 1
+  fi
+done
+for prefix in "${prefixes[@]}"; do
+  rm -rf "${DEST}/${prefix}.previous"
+done
 
 date -u +%Y-%m-%dT%H:%M:%SZ > "${MARKER}"
 {

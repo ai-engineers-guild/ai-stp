@@ -1,37 +1,14 @@
-"""Anonymous public catalog payloads (issue #71, SPEC-005, SPEC-006, ADR-0016).
+"""Anonymous public catalog payloads for components and setups.
 
-Components and setups are separate resources — `/v1/catalog/components` and
-`/v1/catalog/setups` — rather than one polymorphic object route, because their
-passports differ enough that a wire-level union costs more than it saves. The
-consequence is deliberate and must be carried into the CLI: a cursor belongs to
-one kind, so a search targets one kind per call.
+Each search targets one object kind and its cursor belongs to that kind.
+Hidden objects and unreadable-result counts are absent from the public wire.
+Author and component verification are independent; authoritative requires both.
+A public passport belongs to a published version.
 
-Four properties here are safety rules, not style:
-
-- `hidden` is not representable on the public wire, so a hidden object cannot be
-  disclosed by a lifecycle value;
-- no response carries a count of objects, so the size of a result set the caller
-  may not fully read cannot be recovered by arithmetic;
-- `author_verified` and `component_verified` are separate fields, neither is
-  derived from the other (ADR-0016), and `authoritative` may not be claimed
-  without both;
-- the passport served on a public route must itself be published.
-
-**What is deliberately *not* claimed:** public version numbers are not
-contiguous. Hiding a version does not free its number (SPEC-005 keeps the bytes
-and changes only the state), so `1.0, 1.2` is a legal answer and the gap at 1.1
-is not evidence of anything a caller may act on. Pagination would not close it
-and dropping `published_at` would cost real utility for one bit. The contract
-states the non-contiguity instead of pretending it enumerates a dense sequence.
-
-Search results are partitioned, not interleaved: SPEC-006 REQ-603 and ADR-0016
-require experimental candidates to arrive in their own section and only on an
-explicit request-scoped consent. Both lanes share one cursor sequence, so paging
-still yields no duplicate and skips nothing.
-
-Ordering is total and stable within one cursor sequence. The order is the
-server's and the cursor carries the position — that is what makes it opaque.
-"""
+Published version numbers need not be contiguous. Hiding changes lifecycle
+state while preserving immutable bytes and the occupied version number.
+Experimental candidates require request-scoped consent and occupy their own
+section. Both lanes share one stable, total cursor sequence."""
 
 import re
 from collections.abc import Sequence
@@ -91,12 +68,12 @@ type PassportDigest = Annotated[str, Field(pattern=DIGEST_PATTERN)]
 type Tags = Annotated[list[TagId], Field(min_length=1, max_length=MAX_TAGS)]
 type DescriptionExcerpt = Annotated[str, Field(min_length=1, max_length=240)]
 
-#: Published lifecycle states (SPEC-005). `hidden` exists in the model but is
+#: Published lifecycle states. `hidden` exists in the model but is
 #: **absent here on purpose**: a hidden object is not disclosed at all, so the
 #: public wire has no value that could admit its existence.
 type PublicLifecycle = Literal["active", "deprecated", "blocked"]
 
-#: Catalog trust lanes (ADR-0016). `local_owner_or_pinned` is absent because it
+#: Catalog trust lanes. `local_owner_or_pinned` is absent because it
 #: describes an object the user already owns or pinned locally; it is a local
 #: selection rule and never a property the catalog can assert about a published
 #: object.
@@ -238,7 +215,7 @@ class CountryListResponse(ContractModel):
 
 
 class ComponentMediaItem(ContractModel):
-    """Safe public component media projection (SPEC-035)."""
+    """Safe public component media projection."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -280,7 +257,7 @@ class CatalogPageInfo(ContractModel):
 
 
 class CatalogSupportEvidence(ContractModel):
-    """Safe public summary of one provider support check (SPEC-033, ADR-0072)."""
+    """Safe public summary of one provider support check."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -322,7 +299,7 @@ class CatalogSupport(ContractModel):
 
 
 class GitHubMetadata(ContractModel):
-    """Best-effort on-demand stars and archive state (SPEC-049)."""
+    """Best-effort on-demand stars and archive state."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -345,7 +322,7 @@ class CatalogUsageMetrics(ContractModel):
     artifact_downloads_count: Annotated[int, Field(ge=0)]
 
 
-#: Default anti-abuse window, dedup retention and secret rotation (SPEC-051).
+#: Default anti-abuse window, dedup retention and secret rotation.
 USAGE_METRICS_DEFAULT_WINDOW_SECONDS = 60 * 60
 USAGE_METRICS_DEFAULT_RETENTION_SECONDS = 25 * 60 * 60
 USAGE_METRICS_DEFAULT_SECRET_ROTATION_SECONDS = 24 * 60 * 60
@@ -356,13 +333,9 @@ USAGE_METRICS_ENABLED_BY_DEFAULT: Literal[False] = False
 
 
 class CatalogTrust(ContractModel):
-    """Why a published version may appear in results, and on whose evidence.
+    """The independent author and component verification observations.
 
-    The two verification flags are independent axes (ADR-0016) and neither may
-    be computed from the other. `authoritative` additionally requires both, and
-    that implication is enforced below — enforcing it is not the same as
-    deriving one axis from the other, and a client must still read the flags.
-    """
+    authoritative requires both flags; neither flag is derived from the other."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -425,15 +398,10 @@ class VersionListEntry(ContractModel):
 
 
 class ComponentSummary(ContractModel):
-    """Search-result card for a component.
+    """A component object with facts from its latest offered version.
 
-    Naming is mechanical rather than a judgement call: a field without a prefix
-    identifies the **object**, and every `latest_` field is a fact of its latest
-    offered **version**, copied from that version's passport. There is no
-    object-level passport (ADR-0012), so a card cannot carry an object-level
-    `name` or `tags` however stable they look in practice — and a test ties
-    every `latest_` field back to a real passport field so the rule cannot rot.
-    """
+    Unprefixed fields identify the object; latest_ fields come from that version's
+    passport. Objects have no separate passport, name or tags."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -475,12 +443,9 @@ class ComponentSummary(ContractModel):
 
 
 class SetupSummary(ContractModel):
-    """Search-result card for a setup. A setup has no variant axis (ADR-0014).
+    """A setup object with facts from its latest offered version.
 
-    `latest_harness_id` keeps the prefix even though a setup belongs to one
-    harness from creation: the value is still read out of the version passport,
-    and one rule with no exceptions is cheaper to verify than a rule with one.
-    """
+    Setups have no variant axis. latest_harness_id comes from the version passport."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -501,9 +466,7 @@ class SetupSummary(ContractModel):
         default_factory=list[HarnessId]
     )
     latest_purpose: str
-    #: Optional for the same reason the passport field is (`ADR-0130`): a role
-    #: has no source, so first-party setups carry none and the card shows the
-    #: absence rather than an invented value.
+    #: Absent when the setup role has no source; no value is inferred for display.
     latest_target_role: str | None = None
     #: The published axis a user chooses along — `minimal`, `baseline`,
     #: `full-auto`, `nddev-builder`. `None` for a setup with no such axis.
@@ -603,17 +566,10 @@ class ComponentSearchRequest(ContractModel):
     page: PageNumber | None = None
     page_size: PageSize = PAGE_SIZE_DEFAULT
 
-    #: Request-scoped consent for the experimental lane (SPEC-006 REQ-603,
-    #: ADR-0029). It is a property of this call, never a stored preference:
-    #: `search.include_unverified` was deliberately removed from the CLI config,
-    #: because open-ended consent to everything unverified is not offered.
+    #: Consent to experimental results belongs to this request, never a stored preference.
     include_experimental: bool = False
-    #: Whether the browse listing offers superseded versions. Off by default:
-    #: `deprecated` stays fully representable — by id, by exact version, and by
-    #: setting this — which is what `REQ-2107` requires, while a listing is a
-    #: recommendation and a superseded version is not one. One set answered both
-    #: questions until 2026-08-30, when the catalogue's first page was 19
-    #: deprecated setups and one active.
+    #: Include superseded versions in browse results. Exact reads retain access
+    #: to deprecated versions independently of this listing preference.
     include_deprecated: bool = False
     organization_id: OrganizationId | None = None
     team_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
@@ -700,12 +656,8 @@ class SetupSearchRequest(ContractModel):
     page: PageNumber | None = None
     page_size: PageSize = PAGE_SIZE_DEFAULT
     include_experimental: bool = False
-    #: Whether the browse listing offers superseded versions. Off by default:
-    #: `deprecated` stays fully representable — by id, by exact version, and by
-    #: setting this — which is what `REQ-2107` requires, while a listing is a
-    #: recommendation and a superseded version is not one. One set answered both
-    #: questions until 2026-08-30, when the catalogue's first page was 19
-    #: deprecated setups and one active.
+    #: Include superseded versions in browse results. Exact reads retain access
+    #: to deprecated versions independently of this listing preference.
     include_deprecated: bool = False
     organization_id: OrganizationId | None = None
     team_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
@@ -762,7 +714,7 @@ class ComponentListResponse(ContractModel):
     items: Annotated[list[ComponentSummary], Field(max_length=PAGE_SIZE_MAX)]
 
     #: Experimental candidates, returned as their own section rather than mixed
-    #: into `items` (SPEC-006 REQ-603). Empty unless the request carried
+    #: into `items`. Empty unless the request carried
     #: `include_experimental`. An empty authoritative lane beside a populated
     #: experimental one is an honest answer, not an error.
     experimental: Annotated[list[ComponentSummary], Field(max_length=PAGE_SIZE_MAX)] = Field(
@@ -876,12 +828,9 @@ def _require_published(visibility: str, distribution_visibility: str | None = No
 
 
 class ComponentVersionResponse(ContractModel):
-    """Exact read of one immutable component version.
+    """An exact immutable component version and its passport digest.
 
-    The passport is the description of the version (ADR-0012): there is no
-    separate manifest entity. `passport_digest` is served alongside it so the
-    client can verify the bytes it cached independently of the transport.
-    """
+    The passport is the version description; the digest permits independent byte verification."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -955,7 +904,7 @@ class SetupContextBudgetQuery(ContractModel):
 
 
 class SetupContextBudget(ContractModel):
-    """Absolute context estimate of one visible exact setup (SPEC-049)."""
+    """Absolute context estimate of one visible exact setup."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -972,7 +921,7 @@ class SetupContextBudget(ContractModel):
 
 
 class ComponentContextBudget(ContractModel):
-    """Context estimate of one visible exact component (SPEC-049)."""
+    """Context estimate of one visible exact component."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 

@@ -9,7 +9,7 @@ import {
 } from "@testing-library/react";
 import DebugPage from "./DebugPage";
 import { cmdDebugInfo } from "../transport";
-import { useDebug } from "../store";
+import { useDebug } from "../features/diagnostics/state";
 
 vi.mock("../transport", () => ({
   cmdDebugInfo: vi.fn(),

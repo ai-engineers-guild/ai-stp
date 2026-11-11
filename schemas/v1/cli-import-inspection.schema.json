@@ -72,7 +72,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-import-inspection",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "What one native configuration holds, read and nothing more (`REQ-813`).\n\n`detection_rule` says how secrets were looked for. A report that will not\nsay how it looked cannot be told apart from one that looked properly, and\nthis one is deliberately partial — it matches key names, so a credential\nstored under a name that says nothing is not found.",
+  "description": "What one native configuration holds, read and nothing more.\n\n`detection_rule` says how secrets were looked for. A report that will not\nsay how it looked cannot be told apart from one that looked properly, and\nthis one is deliberately partial — it matches key names, so a credential\nstored under a name that says nothing is not found.",
   "properties": {
     "detection_rule": {
       "minLength": 1,

@@ -76,7 +76,7 @@
     },
     "CatalogSupportEvidence": {
       "additionalProperties": true,
-      "description": "Safe public summary of one provider support check (SPEC-033, ADR-0072).",
+      "description": "Safe public summary of one provider support check.",
       "properties": {
         "architecture": {
           "$ref": "#/$defs/SupportArchitecture"
@@ -165,7 +165,7 @@
     },
     "CatalogTrust": {
       "additionalProperties": true,
-      "description": "Why a published version may appear in results, and on whose evidence.\n\nThe two verification flags are independent axes (ADR-0016) and neither may\nbe computed from the other. `authoritative` additionally requires both, and\nthat implication is enforced below — enforcing it is not the same as\nderiving one axis from the other, and a client must still read the flags.",
+      "description": "The independent author and component verification observations.\n\nauthoritative requires both flags; neither flag is derived from the other.",
       "properties": {
         "author_verified": {
           "title": "Author Verified",

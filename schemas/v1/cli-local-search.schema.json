@@ -33,7 +33,7 @@
     },
     "SearchHit": {
       "additionalProperties": true,
-      "description": "One local object a search matched, and the lane it is in (`ADR-0016`).",
+      "description": "One local object a search matched, and the lane it is in.",
       "properties": {
         "fields": {
           "additionalProperties": {
@@ -89,7 +89,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-local-search",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "What a local search found, one section per trust lane.\n\nSeparate lists rather than one labelled list: `SPEC-006` REQ-603 requires\nthe unverified candidates to come back as a *separate section*, and a caller\nrendering a flat list of rows has already lost the distinction it asks for.",
+  "description": "Local search results in separate trust lanes.\n\nExperimental candidates occupy their own section and require explicit consent.",
   "properties": {
     "authoritative": {
       "items": {

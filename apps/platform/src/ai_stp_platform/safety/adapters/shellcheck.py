@@ -9,7 +9,12 @@ from ai_stp_platform.safety.adapters._cli import classify_cli_exit, run_cli
 from ai_stp_platform.safety.adapters.paths import relative_artifact_path
 from ai_stp_platform.safety.normalize import redact_message
 from ai_stp_platform.safety.policy import CheckSpec
-from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome, Finding
+from ai_stp_platform.safety.types import (
+    ArtifactManifest,
+    CheckOutcome,
+    Finding,
+    maximum_finding_severity,
+)
 
 # gcc format: path:line:col: severity: message [SCxxxx]
 # Greedy path so Windows `C:\...` drive colons are not the location split.
@@ -76,6 +81,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         tool_name="shellcheck",
         duration_ms=ms,
         findings=findings,
+        severity_max=maximum_finding_severity(findings),
     )
 
 

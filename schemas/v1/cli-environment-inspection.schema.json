@@ -72,7 +72,7 @@
     },
     "HarnessInstallation": {
       "additionalProperties": true,
-      "description": "One place a harness was found (`SPEC-014` REQ-1417).",
+      "description": "One place a harness was found.",
       "properties": {
         "diagnostic": {
           "default": "version_reported",
@@ -136,7 +136,7 @@
     },
     "HarnessPresence": {
       "additionalProperties": true,
-      "description": "What is known about one harness on this machine (`REQ-1415`).",
+      "description": "What is known about one harness on this machine.",
       "properties": {
         "configuration": {
           "anyOf": [
@@ -212,7 +212,7 @@
     },
     "HarnessSurvey": {
       "additionalProperties": true,
-      "description": "Every declared harness, whether or not it is here.\n\nTotal by construction. A harness absent from the answer would be\nindistinguishable from one this build does not support, and `REQ-1414`\nmakes the supported set the point.",
+      "description": "Every supported harness, including those not observed on the machine.",
       "properties": {
         "harnesses": {
           "items": {

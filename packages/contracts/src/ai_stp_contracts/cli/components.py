@@ -40,9 +40,7 @@ class PassportView(ContractModel):
     parent_revision_ids: list[str]
     created_at: Timestamp
 
-    #: The owner as this installation records it. Before sign-in that is a
-    #: locally minted identifier and not an account the platform knows
-    #: (`ADR-0060`); `#75` transfers ownership as an ordinary revision.
+    #: The locally recorded owner; an offline identifier does not imply a platform account.
     owner_id: AccountId
 
     #: Facts at this revision, exactly as the envelope holds them.
@@ -301,13 +299,9 @@ class ComponentTemplateView(ContractModel):
 
 
 class NativeComponent(ContractModel):
-    """One native component found on this machine (`SPEC-005` REQ-517).
+    """One discovered native component, without reading its content.
 
-    Reported without its content being read. `holds_secret` is decided from the
-    path's *name*: opening a file to learn whether it holds a credential is the
-    harm REQ-518 exists to prevent, so the flag says "named as one", never
-    "contains one".
-    """
+    holds_secret classifies the path name, never the contents of a file."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -344,7 +338,7 @@ class NativeComponent(ContractModel):
 
 
 class NativeComponents(ContractModel):
-    """Everything discovery found, and nothing it changed (`REQ-518`)."""
+    """Everything discovery found, and nothing it changed."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -361,7 +355,7 @@ class NativeComponents(ContractModel):
 
 
 class PathInventoryObject(ContractModel):
-    """One logical object in an explicit-root inventory (`SPEC-005` REQ-534)."""
+    """One logical object in an explicit-root inventory."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -380,7 +374,7 @@ class PathInventoryObject(ContractModel):
 
 
 class PathInventory(ContractModel):
-    """Passport-first inventory of one explicit root. Observation only (`REQ-518`)."""
+    """Passport-first inventory of one explicit root. Observation only."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -438,12 +432,11 @@ class ConsentSummary(ContractModel):
 
 
 class RecordedVersion(ContractModel):
-    """One immutable `X.Y` version (`SPEC-005` REQ-503, REQ-504).
+    """One immutable `X.Y` version.
 
     The number and the digest travel together because that pairing is the whole
     guarantee: one number stands for one hash, and an exact reference means
-    something only while that holds.
-    """
+    something only while that holds."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -455,13 +448,9 @@ class RecordedVersion(ContractModel):
 
 
 class VersionLine(ContractModel):
-    """Every recorded version of one object, and what comes next.
+    """Recorded versions and the next minor number, derived from stored history.
 
-    `next_minor` is computed from what is stored rather than remembered, so two
-    machines with the same history propose the same number. There is no
-    `next_major`: `REQ-507` makes that a decision, and a field offering it would
-    read as a suggestion to take it.
-    """
+    A major version change remains an explicit decision."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -474,15 +463,13 @@ class VersionLine(ContractModel):
     forked_from: str | None = None
     forked_from_version: str | None = None
 
-    #: Whether this may be published, and why not when it may not (`REQ-522` to
-    #: `REQ-524`). Answered at the fork rather than at publication, so an
-    #: unmodified clone is a rule the caller meets early instead of a surprise.
+    #: Publishability and its refusal reasons, established at the fork before publication.
     publishable: bool | None = None
     publish_reason: str | None = None
 
 
 class SearchHit(ContractModel):
-    """One local object a search matched, and the lane it is in (`ADR-0016`)."""
+    """One local object a search matched, and the lane it is in."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -500,12 +487,9 @@ class SearchHit(ContractModel):
 
 
 class LocalSearchResults(ContractModel):
-    """What a local search found, one section per trust lane.
+    """Local search results in separate trust lanes.
 
-    Separate lists rather than one labelled list: `SPEC-006` REQ-603 requires
-    the unverified candidates to come back as a *separate section*, and a caller
-    rendering a flat list of rows has already lost the distinction it asks for.
-    """
+    Experimental candidates occupy their own section and require explicit consent."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 

@@ -4,7 +4,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { redact } from "./redact";
-import { useDebug, type IpcEntry } from "./store";
+import { useDebug, type IpcEntry } from "./features/diagnostics/state";
 import type {
   CmdResult as NativeResult,
   Continuation,

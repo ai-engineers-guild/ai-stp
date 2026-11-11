@@ -1,7 +1,6 @@
 """The command registry as data: descriptors, machine help, capabilities and
-the schema index (`SPEC-011`). Every invocation loads this module, so it
-imports no contract family, only the foundation and the wire helpers.
-"""
+the schema index. Every invocation loads this module, so it
+imports no contract family, only the foundation and the wire helpers."""
 
 from typing import Annotated, Literal, Self
 
@@ -14,13 +13,10 @@ from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.errors import ErrorHandling, ExitClass
 from ai_stp_foundation.harnesses import HarnessId
 
-#: State effects are independent of task authority and the confirmation binding
-#: (`SPEC-011`, `docs/agent/interaction-policy.md`).
-#:
-#: - `read` observes; explicitly documented caches may be refreshed;
-#: - `plan` computes and stores an exact plan without applying its target effect;
-#: - `apply` performs the requested effect within the user's task authority;
-#: - `destructive` removes state; irreversible removal follows the decision policy.
+#: State effects are independent of task authority and confirmation.
+#: read observes; documented caches may refresh. plan retains a decision without
+#: the target effect. apply performs the authorized effect. destructive removes
+#: state; irreversible removal requires its own decision.
 type MutabilityClass = Literal["read", "plan", "apply", "destructive"]
 
 
@@ -68,17 +64,11 @@ class CommandParameter(ContractModel):
 
 
 class CommandParameterRule(ContractModel):
-    """A cross-parameter invocation rule that consumers must not parse from prose.
+    """A machine-readable cross-parameter rule.
 
-    `exactly_one` of the named parameters must be present; `at_most_one`
-    allows none but refuses two; `required_when` makes the named parameters
-    required; `forbidden_when` refuses the named parameters while its
-    condition holds. A rule carrying `when_parameter` and `when_values`
-    applies only while that parameter takes one of those values —
-    `install plan`'s source rule holds for `install`, `update` and `remove`,
-    and on `backup` and `rollback` the same pair relaxes to `at_most_one`,
-    because those actions bind to a target, not to a graph (`REQ-1207`).
-    """
+    The named parameters follow exactly_one, at_most_one, required_when or
+    forbidden_when. A conditional rule applies only when when_parameter has
+    one of when_values; consumers do not infer these rules from prose."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
