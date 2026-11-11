@@ -43,8 +43,8 @@ install_gitleaks() {
   local ver="${GITLEAKS_VERSION}"
   local asset archive expected
   case "${OS}-${ARCH}" in
-    linux-x86_64|linux-amd64) asset="gitleaks_${ver}_linux_x64.tar.gz"; expected="${GITLEAKS_LINUX_X86_64}" ;;
-    linux-aarch64|linux-arm64) asset="gitleaks_${ver}_linux_arm64.tar.gz"; expected="${GITLEAKS_LINUX_AARCH64}" ;;
+    linux-x86_64|linux-amd64) asset="gitleaks_${ver}_linux_x64.tar.gz"; expected="${GITLEAKS_SHA256_LINUX_X86_64}" ;;
+    linux-aarch64|linux-arm64) asset="gitleaks_${ver}_linux_arm64.tar.gz"; expected="${GITLEAKS_SHA256_LINUX_AARCH64}" ;;
     *) log "refuse gitleaks: unsupported ${OS}-${ARCH}"; exit 1 ;;
   esac
   archive="$(mktemp)"
@@ -61,8 +61,8 @@ install_osv_scanner() {
   local ver="${OSV_SCANNER_VERSION}"
   local asset expected
   case "${OS}-${ARCH}" in
-    linux-x86_64|linux-amd64) asset="osv-scanner_linux_amd64"; expected="${OSV_SCANNER_LINUX_X86_64}" ;;
-    linux-aarch64|linux-arm64) asset="osv-scanner_linux_arm64"; expected="${OSV_SCANNER_LINUX_AARCH64}" ;;
+    linux-x86_64|linux-amd64) asset="osv-scanner_linux_amd64"; expected="${OSV_SCANNER_SHA256_LINUX_X86_64}" ;;
+    linux-aarch64|linux-arm64) asset="osv-scanner_linux_arm64"; expected="${OSV_SCANNER_SHA256_LINUX_AARCH64}" ;;
     *) log "refuse osv-scanner: unsupported ${OS}-${ARCH}"; exit 1 ;;
   esac
   download \
@@ -144,8 +144,8 @@ install_gosec() {
   local ver="${GOSEC_VERSION}"
   local asset archive expected
   case "${OS}-${ARCH}" in
-    linux-x86_64|linux-amd64) asset="gosec_${ver}_linux_amd64.tar.gz"; expected="${GOSEC_LINUX_X86_64}" ;;
-    linux-aarch64|linux-arm64) asset="gosec_${ver}_linux_arm64.tar.gz"; expected="${GOSEC_LINUX_AARCH64}" ;;
+    linux-x86_64|linux-amd64) asset="gosec_${ver}_linux_amd64.tar.gz"; expected="${GOSEC_SHA256_LINUX_X86_64}" ;;
+    linux-aarch64|linux-arm64) asset="gosec_${ver}_linux_arm64.tar.gz"; expected="${GOSEC_SHA256_LINUX_AARCH64}" ;;
     *) log "refuse gosec: unsupported ${OS}-${ARCH}"; exit 1 ;;
   esac
   archive="$(mktemp)"
