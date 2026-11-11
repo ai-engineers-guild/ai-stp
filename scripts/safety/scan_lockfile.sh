@@ -75,6 +75,7 @@ for lockfile in \
   apps/desktop/src-tauri/Cargo.lock \
   apps/cli/Cargo.lock \
   apps/cli/xtask/Cargo.lock \
+  scripts/safety/cisco/uv.lock \
   requirements.txt:scripts/safety/requirements.lock; do
   scanner_status=0
   if [[ -n "${config_override}" ]]; then
