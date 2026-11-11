@@ -62,8 +62,8 @@ exact workflow identities belong to the GitHub release and its source PR.
 
 ## Install and update
 
-Choose the archive for your platform from
-[CLI 0.3.0](https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.3.0).
+Choose a `cli-v<version>` archive for your platform from
+[GitHub Releases](https://github.com/ai-engineers-guild/ai-stp/releases).
 Verify it as described above, then run the extracted executable outside its
 intended installation directory:
 
