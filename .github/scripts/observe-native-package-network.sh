@@ -20,7 +20,7 @@ for owner in runner apt; do
   fi
   printf 'native-package-network stage=%s owner=%s resolver_readable=%s\n' \
     "${stage}" "${owner}" "${readable}"
-  for host in github.com azure.archive.ubuntu.com archive.ubuntu.com security.ubuntu.com; do
+  for host in github.com azure.archive.ubuntu.com archive.ubuntu.com security.ubuntu.com ubuntu.osuosl.org; do
     if "${command_prefix[@]}" timeout --signal=TERM --kill-after=1s 5s \
       getent ahosts "${host}" >/dev/null 2>&1; then
       result=resolved
