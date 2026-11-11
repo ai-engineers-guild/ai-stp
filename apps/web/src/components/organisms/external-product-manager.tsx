@@ -292,7 +292,7 @@ function ServiceRequestDialog({
   const [status, setStatus] = useState<Status | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function submit(event: React.FormEvent<HTMLFormElement>) {
+  function submit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     event.stopPropagation();
     startTransition(async () => {
@@ -462,7 +462,7 @@ function CountryRequestDialog({
   const [status, setStatus] = useState<Status | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function submit(event: React.FormEvent<HTMLFormElement>) {
+  function submit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     event.stopPropagation();
     const normalizedCode = code.trim().toUpperCase();

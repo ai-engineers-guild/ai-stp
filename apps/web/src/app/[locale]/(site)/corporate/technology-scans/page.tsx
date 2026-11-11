@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { TechnologyScanLaunch } from "@/components/organisms/technology-scan-launch";
 import { TechnologyScanJournal } from "@/components/organisms/technology-scan-journal";
@@ -18,7 +18,6 @@ export default async function TechnologyScansPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/technology-scans`);
   const session = (await sessionCookieValue()) ?? "",
     t = await getTranslations("technology"),

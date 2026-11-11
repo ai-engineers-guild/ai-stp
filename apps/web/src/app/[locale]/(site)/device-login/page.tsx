@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { approveDeviceCodeAction } from "@/actions/device-login";
 import { Button } from "@/components/atoms/button";
@@ -23,7 +23,6 @@ type PageProps = {
 
 export default async function DeviceLoginPage({ params, searchParams }: PageProps) {
   const { locale } = await params;
-  setRequestLocale(locale);
   const sp = await searchParams;
   const t = await getTranslations("deviceLogin");
 

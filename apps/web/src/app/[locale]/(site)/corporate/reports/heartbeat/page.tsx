@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { Button } from "@/components/atoms/button";
 import {
   CorporateHeartbeatReport,
@@ -27,7 +27,6 @@ export default async function DeviceHeartbeatReportPage({
 }) {
   const { locale } = await params;
   const query = await searchParams;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/reports/heartbeat`);
   const t = await getTranslations("corporateReports");
   const token = await sessionCookieValue();

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { listPublishedContent } from "@/lib/api/content";
 import { CONTENT_TYPES } from "@/lib/content/source";
@@ -20,7 +20,6 @@ export async function generateMetadata({
 
 export default async function ContentIndex({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   const t = await getTranslations("content");
   const entries = await listPublishedContent(locale);
   const [featured, ...latest] = entries;

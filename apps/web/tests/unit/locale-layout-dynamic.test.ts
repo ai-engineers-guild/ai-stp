@@ -6,7 +6,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("next-intl/server", () => ({
   getMessages: vi.fn(),
   getTranslations: vi.fn(),
-  setRequestLocale: vi.fn(),
 }));
 vi.mock("@/components/providers/app-providers", () => ({ AppProviders: vi.fn() }));
 vi.mock("@/components/organisms/docs-nav", () => ({ DocsNav: vi.fn() }));

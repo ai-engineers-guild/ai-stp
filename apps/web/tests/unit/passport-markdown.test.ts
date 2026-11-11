@@ -63,6 +63,6 @@ describe("renderPassportDescription", () => {
   });
 
   it("rejects an unknown renderer version", () => {
-    expect(() => projectSafeMarkdown("text", "safe_markdown_v2")).toThrowError(MarkdownPolicyError);
+    expect(() => projectSafeMarkdown("text", "safe_markdown_v2")).toThrow(MarkdownPolicyError);
   });
 });

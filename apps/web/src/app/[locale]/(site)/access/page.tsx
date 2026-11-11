@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { AccessWorkspace } from "@/components/organisms/access-workspace";
 import type { AccessGrantResponse } from "@/lib/api/generated/types.gen";
@@ -21,7 +21,6 @@ type PageProps = {
 export default async function AccessPage({ params, searchParams }: PageProps) {
   const { locale } = await params;
   const sp = await searchParams;
-  setRequestLocale(locale);
   const session = await requireSession(locale, `/${locale}/access`);
   const t = await getTranslations("access");
   const tc = await getTranslations("common");

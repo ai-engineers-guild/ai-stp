@@ -148,7 +148,7 @@ async function readCategoryTechnologies(
 ): Promise<TechnologyList> {
   const items: TechnologyView[] = [];
   let offset = 0;
-  let total = 0;
+  let total: number;
   do {
     const page = await privateApiRequest<TechnologyList>(`${path}/technologies`, {
       sessionToken,
@@ -243,7 +243,7 @@ export async function readTechnologyProjects(
   const path = `/v1/corporate/organizations/${organizationId}`;
   try {
     const items: ProjectTechnologyList["items"] = [];
-    let total = 0;
+    let total: number;
     do {
       const page = await privateApiRequest<ProjectTechnologyList>(
         `${path}/technologies/${technologyId}/projects`,

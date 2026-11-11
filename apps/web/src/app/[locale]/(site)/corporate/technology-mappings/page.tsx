@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { TechnologyScanFindings } from "@/components/organisms/technology-scan-findings";
 import { readCorporateContext } from "@/lib/api/corporate";
@@ -15,7 +15,6 @@ export default async function TechnologyReviewPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/technology-mappings`);
   const session = (await sessionCookieValue()) ?? "",
     t = await getTranslations("technology");

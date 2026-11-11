@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateDirectory } from "@/components/organisms/corporate-directory";
@@ -120,7 +120,6 @@ export default async function CorporateCatalogPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/catalog`);
   const t = await getTranslations("hub");
   const common = await getTranslations("common");
@@ -153,8 +152,8 @@ export default async function CorporateCatalogPage({
     tags?: readonly string[];
     version?: string;
     catalog_item?: ComponentSummary;
-  }> = [];
-  let pageInfo: { page_number: number; page_size: number; total_items: number } | null = null;
+  }>;
+  let pageInfo: { page_number: number; page_size: number; total_items: number } | null;
   try {
     const [result, authors] = await Promise.all([
       searchComponents({

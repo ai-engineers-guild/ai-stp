@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { StatePanel } from "@/components/molecules/state-panel";
 import {
@@ -23,7 +23,6 @@ export default async function CorporateTelemetryPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/admin/telemetry`);
   const session = (await sessionCookieValue()) ?? "";
   const t = await getTranslations("technology");

@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/atoms/badge";
 import { StaffCaseActions } from "@/components/organisms/staff-case-actions";
@@ -14,7 +14,6 @@ type PageProps = {
 
 export default async function StaffReportDetailPage({ params }: PageProps) {
   const { locale, caseId } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/staff/reports/${caseId}`);
   const t = await getTranslations("staff");
   const tc = await getTranslations("common");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type FormEvent, type ReactNode } from "react";
+import { useState, useTransition, type SubmitEvent, type ReactNode } from "react";
 
 import { validateCatalogQuery } from "@/lib/catalog-query";
 import { cn } from "@/lib/cn";
@@ -28,7 +28,7 @@ export function CatalogSearchForm({
   const router = useRouter();
   const pathname = usePathname();
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
+  function onSubmit(event: SubmitEvent<HTMLFormElement>) {
     const form = event.currentTarget;
     const queryControl = form.elements.namedItem("q");
     if (queryControl instanceof HTMLInputElement) {

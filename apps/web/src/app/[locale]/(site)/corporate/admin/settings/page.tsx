@@ -1,5 +1,5 @@
 import { useTranslations } from "next-intl";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/atoms/badge";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
@@ -17,7 +17,6 @@ export default async function CorporateSettingsPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/admin/settings`);
   const session = (await sessionCookieValue()) ?? "";
   const t = await getTranslations("technology");

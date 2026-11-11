@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/atoms/badge";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
@@ -14,7 +14,6 @@ export default async function AreaDetailPage({
   params: Promise<{ locale: string; areaId: string }>;
 }) {
   const { locale, areaId } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/areas/${areaId}`);
   const token = (await sessionCookieValue()) ?? "";
   const context = await readCorporateContext(token);

@@ -1,5 +1,5 @@
 import { Select } from "@/components/atoms/select";
-import type { FormEventHandler, ReactNode } from "react";
+import type { SubmitEventHandler, ReactNode } from "react";
 
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
@@ -78,7 +78,7 @@ export function ReportFormLayout({
   onSubmit,
   children,
 }: {
-  onSubmit: FormEventHandler<HTMLFormElement>;
+  onSubmit: SubmitEventHandler<HTMLFormElement>;
   children: ReactNode;
 }) {
   return (

@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { completeLegalOnboardingAction } from "@/actions/legal-onboarding";
 import { Button } from "@/components/atoms/button";
@@ -14,7 +14,6 @@ type PageProps = {
 export default async function LegalOnboardingPage({ params, searchParams }: PageProps) {
   const { locale } = await params;
   const { returnTo: requestedReturnTo, reason } = await searchParams;
-  setRequestLocale(locale);
   const t = await getTranslations("onboarding");
   const fallback = `/${locale}/account`;
   const returnTo = requestedReturnTo?.startsWith(`/${locale}/`) ? requestedReturnTo : fallback;

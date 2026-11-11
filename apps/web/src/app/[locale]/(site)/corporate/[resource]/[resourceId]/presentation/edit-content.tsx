@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { notFound, permanentRedirect } from "next/navigation";
 
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
@@ -25,7 +25,6 @@ export default async function CorporatePresentationEditContent({
     permanentRedirect(`/${locale}/corporate/employees/${encodeURIComponent(resourceId)}`);
   }
   if (resource !== "projects" && resource !== "teams" && resource !== "employees") notFound();
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/${resource}/${resourceId}/presentation/edit`);
   const session = (await sessionCookieValue()) ?? "";
   const common = await getTranslations("common");

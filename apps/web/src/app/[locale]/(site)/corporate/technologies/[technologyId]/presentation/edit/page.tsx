@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { StatePanel } from "@/components/molecules/state-panel";
@@ -16,7 +16,6 @@ export default async function TechnologyPresentationEditPage({
   params: Promise<{ locale: string; technologyId: string }>;
 }) {
   const { locale, technologyId } = await params;
-  setRequestLocale(locale);
   await requireSession(
     locale,
     `/${locale}/corporate/technologies/${technologyId}/presentation/edit`,

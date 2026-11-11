@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { AvatarImage } from "@/components/atoms/avatar-image";
 import { Badge } from "@/components/atoms/badge";
@@ -25,7 +25,6 @@ type PageProps = {
 
 export default async function AccountPage({ params }: PageProps) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/account`);
   const t = await getTranslations("account");
   const tc = await getTranslations("common");

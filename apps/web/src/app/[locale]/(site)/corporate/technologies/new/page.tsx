@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { StatePanel } from "@/components/molecules/state-panel";
 import { TechnologyRegistryCreate } from "@/components/organisms/technology-registry-create";
@@ -11,7 +11,6 @@ import TechnologyRegistryPage from "@/app/[locale]/(site)/corporate/technologies
 
 export async function NewTechnologyContent({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/technologies/new`);
   const t = await getTranslations("technology");
   const c = await getTranslations("corporate");

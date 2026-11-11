@@ -1,13 +1,13 @@
 import { loadContextBudget } from "@/lib/context-budget";
 import type { Metadata } from "next";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/atoms/badge";
 import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
 import { CliCopyBlock } from "@/components/molecules/cli-copy-block";
 import { ExactSourceLink } from "@/components/molecules/exact-source-link";
-import { SetupFamilyBlock, setupFamilyLabels } from "@/components/molecules/setup-family";
+import { SetupFamilyBlock, setupFamilyLabels } from "@/components/organisms/setup-family";
 import { contextBudgetLabels } from "@/lib/context-budget-labels";
 import { ContextBudgetPanel } from "@/components/organisms/context-budget-panel";
 import { SetupComposition } from "@/components/organisms/setup-composition";
@@ -51,7 +51,6 @@ async function loadGithubMetadata(
 
 export default async function SetupVersionPage({ params }: PageProps) {
   const { locale, stableId, version } = await params;
-  setRequestLocale(locale);
   const setupId = tryAsSetupId(stableId);
   if (!setupId) notFound();
 

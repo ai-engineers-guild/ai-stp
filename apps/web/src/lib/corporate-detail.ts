@@ -18,9 +18,8 @@ const CORPORATE_RESOURCE_ID_PATTERN: Record<CorporateDetailResource, RegExp> = {
 };
 
 const safeUrl = z
-  .string()
-  .max(2048)
   .url()
+  .max(2048)
   .refine((value) => {
     const url = new URL(value);
     return /^https:\/\//i.test(value) && !url.username && !url.password;

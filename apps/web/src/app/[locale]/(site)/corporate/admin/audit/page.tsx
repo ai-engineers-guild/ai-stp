@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateAuditPanel } from "@/components/organisms/corporate-audit-panel";
@@ -14,7 +14,6 @@ export default async function CorporateAuditPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/admin/audit`);
   const t = await getTranslations("corporate");
   const hub = await getTranslations("hub");

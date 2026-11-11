@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import {
   RegionalServicesExplorer,
@@ -19,7 +19,6 @@ export default async function RegionalServicesPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   const t = await getTranslations("regionalServices");
   const services = await listExternalProducts()
     .then((result) => result.items)

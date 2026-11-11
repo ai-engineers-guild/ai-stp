@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { AcceptInvitation } from "@/components/organisms/accept-invitation";
 import { corporateHref } from "@/lib/features/corporate-path";
@@ -16,7 +16,6 @@ type PageProps = {
  */
 export default async function AcceptInvitationPage({ params }: PageProps) {
   const { locale, invitationId } = await params;
-  setRequestLocale(locale);
   const t = await getTranslations("invitations");
 
   const tc = await getTranslations("common");

@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { mockLoginCancelAction, mockLoginErrorAction, startLoginAction } from "@/actions/auth";
 import { Button } from "@/components/atoms/button";
@@ -42,7 +42,6 @@ function oauthLoginHref(provider: LoginProvider, returnTo: string): string {
  */
 export default async function LoginPage({ params, searchParams }: PageProps) {
   const { locale } = await params;
-  setRequestLocale(locale);
   const sp = await searchParams;
   const t = await getTranslations("login");
   const tc = await getTranslations("common");

@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 
 import { approveDeviceCodeAction } from "@/actions/device-login";
@@ -20,7 +20,6 @@ type PageProps = {
 export default async function DevicesPage({ params, searchParams }: PageProps) {
   const { locale } = await params;
   const sp = await searchParams;
-  setRequestLocale(locale);
   const session = await requireSession(locale, `/${locale}/devices`);
   const t = await getTranslations("devices");
   const tc = await getTranslations("common");

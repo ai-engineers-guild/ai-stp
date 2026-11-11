@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/atoms/badge";
@@ -62,7 +62,6 @@ type PageProps = {
 export default async function PublisherPage({ params, searchParams }: PageProps) {
   const { locale, account } = await params;
   const sp = await searchParams;
-  setRequestLocale(locale);
   const t = await getTranslations("publisher");
   const tc = await getTranslations("common");
   const tCatalog = await getTranslations("catalog");
@@ -98,8 +97,8 @@ export default async function PublisherPage({ params, searchParams }: PageProps)
   const started = startCatalogResourceReads(query);
   const services = await started.services;
   let errorMessage: string | null = null;
-  let components: Awaited<typeof started.components> = null;
-  let setups: Awaited<typeof started.setups> = null;
+  let components: Awaited<typeof started.components>;
+  let setups: Awaited<typeof started.setups>;
   try {
     [components, setups] = await Promise.all([started.components, started.setups]);
     if (!components || !setups) throw new Error("catalog resource unavailable");
@@ -119,7 +118,7 @@ export default async function PublisherPage({ params, searchParams }: PageProps)
       profile.links.length === 0 &&
       !profile.avatar_url);
   const isOwner = session?.accountId === accountId;
-  let publisherLink: string | null = null;
+  let publisherLink: string | null;
   try {
     publisherLink = buildDeepLink(
       publicOrigin().origin,

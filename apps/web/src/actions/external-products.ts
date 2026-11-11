@@ -69,10 +69,10 @@ export async function requestExternalProductAction(input: unknown) {
   const parsed = base
     .extend({
       name: z.string().min(1).max(160),
-      primaryUrl: z.string().url().max(512),
+      primaryUrl: z.url().max(512),
       descriptionRu: z.string().min(1).max(2000),
       descriptionEn: z.string().min(1).max(2000),
-      sourceUrl: z.string().url().max(512),
+      sourceUrl: z.url().max(512),
       countryCodes: z.array(z.string().regex(/^[A-Z]{2}$/)).max(249),
     })
     .safeParse(input);

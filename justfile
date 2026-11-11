@@ -489,6 +489,7 @@ web-static: web-source web-i18n
 [group('web')]
 web-test:
     {{ bunreq }}
+    cd apps/web && bun run test:lint
     cd apps/web && bun run test:coverage
     cd apps/web && bun run test:coverage:catalog
 
@@ -530,7 +531,7 @@ web-regress *args: web-build
     {{ run }} python release_scripts/run_bash.py .github/scripts/ensure-chrome.sh
     cd apps/web && bun run test:e2e {{ args }}
 
-# Two independent production builds prove build-time feature exclusion.
+# Three independent production builds prove build-time feature exclusion.
 [group('web')]
 web-feature-profiles:
     {{ bunreq }}

@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/atoms/badge";
 import { CategoryIconBadge } from "@/components/molecules/category-icon-badge";
 import { EntityDetailMenu } from "@/components/organisms/entity-detail-menu";
@@ -18,7 +18,6 @@ export default async function CategoryDetailPage({
   params: Promise<{ locale: string; categoryId: string }>;
 }) {
   const { locale, categoryId } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/categories/${categoryId}`);
   const session = (await sessionCookieValue()) ?? "";
   const h = await getTranslations("hub");

@@ -1,5 +1,5 @@
 import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { ObjectPresentationForm } from "@/components/organisms/object-presentation-form";
@@ -18,7 +18,6 @@ export async function ObjectPresentationEditorPage({
   objectKind: "component" | "setup";
   stableId: string;
 }) {
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/objects/${objectKind}/${stableId}/edit`);
   const t = await getTranslations("objects");
   const tc = await getTranslations("common");

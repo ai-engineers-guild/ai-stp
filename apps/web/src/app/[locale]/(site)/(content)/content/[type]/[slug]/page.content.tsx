@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { MarkdownDescription } from "@/components/molecules/markdown-description";
 import { SeoJsonLd } from "@/components/molecules/seo-json-ld";
@@ -52,7 +52,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ContentDetail({ params }: Props) {
   const { locale, type, slug } = await params;
-  setRequestLocale(locale);
   const entry = await readPublishedContent(locale, type, slug);
   if (!entry) notFound();
   const t = await getTranslations("content");

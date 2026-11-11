@@ -4,7 +4,7 @@ import {
   contextBudgetLabels,
 } from "@/components/organisms/context-budget-panel";
 import type { Metadata } from "next";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
 
 import { Badge } from "@/components/atoms/badge";
@@ -55,7 +55,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 // eslint-disable-next-line max-lines-per-function
 export default async function ComponentVersionPage({ params }: PageProps) {
   const { locale, stableId, version } = await params;
-  setRequestLocale(locale);
   const componentId = tryAsComponentId(stableId);
   if (!componentId) notFound();
   const token = await sessionCookieValue();

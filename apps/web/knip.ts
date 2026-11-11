@@ -17,8 +17,6 @@ const config: KnipConfig = {
     "src/stories/shims/*.{ts,tsx}",
     "src/lib/features/disabled-public-surface.ts",
   ],
-  // eslint-plugin-import loads this from the `import/resolver: { node: true }` setting.
-  ignoreDependencies: ["eslint-import-resolver-node"],
 };
 
 export default config;

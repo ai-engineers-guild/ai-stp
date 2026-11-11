@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { CliCopyBlock } from "@/components/molecules/cli-copy-block";
 import { StatePanel } from "@/components/molecules/state-panel";
@@ -34,7 +34,6 @@ function catalogParams(
 // eslint-disable-next-line max-lines-per-function
 export default async function OwnerObjectsPage({ params, searchParams }: PageProps) {
   const { locale } = await params;
-  setRequestLocale(locale);
   const raw = await searchParams;
   const session = await requireSession(locale, `/${locale}/objects`);
   const token = (await sessionCookieValue()) ?? "";

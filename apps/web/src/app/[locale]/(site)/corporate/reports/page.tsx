@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { Table, TBody, Td, Tr } from "@/components/atoms/table";
 import { CorporateReportCard } from "@/components/organisms/corporate-report-card";
 import { StatePanel } from "@/components/molecules/state-panel";
@@ -11,7 +11,6 @@ export default async function CorporateReportsPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/reports`);
   const t = await getTranslations("corporateReports");
   const token = await sessionCookieValue();

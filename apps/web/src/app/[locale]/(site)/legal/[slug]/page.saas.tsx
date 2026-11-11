@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { legalSourceUrl, readPublicLegalDocument } from "@/lib/api/public-legal";
@@ -26,7 +26,6 @@ function isPolicySlug(value: string): value is PolicySlug {
 export default async function LegalPolicyPage({ params, searchParams }: PageProps) {
   const { locale, slug } = await params;
   const { revision } = await searchParams;
-  setRequestLocale(locale);
   if (!isPolicySlug(slug)) notFound();
 
   const [t, policy] = await Promise.all([

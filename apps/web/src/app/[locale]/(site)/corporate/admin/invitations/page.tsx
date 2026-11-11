@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateInvitationsPanel } from "@/components/organisms/corporate-invitations-panel";
@@ -19,7 +19,6 @@ type PageProps = {
 
 export default async function CorporateInvitationsPage({ params }: PageProps) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/admin/invitations`);
   const t = await getTranslations("people");
   const h = await getTranslations("hub");
