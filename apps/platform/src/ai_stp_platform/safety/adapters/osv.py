@@ -115,7 +115,7 @@ def run(tree: Path, manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome
         # OSV also uses 127 for extraction/database failures after it starts.
         state = "degraded"
         detail = {"reason": "tool_error", "exit_code": code, "stderr": redact_message(err[:200])}
-    if state == "degraded":
+    if state not in {"passed", "finding"}:
         return CheckOutcome(
             check_id=spec.check_id,
             family=spec.family,

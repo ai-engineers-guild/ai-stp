@@ -113,7 +113,7 @@ def osv_db_status() -> dict[str, Any]:
     return {
         "configured": True,
         "path": str(directory),
-        "present": True,
+        "present": file_count > 0,
         "fresh": fresh,
         "age_hours": round(age_hours, 3),
         "max_age_hours": max_age,
