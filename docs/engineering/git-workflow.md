@@ -86,7 +86,6 @@ marks diagnostic_only; it has no delivery authority. Full source callers cannot
 select another producer. Windows refusals record read-only ACL/attribute summaries
 of the new synthetic fixture directories; they never repair existing permissions.
 
-
 The installed ABBA owner retains both end-to-end navigation and an independent
 WebView observation from the trusted navigation click through usable content,
 loaded fonts and two paint frames. The nonnegative residual includes automation
