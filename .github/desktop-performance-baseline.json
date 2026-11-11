@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
-  "version": "0.4.2",
-  "source_commit": "682e6939fb38b4151d974e9e540d9b334527482b",
+  "version": "0.5.2",
+  "source_commit": "78e75ffc39af483c00a58dd054467ea453d3180a",
   "assets": [
     {
       "repository": "ai-engineers-guild/ai-stp",
-      "asset": 723008983,
-      "size": 20268630,
-      "sha256": "a8d4f9535dab9cfb345130142cd3c6dbf180c5bd21517212d92a0cb4dd1fcf13",
-      "file": "ai-stp-desktop_0.4.2_amd64.deb"
+      "asset": 733722466,
+      "size": 25646030,
+      "sha256": "b3ac96ef78ef0b919f2475990cb35bc2a70e62abefacccda48bf280fa0210abc",
+      "file": "ai-stp-desktop_0.5.2_amd64.deb"
     }
   ]
 }
