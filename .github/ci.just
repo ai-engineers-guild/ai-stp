@@ -569,4 +569,9 @@ ci-safety-runtime-test:
 [group('ci')]
 [private]
 ci-native-vendor-codex:
-    python tests/native_vendor/codex.py --manifest "${AI_STP_CODEX_MANIFEST}" --tools "${AI_STP_CODEX_TOOLS}" --proof "${AI_STP_CODEX_PROOF}"
+    python -m tests.native_vendor.codex --manifest "${AI_STP_CODEX_MANIFEST}" --tools "${AI_STP_CODEX_TOOLS}" --proof "${AI_STP_CODEX_PROOF}"
+
+[group('ci')]
+[private]
+ci-native-vendor-grok:
+    python -m tests.native_vendor.grok --distribution tests/native_vendor/grok-distribution --proof "${AI_STP_GROK_PROOF}"

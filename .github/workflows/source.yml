@@ -76,7 +76,7 @@ jobs:
 
   vendor-discovery:
     if: github.event_name != 'pull_request'
-    uses: ./.github/workflows/native-vendor-codex.yml
+    uses: ./.github/workflows/native-vendor.yml
 
   secrets:
     runs-on: ubuntu-26.04

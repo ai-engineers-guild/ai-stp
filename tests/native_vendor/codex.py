@@ -15,10 +15,12 @@ import tarfile
 import tempfile
 import threading
 import time
-from contextlib import ExitStack, suppress
+from contextlib import suppress
 from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urlparse
+
+from .common import binary_digest, environment, native_user_scope, write_skill
 
 PREFIX = "ai-stp-qualification-"
 
@@ -116,18 +118,6 @@ class Rpc:
         self.output.close()
 
 
-def write_skill(root: Path, folder: str, name: str, description: str) -> Path:
-    directory = root / folder
-    directory.mkdir(parents=True)
-    document = directory / "SKILL.md"
-    document.write_text(
-        f"---\nname: {name}\ndescription: {description}\n---\n"
-        "Format only caller-supplied fixture text.\n",
-        encoding="utf-8",
-    )
-    return document
-
-
 def entries(result: dict[str, Any]) -> list[dict[str, Any]]:
     return [
         skill
@@ -171,32 +161,14 @@ def qualify(executable: Path, root: Path, native_user_root: Path | None = None) 
     project_configuration = project / ".codex" / "config.toml"
     project_configuration.parent.mkdir()
     project_configuration.write_text('model_verbosity = "high"\n', encoding="utf-8")
-    environment = {
-        name: value
-        for name, value in os.environ.items()
-        if name in {"PATH", "SystemRoot", "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT"}
-    }
-    environment.update(
-        {
-            "HOME": str(case_home),
-            "USERPROFILE": str(case_home),
-            "CODEX_HOME": str(vendor_home),
-            "TMPDIR": str(root / "t"),
-            "TMP": str(root / "t"),
-            "TEMP": str(root / "t"),
-            "LANG": "C.UTF-8",
-            "XDG_CONFIG_HOME": str(case_home / ".config"),
-            "XDG_CACHE_HOME": str(case_home / ".cache"),
-            "XDG_DATA_HOME": str(case_home / ".local" / "share"),
-        }
-    )
+    child_environment = environment(root, "CODEX_HOME", vendor_home)
     requests: list[str] = []
     controls: dict[str, bool] = {}
     with (root / "stderr.log").open("wb") as errors:
         process = subprocess.Popen(
             [str(executable), "app-server", "--listen", "stdio://"],
             cwd=project,
-            env=environment,
+            env=child_environment,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=errors,
@@ -305,33 +277,19 @@ def main() -> None:
         tempfile.TemporaryDirectory(
             prefix="stp-codex-", dir=os.environ.get("RUNNER_TEMP")
         ) as temporary,
-        ExitStack() as owned_profile,
+        native_user_scope("codex") as native_user_root,
     ):
         root = Path(temporary)
         executable, declaration = prepare(arguments.manifest, arguments.tools, root)
-        native_user_root = None
-        if os.name == "nt":
-            assert os.environ.get("GITHUB_ACTIONS") == "true"
-            assert os.environ.get("RUNNER_OS") == "Windows"
-            profile_home = Path.home().resolve()
-            parent = profile_home / ".agents" / "skills"
-            assert parent.resolve().is_relative_to(profile_home)
-            parent.mkdir(parents=True, exist_ok=True)
-            assert parent.resolve().is_relative_to(profile_home)
-            native_user_root = Path(
-                owned_profile.enter_context(
-                    tempfile.TemporaryDirectory(prefix="stp-codex-", dir=parent)
-                )
-            )
+        digest = binary_digest(executable)
         result = qualify(executable.resolve(), root, native_user_root)
-        with executable.open("rb") as stream:
-            binary_digest = hashlib.file_digest(stream, "sha256").hexdigest()
+        assert binary_digest(executable) == digest, "Vendor binary changed during qualification"
     proof = {
         "schema_version": 1,
         "source_sha": source,
         "vendor": "codex",
         "vendor_version": declaration["version"],
-        "vendor_binary_sha256": binary_digest,
+        "vendor_binary_sha256": digest,
         "platform": platform.system(),
         "architecture": platform.machine(),
         "release_authorized": False,
